@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { openExternal } from '../../api/external';
 import { setupDownloadStreamUrl } from '../../api/setup';
+import { listLoadedModels, unloadLoadedModel } from '../../api/system';
 import { useModels, useRecommendations, useInstallModel, useDeleteModel } from '../../api/hooks';
 import { Button, Segmented } from '../../ui';
 import { SettingsSection, SettingsInput, SETTINGS_SECTION_SURFACE } from './primitives';
@@ -158,10 +159,51 @@ export default function ModelStoreTab({ info, modelBadge }) {
     return () => clearTimeout(t);
   }, [rowState, modelsQuery, recoQuery]);
 
+  // Memory residency: repo_id (checkpoint) → its /model/loaded entry. Marks
+  // rows whose weights are resident in RAM/VRAM right now and enables the
+  // Unload affordance where the backend says the entry is unloadable.
+  // Advisory — a fetch failure just means no chips, never a broken tab.
+  const [loadedModels, setLoadedModels] = useState([]);
+  const refreshLoaded = useCallback(async () => {
+    try {
+      const res = await listLoadedModels();
+      setLoadedModels(res?.models || []);
+    } catch {
+      setLoadedModels([]);
+    }
+  }, []);
+  useEffect(() => {
+    refreshLoaded();
+  }, [refreshLoaded]);
+  const residencyByRepo = useMemo(() => {
+    const map = {};
+    for (const lm of loadedModels) {
+      if (lm?.checkpoint) map[lm.checkpoint] = lm;
+    }
+    return map;
+  }, [loadedModels]);
+  const getResidency = useCallback((m) => residencyByRepo[m.repo_id] || null, [residencyByRepo]);
+  const onUnload = useCallback(
+    async (repoId) => {
+      const entry = residencyByRepo[repoId];
+      if (!entry) return;
+      try {
+        await unloadLoadedModel(entry.id);
+        toast.success(t('models.unloaded_toast'));
+      } catch (e) {
+        toast.error(t('models.unload_failed', { message: e.message || String(e) }));
+      } finally {
+        refreshLoaded();
+      }
+    },
+    [residencyByRepo, refreshLoaded, t],
+  );
+
   const reload = useCallback(() => {
     modelsQuery.refetch();
     recoQuery.refetch();
-  }, [modelsQuery, recoQuery]);
+    refreshLoaded();
+  }, [modelsQuery, recoQuery, refreshLoaded]);
 
   const withBusy = useCallback(async (repoId, fn, successMsg) => {
     setBusy((prev) => new Set(prev).add(repoId));
@@ -311,6 +353,8 @@ export default function ModelStoreTab({ info, modelBadge }) {
         onReinstall,
         onCancel,
         onDismissError,
+        getResidency,
+        onUnload,
       }),
     [
       getRowRuntime,
@@ -319,6 +363,8 @@ export default function ModelStoreTab({ info, modelBadge }) {
       onReinstall,
       onCancel,
       onDismissError,
+      getResidency,
+      onUnload,
       MODEL_ROLE_LABEL,
       t,
     ],
@@ -483,6 +529,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
         installingReco={installingReco}
         setInstallingReco={setInstallingReco}
         onInstallRecommended={onInstallRecommended}
+        diskFreeGb={data.disk_free_gb}
       />
 
       <div className="my-[var(--space-2)] flex items-center gap-[var(--space-2)] max-[580px]:flex-col max-[580px]:items-stretch">
@@ -522,6 +569,10 @@ export default function ModelStoreTab({ info, modelBadge }) {
         tableBodyRef={tableBodyRef}
         getRowRuntime={getRowRuntime}
         t={t}
+        onClearFilters={() => {
+          setQuery('');
+          setActiveRole('all');
+        }}
       />
     </section>
   );

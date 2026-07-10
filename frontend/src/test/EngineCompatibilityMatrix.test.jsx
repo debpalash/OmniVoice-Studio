@@ -9,6 +9,14 @@ vi.mock('react-hot-toast', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
+// Residency layer defaults (/model/loaded) — mocked so tests that don't
+// inject apiListLoadedModels never hit the network (apiFetch retries with
+// real-timer backoff on a dead transport). Residency tests inject their own.
+vi.mock('../api/system', () => ({
+  listLoadedModels: vi.fn().mockResolvedValue({ models: [], count: 0 }),
+  unloadLoadedModel: vi.fn(),
+}));
+
 import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
 
 /** Build a minimal AllEnginesResponse with the three rows the plan calls for. */
@@ -886,5 +894,206 @@ describe('EngineCompatibilityMatrix', () => {
     await waitFor(() => screen.getByText('OmniVoice (test)'));
     expect(screen.getByText('Engine Compatibility Matrix')).toBeInTheDocument();
     expect(document.querySelectorAll('.engine-matrix__tab-family').length).toBe(3);
+  });
+
+  it('names what each family does in pinned mode (one description line)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(multiFamilyResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="asr"
+        showFamilyTabs={false}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('WhisperX (test)'));
+    expect(screen.getByTestId('family-desc-asr')).toHaveTextContent(/turns audio into text/i);
+  });
+
+  // ── Engine identity mark — one scannable monogram per row ───────────────
+  it('renders a deterministic identity mark on every engine row', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    // Monogram derives from the id: "omnivoice" → "OM", "indextts2" → "IN".
+    expect(screen.getByTestId('engine-mark-omnivoice')).toHaveTextContent('OM');
+    expect(screen.getByTestId('engine-mark-indextts2')).toHaveTextContent('IN');
+    expect(screen.getByTestId('engine-mark-kittentts')).toBeInTheDocument();
+    // Decorative — the name/id are the accessible text.
+    expect(screen.getByTestId('engine-mark-omnivoice')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  // ── `hint` — available-but-has-advice rows ──────────────────────────────
+  function hintResponse() {
+    const resp = makeEnginesResponse();
+    // OmniVoice: available with advice (the VoxCPM2 ">=2.0.3" shape).
+    resp.tts.backends[0].hint =
+      'installed voxcpm 2.0.1 is older than 2.0.3 — upgrading is recommended';
+    return resp;
+  }
+
+  it('renders the ok-with-advice hint as a quiet inline line on an available row', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(hintResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.getByTestId('engine-hint-omnivoice')).toHaveTextContent(
+      'installed voxcpm 2.0.1 is older than 2.0.3 — upgrading is recommended',
+    );
+    // Rows without advice (or legacy payloads without the field) show none.
+    expect(screen.queryByTestId('engine-hint-indextts2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('engine-hint-kittentts')).not.toBeInTheDocument();
+  });
+
+  // ── Capability badge — voice cloning ────────────────────────────────────
+  function cloningResponse() {
+    const resp = makeEnginesResponse();
+    resp.tts.backends[0].supports_cloning = true; // omnivoice
+    resp.tts.backends[2].supports_cloning = false; // indextts2 — explicit false
+    // kittentts: field absent (legacy payload) → no badge either.
+    return resp;
+  }
+
+  it('badges voice-cloning-capable engines — and only on explicit true', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(cloningResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.getByTestId('clone-badge-omnivoice')).toHaveTextContent('Voice cloning');
+    expect(screen.queryByTestId('clone-badge-indextts2')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('clone-badge-kittentts')).not.toBeInTheDocument();
+  });
+
+  it('never badges cloning on a non-TTS family (capability is TTS-only)', async () => {
+    const resp = multiFamilyResponse();
+    resp.asr.backends[0].supports_cloning = true; // hostile/buggy payload
+    const apiListEngines = vi.fn().mockResolvedValue(resp);
+    render(
+      <EngineCompatibilityMatrix
+        family="asr"
+        showFamilyTabs={false}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('WhisperX (test)'));
+    expect(screen.queryByTestId('clone-badge-whisperx')).not.toBeInTheDocument();
+  });
+
+  // ── Memory residency — "In memory" chip + Unload ────────────────────────
+  const LOADED = {
+    models: [
+      {
+        id: 'sidecar:indextts2',
+        name: 'indextts2 (sidecar)',
+        checkpoint: 'indextts2',
+        device: 'mps',
+        vram_mb: 812.5,
+        unloadable: true,
+        engine_id: 'indextts2',
+        is_active_engine: false,
+      },
+    ],
+    count: 1,
+  };
+
+  it('marks a loaded engine "In memory" and unloads it via its /model/loaded id', async () => {
+    let loaded = LOADED;
+    const apiListLoadedModels = vi.fn(async () => loaded);
+    const apiUnloadModel = vi.fn(async () => {
+      loaded = { models: [], count: 0 }; // backend freed it
+      return { unloaded: 'sidecar:indextts2', success: true };
+    });
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiListLoadedModels={apiListLoadedModels}
+        apiUnloadModel={apiUnloadModel}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    const row = () => screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
+    await waitFor(() => {
+      expect(within(row()).getByTestId('resident-indextts2')).toHaveTextContent('In memory');
+    });
+    // Non-resident rows carry neither the chip nor the button.
+    const omniRow = screen.getByText('OmniVoice (test)').closest('[role="row"]');
+    expect(within(omniRow).queryByTestId('resident-omnivoice')).not.toBeInTheDocument();
+    expect(
+      within(omniRow).queryByRole('button', { name: /unload omnivoice/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(within(row()).getByRole('button', { name: /unload indextts2/i }));
+    await waitFor(() => {
+      // Unload targets the /model/loaded id (sidecar:<engine>), not the engine id.
+      expect(apiUnloadModel).toHaveBeenCalledWith('sidecar:indextts2');
+    });
+    // Chip and button clear after the residency refresh.
+    await waitFor(() => {
+      expect(within(row()).queryByTestId('resident-indextts2')).not.toBeInTheDocument();
+    });
+    expect(
+      within(row()).queryByRole('button', { name: /unload indextts2/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no Unload when the loaded entry is not unloadable', async () => {
+    const apiListLoadedModels = vi.fn().mockResolvedValue({
+      models: [{ ...LOADED.models[0], unloadable: false }],
+      count: 1,
+    });
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiListLoadedModels={apiListLoadedModels}
+        apiUnloadModel={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    const row = screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
+    await waitFor(() => {
+      expect(within(row).getByTestId('resident-indextts2')).toBeInTheDocument();
+    });
+    expect(
+      within(row).queryByRole('button', { name: /unload indextts2/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the matrix normally when the residency probe fails (advisory only)', async () => {
+    const apiListLoadedModels = vi.fn().mockRejectedValue(new Error('backend restarting'));
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiListLoadedModels={apiListLoadedModels}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.getAllByRole('row').length).toBe(3);
+    expect(screen.queryByTestId('resident-indextts2')).not.toBeInTheDocument();
   });
 });

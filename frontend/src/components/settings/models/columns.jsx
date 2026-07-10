@@ -21,6 +21,11 @@ export function makeModelColumns({
   onReinstall,
   onCancel,
   onDismissError,
+  // Residency (optional): repo_id → its /model/loaded entry when that model
+  // is resident in memory right now, else null/undefined. Legacy callers that
+  // don't pass it render exactly as before.
+  getResidency,
+  onUnload,
 }) {
   return [
     {
@@ -236,9 +241,27 @@ export function makeModelColumns({
             <RefreshCw size={10} className="spinner" /> {t('models.working')}
           </Badge>
         ) : m.installed ? (
-          <Badge tone="success" size="xs">
-            {t('models.installed')}
-          </Badge>
+          getResidency?.(m) ? (
+            // Installed AND resident in memory right now (/model/loaded
+            // checkpoint match). Named so users know unloading is safe.
+            <span className="inline-flex flex-col items-center gap-[3px]">
+              <Badge tone="success" size="xs">
+                {t('models.installed')}
+              </Badge>
+              <Badge
+                tone="info"
+                size="xs"
+                title={t('models.in_memory_title')}
+                data-testid={`model-resident-${m.repo_id}`}
+              >
+                {t('models.in_memory')}
+              </Badge>
+            </span>
+          ) : (
+            <Badge tone="success" size="xs">
+              {t('models.installed')}
+            </Badge>
+          )
         ) : m.incomplete ? (
           // A truncated download (backend `incomplete`): config/tokenizer landed
           // but the weight shard didn't, so it still occupies disk yet can't be
@@ -324,6 +347,23 @@ export function makeModelColumns({
                 {t('models.cancel_btn')}
               </Button>
             )}
+            {/* Free the memory this model occupies right now. Only when the
+                /model/loaded entry says it's unloadable — it reloads lazily
+                on next use, so this never loses data. */}
+            {(() => {
+              const resident = getResidency?.(m);
+              return resident?.unloadable && !rt.rowBusy && !rt.isDeleting && onUnload ? (
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => onUnload(m.repo_id)}
+                  title={t('models.in_memory_title')}
+                  aria-label={t('models.unload_aria', { repoId: m.repo_id })}
+                >
+                  {t('models.unload_btn')}
+                </Button>
+              ) : null;
+            })()}
             {m.installed && !rt.rowBusy && !rt.isDeleting && (
               <>
                 <Button

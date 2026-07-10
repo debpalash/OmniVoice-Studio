@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { addBreadcrumb } from '../../utils/breadcrumbs';
 import { listEngines, selectEngine } from '../../api/engines';
+import { listLoadedModels } from '../../api/system';
 import { notifyEngineSelected } from '../../utils/engineSelectToast';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
 import { SETTINGS_SECTION_SURFACE } from './primitives';
@@ -54,6 +55,18 @@ export default function EnginesTab() {
     return inflightList.current;
   }, []);
 
+  // Same sharing for the residency layer (/model/loaded) — one probe per
+  // tab open, not one per stacked matrix.
+  const inflightLoaded = useRef(null);
+  const listLoadedShared = useCallback(() => {
+    if (!inflightLoaded.current) {
+      inflightLoaded.current = listLoadedModels().finally(() => {
+        inflightLoaded.current = null;
+      });
+    }
+    return inflightLoaded.current;
+  }, []);
+
   return (
     <>
       {FAMILIES.map((family) => (
@@ -63,6 +76,7 @@ export default function EnginesTab() {
             showFamilyTabs={false}
             onSelect={onSelect}
             apiListEngines={listEnginesShared}
+            apiListLoadedModels={listLoadedShared}
           />
         </section>
       ))}

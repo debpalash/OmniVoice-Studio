@@ -88,6 +88,38 @@ export async function modelStatus(): Promise<ModelStatus> {
   return apiJson<ModelStatus>('/model/status');
 }
 
+// ── Loaded-model residency (MM2-04 endpoints) ────────────────────────────
+
+/** One entry from GET /model/loaded — a model currently resident in memory.
+ *  `engine_id`/`is_active_engine` attribute TTS-family entries to an engine
+ *  (a model can stay resident after the user switches engines). */
+export interface LoadedModel {
+  id: string; // 'tts' | 'asr' | 'diarization' | 'sidecar:<engine>'
+  name: string;
+  checkpoint: string;
+  device: string;
+  vram_mb: number;
+  unloadable: boolean;
+  note?: string;
+  engine_id?: string;
+  is_active_engine?: boolean | null;
+}
+
+export interface LoadedModelsResponse {
+  models: LoadedModel[];
+  count: number;
+}
+
+export async function listLoadedModels(): Promise<LoadedModelsResponse> {
+  return apiJson<LoadedModelsResponse>('/model/loaded');
+}
+
+/** Unload one resident model by its /model/loaded `id`. The model reloads
+ *  lazily on next use — unloading only frees memory, it never loses data. */
+export async function unloadLoadedModel(modelId: string): Promise<unknown> {
+  return apiPost(`/model/unload/${encodeURIComponent(modelId)}`);
+}
+
 // ── Audio cleaning ───────────────────────────────────────────────────────
 
 export async function cleanAudio(formData: FormData): Promise<Response> {

@@ -15,10 +15,12 @@ import {
 import { toastErrorWithReport } from '../utils/errorToast';
 import { useTranslation } from 'react-i18next';
 import { listEngines, getEngineHealth, selfTestEngine } from '../api/engines';
+import { listLoadedModels, unloadLoadedModel } from '../api/system';
 import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
 import { Badge, Button, Segmented, Select, Table } from '../ui';
 import { cn } from '@/lib/utils';
+import EngineMark from './EngineMark';
 import SupertonicLicenseDialog from './SupertonicLicenseDialog';
 
 /** Engines that gate first use behind an in-app license acceptance dialog.
@@ -133,6 +135,12 @@ function normalizeEntry(entry) {
     display_name: entry.display_name,
     available: !!entry.available,
     reason: entry.reason || null,
+    // Available-but-has-advice (e.g. VoxCPM2's upgrade hint) — rendered as a
+    // quiet inline line on available rows. Absent on legacy payloads.
+    hint: entry.hint || null,
+    // Cloning capability: only an explicit true earns the badge (null =
+    // model-dependent, e.g. mlx-audio; absent = legacy payload).
+    supports_cloning: entry.supports_cloning === true,
     install_hint: entry.install_hint || null,
     last_error: entry.last_error || null,
     isolation_mode: entry.isolation_mode || 'in-process',
@@ -170,6 +178,11 @@ export default function EngineCompatibilityMatrix({
   apiListEngines = listEngines,
   apiGetEngineHealth = getEngineHealth,
   apiSelfTestEngine = selfTestEngine,
+  // Residency (memory) layer — same injection story. Advisory: a failure
+  // here must never break the matrix, so consumers may leave the defaults
+  // even where /model/loaded isn't reachable (errors are swallowed).
+  apiListLoadedModels = listLoadedModels,
+  apiUnloadModel = unloadLoadedModel,
 }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
@@ -189,10 +202,29 @@ export default function EngineCompatibilityMatrix({
   const [selfTestByEngine, setSelfTestByEngine] = useState({});
   // Which engine's setup snippet was just copied (transient ✓ affordance).
   const [copiedId, setCopiedId] = useState(null);
+  // Memory residency: engine id → its /model/loaded entry (TTS entries and
+  // sidecars carry engine_id). Advisory — load failures leave it empty and
+  // the matrix renders exactly as before (no residency chips).
+  const [loadedByEngine, setLoadedByEngine] = useState({});
+  const [unloadingId, setUnloadingId] = useState(null);
 
   useEffect(() => {
     setActiveFamily(family);
   }, [family]);
+
+  const refreshResidency = useCallback(async () => {
+    try {
+      const res = await apiListLoadedModels();
+      const byEngine = {};
+      for (const m of res?.models || []) {
+        if (m?.engine_id) byEngine[m.engine_id] = m;
+      }
+      setLoadedByEngine(byEngine);
+    } catch {
+      // /model/loaded is cheap but advisory — never let it break the matrix.
+      setLoadedByEngine({});
+    }
+  }, [apiListLoadedModels]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -207,11 +239,31 @@ export default function EngineCompatibilityMatrix({
     } finally {
       setLoading(false);
     }
-  }, [apiListEngines, t]);
+    refreshResidency();
+  }, [apiListEngines, refreshResidency, t]);
 
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // Unload a resident engine's model/sidecar by its /model/loaded id. Safe by
+  // contract: the model reloads lazily on the next generation.
+  const unloadEngine = useCallback(
+    async (engineId) => {
+      const entry = loadedByEngine[engineId];
+      if (!entry || unloadingId) return;
+      setUnloadingId(engineId);
+      try {
+        await apiUnloadModel(entry.id);
+      } catch (e) {
+        toastErrorWithReport(t('engines.unloadFailed', { message: e?.message || String(e) }), e);
+      } finally {
+        setUnloadingId(null);
+        refreshResidency();
+      }
+    },
+    [apiUnloadModel, loadedByEngine, refreshResidency, t, unloadingId],
+  );
 
   const familyData = data?.[activeFamily];
   const backends = useMemo(() => (familyData?.backends || []).map(normalizeEntry), [familyData]);
@@ -379,6 +431,18 @@ export default function EngineCompatibilityMatrix({
         </Button>
       </header>
 
+      {/* Pinned mode (Settings → Engines): one quiet line saying what this
+          family does — the page stacks three near-identical tables, and the
+          jargon (TTS/ASR/LLM) is the scariest part for first-run users. */}
+      {!showFamilyTabs && (
+        <p
+          className="engine-matrix__family-desc m-0 -mt-[4px] text-[12px] leading-[1.4] text-[color:var(--chrome-fg-muted,#888)]"
+          data-testid={`family-desc-${activeFamily}`}
+        >
+          {t(`engines.familyDesc_${activeFamily}`)}
+        </p>
+      )}
+
       {showFamilyTabs && families.length > 1 && (
         <Segmented
           size="sm"
@@ -415,6 +479,7 @@ export default function EngineCompatibilityMatrix({
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
             const selfTest = selfTestByEngine[b.id];
+            const resident = loadedByEngine[b.id] || null;
             // Real-synthesis self-test is TTS-only and meaningful only for an
             // available, in-process engine (subprocess engines keep spawn-and-
             // ping via "Test engine"; a real synth there is a sidecar cold-start).
@@ -427,124 +492,163 @@ export default function EngineCompatibilityMatrix({
                 data-engine-id={b.id}
                 className={`engine-matrix__row flex items-start gap-[8px] py-[8px] px-[10px] [border-top:1px_solid_var(--chrome-border,rgba(255,255,255,0.06))] min-h-[56px] ${b.available ? '' : 'opacity-[0.78]'}`}
               >
-                {/* Engine name + reason / install_hint */}
+                {/* Engine identity mark + name + reason / install_hint */}
                 <div
                   role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--name flex shrink-0 flex-col items-start gap-[2px] min-w-0"
+                  className="engine-matrix__cell engine-matrix__cell--name flex shrink-0 items-start gap-[8px] min-w-0"
                   style={{ flex: 3 }}
                 >
-                  <span className="engine-matrix__name inline-flex items-center gap-[6px] font-semibold text-[13px] text-[color:var(--chrome-fg,currentColor)]">
-                    {b.display_name}
-                    {isActive && (
-                      <Badge tone="brand" size="xs">
-                        {t('engines.active')}
-                      </Badge>
+                  <EngineMark id={b.id} className="mt-[1px]" />
+                  <div className="flex min-w-0 flex-col items-start gap-[2px]">
+                    <span className="engine-matrix__name inline-flex flex-wrap items-center gap-[6px] font-semibold text-[13px] text-[color:var(--chrome-fg,currentColor)]">
+                      {b.display_name}
+                      {isActive && (
+                        <Badge tone="brand" size="xs">
+                          {t('engines.active')}
+                        </Badge>
+                      )}
+                      {/* Memory residency — this engine's model/sidecar is
+                        loaded right now. Data-driven: only rows with a
+                        matching /model/loaded entry get the chip. */}
+                      {resident && (
+                        <Badge
+                          tone="info"
+                          size="xs"
+                          title={t('engines.inMemoryTitle')}
+                          data-testid={`resident-${b.id}`}
+                        >
+                          {t('engines.inMemory')}
+                        </Badge>
+                      )}
+                      {/* Capability: voice cloning from reference audio. Only an
+                        explicit supports_cloning=true earns it (TTS family). */}
+                      {activeFamily === 'tts' && b.supports_cloning && (
+                        <Badge
+                          tone="neutral"
+                          size="xs"
+                          title={t('engines.cloneCapableTitle')}
+                          data-testid={`clone-badge-${b.id}`}
+                        >
+                          <Mic size={10} /> {t('engines.cloneCapable')}
+                        </Badge>
+                      )}
+                    </span>
+                    <code className="engine-matrix__id font-mono text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                      {b.id}
+                    </code>
+                    {/* Available-but-has-advice: the engine works, but its
+                      is_available() carried a suggestion (e.g. VoxCPM2's
+                      ">=2.0.3" upgrade). Quiet by design — advice, not alarm. */}
+                    {b.available && b.hint && (
+                      <span
+                        className="engine-matrix__advice text-[11px] leading-[1.35] text-[color:var(--chrome-fg-muted,#888)]"
+                        data-testid={`engine-hint-${b.id}`}
+                      >
+                        {b.hint}
+                      </span>
                     )}
-                  </span>
-                  <code className="engine-matrix__id font-mono text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                    {b.id}
-                  </code>
-                  {/* #981 — mlx-audio multiplexes 7+ curated models behind this
+                    {/* #981 — mlx-audio multiplexes 7+ curated models behind this
                       one backend id (Kokoro, CSM, OuteTTS, …); without this
                       picker there's no way to load anything but the default
                       (Kokoro) even after downloading a different model's
                       weights in Settings → Models. Disabled while the row
                       itself isn't available/selectable, matching the "Use"
                       button's gating. */}
-                  {b.curated_models && b.curated_models.length > 0 && (
-                    <div className="engine-matrix__model-picker flex items-center gap-[6px] mt-[2px]">
-                      <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                        {t('engines.curatedModelLabel')}
-                      </span>
-                      <Select
-                        size="sm"
-                        className="w-auto min-w-[150px]"
-                        value={b.active_model_id || ''}
-                        disabled={!onSelect || !b.available}
-                        onChange={(e) => changeModel(b.id, e.target.value)}
-                        aria-label={t('engines.curatedModelAria', { engine: b.display_name })}
-                        data-testid={`curated-model-select-${b.id}`}
-                      >
-                        {b.curated_models.map((m) => (
-                          <option key={m.key} value={m.key}>
-                            {m.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                  )}
-                  {/* For available rows, show install_hint inline (one line — usually
+                    {b.curated_models && b.curated_models.length > 0 && (
+                      <div className="engine-matrix__model-picker flex items-center gap-[6px] mt-[2px]">
+                        <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                          {t('engines.curatedModelLabel')}
+                        </span>
+                        <Select
+                          size="sm"
+                          className="w-auto min-w-[150px]"
+                          value={b.active_model_id || ''}
+                          disabled={!onSelect || !b.available}
+                          onChange={(e) => changeModel(b.id, e.target.value)}
+                          aria-label={t('engines.curatedModelAria', { engine: b.display_name })}
+                          data-testid={`curated-model-select-${b.id}`}
+                        >
+                          {b.curated_models.map((m) => (
+                            <option key={m.key} value={m.key}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
+                    {/* For available rows, show install_hint inline (one line — usually
                       a parenthetical like "(bundled — no extra install needed)").
                       For unavailable rows, collapse reason + install_hint + last_error
                       into a single disclosure so unavailable rows don't dwarf the matrix. */}
-                  {b.available && b.install_hint && (
-                    <span
-                      className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]"
-                      title={b.install_hint}
-                    >
-                      {b.install_hint}
-                    </span>
-                  )}
-                  {!b.available && (b.reason || b.install_hint || b.last_error) && (
-                    <details className="group text-[11px] mt-[2px]">
-                      <summary className="flex cursor-pointer list-none select-none items-center gap-[4px] py-px text-[color:var(--chrome-fg-muted,#888)] hover:text-[color:var(--chrome-fg,currentColor)] [&::-webkit-details-marker]:hidden">
-                        <ChevronRight
-                          size={10}
-                          className="transition-transform duration-[120ms] group-open:rotate-90"
-                        />
-                        {t('engines.whyUnavailable')}
-                      </summary>
-                      <div className="engine-matrix__why-body flex flex-col gap-[3px] mt-[4px] pl-[12px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]">
-                        {b.reason && (
-                          <span className="engine-matrix__reason text-[12px] text-[color:var(--chrome-severity-warn,#d79921)] block max-w-full overflow-hidden text-ellipsis">
-                            {b.reason}
-                          </span>
-                        )}
-                        {b.install_hint && b.install_hint !== b.reason && (
-                          <span className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                            {b.install_hint}
-                          </span>
-                        )}
-                        {b.last_error && b.last_error !== b.reason && (
-                          <span
-                            className="engine-matrix__last-error text-[11px] text-[color:var(--chrome-severity-err,#cc241d)] block"
-                            data-testid="last-error"
-                          >
-                            {t('engines.lastError', { error: b.last_error })}
-                          </span>
-                        )}
-                        {/* Copy-paste-ready setup line for a path-gated opt-in
+                    {b.available && b.install_hint && (
+                      <span
+                        className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]"
+                        title={b.install_hint}
+                      >
+                        {b.install_hint}
+                      </span>
+                    )}
+                    {!b.available && (b.reason || b.install_hint || b.last_error) && (
+                      <details className="group text-[11px] mt-[2px]">
+                        <summary className="flex cursor-pointer list-none select-none items-center gap-[4px] py-px text-[color:var(--chrome-fg-muted,#888)] hover:text-[color:var(--chrome-fg,currentColor)] [&::-webkit-details-marker]:hidden">
+                          <ChevronRight
+                            size={10}
+                            className="transition-transform duration-[120ms] group-open:rotate-90"
+                          />
+                          {t('engines.whyUnavailable')}
+                        </summary>
+                        <div className="engine-matrix__why-body flex flex-col gap-[3px] mt-[4px] pl-[12px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]">
+                          {b.reason && (
+                            <span className="engine-matrix__reason text-[12px] text-[color:var(--chrome-severity-warn,#d79921)] block max-w-full overflow-hidden text-ellipsis">
+                              {b.reason}
+                            </span>
+                          )}
+                          {b.install_hint && b.install_hint !== b.reason && (
+                            <span className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                              {b.install_hint}
+                            </span>
+                          )}
+                          {b.last_error && b.last_error !== b.reason && (
+                            <span
+                              className="engine-matrix__last-error text-[11px] text-[color:var(--chrome-severity-err,#cc241d)] block"
+                              data-testid="last-error"
+                            >
+                              {t('engines.lastError', { error: b.last_error })}
+                            </span>
+                          )}
+                          {/* Copy-paste-ready setup line for a path-gated opt-in
                             engine (IndexTTS/MOSS-v1.5/dots/Confucius4) — the
                             exact `export VAR=…` so users don't hunt the docs. */}
-                        {b.setup_snippet && (
-                          <div
-                            className="engine-matrix__setup flex flex-col gap-[3px] mt-[2px]"
-                            data-testid={`setup-snippet-${b.id}`}
-                          >
-                            <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                              {t('engines.setupSnippetLabel')}
-                            </span>
-                            <div className="flex items-center gap-[6px] flex-wrap">
-                              <code className="engine-matrix__setup-code font-mono text-[11px] px-[6px] py-[2px] rounded [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)] break-all">
-                                {b.setup_snippet}
-                              </code>
-                              <Button
-                                size="sm"
-                                variant="subtle"
-                                onClick={() => copySetup(b.id, b.setup_snippet)}
-                                leading={
-                                  copiedId === b.id ? <Check size={11} /> : <Copy size={11} />
-                                }
-                                aria-label={t('engines.copySetup', { engine: b.display_name })}
-                              >
-                                {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
-                              </Button>
+                          {b.setup_snippet && (
+                            <div
+                              className="engine-matrix__setup flex flex-col gap-[3px] mt-[2px]"
+                              data-testid={`setup-snippet-${b.id}`}
+                            >
+                              <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
+                                {t('engines.setupSnippetLabel')}
+                              </span>
+                              <div className="flex items-center gap-[6px] flex-wrap">
+                                <code className="engine-matrix__setup-code font-mono text-[11px] px-[6px] py-[2px] rounded [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)] break-all">
+                                  {b.setup_snippet}
+                                </code>
+                                <Button
+                                  size="sm"
+                                  variant="subtle"
+                                  onClick={() => copySetup(b.id, b.setup_snippet)}
+                                  leading={
+                                    copiedId === b.id ? <Check size={11} /> : <Copy size={11} />
+                                  }
+                                  aria-label={t('engines.copySetup', { engine: b.display_name })}
+                                >
+                                  {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </details>
-                  )}
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
                 </div>
 
                 {/* Install state */}
@@ -749,6 +853,22 @@ export default function EngineCompatibilityMatrix({
                           ? t('engines.selfTestTimedOut')
                           : t('engines.selfTestFailed')}
                     </span>
+                  )}
+                  {/* Free the memory this engine is holding right now. Only
+                      offered when /model/loaded reports the entry unloadable —
+                      the model reloads lazily on the next generation. */}
+                  {resident?.unloadable && (
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => unloadEngine(b.id)}
+                      disabled={unloadingId === b.id}
+                      loading={unloadingId === b.id}
+                      title={t('engines.inMemoryTitle')}
+                      aria-label={`Unload ${b.display_name}`}
+                    >
+                      {unloadingId === b.id ? t('engines.unloading') : t('engines.unload')}
+                    </Button>
                   )}
                   {onSelect && b.available && !isActive && (
                     <Button

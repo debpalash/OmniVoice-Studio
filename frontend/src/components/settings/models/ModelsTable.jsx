@@ -1,6 +1,6 @@
 import React from 'react';
 import { flexRender } from '@tanstack/react-table';
-import { Table } from '../../../ui';
+import { Button, Table } from '../../../ui';
 
 /**
  * Virtualized model table view. Purely presentational — the table instance,
@@ -14,6 +14,9 @@ export default function ModelsTable({
   tableBodyRef,
   getRowRuntime,
   t,
+  // Optional: when provided, the "no matches" empty state offers a one-click
+  // way back to the full list instead of a dead end.
+  onClearFilters,
 }) {
   return (
     <Table className="models-table">
@@ -93,7 +96,20 @@ export default function ModelsTable({
             );
           })}
           {tableRows.length === 0 && (
-            <div className="models-table__empty">{t('models.no_matches')}</div>
+            <div className="models-table__empty">
+              <span>{t('models.no_matches')}</span>
+              {onClearFilters && (
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  className="ml-[8px]"
+                  onClick={onClearFilters}
+                  data-testid="models-clear-filters"
+                >
+                  {t('models.clear_filters')}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

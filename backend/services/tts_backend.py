@@ -55,6 +55,27 @@ def _mask_hf_tokens(value):
     return _HF_TOKEN_MASK_RE.sub(_HF_TOKEN_MASK, value)
 
 
+def _available_hint(msg) -> Optional[str]:
+    """Advisory text carried by an *available* engine's ``is_available()``
+    message, or None when the message is a plain readiness echo.
+
+    Convention (established by VoxCPM2's version-floor hint): an engine
+    that is available but wants the user to know something returns
+    ``(True, "ready — <advice>")``. This extracts ``<advice>`` so
+    :func:`list_backends` can surface it — previously the whole message
+    was dropped for available rows (``reason`` is None when ok), so
+    upgrade hints never reached the UI. Plain "ready" / "ready (…)"
+    messages yield None. Output is token-masked like ``reason``.
+    """
+    if not isinstance(msg, str):
+        return None
+    head, sep, advice = msg.partition(" — ")
+    advice = advice.strip()
+    if not sep or not advice or not head.strip().lower().startswith("ready"):
+        return None
+    return _mask_hf_tokens(advice)
+
+
 # ── HF Hub closed-client recovery (#880) ────────────────────────────────────
 #
 # huggingface_hub ≥1.x shares ONE global httpx client across every download.
@@ -1687,11 +1708,16 @@ def list_backends() -> list[dict]:
           "display_name":   str,
           "available":      bool,
           "reason":         Optional[str],          # message when not available
+          "hint":           Optional[str],          # advice when available-but-has-advice
+                                                    #   (is_available "ready — <advice>" convention;
+                                                    #   e.g. VoxCPM2's >=2.0.3 upgrade hint)
           "install_hint":   Optional[str],
           "setup_snippet":  Optional[str],          # exact `export VAR=...` for path-gated opt-in engines
           "last_error":     Optional[str],          # cached most-recent failure
           "isolation_mode": "in-process" | "subprocess",
           "gpu_compat":     list[str],              # subset of {cuda, rocm, mps, xpu, cpu}
+          "supports_cloning": Optional[bool],       # True/False from the class attr; None when
+                                                    #   model-dependent (property, e.g. mlx-audio)
           "effective_device": str,                  # device this engine uses on THIS host
           "routing_status": "accelerated" | "cpu_fallback" | "cpu_only" | "unavailable",
           "routing_reason": Optional[str],          # scrubbed; null when none
@@ -1746,11 +1772,21 @@ def list_backends() -> list[dict]:
         else:
             isolation = "in-process"
         gpu_compat = getattr(cls, "gpu_compat", ("cpu",))
+        # Cloning capability: same descriptor guard as
+        # cloning_capable_engine_ids() — a class-level getattr on a *property*
+        # (mlx-audio: capability depends on the picked model) returns the
+        # descriptor, not a bool, so report None (= model-dependent) there
+        # instead of an always-truthy false positive.
+        _clone = getattr(cls, "supports_cloning", True)
         out.append({
             "id": bid,
             "display_name": cls.display_name,
             "available": ok,
             "reason": None if ok else _mask_hf_tokens(msg),
+            # Available-but-has-advice (e.g. VoxCPM2's ">=2.0.3 recommended"
+            # upgrade hint). None unless ok and the message carries advice.
+            "hint": _available_hint(msg) if ok else None,
+            "supports_cloning": _clone if isinstance(_clone, bool) else None,
             "install_hint": _INSTALL_HINTS.get(bid),
             # Exact `export VAR=...` line for path-gated opt-in engines, or None.
             "setup_snippet": _SETUP_SNIPPETS.get(bid),

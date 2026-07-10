@@ -15,6 +15,9 @@ export default function RecoBanner({
   installingReco,
   setInstallingReco,
   onInstallRecommended,
+  // Free space (GB) on the model-cache volume, from GET /models — gives the
+  // download buttons context and warns BEFORE a doomed multi-GB download.
+  diskFreeGb = null,
 }) {
   if (!reco) return null;
   if (reco.all_installed) {
@@ -79,6 +82,28 @@ export default function RecoBanner({
           </Button>
         </div>
       </div>
+      {/* Disk context next to the download actions: how much room the
+          download has, and a plain warning when it won't fit. */}
+      {diskFreeGb != null && (
+        <div
+          className="-mt-[2px] text-[length:var(--text-2xs)] text-[var(--chrome-fg-dim)]"
+          data-testid="reco-disk-context"
+        >
+          {t('models.reco_disk_free', { free: diskFreeGb })}
+        </div>
+      )}
+      {diskFreeGb != null && Number(reco.download_gb_remaining) > Number(diskFreeGb) && (
+        <div
+          role="alert"
+          className="text-[length:var(--text-xs)] text-[var(--chrome-severity-warn)]"
+          data-testid="reco-low-disk"
+        >
+          {t('models.reco_low_disk', {
+            need: reco.download_gb_remaining,
+            free: diskFreeGb,
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-0 text-[length:var(--text-sm)] leading-[1.6]">
         {reco.models.map((m) => (
           <span

@@ -156,6 +156,12 @@ def test_list_backends_shape(registry_sandbox):
         "effective_device", "routing_status", "routing_reason",
         # Copy-paste env-var line for path-gated opt-in engines (None otherwise).
         "setup_snippet",
+        # Available-but-has-advice (the "ready — <advice>" convention) — None
+        # unless the engine is available AND its message carries advice.
+        "hint",
+        # Cloning capability: bool from the class attr, None when
+        # model-dependent (a property, e.g. mlx-audio).
+        "supports_cloning",
     }
     mlx_audio_extra = {"curated_models", "active_model_id"}
     for entry in out:
@@ -276,3 +282,82 @@ def test_install_hint_preserved():
     # The pre-existing _INSTALL_HINTS dict carries this one.
     assert out["kittentts"]["install_hint"] is not None
     assert "kittentts" in out["kittentts"]["install_hint"].lower()
+
+
+# ── `hint` — available-but-has-advice (the "ready — <advice>" convention) ──
+#
+# Regression: list_backends() used to drop the whole is_available() message
+# for available rows (`reason` is None when ok), so VoxCPM2's ">=2.0.3"
+# upgrade hint never reached the UI. The additive `hint` field carries it.
+
+
+class AdvisedBackend(HealthyInProcessBackend):
+    id = "advised"
+    display_name = "Advised (test)"
+
+    @classmethod
+    def is_available(cls) -> tuple[bool, str]:
+        return True, "ready — installed foo 1.0 is older than 2.0; upgrading is recommended"
+
+
+def test_hint_surfaces_advice_for_available_backend(registry_sandbox):
+    registry_sandbox["advised"] = AdvisedBackend
+    out = {e["id"]: e for e in list_backends()}
+    entry = out["advised"]
+    assert entry["available"] is True
+    assert entry["reason"] is None  # documented ok-row behavior unchanged
+    assert entry["hint"] == (
+        "installed foo 1.0 is older than 2.0; upgrading is recommended"
+    )
+
+
+def test_hint_none_for_plain_ready_and_unavailable_rows(registry_sandbox):
+    registry_sandbox["healthy-inproc"] = HealthyInProcessBackend
+    registry_sandbox["broken"] = BrokenBackend
+    out = {e["id"]: e for e in list_backends()}
+    assert out["healthy-inproc"]["hint"] is None  # plain "ready"
+    assert out["broken"]["hint"] is None          # unavailable → reason, not hint
+
+
+def test_available_hint_extraction_rules():
+    """Unit contract for the parser itself (the whole class of messages)."""
+    f = tts_backend._available_hint
+    assert f("ready — upgrade recommended") == "upgrade recommended"
+    assert f("ready") is None
+    assert f("ready (server reachable)") is None       # parenthetical ≠ advice
+    assert f("ready — ") is None                       # empty advice
+    assert f("loaded — from cache") is None            # convention needs "ready"
+    assert f(None) is None
+    assert f(42) is None
+
+
+def test_available_hint_masks_hf_tokens():
+    # Assemble the fake token at runtime so no HF-token-shaped literal ever
+    # lives in this file (GitHub push protection scans file content).
+    fake_token = "hf_" + "A" * 34
+    masked = tts_backend._available_hint(f"ready — re-auth with {fake_token}")
+    assert masked is not None
+    assert fake_token not in masked
+
+
+# ── `supports_cloning` exposure ─────────────────────────────────────────────
+
+
+def test_supports_cloning_true_false_and_model_dependent(registry_sandbox):
+    class NoCloneBackend(HealthyInProcessBackend):
+        id = "no-clone"
+        display_name = "NoClone (test)"
+        supports_cloning = False
+
+    registry_sandbox["no-clone"] = NoCloneBackend
+    registry_sandbox["healthy-inproc"] = HealthyInProcessBackend
+    out = {e["id"]: e for e in list_backends()}
+
+    # Plain bool class attrs pass through…
+    assert out["no-clone"]["supports_cloning"] is False
+    assert out["healthy-inproc"]["supports_cloning"] is True  # TTSBackend default
+    assert out["omnivoice"]["supports_cloning"] is True
+    # …but a property (model-dependent, mlx-audio) must report None — the
+    # descriptor object itself is always truthy, so passing it through would
+    # be a false "clones" claim (same guard as cloning_capable_engine_ids).
+    assert out["mlx-audio"]["supports_cloning"] is None

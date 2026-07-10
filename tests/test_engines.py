@@ -30,6 +30,20 @@ def test_tts_voxcpm2_unavailable_message_is_actionable():
         assert 'pip install "voxcpm>=2.0.3"' in msg
 
 
+def test_tts_voxcpm2_upgrade_hint_reaches_list_backends(monkeypatch):
+    """The reported instance of the dropped-ok-message class: an old-but-working
+    voxcpm install reports available=True, and its ">=2.0.3" upgrade advice must
+    reach the UI via the additive `hint` field instead of being dropped."""
+    monkeypatch.setitem(sys.modules, "voxcpm", types.ModuleType("voxcpm"))
+    monkeypatch.setattr(tts_backend, "_voxcpm_installed_version", lambda: "2.0.1")
+    entry = next(e for e in tts_backend.list_backends() if e["id"] == "voxcpm2")
+    assert entry["available"] is True
+    assert entry["reason"] is None
+    assert entry["hint"] is not None
+    assert "2.0.3" in entry["hint"]
+    assert 'pip install --upgrade "voxcpm>=2.0.3"' in entry["hint"]
+
+
 def test_tts_moss_nano_unavailable_message_points_to_install():
     ok, msg = tts_backend.MossTTSNanoBackend.is_available()
     if not ok:

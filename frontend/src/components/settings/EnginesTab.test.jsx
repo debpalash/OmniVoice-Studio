@@ -15,7 +15,15 @@ vi.mock('../../api/engines', () => ({
   selfTestEngine: vi.fn(),
 }));
 
+// Residency layer (/model/loaded) — mocked so the stacked matrices never hit
+// the network in tests; the sharing behavior is asserted below.
+vi.mock('../../api/system', () => ({
+  listLoadedModels: vi.fn(),
+  unloadLoadedModel: vi.fn(),
+}));
+
 import { listEngines, selectEngine } from '../../api/engines';
+import { listLoadedModels } from '../../api/system';
 import EnginesTab from './EnginesTab';
 
 function entry(id, name) {
@@ -47,6 +55,7 @@ describe('EnginesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(ENGINES);
+    listLoadedModels.mockResolvedValue({ models: [], count: 0 });
   });
 
   it('renders a pinned picker per family — TTS, ASR and LLM all visible at once', async () => {
@@ -66,6 +75,13 @@ describe('EnginesTab', () => {
     render(<EnginesTab />);
     await waitFor(() => screen.getByText('WhisperX (test)'));
     expect(listEngines).toHaveBeenCalledTimes(1);
+  });
+
+  it('the stacked matrices also share one GET /model/loaded on mount', async () => {
+    render(<EnginesTab />);
+    await waitFor(() => screen.getByText('WhisperX (test)'));
+    await waitFor(() => expect(listLoadedModels).toHaveBeenCalled());
+    expect(listLoadedModels).toHaveBeenCalledTimes(1);
   });
 
   it('clicking Use on an ASR engine selects it with family="asr"', async () => {

@@ -29,6 +29,14 @@ interface EngineBackend {
   display_name: string;
   available: boolean;
   reason: string | null;
+  // Available-but-has-advice: the backend's `is_available()` returned ok with
+  // an advisory tail ("ready — <advice>", e.g. VoxCPM2's upgrade hint). Null
+  // for plain-ready and unavailable rows; absent on legacy payloads.
+  hint?: string | null;
+  // Cloning capability (TTS family): true/false from the backend class, null
+  // when model-dependent (mlx-audio's curated models differ). Only badge on
+  // an explicit true.
+  supports_cloning?: boolean | null;
   install_hint?: string | null;
   // Copy-paste-ready `export VAR=...` line for a path-gated opt-in engine
   // (IndexTTS / MOSS-v1.5 / dots.tts / Confucius4), else null/absent.
