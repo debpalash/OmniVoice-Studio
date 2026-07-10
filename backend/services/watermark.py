@@ -39,6 +39,27 @@ _audioseal_available: Optional[bool] = None
 # This is our signature — every OmniVoice-generated audio carries it.
 OMNI_MESSAGE = [0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1]
 
+# Watermark ops run chunk-by-chunk: AudioSeal's activation memory grows
+# linearly with input length — a single multi-minute waveform demands a
+# multi-GB CPU buffer, which OOM'd a 16 GB machine mid-generate (#1045).
+# 30 s bounds each call to tens of MB; the 16-bit message repeats throughout
+# the audio, so per-chunk embedding/detection is equivalent.
+_CHUNK_SECONDS = 30
+
+
+def _iter_chunks(audio: torch.Tensor, sample_rate: int):
+    """Yield ≤ ~_CHUNK_SECONDS slices of (batch, channels, samples) audio
+    along the time axis. A sub-second tail is folded into the previous chunk
+    (AudioSeal embeds poorly on very short segments)."""
+    total = audio.shape[-1]
+    step = _CHUNK_SECONDS * sample_rate
+    starts = list(range(0, total, step))
+    if len(starts) > 1 and total - starts[-1] < sample_rate:
+        starts.pop()
+    for i, start in enumerate(starts):
+        end = starts[i + 1] if i + 1 < len(starts) else total
+        yield audio[..., start:end]
+
 
 def _check_available() -> bool:
     """Check if AudioSeal is installed and importable."""
@@ -135,7 +156,13 @@ def embed_watermark(
 
         # AudioSeal operates at 16kHz internally; it handles resampling, but
         # we need to inform it of the source rate for correct embedding.
-        watermarked = generator(audio, sample_rate=sample_rate, message=msg)
+        watermarked = torch.cat(
+            [
+                generator(seg, sample_rate=sample_rate, message=msg)
+                for seg in _iter_chunks(audio, sample_rate)
+            ],
+            dim=-1,
+        )
 
         # Restore original shape
         if len(original_shape) == 2:
@@ -189,11 +216,17 @@ def detect_watermark(
         else:
             audio = waveform
 
-        result = detector.detect_watermark(audio, sample_rate=sample_rate, message_threshold=0.5)
-
-        # result is (detection_confidence, decoded_message)
-        confidence = float(result[0]) if isinstance(result, tuple) else 0.0
-        decoded_msg = result[1] if isinstance(result, tuple) and len(result) > 1 else None
+        # Detect per chunk and keep the best hit: bounds memory the same way
+        # embedding does, and a splice where only part of the file is
+        # OmniVoice audio still registers (a whole-file average would dilute it).
+        best_conf, decoded_msg = -1.0, None
+        for seg in _iter_chunks(audio, sample_rate):
+            result = detector.detect_watermark(seg, sample_rate=sample_rate, message_threshold=0.5)
+            seg_conf = float(result[0]) if isinstance(result, tuple) else 0.0
+            if seg_conf > best_conf:
+                best_conf = seg_conf
+                decoded_msg = result[1] if isinstance(result, tuple) and len(result) > 1 else None
+        confidence = max(best_conf, 0.0)
 
         # Decode message bits
         message_bits = ""

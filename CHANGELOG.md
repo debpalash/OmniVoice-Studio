@@ -10,6 +10,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **Long generations no longer risk a multi-gigabyte memory spike while being watermarked.** The invisible watermark (on by default) pushed the entire waveform through AudioSeal in a single call, and its memory use grows with audio length — a multi-minute generation demanded a single ~2 GB allocation, enough to fail outright on a 16 GB machine already holding a model ("DefaultCPUAllocator: not enough memory"). Watermark embedding — and the Verify-audio detector, which had the same flaw with uploaded files — now processes audio in ~30-second chunks, so peak memory stays flat no matter how long the audio is. Detection also got sharper for spliced files: it now reports the strongest chunk instead of a whole-file average. (#1045)
+
 - **The ⊕ Insert token list no longer climbs out of the viewport.** In the voice-clone script panel, the insert popover (expression tags, CMU phoneme chips) always opened *upward* from the textarea — and since that input sits at the very top of the panel, the list disappeared past the top of the window with no way to see or scroll it. It now opens below the input, where there's always room. (owner-reported)
 
 ### Added
