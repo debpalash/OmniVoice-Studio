@@ -2,8 +2,13 @@
  * Settings → General → Pronunciation dictionary panel.
  *
  * Verifies: entries render (term → replacement + scope/type badges), Add posts
- * the new entry, delete removes it, the enable toggle PUTs, and the test field
- * previews the substitution. All over mocked api/client.
+ * the new entry (click or Enter), delete removes it, the enable toggle PUTs
+ * with a per-entry accessible name, and the test field previews the
+ * substitution — language-scoped (the POST carries the selected preview
+ * language), sequence-guarded (a slow stale response never overwrites a newer
+ * one), error-surfacing, and re-run after mutations. Plus the JSON
+ * export/import affordance over the backend's export/import endpoints.
+ * All over mocked api/client.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -57,8 +62,10 @@ describe('PronunciationPanel', () => {
     render(withI18n(<PronunciationPanel />));
     expect(await screen.findByText('GIF')).toBeInTheDocument();
     expect(screen.getByText('Nevada')).toBeInTheDocument();
-    expect(screen.getByText('en')).toBeInTheDocument();
-    expect(screen.getByText('Global')).toBeInTheDocument();
+    // The scope also appears as a preview-language <option>, so scope the badge
+    // queries to non-option elements.
+    expect(screen.getAllByText('en').some((el) => el.tagName !== 'OPTION')).toBe(true);
+    expect(screen.getAllByText('Global').some((el) => el.tagName !== 'OPTION')).toBe(true);
   });
 
   it('shows the empty hint when there are no entries', async () => {
@@ -88,12 +95,30 @@ describe('PronunciationPanel', () => {
     });
   });
 
-  it('does not POST when the term is blank', async () => {
+  it('disables Add (and never POSTs) while the term is blank', async () => {
     apiJson.mockResolvedValue([]);
     render(withI18n(<PronunciationPanel />));
-    await screen.findByTestId('pron-add');
-    fireEvent.click(screen.getByTestId('pron-add'));
+    const addBtn = await screen.findByTestId('pron-add');
+    expect(addBtn).toBeDisabled();
+    fireEvent.click(addBtn);
     expect(apiFetch).not.toHaveBeenCalled();
+    // Typing a term enables it.
+    fireEvent.change(screen.getByTestId('pron-term'), { target: { value: 'SQL' } });
+    expect(addBtn).not.toBeDisabled();
+  });
+
+  it('Enter in an add-form field submits the entry', async () => {
+    apiJson.mockResolvedValue([]);
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByTestId('pron-term');
+    fireEvent.change(screen.getByTestId('pron-term'), { target: { value: 'SQL' } });
+    fireEvent.change(screen.getByTestId('pron-replacement'), { target: { value: 'sequel' } });
+    fireEvent.keyDown(screen.getByTestId('pron-replacement'), { key: 'Enter' });
+    await waitFor(() => expect(apiFetch).toHaveBeenCalled());
+    const [path, opts] = apiFetch.mock.calls[0];
+    expect(path).toBe('/pronunciation');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toMatchObject({ term: 'SQL', replacement: 'sequel' });
   });
 
   it('DELETEs an entry', async () => {
@@ -118,6 +143,15 @@ describe('PronunciationPanel', () => {
     });
   });
 
+  it('gives every enable toggle a per-entry accessible name', async () => {
+    apiJson.mockResolvedValue(ENTRIES);
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByText('GIF');
+    // Each switch names its entry — a screen reader can tell them apart.
+    expect(screen.getByRole('switch', { name: 'Enable GIF' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Enable Nevada' })).toBeInTheDocument();
+  });
+
   it('previews the substitution via /pronunciation/test', async () => {
     apiJson.mockImplementation((path) => {
       if (path === '/pronunciation/test') {
@@ -129,5 +163,166 @@ describe('PronunciationPanel', () => {
     await screen.findByTestId('pron-test-input');
     fireEvent.change(screen.getByTestId('pron-test-input'), { target: { value: 'a GIF' } });
     expect(await screen.findByTestId('pron-test-out')).toHaveTextContent('a jiff');
+  });
+
+  it('sends the selected preview language so language-scoped entries apply', async () => {
+    const testBodies = [];
+    apiJson.mockImplementation((path, opts) => {
+      if (path === '/pronunciation/test') {
+        testBodies.push(JSON.parse(opts.body));
+        return Promise.resolve({ substituted: 'Nuh-VAD-uh', changed: true });
+      }
+      return Promise.resolve(ENTRIES);
+    });
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByTestId('pron-test-language');
+
+    // Pick the 'en' scope (offered because an entry is scoped to it), then type.
+    fireEvent.change(screen.getByTestId('pron-test-language'), { target: { value: 'en' } });
+    fireEvent.change(screen.getByTestId('pron-test-input'), { target: { value: 'Nevada' } });
+    await screen.findByTestId('pron-test-out');
+    expect(testBodies.at(-1)).toEqual({ text: 'Nevada', language: 'en' });
+
+    // Switching back to Global re-runs the preview WITHOUT a language field.
+    fireEvent.change(screen.getByTestId('pron-test-language'), { target: { value: '*' } });
+    await waitFor(() => expect(testBodies.at(-1)).toEqual({ text: 'Nevada' }));
+  });
+
+  it('hints that Global previews skip language-scoped entries', async () => {
+    apiJson.mockResolvedValue([{ ...ENTRIES[1], enabled: true }]);
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByText('Nevada');
+    expect(screen.getByText(/Previewing Global entries only/)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('pron-test-language'), { target: { value: 'en' } });
+    expect(screen.queryByText(/Previewing Global entries only/)).not.toBeInTheDocument();
+  });
+
+  it('discards a stale preview response that resolves after a newer one', async () => {
+    const pending = [];
+    apiJson.mockImplementation((path, opts) => {
+      if (path === '/pronunciation/test') {
+        return new Promise((resolve) => pending.push({ resolve, body: JSON.parse(opts.body) }));
+      }
+      return Promise.resolve(ENTRIES);
+    });
+    render(withI18n(<PronunciationPanel />));
+    const input = await screen.findByTestId('pron-test-input');
+
+    fireEvent.change(input, { target: { value: 'one' } });
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(input, { target: { value: 'one two' } });
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    // The newer request resolves first…
+    pending[1].resolve({ substituted: 'NEWER', changed: true });
+    expect(await screen.findByTestId('pron-test-out')).toHaveTextContent('NEWER');
+
+    // …then the stale one lands late and must NOT overwrite it.
+    pending[0].resolve({ substituted: 'STALE', changed: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.getByTestId('pron-test-out')).toHaveTextContent('NEWER');
+  });
+
+  it('surfaces a preview failure instead of silently blanking', async () => {
+    apiJson.mockImplementation((path) => {
+      if (path === '/pronunciation/test') return Promise.reject(new Error('down'));
+      return Promise.resolve(ENTRIES);
+    });
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByTestId('pron-test-input');
+    fireEvent.change(screen.getByTestId('pron-test-input'), { target: { value: 'a GIF' } });
+    expect(await screen.findByTestId('pron-test-error')).toBeInTheDocument();
+  });
+
+  it('re-runs the preview after adding an entry (no stale result)', async () => {
+    const testBodies = [];
+    apiJson.mockImplementation((path, opts) => {
+      if (path === '/pronunciation/test') {
+        testBodies.push(JSON.parse(opts.body));
+        return Promise.resolve({ substituted: 'x', changed: false });
+      }
+      return Promise.resolve(ENTRIES);
+    });
+    render(withI18n(<PronunciationPanel />));
+    await screen.findByTestId('pron-test-input');
+    fireEvent.change(screen.getByTestId('pron-test-input'), { target: { value: 'a GIF' } });
+    await waitFor(() => expect(testBodies).toHaveLength(1));
+
+    fireEvent.change(screen.getByTestId('pron-term'), { target: { value: 'SQL' } });
+    fireEvent.click(screen.getByTestId('pron-add'));
+    // The successful POST triggers an immediate preview re-run with the same text.
+    await waitFor(() => expect(testBodies).toHaveLength(2));
+    expect(testBodies[1]).toMatchObject({ text: 'a GIF' });
+  });
+
+  it('exports the dictionary as a JSON download', async () => {
+    apiJson.mockImplementation((path) => {
+      if (path === '/pronunciation/export') {
+        return Promise.resolve({ entries: [{ term: 'GIF', replacement: 'jiff' }] });
+      }
+      return Promise.resolve(ENTRIES);
+    });
+    const createObjectURL = vi.fn(() => 'blob:pron');
+    const revokeObjectURL = vi.fn();
+    const orig = {
+      create: URL.createObjectURL,
+      revoke: URL.revokeObjectURL,
+    };
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    try {
+      render(withI18n(<PronunciationPanel />));
+      fireEvent.click(await screen.findByTestId('pron-export'));
+      await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+      expect(apiJson).toHaveBeenCalledWith('/pronunciation/export');
+      const blob = createObjectURL.mock.calls[0][0];
+      expect(blob.type).toBe('application/json');
+      expect(JSON.parse(await blob.text())).toEqual({
+        entries: [{ term: 'GIF', replacement: 'jiff' }],
+      });
+    } finally {
+      URL.createObjectURL = orig.create;
+      URL.revokeObjectURL = orig.revoke;
+    }
+  });
+
+  it('imports a JSON file, asking replace-vs-merge when entries exist', async () => {
+    const importBodies = [];
+    apiJson.mockImplementation((path, opts) => {
+      if (path === '/pronunciation/import') {
+        importBodies.push(JSON.parse(opts.body));
+        return Promise.resolve({ imported: 2, replaced: true });
+      }
+      return Promise.resolve(ENTRIES);
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      render(withI18n(<PronunciationPanel />));
+      const fileInput = await screen.findByTestId('pron-import-file');
+      const payload = {
+        entries: [
+          { term: 'A', replacement: 'ay', type: 'respelling', language: '*', enabled: true },
+          { term: 'B', replacement: 'bee', type: 'respelling', language: 'en', enabled: true },
+        ],
+      };
+      const file = { name: 'dict.json', text: async () => JSON.stringify(payload) };
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      expect(await screen.findByTestId('pron-import-done')).toHaveTextContent('2');
+      expect(confirmSpy).toHaveBeenCalled(); // entries existed → replace-vs-merge prompt
+      expect(importBodies[0]).toEqual({ entries: payload.entries, replace: true });
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('rejects a non-export JSON file with a clear error and no request', async () => {
+    apiJson.mockResolvedValue(ENTRIES);
+    render(withI18n(<PronunciationPanel />));
+    const fileInput = await screen.findByTestId('pron-import-file');
+    const file = { name: 'junk.json', text: async () => '{"not": "an export"}' };
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/import/i);
+    expect(apiJson).not.toHaveBeenCalledWith('/pronunciation/import', expect.anything());
   });
 });

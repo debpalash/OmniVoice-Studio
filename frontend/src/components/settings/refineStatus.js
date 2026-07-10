@@ -8,12 +8,14 @@
  * The dictation final is never blocked (the hard refine timeout inserts the raw
  * text regardless), so this message is purely informational.
  *
- * Returns the user-facing string, or null when the last refinement succeeded /
- * hasn't run.
+ * Returns the i18n key of the user-facing message (resolve with `t(key)`), or
+ * null when the last refinement succeeded / hasn't run. Returning a key —
+ * rather than a hardcoded English sentence — keeps the note translatable like
+ * every other UI string.
  */
-export function refineFailureNote(status) {
+export function refineFailureNoteKey(status) {
   if (!status || status.ok !== false) return null;
   return status.reason === 'timeout'
-    ? 'The last dictation refinement timed out — the LLM endpoint is slow or unreachable. Dictation still works (the raw transcript is inserted). Test the connection in LLM Providers.'
-    : 'The last dictation refinement failed — the configured LLM endpoint rejected the request. Dictation still works (the raw transcript is inserted). Test the connection in LLM Providers.';
+    ? 'dictation.refine_timeout_note'
+    : 'dictation.refine_failed_note';
 }

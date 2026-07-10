@@ -15,14 +15,27 @@
     "enabled": "Enabled",
     "add": "Add entry",
     "remove": "Remove {{term}}",
-    "empty": "No entries yet. Add one above to fix a mispronounced word.",
+    "empty": "No entries yet. Add one below to fix a mispronounced word.",
     "test_label": "Test a sentence",
     "test_placeholder": "Type a sentence to preview the substitution…",
     "test_result": "Will be spoken as:",
     "test_nochange": "No entries match — spoken as written.",
     "load_error": "Couldn't load the pronunciation dictionary.",
     "save_error": "Couldn't save that entry.",
-    "lang_label": "Language code (e.g. en, de) or leave blank for Global"
+    "lang_label": "Language code (e.g. en, de) or leave blank for Global",
+    "enable_entry": "Enable {{term}}",
+    "lang_placeholder": "en, de… (blank = Global)",
+    "test_language": "Preview language",
+    "test_global_hint": "Previewing Global entries only — pick a language to include language-scoped entries.",
+    "test_error": "Preview unavailable — couldn't reach the backend.",
+    "backup_title": "Backup & restore",
+    "backup_hint": "Download the dictionary as a JSON file, or import entries from a previous export.",
+    "export": "Export JSON",
+    "import": "Import JSON",
+    "import_replace_prompt": "Replace the {{count}} existing entries with the imported file? Choose No to add the imported entries alongside them.",
+    "import_done": "Imported {{count}} entries.",
+    "import_error": "Couldn't import that file — expected JSON from a pronunciation export.",
+    "export_error": "Couldn't export the dictionary."
   },
   "update": {
     "available": "Update {{version}} available",
@@ -2078,7 +2091,8 @@
     "asrOpenAICompatApiKeyOptional": "optional",
     "asrOpenAICompatKeyConfigured": "A key is saved. Leave blank to keep it, or type a new one to replace it.",
     "asrOpenAICompatLoadError": "Failed to load ASR server setting",
-    "asrOpenAICompatSaveError": "Failed to save"
+    "asrOpenAICompatSaveError": "Failed to save",
+    "asrOpenAICompatSaved": "Saved"
   },
   "enterprise_faq": {
     "q_internal_tools": "Do I need a license for internal tools?",
@@ -2412,5 +2426,29 @@
     "cleaned_loaded": "Recording cleaned & loaded!",
     "loaded_raw": "Recording loaded (raw — denoising unavailable)",
     "too_short": "Recording too short"
+  },
+  "dictation": {
+    "title": "Dictation refinement",
+    "needs_llm": "Needs a local LLM endpoint — until then, raw transcripts paste unchanged.",
+    "no_llm_configured": "no LLM configured",
+    "open_llm_providers": "Open LLM Providers",
+    "load_error": "Failed to load refinement settings",
+    "save_error": "Failed to save setting",
+    "retry": "Retry",
+    "flag_auto": "Refine dictation with the local LLM",
+    "flag_auto_hint": "Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.",
+    "flag_smart_cleanup": "Remove filler words & add punctuation",
+    "flag_smart_cleanup_hint": "\"so um like the meeting is at 3pm you know\" → \"So the meeting is at 3pm.\"",
+    "flag_self_correction": "Apply spoken self-corrections",
+    "flag_self_correction_hint": "\"at seven no actually six am\" → \"at six am\"",
+    "flag_preserve_technical": "Preserve technical terms & spoken symbols",
+    "flag_preserve_technical_hint": "\"index dot tsx\" → \"index.tsx\"; identifiers stay verbatim",
+    "refine_timeout_note": "The last dictation refinement timed out — the LLM endpoint is slow or unreachable. Dictation still works (the raw transcript is inserted). Test the connection in LLM Providers.",
+    "refine_failed_note": "The last dictation refinement failed — the configured LLM endpoint rejected the request. Dictation still works (the raw transcript is inserted). Test the connection in LLM Providers.",
+    "aec_title": "Dictate while audio plays",
+    "aec_description": "Cancel OmniVoice's own playback out of the microphone.",
+    "aec_row_title": "Enable echo cancellation for dictation",
+    "aec_experimental": "Experimental",
+    "aec_hint": "Cancels OmniVoice's own playback out of the microphone so you can dictate while a preview, dub, or video is playing — without the transcript picking up what the app is saying. Adds a small amount of audio processing; leave it off if you never dictate over playback."
   }
 }

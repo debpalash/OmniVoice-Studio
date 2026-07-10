@@ -11,50 +11,42 @@
  *   GET /api/settings/dictation-refinement
  *     → {auto, smart_cleanup, self_correction, preserve_technical, llm_ready}
  *   PUT /api/settings/dictation-refinement  body: partial of the above flags
+ *
+ * The section shell always renders: while loading it shows a muted loading
+ * line, and when the initial GET fails it shows the error with a Retry button
+ * instead of silently disappearing from Settings (the backend may just be
+ * restarting). All strings go through i18n (`dictation.*`).
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Wand2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
 import { useAppStore } from '../../store';
-import { refineFailureNote } from './refineStatus';
+import { refineFailureNoteKey } from './refineStatus';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
+import { Button } from '../../ui';
 
-const FLAG_ROWS = [
-  [
-    'auto',
-    'Refine dictation with the local LLM',
-    'Master switch — applied to final transcripts only, never live partials. The raw transcript is always kept in History.',
-  ],
-  [
-    'smart_cleanup',
-    'Remove filler words & add punctuation',
-    '"so um like the meeting is at 3pm you know" → "So the meeting is at 3pm."',
-  ],
-  [
-    'self_correction',
-    'Apply spoken self-corrections',
-    '"at seven no actually six am" → "at six am"',
-  ],
-  [
-    'preserve_technical',
-    'Preserve technical terms & spoken symbols',
-    '"index dot tsx" → "index.tsx"; identifiers stay verbatim',
-  ],
-];
+// Flag key → i18n label/hint pair (`dictation.flag_<key>` / `…_hint`).
+const FLAG_KEYS = ['auto', 'smart_cleanup', 'self_correction', 'preserve_technical'];
 
 export default function RefinementPanel() {
+  const { t } = useTranslation();
   const [cfg, setCfg] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
       setCfg(await apiJson('/api/settings/dictation-refinement'));
     } catch (e) {
-      setError(e?.message || 'Failed to load refinement settings');
+      setError(e?.message || t('dictation.load_error'));
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh();
@@ -71,62 +63,85 @@ export default function RefinementPanel() {
       });
       setCfg(await res.json());
     } catch (err) {
-      setError(err?.message || 'Failed to save setting');
+      setError(err?.message || t('dictation.save_error'));
       refresh();
     } finally {
       setSaving(false);
     }
   };
 
-  if (!cfg) return null;
-  const llmReady = Boolean(cfg.llm_ready);
-  const failureNote = refineFailureNote(cfg.last_refine_status);
+  const openLlmProviders = () => useAppStore.getState().openSettingsTab('llm-providers');
+
+  const llmReady = Boolean(cfg?.llm_ready);
+  const failureNoteKey = refineFailureNoteKey(cfg?.last_refine_status);
 
   return (
     <SettingsSection
       icon={Wand2}
-      title="Dictation refinement"
-      description={
-        llmReady
-          ? undefined
-          : 'Needs a local LLM endpoint — until then, raw transcripts paste unchanged.'
+      title={t('dictation.title')}
+      description={cfg && !llmReady ? t('dictation.needs_llm') : undefined}
+      actions={
+        // A first-time user with no LLM shouldn't dead-end on the description —
+        // the configure step is one click away, before the first failure.
+        cfg && !llmReady ? (
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={openLlmProviders}
+            data-testid="refine-open-llm"
+          >
+            {t('dictation.open_llm_providers')}
+          </Button>
+        ) : undefined
       }
     >
       {error && (
         <div className="perfpanel__error" role="alert">
           {error}
+          {!cfg && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="underline"
+                onClick={refresh}
+                data-testid="refine-retry"
+              >
+                {t('dictation.retry')}
+              </button>
+            </>
+          )}
         </div>
       )}
 
-      {failureNote && (
+      {!cfg && !error && loading && <p className="perfpanel__help">{t('common.loading')}</p>}
+
+      {cfg && failureNoteKey && (
         <div className="perfpanel__error" role="status">
-          {failureNote}{' '}
-          <button
-            type="button"
-            className="underline"
-            onClick={() => useAppStore.getState().openSettingsTab('llm-providers')}
-          >
-            Open LLM Providers
+          {t(failureNoteKey)}{' '}
+          <button type="button" className="underline" onClick={openLlmProviders}>
+            {t('dictation.open_llm_providers')}
           </button>
         </div>
       )}
 
-      {FLAG_ROWS.map(([key, label, help]) => (
-        <SettingRow
-          key={key}
-          title={label}
-          subtitle={key === 'auto' && !llmReady ? 'no LLM configured' : undefined}
-          hint={help}
-          control={
-            <SettingsToggle
-              checked={Boolean(cfg[key])}
-              onChange={(next) => onToggle(key, next)}
-              disabled={saving || (key !== 'auto' && !cfg.auto)}
-              aria-label={label}
-            />
-          }
-        />
-      ))}
+      {cfg &&
+        FLAG_KEYS.map((key) => (
+          <SettingRow
+            key={key}
+            title={t(`dictation.flag_${key}`)}
+            subtitle={key === 'auto' && !llmReady ? t('dictation.no_llm_configured') : undefined}
+            hint={t(`dictation.flag_${key}_hint`)}
+            control={
+              <SettingsToggle
+                checked={Boolean(cfg[key])}
+                onChange={(next) => onToggle(key, next)}
+                disabled={saving || (key !== 'auto' && !cfg.auto)}
+                aria-label={t(`dictation.flag_${key}`)}
+              />
+            }
+          />
+        ))}
     </SettingsSection>
   );
 }

@@ -7,39 +7,34 @@
  * while OmniVoice plays audio doesn't transcribe the playback. Off by default —
  * dictation uses the standard MediaRecorder path and behaves identically on
  * every platform. The pref is the zustand `aecEnabled` flag (persisted); no
- * backend round-trip needed.
+ * backend round-trip needed. All strings go through i18n (`dictation.aec_*`).
  */
 import React from 'react';
 import { Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 
 export default function AecPanel() {
+  const { t } = useTranslation();
   const aecEnabled = useAppStore((s) => s.aecEnabled);
   const setAecEnabled = useAppStore((s) => s.setAecEnabled);
 
   return (
     <SettingsSection
       icon={Volume2}
-      title="Dictate while audio plays"
-      description="Cancel OmniVoice's own playback out of the microphone."
+      title={t('dictation.aec_title')}
+      description={t('dictation.aec_description')}
     >
       <SettingRow
-        title="Enable echo cancellation for dictation"
-        subtitle="experimental"
-        hint={
-          <>
-            Cancels OmniVoice's own playback out of the microphone so you can dictate while a
-            preview, dub, or video is playing — without the transcript picking up what the app is
-            saying. Adds a small amount of audio processing; leave it off if you never dictate over
-            playback.
-          </>
-        }
+        title={t('dictation.aec_row_title')}
+        subtitle={t('dictation.aec_experimental')}
+        hint={t('dictation.aec_hint')}
         control={
           <SettingsToggle
             checked={aecEnabled}
             onChange={setAecEnabled}
-            aria-label="Enable echo cancellation for dictation"
+            aria-label={t('dictation.aec_row_title')}
           />
         }
       />

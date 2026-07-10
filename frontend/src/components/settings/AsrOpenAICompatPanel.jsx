@@ -27,7 +27,12 @@ export default function AsrOpenAICompatPanel() {
   const [apiKey, setApiKey] = useState('');
   const [hasKey, setHasKey] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+  // Last server-acknowledged values: the one Save button persists all three
+  // fields, so it stays disabled until something actually differs (dirty) and
+  // a successful save shows an explicit "Saved" confirmation.
+  const [server, setServer] = useState({ base_url: '', model: '' });
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -37,6 +42,7 @@ export default function AsrOpenAICompatPanel() {
       setModel(d?.model || '');
       setHasKey(Boolean(d?.has_key));
       setApiKey(''); // the key is never returned — the field always starts blank
+      setServer({ base_url: d?.base_url || '', model: d?.model || '' });
     } catch (e) {
       setError(e?.message || t('models.asrOpenAICompatLoadError'));
     }
@@ -68,12 +74,16 @@ export default function AsrOpenAICompatPanel() {
       setModel(d.model || '');
       setHasKey(Boolean(d.has_key));
       setApiKey('');
+      setServer({ base_url: d.base_url || '', model: d.model || '' });
+      setSaved(true);
     } catch (e) {
       setError(e?.message || t('models.asrOpenAICompatSaveError'));
     } finally {
       setSaving(false);
     }
   };
+
+  const dirty = baseUrl !== server.base_url || model !== server.model || apiKey !== '';
 
   return (
     <SettingsSection
@@ -139,11 +149,20 @@ export default function AsrOpenAICompatPanel() {
               size="sm"
               onClick={save}
               loading={saving}
-              disabled={saving}
+              disabled={saving || !dirty}
               data-testid="asr-openai-compat-save"
             >
               {t('common.save')}
             </Button>
+            {saved && !dirty && !saving && (
+              <span
+                className="text-[length:var(--text-xs)] text-[color:var(--chrome-fg-dim)]"
+                role="status"
+                data-testid="asr-openai-compat-saved"
+              >
+                {t('models.asrOpenAICompatSaved')}
+              </span>
+            )}
           </>
         }
       />
