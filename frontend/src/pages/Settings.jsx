@@ -100,9 +100,10 @@ export default function Settings() {
     }
   }, [pendingSettingsTab, setPendingSettingsTab, setActive]);
 
-  // Search → filtered category ids. Label-aware so it matches translated names.
+  // Search → filtered category ids. Label-aware so it matches translated names;
+  // `t` also lets each category's keywordKeys match in the active UI language.
   const visibleIds = useMemo(
-    () => matchCategories(query, (c) => t(c.labelKey, { defaultValue: c.defaultLabel })),
+    () => matchCategories(query, (c) => t(c.labelKey, { defaultValue: c.defaultLabel }), t),
     [query, t],
   );
   const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds]);
@@ -465,7 +466,13 @@ export default function Settings() {
     <div className="flex min-h-full w-full box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans min-[760px]:grid min-[760px]:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] min-[760px]:gap-[var(--space-5)] min-[760px]:[align-content:start]">
       <aside className="mb-[var(--space-4)] min-[760px]:sticky min-[760px]:top-[var(--space-5)] min-[760px]:mb-0 min-[760px]:self-start">
         <SettingsSearch value={query} onChange={setQuery} />
-        <SettingsSidebar visibleIds={visibleSet} active={active} onSelect={setActive} />
+        <SettingsSidebar
+          visibleIds={visibleSet}
+          active={active}
+          onSelect={setActive}
+          query={query}
+          onClearSearch={() => setQuery('')}
+        />
       </aside>
 
       <div className="min-w-0 w-full max-w-[1100px] mx-auto flex-auto self-start [container-type:inline-size] [container-name:settings]">

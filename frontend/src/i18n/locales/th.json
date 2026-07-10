@@ -153,6 +153,8 @@
     "translation_providers": "ผู้ให้บริการแปล",
     "translation_providers_desc": "คีย์ API สำหรับนักแปลออนไลน์ ตั้งค่าสำหรับเซสชันนี้",
     "review_mode": "โหมดทบทวน",
+    "review_mode_on": "รีวิว",
+    "review_mode_off": "ยิงเร็ว",
     "review_mode_desc": "หยุดชั่วคราวระหว่างขั้นตอนไปป์ไลน์เพื่อให้คุณสามารถตรวจสอบ ASR / เอาต์พุตการแปลได้",
     "header_live_stats": "แสดงตัวชี้วัดระบบสดในส่วนหัว",
     "header_live_stats_desc": "เพิ่มจอภาพ RAM / CPU / VRAM แบบสดไปที่แถบด้านบน (ปิดโดยค่าเริ่มต้น)",
@@ -465,7 +467,6 @@
     "check_updates": "ตรวจสอบการอัปเดต",
     "copy_diagnostics": "คัดลอกการวินิจฉัย",
     "github": "OmniVoice บน GitHub",
-    "model_card": "การ์ดโมเดล",
     "commercial_license": "ใบอนุญาตการค้า",
     "update_channel": "ช่องอัปเดต",
     "channel_stable": "เสถียร",
@@ -527,8 +528,6 @@
     "group_microsoft": "จุดสิ้นสุดแบบกำหนดเองของนักแปลของ Microsoft"
   },
   "engines": {
-    "review_on": "รีวิว",
-    "review_off": "ยิงเร็ว",
     "banners_on": "ป้ายบนเวทีเปิดอยู่",
     "banners_off": "ปิดแบนเนอร์บนเวที",
     "backend": "แบ็กเอนด์",

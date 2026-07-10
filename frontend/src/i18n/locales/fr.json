@@ -153,6 +153,8 @@
     "translation_providers": "Prestataires de traduction",
     "translation_providers_desc": "Clés API pour les traducteurs en ligne, définies pour cette session.",
     "review_mode": "Mode révision",
+    "review_mode_on": "Examen",
+    "review_mode_off": "Tir rapide",
     "review_mode_desc": "Faites une pause entre les étapes du pipeline afin de pouvoir examiner le résultat ASR/traduction.",
     "header_live_stats": "Afficher les métriques du système en direct dans l'en-tête",
     "header_live_stats_desc": "Ajoute un moniteur RAM / CPU / VRAM en direct à la barre supérieure (désactivé par défaut).",
@@ -465,7 +467,6 @@
     "check_updates": "Vérifier les mises à jour",
     "copy_diagnostics": "Copier les diagnostics",
     "github": "OmniVoice sur GitHub",
-    "model_card": "Carte modèle",
     "commercial_license": "Licence commerciale",
     "update_channel": "Canal de mise à jour",
     "channel_stable": "Stable",
@@ -527,8 +528,6 @@
     "group_microsoft": "Point de terminaison personnalisé du traducteur Microsoft"
   },
   "engines": {
-    "review_on": "Examen",
-    "review_off": "Tir rapide",
     "banners_on": "Bannières de scène sur",
     "banners_off": "Les bannières de la scène sont retirées",
     "backend": "Back-end",

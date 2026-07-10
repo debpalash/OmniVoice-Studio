@@ -15,16 +15,48 @@ import { GROUPS } from './settingsCategories';
  * <optgroup> per group) so the whole IA stays reachable on a phone-width window.
  *
  * `visibleIds` (a Set) filters which categories render — the search box in the
- * parent drives it. Groups with no visible items are hidden entirely.
+ * parent drives it. Groups with no visible items are hidden entirely; when the
+ * search matches NOTHING, a "no results" empty state (with a clear-search
+ * action) replaces both layouts so the nav never renders blank.
  *
- * @param {Set<string>} visibleIds  category ids to show (search-filtered)
- * @param {string}      active      active category id
- * @param {function}    onSelect    (id) => void
+ * @param {Set<string>} visibleIds     category ids to show (search-filtered)
+ * @param {string}      active         active category id
+ * @param {function}    onSelect       (id) => void
+ * @param {string=}     query          current search query (for the empty state)
+ * @param {function=}   onClearSearch  clears the search query
  */
-export default function SettingsSidebar({ visibleIds, active, onSelect }) {
+export default function SettingsSidebar({ visibleIds, active, onSelect, query, onClearSearch }) {
   const { t } = useTranslation();
   const isVisible = (id) => !visibleIds || visibleIds.has(id);
   const label = (it) => t(it.labelKey, { defaultValue: it.defaultLabel });
+  const anyVisible = GROUPS.some((g) => g.items.some((it) => isVisible(it.id)));
+
+  if (!anyVisible) {
+    return (
+      <nav aria-label={t('settings.title', { defaultValue: 'Settings' })}>
+        <div
+          data-testid="settings-search-empty"
+          className="px-[var(--space-3)] py-[var(--space-3)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] text-[color:var(--chrome-fg-muted)]"
+        >
+          <p className="m-0 mb-[var(--space-3)]">
+            {t('settings.search_no_results', {
+              defaultValue: 'No settings match “{{query}}”',
+              query: query ?? '',
+            })}
+          </p>
+          {onClearSearch && (
+            <button
+              type="button"
+              onClick={onClearSearch}
+              className="cursor-pointer appearance-none rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] font-medium text-[color:var(--chrome-fg)] hover:text-[color:var(--chrome-accent)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+            >
+              {t('common.clear', { defaultValue: 'Clear' })}
+            </button>
+          )}
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav aria-label={t('settings.title', { defaultValue: 'Settings' })}>

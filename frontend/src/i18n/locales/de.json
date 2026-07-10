@@ -153,6 +153,8 @@
     "translation_providers": "Übersetzungsanbieter",
     "translation_providers_desc": "API-Schlüssel für Online-Übersetzer, festgelegt für diese Sitzung.",
     "review_mode": "Überprüfungsmodus",
+    "review_mode_on": "Rezension",
+    "review_mode_off": "Schnellfeuer",
     "review_mode_desc": "Machen Sie eine Pause zwischen den Pipeline-Stufen, damit Sie die ASR-/Übersetzungsausgabe überprüfen können.",
     "header_live_stats": "Live-Systemmetriken in der Kopfzeile anzeigen",
     "header_live_stats_desc": "Fügt der oberen Leiste einen Live-RAM-/CPU-/VRAM-Monitor hinzu (standardmäßig deaktiviert).",
@@ -465,7 +467,6 @@
     "check_updates": "Suchen Sie nach Updates",
     "copy_diagnostics": "Diagnose kopieren",
     "github": "OmniVoice auf GitHub",
-    "model_card": "Modellkarte",
     "commercial_license": "Kommerzielle Lizenz",
     "update_channel": "Update-Kanal",
     "channel_stable": "Stabil",
@@ -527,8 +528,6 @@
     "group_microsoft": "Benutzerdefinierter Microsoft Translator-Endpunkt"
   },
   "engines": {
-    "review_on": "Rezension",
-    "review_off": "Schnellfeuer",
     "banners_on": "Bühnenbanner auf",
     "banners_off": "Bühnenbanner abgehängt",
     "backend": "Backend",

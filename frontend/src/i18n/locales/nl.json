@@ -153,6 +153,8 @@
     "translation_providers": "Vertaalaanbieders",
     "translation_providers_desc": "API-sleutels voor online vertalers, ingesteld voor deze sessie.",
     "review_mode": "Review-modus",
+    "review_mode_on": "Beoordeling",
+    "review_mode_off": "Snelvuur",
     "review_mode_desc": "Pauzeer tussen pijplijnfasen, zodat u de ASR-/vertaaluitvoer kunt bekijken.",
     "header_live_stats": "Toon live systeemstatistieken in de koptekst",
     "header_live_stats_desc": "Voegt een live RAM/CPU/VRAM-monitor toe aan de bovenste balk (standaard uitgeschakeld).",
@@ -465,7 +467,6 @@
     "check_updates": "Controleer op updates",
     "copy_diagnostics": "Diagnostische gegevens kopiëren",
     "github": "OmniVoice op GitHub",
-    "model_card": "Modelkaart",
     "commercial_license": "Commerciële licentie",
     "update_channel": "Updatekanaal",
     "channel_stable": "Stabiel",
@@ -527,8 +528,6 @@
     "group_microsoft": "Aangepast eindpunt van Microsoft Translator"
   },
   "engines": {
-    "review_on": "Beoordeling",
-    "review_off": "Snelvuur",
     "banners_on": "Podiumbanners aan",
     "banners_off": "Podiumbanners uit",
     "backend": "Achterkant",

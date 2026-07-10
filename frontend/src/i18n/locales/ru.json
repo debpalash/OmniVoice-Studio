@@ -153,6 +153,8 @@
     "translation_providers": "Поставщики переводов",
     "translation_providers_desc": "Ключи API для онлайн-переводчиков, установленные для этого сеанса.",
     "review_mode": "Режим просмотра",
+    "review_mode_on": "Обзор",
+    "review_mode_off": "Скорострельный",
     "review_mode_desc": "Делайте паузу между этапами конвейера, чтобы просмотреть результаты ASR/перевода.",
     "header_live_stats": "Показывать метрики системы в реальном времени в заголовке",
     "header_live_stats_desc": "Добавляет монитор оперативной памяти/ЦП/ВОЗУ на верхнюю панель (по умолчанию отключен).",
@@ -465,7 +467,6 @@
     "check_updates": "Проверьте наличие обновлений",
     "copy_diagnostics": "Копировать диагностику",
     "github": "OmniVoice на GitHub",
-    "model_card": "Модель карты",
     "commercial_license": "Коммерческая лицензия",
     "update_channel": "Канал обновлений",
     "channel_stable": "Стабильный",
@@ -527,8 +528,6 @@
     "group_microsoft": "Пользовательская конечная точка Microsoft Translator"
   },
   "engines": {
-    "review_on": "Обзор",
-    "review_off": "Скорострельный",
     "banners_on": "Баннеры на сцене",
     "banners_off": "Сценические баннеры отключены",
     "backend": "Бэкэнд",

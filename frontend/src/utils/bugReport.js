@@ -17,7 +17,11 @@ import { API } from '../api/client';
 import { formatBreadcrumbs } from './breadcrumbs';
 import { crashAge, describeCrashExit, getLastBackendCrash } from './backendCrash';
 
-export const ISSUES_URL = 'https://github.com/debpalash/OmniVoice-Studio/issues/new';
+/** Canonical project repository — every GitHub link in the app derives from
+ * this single constant so a fork/rename can never leave stale links behind. */
+export const REPO_URL = 'https://github.com/debpalash/OmniVoice-Studio';
+
+export const ISSUES_URL = `${REPO_URL}/issues/new`;
 
 const APP_VERSION = (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) || 'unknown';
 
@@ -259,5 +263,5 @@ export function buildIssueSearchUrl(error) {
     .slice(0, 6)
     .join(' ');
   const q = `is:issue ${terms}`.trim();
-  return `https://github.com/debpalash/OmniVoice-Studio/issues?q=${encodeURIComponent(q)}`;
+  return `${REPO_URL}/issues?q=${encodeURIComponent(q)}`;
 }

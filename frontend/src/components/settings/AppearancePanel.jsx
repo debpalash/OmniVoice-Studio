@@ -21,6 +21,39 @@ const THEMES = [
   { id: 'catppuccin', label: 'Catppuccin', dot: '#cba6f7' },
 ];
 
+/**
+ * WAI-ARIA radio-group keyboard support for the theme-dot / font-tile pickers:
+ * arrow keys move selection (wrapping), Home/End jump to the ends, and focus
+ * follows selection. Pair with `radioTabIndex` for the roving tabindex so the
+ * group occupies a single tab stop, as the announced role promises.
+ */
+function radioGroupKeyDown(e, values, current, select) {
+  const STEP = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+  let next;
+  if (e.key in STEP) {
+    const idx = Math.max(0, values.indexOf(current));
+    next = values[(idx + STEP[e.key] + values.length) % values.length];
+  } else if (e.key === 'Home') {
+    next = values[0];
+  } else if (e.key === 'End') {
+    next = values[values.length - 1];
+  }
+  if (!next) return;
+  e.preventDefault();
+  select(next);
+  const el = e.currentTarget
+    .closest('[role="radiogroup"]')
+    ?.querySelector(`[data-radio-value="${next}"]`);
+  el?.focus();
+}
+
+/** Roving tabindex: only the checked radio (or the first, if none is checked
+ * — e.g. a stale persisted value) is tabbable. */
+function radioTabIndex(values, current, value) {
+  const focusable = values.includes(current) ? current : values[0];
+  return value === focusable ? 0 : -1;
+}
+
 export default function AppearancePanel() {
   const { t } = useTranslation();
   const uiScale = useAppStore((s) => s.uiScale);
@@ -37,6 +70,8 @@ export default function AppearancePanel() {
   const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
   const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
   const fontLabel = t('settings.font', { defaultValue: 'Font' });
+  const themeIds = THEMES.map((th) => th.id);
+  const fontIds = FONT_OPTIONS.map((f) => f.id);
 
   return (
     <SettingsSection
@@ -89,10 +124,13 @@ export default function AppearancePanel() {
                 className={`appearance-panel__theme-dot ${theme === th.id ? 'is-active' : ''}`}
                 style={{ '--dot-color': th.dot }}
                 onClick={() => setTheme(th.id)}
+                onKeyDown={(e) => radioGroupKeyDown(e, themeIds, theme, setTheme)}
                 title={th.label}
                 aria-label={th.label}
                 aria-checked={theme === th.id}
                 role="radio"
+                tabIndex={radioTabIndex(themeIds, theme, th.id)}
+                data-radio-value={th.id}
               />
             ))}
           </div>
@@ -117,10 +155,13 @@ export default function AppearancePanel() {
                 role="radio"
                 aria-checked={font === f.id}
                 aria-label={f.label}
+                tabIndex={radioTabIndex(fontIds, font, f.id)}
+                data-radio-value={f.id}
                 data-testid={`appearance-font-${f.id}`}
                 className={`appearance-panel__font-tile ${font === f.id ? 'is-active' : ''}`}
                 style={{ fontFamily: FONT_STACKS[f.id] || 'var(--font-sans)' }}
                 onClick={() => setFont(f.id)}
+                onKeyDown={(e) => radioGroupKeyDown(e, fontIds, font, setFont)}
               >
                 <span className="appearance-panel__font-sample">Ag</span>
                 <span className="appearance-panel__font-name">{f.label}</span>

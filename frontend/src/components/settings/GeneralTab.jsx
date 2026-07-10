@@ -56,8 +56,14 @@ export default function GeneralTab() {
             value={reviewMode}
             onChange={setReviewMode}
             items={[
-              { value: 'on', label: t('engines.review_on') },
-              { value: 'off', label: t('engines.review_off') },
+              {
+                value: 'on',
+                label: t('settings.review_mode_on', { defaultValue: 'Pause for review' }),
+              },
+              {
+                value: 'off',
+                label: t('settings.review_mode_off', { defaultValue: 'Run straight through' }),
+              },
             ]}
           />
         }

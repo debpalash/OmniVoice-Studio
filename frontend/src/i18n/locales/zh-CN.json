@@ -374,6 +374,8 @@
     "translation_providers": "翻译提供商",
     "translation_providers_desc": "为此会话设置的在线翻译器的 API 密钥。",
     "review_mode": "复习模式",
+    "review_mode_on": "审阅",
+    "review_mode_off": "快速模式",
     "review_mode_desc": "在管道阶段之间暂停，以便您可以查看 ASR/翻译输出。",
     "header_live_stats": "在标题中显示实时系统指标",
     "header_live_stats_desc": "在顶部栏添加实时 RAM/CPU/VRAM 监视器（默认关闭）。",
@@ -422,7 +424,6 @@
     "check_updates": "检查更新",
     "copy_diagnostics": "复制诊断信息",
     "github": "GitHub 仓库",
-    "model_card": "模型卡片",
     "commercial_license": "商业许可",
     "update_channel": "更新通道",
     "channel_stable": "稳定版",
@@ -484,8 +485,6 @@
     "group_microsoft": "Microsoft Translator 自定义地址"
   },
   "engines": {
-    "review_on": "审阅",
-    "review_off": "快速模式",
     "banners_on": "阶段横幅开启",
     "banners_off": "阶段横幅关闭",
     "backend": "后端",

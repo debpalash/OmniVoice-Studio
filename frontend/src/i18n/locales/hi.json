@@ -153,6 +153,8 @@
     "translation_providers": "अनुवाद प्रदाता",
     "translation_providers_desc": "इस सत्र के लिए ऑनलाइन अनुवादकों के लिए एपीआई कुंजियाँ निर्धारित की गई हैं।",
     "review_mode": "समीक्षा मोड",
+    "review_mode_on": "समीक्षा",
+    "review_mode_off": "तेजी से आग",
     "review_mode_desc": "पाइपलाइन चरणों के बीच रुकें ताकि आप एएसआर/अनुवाद आउटपुट की समीक्षा कर सकें।",
     "header_live_stats": "हेडर में लाइव सिस्टम मेट्रिक्स दिखाएं",
     "header_live_stats_desc": "शीर्ष बार में एक लाइव रैम/सीपीयू/वीआरएएम मॉनिटर जोड़ता है (डिफ़ॉल्ट रूप से बंद)।",
@@ -465,7 +467,6 @@
     "check_updates": "अपडेट के लिए जांचें",
     "copy_diagnostics": "डायग्नोस्टिक्स की प्रतिलिपि बनाएँ",
     "github": "GitHub पर ओमनीवॉइस",
-    "model_card": "मॉडल कार्ड",
     "commercial_license": "वाणिज्यिक लाइसेंस",
     "update_channel": "अपडेट चैनल",
     "channel_stable": "स्थिर",
@@ -527,8 +528,6 @@
     "group_microsoft": "माइक्रोसॉफ्ट ट्रांसलेटर कस्टम एंडपॉइंट"
   },
   "engines": {
-    "review_on": "समीक्षा",
-    "review_off": "तेजी से आग",
     "banners_on": "मंच पर बैनर",
     "banners_off": "मंच के बैनर उतारे गए",
     "backend": "बैकएंड",

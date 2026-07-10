@@ -153,6 +153,8 @@
     "translation_providers": "مقدمو خدمات الترجمة",
     "translation_providers_desc": "مفاتيح واجهة برمجة التطبيقات (API) للمترجمين عبر الإنترنت، مُعيَّنة لهذه الجلسة.",
     "review_mode": "وضع المراجعة",
+    "review_mode_on": "مراجعة",
+    "review_mode_off": "سريع النيران",
     "review_mode_desc": "توقف مؤقتًا بين مراحل التدفق حتى تتمكن من مراجعة مخرجات ASR/الترجمة.",
     "header_live_stats": "عرض مقاييس النظام المباشرة في الرأس",
     "header_live_stats_desc": "يضيف شاشة RAM / CPU / VRAM مباشرة إلى الشريط العلوي (يتم إيقاف تشغيله افتراضيًا).",
@@ -465,7 +467,6 @@
     "check_updates": "التحقق من وجود تحديثات",
     "copy_diagnostics": "نسخ التشخيص",
     "github": "أومنيفويس على جيثب",
-    "model_card": "البطاقة النموذجية",
     "commercial_license": "رخصة تجارية",
     "update_channel": "قناة التحديث",
     "channel_stable": "مستقر",
@@ -527,8 +528,6 @@
     "group_microsoft": "نقطة النهاية المخصصة لمترجم مايكروسوفت"
   },
   "engines": {
-    "review_on": "مراجعة",
-    "review_off": "سريع النيران",
     "banners_on": "لافتات المرحلة على",
     "banners_off": "لافتات المرحلة قبالة",
     "backend": "الخلفية",

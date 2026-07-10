@@ -153,6 +153,8 @@
     "translation_providers": "Penyedia terjemahan",
     "translation_providers_desc": "Kunci API untuk penerjemah online, disetel untuk sesi ini.",
     "review_mode": "Modus tinjauan",
+    "review_mode_on": "Ulasan",
+    "review_mode_off": "Tembakan cepat",
     "review_mode_desc": "Jeda di antara tahapan alur sehingga Anda dapat meninjau ASR/output terjemahan.",
     "header_live_stats": "Tampilkan metrik sistem langsung di header",
     "header_live_stats_desc": "Menambahkan monitor RAM/CPU/VRAM langsung ke bilah atas (dinonaktifkan secara default).",
@@ -465,7 +467,6 @@
     "check_updates": "Periksa pembaruan",
     "copy_diagnostics": "Salin diagnostik",
     "github": "OmniVoice di GitHub",
-    "model_card": "Kartu model",
     "commercial_license": "Lisensi Komersial",
     "update_channel": "Saluran pembaruan",
     "channel_stable": "Stabil",
@@ -527,8 +528,6 @@
     "group_microsoft": "Titik Akhir Kustom Penerjemah Microsoft"
   },
   "engines": {
-    "review_on": "Ulasan",
-    "review_off": "Tembakan cepat",
     "banners_on": "Spanduk panggung menyala",
     "banners_off": "Spanduk panggung dilepas",
     "backend": "Bagian belakang",

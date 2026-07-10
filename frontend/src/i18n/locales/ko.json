@@ -153,6 +153,8 @@
     "translation_providers": "번역 제공업체",
     "translation_providers_desc": "이 세션에 대해 설정된 온라인 번역기용 API 키입니다.",
     "review_mode": "검토 모드",
+    "review_mode_on": "검토",
+    "review_mode_off": "속사",
     "review_mode_desc": "ASR/번역 출력을 검토할 수 있도록 파이프라인 단계 사이에 일시 중지합니다.",
     "header_live_stats": "헤더에 실시간 시스템 측정항목 표시",
     "header_live_stats_desc": "상단 표시줄에 라이브 RAM/CPU/VRAM 모니터를 추가합니다(기본적으로 꺼져 있음).",
@@ -465,7 +467,6 @@
     "check_updates": "업데이트 확인",
     "copy_diagnostics": "진단 복사",
     "github": "GitHub의 OmniVoice",
-    "model_card": "모델 카드",
     "commercial_license": "상업용 라이센스",
     "update_channel": "업데이트 채널",
     "channel_stable": "안정 버전",
@@ -527,8 +528,6 @@
     "group_microsoft": "Microsoft 번역기 사용자 지정 끝점"
   },
   "engines": {
-    "review_on": "검토",
-    "review_off": "속사",
     "banners_on": "무대 배너 켜짐",
     "banners_off": "무대 배너 꺼짐",
     "backend": "백엔드",

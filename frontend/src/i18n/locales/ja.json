@@ -153,6 +153,8 @@
     "translation_providers": "翻訳プロバイダー",
     "translation_providers_desc": "このセッション用に設定されたオンライン翻訳者の API キー。",
     "review_mode": "レビューモード",
+    "review_mode_on": "レビュー",
+    "review_mode_off": "連射",
     "review_mode_desc": "パイプライン ステージ間で一時停止して、ASR/翻訳出力を確認できるようにします。",
     "header_live_stats": "ライブシステムメトリクスをヘッダーに表示",
     "header_live_stats_desc": "ライブ RAM / CPU / VRAM モニターをトップバーに追加します (デフォルトではオフ)。",
@@ -465,7 +467,6 @@
     "check_updates": "アップデートをチェックする",
     "copy_diagnostics": "コピー診断",
     "github": "GitHub 上のオムニボイス",
-    "model_card": "モデルカード",
     "commercial_license": "商用ライセンス",
     "update_channel": "アップデートチャンネル",
     "channel_stable": "安定版",
@@ -527,8 +528,6 @@
     "group_microsoft": "Microsoft 翻訳者のカスタム エンドポイント"
   },
   "engines": {
-    "review_on": "レビュー",
-    "review_off": "連射",
     "banners_on": "ステージバナーが貼られています",
     "banners_off": "ステージバナーが消えた",
     "backend": "バックエンド",

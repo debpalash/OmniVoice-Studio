@@ -153,6 +153,8 @@
     "translation_providers": "翻譯提供者",
     "translation_providers_desc": "為此會話設定的線上翻譯器的 API 金鑰。",
     "review_mode": "複習模式",
+    "review_mode_on": "評論",
+    "review_mode_off": "速射",
     "review_mode_desc": "在管道階段之間暫停，以便您可以查看 ASR/翻譯輸出。",
     "header_live_stats": "在標題中顯示即時系統指標",
     "header_live_stats_desc": "在頂部欄位新增即時 RAM/CPU/VRAM 監視器（預設為關閉）。",
@@ -465,7 +467,6 @@
     "check_updates": "檢查更新",
     "copy_diagnostics": "複製診斷",
     "github": "GitHub 上的 OmniVoice",
-    "model_card": "型號卡",
     "commercial_license": "商業許可",
     "update_channel": "更新通道",
     "channel_stable": "穩定版",
@@ -527,8 +528,6 @@
     "group_microsoft": "Microsoft Translator 自訂端點"
   },
   "engines": {
-    "review_on": "評論",
-    "review_off": "速射",
     "banners_on": "舞台橫幅",
     "banners_off": "舞台橫幅關閉",
     "backend": "後端",

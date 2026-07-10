@@ -153,6 +153,8 @@
     "translation_providers": "Çeviri sağlayıcıları",
     "translation_providers_desc": "Çevrimiçi çevirmenlere yönelik API anahtarları, bu oturum için ayarlandı.",
     "review_mode": "İnceleme modu",
+    "review_mode_on": "İncele",
+    "review_mode_off": "Hızlı ateş",
     "review_mode_desc": "ASR / çeviri çıktısını gözden geçirebilmek için ardışık düzen aşamaları arasında duraklayın.",
     "header_live_stats": "Başlıkta canlı sistem ölçümlerini göster",
     "header_live_stats_desc": "Üst çubuğa canlı bir RAM / CPU / VRAM monitörü ekler (varsayılan olarak kapalıdır).",
@@ -465,7 +467,6 @@
     "check_updates": "Güncellemeleri kontrol edin",
     "copy_diagnostics": "Tanılamayı kopyala",
     "github": "GitHub'da OmniVoice",
-    "model_card": "Model kartı",
     "commercial_license": "Ticari Lisans",
     "update_channel": "Güncelleme kanalı",
     "channel_stable": "Kararlı",
@@ -527,8 +528,6 @@
     "group_microsoft": "Microsoft Translator Özel Uç Noktası"
   },
   "engines": {
-    "review_on": "İncele",
-    "review_off": "Hızlı ateş",
     "banners_on": "Sahne pankartları açık",
     "banners_off": "Sahne pankartları kapalı",
     "backend": "Arka uç",

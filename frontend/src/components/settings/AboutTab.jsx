@@ -12,11 +12,49 @@ import {
 import { useTranslation } from 'react-i18next';
 import { openExternal } from '../../api/external';
 import { resolveAboutVersion } from '../../utils/appVersion';
+import { REPO_URL } from '../../utils/bugReport';
 import { Button, Badge } from '../../ui';
 import { SettingsSection } from './primitives';
+import { CATEGORY_BY_ID } from './settingsCategories';
 import { useAppStore } from '../../store';
 import { isTauri } from './native';
 import Row from './Row';
+
+/**
+ * Where a failing self-check can be fixed inside the app — diagnose check id
+ * (backend/core/diagnose.py) → Settings category id. Checks without an in-app
+ * fix (python, backend, …) render their hint as plain text only.
+ */
+const CHECK_FIX_CATEGORY = {
+  ffmpeg: 'network',
+  hf_token: 'credentials',
+  disk: 'storage',
+  data_dir: 'storage',
+  engines: 'engines',
+  gpu_routing: 'engines',
+  device: 'performance',
+  ram: 'performance',
+  deep_synth: 'logs',
+};
+
+/** Small "Open <category>" deep-link into the Settings hub. */
+function OpenCategoryButton({ categoryId }) {
+  const { t } = useTranslation();
+  const cat = CATEGORY_BY_ID[categoryId];
+  if (!cat) return null;
+  return (
+    <Button
+      size="sm"
+      variant="subtle"
+      onClick={() => useAppStore.getState().openSettingsTab(categoryId)}
+    >
+      {t('about.open_fix_category', {
+        defaultValue: 'Open {{category}}',
+        category: t(cat.labelKey, { defaultValue: cat.defaultLabel }),
+      })}
+    </Button>
+  );
+}
 
 /**
  * Settings → About.
@@ -52,7 +90,16 @@ export default function AboutTab({
       />
       <Row
         label={t('about.hf_token')}
-        value={info?.has_hf_token ? t('about.yes') : t('about.no')}
+        value={
+          info?.has_hf_token ? (
+            t('about.yes')
+          ) : (
+            <span className="inline-flex flex-wrap items-center gap-[var(--space-3)]">
+              {t('about.no')}
+              <OpenCategoryButton categoryId="credentials" />
+            </span>
+          )
+        }
       />
 
       <div className="settings-link-row mt-[var(--space-5)] flex flex-wrap gap-[var(--space-4)]">
@@ -92,17 +139,9 @@ export default function AboutTab({
           variant="subtle"
           size="md"
           leading={<ExternalLink size={12} />}
-          onClick={() => openExternal('https://github.com/k2-fsa/OmniVoice')}
+          onClick={() => openExternal(REPO_URL)}
         >
           {t('about.github')}
-        </Button>
-        <Button
-          variant="subtle"
-          size="md"
-          leading={<ExternalLink size={12} />}
-          onClick={() => openExternal('https://huggingface.co/k2-fsa/OmniVoice')}
-        >
-          {t('about.model_card')}
         </Button>
         <Button
           variant="subtle"
@@ -135,6 +174,12 @@ export default function AboutTab({
                       {' '}
                       — {c.hint}
                     </span>
+                  )}
+                  {c.status !== 'ok' && CHECK_FIX_CATEGORY[c.id] && (
+                    <>
+                      {' '}
+                      <OpenCategoryButton categoryId={CHECK_FIX_CATEGORY[c.id]} />
+                    </>
                   )}
                 </span>
               }

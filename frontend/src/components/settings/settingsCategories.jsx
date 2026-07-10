@@ -9,7 +9,10 @@
  *
  * Keep this declarative — no JSX panels here (those need props/hooks and live
  * in Settings.jsx's renderCategory switch). `keywords` powers the bonus
- * "search matches a setting → jump to its category" behaviour.
+ * "search matches a setting → jump to its category" behaviour; `keywordKeys`
+ * lists i18n keys of prominent setting-row titles so the same search works in
+ * every UI language (the translated titles are matched at query time — no
+ * separate keyword translations to maintain).
  */
 import {
   Palette,
@@ -54,6 +57,13 @@ export const GROUPS = [
           'header live stats',
           'system metrics',
         ],
+        keywordKeys: [
+          'settings.ui_scale',
+          'settings.color_theme',
+          'settings.font',
+          'settings.autoplay_preview',
+          'settings.header_live_stats',
+        ],
       },
       {
         id: 'general',
@@ -61,6 +71,7 @@ export const GROUPS = [
         defaultLabel: 'General',
         icon: Settings2,
         keywords: ['language', 'locale', 'interface language', 'review mode', 'stage checkpoints'],
+        keywordKeys: ['settings.language', 'settings.review_mode'],
       },
     ],
   },
@@ -106,6 +117,7 @@ export const GROUPS = [
           'microphone',
           'voice capture',
         ],
+        keywordKeys: ['settings.shortcut'],
       },
       {
         id: 'pronunciation',
@@ -129,6 +141,7 @@ export const GROUPS = [
           'openai',
           'api key',
         ],
+        keywordKeys: ['settings.translate_quality', 'settings.translation_providers'],
       },
     ],
   },
@@ -173,13 +186,20 @@ export const GROUPS = [
           'temp files',
           'clear logs',
         ],
+        keywordKeys: ['settings.storage_usage', 'settings.factory_reset'],
       },
       {
         id: 'network',
         labelKey: 'settings.network',
         defaultLabel: 'Network',
         icon: Wifi,
+        // The FFmpeg-path row is a durable env write read at process start
+        // (it renders RestartBadge) — the category carries the ↻ affordance
+        // like Models / Performance / Sharing. Guarded by the RestartBadge ↔
+        // category lockstep test in settingsCategories.test.jsx.
+        restart: true,
         keywords: ['network', 'proxy', 'http proxy', 'socks', 'ffmpeg', 'ffmpeg path'],
+        keywordKeys: ['settings.proxy', 'settings.ffmpeg'],
       },
       {
         id: 'sharing',
@@ -202,6 +222,7 @@ export const GROUPS = [
         defaultLabel: 'Credentials',
         icon: KeyRound,
         keywords: ['credentials', 'hugging face token', 'hf token', 'api key', 'secret'],
+        keywordKeys: ['settings.hf_token_title'],
       },
       {
         id: 'llm-providers',
@@ -221,6 +242,7 @@ export const GROUPS = [
           'autofit',
           'translation quality',
         ],
+        keywordKeys: ['settings.llmp_provider', 'settings.llmp_api_key', 'settings.llmp_model'],
       },
       {
         id: 'llm-skills',
@@ -276,6 +298,7 @@ export const GROUPS = [
         defaultLabel: 'About',
         icon: Info,
         keywords: ['about', 'version', 'license', 'diagnostics', 'self check'],
+        keywordKeys: ['about.version', 'about.self_check'],
       },
     ],
   },
@@ -310,13 +333,22 @@ export function resolveCategoryId(id) {
  * Given a lowercased query, return the set of category ids whose label OR any
  * keyword matches. Used to filter the sidebar and to power "search a setting →
  * jump to its category".
+ *
+ * @param {string}    query
+ * @param {function=} labelFor   (category) => translated label
+ * @param {function=} translate  i18n `t` — lets `keywordKeys` (setting-row
+ *   title keys) match in the active UI language, so a German user finds
+ *   Appearance by "Schriftart" just like an English user finds it by "font".
+ *   The English `keywords` always match too, in every locale.
  */
-export function matchCategories(query, labelFor) {
+export function matchCategories(query, labelFor, translate) {
   const q = query.trim().toLowerCase();
   if (!q) return CATEGORIES.map((c) => c.id);
   return CATEGORIES.filter((c) => {
     const label = (labelFor ? labelFor(c) : c.defaultLabel).toLowerCase();
     if (label.includes(q)) return true;
-    return (c.keywords || []).some((k) => k.toLowerCase().includes(q));
+    if ((c.keywords || []).some((k) => k.toLowerCase().includes(q))) return true;
+    if (!translate) return false;
+    return (c.keywordKeys || []).some((key) => String(translate(key)).toLowerCase().includes(q));
   }).map((c) => c.id);
 }

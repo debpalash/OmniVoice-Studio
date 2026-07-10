@@ -75,12 +75,25 @@ i18n
     },
   });
 
+// Keep the document's text direction and language in sync with the active
+// locale — without this, RTL locales (Arabic today, any future RTL addition)
+// render in an LTR layout and screen readers get the wrong language.
+function applyDocumentDirection(lng: string): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dir = i18n.dir(lng);
+  document.documentElement.lang = lng;
+}
+
 // Fetch the bundle whenever a non-English language becomes active — covers
 // both the initial browser-detected language and later picker switches.
 i18n.on('languageChanged', (lng) => {
+  applyDocumentDirection(lng);
   void loadLocale(lng);
 });
-if (i18n.language && i18n.language !== 'en') void loadLocale(i18n.language);
+if (i18n.language) {
+  applyDocumentDirection(i18n.language);
+  if (i18n.language !== 'en') void loadLocale(i18n.language);
+}
 
 // Selectable UI languages. Native language names live here, in the i18n
 // layer — never hardcoded in component code (see the "no hardcoded
