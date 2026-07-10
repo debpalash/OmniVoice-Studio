@@ -69,6 +69,11 @@ hiddenimports = [
     # Pipeline
     'yt_dlp', 'demucs', 'demucs.separate',
 
+    # Numbers→words for the pre-TTS text normalization pass
+    # (services/text_normalization.py). Imported inside a function (lazy),
+    # so pin it explicitly rather than trusting the tracer.
+    'num2words',
+
     # OmniVoice's own package
     'omnivoice', 'omnivoice.models', 'omnivoice.models.omnivoice',
 ]

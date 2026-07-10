@@ -163,6 +163,10 @@ dependencies = [
     # Python, MIT, PyPA-maintained, zero transitive deps — same class of fix
     # as socksio above, identical on macOS/Windows/Linux.
     "truststore>=0.9",
+    # Numbers→words for the pre-TTS text normalization pass
+    # (services/text_normalization.py). Was already installed transitively;
+    # promoted to a direct dependency because we now import it ourselves.
+    "num2words>=0.5.14",
 ]
 
 [project.optional-dependencies]

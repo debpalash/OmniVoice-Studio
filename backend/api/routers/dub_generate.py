@@ -429,6 +429,12 @@ async def dub_generate(job_id: str, req: DubRequest):
                 continue
 
             def _gen(text, lang, instruct_str, dur_s, nstep, cfg, spd, profile_id, effect_preset):
+                # Normalize once at the segment's text→engine choke point
+                # (covers the OOM-retry generate below too, which reuses this
+                # closure's `text`). Pref-gated, idempotent, never raises.
+                from services.text_normalization import normalize_for_tts
+                text = normalize_for_tts(text, lang)
+
                 ref_audio = None
                 ref_text = None
                 used_seed = None
@@ -1246,8 +1252,11 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
                     instruct_str = row["instruct"]
 
         lang = req.language if req.language != "Auto" else None
+        # Same normalization as the full dub render above, so a preview
+        # sounds exactly like the final segment. Pref-gated, never raises.
+        from services.text_normalization import normalize_for_tts
         audio_out = backend.generate(
-            text=req.text,
+            text=normalize_for_tts(req.text, lang),
             language=lang,
             ref_audio=ref_audio,
             ref_text=ref_text,

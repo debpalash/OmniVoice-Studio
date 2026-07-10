@@ -877,6 +877,15 @@ async def generate_speech(
     if used_seed is None:
         used_seed = random.randint(0, 2**31 - 1)
 
+    # Engine-agnostic text normalization (junk strip, numbers→words,
+    # abbreviations) — AFTER `language` is fully resolved, and BEFORE the
+    # pronunciation dictionary so user dictionary entries operate on
+    # normalized text and respellings are never re-mangled (ordering rationale
+    # in services/text_normalization.py). Pref-gated (default ON), idempotent,
+    # never raises; applied exactly once per request, at this choke point.
+    from services.text_normalization import normalize_for_tts
+    text = normalize_for_tts(text, language)
+
     # Expressive-TTS Spec 01: apply the user pronunciation dictionary + inline
     # [[…]] one-off overrides to the text, here — AFTER `language` is fully
     # resolved (a profile may fill it above) so per-language entries match the

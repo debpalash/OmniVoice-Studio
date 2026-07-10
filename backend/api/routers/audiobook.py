@@ -311,7 +311,8 @@ async def _prepare_synth(default_voice: str | None, language: str | None = None)
     return info["synth"], info["sample_rate"], resolve, engine_id
 
 
-def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, lexicon=None):
+def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, lexicon=None,
+                           language=None):
     """Render one chapter, content-addressed so a re-run reuses it (resume).
 
     Returns ``(wav_path, duration_s, was_cached, seg_stats)``. Two cache
@@ -330,19 +331,29 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, le
       moment it renders (an interrupted chapter resumes from them).
       ``seg_stats`` is ``{"total": spoken_spans, "cached": reused}``.
 
+    Span text is normalized (``services.text_normalization``) up front — BEFORE
+    either cache key and BEFORE ``synthesize_chapter``'s lexicon pass, so the
+    per-project dictionary operates on normalized text and toggling / changing
+    normalization output naturally invalidates cached chapters and segments.
+
     Runs in the GPU-pool executor.
     """
     import json
     import wave
 
     from services.audio_io import atomic_save_wav
+    from services.audiobook import Span
     from services.longform_render import SegmentCache, chapter_cache_key
     from services.pronunciation import normalize_lexicon
+    from services.text_normalization import normalize_for_tts
 
+    spans = [Span(voice_id=s.voice_id, text=normalize_for_tts(s.text, language),
+                  pause_ms_after=s.pause_ms_after, speed=getattr(s, "speed", None))
+             for s in chapter.spans]
     spans_tuples = [(s.voice_id, s.text, s.pause_ms_after, getattr(s, "speed", None))
-                    for s in chapter.spans]
+                    for s in spans]
     voice_sigs: dict = {}
-    for s in chapter.spans:
+    for s in spans:
         k = s.voice_id or ""
         if k not in voice_sigs:
             v = resolve(s.voice_id)
@@ -367,7 +378,7 @@ def _render_chapter_cached(chapter, synth, sr, engine_id, resolve, cache_dir, le
 
     seg_cache = SegmentCache(cache_dir, sample_rate=sr, engine_id=engine_id,
                              voice_sig=voice_sigs, extra_sig=lex_sig)
-    audio, dur = synthesize_chapter(chapter.spans, synth, sr, lexicon=lexicon,
+    audio, dur = synthesize_chapter(spans, synth, sr, lexicon=lexicon,
                                     segment_cache=seg_cache)
     atomic_save_wav(wav_path, audio, sr)
     return wav_path, dur, False, {"total": seg_cache.hits + seg_cache.misses,
@@ -402,14 +413,15 @@ async def audiobook_preview(req: AudiobookPreviewRequest) -> dict:
     chapter = plan.chapters[req.chapter_index]
     cache_dir = os.path.join(OUTPUTS_DIR, "longform_cache")  # shared with _render_longform_sse
     os.makedirs(cache_dir, exist_ok=True)
+    resolved_lang = _resolve_default_language(req.language, req.default_voice)
     synth, sr, resolve, engine_id = await _prepare_synth(
         req.default_voice,
-        language=_resolve_default_language(req.language, req.default_voice),
+        language=resolved_lang,
     )
     loop = asyncio.get_running_loop()
     wav_path, dur, was_cached, _seg_stats = await loop.run_in_executor(
         _gpu_pool, _render_chapter_cached, chapter, synth, sr, engine_id, resolve, cache_dir,
-        req.lexicon,
+        req.lexicon, resolved_lang,
     )
     return {
         "output": os.path.relpath(wav_path, OUTPUTS_DIR),  # served via /audio
@@ -514,8 +526,9 @@ async def _render_longform_sse(
     loop = asyncio.get_running_loop()
 
     try:
+        resolved_lang = _resolve_default_language(language, default_voice)
         synth, sr, resolve, engine_id = await _prepare_synth(
-            default_voice, language=_resolve_default_language(language, default_voice)
+            default_voice, language=resolved_lang
         )
 
         total = len(plan.chapters)
@@ -530,6 +543,7 @@ async def _render_longform_sse(
                 wav_path, dur, was_cached, seg_stats = await loop.run_in_executor(
                     _gpu_pool, _render_chapter_cached,
                     chapter, synth, sr, engine_id, resolve, cache_dir, lexicon,
+                    resolved_lang,
                 )
             except Exception:  # isolate a bad chapter — keep going
                 logger.warning("[%s] chapter %d (%s) failed to render",
