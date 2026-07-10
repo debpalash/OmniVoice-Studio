@@ -275,6 +275,42 @@ function DubSegmentRow({
             📖 {seg.rate_ratio.toFixed(2)}×
           </span>
         )}
+        {/* Pre-synthesis duration plan (backend duration_planner): warn about
+            tight/impossible segments BEFORE GPU time is spent. Informational
+            only — generation is never blocked. */}
+        {seg.plan && (seg.plan.status === 'tight' || seg.plan.status === 'impossible') && (
+          <span
+            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
+            style={{ color: seg.plan.status === 'impossible' ? '#fb4934' : '#fabd2f' }}
+            title={t(
+              seg.plan.status === 'impossible'
+                ? 'segment.plan_impossible_title'
+                : 'segment.plan_tight_title',
+              {
+                est: (seg.plan.est_dur_s || 0).toFixed(1),
+                avail: (seg.plan.available_s || 0).toFixed(1),
+                seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
+              },
+            )}
+          >
+            <AlertCircle size={8} />{' '}
+            {seg.plan.status === 'impossible'
+              ? t('segment.plan_impossible', {
+                  seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
+                })
+              : t('segment.plan_tight')}
+          </span>
+        )}
+        {seg.plan && seg.plan.suggested_text && seg.plan.suggested_text !== seg.text && (
+          <button
+            onClick={() => onEditField(seg.id, 'text', seg.plan.suggested_text)}
+            disabled={disabled}
+            title={t('segment.plan_apply_title', { text: seg.plan.suggested_text })}
+            className="bg-transparent border-none text-[#83a598] cursor-pointer p-0 mt-[1px] text-[0.48rem] text-left"
+          >
+            ✂ {t('segment.plan_apply')}
+          </button>
+        )}
       </span>
 
       <input

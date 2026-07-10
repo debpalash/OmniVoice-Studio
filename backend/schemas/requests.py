@@ -122,6 +122,12 @@ class TranslateSegment(BaseModel):
     # Available time slot (end - start, seconds) for rate-ratio prediction
     # and the cinematic slot-fit pass. Same silent-drop fix as `direction`.
     slot_seconds: Optional[float] = None
+    # Timeline position (seconds) — lets the duration planner borrow silence
+    # from the gap to the NEXT segment when classifying fits/tight/impossible
+    # (services/duration_planner.py). Optional: old clients that only send
+    # slot_seconds still get rate_ratio badges, just no plan verdicts.
+    start: Optional[float] = None
+    end: Optional[float] = None
 
 class TranslateRequest(BaseModel):
     segments: List[TranslateSegment]
@@ -147,6 +153,12 @@ class TranslateRequest(BaseModel):
     #     the direct translation).
     auto_glossary: Optional[bool] = None
     reflect: Optional[bool] = None
+    # Opt-in LLM condensation (default OFF): for segments the duration
+    # planner classifies "impossible", ask the configured LLM for a shorter
+    # meaning-preserving rewrite and attach it as plan.suggested_text — a
+    # per-segment suggestion the user applies manually, never auto-applied.
+    # No LLM configured / LLM failure → silently no suggestion.
+    condense: Optional[bool] = False
 
 class DubIngestUrlRequest(BaseModel):
     url: str

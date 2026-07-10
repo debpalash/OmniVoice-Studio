@@ -718,6 +718,132 @@ async def dub_translate(req: TranslateRequest):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+def _stamp_duration_plan(rows, req) -> None:
+    """Attach a pre-synthesis duration-plan verdict to every row (in place).
+
+    Pure planning (services/duration_planner.py): estimate the natural
+    speech duration of each row's FINAL text — self-calibrated from this
+    job's already-synthesized segments when possible — and classify it
+    against slot + borrowable gap using fit_planner's own caps. The verdict
+    rides on the row as ``plan`` so the segment table can badge tight/
+    impossible segments BEFORE any GPU time is spent. Informational only —
+    generation is never blocked. Never raises.
+    """
+    try:
+        from services.duration_planner import calibration_from_job, classify_segments
+
+        timed = [
+            s for s in req.segments
+            if getattr(s, "start", None) is not None and getattr(s, "end", None) is not None
+        ]
+        if not timed:
+            return  # old client — no timeline info, no plan
+        text_by_id = {str(r["id"]): (r.get("text") or "") for r in rows}
+        segs = sorted(
+            (
+                {
+                    "id": str(s.id),
+                    "start": float(s.start),
+                    "end": float(s.end),
+                    "text": text_by_id.get(str(s.id), ""),
+                }
+                for s in timed
+            ),
+            key=lambda d: d["start"],
+        )
+        calib = None
+        total_dur = 0.0
+        if getattr(req, "job_id", None):
+            job = _get_job(req.job_id)
+            if job:
+                calib = calibration_from_job(job, req.target_lang)
+                total_dur = float(job.get("duration") or 0.0)
+        verdicts = {
+            v["id"]: v
+            for v in classify_segments(
+                segs, req.target_lang, calibration=calib, total_dur_s=total_dur,
+            )
+        }
+        for row in rows:
+            v = verdicts.get(str(row["id"]))
+            if v is None or row.get("error") or not (row.get("text") or "").strip():
+                continue
+            row["plan"] = {
+                "status": v["status"],
+                "est_dur_s": v["est_dur_s"],
+                "available_s": v["available_s"],
+                "est_overrun_s": v["est_overrun_s"],
+                "calibrated": v["calibrated"],
+            }
+    except Exception as e:  # noqa: BLE001 — planning must never sink a translate
+        logger.debug("duration-plan stamping skipped: %s", e)
+
+
+async def _apply_condense_pass(rows, req, loop) -> None:
+    """Opt-in LLM condensation for ``impossible`` rows (in place).
+
+    Fans ``condense_for_slot`` out on the CPU pool under the same wall-clock
+    budget the cinematic phase uses, so a slow LLM can't hang the translate.
+    Suggestions land as ``plan.suggested_text`` — the user applies them per
+    segment; the row's ``text`` is never touched here. Every failure mode
+    (no LLM, LLM error, divergent reply, budget) degrades to no suggestion.
+    """
+    targets = [
+        row for row in rows
+        if (row.get("plan") or {}).get("status") == "impossible"
+        and (row.get("text") or "").strip() and not row.get("error")
+    ]
+    if not targets:
+        return
+    try:
+        from services.duration_planner import calibration_from_job, condense_for_slot
+
+        calib = None
+        if getattr(req, "job_id", None):
+            job = _get_job(req.job_id)
+            if job:
+                calib = calibration_from_job(job, req.target_lang)
+        source_by_id = {str(s.id): s.text for s in req.segments}
+        sem = asyncio.Semaphore(int(os.environ.get("OMNIVOICE_LLM_CONCURRENCY", "6")))
+
+        async def _one(row):
+            async with sem:
+                res = await loop.run_in_executor(
+                    _cpu_pool,
+                    lambda: condense_for_slot(
+                        row["text"],
+                        available_s=float(row["plan"]["available_s"]),
+                        target_lang=req.target_lang,
+                        source_text=source_by_id.get(str(row["id"])),
+                        calibration=calib,
+                    ),
+                )
+            if res.get("applied") and res.get("text"):
+                row["plan"]["suggested_text"] = res["text"]
+                row["plan"]["suggested_est_dur_s"] = res.get("est_dur_s")
+
+        tasks = [asyncio.ensure_future(_one(row)) for row in targets]
+        budget = _cinematic_budget()
+        done, pending = await asyncio.wait(
+            tasks, timeout=budget if budget and budget > 0 else None,
+        )
+        for task in pending:
+            task.cancel()  # abandon the executor thread (#730 pattern)
+        for task in done:
+            exc = task.exception()
+            if exc is not None:
+                logger.warning("condense pass segment failed: %s", exc)
+    except Exception as e:  # noqa: BLE001 — a suggestion pass must never sink a translate
+        logger.warning("condense pass skipped: %s", e)
+
+
+async def _finalize_duration_plan(rows, req, loop) -> None:
+    """Stamp plan verdicts on the FINAL row texts, then (opt-in) condense."""
+    _stamp_duration_plan(rows, req)
+    if getattr(req, "condense", False):
+        await _apply_condense_pass(rows, req, loop)
+
+
 def _stamp_predicted_rate_ratio(translated, req) -> None:
     """Stamp a predicted ``rate_ratio`` on every row that has a known slot.
 
@@ -811,8 +937,10 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
             "quality_used": "fast",
             **_dialect_flags(req, applied=(already_llm and bool(dialect_hint)))}
 
-    # Fast (and anything unrecognised) returns the plain translation unchanged.
+    # Fast (and anything unrecognised) returns the plain translation unchanged
+    # (plus the pre-synthesis duration-plan badges — no LLM needed for those).
     if quality not in ("cinematic", "autofit"):
+        await _finalize_duration_plan(translated, req, loop)
         return base
 
     source_by_id: dict[str, str] = {str(s.id): s.text for s in req.segments}
@@ -843,6 +971,8 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
                 out["rate_ratio"] = row["rate_ratio"]
             merged.append(out)
         await _apply_fit_pass(merged, req, slots_by_id, source_by_id, quality, loop, deadline)
+        # Plan AFTER the fit pass — verdicts must describe the final text.
+        await _finalize_duration_plan(merged, req, loop)
         return {"translated": merged, "target_lang": req.target_lang,
                 "source_lang": src_lang, "quality_used": quality,
                 **_dialect_flags(req, applied=bool(dialect_hint))}
@@ -852,6 +982,7 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
     if not cinematic_available():
         logger.warning("%s requested but no LLM configured — returning Fast result.", quality)
         base["cinematic_skipped"] = "no-llm-configured"
+        await _finalize_duration_plan(translated, req, loop)
         return base
 
     directions: dict[str, str] = {
@@ -870,6 +1001,7 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
         pairs.append((seg_id, source_by_id.get(seg_id, ""), literal))
 
     if not pairs:
+        await _finalize_duration_plan(translated, req, loop)
         return base
 
     refined = await cinematic_refine_many(
@@ -905,6 +1037,9 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
 
     # Phase 4.4 speech-rate fit pass — now concurrent + bounded (see helper).
     await _apply_fit_pass(merged, req, slots_by_id, source_by_id, quality, loop, deadline)
+
+    # Plan AFTER the fit pass — verdicts must describe the final text.
+    await _finalize_duration_plan(merged, req, loop)
 
     return {
         "translated": merged,

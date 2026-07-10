@@ -107,6 +107,24 @@ MT engines can't run either stage):
   turn it off for long videos on slow or metered providers. If any refinement
   step fails or times out, the direct translation is kept silently; refinement
   can never fail a segment.
+### Fit prediction (all quality levels)
+
+Every translation additionally gets a **pre-synthesis fit check** — no LLM
+needed. For each segment, OmniVoice predicts how long the translated line will
+take to speak (self-calibrating to your voice/engine from segments already
+generated in the job, with a per-language rate table as the cold-start
+fallback) and compares it against the slot plus the silence it can borrow
+before the next line. Segments the Smart Fit caps can only absorb with an
+audible speed-up get a **Tight fit** badge; segments no fitting can save get a
+**Won't fit +Ns** badge — so you can shorten the text *before* burning GPU
+time on a line that would end up trimmed. Badges are informational only:
+generation is never blocked.
+
+**Suggest shorter lines** (checkbox under Quality, off by default) goes one
+step further: for every "Won't fit" segment it asks the configured LLM for a
+meaning-preserving shorter rewrite and offers it on the row as a one-click
+**Use shorter rewrite** suggestion. It never rewrites anything automatically,
+and with no LLM configured (or on any LLM error) it simply does nothing.
 
 ## LLM Providers (for Cinematic / Autofit)
 

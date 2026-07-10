@@ -83,6 +83,7 @@ export default function useDubWorkflow({
   const cfg = useAppStore((s) => s.cfg);
   const speed = useAppStore((s) => s.speed);
   const translateQuality = useAppStore((s) => s.translateQuality);
+  const condenseSuggest = useAppStore((s) => s.condenseSuggest);
   const timingStrategy = useAppStore((s) => s.timingStrategy);
   const fitOptions = useAppStore((s) => s.fitOptions);
   const glossaryTerms = useAppStore((s) => s.glossaryTerms);
@@ -718,6 +719,11 @@ export default function useDubWorkflow({
             target_lang: s.target_lang,
             direction: s.direction || undefined,
             slot_seconds: s.end != null && s.start != null ? s.end - s.start : undefined,
+            // Timeline position — lets the backend's duration planner borrow
+            // silence from the gap to the next segment when classifying
+            // fits/tight/impossible before any GPU time is spent.
+            start: s.start != null ? s.start : undefined,
+            end: s.end != null ? s.end : undefined,
           })),
           target_lang: targetLang,
           provider: translateProvider,
@@ -731,6 +737,9 @@ export default function useDubWorkflow({
           // loop reuses this callback long after the click-time closure.
           auto_glossary: useAppStore.getState().autoGlossary,
           reflect: useAppStore.getState().reflectPass,
+          // Opt-in (default OFF): ask the LLM for shorter rewrites of
+          // segments the planner marks impossible — suggestions only.
+          condense: condenseSuggest || undefined,
           // #280: regional dialect — only sent when it matches the target
           // language so a stale "es-AR" never rides on a French translate.
           dialect: dialectMatchesLang(dubDialect, targetLang) ? dubDialect : undefined,
@@ -765,6 +774,10 @@ export default function useDubWorkflow({
               // the user clicks Generate Dub.
               rate_ratio: hit.rate_ratio != null ? hit.rate_ratio : s.rate_ratio,
               rate_error: hit.rate_error || s.rate_error,
+              // Pre-synthesis duration plan (fits/tight/impossible + optional
+              // condensed-rewrite suggestion) — drives the row badge so a
+              // doomed segment is visible before Generate Dub is clicked.
+              plan: hit.plan != null ? hit.plan : s.plan,
             };
           }),
         );
@@ -822,6 +835,7 @@ export default function useDubWorkflow({
       dubJobId,
       translateProvider,
       translateQuality,
+      condenseSuggest,
       glossaryTerms,
       setIsTranslating,
       setDubSegments,

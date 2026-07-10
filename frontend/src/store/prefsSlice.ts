@@ -74,6 +74,13 @@ interface FitOptions {
 
 export interface PrefsSlice {
   translateQuality: TranslateQuality;
+  /**
+   * Opt-in LLM condensation for doomed dub segments (default OFF). When on,
+   * Translate asks the configured LLM for a shorter meaning-preserving
+   * rewrite of every segment the duration planner marks "impossible" and
+   * attaches it as a per-segment suggestion — never applied automatically.
+   */
+  condenseSuggest: boolean;
   dualSubs: boolean;
   burnSubs: boolean;
   glossaryVisible: boolean;
@@ -138,6 +145,7 @@ export interface PrefsSlice {
   setReflectPass: (on: boolean) => void;
 
   setTranslateQuality: (q: TranslateQuality) => void;
+  setCondenseSuggest: (on: boolean) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
   setGlossaryVisible: (on: boolean) => void;
@@ -222,6 +230,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   translateQuality: 'fast',
   autoGlossary: true,
   reflectPass: true,
+  condenseSuggest: false,
   dualSubs: false,
   burnSubs: false,
   glossaryVisible: true,
@@ -243,6 +252,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setTranslateQuality: (q) => set({ translateQuality: q }),
   setAutoGlossary: (on) => set({ autoGlossary: on }),
   setReflectPass: (on) => set({ reflectPass: on }),
+  setCondenseSuggest: (on) => set({ condenseSuggest: on }),
   setDualSubs: (on) => set({ dualSubs: on }),
   setBurnSubs: (on) => set({ burnSubs: on }),
   setGlossaryVisible: (on) => set({ glossaryVisible: on }),

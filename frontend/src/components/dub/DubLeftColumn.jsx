@@ -115,6 +115,10 @@ export default function DubLeftColumn({
   const setAutoGlossary = useAppStore((s) => s.setAutoGlossary);
   const reflectPass = useAppStore((s) => s.reflectPass);
   const setReflectPass = useAppStore((s) => s.setReflectPass);
+  // Opt-in LLM condensation suggestions for segments the duration planner
+  // classifies as impossible to fit (default OFF — needs an LLM).
+  const condenseSuggest = useAppStore((s) => s.condenseSuggest);
+  const setCondenseSuggest = useAppStore((s) => s.setCondenseSuggest);
   // Frozen-build (packaged/signed, read-only site-packages) escape-hatch
   // popover: pip install is impossible, so we surface the copyable command +
   // a one-click switch to the always-bundled Argos engine + a docs deeplink.
@@ -652,6 +656,21 @@ export default function DubLeftColumn({
                   { value: 'cinematic', label: t('dub.cinematic_quality') },
                 ]}
               />
+              {/* Opt-in (default OFF): when the duration planner marks a
+                  translated line "impossible" for its slot, ask the LLM for a
+                  shorter rewrite the user can apply per segment. */}
+              <label
+                className="flex items-center gap-[4px] mt-[3px] text-[0.55rem] text-fg-muted cursor-pointer select-none"
+                title={t('dub.condense_title')}
+              >
+                <input
+                  type="checkbox"
+                  checked={condenseSuggest}
+                  onChange={(e) => setCondenseSuggest(e.target.checked)}
+                  className="cursor-pointer"
+                />
+                {t('dub.condense_label')}
+              </label>
             </div>
             {/* LLM engine only: auto-glossary + reflect pass. Both default ON;
                 the reflect tooltip is explicit that it multiplies LLM calls. */}

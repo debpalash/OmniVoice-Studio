@@ -244,6 +244,17 @@ export interface DubTranslateResponse {
     text_original?: string;
     rate_ratio?: number;
     rate_error?: string;
+    /** Pre-synthesis duration plan (backend services/duration_planner.py). */
+    plan?: {
+      status: 'fits' | 'tight' | 'impossible';
+      est_dur_s: number;
+      available_s: number;
+      est_overrun_s: number;
+      calibrated: boolean;
+      /** Opt-in LLM condensation suggestion (request condense=true only). */
+      suggested_text?: string;
+      suggested_est_dur_s?: number;
+    };
   }[];
 }
 

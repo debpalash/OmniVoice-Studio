@@ -859,6 +859,8 @@
     "auto_glossary_title": "One extra LLM pass reads the whole transcript and extracts the video's theme plus key terms, so names and terminology stay consistent across segments. Your manual glossary entries always win.",
     "reflect_label": "Reflect pass",
     "reflect_title": "After each segment's direct translation, the LLM critiques and rewrites it into natural spoken dialogue. Uses 3 LLM calls per segment instead of 1; if refinement fails, the direct translation is kept.",
+    "condense_label": "Suggest shorter lines",
+    "condense_title": "When a translated line is predicted not to fit its time slot, ask the LLM for a shorter meaning-preserving rewrite you can apply per segment. Off by default; needs a configured LLM.",
     "restore": "↺ Restore",
     "restore_title": "Restore all segments to the original transcribed text",
     "clean_up": "Clean Up",
@@ -1024,7 +1026,13 @@
     "fit_stretched_title": "Stretch Video mode: this segment's video was slowed to {{ratio}}× to fit the natural dub audio.",
     "fit_compressed_title": "TTS audio is {{pct}}% of the slot — heavily compressed.",
     "fit_audio_title": "Audio fit inside the slot.",
-    "fit_ratio_title": "TTS audio is {{pct}}% of the slot."
+    "fit_ratio_title": "TTS audio is {{pct}}% of the slot.",
+    "plan_tight": "Tight fit",
+    "plan_tight_title": "Predicted speech ≈{{est}}s vs {{avail}}s available — Smart Fit can absorb this, but only with an audible speed-up or video slow-down. Shorten the text for a cleaner result.",
+    "plan_impossible": "Won't fit +{{seconds}}s",
+    "plan_impossible_title": "Predicted speech ≈{{est}}s vs {{avail}}s available — about {{seconds}}s more than any fitting can absorb, so the audio would be trimmed. Shorten the text before generating.",
+    "plan_apply": "Use shorter rewrite",
+    "plan_apply_title": "Replace this line with the suggested shorter rewrite: \"{{text}}\""
   },
   "timeline": {
     "track_label": "Segment timeline",

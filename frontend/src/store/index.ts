@@ -85,6 +85,7 @@ export const useAppStore = create<AppStore>()(
         translateQuality: s.translateQuality,
         autoGlossary: s.autoGlossary,
         reflectPass: s.reflectPass,
+        condenseSuggest: s.condenseSuggest,
         dualSubs: s.dualSubs,
         burnSubs: s.burnSubs,
         glossaryVisible: s.glossaryVisible,

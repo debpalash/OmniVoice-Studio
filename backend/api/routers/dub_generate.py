@@ -338,6 +338,13 @@ async def dub_generate(job_id: str, req: DubRequest):
         # retain every generated tensor in RAM until final assembly.
         _pending_seg_writes: list[tuple] = []
 
+        # Calibration records for the pre-synthesis duration planner
+        # (services/duration_planner.py): text length + the NATURAL-rate TTS
+        # duration of every freshly synthesized segment. Only meaningful for
+        # the natural-rate strategies — strict_slot forces the audio to the
+        # slot length, which would poison the observed chars-per-second.
+        _natural_dur_records: dict[str, dict] = {}
+
         # Phase 4.1 bench instrumentation: measure where incremental time goes.
         # Only prints when regen_only is active (real-user incremental path).
         _t_start = time.perf_counter()
@@ -679,6 +686,15 @@ async def dub_generate(job_id: str, req: DubRequest):
 
                 sync_scores.append(sync_ratio)
 
+                # Duration-planner calibration sample: this text length spoke
+                # for this long at natural rate. Keyed by stable seg id and
+                # merged into the per-language job map after the loop.
+                if strategy != "strict_slot" and seg.text.strip() and generated_dur > 0:
+                    _natural_dur_records[str(seg_id)] = {
+                        "chars": len(seg.text.strip()),
+                        "dur": round(generated_dur, 4),
+                    }
+
                 # Build the fingerprint now (cheap) but defer the disk write
                 # and job flush to the batch-write phase after the GPU loop.
                 _seg_fp = None
@@ -779,6 +795,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                 hashes[_sid] = _fp
             quality_map[_sid] = _nstep
         job["seg_hashes"] = dict(hashes)
+        # Duration-planner calibration: per-language (chars, natural dur)
+        # records. update() (not replace) so partial regens keep accumulating
+        # samples from earlier runs of this track.
+        if _natural_dur_records:
+            job.setdefault("seg_natural_durs_by_lang", {}).setdefault(
+                lang_code, {},
+            ).update(_natural_dur_records)
         # Single job flush instead of one per 8 segments.
         _save_job(job_id, job)
         _t_diskw = time.perf_counter() - _t_diskw_0
