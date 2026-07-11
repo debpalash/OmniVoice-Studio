@@ -88,17 +88,33 @@ def _check_device() -> dict:
 
 
 def _check_ffmpeg() -> dict:
+    """Media engine (ffmpeg + ffprobe) — an internal dependency the app
+    bundles/acquires itself, so a failure here means the self-heal also has
+    nothing to work with (and the hint says where the controls live)."""
+    ffmpeg = ffprobe = None
     try:
-        from services.ffmpeg_utils import find_ffmpeg
-        path = find_ffmpeg()
+        from services.ffmpeg_utils import find_ffmpeg, find_ffprobe
+        ffmpeg = find_ffmpeg()
+        ffprobe = find_ffprobe()
     except Exception:
-        path = None
-    if path:
-        return _check("ffmpeg", "ffmpeg", OK, str(path))
+        pass
+    if ffmpeg and ffprobe:
+        return _check("ffmpeg", "Media engine (ffmpeg)", OK,
+                      f"ffmpeg: {ffmpeg}; ffprobe: {ffprobe}")
+    if ffmpeg:
+        return _check(
+            "ffmpeg", "Media engine (ffmpeg)", WARN,
+            f"ffmpeg: {ffmpeg}; ffprobe missing",
+            "Media probing (Smart Fit, file inspection) is degraded. Open "
+            "Settings > Audio tools and press Restore bundled to fetch the "
+            "app's own ffprobe, or point it at a system copy there.",
+        )
     return _check(
-        "ffmpeg", "ffmpeg", FAIL,
-        "not found on PATH or FFMPEG_PATH",
-        "Dubbing and audio conversion need ffmpeg: brew install ffmpeg (macOS), apt install ffmpeg (Linux), or set the path in Settings > General.",
+        "ffmpeg", "Media engine (ffmpeg)", FAIL,
+        "no runnable ffmpeg in any tier (sidecar, bundled, system, custom)",
+        "Dubbing and audio conversion are unavailable. The app normally "
+        "provisions ffmpeg itself — open Settings > Audio tools and press "
+        "Restore bundled (needs network once), or choose a system copy there.",
     )
 
 

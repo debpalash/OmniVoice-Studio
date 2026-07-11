@@ -57,9 +57,13 @@ def find_ffmpeg():
     """Locate an ffmpeg binary.
 
     Resolution order:
-      1. ``FFMPEG_PATH`` env var (set by Tauri when a sidecar is bundled).
+      1. ``FFMPEG_PATH`` env var (set by Tauri when a sidecar is bundled, or
+         by the user's Settings → Audio tools override via prefs).
       2. ``imageio-ffmpeg`` pip package (ships a static binary per platform).
-      3. Common system paths / ``PATH``.
+      3. OmniVoice-acquired static bundle (``services.media_tools``) — the
+         checksummed build the app downloads itself when nothing else
+         resolves; the only bundled tier that also ships ffprobe.
+      4. Common system paths / ``PATH``.
 
     Returns the path string, or ``None`` if nothing found.
     """
@@ -78,7 +82,13 @@ def find_ffmpeg():
         logger.debug("imageio_ffmpeg binary not usable at %s", candidate)
     except Exception as e:
         logger.debug("imageio_ffmpeg unavailable: %s", e)
-    # 3. Well-known system paths + PATH lookup
+    # 3. OmniVoice-acquired bundled static binary (never downloads here —
+    # acquisition is media_tools' background job; this only picks up an
+    # already-installed build).
+    candidate = _acquired_bundled("ffmpeg")
+    if candidate:
+        return candidate
+    # 4. Well-known system paths + PATH lookup
     common = [
         "/opt/homebrew/bin/ffmpeg",
         "/usr/local/bin/ffmpeg",
@@ -95,6 +105,22 @@ def find_ffmpeg():
     return None
 
 
+def _acquired_bundled(tool: str) -> "str | None":
+    """Already-acquired media_tools static binary, validated — or None.
+
+    Lazy import: media_tools imports from this module at its top, so this
+    module must only reach back at call time (no cycle).
+    """
+    try:
+        from services.media_tools import bundled_tool_path
+        candidate = bundled_tool_path(tool)
+        if candidate and _binary_runs(candidate):
+            return candidate
+    except Exception as e:
+        logger.debug("media_tools bundled %s unavailable: %s", tool, e)
+    return None
+
+
 def resolve_ffprobe() -> str | None:
     """Resolve an ffprobe binary path.
 
@@ -103,8 +129,12 @@ def resolve_ffprobe() -> str | None:
          injected by Tauri pointing at the bundled sidecar (e.g.
          ``/usr/lib/omnivoice-studio/bin/ffprobe`` on .deb installs).
       2. ``FFPROBE_PATH`` env var — legacy alias kept for backward
-         compatibility with older Tauri shells / dev environments.
-      3. ``shutil.which("ffprobe")`` — system ``PATH`` fallback.
+         compatibility with older Tauri shells / dev environments; also the
+         key Settings → Audio tools persists a user override under.
+      3. OmniVoice-acquired static bundle (``services.media_tools``) —
+         imageio-ffmpeg ships no ffprobe, so this is the bundled tier that
+         closes the source-install gap.
+      4. ``shutil.which("ffprobe")`` — system ``PATH`` fallback.
 
     Returns the resolved path string, or ``None`` if nothing found. Callers
     that need a hard failure should use :func:`find_ffprobe` instead.
@@ -120,6 +150,10 @@ def resolve_ffprobe() -> str | None:
         resolved = shutil.which(path)
         if resolved and _binary_runs(resolved):
             return resolved
+
+    bundled = _acquired_bundled("ffprobe")
+    if bundled:
+        return bundled
 
     system_probe = shutil.which("ffprobe")
     if system_probe and _binary_runs(system_probe):

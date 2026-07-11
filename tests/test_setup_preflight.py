@@ -43,14 +43,81 @@ def test_preflight_every_check_has_required_fields(client):
 
 def test_preflight_always_probes_core_checks(client):
     """The fixed set of checks should always be present — users need a
-    consistent list regardless of platform."""
+    consistent list regardless of platform. Genuine user facts only."""
     body = client.get("/setup/preflight").json()
     ids = {c["id"] for c in body["checks"]}
     required_ids = {
         "os", "python", "ram", "disk", "hf_cache_writable",
-        "ffmpeg", "ffprobe", "gpu", "network",
+        "gpu", "network",
     }
     assert required_ids.issubset(ids), f"missing: {required_ids - ids}"
+
+
+def test_preflight_never_lists_media_tools_as_requirements(client):
+    """ffmpeg / ffprobe / yt-dlp are internal dependencies the app provisions
+    for itself — they must NOT appear as system-requirement check rows (the
+    old model told users to `brew install ffmpeg`)."""
+    body = client.get("/setup/preflight").json()
+    ids = {c["id"] for c in body["checks"]}
+    assert not ids & {"ffmpeg", "ffprobe", "yt-dlp"}, ids
+    joined = " ".join(f"{c['detail']} {c.get('fix') or ''}" for c in body["checks"])
+    assert "brew install ffmpeg" not in joined
+    assert "yt-dlp" not in joined
+
+
+def test_preflight_carries_media_tools_verdict(client):
+    """The wizard's quiet progress line / failure card reads a top-level
+    media_tools verdict: {ready, acquire:{state, progress, error}}."""
+    body = client.get("/setup/preflight").json()
+    media = body.get("media_tools")
+    assert media is not None
+    assert isinstance(media["ready"], bool)
+    assert media["acquire"]["state"] in {"idle", "running", "done", "error"}
+
+
+def test_preflight_kicks_background_acquisition_when_unresolved():
+    """No tier resolves → preflight itself starts the bundled download (the
+    first-run self-heal) instead of telling the user to install anything."""
+    import services.media_tools as mt
+
+    calls = []
+    with patch.object(mt, "status", return_value={
+        "ready": False, "tools": {},
+        "ops": {"acquire": {"state": "idle", "progress": 0.0, "error": None},
+                "ytdlp_update": {"state": "idle"}},
+        "platform_key": "test",
+    }), patch.object(mt, "acquire_bundled",
+                     side_effect=lambda wait=False: calls.append(1) or
+                     {"state": "running", "progress": 0.0, "error": None}):
+        body = client_factory().get("/setup/preflight").json()
+
+    assert calls, "preflight must trigger acquire_bundled when unresolved"
+    assert body["media_tools"] == {
+        "ready": False,
+        "acquire": {"state": "running", "progress": 0.0, "error": None},
+    }
+    # And the media engine never blocks the Continue gate.
+    checks_fail = any(c["status"] == "fail" for c in body["checks"])
+    assert body["ok"] is (not checks_fail)
+
+
+def test_preflight_does_not_retrigger_after_failed_acquisition():
+    """After a failed download the wizard's failure card owns Retry —
+    a preflight recheck must not silently re-fire the download."""
+    import services.media_tools as mt
+
+    with patch.object(mt, "status", return_value={
+        "ready": False, "tools": {},
+        "ops": {"acquire": {"state": "error", "progress": 0.0,
+                            "error": "download checksum mismatch"},
+                "ytdlp_update": {"state": "idle"}},
+        "platform_key": "test",
+    }), patch.object(mt, "acquire_bundled") as fired:
+        body = client_factory().get("/setup/preflight").json()
+
+    fired.assert_not_called()
+    assert body["media_tools"]["acquire"]["state"] == "error"
+    assert "checksum" in body["media_tools"]["acquire"]["error"]
 
 
 def test_preflight_device_summary(client):

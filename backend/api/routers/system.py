@@ -629,15 +629,17 @@ def system_notifications():
         notes.append({
             "id": "ffmpeg-missing",
             "level": "error",
-            "title": "ffmpeg not found",
+            "title": "Media engine unavailable",
             "message": (
-                "Video processing, audio conversion, and dubbing require ffmpeg. "
-                "Install it with: brew install ffmpeg (macOS) or apt install ffmpeg (Linux)."
+                "Video processing, audio conversion, and dubbing need the "
+                "media engine (ffmpeg), which the app normally provisions "
+                "itself. Open Settings > Audio tools and press Restore "
+                "bundled to re-download it, or point it at a system copy."
             ),
             "action": {
-                "label": "Install guide",
-                "type": "link",
-                "target": "https://ffmpeg.org/download.html",
+                "label": "Open Audio tools",
+                "type": "settings-tab",
+                "target": "audio-tools",
             },
         })
 

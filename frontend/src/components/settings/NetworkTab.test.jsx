@@ -21,10 +21,15 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn().mockResolvedValue({}),
 }));
 
+const { openSettingsTab } = vi.hoisted(() => ({ openSettingsTab: vi.fn() }));
+vi.mock('../../store', () => ({
+  useAppStore: (selector) => selector({ openSettingsTab }),
+}));
+
 import { toast } from 'react-hot-toast';
 import { useSystemInfo } from '../../api/hooks';
 import { apiFetch } from '../../api/client';
-import NetworkTab, { ffmpegPlaceholder } from './NetworkTab';
+import NetworkTab from './NetworkTab';
 
 describe('NetworkTab', () => {
   beforeEach(() => {
@@ -88,33 +93,26 @@ describe('NetworkTab', () => {
     fireEvent.change(screen.getByLabelText('Proxy URL'), {
       target: { value: 'socks5://127.0.0.1:7890' },
     });
-    // Two Save buttons render (proxy first, then FFmpeg).
-    fireEvent.click(screen.getAllByText('Save')[0]);
+    fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(screen.getByTestId('proxy-clear')).toBeInTheDocument();
     expect(screen.getByText('✓ Set')).toBeInTheDocument();
   });
 
-  it('labels both text inputs for assistive tech', () => {
+  it('labels the proxy input for assistive tech', () => {
     useSystemInfo.mockReturnValue({ data: {} });
     render(<NetworkTab />);
     expect(screen.getByLabelText('Proxy URL')).toBeInTheDocument();
-    expect(screen.getByLabelText('FFmpeg path')).toBeInTheDocument();
   });
 
-  it('picks a platform-appropriate FFmpeg placeholder', () => {
-    expect(ffmpegPlaceholder('win32')).toBe('C:\\ffmpeg\\bin\\ffmpeg.exe');
-    expect(ffmpegPlaceholder('darwin')).toBe('/opt/homebrew/bin/ffmpeg');
-    expect(ffmpegPlaceholder('linux')).toBe('/usr/bin/ffmpeg');
-    // Unknown/absent platform (backend not up yet) falls back to a POSIX path.
-    expect(ffmpegPlaceholder(undefined)).toBe('/usr/bin/ffmpeg');
-
-    useSystemInfo.mockReturnValue({ data: { platform: 'darwin' } });
+  it('has NO FFmpeg path control anymore — only the pointer to Audio tools', () => {
+    // The override moved to Settings → Audio tools; a second writer of
+    // env.FFMPEG_PATH here would fight the new panel.
+    useSystemInfo.mockReturnValue({ data: { ffmpeg_ok: true } });
     render(<NetworkTab />);
-    expect(screen.getByLabelText('FFmpeg path')).toHaveAttribute(
-      'placeholder',
-      '/opt/homebrew/bin/ffmpeg',
-    );
+    expect(screen.queryByLabelText('FFmpeg path')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-audio-tools'));
+    expect(openSettingsTab).toHaveBeenCalledWith('audio-tools');
   });
 });

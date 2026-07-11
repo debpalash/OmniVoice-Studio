@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useSetupStatus, usePreflight } from '../api/hooks';
 import { apiJson, apiFetch } from '../api/client';
 import WizardLibrary from '../components/WizardLibrary';
+import MediaEngineCard from '../components/MediaEngineCard';
 import HfTokenCard from '../components/HfTokenCard';
 import DictationDemo from '../components/DictationDemo';
 import { Button } from '../ui';
@@ -388,6 +389,10 @@ export default function SetupWizard({ onReady }) {
           <div className="flex min-h-0 flex-auto flex-col gap-3" key="step-0">
             <div className="fr-rise min-h-0 flex-1 overflow-y-auto" style={{ '--rise': 1 }}>
               <PreflightPanel report={pre} loading={preLoading} onRecheck={recheckPreflight} />
+              {/* Invisible when the media engine is ready; a quiet progress
+                  line while the backend fetches its own bundled build; an
+                  actionable card only on failure. */}
+              <MediaEngineCard />
               {networkDown && <MirrorRescue onApplied={recheckPreflight} />}
             </div>
             <div

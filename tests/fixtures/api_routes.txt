@@ -90,6 +90,7 @@ GET /jobs/{job_id}
 GET /jobs/{job_id}/events
 GET /longform/jobs
 GET /marketplace/browse
+GET /media-tools/status
 GET /model/loaded
 GET /model/status
 GET /models
@@ -180,6 +181,12 @@ POST /marketplace/export/{profile_id}
 POST /marketplace/import
 POST /marketplace/install/{filename}
 POST /marketplace/publish/{profile_id}
+POST /media-tools/acquire
+POST /media-tools/ytdlp/restore
+POST /media-tools/ytdlp/update
+POST /media-tools/{tool}/custom-path
+POST /media-tools/{tool}/restore
+POST /media-tools/{tool}/use-system
 POST /model/unload/{model_id}
 POST /models/install
 POST /models/install/cancel

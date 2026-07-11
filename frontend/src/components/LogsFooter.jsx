@@ -798,6 +798,9 @@ export default function LogsFooter() {
                     if (notif.action.type === 'navigate') {
                       useAppStore.getState().setMode?.(notif.action.target);
                       setCollapsed(true);
+                    } else if (notif.action.type === 'settings-tab') {
+                      useAppStore.getState().openSettingsTab?.(notif.action.target);
+                      setCollapsed(true);
                     } else if (notif.action.type === 'link') {
                       import('../api/external').then((m) => m.openExternal(notif.action.target));
                     }

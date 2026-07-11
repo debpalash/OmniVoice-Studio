@@ -35,9 +35,14 @@ Everything above, plus the toolchain:
   and the C toolchain; `curl` ships with macOS).
 - **Python 3.11+** — `brew install python@3.11` (or use `pyenv` / the system Python if you already have ≥3.11).
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
-- **FFmpeg** (used by the dubbing + capture pipelines) — `brew install ffmpeg`.
 - **Rust / Cargo** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or `brew install rust`.
   If you use rustup, reopen the terminal or source `"$HOME/.cargo/env"` before running `bun run desktop-prod`.
+
+FFmpeg/FFprobe and yt-dlp are **not** prerequisites on any install path: the
+app resolves them itself (a static build ships with the Python environment;
+if nothing resolves, the app downloads its own checksummed build on first
+run). Power users can inspect or override the binaries in
+**Settings → Audio tools** — including pointing at a Homebrew copy.
 
 Optional but recommended:
 

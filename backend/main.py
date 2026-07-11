@@ -195,6 +195,18 @@ try:
 except Exception:
     pass  # prefs.json missing or broken — fine on first run
 
+# ── Activate the yt-dlp user-update overlay (Settings → Audio tools) ──────
+# Must run before anything imports yt_dlp so a user-updated version (stored
+# under DATA_DIR, surviving app updates and uv drift syncs) wins over the
+# locked wheel. Best-effort: a broken overlay must never block startup.
+try:
+    from services.media_tools import activate_ytdlp_overlay
+    activate_ytdlp_overlay()
+except Exception:
+    # Best-effort by design: a broken/corrupt overlay must never block
+    # startup — the locked wheel on sys.path is the fallback.
+    pass
+
 warnings.filterwarnings("ignore", category=UserWarning)
 torchaudio.set_audio_backend("soundfile")
 
@@ -375,6 +387,7 @@ from api.routers import (
     longform_jobs,
     pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
     settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
+    media_tools as media_tools_router,  # Audio tools: ffmpeg/ffprobe/yt-dlp management
 )
 from utils import hf_progress
 
@@ -1045,6 +1058,7 @@ app.include_router(audiobook.router)
 app.include_router(longform_jobs.router)
 app.include_router(pronunciation.router)  # Expressive-TTS Spec 01: pronunciation dictionary
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
+app.include_router(media_tools_router.router)  # Settings → Audio tools + wizard media-engine self-heal
 from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
 app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings
 

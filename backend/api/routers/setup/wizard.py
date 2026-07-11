@@ -3,7 +3,9 @@
 Extracted from the monolithic ``setup.py``.
 
 - ``GET /setup/status``       — missing-model gate for boot screen
-- ``GET /setup/preflight``    — system health check (OS, RAM, GPU, ffmpeg…)
+- ``GET /setup/preflight``    — system health check (OS, RAM, disk, GPU, network —
+  genuine user facts only; the media engine (ffmpeg/ffprobe/yt-dlp) is an
+  internal concern that self-heals via ``services.media_tools``)
 - ``POST /setup/warmup``      — background model pre-load
 """
 from __future__ import annotations
@@ -12,7 +14,6 @@ import asyncio
 import logging
 import os
 import platform as _platform
-import shutil as _shutil
 import sys
 
 from fastapi import APIRouter
@@ -280,59 +281,19 @@ def preflight():
             f"Fix write permissions on {cache} or point HF_HOME elsewhere.",
     })
 
-    # ── FFmpeg
-    ffmpeg_path = None
+    # ── Media engine (ffmpeg/ffprobe/yt-dlp) — deliberately NOT a check row.
+    # These are internal dependencies the app provisions for itself, not user
+    # facts: when the resolution chain has no tier at all, preflight kicks the
+    # bundled acquisition in the background and the wizard shows a quiet
+    # progress line (a failure card only if that fails — with Retry / use a
+    # system copy). yt-dlp is an importable locked module and never appears.
+    # Power users manage all three in Settings → Audio tools.
+    media_tools = None
     try:
-        from services.ffmpeg_utils import find_ffmpeg
-        ffmpeg_path = find_ffmpeg()
-    except Exception as e:
-        checks.append({
-            "id": "ffmpeg", "label": "FFmpeg", "status": "fail",
-            "detail": str(e)[:200],
-            "fix": "Install ffmpeg via your package manager "
-                   "(brew install ffmpeg / apt install ffmpeg / choco install ffmpeg).",
-        })
-    else:
-        checks.append({
-            "id": "ffmpeg", "label": "FFmpeg", "status": "pass",
-            "detail": ffmpeg_path, "fix": None,
-        })
-
-    # ── FFprobe
-    ffprobe_path = None
-    try:
-        from services.ffmpeg_utils import find_ffprobe
-        ffprobe_path = find_ffprobe()
-    except Exception:
-        pass
-    if ffprobe_path:
-        checks.append({
-            "id": "ffprobe", "label": "FFprobe", "status": "pass",
-            "detail": ffprobe_path, "fix": None,
-        })
-    else:
-        checks.append({
-            "id": "ffprobe", "label": "FFprobe", "status": "warn",
-            "detail": "Not bundled alongside ffmpeg.",
-            "fix": "File-probe endpoint (/tools/probe) will 501. "
-                   "Install system ffmpeg (includes ffprobe) to enable it.",
-        })
-
-    # ── yt-dlp
-    yt_dlp_path = _shutil.which("yt-dlp")
-    if yt_dlp_path:
-        rc_ytv, yt_ver = _run_cmd([yt_dlp_path, "--version"], timeout=3.0)
-        yt_version = yt_ver.strip() if rc_ytv == 0 else "unknown"
-        checks.append({
-            "id": "yt-dlp", "label": "yt-dlp", "status": "pass",
-            "detail": f"{yt_dlp_path} (v{yt_version})", "fix": None,
-        })
-    else:
-        checks.append({
-            "id": "yt-dlp", "label": "yt-dlp", "status": "warn",
-            "detail": "Not found in system PATH.",
-            "fix": "YouTube clip downloads in Voice Gallery will fail. Download the standalone binary from https://github.com/yt-dlp/yt-dlp/releases and place it in your PATH.",
-        })
+        from services.media_tools import summary as _media_summary
+        media_tools = _media_summary(auto_acquire=True)
+    except Exception as exc:  # never break preflight on the media engine
+        logger.warning("preflight media_tools summary failed: %s", exc)
 
     # ── GPU
     gpu = _detect_gpu()
@@ -492,6 +453,7 @@ def preflight():
             "disk_free_gb": round(free, 1),
         },
         "gpu_routing": gpu_routing,
+        "media_tools": media_tools,
     }
 
 

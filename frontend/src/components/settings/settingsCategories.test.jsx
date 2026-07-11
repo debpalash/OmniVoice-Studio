@@ -49,7 +49,7 @@ describe('restart flag ↔ RestartBadge lockstep', () => {
     'StoragePanel.jsx': 'models',
     'HFMirrorPanel.jsx': 'models',
     'RemoteBackendPanel.jsx': 'sharing',
-    'NetworkTab.jsx': 'network',
+    'AudioToolsPanel.jsx': 'audio-tools',
     'PerformancePanel.jsx': 'performance',
   };
 

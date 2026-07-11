@@ -164,6 +164,11 @@ class PreflightResponse(BaseModel):
     # Explicit field (PreflightResponse has no extra="allow") so the verdict
     # survives serialization instead of being silently dropped.
     gpu_routing: GpuRouting | None = None
+    # Media-engine verdict (ffmpeg/ffprobe) — NOT a check row: an internal
+    # dependency the app provisions for itself. Shape: {ready, acquire:
+    # {state, progress, error}}. The wizard renders a quiet progress line /
+    # failure card from it instead of "install ffmpeg" system requirements.
+    media_tools: dict | None = None
 
 
 class InstallModelRequest(BaseModel):

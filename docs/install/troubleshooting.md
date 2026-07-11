@@ -167,6 +167,32 @@ that rely on `/usr/bin/ffprobe`.
 
 **Fix:** see [linux.md#deb-ffprobe-conflict](linux.md#deb-ffprobe-conflict).
 
+## 7b. "Media engine unavailable" / FFmpeg questions
+
+FFmpeg, FFprobe, and yt-dlp are **not** things you install for OmniVoice.
+The app resolves them itself, in order: a path provided by the desktop shell →
+the static build shipped with the Python environment → the app's own
+downloaded build → whatever is on your PATH. When nothing resolves at all
+(some source installs on a fresh machine), the Setup Wizard downloads a
+pinned, checksum-verified static build in the background — you'll see a
+one-line "Preparing media engine…" progress and, only if that download fails,
+a card with **Retry** and **Use a system copy**.
+
+If a running install ever reports "Media engine unavailable":
+
+1. Open **Settings → Audio tools**. Each row shows the binary actually in use
+   (version, path, and origin — Bundled / System / Custom).
+2. Press **Restore bundled** to re-fetch the app's own build (needs network
+   once), or **Use system copy** / **Choose file…** to point at an FFmpeg you
+   already have. Installing via a package manager (`brew install ffmpeg`,
+   `sudo apt install ffmpeg`, `winget install ffmpeg`) also works — press
+   **Use system copy** afterwards.
+
+The same panel updates **yt-dlp** (video imports): site support changes
+faster than app releases, so when video-URL imports start failing, press
+**Update** there — the new version survives app updates, and **Restore tested
+version** reverts to the build the app shipped with.
+
 ## 8. Docker LAN access — media preview 404
 
 **Symptom:** OmniVoice loads on `http://<lan-ip>:3900` but the audio preview

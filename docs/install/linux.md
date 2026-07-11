@@ -12,13 +12,11 @@ working OmniVoice Studio install on a Debian / Ubuntu / Fedora / Arch host.
 - **~10 GB free disk** for the app, its Python environment, and model weights.
 - Optional: an **NVIDIA driver** for CUDA GPU acceleration — the app runs
   CPU-only without one. For AMD GPUs see [AMD GPU (ROCm)](#amd-gpu-rocm).
-- Optional: **yt-dlp** for downloading YouTube/video clips directly in the
-  Voice Gallery and Dub tabs — `sudo apt install yt-dlp` (Debian/Ubuntu),
-  `sudo dnf install yt-dlp` (Fedora), or `sudo pacman -S yt-dlp` (Arch).
-  Without it those downloads fail; everything else works fine.
-
-That's it — Python, FFmpeg, and the model weights are bundled or bootstrapped
-by the app itself on first launch. No toolchain needed.
+That's it — Python, FFmpeg/FFprobe, yt-dlp, and the model weights are bundled
+or bootstrapped by the app itself on first launch. No toolchain needed. (If no
+FFmpeg resolves anywhere, the app downloads its own checksummed static build
+in the background during setup; **Settings → Audio tools** shows exactly which
+binaries are in use and lets you override them or update yt-dlp.)
 
 ### Building from source
 
@@ -29,7 +27,6 @@ Everything above, plus the toolchain:
 - **Python 3.11+** — typically `sudo apt install python3.11` on Debian/Ubuntu,
   `sudo dnf install python3.11` on Fedora, or already installed on Arch.
 - **Bun** — `curl -fsSL https://bun.sh/install | bash`.
-- **FFmpeg** — `sudo apt install ffmpeg` (Debian/Ubuntu), `sudo dnf install ffmpeg-free` (Fedora), or `sudo pacman -S ffmpeg` (Arch).
 - **Rust / Cargo** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` or via your package manager (e.g., `sudo apt install rustc cargo`).
   If you use rustup, reopen the shell or source `"$HOME/.cargo/env"` before running `bun run desktop-prod`.
 - **GTK/WebKit deps** for the Tauri shell:

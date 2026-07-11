@@ -15,6 +15,7 @@
  * separate keyword translations to maintain).
  */
 import {
+  AudioLines,
   Palette,
   Settings2,
   Plug,
@@ -193,13 +194,31 @@ export const GROUPS = [
         labelKey: 'settings.network',
         defaultLabel: 'Network',
         icon: Wifi,
-        // The FFmpeg-path row is a durable env write read at process start
-        // (it renders RestartBadge) — the category carries the ↻ affordance
-        // like Models / Performance / Sharing. Guarded by the RestartBadge ↔
-        // category lockstep test in settingsCategories.test.jsx.
+        // Only the proxy lives here now (applies immediately) — the
+        // restart-bound FFmpeg override moved to Audio tools below.
+        keywords: ['network', 'proxy', 'http proxy', 'socks'],
+        keywordKeys: ['settings.proxy'],
+      },
+      {
+        id: 'audio-tools',
+        labelKey: 'settings.audio_tools',
+        defaultLabel: 'Audio tools',
+        icon: AudioLines,
+        // yt-dlp updates land in an overlay read at process start (the row
+        // renders RestartBadge) — lockstep-guarded in
+        // settingsCategories.test.jsx like Models / Performance / Sharing.
         restart: true,
-        keywords: ['network', 'proxy', 'http proxy', 'socks', 'ffmpeg', 'ffmpeg path'],
-        keywordKeys: ['settings.proxy', 'settings.ffmpeg'],
+        keywords: [
+          'ffmpeg',
+          'ffprobe',
+          'ffmpeg path',
+          'yt-dlp',
+          'ytdlp',
+          'media engine',
+          'video downloader',
+          'bundled binaries',
+        ],
+        keywordKeys: ['settings.audio_tools', 'settings.ffmpeg', 'settings.audio_tools_ytdlp'],
       },
       {
         id: 'sharing',

@@ -36,6 +36,7 @@ import EnginesTab from '../components/settings/EnginesTab';
 import HotkeyTab from '../components/settings/HotkeyTab';
 import TranslationTab from '../components/settings/TranslationTab';
 import NetworkTab from '../components/settings/NetworkTab';
+import AudioToolsPanel from '../components/settings/AudioToolsPanel';
 import ApiKeysPanel from '../components/settings/ApiKeysPanel';
 import LLMProvidersPanel from '../components/settings/LLMProvidersPanel';
 import LLMSkillsPanel from '../components/settings/LLMSkillsPanel';
@@ -401,6 +402,8 @@ export default function Settings() {
         );
       case 'network':
         return <NetworkTab />;
+      case 'audio-tools':
+        return <AudioToolsPanel />;
       case 'sharing':
         return (
           <>
