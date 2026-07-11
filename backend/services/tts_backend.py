@@ -1698,6 +1698,17 @@ _MLX_AUDIO_MODEL_LABELS: dict[str, str] = {
 }
 
 
+def _sidecar_installable_ids() -> frozenset[str]:
+    """Engine ids with a one-click sidecar installer. Deferred import — the
+    installer module is tiny, but keeping the import inside the function
+    means a broken/absent installer can never take the engine picker down."""
+    try:
+        from services.sidecar_install import SPECS
+        return frozenset(SPECS)
+    except Exception:  # pragma: no cover — defensive only
+        return frozenset()
+
+
 def list_backends() -> list[dict]:
     """Enumerate every registered backend with its availability state.
 
@@ -1713,6 +1724,7 @@ def list_backends() -> list[dict]:
                                                     #   e.g. VoxCPM2's >=2.0.3 upgrade hint)
           "install_hint":   Optional[str],
           "setup_snippet":  Optional[str],          # exact `export VAR=...` for path-gated opt-in engines
+          "one_click_install": bool,                # services.sidecar_install can provision it in-app
           "last_error":     Optional[str],          # cached most-recent failure
           "isolation_mode": "in-process" | "subprocess",
           "gpu_compat":     list[str],              # subset of {cuda, rocm, mps, xpu, cpu}
@@ -1790,6 +1802,10 @@ def list_backends() -> list[dict]:
             "install_hint": _INSTALL_HINTS.get(bid),
             # Exact `export VAR=...` line for path-gated opt-in engines, or None.
             "setup_snippet": _SETUP_SNIPPETS.get(bid),
+            # True when services.sidecar_install can provision this engine
+            # in-app (Settings renders an Install button instead of leading
+            # with the manual setup snippet).
+            "one_click_install": bid in _sidecar_installable_ids(),
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
             "gpu_compat": list(gpu_compat),

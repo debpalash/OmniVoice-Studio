@@ -84,6 +84,62 @@ export async function selfTestEngine(engineId: string): Promise<EngineSelfTestRe
   return apiPost<EngineSelfTestResponse>(`/engines/${encodeURIComponent(engineId)}/selftest`, {});
 }
 
+// ── One-click sidecar-engine install (IndexTTS-2 & friends) ─────────────
+
+export type SidecarStepState = 'pending' | 'running' | 'done' | 'skipped' | 'error';
+
+export interface SidecarInstallStep {
+  id: string;
+  state: SidecarStepState;
+  detail: string | null;
+}
+
+export interface SidecarInstallJob {
+  engine_id: string;
+  state: 'running' | 'succeeded' | 'failed';
+  steps: SidecarInstallStep[];
+  log: string[];
+  error: string | null;
+  remediation: string | null;
+  weights_progress: {
+    filename: string | null;
+    downloaded: number | null;
+    total: number | null;
+    pct: number | null;
+  } | null;
+  started_at: number;
+  finished_at: number | null;
+}
+
+export interface SidecarInstallStatus {
+  engine_id: string;
+  installed: boolean;
+  managed: boolean;
+  install_dir: string | null;
+  job: SidecarInstallJob | null;
+}
+
+export interface SidecarInstallStartResponse {
+  status: 'started' | 'already_running' | 'already_installed';
+  engine: string;
+}
+
+/** Start the resumable one-click install for a sidecar engine (IndexTTS-2).
+ *  Idempotent: re-POSTing while a job runs returns `already_running`; a
+ *  healthy install returns `already_installed`; a partial install repairs. */
+export async function installSidecarEngine(engineId: string): Promise<SidecarInstallStartResponse> {
+  return apiPost<SidecarInstallStartResponse>(
+    `/engines/${encodeURIComponent(engineId)}/install`,
+    {},
+  );
+}
+
+/** Poll the sidecar install job — step-by-step states + log tail + error
+ *  with remediation. Cheap (file probes only), safe to poll every ~1.5 s. */
+export async function getSidecarInstallStatus(engineId: string): Promise<SidecarInstallStatus> {
+  return apiJson<SidecarInstallStatus>(`/engines/${encodeURIComponent(engineId)}/install/status`);
+}
+
 export async function listTranslationEngines(): Promise<TranslationEnginesResponse> {
   return apiJson<TranslationEnginesResponse>('/engines/translation');
 }

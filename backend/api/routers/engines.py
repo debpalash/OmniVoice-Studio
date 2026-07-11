@@ -156,6 +156,90 @@ async def uninstall_translation_engine(engine_id: str):
     return {"status": "uninstalled", "engine": engine_id, "package": pkg, "log_tail": out[-800:]}
 
 
+# ── One-click sidecar-engine install (IndexTTS-2 & friends) ────────────────
+#
+# Sidecar engines (dedicated venv + source checkout + weights, isolated from
+# the parent's transformers>=5.3) used to require four manual terminal steps.
+# These routes drive services.sidecar_install: POST starts a resumable
+# background job, GET polls its step-by-step status (the Settings → Engines
+# Install button polls this), DELETE removes an app-managed install.
+#
+# Loopback-gated: installing spawns subprocesses (git/uv) and writes to the
+# data directory — only the local desktop frontend may trigger it. The job
+# runs fine in packaged builds: the venv lives under the user data dir, not
+# inside the signed app bundle, and uv resolves via OMNIVOICE_BUNDLED_UV/PATH.
+
+
+@router.post(
+    "/engines/{engine_id}/install",
+    dependencies=[Depends(require_loopback)],
+)
+def install_sidecar_engine(engine_id: str):
+    """Start (or report) the one-click install for a sidecar engine.
+
+    Returns ``{status: "started"|"already_running"|"already_installed"}``.
+    404 for engines that have no sidecar installer — the response names the
+    translation-engine route so a mis-aimed client can self-correct.
+    """
+    from services import sidecar_install
+    try:
+        return sidecar_install.start_install(engine_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No one-click installer for engine {engine_id!r}. Sidecar "
+                f"installers exist for: {sorted(sidecar_install.SPECS)}. "
+                "(Translation engines install via POST "
+                "/engines/translation/{id}/install.)"
+            ),
+        )
+
+
+@router.get(
+    "/engines/{engine_id}/install/status",
+    dependencies=[Depends(require_loopback)],
+)
+def sidecar_install_status(engine_id: str):
+    """Step-by-step status of the sidecar install job (poll while running).
+
+    Shape: ``{engine_id, installed, managed, install_dir, job}`` where job is
+    null before the first run, else ``{state, steps[], log[], error,
+    remediation, weights_progress, started_at, finished_at}``.
+    """
+    from services import sidecar_install
+    try:
+        return sidecar_install.get_status(engine_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No one-click installer for engine {engine_id!r}.",
+        )
+
+
+@router.delete(
+    "/engines/{engine_id}/install",
+    dependencies=[Depends(require_loopback)],
+)
+def uninstall_sidecar_engine(engine_id: str):
+    """Remove an app-managed sidecar install (checkout + venv + weights) and
+    clear the persisted path. Refuses user-managed installs (a clone the user
+    made themselves) and installs with a job still running."""
+    from services import sidecar_install
+    try:
+        res = sidecar_install.uninstall(engine_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No one-click installer for engine {engine_id!r}.",
+        )
+    if res["status"] == "install_in_progress":
+        raise HTTPException(status_code=409, detail="Install is still running — wait for it to finish.")
+    if res["status"] == "not_managed":
+        raise HTTPException(status_code=400, detail=res["detail"])
+    return res
+
+
 # ── Engine health-check (Plan 02-04 / ENGINE-06) ───────────────────────────
 #
 # The Compat Matrix UI's "Test engine" button calls into this endpoint so

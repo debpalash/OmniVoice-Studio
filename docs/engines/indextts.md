@@ -8,12 +8,57 @@ pins `transformers>=5.3`. This isolation is the resolution of
 canonical `OffloadedCache` ImportError that resulted from loading
 both libraries inside one Python interpreter.
 
-## Install
+## Install (one-click, recommended)
 
 IndexTTS-2 is **not** bundled with OmniVoice — the model weights are
 ~6 GB and the package itself pins a conflicting transformers
 version. OmniVoice ships with a sidecar runner that loads IndexTTS
-into an isolated venv on demand.
+into an isolated venv on demand, plus a guided installer that
+provisions everything for you:
+
+1. Open **Settings → Engines**, expand the IndexTTS2 row
+   ("Why unavailable?"), and click **Install**.
+2. Watch the step-by-step progress: preflight (uv + disk space),
+   source fetch, isolated venv creation, dependency install,
+   verification, model-weight download (~6 GB, resumable), and
+   configuration save.
+3. Done — the engine flips to `available: true` immediately, **no
+   restart needed**.
+
+What the installer does under the hood (all cross-platform —
+macOS / Windows / Linux):
+
+* Fetches the IndexTTS source with `git clone --depth 1` (or, when
+  git isn't installed, downloads the GitHub source tarball over
+  HTTPS) into OmniVoice's data directory
+  (`<data-dir>/engines/indextts2/index-tts`).
+* Creates a dedicated venv inside the checkout with `uv venv` and
+  runs `uv pip install -e .` against it — the `transformers<5`
+  isolation is preserved; the parent app's environment is never
+  touched. uv is resolved from `OMNIVOICE_BUNDLED_UV`, then `PATH`.
+* Downloads the `IndexTeam/IndexTTS-2` weights into
+  `checkpoints/` (where the sidecar loads them from), honouring your
+  configured/auto-selected Hugging Face endpoint and HF token.
+* Persists `OMNIVOICE_INDEXTTS_DIR` for you (in-process for
+  immediate use + `prefs.json` for the next launch).
+
+Preflight requires roughly **12 GB free disk space** (source + venv +
+weights, checked before anything is written); the install fails early
+with an actionable message otherwise. Re-running the installer is
+always safe: it repairs partial installs and resumes interrupted
+downloads instead of starting over. An app-managed install can be
+removed again with `DELETE /engines/indextts2/install` (a
+user-managed clone is never touched).
+
+If you already installed IndexTTS manually (any OmniVoice version),
+the installer detects it via `OMNIVOICE_INDEXTTS_DIR` and reports
+`already_installed` — nothing is re-downloaded or moved.
+
+## Manual install (fallback)
+
+The manual flow still works and is what the installer automates. Use
+it if you want the clone somewhere specific, share one clone across
+tools, or can't use the in-app installer:
 
 1. Clone the IndexTTS repo on disk:
 
@@ -32,15 +77,11 @@ into an isolated venv on demand.
    uv pip install -e .
    ```
 
-3. Download the model weights (~6 GB). Either:
+3. Download the model weights (~6 GB):
 
    ```bash
    hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
    ```
-
-   or let HuggingFace cache them on first synthesize call (the parent
-   forwards `HF_HOME` / `HF_HUB_CACHE` to the sidecar so the cache is
-   shared with the rest of OmniVoice's downloads).
 
 4. Set the `OMNIVOICE_INDEXTTS_DIR` environment variable to the repo
    root (the directory that contains `checkpoints/` and
@@ -65,12 +106,14 @@ into an isolated venv on demand.
 OmniVoice probes for a usable IndexTTS Python interpreter in this
 priority order (see `backend/engines/indextts/bootstrap.py`):
 
-1. **`${OMNIVOICE_INDEXTTS_DIR}/.venv/`** — your existing clone's
-   venv. Highest priority, so v0.2.7 users who already ran
-   `uv pip install -e .` get zero migration cost on the upgrade to
-   v0.3.x.
+1. **`${OMNIVOICE_INDEXTTS_DIR}/.venv/`** — the install dir's own
+   venv. This is what BOTH the one-click installer (which sets
+   `OMNIVOICE_INDEXTTS_DIR` to its managed checkout) and a manual
+   clone resolve to. Highest priority, so v0.2.7 users who already
+   ran `uv pip install -e .` get zero migration cost on the upgrade
+   to v0.3.x.
 2. **`backend/engines/indextts/.venv/`** — OmniVoice's own venv,
-   created on demand by step 3.
+   created on demand by the lazy bootstrap below.
 3. **Lazy bootstrap** — if neither venv exists, OmniVoice runs
    `uv venv backend/engines/indextts/.venv` and
    `uv pip install --python <python> -e ${OMNIVOICE_INDEXTTS_DIR}`
@@ -87,14 +130,25 @@ weights survive the upgrade byte-for-byte.
 
 ### `IndexTTS-2 venv not found. Set OMNIVOICE_INDEXTTS_DIR ...`
 
-You haven't pointed OmniVoice at an IndexTTS clone yet. Follow the
-**Install** steps above.
+You haven't installed IndexTTS yet. Click **Install** on the
+IndexTTS2 row in **Settings → Engines** (recommended), or follow the
+**Manual install** steps above.
 
-### `uv is required to bootstrap the IndexTTS-2 venv but was not found on PATH`
+### `uv was not found` / `uv is required to bootstrap the IndexTTS-2 venv but was not found on PATH`
 
-The bootstrap path needs a working `uv` binary. Either install `uv`
-into your `PATH` (https://docs.astral.sh/uv/) or pre-create the venv
-manually with `uv venv` and `uv pip install -e` as in step 2.
+Both the one-click installer and the bootstrap path need a working
+`uv` binary (resolved from `OMNIVOICE_BUNDLED_UV`, then `PATH`).
+Either install `uv` into your `PATH` (https://docs.astral.sh/uv/) or
+pre-create the venv manually with `uv venv` and `uv pip install -e`
+as in the manual steps.
+
+### `Not enough disk space to install IndexTTS-2 ...`
+
+The installer's preflight found less free space than the estimated
+source + venv + weights footprint (plus headroom). The message names
+the exact numbers; free up space (or move OmniVoice's data directory
+to a larger volume) and click Install again — it resumes where it
+stopped.
 
 ### `IndexTTS bootstrap completed but `import indextts.infer_v2` still fails`
 

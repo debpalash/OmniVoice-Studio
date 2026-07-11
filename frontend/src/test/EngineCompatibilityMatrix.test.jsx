@@ -1207,4 +1207,169 @@ describe('EngineCompatibilityMatrix', () => {
     expect(screen.queryByTestId('why-toggle-indextts2')).not.toBeInTheDocument();
     expect(screen.getByTestId('why-toggle-kittentts')).toBeInTheDocument();
   });
+
+  // ── One-click sidecar install (IndexTTS-2 & friends) ────────────────────
+
+  /** An unavailable, one-click-installable IndexTTS2 row. */
+  function makeInstallableResponse() {
+    const res = makeEnginesResponse();
+    res.tts.backends[2] = {
+      ...res.tts.backends[2],
+      available: false,
+      reason: 'IndexTTS-2 venv not found.',
+      setup_snippet: 'export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts',
+      one_click_install: true,
+    };
+    return res;
+  }
+
+  function makeInstallStatus(jobState, overrides = {}) {
+    return {
+      engine_id: 'indextts2',
+      installed: false,
+      managed: false,
+      install_dir: null,
+      job: {
+        engine_id: 'indextts2',
+        state: jobState,
+        steps: [
+          { id: 'preflight', state: 'done', detail: null },
+          { id: 'fetch_source', state: 'running', detail: null },
+          { id: 'create_venv', state: 'pending', detail: null },
+          { id: 'install_deps', state: 'pending', detail: null },
+          { id: 'verify', state: 'pending', detail: null },
+          { id: 'fetch_weights', state: 'pending', detail: null },
+          { id: 'persist', state: 'pending', detail: null },
+        ],
+        log: ['Cloning https://github.com/index-tts/index-tts.git (git, depth 1) …'],
+        error: null,
+        remediation: null,
+        weights_progress: null,
+        started_at: 1,
+        finished_at: null,
+        ...overrides,
+      },
+    };
+  }
+
+  it('installable unavailable rows get an Install button; clicking it starts the job and shows step progress', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
+    const apiInstallStatus = vi.fn().mockResolvedValue(makeInstallStatus('running'));
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+
+    const installBtn = screen.getByTestId('install-indextts2');
+    expect(installBtn).toHaveTextContent('Install');
+    fireEvent.click(installBtn);
+
+    await waitFor(() => expect(apiInstallEngine).toHaveBeenCalledWith('indextts2'));
+    expect(apiInstallStatus).toHaveBeenCalledWith('indextts2');
+
+    // Clicking auto-opens the detail panel where the progress renders.
+    const progress = await screen.findByTestId('install-progress-indextts2');
+    expect(within(progress).getByText(/Checking uv and disk space/)).toBeInTheDocument();
+    const running = progress.querySelector('[data-install-step="fetch_source"]');
+    expect(running).toHaveAttribute('data-step-state', 'running');
+    // The live log tail is visible while the job runs.
+    expect(within(progress).getByText(/Cloning https:\/\//)).toBeInTheDocument();
+    // The button reflects the in-flight job.
+    expect(screen.getByTestId('install-indextts2')).toHaveTextContent('Installing…');
+  });
+
+  it('a failed job renders the error with its remediation and offers Retry', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
+    const apiInstallStatus = vi.fn().mockResolvedValue(
+      makeInstallStatus('failed', {
+        error: 'Not enough disk space to install IndexTTS-2',
+        remediation: 'Free up disk space and retry.',
+        finished_at: 2,
+      }),
+    );
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    fireEvent.click(screen.getByTestId('install-indextts2'));
+
+    const progress = await screen.findByTestId('install-progress-indextts2');
+    expect(
+      within(progress).getByText(/Not enough disk space .* Free up disk space and retry\./),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('install-indextts2')).toHaveTextContent('Retry install');
+  });
+
+  it('already_installed responses skip the job and just reload the matrix', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi
+      .fn()
+      .mockResolvedValue({ status: 'already_installed', engine: 'indextts2' });
+    const apiInstallStatus = vi.fn();
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    fireEvent.click(screen.getByTestId('install-indextts2'));
+
+    await waitFor(() => expect(apiListEngines).toHaveBeenCalledTimes(2)); // reload()
+    expect(apiInstallStatus).not.toHaveBeenCalled();
+  });
+
+  it('demotes the manual setup snippet to a collapsed fallback on installable rows', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    fireEvent.click(screen.getByTestId('why-toggle-indextts2'));
+
+    // Installable row: snippet lives INSIDE a collapsed <details> fallback.
+    const manual = screen.getByTestId('manual-install-indextts2');
+    expect(manual.tagName).toBe('DETAILS');
+    expect(manual).not.toHaveAttribute('open');
+    expect(within(manual).getByTestId('setup-snippet-indextts2')).toBeInTheDocument();
+  });
+
+  it('keeps the setup snippet top-level on rows without a one-click installer', async () => {
+    const res = makeEnginesResponse();
+    res.tts.backends[1].setup_snippet = 'export OMNIVOICE_SHERPA_MODEL=/m';
+    const apiListEngines = vi.fn().mockResolvedValue(res);
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('KittenTTS (test)'));
+    fireEvent.click(screen.getByTestId('why-toggle-kittentts'));
+    expect(screen.getByTestId('setup-snippet-kittentts')).toBeInTheDocument();
+    expect(screen.queryByTestId('manual-install-kittentts')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('install-kittentts')).not.toBeInTheDocument();
+  });
 });

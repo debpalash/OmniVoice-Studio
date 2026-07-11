@@ -1739,7 +1739,20 @@
     "unloadFailed": "Could not unload: {{message}}",
     "familyDesc_tts": "Turns your script into speech. The engine marked active is the one Studio, Dubbing and Batch use.",
     "familyDesc_asr": "Turns audio into text — transcription for dubbing, captions and dictation.",
-    "familyDesc_llm": "Optional text helper for translation and rewrites. \"Off\" simply skips those steps."
+    "familyDesc_llm": "Optional text helper for translation and rewrites. \"Off\" simply skips those steps.",
+    "install": "Install",
+    "installing": "Installing…",
+    "retryInstall": "Retry install",
+    "installDone": "Installed — the engine is ready to use, no restart needed.",
+    "installFailed": "Install failed: {{message}}",
+    "manualInstall": "Manual install (advanced)",
+    "installStep_preflight": "Checking uv and disk space",
+    "installStep_fetch_source": "Fetching engine source",
+    "installStep_create_venv": "Creating isolated environment",
+    "installStep_install_deps": "Installing dependencies",
+    "installStep_verify": "Verifying the environment",
+    "installStep_fetch_weights": "Downloading model weights",
+    "installStep_persist": "Saving configuration"
   },
   "errors": {
     "title": "This tab hit a snag.",

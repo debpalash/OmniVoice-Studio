@@ -13,6 +13,8 @@ vi.mock('../../api/engines', () => ({
   selectEngine: vi.fn(),
   getEngineHealth: vi.fn(),
   selfTestEngine: vi.fn(),
+  installSidecarEngine: vi.fn(),
+  getSidecarInstallStatus: vi.fn(),
 }));
 
 // Residency layer (/model/loaded) — mocked so the matrix never hits the

@@ -754,6 +754,17 @@ PERSISTENT_KEYS = {
     "OMNIVOICE_PORT", "OMNIVOICE_SHARE_PORT", "OMNIVOICE_UI_PORT",
 }
 
+# Sidecar-engine install dirs (OMNIVOICE_INDEXTTS_DIR, …). The one-click
+# installer persists these via prefs.json `env.*` (restored at startup in
+# main.py); merging them here lets users inspect/clear them from the same
+# Settings env panel as every other persisted var. Single-sourced from the
+# installer's SPECS so a future sidecar engine can't forget to register.
+try:
+    from services.sidecar_install import persistent_env_vars as _sidecar_env_vars
+    PERSISTENT_KEYS |= _sidecar_env_vars()
+except Exception:  # pragma: no cover — defensive: env panel > installer wiring
+    pass
+
 # Keys whose value must be a valid TCP port (1024–65535). Validated before
 # being set so a bad value never reaches uvicorn / the share listener.
 _PORT_KEYS = {"OMNIVOICE_PORT", "OMNIVOICE_SHARE_PORT", "OMNIVOICE_UI_PORT"}

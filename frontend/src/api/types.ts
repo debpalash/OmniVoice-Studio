@@ -41,6 +41,10 @@ interface EngineBackend {
   // Copy-paste-ready `export VAR=...` line for a path-gated opt-in engine
   // (IndexTTS / MOSS-v1.5 / dots.tts / Confucius4), else null/absent.
   setup_snippet?: string | null;
+  // True when the backend's sidecar provisioner can install this engine
+  // in-app (Settings renders an Install button; the manual snippet is
+  // demoted to a collapsible fallback). Absent on legacy payloads.
+  one_click_install?: boolean;
   last_error?: string | null;
   isolation_mode?: 'in-process' | 'subprocess';
   gpu_compat?: GPUTarget[];
