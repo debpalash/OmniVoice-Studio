@@ -21,6 +21,8 @@
     "desktop-prod:keep-models": "bun scripts/desktop-prod.mjs --keep-models",
     "desktop-prod:pill": "bun scripts/desktop-prod.mjs --pill",
     "desktop-prod:run:pill": "bun scripts/desktop-prod.mjs --skip-build --pill",
+    "desktop-fresh": "bun scripts/desktop-fresh.mjs",
+    "desktop-fresh:run": "bun scripts/desktop-fresh.mjs --skip-build",
     "build": "turbo run build",
     "start": "turbo run start",
     "test:frontend": "node --test tests/frontend/*.test.mjs",
