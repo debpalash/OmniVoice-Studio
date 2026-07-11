@@ -9,6 +9,27 @@ import importlib
 import pytest
 
 
+_ENDPOINT_ENV_KEYS = ("HF_ENDPOINT", "OMNIVOICE_HF_ENDPOINT_MODE")
+
+
+@pytest.fixture(autouse=True)
+def _endpoint_env_hygiene():
+    """Guaranteed save/restore of the endpoint env vars.
+
+    `monkeypatch.delenv(raising=False)` on an ABSENT var records nothing to
+    undo — so the `os.environ["HF_ENDPOINT"] = url` that set_hf_mirror writes
+    DURING a test used to leak process-wide and flip later suites' preflight
+    tests into the explicit-endpoint branch (CI-order-dependent failures).
+    """
+    saved = {k: os.environ.pop(k, None) for k in _ENDPOINT_ENV_KEYS}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
 @pytest.fixture
 def settings_mod(monkeypatch, tmp_path):
     store = {}
@@ -17,8 +38,6 @@ def settings_mod(monkeypatch, tmp_path):
     monkeypatch.setattr(ue, "get_user_env", lambda k, path=None: store.get(k))
     monkeypatch.setattr(ue, "set_user_env", lambda k, v, path=None: store.__setitem__(k, v))
     monkeypatch.setattr(ue, "unset_user_env", lambda k, path=None: store.pop(k, None))
-    monkeypatch.delenv("HF_ENDPOINT", raising=False)
-    monkeypatch.delenv("OMNIVOICE_HF_ENDPOINT_MODE", raising=False)
     # Isolate the auto-selection state (hf_endpoint_mode + cached decision).
     monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
     import services.endpoint_race as er

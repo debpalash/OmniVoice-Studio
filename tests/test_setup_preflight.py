@@ -22,9 +22,15 @@ def client():
 @pytest.fixture(autouse=True)
 def _isolated_prefs(monkeypatch, tmp_path):
     """Preflight now caches the endpoint-race decision in prefs — keep each
-    test's writes out of the session-shared prefs.json."""
+    test's writes out of the session-shared prefs.json. Also shed any
+    endpoint env vars another suite may have leaked (defense in depth: a
+    leaked HF_ENDPOINT flips every network check into the explicit branch)."""
+    import os as _os
     from core import prefs
     monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    for k in ("HF_ENDPOINT", "OMNIVOICE_HF_ENDPOINT_MODE"):
+        if k in _os.environ:
+            monkeypatch.delenv(k)
 
 
 # ── Shape ────────────────────────────────────────────────────────────────
