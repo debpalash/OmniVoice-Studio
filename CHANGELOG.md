@@ -14,6 +14,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **The app no longer relaunches into a dead "generating" dub session — the blank-pane-and-spinner trap.** The saved dub session was restoring its in-flight state verbatim: quit (or crash) while a dub was generating and every subsequent launch waited forever for work that died with the process — and reinstalling couldn't clear it. Interrupted sessions now reopen on the segment editor with all your work intact (or the upload screen if nothing was transcribed yet). Thanks to @nanai97 for the screenshot that told the whole story. (#1067)
+
 - **A 58-finding audit of every Settings panel, fixed end to end.** Highlights: the About page linked to the wrong project's GitHub; Arabic rendered left-to-right (RTL wiring was missing); a saved proxy could never be cleared after a reload; the HF-mirror and refinement panels vanished entirely when the backend was down; "Test now" on the HF token served five-minute-old cached results; factory reset only cleared part of what it promised; pronunciation previews ignored language-scoped entries; the hotkey recorder swallowed invalid presses in silence; Settings search could strand you with an empty sidebar — plus first component tests for previously untested panels, full i18n for five all-English panels, accessible names across inputs, confirmed destructive actions, deep links instead of dead-end advice, temp-file reclaim, and log-sharing workflows. (#1059, #1060, #1061, #1063, #1064)
 
 ## [0.3.16] — 2026-07-11
