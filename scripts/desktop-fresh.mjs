@@ -159,7 +159,7 @@ function sizeOf(p) {
   };
   const pids = findPids();
   if (pids.length > 0) {
-    if (DRY_RUN) {
+    if (dryRun) {
       console.log(`🔪 Would terminate running ${APP_NAME} processes: ${pids.join(", ")}\n`);
     } else {
       console.log(`🔪 Terminating running ${APP_NAME} processes (${pids.join(", ")})...`);
