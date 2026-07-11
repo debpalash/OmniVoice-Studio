@@ -237,3 +237,187 @@ def test_registered_in_backend_list(asr_mod):
     assert "openai-compat-asr" in asr_mod._REGISTRY
     assert asr_mod._REGISTRY["openai-compat-asr"] is asr_mod.OpenAICompatASRBackend
     assert "openai-compat-asr" in asr_mod._INSTALL_HINTS
+
+
+# ── use-time config (no restart needed) ──────────────────────────────────────
+
+
+def test_engine_reads_fresh_config_per_call(asr_mod, ss):
+    """Saving a new base URL/model in Settings must take effect on the very
+    next transcribe — the backend is instantiated fresh per call
+    (get_active_asr_backend) and reads settings_store in __init__, so no
+    backend restart is ever required after a config change."""
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://old:1/v1")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "old-model")
+    first = asr_mod.OpenAICompatASRBackend()
+    assert first._base_url == "http://old:1/v1"
+    assert first._model == "old-model"
+
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://new:2/v1")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "new-model")
+    second = asr_mod.OpenAICompatASRBackend()
+    assert second._base_url == "http://new:2/v1"
+    assert second._model == "new-model"
+
+
+# ── connection probe (Test connection button) ────────────────────────────────
+
+
+def _fake_httpx(monkeypatch, *, status_code=200, json_data=None, text="", raise_exc=None):
+    """Fake httpx.Client capturing the probe's URL + headers; GET either
+    returns a canned response or raises."""
+    import httpx
+
+    captured: dict = {}
+
+    class _Resp:
+        def __init__(self):
+            self.status_code = status_code
+            self.text = text
+
+        def json(self):
+            if json_data is None:
+                raise ValueError("no json")
+            return json_data
+
+    class _Client:
+        def __init__(self, **kw):
+            captured["client_kwargs"] = kw
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get(self, url, headers=None):
+            captured["url"] = url
+            captured["headers"] = headers or {}
+            if raise_exc is not None:
+                raise raise_exc
+            return _Resp()
+
+    monkeypatch.setattr(httpx, "Client", _Client)
+    return captured
+
+
+def test_probe_not_configured(asr_mod):
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is False
+    assert out["status"] == "not_configured"
+
+
+def test_probe_rejects_schemeless_url_before_any_network(asr_mod, monkeypatch):
+    import httpx
+
+    def _boom(**kw):  # pragma: no cover — must never be constructed
+        raise AssertionError("network client constructed for an invalid URL")
+
+    monkeypatch.setattr(httpx, "Client", _boom)
+    out = asr_mod.probe_openai_compat_server(base_url="localhost:8080/v1")
+    assert out == {**out, "ok": False, "status": "invalid_url"}
+
+
+def test_probe_ok_reports_latency_and_model_found(asr_mod, ss, monkeypatch):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1/")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "qwen3-asr")
+    captured = _fake_httpx(
+        monkeypatch,
+        json_data={"data": [{"id": "qwen3-asr"}, {"id": "whisper-1"}]},
+    )
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is True
+    assert out["status"] == "ok"
+    assert out["http_status"] == 200
+    assert out["models_count"] == 2
+    assert out["model_found"] is True
+    assert isinstance(out["latency_ms"], float)
+    assert captured["url"] == "http://localhost:8080/v1/models"  # trailing / trimmed
+    # No key configured → the probe must not invent an Authorization header.
+    assert "Authorization" not in captured["headers"]
+
+
+def test_probe_flags_a_model_the_server_does_not_list(asr_mod, ss, monkeypatch):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "not-served")
+    _fake_httpx(monkeypatch, json_data={"data": [{"id": "whisper-1"}]})
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is True
+    assert out["model_found"] is False
+
+
+def test_probe_sends_stored_key_but_never_echoes_it(asr_mod, ss, monkeypatch):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    ss.set_secret(asr_mod._ASR_OPENAI_COMPAT_SECRET_NAME, "sk-secret-abc")
+    captured = _fake_httpx(monkeypatch, json_data={"data": []})
+    out = asr_mod.probe_openai_compat_server()
+    assert captured["headers"]["Authorization"] == "Bearer sk-secret-abc"
+    assert "sk-secret-abc" not in str(out)  # the key never reaches the response
+
+
+def test_probe_auth_failure_is_classified(asr_mod, ss, monkeypatch):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    _fake_httpx(monkeypatch, status_code=401)
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is False
+    assert out["status"] == "auth_failed"
+    assert out["http_status"] == 401
+
+
+def test_probe_treats_missing_models_endpoint_as_reachable(asr_mod, ss, monkeypatch):
+    """Minimal transcription-only servers 404 on /models — the server IS
+    reachable, so the verdict is a qualified success, not a failure."""
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    _fake_httpx(monkeypatch, status_code=404)
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is True
+    assert out["status"] == "ok_no_models"
+
+
+def test_probe_connection_refused_is_unreachable_with_scrubbed_detail(asr_mod, ss, monkeypatch):
+    import httpx
+
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    _fake_httpx(monkeypatch, raise_exc=httpx.ConnectError("connection refused"))
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is False
+    assert out["status"] == "unreachable"
+    assert "ConnectError" in out["detail"]
+
+
+def test_probe_timeout_is_classified(asr_mod, ss, monkeypatch):
+    import httpx
+
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    _fake_httpx(monkeypatch, raise_exc=httpx.ConnectTimeout("timed out"))
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is False
+    assert out["status"] == "timeout"
+
+
+def test_probe_never_raises_on_http_error_body(asr_mod, ss, monkeypatch):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1")
+    _fake_httpx(monkeypatch, status_code=500, text="internal error")
+    out = asr_mod.probe_openai_compat_server()
+    assert out["ok"] is False
+    assert out["status"] == "http_error"
+    assert out["http_status"] == 500
+
+
+def test_route_probes_the_persisted_config(settings_mod, asr_mod, ss, monkeypatch):
+    """POST /api/settings/asr-openai-compat/test — the save-first-then-test
+    contract (same as /llm-providers/{id}/test): the route reads exactly what
+    the PUT persisted, so a saved config change is testable immediately with
+    no backend restart."""
+    settings_mod.set_asr_openai_compat(
+        settings_mod._ASROpenAICompatBody(
+            base_url="http://localhost:9999/v1", model="whisper-1", api_key="sk-live-1"
+        )
+    )
+    captured = _fake_httpx(monkeypatch, json_data={"data": [{"id": "whisper-1"}]})
+    out = settings_mod.test_asr_openai_compat()
+    assert out["ok"] is True
+    assert out["model_found"] is True
+    assert captured["url"] == "http://localhost:9999/v1/models"
+    assert captured["headers"]["Authorization"] == "Bearer sk-live-1"
+    assert "sk-live-1" not in str(out)

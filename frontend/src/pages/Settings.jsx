@@ -22,7 +22,6 @@ import StoragePanel from '../components/settings/StoragePanel';
 import StorageTab from '../components/settings/StorageTab';
 import StorageUsagePanel from '../components/settings/StorageUsagePanel';
 import HFMirrorPanel from '../components/settings/HFMirrorPanel';
-import AsrOpenAICompatPanel from '../components/settings/AsrOpenAICompatPanel';
 import SharingPanel from '../components/settings/SharingPanel';
 import RemoteBackendPanel from '../components/settings/RemoteBackendPanel';
 import MCPBindingsPanel from '../components/settings/MCPBindingsPanel';
@@ -373,7 +372,8 @@ export default function Settings() {
           <>
             <StoragePanel />
             <HFMirrorPanel />
-            <AsrOpenAICompatPanel />
+            {/* OpenAI-compatible ASR config moved to Settings → Engines (ASR
+                tab) — configure/test/activate now live on one screen. */}
             <ModelStoreTab info={info} modelBadge={modelBadge} />
           </>
         );

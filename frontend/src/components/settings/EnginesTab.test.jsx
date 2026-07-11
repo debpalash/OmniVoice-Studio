@@ -24,6 +24,15 @@ vi.mock('../../api/system', () => ({
   unloadLoadedModel: vi.fn(),
 }));
 
+// The ASR tab mounts AsrOpenAICompatPanel, which loads its config over the
+// api client — mocked so switching tabs never hits the network here.
+const apiJson = vi.fn();
+vi.mock('../../api/client', () => ({
+  apiJson: (...a) => apiJson(...a),
+  apiFetch: vi.fn(),
+  apiPost: vi.fn(),
+}));
+
 import { listEngines, selectEngine } from '../../api/engines';
 import { listLoadedModels } from '../../api/system';
 import EnginesTab from './EnginesTab';
@@ -67,6 +76,8 @@ describe('EnginesTab', () => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(ENGINES);
     listLoadedModels.mockResolvedValue({ models: [], count: 0 });
+    // AsrOpenAICompatPanel's GET on mount (ASR tab only).
+    apiJson.mockResolvedValue({ base_url: '', model: 'whisper-1', has_key: false });
   });
 
   it('renders ONE tabbed section — TTS/ASR/LLM tab strip, one family at a time', async () => {
@@ -126,5 +137,22 @@ describe('EnginesTab', () => {
     await waitFor(() => {
       expect(selectEngine).toHaveBeenCalledWith('asr', 'openai-compat-asr', undefined);
     });
+  });
+
+  it('mounts the OpenAI-compatible ASR config panel on the ASR tab only', async () => {
+    render(<EnginesTab />);
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    // TTS tab: no ASR config panel.
+    expect(screen.queryByTestId('asr-openai-compat-base-url')).not.toBeInTheDocument();
+
+    clickFamilyTab('ASR');
+    await screen.findByTestId('asr-openai-compat-base-url');
+    expect(screen.getByTestId('asr-openai-compat-test')).toBeInTheDocument();
+
+    // Back to TTS: the panel unmounts again.
+    clickFamilyTab('TTS');
+    await waitFor(() =>
+      expect(screen.queryByTestId('asr-openai-compat-base-url')).not.toBeInTheDocument(),
+    );
   });
 });

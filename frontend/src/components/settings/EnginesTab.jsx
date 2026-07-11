@@ -1,10 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { addBreadcrumb } from '../../utils/breadcrumbs';
 import { selectEngine } from '../../api/engines';
 import { notifyEngineSelected } from '../../utils/engineSelectToast';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
+import AsrOpenAICompatPanel from './AsrOpenAICompatPanel';
 import { SETTINGS_SECTION_SURFACE } from './primitives';
 
 /** Settings → Engines: ONE section, one matrix, a TTS / ASR / LLM tab strip.
@@ -20,9 +21,18 @@ import { SETTINGS_SECTION_SURFACE } from './primitives';
  *  GET /engines + one GET /model/loaded per Settings open (switching tabs
  *  re-slices the same payload — no refetch), `openSettingsTab('engines')`
  *  still lands here, and `OMNIVOICE_*_BACKEND` env vars still win over any
- *  pick made in the UI. */
+ *  pick made in the UI.
+ *
+ *  The ASR tab additionally mounts the OpenAI-compatible remote ASR config
+ *  panel below the matrix — configure server URL / model / key, test the
+ *  connection, then activate with the engine's own "Use" button. Saving in
+ *  the panel bumps `configVersion`, which refetches the matrix so the
+ *  engine's row flips unavailable → available without a manual Refresh. */
 export default function EnginesTab() {
   const { t } = useTranslation();
+  const [family, setFamily] = useState('tts');
+  const [configVersion, setConfigVersion] = useState(0);
+  const onAsrConfigSaved = useCallback(() => setConfigVersion((v) => v + 1), []);
 
   // Plan 02-04 / ENGINE-06 — engine selection is wired through the
   // matrix component's optional onSelect callback so the matrix doubles
@@ -48,8 +58,16 @@ export default function EnginesTab() {
   );
 
   return (
-    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
-      <EngineCompatibilityMatrix family="tts" onSelect={onSelect} />
-    </section>
+    <>
+      <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
+        <EngineCompatibilityMatrix
+          family="tts"
+          onSelect={onSelect}
+          onFamilyChange={setFamily}
+          reloadToken={configVersion}
+        />
+      </section>
+      {family === 'asr' && <AsrOpenAICompatPanel onSaved={onAsrConfigSaved} />}
+    </>
   );
 }

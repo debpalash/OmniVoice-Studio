@@ -84,6 +84,12 @@ function reasonMentionsLicense(reason) {
  *     at a time over the single shared GET /engines payload. Settings →
  *     Engines mounts exactly one matrix in this mode. Pass false to pin
  *     the matrix to `family` (no switcher; the header names the family).
+ *   - onFamilyChange?: (family) => void  fires when the user switches the
+ *     family tab, so a host can render family-specific companion panels
+ *     (e.g. the OpenAI-compatible ASR config below the ASR tab).
+ *   - reloadToken?: any  bump to force a data refetch without remounting —
+ *     lets a companion config panel flip a row from unavailable → available
+ *     (and refresh the "Use" button) right after a save.
  */
 const FAMILY_META = {
   tts: { label: 'TTS', icon: Cpu },
@@ -209,6 +215,8 @@ export default function EngineCompatibilityMatrix({
   onSelect = null,
   activeId = null,
   showFamilyTabs = true,
+  onFamilyChange = null,
+  reloadToken = 0,
   // Injectable API layer — lets the RTL suite mock it without module-level
   // vi.mock incantations, and keeps the "one GET /engines per Settings open"
   // contract overridable by hosts.
@@ -288,7 +296,9 @@ export default function EngineCompatibilityMatrix({
 
   useEffect(() => {
     reload();
-  }, [reload]);
+    // reloadToken: an external bump (e.g. the ASR config panel just saved a
+    // server URL) refetches so availability + "Use" reflect the new config.
+  }, [reload, reloadToken]);
 
   // Unload a resident engine's model/sidecar by its /model/loaded id. Safe by
   // contract: the model reloads lazily on the next generation.
@@ -562,7 +572,10 @@ export default function EngineCompatibilityMatrix({
         <Segmented
           size="sm"
           value={activeFamily}
-          onChange={setActiveFamily}
+          onChange={(f) => {
+            setActiveFamily(f);
+            onFamilyChange?.(f);
+          }}
           items={families.map((f) => ({
             value: f,
             title: t('engines.activeEngine', {

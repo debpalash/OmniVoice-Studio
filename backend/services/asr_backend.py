@@ -1696,6 +1696,122 @@ def openai_compat_asr_has_key() -> bool:
     return _ASR_OPENAI_COMPAT_SECRET_NAME in settings_store.list_secret_names()
 
 
+def probe_openai_compat_server(
+    base_url: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    *,
+    timeout_s: float = 8.0,
+) -> dict:
+    """Cheap reachability probe for the Settings "Test connection" button.
+
+    ``GET {base_url}/models`` — no audio is uploaded, no transcription runs.
+    The Settings route probes the PERSISTED config (the panel saves first,
+    then tests — same stale-config contract as /llm-providers/{id}/test);
+    the optional arguments override it for programmatic/test use: ``None``
+    falls back to the persisted setting, and for ``api_key`` an explicit
+    ``""`` probes without a key (many self-hosted servers need none). Never
+    raises, never logs or echoes the key; ``detail`` is passed through
+    core.scrub so a leaked token or home path can't reach the UI.
+
+    Returns ``{ok, status, latency_ms, http_status, models_count,
+    model_found, detail}`` where ``status`` is a machine code the frontend
+    maps to a translated message:
+
+      not_configured   no base URL anywhere
+      invalid_url      base URL without an http(s):// scheme
+      ok               2xx — ``model_found`` says whether the configured
+                       model appears in the server's list (None = unknown)
+      ok_no_models     404/405/501 — reachable, but no /models endpoint
+                       (some minimal transcription servers); transcription
+                       may still work
+      auth_failed      401/403 — the server rejected the key
+      http_error       any other status (see ``http_status``)
+      timeout          no answer within ``timeout_s``
+      unreachable      connection failed (wrong port, server down, DNS…)
+    """
+    from time import perf_counter
+
+    from core.scrub import scrub_text
+
+    base = (base_url if base_url is not None else resolve_openai_compat_asr_base_url()).strip().rstrip("/")
+    mdl = (model if model is not None else resolve_openai_compat_asr_model()).strip()
+    if api_key is None:
+        key = resolve_openai_compat_asr_api_key()
+    else:
+        key = api_key.strip() or None
+
+    out: dict = {
+        "ok": False,
+        "status": "not_configured",
+        "latency_ms": None,
+        "http_status": None,
+        "models_count": None,
+        "model_found": None,
+        "detail": None,
+    }
+    if not base:
+        return out
+    if not base.startswith(("http://", "https://")):
+        out["status"] = "invalid_url"
+        return out
+
+    import httpx
+
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    t0 = perf_counter()
+    try:
+        with httpx.Client(
+            timeout=httpx.Timeout(timeout_s, connect=min(5.0, timeout_s)),
+            follow_redirects=True,
+        ) as client:
+            resp = client.get(f"{base}/models", headers=headers)
+    except httpx.TimeoutException as exc:
+        out.update(
+            status="timeout",
+            latency_ms=round((perf_counter() - t0) * 1000.0, 1),
+            detail=scrub_text(f"{type(exc).__name__}: {exc}"),
+        )
+        return out
+    except Exception as exc:  # noqa: BLE001 — ConnectError, UnsupportedProtocol, SSL…
+        out.update(
+            status="unreachable",
+            latency_ms=round((perf_counter() - t0) * 1000.0, 1),
+            detail=scrub_text(f"{type(exc).__name__}: {exc}"),
+        )
+        return out
+
+    out["latency_ms"] = round((perf_counter() - t0) * 1000.0, 1)
+    out["http_status"] = resp.status_code
+
+    if 200 <= resp.status_code < 300:
+        out.update(ok=True, status="ok")
+        try:
+            data = resp.json()
+            entries = data.get("data") if isinstance(data, dict) else data
+            if isinstance(entries, list):
+                ids = [e.get("id") for e in entries if isinstance(e, dict) and e.get("id")]
+            else:
+                ids = None
+        except Exception:  # noqa: BLE001 — non-JSON 200 still proves reachability
+            ids = None
+        if ids is not None:
+            out["models_count"] = len(ids)
+            out["model_found"] = mdl in ids if mdl else None
+        return out
+
+    if resp.status_code in (401, 403):
+        out["status"] = "auth_failed"
+    elif resp.status_code in (404, 405, 501):
+        # Reachable server without a /models endpoint — the transcription
+        # route may still work, so this is a (qualified) success.
+        out.update(ok=True, status="ok_no_models")
+    else:
+        out["status"] = "http_error"
+        out["detail"] = scrub_text((resp.text or "")[:300]) or None
+    return out
+
+
 class OpenAICompatASRBackend(ASRBackend):
     """Remote transcription via any OpenAI-compatible server.
 

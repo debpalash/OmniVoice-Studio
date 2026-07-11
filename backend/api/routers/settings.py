@@ -929,6 +929,23 @@ def set_asr_openai_compat(body: _ASROpenAICompatBody):
     return get_asr_openai_compat()
 
 
+@router.post("/asr-openai-compat/test")
+def test_asr_openai_compat():
+    """Cheap connectivity probe for the "Test connection" button.
+
+    GET {base_url}/models against the PERSISTED config — the panel saves
+    first, then tests, same stale-config contract as
+    /llm-providers/{id}/test. No audio leaves the machine, nothing is
+    transcribed. Loopback-only via the router-level guard. Always 200 with a
+    structured verdict ({ok, status, latency_ms, ...} — see
+    services.asr_backend.probe_openai_compat_server) so the UI renders
+    success/latency or the exact failure without a raw 500. The key is never
+    logged or echoed back."""
+    from services import asr_backend
+
+    return asr_backend.probe_openai_compat_server()
+
+
 # ── Updates panel: shipped changelog + pre-migration DB backup state ────────
 # (feat/safe-updates). Both are read-only, local-first surfaces for
 # Settings → Updates: the "What's new" viewer reads the CHANGELOG.md that
