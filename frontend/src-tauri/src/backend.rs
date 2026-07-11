@@ -83,7 +83,41 @@ pub fn same_app_version(running: &str) -> bool {
     !running.is_empty() && base(running) == base(env!("CARGO_PKG_VERSION"))
 }
 
+/// Deep health probe for the attach-to-a-running-backend shortcut.
+///
+/// `/health` and `/system/info` keep answering from a backend whose install
+/// was deleted out from under it (files unlinked on disk, code already in
+/// memory) — that zombie passes the version check and then 500s every real
+/// route, so the UI looks alive but nothing works. Probe a DB-touching
+/// endpoint and require an actual `200` status line before attaching;
+/// anything else (500, timeout, refused) means the responder is not a
+/// backend worth keeping.
+pub fn backend_deep_healthy(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{}/profiles", port);
+    match raw_http_get(&url, Duration::from_millis(1500)) {
+        Ok(resp) => parse_http_status(&resp) == Some(200),
+        Err(_) => false,
+    }
+}
+
+/// Status code from a raw HTTP response ("HTTP/1.1 200 OK" → 200).
+fn parse_http_status(response: &str) -> Option<u16> {
+    let line = response.lines().next()?;
+    line.split_whitespace().nth(1)?.parse().ok()
+}
+
 fn ureq_get_with_timeout(url: &str, timeout: Duration) -> Result<String, String> {
+    let buf = raw_http_get(url, timeout)?;
+    if let Some(idx) = buf.find("\r\n\r\n") {
+        Ok(buf[idx + 4..].to_string())
+    } else {
+        Err("no body".into())
+    }
+}
+
+/// One raw loopback HTTP GET, returning the FULL response (status line +
+/// headers + body). Kept dependency-free on purpose — see module docs.
+fn raw_http_get(url: &str, timeout: Duration) -> Result<String, String> {
     let url = url.strip_prefix("http://").ok_or("only http:// supported")?;
     let (host_port, path) = match url.find('/') {
         Some(i) => (&url[..i], &url[i..]),
@@ -112,11 +146,7 @@ fn ureq_get_with_timeout(url: &str, timeout: Duration) -> Result<String, String>
     stream.write_all(req.as_bytes()).map_err(|e| e.to_string())?;
     let mut buf = String::new();
     stream.read_to_string(&mut buf).map_err(|e| e.to_string())?;
-    if let Some(idx) = buf.find("\r\n\r\n") {
-        Ok(buf[idx + 4..].to_string())
-    } else {
-        Err("no body".into())
-    }
+    Ok(buf)
 }
 
 /// Kill whatever process owns the port.
@@ -426,6 +456,17 @@ mod tests {
         // pre-app_version backends and foreign bodies yield None
         assert_eq!(parse_app_version(r#"{"data_dir":"/x"}"#), None);
         assert_eq!(parse_app_version("<html>not json</html>"), None);
+    }
+
+    #[test]
+    fn parse_http_status_reads_the_status_line_only() {
+        assert_eq!(super::parse_http_status("HTTP/1.1 200 OK\r\nX: 500\r\n\r\nbody"), Some(200));
+        assert_eq!(
+            super::parse_http_status("HTTP/1.1 500 Internal Server Error\r\n\r\nInternal Server Error"),
+            Some(500)
+        );
+        assert_eq!(super::parse_http_status("garbage"), None);
+        assert_eq!(super::parse_http_status(""), None);
     }
 
     #[test]

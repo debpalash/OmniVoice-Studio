@@ -148,12 +148,24 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
         }
         match crate::backend::running_backend_version(backend_port()) {
             Some(v) if crate::backend::same_app_version(&v) => {
-                log::info!(
-                    "Port {} already serving OmniVoice backend v{} — attaching",
+                if crate::backend::backend_deep_healthy(backend_port()) {
+                    log::info!(
+                        "Port {} already serving OmniVoice backend v{} — attaching",
+                        backend_port(), v
+                    );
+                    set_stage(&stage_handle, BootstrapStage::Ready);
+                    return;
+                }
+                // Same version but a DB-touching probe fails: a backend whose
+                // install was wiped/corrupted while it kept running. Attaching
+                // would look alive and 500 on everything — replace it.
+                log::warn!(
+                    "Port {} serves OmniVoice v{} but failed the deep health probe — replacing it",
                     backend_port(), v
                 );
-                set_stage(&stage_handle, BootstrapStage::Ready);
-                return;
+                    set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
+                crate::backend::kill_orphan_on_port(backend_port());
+                std::thread::sleep(Duration::from_millis(500));
             }
             Some(v) => {
                 // A healthy-but-stale backend from a previous version (the

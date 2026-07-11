@@ -117,8 +117,41 @@ is_app_scoped() {
   esac
 }
 
+# ── Kill-before-wipe: never clean under a live instance ────────────────────
+# A backend that survives the wipe becomes a zombie: /health keeps answering
+# from memory, the next launch attaches to it, and every real route 500s off
+# deleted files + an empty DB. Terminate our own processes first.
+kill_running_instances() {
+  local pids=""
+  pids="$(pgrep -f "${APP_NAME}.app|target/debug/omnivoice-studio" 2>/dev/null || true)"
+  local port_pid
+  for port_pid in $(lsof -nP -iTCP:3900 -sTCP:LISTEN -t 2>/dev/null || true); do
+    if ps -p "$port_pid" -o command= 2>/dev/null | grep -qiE 'omnivoice|com\.debpalash'; then
+      pids="$pids $port_pid"
+    fi
+  done
+  # shellcheck disable=SC2086
+  pids="$(echo $pids | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+  [ -z "${pids// /}" ] && return 0
+  echo "🔪 Terminating running OmniVoice processes:$pids"
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null || true
+  local i=0
+  while [ $i -lt 10 ]; do
+    sleep 0.5
+    # shellcheck disable=SC2086
+    if ! kill -0 $pids 2>/dev/null; then break; fi
+    i=$((i + 1))
+  done
+  # shellcheck disable=SC2086
+  kill -9 $pids 2>/dev/null || true
+  echo "   All stopped — safe to wipe."
+  echo ""
+}
+
 # ── Wipe app data for fresh-install simulation ─────────────────────────────
 if [ "$KEEP_DATA" = false ]; then
+  kill_running_instances
   echo "🧹 Cleaning all OmniVoice data for fresh prod emulation..."
   echo ""
 

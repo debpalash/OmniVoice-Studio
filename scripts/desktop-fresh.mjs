@@ -129,18 +129,51 @@ function sizeOf(p) {
   return size ? ` (${size})` : "";
 }
 
-// ── Refuse-footgun check: is the app running? ──────────────────────────────
-// Wiping data under a live instance lets its open file handles resurrect
-// state after we "cleaned" it — warn (don't kill the user's processes).
+// ── Kill-before-wipe: never clean under a live instance ────────────────────
+// Wiping data under a running app leaves a ZOMBIE backend: its code is in
+// memory, /health keeps answering, and the next launch happily attaches to
+// it — then every real route 500s off deleted site-packages and an empty DB
+// (observed 2026-07-11). Terminate app + backend first; --dry-run only reports.
 {
-  const pg = spawnSync("pgrep", ["-f", `${APP_NAME}.app|target/debug/omnivoice-studio`], {
-    encoding: "utf8",
-  });
-  if (pg.status === 0) {
-    console.warn(
-      `⚠️  ${APP_NAME} appears to be RUNNING (pids: ${pg.stdout.trim().split("\n").join(", ")}).\n` +
-        "   Quit it first — a live instance can rewrite the data being wiped.\n",
-    );
+  const patterns = [`${APP_NAME}.app`, "target/debug/omnivoice-studio"];
+  /** PIDs of our own processes: bundle/dev-binary matches + any 3900 listener
+   *  whose command is app-scoped (never a foreign process on the port). */
+  const findPids = () => {
+    const pids = new Set();
+    for (const pat of patterns) {
+      const pg = spawnSync("pgrep", ["-f", pat], { encoding: "utf8" });
+      if (pg.status === 0)
+        for (const pid of pg.stdout.trim().split("\n")) if (pid) pids.add(pid);
+    }
+    const lsof = spawnSync("lsof", ["-nP", "-iTCP:3900", "-sTCP:LISTEN", "-t"], {
+      encoding: "utf8",
+    });
+    if (lsof.status === 0) {
+      for (const pid of lsof.stdout.trim().split("\n")) {
+        if (!pid) continue;
+        const cmd = spawnSync("ps", ["-p", pid, "-o", "command="], { encoding: "utf8" }).stdout;
+        if (/omnivoice|com\.debpalash/i.test(cmd)) pids.add(pid);
+      }
+    }
+    return [...pids];
+  };
+  const pids = findPids();
+  if (pids.length > 0) {
+    if (DRY_RUN) {
+      console.log(`🔪 Would terminate running ${APP_NAME} processes: ${pids.join(", ")}\n`);
+    } else {
+      console.log(`🔪 Terminating running ${APP_NAME} processes (${pids.join(", ")})...`);
+      for (const pid of pids) spawnSync("kill", [pid]);
+      // Grace period, then force anything still alive.
+      const deadline = Date.now() + 5000;
+      let alive = pids;
+      while (alive.length > 0 && Date.now() < deadline) {
+        spawnSync("sleep", ["0.5"]);
+        alive = alive.filter((pid) => spawnSync("kill", ["-0", pid]).status === 0);
+      }
+      for (const pid of alive) spawnSync("kill", ["-9", pid]);
+      console.log("   All stopped — safe to wipe.\n");
+    }
   }
 }
 

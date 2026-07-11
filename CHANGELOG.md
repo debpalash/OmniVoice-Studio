@@ -18,6 +18,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **The app no longer attaches to a "zombie" backend that looks alive but fails everything.** If a backend process survived while its install was replaced or deleted underneath it, it kept answering health checks from memory — so the next launch attached to it and every real request failed with a confusing access-control error. The launcher now runs a deeper probe (an endpoint that actually touches the database) before attaching, and replaces any backend that fails it. The local dev/test scripts also now terminate running instances before wiping data, which is how this state was produced. (#1077)
+
 - **The app opens at 100% scale by default.** New installs rendered everything at 130% zoom, which read as oversized on typical displays. Fresh sessions now start at native size; if you already picked a scale in Settings → Appearance, your choice is kept. (#1074)
 
 - **The app no longer relaunches into a dead "generating" dub session — the blank-pane-and-spinner trap.** The saved dub session was restoring its in-flight state verbatim: quit (or crash) while a dub was generating and every subsequent launch waited forever for work that died with the process — and reinstalling couldn't clear it. Interrupted sessions now reopen on the segment editor with all your work intact (or the upload screen if nothing was transcribed yet). Thanks to @nanai97 for the screenshot that told the whole story. (#1067)
