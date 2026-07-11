@@ -313,7 +313,8 @@ export async function streamGenerateSpeech(
       } else if (ev.type === 'chunk') {
         received += 1;
         player?.appendPcm16Base64(ev.pcm);
-        if (totalChunks > 0) onProgress?.(Math.min(100, Math.round((received / totalChunks) * 100)));
+        if (totalChunks > 0)
+          onProgress?.(Math.min(100, Math.round((received / totalChunks) * 100)));
       } else if (ev.type === 'done') {
         meta = ev;
       } else if (ev.type === 'error') {
