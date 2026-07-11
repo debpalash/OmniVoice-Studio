@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 from typing import Any, Optional
 
 from core.config import DATA_DIR
@@ -22,6 +23,14 @@ from core.config import DATA_DIR
 logger = logging.getLogger("omnivoice.prefs")
 
 _PREFS_PATH = os.path.join(DATA_DIR, "prefs.json")
+
+# Serializes the load-modify-save cycle of every mutation. Writers run on
+# many threads (FastAPI's request threadpool, background workers like the
+# sidecar-engine installer); without the lock two concurrent set_/delete
+# calls interleave their read-modify-write and the later save silently
+# drops the other's key. Reads stay lock-free — the atomic os.replace in
+# _save guarantees they never see a torn file.
+_MUTATE_LOCK = threading.RLock()
 
 
 def _load() -> dict:
@@ -60,16 +69,18 @@ def get(key: str, default: Any = None) -> Any:
 
 
 def set_(key: str, value: Any) -> None:
-    data = _load()
-    data[key] = value
-    _save(data)
+    with _MUTATE_LOCK:
+        data = _load()
+        data[key] = value
+        _save(data)
 
 
 def delete(key: str) -> None:
     """Remove *key* from prefs.json if present."""
-    data = _load()
-    data.pop(key, None)
-    _save(data)
+    with _MUTATE_LOCK:
+        data = _load()
+        data.pop(key, None)
+        _save(data)
 
 
 def resolve(key: str, *, env: Optional[str] = None, default: Any = None) -> Any:

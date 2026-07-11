@@ -281,6 +281,23 @@ def test_git_failure_falls_back_to_tarball(monkeypatch):
     assert (si.managed_checkout(spec) / "pyproject.toml").is_file()
 
 
+def test_kill_tree_uses_taskkill_on_windows(monkeypatch):
+    """On Windows proc.kill() fells only the direct child — a spawned git/uv
+    helper would keep writing into the checkout past the timeout. The tree
+    kill must go through taskkill /T there (POSIX uses killpg)."""
+    calls = {}
+    monkeypatch.setattr(si.os, "name", "nt")
+    monkeypatch.setattr(
+        si.subprocess, "run",
+        lambda argv, **kw: calls.setdefault("argv", argv) or SimpleNamespace(returncode=0),
+    )
+    proc = SimpleNamespace(pid=4242, kill=lambda: calls.setdefault("plain_kill", True))
+    si._kill_tree(proc)
+    assert calls["argv"][:4] == ["taskkill", "/F", "/T", "/PID"]
+    assert calls["argv"][4] == "4242"
+    assert "plain_kill" not in calls  # taskkill succeeded — no fallback
+
+
 def test_safe_extract_members_blocks_tar_slip(tmp_path):
     """The pre-filter= fallback extractor must drop parent-dir escapes,
     absolute paths, and symlinks — mirroring extractall(filter='data')."""

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Cpu,
   Mic,
@@ -396,15 +396,37 @@ export default function EngineCompatibilityMatrix({
   // resumable background job; this map holds the latest polled status per
   // engine id ({installed, managed, install_dir, job}).
   const [installByEngine, setInstallByEngine] = useState({});
+  // At most ONE in-flight status request per engine — otherwise a slow
+  // backend lets responses land out of order (an old 'running' snapshot
+  // overwriting a newer 'succeeded' would restart the poller forever).
+  const installInflightRef = useRef(new Set());
+  // Consecutive poll failures per engine — after a few in a row the backend
+  // is gone, so drop the stale snapshot instead of showing "Installing…"
+  // (and hammering the endpoint) indefinitely.
+  const installPollFailuresRef = useRef({});
 
   const refreshInstall = useCallback(
     async (id) => {
+      if (installInflightRef.current.has(id)) return null; // serialize per engine
+      installInflightRef.current.add(id);
       try {
         const st = await apiInstallStatus(id);
+        installPollFailuresRef.current[id] = 0;
         setInstallByEngine((prev) => ({ ...prev, [id]: st }));
         return st;
       } catch {
+        const n = (installPollFailuresRef.current[id] || 0) + 1;
+        installPollFailuresRef.current[id] = n;
+        if (n >= 4) {
+          installPollFailuresRef.current[id] = 0;
+          setInstallByEngine((prev) => {
+            const { [id]: _stale, ...rest } = prev;
+            return rest; // stops the poller; a later reload/click re-attaches
+          });
+        }
         return null; // advisory — polling errors never break the matrix
+      } finally {
+        installInflightRef.current.delete(id);
       }
     },
     [apiInstallStatus],

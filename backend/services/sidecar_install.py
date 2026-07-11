@@ -878,7 +878,13 @@ def _run_logged(job: dict, argv: list[str], *, timeout: float) -> int:
 
 
 def _kill_tree(proc: "subprocess.Popen") -> None:
-    """Kill the child and (POSIX) its whole process group."""
+    """Kill the child and its whole process tree, on every platform.
+
+    POSIX: the child was started in its own session, so SIGKILL the group.
+    Windows: ``proc.kill()`` only terminates the direct child — a git/uv
+    helper it spawned would keep running (and writing into the checkout)
+    past our timeout — so use ``taskkill /T`` to fell the tree.
+    """
     if os.name == "posix":
         import signal
         try:
@@ -886,6 +892,15 @@ def _kill_tree(proc: "subprocess.Popen") -> None:
             return
         except (ProcessLookupError, PermissionError, OSError):
             pass  # group already gone / not ours — fall through to plain kill
+    else:  # Windows
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True, timeout=15,
+            )
+            return
+        except (OSError, subprocess.SubprocessError):
+            pass  # taskkill unavailable/failed — fall through to plain kill
     try:
         proc.kill()
     except OSError:
