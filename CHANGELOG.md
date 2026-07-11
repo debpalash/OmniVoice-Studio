@@ -6,13 +6,23 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.18] — 2026-07-12
+
+The self-sufficiency release. Two long-standing "works on my network / works after four terminal commands" walls came down: model downloads now find a reachable Hugging Face endpoint on their own (no more restricted-network first-run dead-ends), and IndexTTS-2 — previously the only engine that demanded a manual clone-venv-install ritual — installs itself with one click. Under the hood, a test-debt sweep hardened the suite that guards all of it.
 
 ### Added
 
 - **IndexTTS-2 installs itself now — one click in Settings → Engines.** The emotion-controlled cloning engine used to demand four terminal steps (clone the repo, create a venv, `uv pip install`, set an environment variable); the row now has an Install button that does all of it — source fetch (git, with a no-git tarball fallback), an isolated venv that keeps its `transformers<5` away from the app, the ~6 GB model weights (via your configured/auto-selected Hugging Face endpoint), and configuration — with step-by-step progress, a disk-space check before anything is written, and resumable repair if anything is interrupted. The engine is usable the moment the job finishes, no restart; existing manual installs are detected and left untouched, and the manual steps remain as a collapsible fallback. The provisioner is parametrized so future sidecar engines (MOSS-v1.5, dots.tts, Confucius4) can reuse it. (#1083)
 
-- **Model downloads now find a reachable Hugging Face endpoint on their own.** On networks where huggingface.co is blocked or slow (the class of first-run dead-ends behind #984), the app quietly probes the official endpoint and the hf-mirror.com community mirror, picks whichever actually works, remembers the choice, and re-checks only when a download fails or the pick goes stale — so a restricted-network first run reaches a working voice instead of a wall of connection errors. Anyone who already set a mirror (env var, pref, or Settings) stays exactly where they pointed: explicit choices are never auto-switched, and Settings → Models → Hugging Face mirror now shows the automatic pick with its measured latency plus a "Test again" button. Probes only touch the two download hosts — no geo-IP, no telemetry — and every download stays checksum-verified by `huggingface_hub` regardless of endpoint.
+- **Model downloads now find a reachable Hugging Face endpoint on their own.** On networks where huggingface.co is blocked or slow (the class of first-run dead-ends behind #984), the app quietly probes the official endpoint and the hf-mirror.com community mirror, picks whichever actually works, remembers the choice, and re-checks only when a download fails or the pick goes stale — so a restricted-network first run reaches a working voice instead of a wall of connection errors. Anyone who already set a mirror (env var, pref, or Settings) stays exactly where they pointed: explicit choices are never auto-switched, and Settings → Models → Hugging Face mirror now shows the automatic pick with its measured latency plus a "Test again" button. Probes only touch the two download hosts — no geo-IP, no telemetry — and every download stays checksum-verified by `huggingface_hub` regardless of endpoint. (#1082)
+
+### Fixed
+
+- **Concurrent settings writes can no longer drop each other.** Two parts of the app saving preferences at the same moment (say, an engine install finishing while you change a setting) could silently lose whichever save landed first; preference writes are now serialized, with a regression test. Found and fixed as part of the IndexTTS-2 installer work. (#1083)
+
+### CI
+
+- **Test-suite debt sweep.** Exports coverage (26 new tests, which caught two real router bugs), fp16 default-dtype leak instrumentation, and a suite-order pollution class root-caused at its source — the checks that guard every release got stricter. (#1081)
 
 ## [0.3.17] — 2026-07-11
 
