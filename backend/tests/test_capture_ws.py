@@ -4,17 +4,11 @@ Only tests the pure-Python helper functions (no GPU needed).
 The WebSocket endpoint itself requires the full app, which we
 skip in CI — it's integration-tested via the browser.
 """
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-# Stub heavy deps
-import types
-for mod_name in ["services.model_manager", "services.asr_backend", "services.ffmpeg_utils"]:
-    if mod_name not in sys.modules:
-        sys.modules[mod_name] = types.ModuleType(mod_name)
-
+# conftest.py puts `backend/` on sys.path. capture_ws imports its heavy deps
+# (model_manager / asr_backend / ffmpeg_utils) lazily inside handlers, so no
+# stubbing is needed — the old empty-ModuleType stubs leaked process-wide at
+# collection time and broke every later `from services.ffmpeg_utils import
+# find_ffmpeg` in mixed runs (see conftest.py).
 from api.routers.capture_ws import _chunks_to_wav, MIN_BUFFER_BYTES
 
 

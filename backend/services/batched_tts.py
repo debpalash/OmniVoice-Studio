@@ -151,9 +151,14 @@ async def generate_segments_batched(
                     # Raw: skip all DSP — return raw model output
                     return audio_out
 
-                # TODO(#312): this route runs the OmniVoice model directly (not the active
-                # backend), so VoxCPM2 never reaches it. When these routes become
-                # engine-aware, guard with `if not getattr(backend, "applies_own_mastering", False)`.
+                # NOTE(#312, closed): the live routes (generation.py,
+                # dub_generate.py, batch.py, tts_stream.py) are engine-aware
+                # and honor `applies_own_mastering` themselves. This module
+                # still drives the OmniVoice model directly and currently has
+                # NO call sites — it's an unintegrated throughput experiment.
+                # If it is ever wired into a route, thread the active backend
+                # through instead of `model` and guard the mastering below
+                # with `if not getattr(backend, "applies_own_mastering", False)`.
                 mastered = apply_mastering(audio_out, sample_rate=sr)
                 effect_chain = get_effect_chain(seg_effect_preset)
                 if effect_chain:

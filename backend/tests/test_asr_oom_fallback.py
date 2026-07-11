@@ -8,21 +8,14 @@ OOM deterministically (no GPU needed) and asserts the device switch.
 """
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 import types
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-_config = types.ModuleType("core.config")
-_config.DATA_DIR = tempfile.mkdtemp(prefix="omnivoice_asr_oom_")
-_config.VOICES_DIR = _config.DATA_DIR
-_config.OUTPUTS_DIR = _config.DATA_DIR
-sys.modules["core.config"] = _config
-
+# conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
+# throwaway tmpdir before this module imports the REAL core.config (the old
+# sys.modules stub leaked at collection time and broke mixed runs).
 whisperx = pytest.importorskip("whisperx")
 
 from services.asr_backend import (  # noqa: E402

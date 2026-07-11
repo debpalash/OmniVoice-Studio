@@ -3,32 +3,18 @@
 is covered by the manifest round-trip (tests/test_longform_resume.py) + the
 existing render tests, not here.
 
-Config-stub pattern (mounts only the audiobook router — torch-free at import) so
-it runs locally without the main+torch segfault.
+Mounts only the audiobook router (no ``main`` import) so it runs locally
+without the main+torch segfault; conftest.py provides the hermetic data dir.
 """
 from __future__ import annotations
 
 import json
-import os
-import sys
-import tempfile
-import types
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-_TMP = tempfile.mkdtemp(prefix="omnivoice_abresume_test_")
-_config = types.ModuleType("core.config")
-_config.DATA_DIR = _TMP
-_config.VOICES_DIR = str(Path(_TMP) / "voices")
-_config.OUTPUTS_DIR = str(Path(_TMP) / "outputs")
-_config.DB_PATH = str(Path(_TMP) / "omnivoice.db")
-os.makedirs(_config.VOICES_DIR, exist_ok=True)
-os.makedirs(_config.OUTPUTS_DIR, exist_ok=True)
-sys.modules["core.config"] = _config
-
+# conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
+# throwaway tmpdir before this module imports the REAL core.config (the old
+# sys.modules stub leaked at collection time and broke mixed runs).
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 

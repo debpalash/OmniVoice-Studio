@@ -262,9 +262,9 @@ dev = [
 [tool.pytest.ini_options]
 # Bare `pytest` would otherwise walk into `research/` (1.2 GB of vendored
 # upstream projects, each with its own test_*.py that calls sys.exit at
-# module level) and INTERNALERROR. `backend/tests/` runs separately because
-# it stubs `core.config` in sys.modules, which pollutes import state for
-# other modules in the same session.
+# module level) and INTERNALERROR. `backend/tests/` still runs as its own CI
+# session (see ci.yml) but no longer stubs sys.modules — its conftest.py sets
+# a hermetic OMNIVOICE_DATA_DIR instead, so mixed invocations are safe too.
 testpaths = ["tests"]
 norecursedirs = [
     "research",

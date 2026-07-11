@@ -14,24 +14,13 @@ verified manually (spectral flatness back in the speech range + Whisper ASR).
 from __future__ import annotations
 
 import math
-import os
-import sys
-import tempfile
-import types
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-# Stub core.config before the router imports OUTPUTS_DIR / VOICES_DIR from it.
-_TMP = tempfile.mkdtemp(prefix="omnivoice_preview_q_")
-_config = types.ModuleType("core.config")
-_config.DATA_DIR = _TMP
-_config.VOICES_DIR = str(Path(_TMP) / "voices")
-_config.OUTPUTS_DIR = str(Path(_TMP) / "outputs")
-sys.modules["core.config"] = _config
-
+# conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
+# throwaway tmpdir before the router imports OUTPUTS_DIR / VOICES_DIR from
+# the REAL core.config (the old sys.modules stub leaked at collection time
+# and broke later importers in mixed runs — see conftest.py).
 torch = pytest.importorskip("torch")  # noqa: E402
 
 from api.routers import archetypes as arch  # noqa: E402

@@ -50,24 +50,104 @@ import warnings as _warnings
 # built under a leaked fp16 default. The same leak collapses
 # test_effects_chain's preset differences into identical quantized outputs,
 # and hands test_persona_bundle's soundfile writer fp16 data libsndfile
-# can't encode. The polluter only executes on CI-Linux (it never reproduces
-# on macOS), so rather than chase it blind, this guard makes the whole leak
-# class impossible — same philosophy as the LLM-state guard below — and
-# names the offender in CI output when it fires, so it CAN be chased.
+# can't encode. The known polluter TESTS are
+# test_dub_onsets_route.py::test_prefers_vocals_over_mix and
+# test_smart_fit_generate.py::test_final_dub_track_and_seg_wav_are_watermarked
+# — both now carry the opt-in `torch_dtype_isolation` fixture below, so this
+# autouse guard is pure insurance for new polluters. The CALL that flips the
+# dtype only executes on CI-Linux (it never reproduces on macOS — local
+# instrumentation of torch.set_default_dtype across both tests recorded zero
+# non-fp32 sets), so the recorder below captures the setter's stack trace and
+# both fixtures print it when they fire: the next CI occurrence hands us the
+# exact culprit call chain, not just the test nodeid.
+
+_DTYPE_SETTER = {"stack": None, "dtype": None}
+
+
+def _install_torch_dtype_recorder():
+    """Wrap torch's default-dtype setters to capture the caller's stack.
+
+    Only records on a *non-float32* set (the rare, offending case), so the
+    overhead on the hot path is one dtype comparison. Installed lazily the
+    first time torch shows up in sys.modules; idempotent. If torch is first
+    imported inside the polluting test itself, the recorder installs after
+    the fact and the warning says the stack wasn't captured.
+    """
+    torch = sys.modules.get("torch")
+    if torch is None or getattr(torch, "_omnivoice_dtype_recorder", False):
+        return
+
+    import traceback
+
+    _orig_set_dtype = torch.set_default_dtype
+
+    def _recording_set_default_dtype(d):
+        if d != torch.float32:
+            _DTYPE_SETTER["stack"] = "".join(traceback.format_stack(limit=30))
+            _DTYPE_SETTER["dtype"] = repr(d)
+        return _orig_set_dtype(d)
+
+    torch.set_default_dtype = _recording_set_default_dtype
+
+    # Legacy API — can also flip the default dtype (e.g. HalfTensor).
+    _orig_set_tt = torch.set_default_tensor_type
+    if _orig_set_tt is not None:  # removed in newer torch
+
+        def _recording_set_default_tensor_type(t):
+            _DTYPE_SETTER["stack"] = "".join(traceback.format_stack(limit=30))
+            _DTYPE_SETTER["dtype"] = f"tensor_type={t!r}"
+            return _orig_set_tt(t)
+
+        torch.set_default_tensor_type = _recording_set_default_tensor_type
+
+    torch._omnivoice_dtype_recorder = True
+
+
+def _drain_leaked_dtype(nodeid: str) -> None:
+    """Warn (with the captured setter stack, if any) and reset to float32."""
+    torch = sys.modules.get("torch")
+    if torch is None or torch.get_default_dtype() is torch.float32:
+        return
+    stack = _DTYPE_SETTER["stack"]
+    origin = (
+        f" set to {_DTYPE_SETTER['dtype']} at:\n{stack}"
+        if stack
+        else (
+            " (setter stack not captured — torch.set_default_dtype was "
+            "called before the recorder installed, or the dtype changed "
+            "through another API)"
+        )
+    )
+    _warnings.warn(
+        f"{nodeid} leaked torch default dtype {torch.get_default_dtype()} — "
+        f"resetting to float32.{origin}",
+        stacklevel=1,
+    )
+    torch.set_default_dtype(torch.float32)
+
+
 @pytest.fixture(autouse=True)
 def _torch_default_dtype_guard(request):
+    _install_torch_dtype_recorder()
     yield
-    torch = sys.modules.get("torch")
-    if torch is None:
-        return
-    if torch.get_default_dtype() is not torch.float32:
-        _warnings.warn(
-            f"{request.node.nodeid} leaked torch default dtype "
-            f"{torch.get_default_dtype()} — resetting to float32. This is "
-            f"the polluter behind the CI flaky trio; fix it at the source.",
-            stacklevel=1,
-        )
-        torch.set_default_dtype(torch.float32)
+    # The test itself may have been the first to import torch.
+    _install_torch_dtype_recorder()
+    _drain_leaked_dtype(request.node.nodeid)
+
+
+@pytest.fixture
+def torch_dtype_isolation(request):
+    """Opt-in save/restore for tests known to trip the CI-Linux fp16 leak.
+
+    Runs *inside* the test's own fixture stack (i.e. before the autouse
+    guard's teardown), so tagged tests can never spread a leaked default
+    dtype — and the warning below keeps CI attribution alive: it prints the
+    recorded setter stack so the culprit call chain lands in the CI log.
+    """
+    _install_torch_dtype_recorder()
+    yield
+    _install_torch_dtype_recorder()
+    _drain_leaked_dtype(request.node.nodeid)
 
 
 # ── LLM-provider state isolation (issue #878) ──────────────────────────────

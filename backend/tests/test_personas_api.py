@@ -6,34 +6,23 @@ the model. The export path's preview generation needs torchaudio and is covered
 by the service-layer round-trip in ``tests/test_persona_bundle.py`` + CI; here we
 only assert export's 404 (which fails before any audio work).
 
-Follows the config-stub pattern of ``test_archetypes_api.py`` / ``test_community.py``
-so it mounts ONLY the persona router on a bare FastAPI app (no ``main`` import,
-no torch at collection).
+Follows the pattern of ``test_archetypes_api.py`` / ``test_community.py``:
+mounts ONLY the persona router on a bare FastAPI app (no ``main`` import,
+no torch at collection); conftest.py provides the hermetic data dir.
 """
 from __future__ import annotations
 
 import io
 import json
 import os
-import sys
-import tempfile
-import types
 import zipfile
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-_TMP = tempfile.mkdtemp(prefix="omnivoice_personas_test_")
-_VOICES = Path(_TMP) / "voices"
-_VOICES.mkdir(parents=True, exist_ok=True)
-_config = types.ModuleType("core.config")
-_config.DATA_DIR = _TMP
-_config.VOICES_DIR = str(_VOICES)
-_config.OUTPUTS_DIR = str(Path(_TMP) / "outputs")
-_config.DB_PATH = str(Path(_TMP) / "omnivoice.db")
-sys.modules["core.config"] = _config
+# conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
+# throwaway tmpdir before this module imports the REAL core.config (the old
+# sys.modules stub leaked at collection time and broke mixed runs).
+from core import config as _config  # noqa: E402
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

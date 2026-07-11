@@ -60,6 +60,11 @@ def test_404_when_no_audio_available(job_env):
     assert exc.value.status_code == 404
 
 
+# On CI-Linux (never reproduced on macOS) something in this test's call chain
+# flips torch's default dtype to float16 and leaks it into later tests. The
+# fixture save/restores the dtype and logs the setter's captured stack trace
+# so the CI log names the culprit call chain (see conftest.py).
+@pytest.mark.usefixtures("torch_dtype_isolation")
 def test_prefers_vocals_over_mix(job_env):
     vocals = job_env["job_dir"] / "vocals.wav"
     mix = job_env["job_dir"] / "audio.wav"

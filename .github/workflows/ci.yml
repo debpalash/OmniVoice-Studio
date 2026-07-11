@@ -74,9 +74,10 @@ jobs:
       - name: Validate install docs against desktop-prod.sh
         run: python scripts/validate-install-docs.py
 
-      # `backend/tests/` stubs core.config in sys.modules to avoid the heavy
-      # main app import chain — that pollutes import state for other modules,
-      # so it runs in its own pytest session to stay isolated from tests/.
+      # `backend/tests/` mounts routers on bare FastAPI apps (no heavy main
+      # import chain) with a hermetic data dir from its conftest.py. It no
+      # longer stubs sys.modules, so mixed sessions with tests/ are safe;
+      # the separate session is kept for cheaper, clearer CI output.
       - name: Run pytest (backend/tests, isolated)
         run: uv run pytest backend/tests/ -q --tb=short
 

@@ -21,12 +21,17 @@ def _safe_destination(raw: str) -> str:
             status_code=400,
             detail="Export needs a destination folder. Pick where the file should go and try again.",
         )
-    dest = os.path.realpath(os.path.expanduser(raw))
-    if not os.path.isabs(dest):
+    expanded = os.path.expanduser(raw)
+    # Check BEFORE realpath(): realpath absolutizes a relative path against
+    # the server's cwd, which made this check dead code — a relative
+    # destination silently exported to a cwd-dependent location instead of
+    # the documented 400 (regression-tested in tests/test_exports_api.py).
+    if not os.path.isabs(expanded):
         raise HTTPException(
             status_code=400,
             detail="The destination needs to be a full path (e.g. /Users/you/Movies/OmniVoice) — not relative.",
         )
+    dest = os.path.realpath(expanded)
     parent = os.path.dirname(dest)
     if not parent or not os.path.isdir(parent):
         raise HTTPException(
@@ -39,7 +44,10 @@ def _safe_destination(raw: str) -> str:
 def _safe_source(filename: str) -> str:
     """Resolve a source filename against OUTPUTS_DIR / dub outputs, blocking traversal."""
     base = os.path.basename(filename or "")
-    if not base or base != filename:
+    # "." and ".." are their own basename, so they'd slip past the
+    # base != filename check and only die later on realpath containment —
+    # reject them up front with the same 400 as any other malformed name.
+    if not base or base != filename or base in (".", ".."):
         raise HTTPException(
             status_code=400,
             detail="The file to export has an unexpected name. Try re-generating the audio and exporting again.",

@@ -6,19 +6,11 @@ lightweight — it only imports os, uuid, time, asyncio, logging,
 fastapi, and pydantic at module level.
 """
 import io
-import os
-import sys
 import pytest
 
-# Add backend to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-# Stub core.config before batch imports it
-import types
-config_mod = types.ModuleType("core.config")
-config_mod.DATA_DIR = "/tmp/omnivoice_test_data"
-sys.modules["core.config"] = config_mod
-
+# conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
+# throwaway tmpdir before the batch router imports the REAL core.config (the
+# old sys.modules stub leaked at collection time and broke mixed runs).
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from api.routers.batch import router, _jobs, _set_progress

@@ -164,6 +164,11 @@ def _track_samples(job_dir):
 # ── Audio-only stretch ─────────────────────────────────────────────────
 
 
+# On CI-Linux (never reproduced on macOS) something in this test's call chain
+# flips torch's default dtype to float16 and leaks it into later tests. The
+# fixture save/restores the dtype and logs the setter's captured stack trace
+# so the CI log names the culprit call chain (see conftest.py).
+@pytest.mark.usefixtures("torch_dtype_isolation")
 def test_final_dub_track_and_seg_wav_are_watermarked(patched_generate, monkeypatch):
     """Watermarking policy after the streaming-to-disk rewrite (#639).
 
