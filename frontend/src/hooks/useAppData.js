@@ -14,6 +14,24 @@ import { mergeDescribedAttrs } from '../utils/voiceInstruct';
  * Encapsulates all data-loading effects, localStorage persistence,
  * real-time WebSocket updates, and model-status pill management.
  */
+
+// Dub steps that describe live, in-process work ('uploading', 'transcribing',
+// 'generating', 'stopping') must never be restored across an app restart: the
+// task they referred to died with the process, so rehydrating one leaves the
+// Dub tab waiting forever on progress that will never arrive (blank pane +
+// eternal spinner — the "stuck on dubbing since I updated" reports, and a
+// reinstall doesn't clear the webview's localStorage). Only settled states
+// come back.
+const STABLE_DUB_STEPS = new Set(['idle', 'editing', 'done']);
+
+/** Clamp a persisted dubStep to a state that is valid after a cold start.
+ *  Stable steps pass through; transient (and unknown/corrupt) values fall
+ *  back to 'editing' when the session has segments to show, else 'idle'. */
+export function clampRestoredDubStep(savedStep, savedSegments) {
+  if (STABLE_DUB_STEPS.has(savedStep)) return savedStep;
+  return Array.isArray(savedSegments) && savedSegments.length > 0 ? 'editing' : 'idle';
+}
+
 export default function useAppData() {
   const mode = useAppStore((s) => s.mode);
   const setMode = useAppStore((s) => s.setMode);
@@ -194,7 +212,7 @@ export default function useAppData() {
       if (saved.dubLang) setDubLang(saved.dubLang);
       if (saved.dubLangCode) setDubLangCode(saved.dubLangCode);
       if (saved.dubTracks) setDubTracks(saved.dubTracks);
-      if (saved.dubStep) setDubStep(saved.dubStep);
+      if (saved.dubStep) setDubStep(clampRestoredDubStep(saved.dubStep, saved.dubSegments));
       if (saved.dubTranscript) setDubTranscript(saved.dubTranscript);
       if (saved.exportTracks) setExportTracks(saved.exportTracks);
       if (saved.preserveBg !== undefined) setPreserveBg(saved.preserveBg);
