@@ -786,7 +786,13 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
         _last_repair_error = f"{type(imp_err).__name__}: {imp_err}"
         return False
     dl_kwargs: dict = {"repo_id": checkpoint}
-    endpoint = os.environ.get("HF_ENDPOINT")
+    # Explicit endpoint (HF_ENDPOINT / pref) wins; otherwise the automatic
+    # endpoint selection's cached pick applies (services.endpoint_race).
+    try:
+        from services import endpoint_race
+        endpoint = endpoint_race.effective_endpoint()
+    except Exception:  # endpoint resolution must never break the repair
+        endpoint = os.environ.get("HF_ENDPOINT")
     if endpoint:
         dl_kwargs["endpoint"] = endpoint
     if force:
@@ -837,8 +843,29 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
                 checkpoint, attempt, retries, e,
             )
             _last_repair_error = f"{type(e).__name__}: {e}"
-            if attempt < retries and backoff:
-                time.sleep(backoff * attempt)
+            if attempt < retries:
+                # Endpoint failover (auto mode only, once per repo per
+                # process — same guard pattern as the snapshot-link rung): a
+                # network-classified repair failure re-races the endpoints so
+                # the next attempt retries on the winner instead of burning
+                # every retry on a dead host. Explicit user endpoints are
+                # never switched.
+                try:
+                    from services import endpoint_race
+                    if endpoint_race.reselect_after_failure(checkpoint, str(e)):
+                        new_ep = endpoint_race.effective_endpoint()
+                        if new_ep:
+                            dl_kwargs["endpoint"] = new_ep
+                        else:
+                            dl_kwargs.pop("endpoint", None)
+                        logger.info(
+                            "Auto-repair of %s: endpoint failover — retrying on %s",
+                            checkpoint, new_ep or "https://huggingface.co",
+                        )
+                except Exception:  # failover must never break the ladder
+                    pass
+                if backoff:
+                    time.sleep(backoff * attempt)
     return False
 
 

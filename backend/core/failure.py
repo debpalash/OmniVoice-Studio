@@ -102,6 +102,18 @@ _HF_CONTEXT_MARKERS = (
 )
 
 
+def is_hf_connectivity_error(reason: Optional[str]) -> bool:
+    """True when *reason* looks like a network/connectivity failure of an HF
+    download (DNS, refused/reset connections, timeouts, hub locate errors).
+
+    Signature match only — callers already in a download context (the model
+    install worker, the cache auto-repair, the endpoint failover in
+    services.endpoint_race) don't need the HF-context markers that
+    ``hf_mirror_hint`` requires. Never raises."""
+    low = (reason or "").lower()
+    return any(sig in low for sig in _HF_CONNECTIVITY_SIGNATURES)
+
+
 def configured_hf_mirror() -> str:
     """The non-default Hugging Face endpoint (mirror) in effect, or "".
 
@@ -138,7 +150,7 @@ def hf_mirror_hint(reason: Optional[str]) -> str:
     if not mirror:
         return ""
     low = (reason or "").lower()
-    if not any(sig in low for sig in _HF_CONNECTIVITY_SIGNATURES):
+    if not is_hf_connectivity_error(low):
         return ""
     try:
         host = (urlsplit(mirror).netloc or "").lower()

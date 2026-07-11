@@ -203,6 +203,114 @@ def _hf_endpoint_host() -> tuple[str, int]:
     return "huggingface.co", 443
 
 
+def _network_check() -> dict:
+    """The preflight "network" check row — auto-race or explicit-endpoint probe.
+
+    Auto mode (nothing explicitly configured): force a fresh endpoint race —
+    preflight IS the connectivity health check, and the cached winner is what
+    model downloads will use. Manual mode: probe exactly the configured
+    endpoint (never auto-switch an explicit choice), keeping the mirror
+    quick-pick affordance when the official endpoint is blocked.
+    """
+    auto_decision = None
+    try:
+        from services import endpoint_race
+        if endpoint_race.mode() == "auto":
+            auto_decision = endpoint_race.ensure_decision(force=True)
+    except Exception as exc:  # the race must never break preflight
+        logger.warning("preflight endpoint race failed: %s", exc)
+
+    if auto_decision is not None:
+        from urllib.parse import urlsplit
+        from services.endpoint_race import CANONICAL_ENDPOINT
+
+        picked = auto_decision["endpoint"]
+        picked_host = urlsplit(picked).hostname or picked
+        latency = auto_decision.get("latency_ms")
+        latency_s = f" ({latency:.0f} ms)" if isinstance(latency, (int, float)) else ""
+        results = {r["endpoint"]: r for r in auto_decision.get("results", [])}
+        canonical_ok = bool(results.get(CANONICAL_ENDPOINT, {}).get("reachable"))
+        mirror_reachable = any(
+            r.get("reachable") for ep, r in results.items() if ep != CANONICAL_ENDPOINT
+        )
+        if auto_decision.get("reachable"):
+            if picked == CANONICAL_ENDPOINT:
+                detail = f"Reachable{latency_s}"
+            elif not canonical_ok:
+                detail = (
+                    f"huggingface.co is unreachable on this network — using the "
+                    f"community mirror {picked_host}{latency_s} for model "
+                    "downloads. Downloads are checksum-verified by Hugging Face "
+                    "regardless of endpoint; change anytime in Settings → "
+                    "Models → Hugging Face mirror."
+                )
+            else:
+                detail = (
+                    f"Both endpoints reachable — {picked_host}{latency_s} "
+                    "selected (decisively faster here). Change anytime in "
+                    "Settings → Models → Hugging Face mirror."
+                )
+            status, fix = "pass", None
+        else:
+            status = "warn"
+            detail = "No Hugging Face endpoint reachable"
+            fix = (
+                "Neither huggingface.co nor the hf-mirror.com community mirror "
+                "responded — check internet connection, VPN, or firewall. You "
+                "can continue — models already downloaded keep working "
+                "offline; a custom mirror can be configured below."
+            )
+        return {
+            "id": "network", "label": f"Network ({picked_host})",
+            "status": status, "detail": detail, "fix": fix,
+            # Frontend affordance hint: the wizard offers the mirror
+            # quick-pick when the check didn't pass (PreflightCheck allows
+            # extras). `endpoint` documents the auto pick for the UI.
+            "mirror_reachable": mirror_reachable,
+            "endpoint": picked,
+        }
+
+    # Manual mode (explicit endpoint) — probe exactly what the user chose.
+    net_host, net_port = _hf_endpoint_host()
+    net_ok = _probe_network(net_host, net_port)
+    mirror_reachable = False
+    if not net_ok and net_host == "huggingface.co":
+        # Official endpoint blocked — if the community mirror is reachable,
+        # tell the user exactly which switch unblocks them.
+        mirror_reachable = _probe_network("hf-mirror.com")
+    if net_ok:
+        net_fix = None
+    elif mirror_reachable:
+        net_fix = (
+            "huggingface.co is blocked on this network, but the hf-mirror.com "
+            "community mirror is reachable — apply it below and re-check. "
+            "Model downloads will use the mirror immediately."
+        )
+    elif net_host != "huggingface.co":
+        net_fix = (
+            f"Your configured Hugging Face mirror ({net_host}) is unreachable "
+            "— it may be down or blocked. Pick another mirror or the official "
+            "endpoint below, or continue offline: models already downloaded "
+            "keep working."
+        )
+    else:
+        net_fix = (
+            "Check internet connection, VPN, or corporate firewall whitelist "
+            "for huggingface.co. You can continue — models already downloaded "
+            "keep working offline; new downloads need a connection or a "
+            "mirror (configurable below)."
+        )
+    return {
+        "id": "network", "label": f"Network ({net_host})",
+        "status": "pass" if net_ok else "warn",
+        "detail": "Reachable" if net_ok else f"Unreachable on port {net_port}",
+        "fix": net_fix,
+        # Frontend affordance hint: the wizard offers the mirror quick-pick
+        # when the endpoint is unreachable (PreflightCheck allows extras).
+        "mirror_reachable": mirror_reachable,
+    }
+
+
 def _ram_gb() -> float:
     try:
         import psutil
@@ -385,50 +493,21 @@ def preflight():
             "status": r_status, "detail": r_detail, "fix": r_fix,
         })
 
-    # ── Network — probes the HF endpoint actually in effect (mirror-aware),
-    # and a dead network is a WARNING, not a blocker. The app is local-first:
-    # already-downloaded models work offline, and a hard fail here dead-ends
-    # restricted-network users (e.g. China, where huggingface.co is blocked)
-    # on the very first screen — before they can reach the mirror setting
-    # that fixes it. Model downloads surface their own actionable errors.
-    net_host, net_port = _hf_endpoint_host()
-    net_ok = _probe_network(net_host, net_port)
-    mirror_reachable = False
-    if not net_ok and net_host == "huggingface.co":
-        # Official endpoint blocked — if the community mirror is reachable,
-        # tell the user exactly which switch unblocks them.
-        mirror_reachable = _probe_network("hf-mirror.com")
-    if net_ok:
-        net_fix = None
-    elif mirror_reachable:
-        net_fix = (
-            "huggingface.co is blocked on this network, but the hf-mirror.com "
-            "community mirror is reachable — apply it below and re-check. "
-            "Model downloads will use the mirror immediately."
-        )
-    elif net_host != "huggingface.co":
-        net_fix = (
-            f"Your configured Hugging Face mirror ({net_host}) is unreachable "
-            "— it may be down or blocked. Pick another mirror or the official "
-            "endpoint below, or continue offline: models already downloaded "
-            "keep working."
-        )
-    else:
-        net_fix = (
-            "Check internet connection, VPN, or corporate firewall whitelist "
-            "for huggingface.co. You can continue — models already downloaded "
-            "keep working offline; new downloads need a connection or a "
-            "mirror (configurable below)."
-        )
-    checks.append({
-        "id": "network", "label": f"Network ({net_host})",
-        "status": "pass" if net_ok else "warn",
-        "detail": "Reachable" if net_ok else f"Unreachable on port {net_port}",
-        "fix": net_fix,
-        # Frontend affordance hint: the wizard offers the mirror quick-pick
-        # when the endpoint is unreachable (PreflightCheck allows extras).
-        "mirror_reachable": mirror_reachable,
-    })
+    # ── Network — a dead network is a WARNING, not a blocker. The app is
+    # local-first: already-downloaded models work offline, and a hard fail
+    # here dead-ends restricted-network users (e.g. China, where
+    # huggingface.co is blocked) on the very first screen — before they can
+    # reach the mirror setting that fixes it. Model downloads surface their
+    # own actionable errors.
+    #
+    # With NO explicit endpoint configured, preflight runs the automatic
+    # endpoint race (services.endpoint_race): both the official endpoint and
+    # the community mirror are probed, the winner is cached for downloads,
+    # and the copy states the outcome honestly — so a blocked huggingface.co
+    # no longer needs the user to find the mirror setting at all. An explicit
+    # endpoint (Settings / HF_ENDPOINT / pref) keeps the single-endpoint
+    # probe: the user's choice is never auto-switched.
+    checks.append(_network_check())
 
     # Aggregate
     any_fail = any(c["status"] == "fail" for c in checks)

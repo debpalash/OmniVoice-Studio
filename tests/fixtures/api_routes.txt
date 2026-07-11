@@ -129,6 +129,7 @@ GET /v1/audio/voices
 GET /watermark/status
 PATCH /gallery/voices/{voice_id}
 PATCH /projects/{project_id}
+POST /api/settings/hf-mirror/test
 POST /api/settings/hf-token
 POST /api/settings/license
 POST /api/settings/llm-providers/active

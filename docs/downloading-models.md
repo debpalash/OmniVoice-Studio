@@ -76,18 +76,33 @@ default** (set its var to `0` to disable); the rest default **off**.
 
 ## Restricted networks / mirrors (e.g. China)
 
-If `huggingface.co` is slow or blocked, point the client at a mirror:
+**Automatic (the default).** When no endpoint is explicitly configured,
+OmniVoice picks one for you: it probes `huggingface.co` and the community
+mirror `hf-mirror.com` in parallel (short HTTPS reachability + latency
+checks — no geo-IP lookups, no third-party services; your device
+language/timezone only decides which endpoint is probed *first*), prefers the
+official endpoint unless the mirror is decisively faster, and remembers the
+winner. The decision is re-tested only on the first-run system check, after a
+network-classified download failure (the failed download retries once on the
+new winner), when it's more than 7 days old, or when you press **Test again**
+in **Settings → Models → Hugging Face mirror**. Mirror integrity is a
+non-issue: `huggingface_hub` verifies every download by checksum regardless
+of endpoint. Opt out with `OMNIVOICE_HF_ENDPOINT_MODE=manual`.
+
+**Explicit (always wins).** To pin an endpoint yourself:
 
 ```
 HF_ENDPOINT=https://hf-mirror.com
 ```
 
-Set it in **Settings → Models → Hugging Face mirror** (quick-pick presets
-included), or as an environment variable before launching. On first run, the
-setup wizard offers the same mirror quick-pick right on the system-check
-screen when the endpoint is unreachable — the network check is a warning, not
-a blocker, so an offline or firewalled machine can still finish setup once
-models are available (mirror, or manual download below). Caveats:
+Set it in **Settings → Models → Hugging Face mirror** (quick-pick presets and
+a custom URL — any explicit choice switches the panel to manual mode and is
+**never** auto-switched), or as an environment variable before launching. On
+first run, the setup wizard's network check reports which endpoint the
+automatic selection picked, and still offers the mirror quick-pick when
+nothing is reachable — the check is a warning, not a blocker, so an offline
+or firewalled machine can still finish setup once models are available
+(mirror, or manual download below). Caveats:
 
 - A mirror serves the **classic** download path, **not Xet** — you lose
   chunk-dedup and Xet's parallel fetch, but you gain reachability. On the

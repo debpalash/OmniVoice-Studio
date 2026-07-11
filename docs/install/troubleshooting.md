@@ -349,10 +349,16 @@ order:
   files are a common false-positive quarantine), then re-enable.
 - **Connection** — use a stable, direct connection; pause any VPN; avoid
   corporate/school networks.
-- **Region mirror** — if `huggingface.co` is slow/blocked where you are, pick a
-  mirror in-app (**Settings → Models → Hugging Face mirror**, or the quick-pick
-  the first-run system check offers when the endpoint is unreachable), or set
-  it as an env var before launching and relaunch:
+- **Region mirror** — if `huggingface.co` is slow/blocked where you are,
+  OmniVoice normally handles this automatically: with no endpoint explicitly
+  configured it probes both the official endpoint and the `hf-mirror.com`
+  community mirror and downloads from whichever works (downloads are
+  checksum-verified either way; see
+  [downloading-models.md](../downloading-models.md)). To check or re-test the
+  automatic pick, use **Settings → Models → Hugging Face mirror → Test
+  again**. To pin a mirror yourself, pick one in the same panel (or the
+  quick-pick the first-run system check offers when nothing is reachable), or
+  set it as an env var before launching and relaunch:
   - macOS/Linux: `export HF_ENDPOINT=https://hf-mirror.com`
   - Windows (PowerShell): `[Environment]::SetEnvironmentVariable("HF_ENDPOINT","https://hf-mirror.com","User")`
 

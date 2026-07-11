@@ -270,6 +270,29 @@ def _llm_prefs_restore(before: dict) -> None:
         pass
 
 
+# ── HF endpoint probes: no real network, ever ───────────────────────────────
+# services.endpoint_race probes huggingface.co / hf-mirror.com over HTTPS.
+# Several suites reach it indirectly (/setup/preflight forces a race, the
+# model-cache repair ladder failovers on "connection reset"-class errors), so
+# without a suite-wide stub any of those tests would hit the real network —
+# slow offline, flaky on CI. Deterministic default: canonical reachable and
+# fastest. Tests that need other outcomes monkeypatch over this (their patch
+# is applied later, so it wins).
+@pytest.fixture(autouse=True)
+def _no_real_endpoint_probes(monkeypatch):
+    from services import endpoint_race as _er
+
+    def _fake_probe(endpoint, timeout=None):
+        return _er.ProbeResult(
+            endpoint=endpoint,
+            reachable=True,
+            latency_ms=50.0 if endpoint == _er.CANONICAL_ENDPOINT else 80.0,
+        )
+
+    monkeypatch.setattr(_er, "probe_endpoint", _fake_probe)
+    monkeypatch.setattr(_er, "throughput_probe", lambda endpoint, timeout=None: None)
+
+
 @pytest.fixture(autouse=True)
 def _isolate_llm_provider_state():
     """Snapshot/restore the three global LLM-provider state surfaces per test."""

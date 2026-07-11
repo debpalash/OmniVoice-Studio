@@ -72,12 +72,15 @@ def _download_max_workers() -> int:
 
 
 def _download_endpoint() -> "str | None":
-    """Optional HF endpoint override (FDL-10 mirror path, opt-in). Returned as a
-    per-call ``endpoint=`` rather than a process-wide HF_ENDPOINT mutation. A
+    """Optional HF endpoint override, per-call ``endpoint=`` rather than a
+    process-wide HF_ENDPOINT mutation. Explicit configuration (FDL-10 mirror
+    path: HF_ENDPOINT env / ``hf_endpoint`` pref / Settings) always wins; when
+    nothing was chosen, the automatic endpoint selection's cached pick applies
+    (services.endpoint_race — probe-based, cached, never probes here). A
     mirror routes through the classic LFS path (no Xet) — documented in
     docs/downloading-models.md."""
-    ep = prefs.resolve("hf_endpoint", env="HF_ENDPOINT", default=None)
-    return ep or None
+    from services import endpoint_race
+    return endpoint_race.effective_endpoint()
 
 
 def apply_xet_env() -> None:
@@ -488,6 +491,23 @@ async def install_model(req: InstallModelRequest):
                         "model install %s: attempt %d/%d failed (%s); retry in %ds",
                         req.repo_id, _attempt, _max_attempts, net_err, _backoff,
                     )
+                    # Endpoint failover (auto mode only, once per repo per
+                    # process): a network-classified failure re-races the
+                    # endpoints and, when the winner changed, the next attempt
+                    # retries on it — so a mid-download endpoint outage heals
+                    # instead of burning every retry on a dead host. Explicit
+                    # user endpoints are never switched.
+                    from services import endpoint_race
+                    if endpoint_race.reselect_after_failure(req.repo_id, str(net_err)):
+                        _endpoint = _download_endpoint()
+                        if _endpoint:
+                            dl_kwargs["endpoint"] = _endpoint
+                        else:
+                            dl_kwargs.pop("endpoint", None)
+                        logger.info(
+                            "model install %s: endpoint failover — retrying on %s",
+                            req.repo_id, _endpoint or "https://huggingface.co",
+                        )
                     hf_progress.emit({
                         "repo_id": req.repo_id,
                         "filename": req.repo_id,

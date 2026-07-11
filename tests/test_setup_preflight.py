@@ -19,6 +19,14 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_prefs(monkeypatch, tmp_path):
+    """Preflight now caches the endpoint-race decision in prefs — keep each
+    test's writes out of the session-shared prefs.json."""
+    from core import prefs
+    monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+
+
 # ── Shape ────────────────────────────────────────────────────────────────
 
 def test_preflight_returns_expected_shape(client):
@@ -336,13 +344,40 @@ def test_preflight_network_handles_offline():
     assert _probe_network(host="10.255.255.1", timeout=0.3) is False
 
 
+def _patch_race_probe(latencies):
+    """Patch the endpoint race's prober from {endpoint: latency|None}."""
+    import services.endpoint_race as er
+
+    def fake_probe(endpoint, timeout=None):
+        lat = latencies.get(endpoint)
+        if lat is None:
+            return er.ProbeResult(endpoint=endpoint, reachable=False, error="timeout")
+        return er.ProbeResult(endpoint=endpoint, reachable=True, latency_ms=lat)
+
+    return patch.object(er, "probe_endpoint", fake_probe)
+
+
+def test_preflight_network_auto_pass_on_canonical():
+    """No explicit endpoint → preflight races both endpoints; a reachable
+    huggingface.co wins and the check passes naming it."""
+    import services.endpoint_race as er
+
+    with _patch_race_probe({er.CANONICAL_ENDPOINT: 50, er.COMMUNITY_MIRROR: 80}):
+        body = client_factory().get("/setup/preflight").json()
+
+    net = next(c for c in body["checks"] if c["id"] == "network")
+    assert net["status"] == "pass"
+    assert "huggingface.co" in net["label"]
+    assert net.get("endpoint") == er.CANONICAL_ENDPOINT
+
+
 def test_preflight_network_unreachable_is_warn_not_blocker():
     """A dead network must NOT hard-block the wizard (restricted-network
     first-run, e.g. China where huggingface.co is blocked): the check is a
     warning and the aggregate `ok` is unaffected by it."""
-    from api.routers.setup import wizard as setup_mod
+    import services.endpoint_race as er
 
-    with patch.object(setup_mod, "_probe_network", return_value=False):
+    with _patch_race_probe({er.CANONICAL_ENDPOINT: None, er.COMMUNITY_MIRROR: None}):
         body = client_factory().get("/setup/preflight").json()
 
     net = next(c for c in body["checks"] if c["id"] == "network")
@@ -354,8 +389,9 @@ def test_preflight_network_unreachable_is_warn_not_blocker():
 
 
 def test_preflight_network_probes_configured_mirror():
-    """With HF_ENDPOINT set, the probe targets the mirror host — not the
-    hardcoded official host that may be blocked on the user's network."""
+    """With HF_ENDPOINT set (explicit choice → manual mode, no auto race),
+    the probe targets the mirror host — not the hardcoded official host that
+    may be blocked on the user's network."""
     import os
     from api.routers.setup import wizard as setup_mod
 
@@ -375,22 +411,44 @@ def test_preflight_network_probes_configured_mirror():
     assert "mirror.example.test" in seen_hosts
 
 
-def test_preflight_network_suggests_reachable_mirror():
-    """Official endpoint blocked but hf-mirror.com reachable → the fix names
-    the mirror and the check carries mirror_reachable=True for the wizard's
-    quick-pick affordance."""
+def test_preflight_network_auto_selects_reachable_mirror():
+    """Official endpoint blocked but hf-mirror.com reachable → with no
+    explicit endpoint configured the race picks the mirror automatically, the
+    check PASSES (downloads will work — no dead-end, no manual switch), and
+    the copy states the outcome honestly."""
+    import services.endpoint_race as er
+
+    with _patch_race_probe({er.CANONICAL_ENDPOINT: None, er.COMMUNITY_MIRROR: 90}):
+        body = client_factory().get("/setup/preflight").json()
+
+    net = next(c for c in body["checks"] if c["id"] == "network")
+    assert net["status"] == "pass"
+    assert net.get("endpoint") == er.COMMUNITY_MIRROR
+    assert net.get("mirror_reachable") is True
+    assert "huggingface.co is unreachable" in net["detail"]
+    assert "hf-mirror.com" in net["detail"]
+    # The winning endpoint is cached for the actual model downloads.
+    assert er.effective_endpoint() == er.COMMUNITY_MIRROR
+
+
+def test_preflight_network_explicit_setting_never_raced(monkeypatch):
+    """An explicit endpoint (Settings / HF_ENDPOINT) is never auto-switched:
+    preflight must not race, even when the explicit endpoint is down."""
+    import os
+    import services.endpoint_race as er
     from api.routers.setup import wizard as setup_mod
 
-    def fake_probe(host="huggingface.co", port=443, timeout=2.0):
-        return host == "hf-mirror.com"
+    def boom(endpoint, timeout=None):
+        raise AssertionError("explicit endpoint configured — race must not run")
 
-    with patch.object(setup_mod, "_probe_network", side_effect=fake_probe):
+    with patch.dict(os.environ, {"HF_ENDPOINT": "https://mirror.example.test"}), \
+         patch.object(er, "probe_endpoint", boom), \
+         patch.object(setup_mod, "_probe_network", return_value=False):
         body = client_factory().get("/setup/preflight").json()
 
     net = next(c for c in body["checks"] if c["id"] == "network")
     assert net["status"] == "warn"
-    assert net.get("mirror_reachable") is True
-    assert "hf-mirror.com" in (net["fix"] or "")
+    assert "mirror.example.test" in (net["fix"] or "")
 
 
 # ── RAM thresholds ───────────────────────────────────────────────────────

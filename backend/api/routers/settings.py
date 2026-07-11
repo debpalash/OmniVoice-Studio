@@ -773,27 +773,63 @@ _HF_MIRROR_PRESETS = [
 
 class _HFMirrorBody(BaseModel):
     url: str = Field("", description="HF_ENDPOINT URL; empty string clears it (official endpoint)")
+    mode: str | None = Field(
+        None,
+        description=(
+            "'auto' switches to automatic endpoint selection (clears any "
+            "explicit endpoint); 'manual' (or omitted — back-compat with older "
+            "clients) pins the given url as an explicit choice."
+        ),
+    )
 
 
-@router.get("/hf-mirror")
-def get_hf_mirror():
+def _hf_mirror_state() -> dict:
+    """The full GET /hf-mirror payload. Auto info comes from the CACHED race
+    decision only — reading settings never probes the network."""
     from core import user_env
+    from services import endpoint_race
 
     configured = user_env.get_user_env(_HF_ENDPOINT_ENV) or ""
+    try:
+        mode = "manual" if configured else endpoint_race.mode()
+        auto = endpoint_race.cached_decision() if mode == "auto" else None
+        opt_out = endpoint_race.env_opt_out()
+    except Exception:  # a broken prefs file must never 500 the settings page
+        logger.exception("hf-mirror auto state unavailable")
+        mode, auto, opt_out = "manual", None, False
     return {
         # The value that will apply after restart (persisted), and what's
         # live in this process (env may differ until then).
         "configured": configured,
         "effective": os.environ.get(_HF_ENDPOINT_ENV, ""),
         "presets": _HF_MIRROR_PRESETS,
+        # Automatic endpoint selection (services.endpoint_race): "auto" only
+        # when nothing explicit is configured anywhere. `auto` is the cached
+        # race decision ({endpoint, reachable, latency_ms, checked_at,
+        # results}) or null when never raced / in manual mode.
+        "mode": mode,
+        "auto": auto,
+        "auto_opt_out": opt_out,
     }
+
+
+@router.get("/hf-mirror")
+def get_hf_mirror():
+    return _hf_mirror_state()
 
 
 @router.put("/hf-mirror")
 def set_hf_mirror(body: _HFMirrorBody):
     from core import user_env
+    from services import endpoint_race
 
-    url = (body.url or "").strip().rstrip("/")
+    mode = (body.mode or "manual").strip().lower()
+    if mode not in {"auto", "manual"}:
+        raise HTTPException(status_code=400, detail="mode must be 'auto' or 'manual'")
+    # Auto mode = no explicit endpoint anywhere; a persisted endpoint would
+    # read as an explicit choice, so switching to Auto clears it (plus the
+    # `hf_endpoint` pref fallback the download paths resolve).
+    url = "" if mode == "auto" else (body.url or "").strip().rstrip("/")
     if url and not url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Mirror URL must start with http(s)://")
     # Compare against the currently-persisted value (normalised the same way) so
@@ -808,15 +844,44 @@ def set_hf_mirror(body: _HFMirrorBody):
         else:
             user_env.unset_user_env(_HF_ENDPOINT_ENV)
             os.environ.pop(_HF_ENDPOINT_ENV, None)
+        from core import prefs
+        if mode == "auto":
+            prefs.delete("hf_endpoint")  # the pref fallback is explicit config too
+        endpoint_race.set_mode_pref(mode)
     except Exception:
         logger.exception("set_hf_mirror failed")
         raise HTTPException(status_code=500, detail="Failed to persist mirror setting")
+    if mode == "auto":
+        # Freshly chosen Auto should show a real pick immediately — race now
+        # unless a fresh cached decision already exists (probes are ≤3 s and
+        # this is an explicit user action, not a hot path).
+        try:
+            endpoint_race.ensure_decision()
+        except Exception:
+            logger.exception("endpoint race after switching to auto failed")
     # Model Store downloads pick up the new mirror immediately — the download
     # path resolves the endpoint per-call and we updated os.environ above. Only
     # transformers-side model *loads* (which read HF_ENDPOINT at import time)
     # need a restart, so restart_required is True ONLY when the value actually
     # changed — a no-op re-save never asks for a restart.
-    return {"configured": url, "restart_required": changed, "presets": _HF_MIRROR_PRESETS}
+    return {**_hf_mirror_state(), "restart_required": changed}
+
+
+@router.post("/hf-mirror/test")
+def test_hf_mirror():
+    """Re-run the endpoint race now (the Auto panel's "Test again").
+
+    Forces fresh probes and re-caches the decision. In manual mode this is a
+    no-op (an explicit endpoint is never auto-switched) — the response simply
+    reflects the current state."""
+    from services import endpoint_race
+
+    try:
+        endpoint_race.ensure_decision(force=True)
+    except Exception:
+        logger.exception("hf-mirror endpoint test failed")
+        raise HTTPException(status_code=500, detail="Endpoint test failed")
+    return _hf_mirror_state()
 
 
 # ── OpenAI-compatible remote ASR (#877) ─────────────────────────────────────

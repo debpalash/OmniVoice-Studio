@@ -10,13 +10,19 @@ import pytest
 
 
 @pytest.fixture
-def settings_mod(monkeypatch):
+def settings_mod(monkeypatch, tmp_path):
     store = {}
     import core.user_env as ue
+    from core import prefs
     monkeypatch.setattr(ue, "get_user_env", lambda k, path=None: store.get(k))
     monkeypatch.setattr(ue, "set_user_env", lambda k, v, path=None: store.__setitem__(k, v))
     monkeypatch.setattr(ue, "unset_user_env", lambda k, path=None: store.pop(k, None))
     monkeypatch.delenv("HF_ENDPOINT", raising=False)
+    monkeypatch.delenv("OMNIVOICE_HF_ENDPOINT_MODE", raising=False)
+    # Isolate the auto-selection state (hf_endpoint_mode + cached decision).
+    monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    import services.endpoint_race as er
+    monkeypatch.setattr(er, "_FAILOVER_ATTEMPTED", set())
     return importlib.import_module("api.routers.settings")
 
 
@@ -62,3 +68,118 @@ def test_rejects_non_http(settings_mod):
     with pytest.raises(HTTPException) as ei:
         settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="hf-mirror.com"))
     assert ei.value.status_code == 400
+
+
+# ── Automatic endpoint selection (Auto mode) ────────────────────────────────
+
+def test_get_defaults_to_auto_mode_when_nothing_configured(settings_mod):
+    st = settings_mod.get_hf_mirror()
+    assert st["mode"] == "auto"
+    assert st["auto"] is None  # never raced yet — GET must not probe
+    assert st["auto_opt_out"] is False
+
+
+def test_get_reports_manual_when_endpoint_configured(settings_mod):
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="https://hf-mirror.com"))
+    st = settings_mod.get_hf_mirror()
+    assert st["mode"] == "manual"
+    assert st["auto"] is None
+
+
+def test_existing_explicit_config_never_migrated_to_auto(settings_mod, monkeypatch):
+    """A pre-existing HF_ENDPOINT (older install, launcher env) loads as
+    manual — auto never captures users who already chose."""
+    monkeypatch.setenv("HF_ENDPOINT", "https://custom.example")
+    st = settings_mod.get_hf_mirror()
+    assert st["mode"] == "manual"
+
+
+def test_env_opt_out_reported(settings_mod, monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_HF_ENDPOINT_MODE", "manual")
+    st = settings_mod.get_hf_mirror()
+    assert st["mode"] == "manual"
+    assert st["auto_opt_out"] is True
+
+
+def test_put_mode_auto_clears_explicit_and_races(settings_mod, monkeypatch):
+    import services.endpoint_race as er
+
+    calls = []
+
+    def fake_probe(endpoint, timeout=None):
+        calls.append(endpoint)
+        return er.ProbeResult(endpoint=endpoint, reachable=True,
+                              latency_ms=40.0 if endpoint == er.CANONICAL_ENDPOINT else 90.0)
+
+    monkeypatch.setattr(er, "probe_endpoint", fake_probe)
+    # Start from an explicit mirror, then switch to Auto.
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="https://hf-mirror.com"))
+    st = settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="", mode="auto"))
+    assert st["mode"] == "auto"
+    assert st["configured"] == ""
+    assert "HF_ENDPOINT" not in os.environ
+    assert st["restart_required"] is True  # a persisted endpoint was cleared
+    # Switching to Auto raced immediately so the panel shows a real pick.
+    assert calls and st["auto"]["endpoint"] == er.CANONICAL_ENDPOINT
+    assert st["auto"]["latency_ms"] == 40.0
+
+
+def test_put_manual_official_is_an_explicit_choice(settings_mod):
+    """Explicitly picking the official endpoint (mode=manual, empty url) must
+    stick as manual — never silently become Auto."""
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="", mode="manual"))
+    st = settings_mod.get_hf_mirror()
+    assert st["mode"] == "manual"
+    import services.endpoint_race as er
+    assert er.mode() == "manual"
+
+
+def test_put_mode_auto_clears_pref_fallback(settings_mod):
+    """The `hf_endpoint` pref (bootstrap-installer fallback) counts as explicit
+    config too — switching to Auto must clear it."""
+    from core import prefs
+    prefs.set_("hf_endpoint", "https://custom.example")
+    st = settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(mode="auto"))
+    assert st["mode"] == "auto"
+    assert prefs.get("hf_endpoint") is None
+
+
+def test_put_rejects_unknown_mode(settings_mod):
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as ei:
+        settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="", mode="turbo"))
+    assert ei.value.status_code == 400
+
+
+def test_test_endpoint_forces_rerace(settings_mod, monkeypatch):
+    import services.endpoint_race as er
+
+    calls = []
+
+    def fake_probe(endpoint, timeout=None):
+        calls.append(endpoint)
+        return er.ProbeResult(endpoint=endpoint, reachable=(endpoint != er.CANONICAL_ENDPOINT),
+                              latency_ms=None if endpoint == er.CANONICAL_ENDPOINT else 90.0)
+
+    monkeypatch.setattr(er, "probe_endpoint", fake_probe)
+    st = settings_mod.test_hf_mirror()
+    assert calls  # "Test again" always probes fresh
+    assert st["mode"] == "auto"
+    assert st["auto"]["endpoint"] == er.COMMUNITY_MIRROR
+    # A second test re-probes again (force), never serves the cache.
+    n = len(calls)
+    settings_mod.test_hf_mirror()
+    assert len(calls) > n
+
+
+def test_test_endpoint_is_noop_in_manual_mode(settings_mod, monkeypatch):
+    import services.endpoint_race as er
+
+    def boom(endpoint, timeout=None):
+        raise AssertionError("manual mode — test must not probe")
+
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="https://hf-mirror.com"))
+    monkeypatch.setattr(er, "probe_endpoint", boom)
+    st = settings_mod.test_hf_mirror()
+    assert st["mode"] == "manual"
+    assert st["configured"] == "https://hf-mirror.com"

@@ -1,16 +1,26 @@
 /**
  * Settings → Models tab → Hugging Face mirror panel (Wave 4.3).
  *
- * Restricted-network users (e.g. behind the Great Firewall) point
- * huggingface_hub at a mirror via HF_ENDPOINT. HF reads it at import time, so
- * the change applies after a restart. Persisted to the durable per-user env.
+ * Default mode is **Auto (recommended)**: the backend probes the official
+ * endpoint and the community mirror, picks whichever actually works
+ * (preferring huggingface.co unless the mirror is decisively faster), and
+ * remembers the pick — restricted-network users (e.g. behind the Great
+ * Firewall) get working downloads without hunting for this panel. Downloads
+ * are checksum-verified by Hugging Face regardless of endpoint.
+ *
+ * Explicit choices stay explicit: picking a preset or saving a custom URL
+ * pins that endpoint (HF_ENDPOINT, persisted to the durable per-user env; HF
+ * reads it at import time, so loads apply after a restart) and auto never
+ * switches it. Existing configured endpoints load as the matching manual
+ * mode — never migrated to Auto.
  *
  * Endpoints (loopback-only):
- *   GET /api/settings/hf-mirror → {configured, effective, presets}
- *   PUT /api/settings/hf-mirror  body {url}  (empty url clears → official)
+ *   GET  /api/settings/hf-mirror      → {configured, effective, presets, mode, auto}
+ *   PUT  /api/settings/hf-mirror      body {url, mode}  (mode 'auto' clears the url)
+ *   POST /api/settings/hf-mirror/test → re-run the probe race ("Test again")
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Globe, RefreshCw } from 'lucide-react';
+import { Globe, RefreshCw, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch } from '../../api/client';
@@ -21,11 +31,21 @@ import RestartBadge from './RestartBadge';
 /** Normalize a mirror URL for equality checks (trailing slashes, whitespace). */
 const normalizeMirror = (u) => (u || '').trim().replace(/\/+$/, '');
 
+/** Host of the auto pick ("hf-mirror.com"), for compact display. */
+const hostOf = (url) => {
+  try {
+    return new URL(url).hostname || url;
+  } catch {
+    return url || '';
+  }
+};
+
 export default function HFMirrorPanel() {
   const { t } = useTranslation();
   const [state, setState] = useState(null);
   const [url, setUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState(null);
   const [restart, setRestart] = useState(false);
 
@@ -44,20 +64,20 @@ export default function HFMirrorPanel() {
     refresh();
   }, [refresh]);
 
-  const save = async (value) => {
+  const save = async (value, mode = 'manual') => {
     setSaving(true);
     setError(null);
     try {
       const res = await apiFetch('/api/settings/hf-mirror', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: value }),
+        body: JSON.stringify({ url: value, mode }),
       });
       const d = await res.json();
+      setState(d);
       setUrl(d.configured || '');
       setRestart(Boolean(d.restart_required));
       toast.success(t('models.mirror_saved', { defaultValue: 'Mirror setting saved' }));
-      refresh();
     } catch (e) {
       setError(e?.message || t('models.mirror_save_error'));
     } finally {
@@ -65,7 +85,60 @@ export default function HFMirrorPanel() {
     }
   };
 
+  const testAgain = async () => {
+    setTesting(true);
+    setError(null);
+    try {
+      const res = await apiFetch('/api/settings/hf-mirror/test', { method: 'POST' });
+      const d = await res.json();
+      setState(d);
+      setUrl(d.configured || '');
+    } catch (e) {
+      setError(
+        e?.message || t('models.mirror_auto_test_error', { defaultValue: 'Endpoint test failed' }),
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const configured = normalizeMirror(state?.configured);
+  const isAuto = state?.mode === 'auto';
+  const auto = state?.auto || null;
+
+  // Auto status line: pick + latency + last checked, or the untested/offline states.
+  let autoStatus = null;
+  if (isAuto) {
+    if (!auto) {
+      autoStatus = t('models.mirror_auto_untested', {
+        defaultValue: 'Not tested yet — the next download picks the best endpoint automatically.',
+      });
+    } else if (!auto.reachable) {
+      autoStatus = t('models.mirror_auto_offline', {
+        defaultValue:
+          'No Hugging Face endpoint reachable right now — cached models keep working; auto retries on the next download.',
+      });
+    } else {
+      const parts = [hostOf(auto.endpoint)];
+      if (typeof auto.latency_ms === 'number') {
+        parts.push(
+          t('models.mirror_auto_latency', {
+            ms: Math.round(auto.latency_ms),
+            defaultValue: '{{ms}} ms',
+          }),
+        );
+      }
+      if (auto.checked_at) {
+        parts.push(
+          t('models.mirror_auto_checked', {
+            when: new Date(auto.checked_at * 1000).toLocaleString(),
+            defaultValue: 'checked {{when}}',
+          }),
+        );
+      }
+      autoStatus = parts.join(' · ');
+    }
+  }
 
   // Always render the section shell: a restricted-network user whose backend
   // GET failed is exactly the user who needs this panel — never let it vanish.
@@ -111,12 +184,22 @@ export default function HFMirrorPanel() {
             hint={t('models.mirror_preset_hint')}
             control={
               <div className="flex flex-wrap items-center gap-[6px] min-w-0 max-w-full">
+                <Button
+                  variant="preset"
+                  active={isAuto}
+                  onClick={() => save('', 'auto')}
+                  disabled={saving}
+                  leading={<Zap size={12} aria-hidden="true" />}
+                  data-testid="hf-preset-auto"
+                >
+                  {t('models.mirror_mode_auto', { defaultValue: 'Auto (recommended)' })}
+                </Button>
                 {state.presets.map((p) => (
                   <Button
                     variant="preset"
                     key={p.label}
-                    active={normalizeMirror(p.url) === configured}
-                    onClick={() => save(p.url)}
+                    active={!isAuto && normalizeMirror(p.url) === configured}
+                    onClick={() => save(p.url, 'manual')}
                     disabled={saving}
                     data-testid={`hf-preset-${p.url || 'official'}`}
                   >
@@ -126,6 +209,40 @@ export default function HFMirrorPanel() {
               </div>
             }
           />
+
+          {isAuto && (
+            <SettingRow
+              stack
+              title={t('models.mirror_auto_title', { defaultValue: 'Automatic selection' })}
+              note={t('models.mirror_auto_hint', {
+                defaultValue:
+                  'OmniVoice probes huggingface.co and the community mirror, then uses whichever actually works — preferring the official endpoint unless the mirror is decisively faster. Downloads are checksum-verified by Hugging Face regardless of endpoint, so a mirror can never corrupt models.',
+              })}
+              control={
+                <>
+                  <span
+                    className="min-w-0 truncate font-mono text-[length:var(--text-sm)] text-[color:var(--chrome-fg-muted)]"
+                    data-testid="hf-mirror-auto-status"
+                  >
+                    {autoStatus}
+                  </span>
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    leading={<RefreshCw size={13} aria-hidden="true" />}
+                    onClick={testAgain}
+                    loading={testing}
+                    disabled={testing || saving}
+                    data-testid="hf-mirror-test"
+                  >
+                    {testing
+                      ? t('models.mirror_auto_testing', { defaultValue: 'Testing…' })
+                      : t('models.mirror_auto_test', { defaultValue: 'Test again' })}
+                  </Button>
+                </>
+              }
+            />
+          )}
 
           <SettingRow
             stack
@@ -148,7 +265,7 @@ export default function HFMirrorPanel() {
                 <Button
                   variant="subtle"
                   size="sm"
-                  onClick={() => save(url)}
+                  onClick={() => save(url, 'manual')}
                   loading={saving}
                   disabled={saving}
                   data-testid="hf-mirror-save"
