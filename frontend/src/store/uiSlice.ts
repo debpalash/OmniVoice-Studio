@@ -101,7 +101,9 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   isSidebarProjectsCollapsed: false,
   sidebarTab: 'projects',
   showCheatsheet: false,
-  uiScale: 1.3,
+  // 100% by default — the app renders at native size out of the box; users
+  // who prefer larger UI pick their scale in Settings → Appearance (persisted).
+  uiScale: 1.0,
 
   setMode: (mode) => set({ mode }),
   setDefineMethod: (method) => set({ defineMethod: method }),
