@@ -281,6 +281,34 @@ def test_git_failure_falls_back_to_tarball(monkeypatch):
     assert (si.managed_checkout(spec) / "pyproject.toml").is_file()
 
 
+def test_safe_extract_members_blocks_tar_slip(tmp_path):
+    """The pre-filter= fallback extractor must drop parent-dir escapes,
+    absolute paths, and symlinks — mirroring extractall(filter='data')."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        good = tarfile.TarInfo("pkg/ok.txt")
+        good.size = 2
+        tf.addfile(good, io.BytesIO(b"ok"))
+        evil = tarfile.TarInfo("../evil.txt")
+        evil.size = 4
+        tf.addfile(evil, io.BytesIO(b"pwnd"))
+        absolute = tarfile.TarInfo("/abs.txt")
+        absolute.size = 3
+        tf.addfile(absolute, io.BytesIO(b"abs"))
+        link = tarfile.TarInfo("pkg/link")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "/etc/passwd"
+        tf.addfile(link)
+    buf.seek(0)
+    dest = tmp_path / "sandbox" / "out"
+    dest.mkdir(parents=True)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tf:
+        si._safe_extract_members(tf, str(dest))
+    assert (dest / "pkg" / "ok.txt").read_text() == "ok"
+    assert not (tmp_path / "sandbox" / "evil.txt").exists()
+    assert not (dest / "pkg" / "link").exists()
+
+
 def test_tarball_without_pyproject_fails_with_remediation(monkeypatch):
     spec = _mk_spec()
     monkeypatch.setattr(si.shutil, "which", lambda n: None)

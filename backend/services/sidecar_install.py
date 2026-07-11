@@ -201,7 +201,7 @@ def _dir_size_bytes(path: Path) -> int:
                 except OSError:
                     continue
     except OSError:
-        pass
+        pass  # unreadable dir — treat as zero bytes spent
     return total
 
 
@@ -381,7 +381,7 @@ def _persist(spec: SidecarSpec) -> None:
     try:
         spec.invalidate()
     except Exception:
-        pass
+        pass  # best-effort cache invalidation — the env var is already set
 
 
 def start_install(engine_id: str) -> dict:
@@ -455,7 +455,7 @@ def uninstall(engine_id: str) -> dict:
     try:
         spec.invalidate()
     except Exception:
-        pass
+        pass  # best-effort cache invalidation — uninstall already succeeded
     with _jobs_lock:
         _jobs.pop(engine_id, None)
     return {"status": "uninstalled" if removed else "not_installed", "engine": engine_id}
@@ -582,9 +582,9 @@ def _fetch_tarball(spec: SidecarSpec, job: dict, checkout: Path) -> None:
         with tempfile.TemporaryDirectory(dir=str(root)) as tmp_dir:
             with tarfile.open(tmp_tar, "r:gz") as tf:
                 try:
-                    tf.extractall(tmp_dir, filter="data")  # py>=3.12 safe-extract
-                except TypeError:  # pragma: no cover — older interpreters
-                    tf.extractall(tmp_dir)  # noqa: S202 — trusted upstream URL
+                    tf.extractall(tmp_dir, filter="data")  # stdlib safe-extract (3.11.4+)
+                except TypeError:  # pragma: no cover — pre-filter= interpreters
+                    _safe_extract_members(tf, tmp_dir)
             entries = [p for p in Path(tmp_dir).iterdir() if p.is_dir()]
             if len(entries) != 1:
                 raise _StepError(
@@ -598,7 +598,29 @@ def _fetch_tarball(spec: SidecarSpec, job: dict, checkout: Path) -> None:
         try:
             os.unlink(tmp_tar)
         except OSError:
-            pass
+            pass  # temp tarball already gone / locked — harmless leftover
+
+
+def _safe_extract_members(tf: "tarfile.TarFile", dest: str) -> None:
+    """Tar-slip-guarded extraction for interpreters without
+    ``extractall(filter="data")`` (Python < 3.11.4).
+
+    Mirrors what the "data" filter enforces: only regular files and
+    directories (no symlinks/hardlinks/devices — also keeps Windows
+    behaviour identical), no absolute paths, and every resolved target must
+    stay inside *dest*.
+    """
+    dest_abs = os.path.abspath(dest)
+    for member in tf.getmembers():
+        if not (member.isreg() or member.isdir()):
+            continue  # drop symlinks/hardlinks/devices/fifos
+        name = member.name
+        if name.startswith(("/", "\\")) or ".." in name.replace("\\", "/").split("/"):
+            continue  # absolute path or parent-dir escape
+        target = os.path.abspath(os.path.join(dest, name))
+        if os.path.commonpath([dest_abs, target]) != dest_abs:
+            continue  # resolved outside the extraction dir
+        tf.extract(member, dest)
 
 
 def _step_create_venv(spec: SidecarSpec, job: dict) -> None:
@@ -707,7 +729,7 @@ def _weights_floor_ok(wdir: Path) -> bool:
                 except OSError:
                     continue
     except OSError:
-        pass
+        pass  # unreadable weights dir — treat as not present
     return False
 
 
@@ -747,11 +769,15 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
                 "pct": ev.get("pct"),
             }
         except Exception:
-            pass
+            pass  # progress mirroring is advisory — never break the download
 
     listener_id = hf_progress.register_listener(_listener)
     repo_token = hf_progress.current_repo_id.set(spec.weights_repo_id)
     try:
+        # Tracks the repo's default branch on purpose (same policy as every
+        # other model download in the app — see setup/download.py): the
+        # source checkout is unpinned upstream `main` anyway, and hf_hub
+        # checksum-verifies each artifact. Hence the B615 waiver below.
         kwargs: dict = {
             "repo_id": spec.weights_repo_id,
             "local_dir": str(wdir),
@@ -764,7 +790,7 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
         if tqdm_cls is not None:
             kwargs["tqdm_class"] = tqdm_cls
         try:
-            snapshot_download(**kwargs)
+            snapshot_download(**kwargs)  # nosec B615 — deliberate default-branch policy, see above
         except Exception as exc:
             raise _StepError(
                 f"Model weight download failed: {exc}",
@@ -859,11 +885,11 @@ def _kill_tree(proc: "subprocess.Popen") -> None:
             os.killpg(proc.pid, signal.SIGKILL)
             return
         except (ProcessLookupError, PermissionError, OSError):
-            pass
+            pass  # group already gone / not ours — fall through to plain kill
     try:
         proc.kill()
     except OSError:
-        pass
+        pass  # process already exited
 
 
 __all__ = [
