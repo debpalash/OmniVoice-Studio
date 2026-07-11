@@ -13,7 +13,7 @@ and [`palashdeb/omnivoice-studio` on Docker Hub](https://hub.docker.com/r/palash
 > |-----|--------------|
 > | `:latest` | **Rolling preview** — latest commit on `main` (always one patch ahead of the last release). This is the preview channel; pin `:stable` for production. |
 > | `:stable` | Most recent versioned release (updated on every `v*` git tag) |
-> | `:0.3.6` | Exact release version |
+> | `:0.3.17` | Exact release version |
 > | `:0.3` | Latest patch within the 0.3 minor |
 > | `:main` | Alias of the same rolling `main` build as `:latest` |
 > | `:sha-xxxxxxx` | Specific commit (produced by manual workflow dispatch) |

@@ -58,12 +58,22 @@ RUN uv pip install --system --no-cache .
 # Copy application source
 COPY backend/ ./backend/
 COPY omnivoice/ ./omnivoice/
+# Alembic config so schema migrations run natively on existing volumes
+# (without it the backend fell back to the additive-column self-heal —
+# functional, but the real migration chain is the first-class path).
+COPY alembic.ini ./
 
 # Copy the pre-built React frontend from the builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Expose the single unified API and UI port
 EXPOSE 3900
+
+# Image-level health probe (compose files define their own; this covers plain
+# `docker run`). Generous start period: first boot creates the venv-less
+# schema + may pull model metadata before /health answers.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+  CMD curl -fsS http://127.0.0.1:3900/health || exit 1
 
 # Mount points for persistent data (sqlite db, user voices, huggingface cache)
 VOLUME ["/app/omnivoice_data"]
