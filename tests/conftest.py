@@ -106,7 +106,12 @@ def _install_torch_dtype_recorder():
 def _drain_leaked_dtype(nodeid: str) -> None:
     """Warn (with the captured setter stack, if any) and reset to float32."""
     torch = sys.modules.get("torch")
-    if torch is None or torch.get_default_dtype() is torch.float32:
+    # A test may have stubbed sys.modules["torch"] with a bare namespace
+    # (test_torch_compile_gate), and fixture teardown ordering can run this
+    # guard before that stub is undone — a stub can't leak a dtype, skip it.
+    if torch is None or not hasattr(torch, "get_default_dtype"):
+        return
+    if torch.get_default_dtype() is torch.float32:
         return
     stack = _DTYPE_SETTER["stack"]
     origin = (
@@ -279,7 +284,13 @@ def _llm_prefs_restore(before: dict) -> None:
 # fastest. Tests that need other outcomes monkeypatch over this (their patch
 # is applied later, so it wins).
 @pytest.fixture(autouse=True)
-def _no_real_endpoint_probes(monkeypatch):
+def _no_real_endpoint_probes():
+    # Deliberately NOT the shared `monkeypatch` fixture: requesting it from an
+    # autouse fixture hoists its setup earlier for every test, which reorders
+    # teardown against other autouse guards (it broke the dtype guard vs
+    # test_torch_compile_gate's torch stub). An isolated MonkeyPatch leaves
+    # the shared fixture's position untouched.
+    from core import prefs as _prefs
     from services import endpoint_race as _er
 
     def _fake_probe(endpoint, timeout=None):
@@ -289,8 +300,17 @@ def _no_real_endpoint_probes(monkeypatch):
             latency_ms=50.0 if endpoint == _er.CANONICAL_ENDPOINT else 80.0,
         )
 
-    monkeypatch.setattr(_er, "probe_endpoint", _fake_probe)
-    monkeypatch.setattr(_er, "throughput_probe", lambda endpoint, timeout=None: None)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_er, "probe_endpoint", _fake_probe)
+        mp.setattr(_er, "throughput_probe", lambda endpoint, timeout=None: None)
+        yield
+    # The decision cache lives in prefs, which persist across tests within
+    # the hermetic session dir — clear it so one test's auto pick can never
+    # leak into another's preflight assertions.
+    try:
+        _prefs.set_(_er._DECISION_PREF, None)
+    except Exception:
+        pass
 
 
 @pytest.fixture(autouse=True)
