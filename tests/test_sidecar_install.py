@@ -30,7 +30,17 @@ _GIB = 1024 ** 3
 
 @pytest.fixture(autouse=True)
 def _clean_state(monkeypatch, tmp_path):
-    """Hermetic per-test state: managed root under tmp, no leaked jobs/env."""
+    """Hermetic per-test state: managed root under tmp, no leaked jobs/env.
+
+    Rebinds the module-level ``si`` to the LIVE ``services.sidecar_install``
+    module: other suites purge ``sys.modules["services"]`` for DB isolation,
+    so the object imported at collection time can differ from the one the
+    engines router imports at call time — patching the stale copy would make
+    the router tests order-dependent.
+    """
+    import importlib
+    global si
+    si = importlib.import_module("services.sidecar_install")
     monkeypatch.setattr(si, "DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setattr(si, "_jobs", {})
     monkeypatch.delenv("OMNIVOICE_INDEXTTS_DIR", raising=False)
@@ -310,6 +320,16 @@ def test_half_fetched_checkout_is_refetched(monkeypatch):
     assert any(a[1] == "clone" for a in argvs)
 
 
+def _write_weights(wdir: Path, *, complete: bool) -> None:
+    """Fabricate a weights dir; ``complete=True`` adds the completion marker
+    the installer writes after snapshot_download returns."""
+    wdir.mkdir(parents=True, exist_ok=True)
+    (wdir / "config.yaml").write_text("model: fake\n")
+    (wdir / "weights.safetensors").write_bytes(b"\0" * (6 * 1024 * 1024))
+    if complete:
+        (wdir / si._WEIGHTS_COMPLETE_MARKER).write_text("Example/Weights\n")
+
+
 def test_partial_install_is_not_already_installed(monkeypatch):
     """venv present but weights missing → NOT healthy → a re-run repairs it
     instead of short-circuiting with already_installed."""
@@ -320,12 +340,27 @@ def test_partial_install_is_not_already_installed(monkeypatch):
     py.write_text("#!fake\n")
     assert si._healthy(spec) is False
 
-    # Complete the weights → healthy flips true.
-    wdir = checkout / spec.weights_subdir
-    wdir.mkdir(parents=True)
-    (wdir / "config.yaml").write_text("model: fake\n")
-    (wdir / "weights.safetensors").write_bytes(b"\0" * (6 * 1024 * 1024))
+    # Complete the weights (incl. the completion marker) → healthy flips true.
+    _write_weights(checkout / spec.weights_subdir, complete=True)
     assert si._healthy(spec) is True
+
+
+def test_interrupted_multishard_weights_are_not_healthy(monkeypatch):
+    """Regression: a killed-mid-download weights dir can hold config.yaml +
+    plausible shards, but WITHOUT the completion marker it must stay
+    unhealthy so a re-run resumes the download instead of reporting
+    already_installed and failing later at model-load time."""
+    spec = _mk_spec(weights_repo_id="Example/Weights")
+    checkout = si.managed_checkout(spec)
+    py = si._venv_python(checkout / ".venv")
+    py.parent.mkdir(parents=True)
+    py.write_text("#!fake\n")
+    _write_weights(checkout / spec.weights_subdir, complete=False)
+    assert si._weights_present(spec) is False
+    assert si._healthy(spec) is False
+    monkeypatch.setitem(si.SPECS, "fake-side", spec)
+    monkeypatch.setattr(si, "_run_install", lambda s, j: None)
+    assert si.start_install("fake-side")["status"] == "started"  # repairs, not skips
 
 
 def test_weights_step_downloads_via_endpoint_autoselect(monkeypatch):
@@ -360,9 +395,7 @@ def test_weights_step_downloads_via_endpoint_autoselect(monkeypatch):
 def test_weights_step_skips_when_already_present(monkeypatch):
     spec = _mk_spec(weights_repo_id="Example/Weights")
     wdir = si.managed_checkout(spec) / spec.weights_subdir
-    wdir.mkdir(parents=True)
-    (wdir / "config.yaml").write_text("ok\n")
-    (wdir / "w.safetensors").write_bytes(b"\0" * (6 * 1024 * 1024))
+    _write_weights(wdir, complete=True)
     import huggingface_hub
 
     def boom(**kw):  # pragma: no cover — must not be reached
@@ -376,6 +409,28 @@ def test_weights_step_skips_when_already_present(monkeypatch):
 
 
 # ── already-installed / already-running gating ────────────────────────────
+
+
+def test_healthy_managed_install_reheals_lost_env_var(monkeypatch):
+    """A complete managed install whose env var vanished (prefs.json wiped)
+    is re-pointed by start_install instead of being reinstalled — and instead
+    of returning already_installed while the engine stays unavailable."""
+    spec = _mk_spec(weights_repo_id="Example/Weights")
+    monkeypatch.setitem(si.SPECS, "fake-side", spec)
+    checkout = si.managed_checkout(spec)
+    py = si._venv_python(checkout / ".venv")
+    py.parent.mkdir(parents=True)
+    py.write_text("#!fake\n")
+    _write_weights(checkout / spec.weights_subdir, complete=True)
+    prefs_written = {}
+    monkeypatch.setattr("core.prefs.set_", lambda k, v: prefs_written.update({k: v}))
+    assert "OMNIVOICE_FAKE_SIDE_DIR" not in os.environ
+
+    res = si.start_install("fake-side")
+
+    assert res["status"] == "already_installed"
+    assert os.environ["OMNIVOICE_FAKE_SIDE_DIR"] == str(checkout)
+    assert prefs_written == {"env.OMNIVOICE_FAKE_SIDE_DIR": str(checkout)}
 
 
 def test_start_install_reports_already_installed_for_user_clone(monkeypatch):
@@ -492,6 +547,22 @@ def test_list_backends_flags_indextts2_one_click():
 
 
 # ── router wiring ──────────────────────────────────────────────────────────
+
+
+def test_sidecar_routes_never_shadow_literal_engine_routes():
+    """Regression: the engines router registers BEFORE literal-path routers
+    (e.g. sonitranslate), so a dynamic ``/engines/{engine_id}/install`` here
+    would swallow ``POST /engines/sonitranslate/install``. The sidecar
+    installer must keep its own literal namespace (/engines/sidecar/…)."""
+    from api.routers import engines as engines_router
+    install_paths = [
+        r.path for r in engines_router.router.routes if "install" in r.path
+    ]
+    assert install_paths, "sidecar install routes missing"
+    for p in install_paths:
+        assert not p.startswith("/engines/{"), (
+            f"{p} would shadow literal /engines/<x>/install routes registered later"
+        )
 
 
 def test_router_404s_engines_without_installer():

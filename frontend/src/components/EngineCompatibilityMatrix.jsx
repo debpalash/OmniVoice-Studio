@@ -419,7 +419,10 @@ export default function EngineCompatibilityMatrix({
           reload();
           return;
         }
-        await refreshInstall(id);
+        const st = await refreshInstall(id);
+        // A repair-only rerun can finish before this first status snapshot —
+        // the poller below only watches 'running' jobs, so reload here too.
+        if (st?.job?.state === 'succeeded') reload();
       } catch (e) {
         toastErrorWithReport(t('engines.installFailed', { message: e?.message || String(e) }), e);
       }
@@ -428,20 +431,35 @@ export default function EngineCompatibilityMatrix({
   );
 
   // Poll running install jobs every 1.5 s; on success reload the matrix so
-  // the row flips to available without a manual refresh.
+  // the row flips to available without a manual refresh. Keyed on the SET of
+  // running ids (not the status map itself): every poll replaces the map, so
+  // depending on it directly would tear down + recreate the interval each
+  // tick, resetting the 1.5 s clock and dropping in-flight responses.
+  const runningInstallKey = Object.entries(installByEngine)
+    .filter(([, st]) => st?.job?.state === 'running')
+    .map(([id]) => id)
+    .sort()
+    .join(',');
   useEffect(() => {
-    const running = Object.entries(installByEngine)
-      .filter(([, st]) => st?.job?.state === 'running')
-      .map(([id]) => id);
-    if (running.length === 0) return undefined;
+    if (!runningInstallKey) return undefined;
+    const ids = runningInstallKey.split(',');
     const iv = setInterval(async () => {
-      for (const id of running) {
+      for (const id of ids) {
         const st = await refreshInstall(id);
         if (st?.job?.state === 'succeeded') reload();
       }
     }, 1500);
     return () => clearInterval(iv);
-  }, [installByEngine, refreshInstall, reload]);
+  }, [runningInstallKey, refreshInstall, reload]);
+
+  // Re-attach to an in-flight install after a remount (Settings closed and
+  // reopened while the backend job kept running): one cheap status probe per
+  // installable-but-unavailable row restores the progress panel + poller.
+  useEffect(() => {
+    for (const b of data?.tts?.backends || []) {
+      if (b.one_click_install === true && !b.available) refreshInstall(b.id);
+    }
+  }, [data, refreshInstall]);
 
   const copySetup = useCallback(async (id, snippet) => {
     const ok = await copyText(snippet);
@@ -607,6 +625,32 @@ export default function EngineCompatibilityMatrix({
             const installRunning = installJob?.state === 'running';
             const expanded = hasDetails && expandedId === b.id;
             const panelId = `engine-detail-${b.id}`;
+            // Manual setup line (Copy button) — top-level on plain path-gated
+            // rows; demoted to a collapsed "Manual install" fallback on
+            // one-click-installable rows (auto-opened when the install fails,
+            // since the snippet IS the recovery path then).
+            const setupSnippetBlock = b.setup_snippet ? (
+              <div
+                className="engine-matrix__setup mt-[2px] flex flex-col gap-[3px]"
+                data-testid={`setup-snippet-${b.id}`}
+              >
+                <span className={cn('text-[11px]', MUTED)}>{t('engines.setupSnippetLabel')}</span>
+                <div className="flex flex-wrap items-center gap-[6px]">
+                  <code className="engine-matrix__setup-code break-all rounded px-[6px] py-[2px] font-mono text-[11px] [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)]">
+                    {b.setup_snippet}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => copySetup(b.id, b.setup_snippet)}
+                    leading={copiedId === b.id ? <Check size={11} /> : <Copy size={11} />}
+                    aria-label={t('engines.copySetup', { engine: b.display_name })}
+                  >
+                    {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
+                  </Button>
+                </div>
+              </div>
+            ) : null;
             return (
               <React.Fragment key={b.id}>
                 <div
@@ -921,7 +965,7 @@ export default function EngineCompatibilityMatrix({
                         loading={installRunning}
                         leading={!installRunning && <Download size={11} />}
                         data-testid={`install-${b.id}`}
-                        aria-label={`Install ${b.display_name}`}
+                        aria-label={t('engines.installAria', { engine: b.display_name })}
                       >
                         {installRunning
                           ? t('engines.installing')
@@ -1144,50 +1188,25 @@ export default function EngineCompatibilityMatrix({
                           engine (IndexTTS/MOSS-v1.5/dots/Confucius4) — the
                           exact `export VAR=…` so users don't hunt the docs.
                           On one-click-installable rows it demotes to a
-                          collapsed "Manual install" fallback. */}
-                      {b.setup_snippet &&
-                        (() => {
-                          const snippetBlock = (
-                            <div
-                              className="engine-matrix__setup mt-[2px] flex flex-col gap-[3px]"
-                              data-testid={`setup-snippet-${b.id}`}
+                          collapsed "Manual install" fallback (forced open when
+                          the install failed — it's the recovery path then). */}
+                      {setupSnippetBlock &&
+                        (b.one_click_install ? (
+                          <details
+                            className="engine-matrix__manual mt-[2px]"
+                            data-testid={`manual-install-${b.id}`}
+                            {...(installJob?.state === 'failed' ? { open: true } : {})}
+                          >
+                            <summary
+                              className={cn('cursor-pointer select-none text-[11px]', MUTED)}
                             >
-                              <span className={cn('text-[11px]', MUTED)}>
-                                {t('engines.setupSnippetLabel')}
-                              </span>
-                              <div className="flex flex-wrap items-center gap-[6px]">
-                                <code className="engine-matrix__setup-code break-all rounded px-[6px] py-[2px] font-mono text-[11px] [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)]">
-                                  {b.setup_snippet}
-                                </code>
-                                <Button
-                                  size="sm"
-                                  variant="subtle"
-                                  onClick={() => copySetup(b.id, b.setup_snippet)}
-                                  leading={
-                                    copiedId === b.id ? <Check size={11} /> : <Copy size={11} />
-                                  }
-                                  aria-label={t('engines.copySetup', { engine: b.display_name })}
-                                >
-                                  {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                          if (!b.one_click_install) return snippetBlock;
-                          return (
-                            <details
-                              className="engine-matrix__manual mt-[2px]"
-                              data-testid={`manual-install-${b.id}`}
-                            >
-                              <summary
-                                className={cn('cursor-pointer select-none text-[11px]', MUTED)}
-                              >
-                                {t('engines.manualInstall')}
-                              </summary>
-                              {snippetBlock}
-                            </details>
-                          );
-                        })()}
+                              {t('engines.manualInstall')}
+                            </summary>
+                            {setupSnippetBlock}
+                          </details>
+                        ) : (
+                          setupSnippetBlock
+                        ))}
                     </div>
                   </div>
                 )}

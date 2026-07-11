@@ -41,9 +41,7 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -145,11 +143,12 @@ def _venv_python_path(venv_dir: Path) -> Path:
     """Return the python executable path inside a venv directory.
 
     Handles the Unix (``bin/python``) vs Windows (``Scripts/python.exe``)
-    layout. No filesystem access — caller checks .is_file().
+    layout. No filesystem access — caller checks .is_file(). Delegates to
+    the canonical implementation in :mod:`services.sidecar_install` so the
+    cross-platform venv-layout rule lives in exactly one place.
     """
-    if sys.platform == "win32":
-        return venv_dir / "Scripts" / "python.exe"
-    return venv_dir / "bin" / "python"
+    from services.sidecar_install import _venv_python
+    return _venv_python(venv_dir)
 
 
 def _probe_paths() -> list[Path]:
@@ -189,14 +188,14 @@ def _venv_can_import_indextts(python_path: Path) -> bool:
 
 
 def _locate_uv() -> Optional[str]:
-    """Find the uv binary — bundled first (Tauri-set env var), else PATH."""
-    bundled = os.environ.get("OMNIVOICE_BUNDLED_UV")
-    if bundled and Path(bundled).is_file():
-        return bundled
-    sys_uv = shutil.which("uv")
-    if sys_uv:
-        return sys_uv
-    return None
+    """Find the uv binary — bundled first (Tauri-set env var), else PATH.
+
+    Delegates to :mod:`services.sidecar_install`'s canonical resolver so the
+    bundled-uv contract (env var name, precedence) can't drift between this
+    lazy bootstrap and the one-click installer.
+    """
+    from services.sidecar_install import _locate_uv as _canonical_locate_uv
+    return _canonical_locate_uv()
 
 
 def _bootstrap_engines_venv(indextts_clone: Path) -> Path:

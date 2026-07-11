@@ -164,6 +164,13 @@ async def uninstall_translation_engine(engine_id: str):
 # background job, GET polls its step-by-step status (the Settings → Engines
 # Install button polls this), DELETE removes an app-managed install.
 #
+# Path namespace: /engines/sidecar/{engine_id}/… — NOT /engines/{engine_id}/…
+# — because a dynamic segment there would shadow pre-existing literal routes
+# (this router registers before sonitranslate's, so a dynamic
+# POST /engines/{engine_id}/install would swallow
+# POST /engines/sonitranslate/install). Mirrors the
+# /engines/translation/{engine_id}/install namespace pattern.
+#
 # Loopback-gated: installing spawns subprocesses (git/uv) and writes to the
 # data directory — only the local desktop frontend may trigger it. The job
 # runs fine in packaged builds: the venv lives under the user data dir, not
@@ -171,7 +178,7 @@ async def uninstall_translation_engine(engine_id: str):
 
 
 @router.post(
-    "/engines/{engine_id}/install",
+    "/engines/sidecar/{engine_id}/install",
     dependencies=[Depends(require_loopback)],
 )
 def install_sidecar_engine(engine_id: str):
@@ -197,7 +204,7 @@ def install_sidecar_engine(engine_id: str):
 
 
 @router.get(
-    "/engines/{engine_id}/install/status",
+    "/engines/sidecar/{engine_id}/install/status",
     dependencies=[Depends(require_loopback)],
 )
 def sidecar_install_status(engine_id: str):
@@ -218,7 +225,7 @@ def sidecar_install_status(engine_id: str):
 
 
 @router.delete(
-    "/engines/{engine_id}/install",
+    "/engines/sidecar/{engine_id}/install",
     dependencies=[Depends(require_loopback)],
 )
 def uninstall_sidecar_engine(engine_id: str):

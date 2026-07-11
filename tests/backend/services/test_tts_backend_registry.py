@@ -162,6 +162,9 @@ def test_list_backends_shape(registry_sandbox):
         # Cloning capability: bool from the class attr, None when
         # model-dependent (a property, e.g. mlx-audio).
         "supports_cloning",
+        # True when services.sidecar_install can provision the engine in-app
+        # (the Settings Install button keys off this).
+        "one_click_install",
     }
     mlx_audio_extra = {"curated_models", "active_model_id"}
     for entry in out:

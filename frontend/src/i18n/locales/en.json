@@ -1752,7 +1752,8 @@
     "installStep_install_deps": "Installing dependencies",
     "installStep_verify": "Verifying the environment",
     "installStep_fetch_weights": "Downloading model weights",
-    "installStep_persist": "Saving configuration"
+    "installStep_persist": "Saving configuration",
+    "installAria": "Install {{engine}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

@@ -47,7 +47,7 @@ weights, checked before anything is written); the install fails early
 with an actionable message otherwise. Re-running the installer is
 always safe: it repairs partial installs and resumes interrupted
 downloads instead of starting over. An app-managed install can be
-removed again with `DELETE /engines/indextts2/install` (a
+removed again with `DELETE /engines/sidecar/indextts2/install` (a
 user-managed clone is never touched).
 
 If you already installed IndexTTS manually (any OmniVoice version),

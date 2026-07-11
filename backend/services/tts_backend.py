@@ -1701,7 +1701,13 @@ _MLX_AUDIO_MODEL_LABELS: dict[str, str] = {
 def _sidecar_installable_ids() -> frozenset[str]:
     """Engine ids with a one-click sidecar installer. Deferred import — the
     installer module is tiny, but keeping the import inside the function
-    means a broken/absent installer can never take the engine picker down."""
+    means a broken/absent installer can never take the engine picker down.
+
+    All current sidecar SPECS are TTS engines, so only this registry carries
+    ``one_click_install``; the first non-TTS sidecar engine will need the same
+    field plumbed into asr_backend/llm_backend.list_backends and the Install
+    button into their matrix rows.
+    """
     try:
         from services.sidecar_install import SPECS
         return frozenset(SPECS)
@@ -1757,6 +1763,7 @@ def list_backends() -> list[dict]:
     from core.device_caps import detect_host_caps
     from services.engine_routing import routing_fields
     caps = detect_host_caps()
+    installable = _sidecar_installable_ids()
 
     out: list[dict] = []
     for bid, cls in _REGISTRY.items():
@@ -1805,7 +1812,7 @@ def list_backends() -> list[dict]:
             # True when services.sidecar_install can provision this engine
             # in-app (Settings renders an Install button instead of leading
             # with the manual setup snippet).
-            "one_click_install": bid in _sidecar_installable_ids(),
+            "one_click_install": bid in installable,
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
             "gpu_compat": list(gpu_compat),

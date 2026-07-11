@@ -129,7 +129,7 @@ export interface SidecarInstallStartResponse {
  *  healthy install returns `already_installed`; a partial install repairs. */
 export async function installSidecarEngine(engineId: string): Promise<SidecarInstallStartResponse> {
   return apiPost<SidecarInstallStartResponse>(
-    `/engines/${encodeURIComponent(engineId)}/install`,
+    `/engines/sidecar/${encodeURIComponent(engineId)}/install`,
     {},
   );
 }
@@ -137,7 +137,9 @@ export async function installSidecarEngine(engineId: string): Promise<SidecarIns
 /** Poll the sidecar install job — step-by-step states + log tail + error
  *  with remediation. Cheap (file probes only), safe to poll every ~1.5 s. */
 export async function getSidecarInstallStatus(engineId: string): Promise<SidecarInstallStatus> {
-  return apiJson<SidecarInstallStatus>(`/engines/${encodeURIComponent(engineId)}/install/status`);
+  return apiJson<SidecarInstallStatus>(
+    `/engines/sidecar/${encodeURIComponent(engineId)}/install/status`,
+  );
 }
 
 export async function listTranslationEngines(): Promise<TranslationEnginesResponse> {

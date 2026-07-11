@@ -1223,6 +1223,17 @@ describe('EngineCompatibilityMatrix', () => {
     return res;
   }
 
+  /** Pre-install status: no job yet (what the on-mount re-attach probe sees). */
+  function makeIdleStatus() {
+    return {
+      engine_id: 'indextts2',
+      installed: false,
+      managed: false,
+      install_dir: null,
+      job: null,
+    };
+  }
+
   function makeInstallStatus(jobState, overrides = {}) {
     return {
       engine_id: 'indextts2',
@@ -1255,7 +1266,12 @@ describe('EngineCompatibilityMatrix', () => {
   it('installable unavailable rows get an Install button; clicking it starts the job and shows step progress', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
     const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
-    const apiInstallStatus = vi.fn().mockResolvedValue(makeInstallStatus('running'));
+    // First call = the on-mount re-attach probe (no job yet); later calls =
+    // the post-click status refresh with the running job.
+    const apiInstallStatus = vi
+      .fn()
+      .mockResolvedValueOnce(makeIdleStatus())
+      .mockResolvedValue(makeInstallStatus('running'));
     render(
       <EngineCompatibilityMatrix
         family="tts"
@@ -1288,13 +1304,16 @@ describe('EngineCompatibilityMatrix', () => {
   it('a failed job renders the error with its remediation and offers Retry', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
     const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
-    const apiInstallStatus = vi.fn().mockResolvedValue(
-      makeInstallStatus('failed', {
-        error: 'Not enough disk space to install IndexTTS-2',
-        remediation: 'Free up disk space and retry.',
-        finished_at: 2,
-      }),
-    );
+    const apiInstallStatus = vi
+      .fn()
+      .mockResolvedValueOnce(makeIdleStatus())
+      .mockResolvedValue(
+        makeInstallStatus('failed', {
+          error: 'Not enough disk space to install IndexTTS-2',
+          remediation: 'Free up disk space and retry.',
+          finished_at: 2,
+        }),
+      );
     render(
       <EngineCompatibilityMatrix
         family="tts"
@@ -1319,7 +1338,7 @@ describe('EngineCompatibilityMatrix', () => {
     const apiInstallEngine = vi
       .fn()
       .mockResolvedValue({ status: 'already_installed', engine: 'indextts2' });
-    const apiInstallStatus = vi.fn();
+    const apiInstallStatus = vi.fn().mockResolvedValue(makeIdleStatus());
     render(
       <EngineCompatibilityMatrix
         family="tts"
@@ -1333,7 +1352,8 @@ describe('EngineCompatibilityMatrix', () => {
     fireEvent.click(screen.getByTestId('install-indextts2'));
 
     await waitFor(() => expect(apiListEngines).toHaveBeenCalledTimes(2)); // reload()
-    expect(apiInstallStatus).not.toHaveBeenCalled();
+    // No job progress ever rendered — nothing to poll beyond the mount probe.
+    expect(screen.queryByTestId('install-progress-indextts2')).not.toBeInTheDocument();
   });
 
   it('demotes the manual setup snippet to a collapsed fallback on installable rows', async () => {
@@ -1343,6 +1363,9 @@ describe('EngineCompatibilityMatrix', () => {
         family="tts"
         apiListEngines={apiListEngines}
         apiGetEngineHealth={vi.fn()}
+        // Installable-but-unavailable rows probe install status on mount
+        // (re-attach to an in-flight job) — stub it so no network happens.
+        apiInstallStatus={vi.fn().mockResolvedValue(makeIdleStatus())}
       />,
     );
     await waitFor(() => screen.getByText('IndexTTS2 (test)'));
@@ -1353,6 +1376,26 @@ describe('EngineCompatibilityMatrix', () => {
     expect(manual.tagName).toBe('DETAILS');
     expect(manual).not.toHaveAttribute('open');
     expect(within(manual).getByTestId('setup-snippet-indextts2')).toBeInTheDocument();
+  });
+
+  it('re-attaches to an in-flight install job on mount (no click needed)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallStatus = vi.fn().mockResolvedValue(makeInstallStatus('running'));
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    // The mount probe found a running job — the button reflects it without
+    // any user interaction (Settings was closed and reopened mid-install).
+    await waitFor(() =>
+      expect(screen.getByTestId('install-indextts2')).toHaveTextContent('Installing…'),
+    );
+    expect(apiInstallStatus).toHaveBeenCalledWith('indextts2');
   });
 
   it('keeps the setup snippet top-level on rows without a one-click installer', async () => {

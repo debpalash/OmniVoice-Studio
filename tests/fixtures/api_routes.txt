@@ -5,8 +5,8 @@ DELETE /api/settings/hf-token
 DELETE /batch/jobs/{job_id}
 DELETE /dub/history
 DELETE /dub/history/{history_id}
+DELETE /engines/sidecar/{engine_id}/install
 DELETE /engines/translation/{engine_id}
-DELETE /engines/{engine_id}/install
 DELETE /gallery/voices/{voice_id}
 DELETE /glossary/{project_id}
 DELETE /glossary/{project_id}/{term_id}
@@ -74,11 +74,11 @@ GET /engines
 GET /engines/asr
 GET /engines/effects/presets
 GET /engines/llm
+GET /engines/sidecar/{engine_id}/install/status
 GET /engines/sonitranslate/status
 GET /engines/translation
 GET /engines/tts
 GET /engines/{engine_id}/health
-GET /engines/{engine_id}/install/status
 GET /export/history
 GET /gallery/categories
 GET /gallery/voices
@@ -161,12 +161,12 @@ POST /dub/transcribe/{job_id}
 POST /dub/translate
 POST /dub/upload
 POST /engines/select
+POST /engines/sidecar/{engine_id}/install
 POST /engines/sonitranslate/dub
 POST /engines/sonitranslate/install
 POST /engines/sonitranslate/start
 POST /engines/sonitranslate/stop
 POST /engines/translation/{engine_id}/install
-POST /engines/{engine_id}/install
 POST /engines/{engine_id}/selftest
 POST /export
 POST /export/record

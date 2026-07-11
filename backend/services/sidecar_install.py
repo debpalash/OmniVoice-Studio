@@ -66,7 +66,11 @@ logger = logging.getLogger("omnivoice.sidecar_install")
 _GIB = 1024 ** 3
 
 # Headroom kept free on the target volume on top of the estimated install
-# size — mirrors api.routers.setup.models.MIN_FREE_GB for model installs.
+# size. Same needs-X/have-Y message shape as the model-install guard
+# (api.routers.setup.models.disk_space_error), but a deliberately SMALLER
+# floor than its MIN_FREE_GB=10: required_bytes here is already a
+# conservative over-estimate, so stacking the full model-cache headroom on
+# top would block legitimate installs on ~15 GB-free machines.
 MIN_FREE_GB = 5
 
 # Bounded in-memory log per job (last N lines survive; enough for the UI's
@@ -255,6 +259,12 @@ STEP_IDS = (
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
+# Guards each job's log deque: the worker thread appends while the status
+# poll copies it, and list() over a deque raises RuntimeError if it mutates
+# mid-iteration. One module-level lock is plenty — appends are tiny and at
+# most one job runs per engine.
+_log_lock = threading.Lock()
+
 
 class _StepError(Exception):
     """Install-step failure carrying user-facing remediation text."""
@@ -285,7 +295,8 @@ def _job_step(job: dict, step_id: str) -> dict:
 def _log(job: dict, line: str) -> None:
     line = line.rstrip()
     if line:
-        job["log"].append(line)
+        with _log_lock:
+            job["log"].append(line)
         logger.info("[%s install] %s", job["engine_id"], line)
 
 
@@ -293,7 +304,8 @@ def _serialize_job(job: Optional[dict]) -> Optional[dict]:
     if job is None:
         return None
     out = dict(job)
-    out["log"] = list(job["log"])
+    with _log_lock:
+        out["log"] = list(job["log"])
     out["steps"] = [dict(s) for s in job["steps"]]
     return out
 
@@ -341,16 +353,35 @@ def _user_managed_dir(spec: SidecarSpec) -> Optional[Path]:
 def _healthy(spec: SidecarSpec) -> bool:
     """A COMPLETE install: for a user-managed dir, trust the engine's own
     probe (their clone, their layout); for the app-managed install require
-    the venv AND the weights, so a partial install repairs instead of
-    reporting already_installed."""
+    the venv AND the fully-downloaded weights, so a partial install repairs
+    instead of reporting already_installed."""
     if _user_managed_dir(spec) is not None:
         return _safe_installed(spec)
     checkout = managed_checkout(spec)
+    if not checkout.is_dir():
+        # No managed install at all. A legacy install may still exist (e.g.
+        # IndexTTS's old lazy-bootstrap venv under backend/engines/) — trust
+        # the engine's own probe so we never re-provision over a working one.
+        return _safe_installed(spec)
     if not _venv_python(checkout / ".venv").is_file():
         return False
     if spec.weights_repo_id and not _weights_present(spec):
         return False
     return True
+
+
+def _persist(spec: SidecarSpec) -> None:
+    """Point the engine at the managed checkout: process env for immediate
+    use, prefs.json ``env.*`` for the next launch, and invalidate the
+    engine's memoised venv resolution so it re-probes without a restart."""
+    checkout = managed_checkout(spec)
+    os.environ[spec.env_var] = str(checkout)
+    from core import prefs
+    prefs.set_(f"env.{spec.env_var}", str(checkout))
+    try:
+        spec.invalidate()
+    except Exception:
+        pass
 
 
 def start_install(engine_id: str) -> dict:
@@ -369,6 +400,14 @@ def start_install(engine_id: str) -> dict:
         # A healthy install (user-managed or app-managed) never reinstalls;
         # a PARTIAL managed install falls through so the job repairs it.
         if _healthy(spec):
+            # Self-heal: a healthy MANAGED install whose env var was lost
+            # (e.g. prefs.json wiped) just needs re-pointing, not a reinstall.
+            if (
+                _user_managed_dir(spec) is None
+                and _venv_python(managed_checkout(spec) / ".venv").is_file()
+                and not _safe_installed(spec)
+            ):
+                _persist(spec)
             return {"status": "already_installed", "engine": engine_id}
         job = _new_job(engine_id)
         _jobs[engine_id] = job
@@ -637,10 +676,25 @@ def _step_verify(spec: SidecarSpec, job: dict) -> None:
     _log(job, "Venv verified.")
 
 
+# Written into the weights dir after snapshot_download COMPLETES. A partial
+# multi-shard download can leave config.yaml + several plausible shards on
+# disk, so file heuristics alone would declare a killed-mid-download install
+# healthy and never resume it (the sidecar edition of #352). Only this
+# installer writes the marker; user-managed clones never hit this path.
+_WEIGHTS_COMPLETE_MARKER = ".omnivoice_weights_complete"
+
+
 def _weights_present(spec: SidecarSpec) -> bool:
-    """config.yaml + at least one plausible weight file (≥5 MB) in the
-    weights dir — the same truncated-download floor the model store uses."""
+    """True only for a COMPLETED weights download: the completion marker
+    plus a sanity floor (config.yaml + one ≥5 MB weight file — the same
+    truncated-download floor the model store uses)."""
     wdir = managed_checkout(spec) / spec.weights_subdir
+    if not (wdir / _WEIGHTS_COMPLETE_MARKER).is_file():
+        return False
+    return _weights_floor_ok(wdir)
+
+
+def _weights_floor_ok(wdir: Path) -> bool:
     if not (wdir / "config.yaml").is_file():
         return False
     floor = 5 * 1024 * 1024
@@ -721,26 +775,24 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
         hf_progress.unregister_listener(listener_id)
         hf_progress.current_repo_id.reset(repo_token)
 
-    if not _weights_present(spec):
+    if not _weights_floor_ok(wdir):
         raise _StepError(
             "Weight download finished but no plausible weight files were found — "
             "the download was likely interrupted.",
             "Re-run the install to resume the download.",
         )
+    # snapshot_download returned AND the sanity floor holds → mark complete,
+    # so _weights_present/_healthy stop treating this dir as a partial.
+    (wdir / _WEIGHTS_COMPLETE_MARKER).write_text(
+        f"{spec.weights_repo_id}\n{time.time():.0f}\n", encoding="utf-8",
+    )
     step["detail"] = "weights downloaded"
     _log(job, "Model weights downloaded.")
 
 
 def _step_persist(spec: SidecarSpec, job: dict) -> None:
-    checkout = managed_checkout(spec)
-    os.environ[spec.env_var] = str(checkout)
-    from core import prefs
-    prefs.set_(f"env.{spec.env_var}", str(checkout))
-    try:
-        spec.invalidate()
-    except Exception:
-        pass
-    _job_step(job, "persist")["detail"] = f"{spec.env_var}={checkout}"
+    _persist(spec)
+    _job_step(job, "persist")["detail"] = f"{spec.env_var}={managed_checkout(spec)}"
     _log(job, f"Saved {spec.env_var} — the engine is ready to use, no restart needed.")
 
 
@@ -750,10 +802,21 @@ def _step_persist(spec: SidecarSpec, job: dict) -> None:
 def _run_logged(job: dict, argv: list[str], *, timeout: float) -> int:
     """Run *argv*, streaming combined stdout+stderr lines into the job log.
 
-    Returns the exit code; -1 on timeout (process killed) or spawn failure.
-    argv-list only — never a shell string — so paths with spaces are safe on
-    every platform.
+    Returns the exit code; -1 on timeout (process tree killed) or spawn
+    failure. argv-list only — never a shell string — so paths with spaces
+    are safe on every platform.
+
+    The stdout drain runs on its own daemon thread and the main flow blocks
+    on ``proc.wait(timeout=…)``. That bounds the step even when a grandchild
+    (uv resolver worker, git helper) inherits the pipe and outlives the
+    killed child — a blocking ``for line in proc.stdout`` on this thread
+    would hang past the timeout waiting for pipe EOF.
     """
+    popen_kwargs: dict = {}
+    if os.name == "posix":
+        # New session → we can kill the whole process group on timeout
+        # instead of only the direct child.
+        popen_kwargs["start_new_session"] = True
     try:
         proc = subprocess.Popen(
             argv,
@@ -762,28 +825,45 @@ def _run_logged(job: dict, argv: list[str], *, timeout: float) -> int:
             text=True,
             encoding="utf-8",
             errors="replace",
+            **popen_kwargs,
         )
     except OSError as exc:
         _log(job, f"failed to spawn {argv[0]}: {exc}")
         return -1
 
-    deadline = time.monotonic() + timeout
+    def _drain() -> None:
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                _log(job, line)
+        except (OSError, ValueError):
+            pass  # pipe closed by the timeout kill — nothing left to read
 
-    def _kill_late() -> None:
-        while proc.poll() is None:
-            if time.monotonic() > deadline:
-                proc.kill()
-                _log(job, f"process timed out after {timeout:.0f}s — killed")
-                return
-            time.sleep(1.0)
+    drain = threading.Thread(target=_drain, daemon=True)
+    drain.start()
+    try:
+        rc = proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_tree(proc)
+        _log(job, f"process timed out after {timeout:.0f}s — killed")
+        return -1
+    drain.join(5.0)  # give the drain a moment to flush the tail
+    return rc if rc is not None else -1
 
-    watchdog = threading.Thread(target=_kill_late, daemon=True)
-    watchdog.start()
-    assert proc.stdout is not None
-    for line in proc.stdout:
-        _log(job, line)
-    proc.wait()
-    return proc.returncode if proc.returncode is not None else -1
+
+def _kill_tree(proc: "subprocess.Popen") -> None:
+    """Kill the child and (POSIX) its whole process group."""
+    if os.name == "posix":
+        import signal
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+            return
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+    try:
+        proc.kill()
+    except OSError:
+        pass
 
 
 __all__ = [
