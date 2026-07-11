@@ -2,7 +2,7 @@
   <img src="docs/logo.png" alt="OmniVoice Logo" width="120" />
   <h1>OmniVoice Studio</h1>
   <h3>The open-source ElevenLabs alternative.</h3>
-  <p>Real-time dictation, zero-shot voice cloning, and cinematic video dubbing — all on your desktop.<br/>Open-source, no API keys, fully local. <b>646 languages.</b></p>
+  <p>Real-time dictation, zero-shot voice cloning, and cinematic video dubbing — all on your desktop.<br/><b>No accounts. No API keys. No cloud.</b> Everything runs on your machine. Open-source, <b>646 languages.</b></p>
 
   <p>
     <a href="#quickstart">Quickstart</a> ·
@@ -202,6 +202,8 @@ Pick your OS and follow the guide end-to-end:
 - 🪟 **Windows** — [docs/install/windows.md](docs/install/windows.md)
 - 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
 - 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
+
+> Coming from **[CorentinJ/Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning)** (now archived)? There's a dedicated migration guide: [docs/migration/real-time-voice-cloning.md](docs/migration/real-time-voice-cloning.md).
 
 <details>
 <summary><b>🧰 Stuck? Self-checks, tokens &amp; restricted networks</b></summary>
