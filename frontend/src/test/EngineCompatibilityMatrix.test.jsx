@@ -82,10 +82,19 @@ describe('EngineCompatibilityMatrix', () => {
     });
     expect(apiListEngines).toHaveBeenCalledTimes(1);
 
-    // Three engine rows, one per registered backend.
-    expect(screen.getAllByRole('row').length).toBe(3);
+    // Three engine rows, one per registered backend (the column-header row
+    // is role="row" too, so count by the per-engine marker).
+    expect(document.querySelectorAll('[data-engine-id]').length).toBe(3);
     expect(screen.getByText('KittenTTS (test)')).toBeInTheDocument();
     expect(screen.getByText('IndexTTS2 (test)')).toBeInTheDocument();
+    // The documented columns are announced as column headers.
+    expect(screen.getAllByRole('columnheader').map((el) => el.textContent)).toEqual([
+      'Engine',
+      'Status',
+      'GPU compat',
+      'Isolation',
+      'Actions',
+    ]);
   });
 
   it('shows isolation_mode badge per row (subprocess for IndexTTS, in-process for the others)', async () => {
@@ -132,7 +141,7 @@ describe('EngineCompatibilityMatrix', () => {
     expect(within(kittenRow).queryByText('CUDA')).not.toBeInTheDocument();
   });
 
-  it('shows the install reason inline when a backend is unavailable', async () => {
+  it('shows the install reason in the expansion panel when a backend is unavailable', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     render(
       <EngineCompatibilityMatrix
@@ -144,17 +153,22 @@ describe('EngineCompatibilityMatrix', () => {
 
     await waitFor(() => screen.getByText('KittenTTS (test)'));
     const kittenRow = screen.getByText('KittenTTS (test)').closest('[role="row"]');
-    expect(within(kittenRow).getByText('kittentts not installed')).toBeInTheDocument();
-    // The badge text is exactly "Unavailable" (with a leading icon); the new
-    // disclosure summary is "Why unavailable?" — scope to the badge with an
-    // exact match so we don't double-count the summary.
+    // The badge text is exactly "Unavailable" (with a leading icon); the
+    // details toggle is "Why unavailable?" — scope to the badge with an
+    // exact match so we don't double-count the toggle.
     const badge = within(kittenRow).getByText(
       (_, el) => el?.tagName === 'SPAN' && /^\s*Unavailable\s*$/.test(el.textContent || ''),
     );
     expect(badge).toBeInTheDocument();
+    // The failure reason lives in the expansion panel BELOW the row (so the
+    // row itself stays two lines tall) — closed by default, open on toggle.
+    expect(screen.queryByText('kittentts not installed')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('why-toggle-kittentts'));
+    const panel = screen.getByTestId('engine-detail-kittentts');
+    expect(within(panel).getByText('kittentts not installed')).toBeInTheDocument();
   });
 
-  it('renders a "Last error" line when last_error is populated', async () => {
+  it('renders a "Last error" line in the open panel when last_error is populated', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     render(
       <EngineCompatibilityMatrix
@@ -165,6 +179,7 @@ describe('EngineCompatibilityMatrix', () => {
     );
 
     await waitFor(() => screen.getByText('KittenTTS (test)'));
+    fireEvent.click(screen.getByTestId('why-toggle-kittentts'));
     const lastErrEls = screen.getAllByTestId('last-error');
     expect(lastErrEls.length).toBeGreaterThan(0);
     // The masked sentinel survives the redactor — confirms the row renders
@@ -689,6 +704,8 @@ describe('EngineCompatibilityMatrix', () => {
       />,
     );
     await waitFor(() => screen.getByText('IndexTTS-2'));
+    // The snippet lives in the row's expansion panel — open it first.
+    fireEvent.click(screen.getByTestId('why-toggle-indextts2'));
     const snippet = screen.getByTestId('setup-snippet-indextts2');
     expect(snippet).toHaveTextContent('export OMNIVOICE_INDEXTTS_DIR=/path/to/index-tts');
     expect(
@@ -707,7 +724,9 @@ describe('EngineCompatibilityMatrix', () => {
       />,
     );
     await waitFor(() => screen.getByText('KittenTTS (test)'));
-    // KittenTTS in the fixture carries no setup_snippet → no snippet block.
+    // KittenTTS in the fixture carries no setup_snippet → no snippet block
+    // even with its details panel open.
+    fireEvent.click(screen.getByTestId('why-toggle-kittentts'));
     expect(screen.queryByTestId('setup-snippet-kittentts')).not.toBeInTheDocument();
   });
 
@@ -1093,7 +1112,99 @@ describe('EngineCompatibilityMatrix', () => {
       />,
     );
     await waitFor(() => screen.getByText('OmniVoice (test)'));
-    expect(screen.getAllByRole('row').length).toBe(3);
+    expect(document.querySelectorAll('[data-engine-id]').length).toBe(3);
     expect(screen.queryByTestId('resident-indextts2')).not.toBeInTheDocument();
+  });
+
+  // ── Strict two-line row layout ───────────────────────────────────────────
+  it('renders strict two-line rows: fixed height, truncated name with full title', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+
+    for (const row of document.querySelectorAll('[data-engine-id]')) {
+      // Fixed two-line height + clipping — the class pair that stops one
+      // engine from filling a viewport (the marker class is asserted so a
+      // future restyle can't silently drop the constraint).
+      expect(row.classList.contains('is-two-line')).toBe(true);
+      expect(row.className).toMatch(/\bh-16\b/);
+      expect(row.className).toMatch(/\boverflow-hidden\b/);
+      // The display name never wraps: single-line truncation with the full
+      // name reachable via title.
+      const name = row.querySelector('.engine-matrix__name');
+      expect(name.className).toMatch(/\btruncate\b/);
+      expect(name.className).toMatch(/\bwhitespace-nowrap\b/);
+      expect(name).toHaveAttribute('title', name.textContent);
+    }
+  });
+
+  it('header and every row share identical grid column tracks', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+
+    const headerRow = screen.getAllByRole('columnheader')[0].closest('[role="row"]');
+    const track = headerRow.className.match(/grid-cols-\[[^\]]+\]/)?.[0];
+    expect(track).toBeTruthy();
+    for (const row of document.querySelectorAll('[data-engine-id]')) {
+      expect(row.className).toContain(track);
+    }
+  });
+
+  it('opens and closes the details expansion panel below the row', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('KittenTTS (test)'));
+
+    const toggle = screen.getByTestId('why-toggle-kittentts');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('engine-detail-kittentts')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const panel = screen.getByTestId('engine-detail-kittentts');
+    // The panel is a SIBLING below the row — not inside it — so the row keeps
+    // its fixed two-line height and sibling rows stay aligned.
+    const kittenRow = screen.getByText('KittenTTS (test)').closest('[role="row"]');
+    expect(kittenRow.contains(panel)).toBe(false);
+    expect(kittenRow.nextElementSibling).toBe(panel);
+    expect(within(panel).getByText('kittentts not installed')).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('engine-detail-kittentts')).not.toBeInTheDocument();
+  });
+
+  it('available rows offer no details toggle (hints stay inline on line 2)', async () => {
+    const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(screen.queryByTestId('why-toggle-omnivoice')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('why-toggle-indextts2')).not.toBeInTheDocument();
+    expect(screen.getByTestId('why-toggle-kittentts')).toBeInTheDocument();
   });
 });

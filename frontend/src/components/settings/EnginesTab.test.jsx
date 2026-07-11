@@ -15,8 +15,8 @@ vi.mock('../../api/engines', () => ({
   selfTestEngine: vi.fn(),
 }));
 
-// Residency layer (/model/loaded) — mocked so the stacked matrices never hit
-// the network in tests; the sharing behavior is asserted below.
+// Residency layer (/model/loaded) — mocked so the matrix never hits the
+// network in tests; the single-probe behavior is asserted below.
 vi.mock('../../api/system', () => ({
   listLoadedModels: vi.fn(),
   unloadLoadedModel: vi.fn(),
@@ -51,6 +51,15 @@ const ENGINES = {
   llm: { active: 'off', backends: [entry('off', 'Off (test)')] },
 };
 
+/** Click the family tab whose label text is `label` (TTS / ASR / LLM). */
+function clickFamilyTab(label) {
+  const tab = Array.from(document.querySelectorAll('.engine-matrix__tab-family')).find(
+    (el) => el.textContent === label,
+  );
+  expect(tab).toBeTruthy();
+  fireEvent.click(tab.closest('button'));
+}
+
 describe('EnginesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,28 +67,40 @@ describe('EnginesTab', () => {
     listLoadedModels.mockResolvedValue({ models: [], count: 0 });
   });
 
-  it('renders a pinned picker per family — TTS, ASR and LLM all visible at once', async () => {
+  it('renders ONE tabbed section — TTS/ASR/LLM tab strip, one family at a time', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('WhisperX (test)'));
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
 
-    // One named section per family (the ASR picker used to be tucked behind
-    // a family tab inside a single TTS-titled matrix — no picker to find).
-    expect(screen.getByText('TTS Engines')).toBeInTheDocument();
-    expect(screen.getByText('ASR Engines')).toBeInTheDocument();
-    expect(screen.getByText('LLM Engines')).toBeInTheDocument();
-    // Pinned matrices render no family switcher.
-    expect(document.querySelector('.engine-matrix__tab-family')).toBeNull();
+    // One settings card, not three stacked per-family matrices.
+    expect(document.querySelectorAll('[data-slot="settings-section"]').length).toBe(1);
+    // The tab strip offers all three families (with the active engine caption).
+    expect(document.querySelectorAll('.engine-matrix__tab-family').length).toBe(3);
+    // Only the selected family's engines are on screen.
+    expect(screen.queryByText('WhisperX (test)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Off (test)')).not.toBeInTheDocument();
   });
 
-  it('the stacked matrices share one GET /engines on mount', async () => {
+  it('switching to the ASR tab shows ASR engines without refetching /engines', async () => {
     render(<EnginesTab />);
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+
+    clickFamilyTab('ASR');
     await waitFor(() => screen.getByText('WhisperX (test)'));
+    expect(screen.getByText('OpenAI-compatible ASR (test)')).toBeInTheDocument();
+    expect(screen.queryByText('OmniVoice (test)')).not.toBeInTheDocument();
+    // Tab switches re-slice the already-fetched payload — no second request.
     expect(listEngines).toHaveBeenCalledTimes(1);
   });
 
-  it('the stacked matrices also share one GET /model/loaded on mount', async () => {
+  it('fetches GET /engines exactly once on mount', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('WhisperX (test)'));
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    expect(listEngines).toHaveBeenCalledTimes(1);
+  });
+
+  it('probes GET /model/loaded exactly once on mount', async () => {
+    render(<EnginesTab />);
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
     await waitFor(() => expect(listLoadedModels).toHaveBeenCalled());
     expect(listLoadedModels).toHaveBeenCalledTimes(1);
   });
@@ -94,6 +115,9 @@ describe('EnginesTab', () => {
       routing_reason: null,
     });
     render(<EnginesTab />);
+    await waitFor(() => screen.getByText('OmniVoice (test)'));
+
+    clickFamilyTab('ASR');
     await waitFor(() => screen.getByText('OpenAI-compatible ASR (test)'));
 
     fireEvent.click(screen.getByRole('button', { name: /use openai-compatible asr \(test\)/i }));

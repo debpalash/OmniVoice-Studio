@@ -39,7 +39,9 @@ export function makeModelColumns({
         const rt = getRowRuntime(m);
         return (
           <>
-            <span className="models-row__title">
+            {/* Both lines truncate with ellipsis (CSS) — the full text stays
+                reachable via the title attributes. */}
+            <span className="models-row__title" title={m.label}>
               <span
                 className="models-row__avatar"
                 style={{ background: orgColor(m.repo_id) }}
@@ -50,7 +52,10 @@ export function makeModelColumns({
               {m.label}
               {m.required && <span className="models-row__tag">{t('models.required_tag')}</span>}
             </span>
-            <span className="models-row__repo">
+            <span
+              className="models-row__repo"
+              title={m.note ? `${m.repo_id} · ${m.note}` : m.repo_id}
+            >
               <code>{m.repo_id}</code>
               {m.note && <span className="models-row__note"> · {m.note}</span>}
             </span>

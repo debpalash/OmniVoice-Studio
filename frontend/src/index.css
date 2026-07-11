@@ -4781,7 +4781,14 @@ body:has(.capture-pill) {
   right: 0;
   top: 0;
   width: 100%;
-  padding: var(--space-5) var(--space-3);
+  /* Strict two-line rows: tight vertical padding + an even min-height keep
+     every idle row exactly title-line + repo-line tall, so the status /
+     size / action columns align down the list and ~10 rows fit on screen.
+     Rows with a live download/error block still grow (the virtualizer
+     measures elements) — that block reads as an expansion under the two
+     lines, not as permanent row sprawl. */
+  padding: 5px var(--space-3);
+  min-height: 52px;
   border-bottom: 1px solid var(--chrome-border);
   font-family: var(--font-sans);
   font-size: var(--text-sm);

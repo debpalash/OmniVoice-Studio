@@ -43,19 +43,19 @@ function reasonMentionsLicense(reason) {
  * Engine Compatibility Matrix (Plan 02-04 / ENGINE-06).
  *
  * Renders a single source-of-truth table of every registered backend in
- * a family (tts / asr / llm). Each row shows:
- *   * Engine display name
- *   * Install state (available / unavailable, with the failure reason
- *     inline when the row is unavailable)
- *   * GPU compat chips (cuda / mps / rocm / cpu)
- *   * Isolation mode (in-process or subprocess) — the visible payoff
- *     of the Plan 02-01 SubprocessBackend + Plan 02-03 IndexTTS migration
- *   * Last error (cached most-recent failure — distinguishes "currently
- *     failing" from "failed before, now working")
- *   * Test engine button — fires a `/engines/{id}/health` round-trip on
- *     demand; SubprocessBackend rows spawn-and-ping their sidecar, in-
- *     process rows fall back to `is_available()`. Latency is rendered
- *     inline next to the button.
+ * a family (tts / asr / llm) as STRICT TWO-LINE rows:
+ *   * Line 1 — EngineMark + display name (truncated, full name in `title`,
+ *     never wraps) + active / in-memory badges.
+ *   * Line 2 — compact meta: engine id, capability chips (voice cloning),
+ *     hint / install hint truncated to one line (full text via `title`),
+ *     the curated-model picker (mlx-audio, #981), and — on unavailable
+ *     rows — the "Why unavailable?" toggle.
+ *   * Aligned columns — STATUS / GPU COMPAT / ISOLATION / ACTIONS share one
+ *     grid template with the header (ROW_GRID), so they line up on every
+ *     row; rows carry a fixed height (ROW_SHELL) so 8+ engines fit on one
+ *     screen. Unavailable-row details (reason / install hint / last error /
+ *     setup snippet) open BELOW the row as an expansion panel, keeping
+ *     sibling rows aligned.
  *
  * Cross-platform contract: this component does NOT auto-spawn any
  * sidecar on mount; the user must click Test engine. That keeps macOS /
@@ -72,11 +72,11 @@ function reasonMentionsLicense(reason) {
  *     arg is set only by mlx-audio's curated-model picker (#981).
  *   - activeId?: string  the currently-active backend id for this
  *     family. Used to render the "active" badge.
- *   - showFamilyTabs?: boolean  default true. When false, the matrix is
- *     pinned to `family` — no TTS/ASR/LLM switcher, and the header names
- *     the family ("ASR Engines") instead of the generic matrix title.
- *     Settings → Engines stacks one pinned matrix per family so the ASR
- *     and LLM pickers are visible instead of tucked behind a tab.
+ *   - showFamilyTabs?: boolean  default true. The TTS/ASR/LLM tab strip
+ *     (Radix Segmented — roving tabindex + arrow keys) presents one family
+ *     at a time over the single shared GET /engines payload. Settings →
+ *     Engines mounts exactly one matrix in this mode. Pass false to pin
+ *     the matrix to `family` (no switcher; the header names the family).
  */
 const FAMILY_META = {
   tts: { label: 'TTS', icon: Cpu },
@@ -128,6 +128,33 @@ const ROUTING_BADGE = {
 
 const TEST_COOLDOWN_MS = 5000;
 
+// ── Strict two-line row geometry ─────────────────────────────────────────
+// One shared grid template on the header row AND every engine row — identical
+// fixed tracks are what keep the STATUS / GPU COMPAT / ISOLATION / ACTIONS
+// columns aligned down the whole matrix regardless of row content.
+// Below 880px the three meta cells collapse onto the row's second line
+// (explicit grid placement, same DOM nodes — no duplication) so the page
+// never needs a horizontal scrollbar.
+const ROW_GRID =
+  'grid items-center gap-x-[10px] px-[10px] ' +
+  'grid-cols-[minmax(0,1fr)_108px_176px_92px_232px] ' +
+  'max-[880px]:grid-cols-[max-content_max-content_minmax(0,1fr)_max-content]';
+// Per-cell placement for the collapsed (narrow) layout.
+const CELL_NARROW = {
+  name: 'max-[880px]:col-[1/4] max-[880px]:row-start-1',
+  status: 'max-[880px]:col-start-1 max-[880px]:row-start-2 max-[880px]:justify-self-start',
+  gpu: 'max-[880px]:col-start-2 max-[880px]:row-start-2',
+  isolation: 'max-[880px]:col-start-3 max-[880px]:row-start-2 max-[880px]:justify-self-start',
+  actions: 'max-[880px]:col-start-4 max-[880px]:row-[1/3]',
+};
+// Fixed two-line row height (desktop). Narrow rows grow to fit the collapsed
+// meta line instead. `is-two-line` is a literal marker class asserted by the
+// layout regression tests.
+const ROW_SHELL =
+  'is-two-line h-16 overflow-hidden max-[880px]:h-auto max-[880px]:min-h-16 ' +
+  'max-[880px]:gap-y-[4px] max-[880px]:py-[6px]';
+const MUTED = 'text-[color:var(--chrome-fg-muted,#888)]';
+
 /** Subset of the unified engine entry the matrix actually reads. */
 function normalizeEntry(entry) {
   return {
@@ -173,8 +200,8 @@ export default function EngineCompatibilityMatrix({
   activeId = null,
   showFamilyTabs = true,
   // Injectable API layer — lets the RTL suite mock it without module-level
-  // vi.mock incantations, and lets EnginesTab share one in-flight
-  // GET /engines across its stacked per-family matrices.
+  // vi.mock incantations, and keeps the "one GET /engines per Settings open"
+  // contract overridable by hosts.
   apiListEngines = listEngines,
   apiGetEngineHealth = getEngineHealth,
   apiSelfTestEngine = selfTestEngine,
@@ -202,6 +229,10 @@ export default function EngineCompatibilityMatrix({
   const [selfTestByEngine, setSelfTestByEngine] = useState({});
   // Which engine's setup snippet was just copied (transient ✓ affordance).
   const [copiedId, setCopiedId] = useState(null);
+  // Which unavailable engine has its "Why unavailable?" expansion panel open
+  // (one at a time). The panel renders BELOW the row as its own block, so
+  // sibling rows keep their fixed two-line height and stay aligned.
+  const [expandedId, setExpandedId] = useState(null);
   // Memory residency: engine id → its /model/loaded entry (TTS entries and
   // sidecars carry engine_id). Advisory — load failures leave it empty and
   // the matrix renders exactly as before (no residency chips).
@@ -367,21 +398,13 @@ export default function EngineCompatibilityMatrix({
     [onSelect, activeFamily, reload],
   );
 
-  const COLUMNS = [
-    { key: 'name', label: t('engines.matrixTitle').split(' ')[0] || 'Engine', flex: 3 },
-    { key: 'status', label: t('engines.status'), width: 130, align: 'center' },
-    { key: 'gpu', label: 'GPU compat', width: 170, align: 'left' },
-    { key: 'isolation', label: 'Isolation', width: 110, align: 'center' },
-    { key: 'action', label: 'Actions', width: 220, align: 'right' },
-  ];
-
   if (loading && !data) {
     return (
       <section
         className="engine-matrix engine-matrix--loading flex flex-col gap-[8px] items-center p-[16px]"
         aria-busy="true"
       >
-        <span className="engine-matrix__muted text-[color:var(--chrome-fg-muted,#888)] text-[13px]">
+        <span className={cn('engine-matrix__muted text-[13px]', MUTED)}>
           {t('engines.loading')}
         </span>
       </section>
@@ -431,18 +454,6 @@ export default function EngineCompatibilityMatrix({
         </Button>
       </header>
 
-      {/* Pinned mode (Settings → Engines): one quiet line saying what this
-          family does — the page stacks three near-identical tables, and the
-          jargon (TTS/ASR/LLM) is the scariest part for first-run users. */}
-      {!showFamilyTabs && (
-        <p
-          className="engine-matrix__family-desc m-0 -mt-[4px] text-[12px] leading-[1.4] text-[color:var(--chrome-fg-muted,#888)]"
-          data-testid={`family-desc-${activeFamily}`}
-        >
-          {t(`engines.familyDesc_${activeFamily}`)}
-        </p>
-      )}
-
       {showFamilyTabs && families.length > 1 && (
         <Segmented
           size="sm"
@@ -468,13 +479,43 @@ export default function EngineCompatibilityMatrix({
         />
       )}
 
-      <Table
-        className="w-full overflow-x-auto [&_.ui-table-header]:min-w-[840px]"
-        role="table"
-        aria-label={t('engines.engineCompatLabel', { family: activeFamily })}
+      {/* One quiet line saying what this family does — the jargon (TTS/ASR/
+          LLM) is the scariest part for first-run users. Rendered in both
+          tabbed and pinned modes, always for the family on screen. */}
+      <p
+        className={cn('engine-matrix__family-desc m-0 -mt-[4px] text-[12px] leading-[1.4]', MUTED)}
+        data-testid={`family-desc-${activeFamily}`}
       >
-        <Table.Header columns={COLUMNS} />
-        <div className="flex min-w-[840px] flex-col pb-[12px]" role="rowgroup">
+        {t(`engines.familyDesc_${activeFamily}`)}
+      </p>
+
+      <Table role="table" aria-label={t('engines.engineCompatLabel', { family: activeFamily })}>
+        {/* Column header — shares ROW_GRID with every row so the tracks are
+            pixel-identical. Hidden at narrow widths where the meta columns
+            collapse into each row's second line. */}
+        <div
+          role="row"
+          className={cn(
+            ROW_GRID,
+            'max-[880px]:hidden py-[4px]',
+            '[border-bottom:1px_solid_var(--chrome-border,rgba(255,255,255,0.08))]',
+            'font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size,10px)] font-semibold uppercase tracking-[var(--chrome-label-track,0.06em)]',
+            MUTED,
+          )}
+        >
+          <span role="columnheader">{t('engines.colEngine')}</span>
+          <span role="columnheader" className="justify-self-center">
+            {t('engines.status')}
+          </span>
+          <span role="columnheader">{t('engines.colGpuCompat')}</span>
+          <span role="columnheader" className="justify-self-center">
+            {t('engines.colIsolation')}
+          </span>
+          <span role="columnheader" className="justify-self-end">
+            {t('engines.colActions')}
+          </span>
+        </div>
+        <div className="flex flex-col pb-[8px]" role="rowgroup">
           {backends.map((b) => {
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
@@ -485,25 +526,43 @@ export default function EngineCompatibilityMatrix({
             // ping via "Test engine"; a real synth there is a sidecar cold-start).
             const canSelfTest =
               activeFamily === 'tts' && b.available && b.isolation_mode !== 'subprocess';
+            // Unavailable-row detail material for the expansion panel.
+            const hasDetails =
+              !b.available && !!(b.reason || b.install_hint || b.last_error || b.setup_snippet);
+            const expanded = hasDetails && expandedId === b.id;
+            const panelId = `engine-detail-${b.id}`;
             return (
-              <div
-                key={b.id}
-                role="row"
-                data-engine-id={b.id}
-                className={`engine-matrix__row flex items-start gap-[8px] py-[8px] px-[10px] [border-top:1px_solid_var(--chrome-border,rgba(255,255,255,0.06))] min-h-[56px] ${b.available ? '' : 'opacity-[0.78]'}`}
-              >
-                {/* Engine identity mark + name + reason / install_hint */}
+              <React.Fragment key={b.id}>
                 <div
-                  role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--name flex shrink-0 items-start gap-[8px] min-w-0"
-                  style={{ flex: 3 }}
+                  role="row"
+                  data-engine-id={b.id}
+                  className={cn(
+                    'engine-matrix__row',
+                    ROW_GRID,
+                    ROW_SHELL,
+                    '[border-top:1px_solid_var(--chrome-border,rgba(255,255,255,0.06))]',
+                    !b.available && 'opacity-[0.78]',
+                  )}
                 >
-                  <EngineMark id={b.id} className="mt-[1px]" />
-                  <div className="flex min-w-0 flex-col items-start gap-[2px]">
-                    <span className="engine-matrix__name inline-flex flex-wrap items-center gap-[6px] font-semibold text-[13px] text-[color:var(--chrome-fg,currentColor)]">
-                      {b.display_name}
+                  {/* Line 1: mark + name (truncated, never wraps) + badges.
+                      Line 2: id + capability chips + one-line hint + details toggle. */}
+                  <div
+                    role="cell"
+                    className={cn(
+                      'engine-matrix__cell engine-matrix__cell--name flex min-w-0 flex-col justify-center gap-[2px]',
+                      CELL_NARROW.name,
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-[6px]">
+                      <EngineMark id={b.id} size={18} className="shrink-0" />
+                      <span
+                        className="engine-matrix__name min-w-0 truncate whitespace-nowrap font-semibold text-[13px] text-[color:var(--chrome-fg,currentColor)]"
+                        title={b.display_name}
+                      >
+                        {b.display_name}
+                      </span>
                       {isActive && (
-                        <Badge tone="brand" size="xs">
+                        <Badge tone="brand" size="xs" className="shrink-0">
                           {t('engines.active')}
                         </Badge>
                       )}
@@ -514,399 +573,451 @@ export default function EngineCompatibilityMatrix({
                         <Badge
                           tone="info"
                           size="xs"
+                          className="shrink-0"
                           title={t('engines.inMemoryTitle')}
                           data-testid={`resident-${b.id}`}
                         >
                           {t('engines.inMemory')}
                         </Badge>
                       )}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-[6px] overflow-hidden whitespace-nowrap">
+                      <code
+                        className={cn('engine-matrix__id shrink-0 font-mono text-[11px]', MUTED)}
+                      >
+                        {b.id}
+                      </code>
                       {/* Capability: voice cloning from reference audio. Only an
                         explicit supports_cloning=true earns it (TTS family). */}
                       {activeFamily === 'tts' && b.supports_cloning && (
                         <Badge
                           tone="neutral"
                           size="xs"
+                          className="shrink-0"
                           title={t('engines.cloneCapableTitle')}
                           data-testid={`clone-badge-${b.id}`}
                         >
                           <Mic size={10} /> {t('engines.cloneCapable')}
                         </Badge>
                       )}
-                    </span>
-                    <code className="engine-matrix__id font-mono text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                      {b.id}
-                    </code>
-                    {/* Available-but-has-advice: the engine works, but its
-                      is_available() carried a suggestion (e.g. VoxCPM2's
-                      ">=2.0.3" upgrade). Quiet by design — advice, not alarm. */}
-                    {b.available && b.hint && (
-                      <span
-                        className="engine-matrix__advice text-[11px] leading-[1.35] text-[color:var(--chrome-fg-muted,#888)]"
-                        data-testid={`engine-hint-${b.id}`}
-                      >
-                        {b.hint}
-                      </span>
-                    )}
-                    {/* #981 — mlx-audio multiplexes 7+ curated models behind this
-                      one backend id (Kokoro, CSM, OuteTTS, …); without this
-                      picker there's no way to load anything but the default
-                      (Kokoro) even after downloading a different model's
-                      weights in Settings → Models. Disabled while the row
-                      itself isn't available/selectable, matching the "Use"
-                      button's gating. */}
-                    {b.curated_models && b.curated_models.length > 0 && (
-                      <div className="engine-matrix__model-picker flex items-center gap-[6px] mt-[2px]">
-                        <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                          {t('engines.curatedModelLabel')}
+                      {/* #981 — mlx-audio multiplexes 7+ curated models behind this
+                        one backend id (Kokoro, CSM, OuteTTS, …); without this
+                        picker there's no way to load anything but the default
+                        (Kokoro) even after downloading a different model's
+                        weights in Settings → Models. Disabled while the row
+                        itself isn't available/selectable, matching the "Use"
+                        button's gating. */}
+                      {b.curated_models && b.curated_models.length > 0 && (
+                        <span className="engine-matrix__model-picker inline-flex shrink-0 items-center gap-[4px]">
+                          <span className={cn('text-[11px]', MUTED)}>
+                            {t('engines.curatedModelLabel')}
+                          </span>
+                          <Select
+                            size="sm"
+                            className="w-auto min-w-[130px]"
+                            value={b.active_model_id || ''}
+                            disabled={!onSelect || !b.available}
+                            onChange={(e) => changeModel(b.id, e.target.value)}
+                            aria-label={t('engines.curatedModelAria', { engine: b.display_name })}
+                            data-testid={`curated-model-select-${b.id}`}
+                          >
+                            {b.curated_models.map((m) => (
+                              <option key={m.key} value={m.key}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </Select>
                         </span>
-                        <Select
-                          size="sm"
-                          className="w-auto min-w-[150px]"
-                          value={b.active_model_id || ''}
-                          disabled={!onSelect || !b.available}
-                          onChange={(e) => changeModel(b.id, e.target.value)}
-                          aria-label={t('engines.curatedModelAria', { engine: b.display_name })}
-                          data-testid={`curated-model-select-${b.id}`}
+                      )}
+                      {/* Available-but-has-advice: the engine works, but its
+                        is_available() carried a suggestion (e.g. VoxCPM2's
+                        ">=2.0.3" upgrade). One truncated line; full text on
+                        hover/focus via title. Quiet by design. */}
+                      {b.available && b.hint && (
+                        <span
+                          className={cn(
+                            'engine-matrix__advice min-w-0 truncate text-[11px]',
+                            MUTED,
+                          )}
+                          title={b.hint}
+                          data-testid={`engine-hint-${b.id}`}
                         >
-                          {b.curated_models.map((m) => (
-                            <option key={m.key} value={m.key}>
-                              {m.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                    )}
-                    {/* For available rows, show install_hint inline (one line — usually
-                      a parenthetical like "(bundled — no extra install needed)").
-                      For unavailable rows, collapse reason + install_hint + last_error
-                      into a single disclosure so unavailable rows don't dwarf the matrix. */}
-                    {b.available && b.install_hint && (
-                      <span
-                        className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]"
-                        title={b.install_hint}
-                      >
-                        {b.install_hint}
-                      </span>
-                    )}
-                    {!b.available && (b.reason || b.install_hint || b.last_error) && (
-                      <details className="group text-[11px] mt-[2px]">
-                        <summary className="flex cursor-pointer list-none select-none items-center gap-[4px] py-px text-[color:var(--chrome-fg-muted,#888)] hover:text-[color:var(--chrome-fg,currentColor)] [&::-webkit-details-marker]:hidden">
+                          {b.hint}
+                        </span>
+                      )}
+                      {b.available && b.install_hint && (
+                        <span
+                          className={cn('engine-matrix__hint min-w-0 truncate text-[11px]', MUTED)}
+                          title={b.install_hint}
+                        >
+                          {b.install_hint}
+                        </span>
+                      )}
+                      {/* Unavailable rows: reason + install hint + last error +
+                        setup snippet live in an expansion panel BELOW the row,
+                        so this row stays exactly two lines tall. */}
+                      {hasDetails && (
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex shrink-0 cursor-pointer items-center gap-[3px] border-0 bg-transparent p-0 text-[11px]',
+                            MUTED,
+                            'hover:text-[color:var(--chrome-fg,currentColor)]',
+                          )}
+                          aria-expanded={expanded}
+                          aria-controls={panelId}
+                          data-testid={`why-toggle-${b.id}`}
+                          onClick={() => setExpandedId(expanded ? null : b.id)}
+                        >
                           <ChevronRight
                             size={10}
-                            className="transition-transform duration-[120ms] group-open:rotate-90"
+                            className={cn(
+                              'transition-transform duration-[120ms]',
+                              expanded && 'rotate-90',
+                            )}
                           />
                           {t('engines.whyUnavailable')}
-                        </summary>
-                        <div className="engine-matrix__why-body flex flex-col gap-[3px] mt-[4px] pl-[12px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]">
-                          {b.reason && (
-                            <span className="engine-matrix__reason text-[12px] text-[color:var(--chrome-severity-warn,#d79921)] block max-w-full overflow-hidden text-ellipsis">
-                              {b.reason}
-                            </span>
-                          )}
-                          {b.install_hint && b.install_hint !== b.reason && (
-                            <span className="engine-matrix__hint text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                              {b.install_hint}
-                            </span>
-                          )}
-                          {b.last_error && b.last_error !== b.reason && (
-                            <span
-                              className="engine-matrix__last-error text-[11px] text-[color:var(--chrome-severity-err,#cc241d)] block"
-                              data-testid="last-error"
-                            >
-                              {t('engines.lastError', { error: b.last_error })}
-                            </span>
-                          )}
-                          {/* Copy-paste-ready setup line for a path-gated opt-in
-                            engine (IndexTTS/MOSS-v1.5/dots/Confucius4) — the
-                            exact `export VAR=…` so users don't hunt the docs. */}
-                          {b.setup_snippet && (
-                            <div
-                              className="engine-matrix__setup flex flex-col gap-[3px] mt-[2px]"
-                              data-testid={`setup-snippet-${b.id}`}
-                            >
-                              <span className="text-[11px] text-[color:var(--chrome-fg-muted,#888)]">
-                                {t('engines.setupSnippetLabel')}
-                              </span>
-                              <div className="flex items-center gap-[6px] flex-wrap">
-                                <code className="engine-matrix__setup-code font-mono text-[11px] px-[6px] py-[2px] rounded [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)] break-all">
-                                  {b.setup_snippet}
-                                </code>
-                                <Button
-                                  size="sm"
-                                  variant="subtle"
-                                  onClick={() => copySetup(b.id, b.setup_snippet)}
-                                  leading={
-                                    copiedId === b.id ? <Check size={11} /> : <Copy size={11} />
-                                  }
-                                  aria-label={t('engines.copySetup', { engine: b.display_name })}
-                                >
-                                  {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </details>
-                    )}
+                        </button>
+                      )}
+                    </span>
                   </div>
-                </div>
 
-                {/* Install state */}
-                <div
-                  role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--center flex items-center shrink-0 justify-center"
-                  style={{ width: 130 }}
-                  title={
-                    b.available
-                      ? t('engines.installedAndReady')
-                      : b.reason || t('engines.notInstalled')
-                  }
-                >
-                  {b.available ? (
-                    <Badge tone="success" size="xs">
-                      <CheckCircle2 size={10} /> {t('engines.available')}
-                    </Badge>
-                  ) : (
-                    <Badge tone="warn" size="xs">
-                      <AlertTriangle size={10} /> {t('engines.unavailable')}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* GPU compat chips + routing badge (the device this engine
-                    will actually use on THIS machine). LLM (routing 'n/a')
-                    shows a single "Remote" badge instead of device chips. */}
-                <div
-                  role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--gpu flex flex-col items-start justify-center shrink-0 gap-[3px]"
-                  style={{ width: 170 }}
-                >
-                  <div className="engine-matrix__chips inline-flex flex-wrap gap-[4px]">
-                    {b.routing_status === 'n/a' ? (
-                      <Badge tone="neutral" size="xs">
-                        {t('engines.routingRemote')}
+                  {/* Install state */}
+                  <div
+                    role="cell"
+                    className={cn(
+                      'engine-matrix__cell engine-matrix__cell--status justify-self-center',
+                      CELL_NARROW.status,
+                    )}
+                    title={
+                      b.available
+                        ? t('engines.installedAndReady')
+                        : b.reason || t('engines.notInstalled')
+                    }
+                  >
+                    {b.available ? (
+                      <Badge tone="success" size="xs">
+                        <CheckCircle2 size={10} /> {t('engines.available')}
                       </Badge>
                     ) : (
-                      <>
-                        {b.gpu_compat.map((g) => {
-                          const isEffective =
-                            b.routing_status &&
-                            b.routing_status !== 'unavailable' &&
-                            g === b.effective_device;
-                          return (
-                            <span
-                              key={g}
-                              className={chipCls(g, isEffective)}
-                              title={
-                                isEffective
-                                  ? t('engines.routingEffectiveChip', { device: GPU_LABEL[g] || g })
-                                  : undefined
-                              }
-                            >
-                              {GPU_LABEL[g] || g.toUpperCase()}
-                            </span>
-                          );
-                        })}
-                        {/* Routing badge: known status → toned badge; unknown
-                            status → neutral fallback; suppressed when the row is
-                            unavailable (availability badge covers it) or legacy
-                            (no routing_status → no badge). */}
-                        {b.routing_status &&
-                          b.available &&
-                          b.routing_status !== 'unavailable' &&
-                          (ROUTING_BADGE[b.routing_status] ? (
-                            <Badge
-                              tone={ROUTING_BADGE[b.routing_status].tone}
-                              size="xs"
-                              title={b.routing_reason || undefined}
-                            >
-                              {t(ROUTING_BADGE[b.routing_status].k)}
-                            </Badge>
-                          ) : (
-                            <Badge tone="neutral" size="xs">
-                              {t('engines.routingUnknown')}
-                            </Badge>
-                          ))}
-                      </>
+                      <Badge tone="warn" size="xs">
+                        <AlertTriangle size={10} /> {t('engines.unavailable')}
+                      </Badge>
                     )}
                   </div>
-                  {/* Make the routing reason reachable without a hover: the
-                      badge `title` is invisible to keyboard + touch users, so
-                      surface the same string as small visible text. Shown for
-                      available, non-remote, non-unavailable rows that carry a
-                      reason (cpu_fallback always; accelerated w/ a caveat). */}
-                  {b.routing_reason &&
-                    b.available &&
-                    b.routing_status !== 'n/a' &&
-                    b.routing_status !== 'unavailable' && (
-                      <span
-                        className="engine-matrix__routing-reason text-[10px] leading-[1.25] text-[color:var(--chrome-fg-muted,#888)]"
-                        data-testid={`routing-reason-${b.id}`}
+
+                  {/* GPU compat chips + routing badge (the device this engine
+                      will actually use on THIS machine). LLM (routing 'n/a')
+                      shows a single "Remote" badge instead of device chips. */}
+                  <div
+                    role="cell"
+                    className={cn(
+                      'engine-matrix__cell engine-matrix__cell--gpu flex min-w-0 flex-col justify-center gap-[2px] overflow-hidden',
+                      CELL_NARROW.gpu,
+                    )}
+                  >
+                    <div className="engine-matrix__chips flex flex-wrap items-center gap-[3px]">
+                      {b.routing_status === 'n/a' ? (
+                        <Badge tone="neutral" size="xs">
+                          {t('engines.routingRemote')}
+                        </Badge>
+                      ) : (
+                        <>
+                          {b.gpu_compat.map((g) => {
+                            const isEffective =
+                              b.routing_status &&
+                              b.routing_status !== 'unavailable' &&
+                              g === b.effective_device;
+                            return (
+                              <span
+                                key={g}
+                                className={chipCls(g, isEffective)}
+                                title={
+                                  isEffective
+                                    ? t('engines.routingEffectiveChip', {
+                                        device: GPU_LABEL[g] || g,
+                                      })
+                                    : undefined
+                                }
+                              >
+                                {GPU_LABEL[g] || g.toUpperCase()}
+                              </span>
+                            );
+                          })}
+                          {/* Routing badge: known status → toned badge; unknown
+                              status → neutral fallback; suppressed when the row is
+                              unavailable (availability badge covers it) or legacy
+                              (no routing_status → no badge). */}
+                          {b.routing_status &&
+                            b.available &&
+                            b.routing_status !== 'unavailable' &&
+                            (ROUTING_BADGE[b.routing_status] ? (
+                              <Badge
+                                tone={ROUTING_BADGE[b.routing_status].tone}
+                                size="xs"
+                                title={b.routing_reason || undefined}
+                              >
+                                {t(ROUTING_BADGE[b.routing_status].k)}
+                              </Badge>
+                            ) : (
+                              <Badge tone="neutral" size="xs">
+                                {t('engines.routingUnknown')}
+                              </Badge>
+                            ))}
+                        </>
+                      )}
+                    </div>
+                    {/* Make the routing reason reachable without a hover: the
+                        badge `title` is invisible to keyboard + touch users, so
+                        surface the same string as small visible text (one
+                        truncated line; full text via title). Shown for
+                        available, non-remote, non-unavailable rows that carry a
+                        reason (cpu_fallback always; accelerated w/ a caveat). */}
+                    {b.routing_reason &&
+                      b.available &&
+                      b.routing_status !== 'n/a' &&
+                      b.routing_status !== 'unavailable' && (
+                        <span
+                          className={cn(
+                            'engine-matrix__routing-reason min-w-0 truncate text-[10px] leading-[1.25]',
+                            MUTED,
+                          )}
+                          title={b.routing_reason}
+                          data-testid={`routing-reason-${b.id}`}
+                        >
+                          {b.routing_reason}
+                        </span>
+                      )}
+                  </div>
+
+                  {/* Isolation mode */}
+                  <div
+                    role="cell"
+                    className={cn(
+                      'engine-matrix__cell engine-matrix__cell--isolation justify-self-center',
+                      CELL_NARROW.isolation,
+                    )}
+                    title={
+                      b.isolation_mode === 'subprocess'
+                        ? t('engines.subprocessTitle')
+                        : t('engines.inProcessTitle')
+                    }
+                  >
+                    <Badge tone={ISOLATION_TONE[b.isolation_mode] || 'neutral'} size="xs">
+                      {b.isolation_mode}
+                    </Badge>
+                  </div>
+
+                  {/* Actions: Test engine + optional Use — right-aligned and
+                      vertically centered across the row's two lines.
+                      "Test engine" is hidden on unavailable rows by default —
+                      a health check on a known-unavailable engine just confirms
+                      what the matrix already says; those rows get "Re-check". */}
+                  <div
+                    role="cell"
+                    className={cn(
+                      'engine-matrix__cell engine-matrix__cell--actions flex h-full max-h-full flex-wrap content-center items-center justify-end justify-self-end gap-[4px] overflow-hidden py-[4px]',
+                      CELL_NARROW.actions,
+                    )}
+                  >
+                    {b.available && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => testHealth(b.id)}
+                        disabled={!!health?.inflight}
+                        loading={!!health?.inflight}
+                        leading={!health?.inflight && <Activity size={11} />}
+                        aria-label={`Test ${b.display_name}`}
                       >
-                        {b.routing_reason}
+                        {health?.inflight ? t('engines.testing') : t('engines.testEngine')}
+                      </Button>
+                    )}
+                    {!b.available && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => testHealth(b.id)}
+                        disabled={!!health?.inflight}
+                        loading={!!health?.inflight}
+                        leading={!health?.inflight && <RefreshCw size={11} />}
+                        aria-label={`Re-check ${b.display_name}`}
+                      >
+                        {health?.inflight ? t('engines.rechecking') : t('engines.recheck')}
+                      </Button>
+                    )}
+                    {health && !health.inflight && (
+                      <span
+                        className={`engine-matrix__result max-w-[90px] truncate text-[11px] font-mono ${health.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
+                        data-testid={`health-result-${b.id}`}
+                        title={health.message}
+                      >
+                        {health.ok
+                          ? // A subprocess row spawns + pings its sidecar → the
+                            // latency is a real round-trip. An in-process row only
+                            // imports + `is_available()`-checks (a ~0 ms liveness
+                            // probe, not a synthesis test), so label it as such
+                            // rather than a misleading "0 ms" latency.
+                            b.isolation_mode === 'subprocess'
+                            ? t('engines.latencyMs', { ms: health.latency_ms })
+                            : t('engines.depsOk')
+                          : t('engines.failed')}
                       </span>
                     )}
+                    {/* Self-test: a real tiny synthesis proving the in-process TTS
+                        engine emits audio (not just imports). Guarded — TTS only,
+                        available + in-process only, user click only, cooldown +
+                        backend timeout bound it. */}
+                    {canSelfTest && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => runSelfTest(b.id)}
+                        disabled={!!selfTest?.inflight}
+                        loading={!!selfTest?.inflight}
+                        leading={!selfTest?.inflight && <Volume2 size={11} />}
+                        aria-label={`Self-test ${b.display_name}`}
+                      >
+                        {selfTest?.inflight ? t('engines.selfTesting') : t('engines.selfTest')}
+                      </Button>
+                    )}
+                    {canSelfTest && selfTest && !selfTest.inflight && (
+                      <span
+                        className={`engine-matrix__selftest-result max-w-[150px] truncate text-[11px] font-mono ${selfTest.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
+                        data-testid={`selftest-result-${b.id}`}
+                        title={selfTest.message}
+                      >
+                        {selfTest.ok
+                          ? t('engines.selfTestOk', {
+                              seconds: Number(selfTest.audio_seconds ?? 0).toFixed(2),
+                              khz: selfTest.sample_rate
+                                ? Math.round(selfTest.sample_rate / 1000)
+                                : '?',
+                              took: fmtDuration(selfTest.duration_ms),
+                            })
+                          : selfTest.timed_out
+                            ? t('engines.selfTestTimedOut')
+                            : t('engines.selfTestFailed')}
+                      </span>
+                    )}
+                    {/* Free the memory this engine is holding right now. Only
+                        offered when /model/loaded reports the entry unloadable —
+                        the model reloads lazily on the next generation. */}
+                    {resident?.unloadable && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => unloadEngine(b.id)}
+                        disabled={unloadingId === b.id}
+                        loading={unloadingId === b.id}
+                        title={t('engines.inMemoryTitle')}
+                        aria-label={`Unload ${b.display_name}`}
+                      >
+                        {unloadingId === b.id ? t('engines.unloading') : t('engines.unload')}
+                      </Button>
+                    )}
+                    {onSelect && b.available && !isActive && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={async () => {
+                          // Await the pick, then re-fetch so the active badge,
+                          // Use buttons, and family-tab captions reflect the new
+                          // engine immediately — no manual Refresh needed (#…).
+                          await onSelect(activeFamily, b.id);
+                          reload();
+                        }}
+                        aria-label={`Use ${b.display_name}`}
+                      >
+                        {t('engines.use')}
+                      </Button>
+                    )}
+                    {/* TTS-05: license-acceptance entry point. Surfaced when
+                        the backend says the user hasn't accepted the
+                        engine's license yet AND we have a dialog
+                        registered for that engine id. */}
+                    {!b.available && reasonMentionsLicense(b.reason) && LICENSE_DIALOGS[b.id] && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => setLicenseDialogFor(b.id)}
+                        aria-label={`Review and accept ${b.display_name} license`}
+                      >
+                        {t('engines.acceptLicense')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Isolation mode */}
-                <div
-                  role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--center flex items-center shrink-0 justify-center"
-                  style={{ width: 110 }}
-                  title={
-                    b.isolation_mode === 'subprocess'
-                      ? t('engines.subprocessTitle')
-                      : t('engines.inProcessTitle')
-                  }
-                >
-                  <Badge tone={ISOLATION_TONE[b.isolation_mode] || 'neutral'} size="xs">
-                    {b.isolation_mode}
-                  </Badge>
-                </div>
-
-                {/* Actions: Test engine + optional Use.
-                    "Test engine" is hidden on unavailable rows by default —
-                    a health check on a known-unavailable engine just confirms
-                    what the matrix already says. Users re-checking after a
-                    manual install can hit "Re-check" inside the disclosure. */}
-                <div
-                  role="cell"
-                  className="engine-matrix__cell engine-matrix__cell--actions flex items-center shrink-0 justify-end gap-[6px] flex-wrap"
-                  style={{ width: 220 }}
-                >
-                  {b.available && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => testHealth(b.id)}
-                      disabled={!!health?.inflight}
-                      loading={!!health?.inflight}
-                      leading={!health?.inflight && <Activity size={11} />}
-                      aria-label={`Test ${b.display_name}`}
+                {/* Expansion panel — reason / install hint / last error / setup
+                    snippet for an unavailable row. Rendered as its own block
+                    BELOW the row (never inside it), so every sibling row keeps
+                    the fixed two-line height and the columns stay aligned. */}
+                {expanded && (
+                  <div
+                    role="row"
+                    id={panelId}
+                    data-testid={panelId}
+                    className="engine-matrix__detail px-[10px] pb-[8px]"
+                  >
+                    <div
+                      role="cell"
+                      className="engine-matrix__why-body ml-[24px] flex flex-col gap-[3px] pl-[12px] text-[11px] [border-left:2px_solid_var(--chrome-border,rgba(255,255,255,0.08))]"
                     >
-                      {health?.inflight ? t('engines.testing') : t('engines.testEngine')}
-                    </Button>
-                  )}
-                  {!b.available && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => testHealth(b.id)}
-                      disabled={!!health?.inflight}
-                      loading={!!health?.inflight}
-                      leading={!health?.inflight && <RefreshCw size={11} />}
-                      aria-label={`Re-check ${b.display_name}`}
-                    >
-                      {health?.inflight ? t('engines.rechecking') : t('engines.recheck')}
-                    </Button>
-                  )}
-                  {health && !health.inflight && (
-                    <span
-                      className={`engine-matrix__result text-[11px] font-mono ${health.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
-                      data-testid={`health-result-${b.id}`}
-                      title={health.message}
-                    >
-                      {health.ok
-                        ? // A subprocess row spawns + pings its sidecar → the
-                          // latency is a real round-trip. An in-process row only
-                          // imports + `is_available()`-checks (a ~0 ms liveness
-                          // probe, not a synthesis test), so label it as such
-                          // rather than a misleading "0 ms" latency.
-                          b.isolation_mode === 'subprocess'
-                          ? t('engines.latencyMs', { ms: health.latency_ms })
-                          : t('engines.depsOk')
-                        : t('engines.failed')}
-                    </span>
-                  )}
-                  {/* Self-test: a real tiny synthesis proving the in-process TTS
-                      engine emits audio (not just imports). Guarded — TTS only,
-                      available + in-process only, user click only, cooldown +
-                      backend timeout bound it. */}
-                  {canSelfTest && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => runSelfTest(b.id)}
-                      disabled={!!selfTest?.inflight}
-                      loading={!!selfTest?.inflight}
-                      leading={!selfTest?.inflight && <Volume2 size={11} />}
-                      aria-label={`Self-test ${b.display_name}`}
-                    >
-                      {selfTest?.inflight ? t('engines.selfTesting') : t('engines.selfTest')}
-                    </Button>
-                  )}
-                  {canSelfTest && selfTest && !selfTest.inflight && (
-                    <span
-                      className={`engine-matrix__selftest-result text-[11px] font-mono ${selfTest.ok ? 'text-[color:var(--chrome-severity-ok,#98971a)]' : 'text-[color:var(--chrome-severity-err,#cc241d)]'}`}
-                      data-testid={`selftest-result-${b.id}`}
-                      title={selfTest.message}
-                    >
-                      {selfTest.ok
-                        ? t('engines.selfTestOk', {
-                            seconds: Number(selfTest.audio_seconds ?? 0).toFixed(2),
-                            khz: selfTest.sample_rate
-                              ? Math.round(selfTest.sample_rate / 1000)
-                              : '?',
-                            took: fmtDuration(selfTest.duration_ms),
-                          })
-                        : selfTest.timed_out
-                          ? t('engines.selfTestTimedOut')
-                          : t('engines.selfTestFailed')}
-                    </span>
-                  )}
-                  {/* Free the memory this engine is holding right now. Only
-                      offered when /model/loaded reports the entry unloadable —
-                      the model reloads lazily on the next generation. */}
-                  {resident?.unloadable && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => unloadEngine(b.id)}
-                      disabled={unloadingId === b.id}
-                      loading={unloadingId === b.id}
-                      title={t('engines.inMemoryTitle')}
-                      aria-label={`Unload ${b.display_name}`}
-                    >
-                      {unloadingId === b.id ? t('engines.unloading') : t('engines.unload')}
-                    </Button>
-                  )}
-                  {onSelect && b.available && !isActive && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={async () => {
-                        // Await the pick, then re-fetch so the active badge,
-                        // Use buttons, and family-tab captions reflect the new
-                        // engine immediately — no manual Refresh needed (#…).
-                        await onSelect(activeFamily, b.id);
-                        reload();
-                      }}
-                      aria-label={`Use ${b.display_name}`}
-                    >
-                      {t('engines.use')}
-                    </Button>
-                  )}
-                  {/* TTS-05: license-acceptance entry point. Surfaced when
-                      the backend says the user hasn't accepted the
-                      engine's license yet AND we have a dialog
-                      registered for that engine id. */}
-                  {!b.available && reasonMentionsLicense(b.reason) && LICENSE_DIALOGS[b.id] && (
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => setLicenseDialogFor(b.id)}
-                      aria-label={`Review and accept ${b.display_name} license`}
-                    >
-                      {t('engines.acceptLicense')}
-                    </Button>
-                  )}
-                </div>
-              </div>
+                      {b.reason && (
+                        <span className="engine-matrix__reason block text-[12px] text-[color:var(--chrome-severity-warn,#d79921)]">
+                          {b.reason}
+                        </span>
+                      )}
+                      {b.install_hint && b.install_hint !== b.reason && (
+                        <span className={cn('engine-matrix__hint text-[11px]', MUTED)}>
+                          {b.install_hint}
+                        </span>
+                      )}
+                      {b.last_error && b.last_error !== b.reason && (
+                        <span
+                          className="engine-matrix__last-error block text-[11px] text-[color:var(--chrome-severity-err,#cc241d)]"
+                          data-testid="last-error"
+                        >
+                          {t('engines.lastError', { error: b.last_error })}
+                        </span>
+                      )}
+                      {/* Copy-paste-ready setup line for a path-gated opt-in
+                          engine (IndexTTS/MOSS-v1.5/dots/Confucius4) — the
+                          exact `export VAR=…` so users don't hunt the docs. */}
+                      {b.setup_snippet && (
+                        <div
+                          className="engine-matrix__setup mt-[2px] flex flex-col gap-[3px]"
+                          data-testid={`setup-snippet-${b.id}`}
+                        >
+                          <span className={cn('text-[11px]', MUTED)}>
+                            {t('engines.setupSnippetLabel')}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-[6px]">
+                            <code className="engine-matrix__setup-code break-all rounded px-[6px] py-[2px] font-mono text-[11px] [background:var(--chrome-bg-inset,rgba(255,255,255,0.05))] text-[color:var(--chrome-fg,currentColor)]">
+                              {b.setup_snippet}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="subtle"
+                              onClick={() => copySetup(b.id, b.setup_snippet)}
+                              leading={copiedId === b.id ? <Check size={11} /> : <Copy size={11} />}
+                              aria-label={t('engines.copySetup', { engine: b.display_name })}
+                            >
+                              {copiedId === b.id ? t('engines.copied') : t('engines.copy')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
           {backends.length === 0 && (
             <div
-              className="engine-matrix__empty p-[24px] text-center text-[color:var(--chrome-fg-muted,#888)] text-[13px]"
+              className={cn('engine-matrix__empty p-[24px] text-center text-[13px]', MUTED)}
               role="row"
             >
               <span role="cell">{t('engines.noBackends')}</span>

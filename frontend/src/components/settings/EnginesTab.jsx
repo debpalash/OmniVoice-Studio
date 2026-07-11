@@ -1,20 +1,26 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { addBreadcrumb } from '../../utils/breadcrumbs';
-import { listEngines, selectEngine } from '../../api/engines';
-import { listLoadedModels } from '../../api/system';
+import { selectEngine } from '../../api/engines';
 import { notifyEngineSelected } from '../../utils/engineSelectToast';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
 import { SETTINGS_SECTION_SURFACE } from './primitives';
 
-/** One pinned matrix per family, stacked in this order. ASR used to be
- *  reachable only through the matrix's family tabs, which read as a
- *  TTS-only table — README even promised a Settings ASR picker that
- *  didn't exist (UX gap found during #877). Every family now gets a
- *  visible picker; `OMNIVOICE_*_BACKEND` env vars still win over any pick. */
-const FAMILIES = ['tts', 'asr', 'llm'];
-
+/** Settings → Engines: ONE section, one matrix, a TTS / ASR / LLM tab strip.
+ *
+ *  The page used to stack three pinned per-family matrices; with every row
+ *  free to grow (wrapping names, stacked badges, inline failure prose) a
+ *  single engine could fill a viewport and the ASR/LLM pickers lived below
+ *  the fold. The matrix's family tab strip (Radix Segmented — roving
+ *  tabindex + arrow keys, active engine named in each tab caption) now
+ *  presents one family at a time instead, over compact fixed-height rows.
+ *
+ *  Data contract is unchanged: the single mounted matrix issues exactly one
+ *  GET /engines + one GET /model/loaded per Settings open (switching tabs
+ *  re-slices the same payload — no refetch), `openSettingsTab('engines')`
+ *  still lands here, and `OMNIVOICE_*_BACKEND` env vars still win over any
+ *  pick made in the UI. */
 export default function EnginesTab() {
   const { t } = useTranslation();
 
@@ -41,45 +47,9 @@ export default function EnginesTab() {
     [t],
   );
 
-  // The stacked matrices all consume the same GET /engines payload — share
-  // one in-flight request so opening the tab probes every engine once, not
-  // once per family. A per-matrix Refresh after the shared promise settles
-  // still triggers a fresh fetch.
-  const inflightList = useRef(null);
-  const listEnginesShared = useCallback(() => {
-    if (!inflightList.current) {
-      inflightList.current = listEngines().finally(() => {
-        inflightList.current = null;
-      });
-    }
-    return inflightList.current;
-  }, []);
-
-  // Same sharing for the residency layer (/model/loaded) — one probe per
-  // tab open, not one per stacked matrix.
-  const inflightLoaded = useRef(null);
-  const listLoadedShared = useCallback(() => {
-    if (!inflightLoaded.current) {
-      inflightLoaded.current = listLoadedModels().finally(() => {
-        inflightLoaded.current = null;
-      });
-    }
-    return inflightLoaded.current;
-  }, []);
-
   return (
-    <>
-      {FAMILIES.map((family) => (
-        <section key={family} className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
-          <EngineCompatibilityMatrix
-            family={family}
-            showFamilyTabs={false}
-            onSelect={onSelect}
-            apiListEngines={listEnginesShared}
-            apiListLoadedModels={listLoadedShared}
-          />
-        </section>
-      ))}
-    </>
+    <section className={SETTINGS_SECTION_SURFACE} data-slot="settings-section">
+      <EngineCompatibilityMatrix family="tts" onSelect={onSelect} />
+    </section>
   );
 }

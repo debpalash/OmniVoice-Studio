@@ -401,7 +401,9 @@ export default function ModelStoreTab({ info, modelBadge }) {
   const rowVirtualizer = useVirtualizer({
     count: tableRows.length,
     getScrollElement: () => tableBodyRef.current,
-    estimateSize: () => 68,
+    // Matches the compact two-line .models-row min-height (52px) — rows with
+    // a live progress/error block re-measure and grow past this.
+    estimateSize: () => 54,
     overscan: 8,
   });
 
