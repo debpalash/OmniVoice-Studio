@@ -625,6 +625,94 @@ def _persist_profile_ref_text(profile_id: str, ref_text: str) -> None:
         )
 
 
+async def _finalize_generation(
+    audio_tensor, sample_rate, *, text, history_mode, ref_audio_path,
+    language, instruct, resolved_profile_id, used_seed, start_time,
+):
+    """Shared tail of a successful generation: watermark → save WAV →
+    history row (self-healing) → retention prune → event emit.
+
+    Used verbatim by both the classic whole-file response path and the
+    streaming-preview path (``stream=true``), so the on-disk artifact —
+    watermark, filename, history row, retention behavior — is identical
+    regardless of how the audio was delivered to the client.
+
+    Returns ``(watermarked_tensor, meta)`` where ``meta`` carries
+    ``id`` / ``filename`` / ``duration`` / ``gen_time``.
+    """
+    loop = asyncio.get_running_loop()
+    # Invisible AudioSeal provenance watermark on the final audio. Embedding
+    # was previously only wired into the dub pipeline (dub_generate.py), so
+    # plain TTS came out unmarked despite the setting being on. embed_watermark
+    # self-gates on the user's watermark setting + AudioSeal availability and
+    # passes the audio through unchanged on any failure, so it never breaks
+    # generation.
+    from services.watermark import embed_watermark
+    audio_tensor = await loop.run_in_executor(
+        _gpu_pool, embed_watermark, audio_tensor, sample_rate
+    )
+    gen_time = round(time.time() - start_time, 2)
+
+    audio_id = str(uuid.uuid4())[:8]
+    audio_filename = f"{audio_id}.wav"
+    audio_path = os.path.join(OUTPUTS_DIR, audio_filename)
+    _safe_torchaudio_save(audio_path, audio_tensor, sample_rate)
+
+    audio_dur = round(audio_tensor.shape[-1] / sample_rate, 2)
+
+    # #710: the clip is already generated and saved above. A history-write
+    # failure — e.g. "no such table: generation_history" on a DB that missed
+    # schema init — must NOT 500 the user's generation. Self-heal the schema
+    # once and retry; if it still fails, log and return the audio anyway.
+    def _write_history():
+        with db_conn() as conn:
+            conn.execute(
+                "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
+                 language or "Auto", instruct or "", resolved_profile_id,
+                 audio_filename, audio_dur, gen_time, used_seed, time.time())
+            )
+    try:
+        _write_history()
+    except sqlite3.OperationalError as e:
+        logger.warning("generation history write failed (%s); healing schema + retrying", e)
+        try:
+            ensure_schema()
+            _write_history()
+        except Exception as e2:
+            logger.warning("history write still failed after schema heal; returning audio anyway: %s", e2)
+    except Exception as e:
+        logger.warning("generation history write failed; returning audio anyway: %s", e)
+    # Retention cap: without it, takes (rows + WAVs in OUTPUTS_DIR) grow
+    # unbounded forever. Best-effort — a prune failure must never affect
+    # the generation that just succeeded.
+    try:
+        _prune_history_over_cap()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("history retention prune failed (non-fatal): %s", e)
+    event_bus.emit("generation_history", {"action": "created", "id": audio_id})
+
+    return audio_tensor, {
+        "id": audio_id,
+        "filename": audio_filename,
+        "duration": audio_dur,
+        "gen_time": gen_time,
+    }
+
+
+def _pcm16_b64(wav_tensor) -> str:
+    """Mono 16-bit little-endian PCM, base64-encoded — the streaming-preview
+    wire format (same conversion as /ws/tts). N-D tensors take channel 0."""
+    import base64
+
+    import torch
+
+    pcm = (wav_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
+    while pcm.ndim > 1:
+        pcm = pcm[0]
+    return base64.b64encode(pcm.cpu().numpy().tobytes()).decode("ascii")
+
+
 @router.post("/generate")
 async def generate_speech(
     text: str = Form(...),
@@ -655,6 +743,14 @@ async def generate_speech(
     # OMNIVOICE_PRONUNCIATION pref can disable it for power users. Omitting it
     # with an empty dictionary is byte-identical to legacy behavior.
     pronounce: bool = Form(True),
+    # Streaming preview: when true, the response is application/x-ndjson —
+    # one JSON event per line ("start" → N × "chunk" (base64 PCM16 preview of
+    # each text chunk, playable the moment it arrives) → "done" with the saved
+    # take's metadata, or "error"). The final WAV on disk (watermark, history
+    # row, retention) is produced by the exact same finalize path as the
+    # classic flow, so streaming is purely a delivery channel — engine-agnostic
+    # (text-level chunking, no per-engine token streaming).
+    stream: bool = Form(False),
 ):
     # #502: NFC-normalize the input text so decomposed (NFD) diacritics — common
     # in pasted Vietnamese and other Latin-with-marks text — are composed to the
@@ -918,8 +1014,207 @@ async def generate_speech(
         text = apply_inline_overrides(text)
 
     start_time = time.time()
+
+    # ── Streaming preview (feat: streaming-tts-preview) ─────────────────────
+    # Long scripts used to mean staring at a spinner until the ENTIRE render
+    # finished. With stream=true the existing text chunks (the Wave 1.2
+    # sentence-boundary splitter — unchanged) are synthesized sequentially and
+    # each chunk's audio is yielded the moment it's rendered, so playback can
+    # begin after the first chunk. The final file is then assembled through
+    # the SAME concat → effect-chain → watermark → save → history pipeline as
+    # the classic path, so the on-disk take is identical to a non-streamed
+    # one. [pause]-marker inputs and single-chunk (short) texts keep their
+    # unchanged single-shot pipeline and stream as one chunk. All prep above
+    # (engine warm under the #1039 model-load budget, routing gate, profile /
+    # seed / normalization) already ran, so per-chunk jobs spend the generate
+    # budget on generation only — and each chunk gets its own budget, so a
+    # long script can't time out merely for being long.
+    if stream:
+        from omnivoice.utils.text import parse_pause_markers
+        from services.chunked_tts import split_text_into_chunks
+
+        _segments = parse_pause_markers(text)
+        _has_pause = len(_segments) > 1 or (_segments and _segments[0][1] > 0)
+        _text_chunks = [] if _has_pause else split_text_into_chunks(text, max_chunk_chars)
+
+        def _render_stream_chunk(i: int, chunk_text: str):
+            """One text chunk → (raw engine tensor, preview-DSP tensor, sr).
+
+            Runs on the GPU pool. Mirrors ONE iteration of the multi-chunk
+            loop in _run_inference/_run_backend_inference exactly (per-chunk
+            deterministic seed, same generate kwargs), so concatenating the
+            raw parts afterwards reproduces the non-streaming output. The
+            preview copy gets the same effect chain the final file will get,
+            so what the user hears mid-stream matches the saved take.
+            """
+            import torch
+            try:
+                if used_seed is not None:
+                    torch.manual_seed(used_seed + i)
+                if _backend is not None:
+                    _lang = None if (language and language.lower() == "auto") else language
+                    raw = _backend.generate(
+                        chunk_text, duration=None, language=_lang,
+                        ref_audio=ref_audio_path, ref_text=ref_text,
+                        instruct=instruct, num_step=num_step,
+                        guidance_scale=guidance_scale, speed=speed,
+                        denoise=denoise, postprocess_output=postprocess_output,
+                    )
+                    sr = _backend.sample_rate
+                    skip = getattr(_backend, "applies_own_mastering", False)
+                else:
+                    kwargs = {}
+                    if t_shift is not None: kwargs["t_shift"] = t_shift
+                    if layer_penalty_factor is not None: kwargs["layer_penalty_factor"] = layer_penalty_factor
+                    if position_temperature is not None: kwargs["position_temperature"] = position_temperature
+                    if class_temperature is not None: kwargs["class_temperature"] = class_temperature
+                    raw = _model.generate(
+                        text=chunk_text, language=language, ref_audio=ref_audio_path,
+                        ref_text=ref_text, instruct=instruct, duration=None,
+                        num_step=num_step, guidance_scale=guidance_scale, speed=speed,
+                        denoise=denoise, postprocess_output=postprocess_output,
+                        **kwargs
+                    )[0]
+                    sr = _model.sampling_rate if hasattr(_model, "sampling_rate") else 24000
+                    skip = False
+                preview = _apply_effect_chain(raw, sr, effect_preset, skip_mastering=skip)
+                return raw, preview, sr
+            except ValueError:
+                raise
+            except Exception as e:
+                _oom_friendly_reraise(e)
+
+        def _assemble_stream_chunks(parts, sr):
+            """Concat + whole-take effect chain — the same tail the
+            non-streaming multi-chunk loop runs, as one pool job."""
+            from services.chunked_tts import concatenate_audio_chunks
+            try:
+                audio_out = concatenate_audio_chunks(parts, sr, crossfade_ms)
+                skip = (getattr(_backend, "applies_own_mastering", False)
+                        if _backend is not None else False)
+                return _apply_effect_chain(audio_out, sr, effect_preset, skip_mastering=skip)
+            except ValueError:
+                raise
+            except Exception as e:
+                _oom_friendly_reraise(e)
+
+        async def _stream_events():
+            import json
+
+            def _line(obj) -> bytes:
+                return (json.dumps(obj, separators=(",", ":")) + "\n").encode("utf-8")
+
+            try:
+                if _has_pause or len(_text_chunks) <= 1:
+                    # Single-shot pipeline, unchanged — streamed as one chunk.
+                    if _backend is not None:
+                        audio_tensor = await run_on_gpu_pool_guarded(
+                            functools.partial(
+                                _run_backend_inference,
+                                _backend, text, language, ref_audio_path, ref_text,
+                                instruct, duration, num_step, guidance_scale, speed,
+                                denoise, postprocess_output, used_seed, effect_preset,
+                                max_chunk_chars, crossfade_ms,
+                            ),
+                            what="TTS generate",
+                        )
+                        sample_rate = _backend.sample_rate
+                    else:
+                        audio_tensor = await run_on_gpu_pool_guarded(
+                            functools.partial(
+                                _run_inference,
+                                _model, text, language, ref_audio_path, ref_text,
+                                instruct, duration, num_step, guidance_scale, speed,
+                                t_shift, denoise, postprocess_output,
+                                layer_penalty_factor, position_temperature,
+                                class_temperature, used_seed, effect_preset,
+                                max_chunk_chars, crossfade_ms,
+                            ),
+                            what="TTS generate",
+                        )
+                        sample_rate = _model.sampling_rate
+                    yield _line({
+                        "type": "start", "sample_rate": sample_rate, "channels": 1,
+                        "format": "pcm16", "total_chunks": 1, "crossfade_ms": 0,
+                        "seed": used_seed,
+                    })
+                    yield _line({"type": "chunk", "seq": 0, "pcm": _pcm16_b64(audio_tensor)})
+                else:
+                    parts = []
+                    sample_rate = None
+                    for i, chunk_text in enumerate(_text_chunks):
+                        # Bounded per chunk + pool-reset on hang (#730 class);
+                        # a timeout surfaces as an "error" event below.
+                        raw, preview, sample_rate = await run_on_gpu_pool_guarded(
+                            functools.partial(_render_stream_chunk, i, chunk_text),
+                            what="TTS generate",
+                        )
+                        parts.append(raw)
+                        if i == 0:
+                            # After the first render so lazy-loading engines
+                            # report their REAL sample rate (see /ws/tts).
+                            yield _line({
+                                "type": "start", "sample_rate": sample_rate,
+                                "channels": 1, "format": "pcm16",
+                                "total_chunks": len(_text_chunks),
+                                "crossfade_ms": crossfade_ms, "seed": used_seed,
+                            })
+                        yield _line({"type": "chunk", "seq": i, "pcm": _pcm16_b64(preview)})
+                    audio_tensor = await run_on_gpu_pool_guarded(
+                        functools.partial(_assemble_stream_chunks, parts, sample_rate),
+                        what="TTS assemble",
+                    )
+
+                _, meta = await _finalize_generation(
+                    audio_tensor, sample_rate, text=text, history_mode=history_mode,
+                    ref_audio_path=ref_audio_path, language=language,
+                    instruct=instruct, resolved_profile_id=resolved_profile_id,
+                    used_seed=used_seed, start_time=start_time,
+                )
+                yield _line({
+                    "type": "done", "id": meta["id"], "audio_path": meta["filename"],
+                    "duration": meta["duration"], "gen_time": meta["gen_time"],
+                    "seed": used_seed, "sample_rate": sample_rate,
+                })
+            except (asyncio.CancelledError, GeneratorExit):
+                # Client went away mid-stream — same semantics as aborting a
+                # classic /generate mid-render: nothing is saved.
+                raise
+            except GpuJobTimeoutError as e:
+                logger.error("Streaming generate timed out: %s", e)
+                yield _line({"type": "error", "detail": str(e)})
+            except ValueError as e:
+                logger.error("Streaming generate validation failed: %s", e)
+                yield _line({"type": "error", "detail": str(e)})
+            except Exception as e:
+                logger.error("Streaming generate failed: %s\n%s", e, traceback.format_exc())
+                yield _line({"type": "error", "detail": _safe_exc_text(e)})
+            finally:
+                # Ownership of the temp reference clip moves to this generator
+                # in stream mode (the route returns before rendering starts).
+                if cleanup_ref and ref_audio_path:
+                    with contextlib.suppress(OSError):
+                        os.remove(ref_audio_path)
+
+        _stream_headers = {
+            "X-Seed": str(used_seed) if used_seed is not None else "",
+            "Cache-Control": "no-cache",
+        }
+        # Routing notice (#21): known before the stream starts, so it rides the
+        # same headers the classic path uses.
+        if _routing_notice:
+            from services.engine_routing import header_safe_reason
+            _stream_headers["X-OmniVoice-Routing"] = _routing_notice[0]
+            _hr = header_safe_reason(_routing_notice[1])
+            if _hr:
+                _stream_headers["X-OmniVoice-Routing-Reason"] = _hr
+        return StreamingResponse(
+            _stream_events(),
+            media_type="application/x-ndjson",
+            headers=_stream_headers,
+        )
+
     try:
-        loop = asyncio.get_running_loop()
         if _backend is not None:
             # Bounded + pool-reset on hang so a wedged generate can't starve the
             # GPU pool and brick the backend ("can't reach backend", #730 class).
@@ -949,56 +1244,18 @@ async def generate_speech(
                 what="TTS generate",
             )
             sample_rate = _model.sampling_rate
-        # Invisible AudioSeal provenance watermark on the final audio. Embedding
-        # was previously only wired into the dub pipeline (dub_generate.py), so
-        # plain TTS came out unmarked despite the setting being on. embed_watermark
-        # self-gates on the user's watermark setting + AudioSeal availability and
-        # passes the audio through unchanged on any failure, so it never breaks
-        # generation.
-        from services.watermark import embed_watermark
-        audio_tensor = await loop.run_in_executor(
-            _gpu_pool, embed_watermark, audio_tensor, sample_rate
+        # Watermark → save → history → prune → emit, shared with the streaming
+        # path (see _finalize_generation) so both flows produce identical takes.
+        audio_tensor, _meta = await _finalize_generation(
+            audio_tensor, sample_rate, text=text, history_mode=history_mode,
+            ref_audio_path=ref_audio_path, language=language, instruct=instruct,
+            resolved_profile_id=resolved_profile_id, used_seed=used_seed,
+            start_time=start_time,
         )
-        gen_time = round(time.time() - start_time, 2)
-
-        audio_id = str(uuid.uuid4())[:8]
-        audio_filename = f"{audio_id}.wav"
-        audio_path = os.path.join(OUTPUTS_DIR, audio_filename)
-        _safe_torchaudio_save(audio_path, audio_tensor, sample_rate)
-
-        audio_dur = round(audio_tensor.shape[-1] / sample_rate, 2)
-
-        # #710: the clip is already generated and saved above. A history-write
-        # failure — e.g. "no such table: generation_history" on a DB that missed
-        # schema init — must NOT 500 the user's generation. Self-heal the schema
-        # once and retry; if it still fails, log and return the audio anyway.
-        def _write_history():
-            with db_conn() as conn:
-                conn.execute(
-                    "INSERT INTO generation_history (id, text, mode, language, instruct, profile_id, audio_path, duration_seconds, generation_time, seed, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                    (audio_id, text[:200], history_mode or ("clone" if ref_audio_path else "design"),
-                     language or "Auto", instruct or "", resolved_profile_id,
-                     audio_filename, audio_dur, gen_time, used_seed, time.time())
-                )
-        try:
-            _write_history()
-        except sqlite3.OperationalError as e:
-            logger.warning("generation history write failed (%s); healing schema + retrying", e)
-            try:
-                ensure_schema()
-                _write_history()
-            except Exception as e2:
-                logger.warning("history write still failed after schema heal; returning audio anyway: %s", e2)
-        except Exception as e:
-            logger.warning("generation history write failed; returning audio anyway: %s", e)
-        # Retention cap: without it, takes (rows + WAVs in OUTPUTS_DIR) grow
-        # unbounded forever. Best-effort — a prune failure must never affect
-        # the generation that just succeeded.
-        try:
-            _prune_history_over_cap()
-        except Exception as e:  # noqa: BLE001
-            logger.warning("history retention prune failed (non-fatal): %s", e)
-        event_bus.emit("generation_history", {"action": "created", "id": audio_id})
+        audio_id = _meta["id"]
+        audio_filename = _meta["filename"]
+        audio_dur = _meta["duration"]
+        gen_time = _meta["gen_time"]
 
         buffer = io.BytesIO()
         _safe_torchaudio_save(buffer, audio_tensor, sample_rate, format="wav")

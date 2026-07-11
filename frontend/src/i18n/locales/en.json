@@ -2063,6 +2063,7 @@
   "player": {
     "now_playing": "Now playing",
     "generated_audio": "Generated audio",
+    "streaming_preview": "Streaming preview…",
     "untitled": "Audio",
     "play": "Play",
     "pause": "Pause",

@@ -3,6 +3,11 @@ import { useAppStore } from '../store';
 import { generateSpeech } from '../api/generate';
 import { pickDesignSeed } from '../utils/seed';
 import { playBlobAudio, playPing } from '../utils/media';
+import {
+  StreamingPreviewError,
+  streamGenerateSpeech,
+  supportsStreamingPreview,
+} from '../utils/streamingTts';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
 import { buildDesignInstruct, designModeProfileId } from '../utils/voiceInstruct';
@@ -202,55 +207,94 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       // so the backend's descriptive error wins in the normal case.
       const ac = new AbortController();
       abortTimer = setTimeout(() => ac.abort(), 21 * 60 * 1000);
-      const response = await generateSpeech(formData, { signal: ac.signal });
-      const reader = response.body.getReader();
-      const chunks = [];
-      let receivedLength = 0;
-      const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
 
-      // #526: surface the seed the backend actually used so the Design tab can
-      // display it and offer "keep this seed". Authoritative over the client
-      // guess (covers the profile-seed / materialized-seed paths too).
-      const xSeed = parseInt(response.headers.get('X-Seed') || '', 10);
-      if (Number.isInteger(xSeed)) setDesignSeed(xSeed);
+      // Header handling shared by both delivery paths (streaming + classic).
+      const applyResponseHeaders = (response) => {
+        // #526: surface the seed the backend actually used so the Design tab
+        // can display it and offer "keep this seed". Authoritative over the
+        // client guess (covers the profile-seed / materialized-seed paths too).
+        const xSeed = parseInt(response.headers.get('X-Seed') || '', 10);
+        if (Number.isInteger(xSeed)) setDesignSeed(xSeed);
 
-      // #21: one-time, non-blocking routing notice. The backend sets these
-      // headers only on cpu_fallback / accelerated-with-caveat (never on the
-      // benign cpu_only / clean-accelerated paths), so their mere presence is
-      // the signal. De-duped by status so a batch doesn't spam.
-      const routingStatus = response.headers.get('X-OmniVoice-Routing');
-      if (routingStatus && routingStatus !== _lastRoutingStatus) {
-        _lastRoutingStatus = routingStatus;
-        const reason = response.headers.get('X-OmniVoice-Routing-Reason') || '';
-        if (routingStatus === 'cpu_fallback') {
-          toast(t('tts.routingFallback', { reason }), { icon: '🐢' });
-        } else if (routingStatus === 'accelerated' && reason) {
-          // accelerated is only surfaced WITH a driver/arch caveat reason.
-          toast(t('tts.routingCaveat', { reason }), { icon: '⚠️' });
+        // #21: one-time, non-blocking routing notice. The backend sets these
+        // headers only on cpu_fallback / accelerated-with-caveat (never on the
+        // benign cpu_only / clean-accelerated paths), so their mere presence is
+        // the signal. De-duped by status so a batch doesn't spam.
+        const routingStatus = response.headers.get('X-OmniVoice-Routing');
+        if (routingStatus && routingStatus !== _lastRoutingStatus) {
+          _lastRoutingStatus = routingStatus;
+          const reason = response.headers.get('X-OmniVoice-Routing-Reason') || '';
+          if (routingStatus === 'cpu_fallback') {
+            toast(t('tts.routingFallback', { reason }), { icon: '🐢' });
+          } else if (routingStatus === 'accelerated' && reason) {
+            // accelerated is only surfaced WITH a driver/arch caveat reason.
+            toast(t('tts.routingCaveat', { reason }), { icon: '⚠️' });
+          }
         }
-      }
+      };
+      const setProgressPct = (pct) =>
+        setGenerationTime((prev) => `${prev.toString().split(' ')[0]} (${pct}%)`);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        receivedLength += value.length;
-        if (contentLength > 0) {
-          const pct = Math.round((receivedLength / contentLength) * 100);
-          setGenerationTime((prev) => `${prev.toString().split(' ')[0]} (${pct}%)`);
-        }
-      }
-
-      const blob = new Blob(chunks, { type: 'audio/wav' });
-      // #1032: honor the Settings → Appearance "Auto-play preview" pref here
-      // too. #667 added the toggle ("play the output as soon as a render
-      // finishes") but only wired the WaveformPlayer preview sites — the main
-      // generate path kept auto-playing unconditionally. getState() (not a
-      // subscription) so the freshest value is read at completion time.
-      if (useAppStore.getState().autoPlayPreview) {
+      // Streaming preview (feat: streaming-tts-preview): playback starts from
+      // the FIRST synthesized chunk while the rest is still rendering, via
+      // /generate stream=true — instead of staring at the spinner until the
+      // whole render lands. Only when the preview would auto-play anyway, and
+      // only when Web Audio exists (all three Tauri webviews have it; if it's
+      // ever missing we take the classic path below — identical to today).
+      // Any MID-stream failure falls back to the classic whole-file flow with
+      // no user-visible difference beyond the old wait; pre-stream HTTP errors
+      // (ApiError) throw straight to the shared catch, exactly like before.
+      let streamed = false;
+      if (useAppStore.getState().autoPlayPreview && supportsStreamingPreview()) {
         try {
-          await playBlobAudio(blob, { label: t('player.generated_audio') });
-        } catch (e) {}
+          await streamGenerateSpeech(formData, {
+            signal: ac.signal,
+            label: t('player.streaming_preview'),
+            finalLabel: t('player.generated_audio'),
+            onHeaders: applyResponseHeaders,
+            onProgress: setProgressPct,
+          });
+          streamed = true;
+        } catch (err) {
+          if (!(err instanceof StreamingPreviewError)) throw err;
+          console.warn(
+            'Streaming preview failed mid-stream; falling back to the classic generate:',
+            err?.message || err,
+          );
+          addBreadcrumb('generate:stream-fallback');
+        }
+      }
+
+      if (!streamed) {
+        const response = await generateSpeech(formData, { signal: ac.signal });
+        const reader = response.body.getReader();
+        const chunks = [];
+        let receivedLength = 0;
+        const contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+
+        applyResponseHeaders(response);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedLength += value.length;
+          if (contentLength > 0) {
+            setProgressPct(Math.round((receivedLength / contentLength) * 100));
+          }
+        }
+
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        // #1032: honor the Settings → Appearance "Auto-play preview" pref here
+        // too. #667 added the toggle ("play the output as soon as a render
+        // finishes") but only wired the WaveformPlayer preview sites — the main
+        // generate path kept auto-playing unconditionally. getState() (not a
+        // subscription) so the freshest value is read at completion time.
+        if (useAppStore.getState().autoPlayPreview) {
+          try {
+            await playBlobAudio(blob, { label: t('player.generated_audio') });
+          } catch (e) {}
+        }
       }
 
       await loadHistory();

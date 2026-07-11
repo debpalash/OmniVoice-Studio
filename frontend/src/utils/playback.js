@@ -73,8 +73,10 @@ const publish = () => {
  * @returns {{ release: () => void, update: (patch: object) => void }}
  *   `release()` — call when playback ends on its own (idempotent; stale
  *   releases after another claim are no-ops). `update(patch)` — push
- *   track-state changes ({ currentTime, duration, paused, peaks }); stale
- *   updates after another claim are no-ops.
+ *   track-state changes ({ currentTime, duration, paused, peaks }); may also
+ *   carry `label` to retitle the bar mid-playback (the streaming TTS preview
+ *   flips "streaming" → "generated" on completion); stale updates after
+ *   another claim are no-ops.
  */
 export function claimTrackedPlayback({
   stop,
@@ -103,7 +105,9 @@ export function claimTrackedPlayback({
     },
     update: (patch) => {
       if (_current !== entry) return; // superseded — must not clobber the new owner
-      Object.assign(entry.track, patch);
+      const { label: nextLabel, ...trackPatch } = patch;
+      if (nextLabel !== undefined) entry.label = nextLabel;
+      Object.assign(entry.track, trackPatch);
       publish();
     },
   };
