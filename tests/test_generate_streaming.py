@@ -278,6 +278,46 @@ def test_stream_short_text_single_chunk(client, monkeypatch, no_omnivoice_model)
     assert _saved_wav_bytes(done["audio_path"])  # file exists and is non-empty
 
 
+def test_stream_native_model_path(client, monkeypatch, tmp_path):
+    """The native OmniVoice model path streams too (per-chunk generate calls
+    with duration=None), and its saved take matches the classic render."""
+    from unittest.mock import MagicMock
+
+    from core import prefs as _prefs
+    monkeypatch.setattr(_prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND", raising=False)
+
+    mock_model = MagicMock()
+    mock_model.sampling_rate = 24000
+
+    def _gen(**kw):
+        amp = 0.2 + (zlib.crc32(kw["text"].encode("utf-8")) % 1000) / 2000.0
+        return [(torch.linspace(-1.0, 1.0, 4800) * amp).unsqueeze(0)]
+
+    mock_model.generate.side_effect = lambda **kw: _gen(**kw)
+
+    async def _get():
+        return mock_model
+
+    import api.routers.generation as gen_mod
+    monkeypatch.setattr(gen_mod, "get_model", _get)
+
+    data = {"text": LONG_TEXT, "seed": "9", "max_chunk_chars": "60"}
+    events = _stream_events(client, data)
+    types = [e["type"] for e, _ in events]
+    n_chunks = types.count("chunk")
+    assert n_chunks >= 3 and types[-1] == "done"
+    assert mock_model.generate.call_count == n_chunks
+    for call in mock_model.generate.call_args_list:
+        assert call.kwargs["duration"] is None  # chunk loop contract
+    streamed_bytes = _saved_wav_bytes(events[-1][0]["audio_path"])
+
+    mock_model.generate.reset_mock()
+    classic = client.post("/generate", data=data)
+    assert classic.status_code == 200, classic.text
+    assert streamed_bytes == _saved_wav_bytes(classic.headers["x-audio-path"])
+
+
 def test_classic_generate_unaffected_by_stream_default(client, monkeypatch,
                                                        no_omnivoice_model):
     """stream defaults to false → classic WAV response with the same headers."""
