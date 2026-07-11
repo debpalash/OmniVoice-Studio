@@ -6,7 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.17] — 2026-07-11
+
+The polish release. The dubbing workspace can no longer trap you — an interrupted dub session used to relaunch into an eternal spinner that even reinstalling couldn't clear (thank you @nanai97 for the screenshot that cracked it). A 58-finding audit of every Settings panel got fixed end to end, **FFmpeg and yt-dlp stopped being your problem** (the app provisions its own, with a new Audio tools panel when you want control), the Engines and Models pages went compact and tabbed, the launcher stopped trusting half-dead backends, and the app finally opens at 100% scale.
 
 ### Added
 
