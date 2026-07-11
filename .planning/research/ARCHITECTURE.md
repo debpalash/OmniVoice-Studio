@@ -38,7 +38,7 @@ The four-layer model the milestone must integrate into:
 │    • tts_backend.py:  TTSBackend ABC + _REGISTRY (6 engines)       │
 │    • gpu_sandbox.py:  multiprocessing subprocess for TTS gen       │
 │    • model_manager.py: torch model singleton, GPU pool             │
-│    • dub_pipeline.py, batched_tts.py, …                             │
+│    • dub_pipeline.py, chunked_tts.py, …                             │
 │  - core/:           cross-cutting (config, db, prefs, event_bus,   │
 │                     job_queue, onboarding, tasks)                  │
 │  - hooks/:          PyInstaller runtime hooks (numpy, torch.compile)│
