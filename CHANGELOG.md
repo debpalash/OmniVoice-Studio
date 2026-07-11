@@ -10,6 +10,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- **FFmpeg, FFprobe, and yt-dlp stopped being your problem.** The setup wizard no longer lists them as system requirements with "brew install" homework — the app provisions them itself: shipped installs already bundle them, and when nothing is found the backend downloads its own checksum-pinned static build in the background, showing a single actionable card only if that fails. A new **Settings → Audio tools** panel gives back the control: per-tool version and origin (App package / Bundled / System / Custom), update / use-system / choose-file / restore-bundled — and **one-click yt-dlp updates** that survive app upgrades, because video-site support changes faster than releases. Install docs updated to match. (#1071)
+
+- **The Engines and Models pages got compact and tabbed.** Engines is now one section with TTS / ASR / LLM tabs; every engine is a strict two-line, fixed-height row with truncated text and aligned status / GPU / isolation / action columns, so the whole engine list fits one screen — details like "Why unavailable?" expand below the row instead of stretching it. Models rows tightened the same way. (#1072)
+
 - **The Engines and Models pages got a full readability-and-features pass.** Every engine row now carries a small identity mark and honest capability badges (voice cloning, device routing with the reason on hover, sidecar isolation), and engines that are ready-but-have-advice finally say so — upgrade hints used to be dropped before reaching the UI. The model store gains a filter, disk-space context next to downloads, "in memory — safe to unload" indicators, copyable setup snippets for opt-in engines, and empty states that tell you what to do next. (#1058)
 
 ### Fixed
