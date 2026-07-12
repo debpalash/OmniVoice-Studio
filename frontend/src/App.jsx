@@ -44,6 +44,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
 import GlobalAudioPlayer from './components/GlobalAudioPlayer';
 import BackendCrashNotice from './components/BackendCrashNotice';
+import { initAnalyticsFromConsent } from './utils/analytics';
 import BackendRestartBanner from './components/BackendRestartBanner';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
 // it covers all app states (setup check / wizard / bootstrap), not just the
@@ -76,7 +77,7 @@ import {
 } from './utils/constants';
 import { LANG_CODES } from './utils/languages';
 import { restoreProjectExtras } from './utils/projectState';
-import { API, apiFetch } from './api/client';
+import { API, apiFetch, apiJson } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
 import {
   saveProject as apiSaveProject,
@@ -104,6 +105,14 @@ function App() {
   // polls every 1 s; until `ready`, we render BootstrapSplash instead of the
   // normal app shell, so the user sees real progress instead of a hung UI.
   const { stage: bootstrapStage, message: bootstrapMessage } = useBootstrapStage();
+
+  // Analytics is OFF until the user opts in (Settings → Privacy). We never call
+  // posthog.init() at load — that would track people before they consented, and
+  // would make the app's own "sends nothing out of the box" promise false. Ask
+  // the backend for the stored consent, and only then start it.
+  useEffect(() => {
+    initAnalyticsFromConsent(() => apiJson('/api/settings/analytics'));
+  }, []);
 
   // UI navigation state now lives in the Zustand `uiSlice` (Phase 2.2).
   // Mode + uiScale + sidebar-collapsed persist across reloads automatically

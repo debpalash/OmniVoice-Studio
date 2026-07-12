@@ -589,7 +589,7 @@ Yes. OmniVoice uses a <b>built-in backend registry</b>. To add an engine in ~50 
 
 There is one <b>opt-in</b> toggle in <b>Settings → Privacy → "Help improve OmniVoice"</b>, which is <b>off by default</b>. If you turn it on, the app sends anonymous usage stats: which engine and language you used, how long a generation took, how many <i>characters</i> the text had (a number, not the text), and the <i>type</i> of any error. It <b>never</b> sends the text you type, your audio, your file names, your voice names, or anything identifying you — enforced in code by a property allowlist, not just a promise (<code>backend/core/analytics.py</code>). Crash tracebacks are deliberately <b>not</b> auto-captured, because they can contain file paths and tokens. You can turn it off again at any time.
 
-Want to see your own numbers instead? <b>Settings → Usage</b> shows them, computed entirely on your machine and sent nowhere.
+Builds from source have no analytics destination at all — the toggle isn't even shown, and nothing can be sent.<br/><br/>Want to see your own numbers instead? <b>Settings → Usage</b> shows them, computed entirely on your machine and sent nowhere.
 </details>
 
 <details>

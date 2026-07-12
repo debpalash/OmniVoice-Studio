@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Check, X } from 'lucide-react';
 import { apiJson, apiFetch } from '../../api/client';
+import { enableAnalytics, disableAnalytics } from '../../utils/analytics';
 import { SettingRow, SettingsToggle } from './primitives';
 
 export default function AnalyticsOptIn() {
@@ -48,6 +49,11 @@ export default function AnalyticsOptIn() {
         body: JSON.stringify({ enabled: next }),
       }).then((r) => r.json());
       setState(d);
+      // Consent gates the FRONTEND SDK too: posthog-js is only initialised once
+      // the user says yes, and torn down the moment they say no. It is never
+      // started at app load — that would track people before they consented.
+      if (next) await enableAnalytics();
+      else disableAnalytics();
       toast.success(
         next
           ? t('privacy.analytics_on', { defaultValue: 'Thanks — anonymous usage stats are on.' })

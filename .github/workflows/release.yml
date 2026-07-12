@@ -510,6 +510,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Analytics destination, injected at BUILD time (never committed — a
+          # token-shaped literal in the repo trips the secret scanner, and the
+          # frontend bundle is where a publishable client key belongs). Absent =>
+          # the build has no destination, the Privacy toggle isn't offered, and
+          # nothing can be sent. Analytics still requires the user to opt in.
+          VITE_POSTHOG_KEY: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS Apple signing (#134 / #72) is configured by the preceding
