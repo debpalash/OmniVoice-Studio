@@ -22,6 +22,7 @@ import base64
 import importlib
 import json
 import os
+import sqlite3
 import time
 import zlib
 
@@ -30,6 +31,45 @@ os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
 import pytest
 import torch
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_store(tmp_path, monkeypatch):
+    """Pin the outputs dir AND the history DB at throwaway paths for every test
+    here, so a streamed take is saved and read back through the SAME location
+    no matter what ran before.
+
+    Why it's needed: the router SAVES the final WAV through
+    ``api.routers.generation.OUTPUTS_DIR`` while these tests READ it back
+    through ``core.config.OUTPUTS_DIR``. Those are two separate module
+    bindings, and a full-suite run can split them apart — an earlier test that
+    reloads ``core.config`` / ``main`` under a tmp data dir (e.g.
+    ``test_dub_transcribe``'s ``app_client`` fixture) moves one binding and not
+    the other. The save then lands in one dir while the read-back looks in
+    another, so the take "vanishes" — the #1088 CI ``FileNotFoundError``.
+    Pinning BOTH bindings — plus the DB, through the same
+    ``ensure_schema.__globals__`` seam the takes suite uses against the
+    #909/#932 module-purge leak — makes each test hermetic and order-independent.
+    """
+    import core.config as cfg
+    import api.routers.generation as gen
+
+    outdir = tmp_path / "outputs"
+    outdir.mkdir()
+    monkeypatch.setattr(cfg, "OUTPUTS_DIR", str(outdir))
+    monkeypatch.setattr(gen, "OUTPUTS_DIR", str(outdir))
+
+    dbf = tmp_path / "history.db"
+
+    def _get_db():
+        conn = sqlite3.connect(str(dbf))
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
+
+    monkeypatch.setitem(gen.ensure_schema.__globals__, "get_db", _get_db)
+    gen.ensure_schema()
 
 LONG_TEXT = (
     "The first sentence sets the scene tonight. "
