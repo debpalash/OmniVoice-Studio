@@ -249,13 +249,37 @@ class TTSBackend(ABC):
     #     `torch.cuda.empty_cache()` / `torch.mps.empty_cache()`).
     #   • Safe to call before the first generate(): a backend that never
     #     loaded has nothing to release.
-    def unload(self) -> None:
-        """Release any GPU memory and file handles held by this backend.
+    # Attribute(s) that hold this backend's heavy model, cleared by the default
+    # unload(). Every in-process engine loads its weights lazily into one of
+    # these in `_ensure_loaded()`; the next generate() re-runs that loader. An
+    # engine that holds its model elsewhere (or nowhere — e.g. an external HTTP
+    # server) overrides `unload()` or leaves these unset. OmniVoice overrides
+    # entirely (it drives the shared model_manager singleton).
+    _MODEL_ATTRS: tuple[str, ...] = ("_model", "_tts")
 
-        Called by the registry on engine switch and on app shutdown. Default
-        is a no-op so engines that haven't migrated keep working; per-engine
-        overrides arrive in Phase 2 (see ROADMAP.md). Must be idempotent.
+    def unload(self) -> None:
+        """Release the heavy model this backend holds, and free device caches.
+
+        Called by the registry on engine switch, by the single-active-engine
+        eviction (services.engine_memory), and on app shutdown. Clears each of
+        ``_MODEL_ATTRS`` that is set on this instance, then empties the device
+        cache — so switching engines actually hands the memory back instead of
+        leaving the old model resident until GC (the 16 GB-Mac OOM class). The
+        next generate() lazily reloads. Idempotent and safe before first load:
+        a backend that never loaded has every attr already None/absent.
         """
+        freed = False
+        for attr in self._MODEL_ATTRS:
+            if getattr(self, attr, None) is not None:
+                setattr(self, attr, None)
+                freed = True
+        if freed:
+            try:
+                from services.model_manager import free_vram
+
+                free_vram()
+            except Exception:  # noqa: BLE001 — unload must never raise (idempotent contract)
+                pass
         return None
 
 

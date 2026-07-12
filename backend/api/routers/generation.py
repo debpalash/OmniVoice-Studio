@@ -783,6 +783,15 @@ async def generate_speech(
             ),
         )
 
+    # Single-active-engine memory discipline: hand back any OTHER resident TTS
+    # engine's model before loading this one, so switching engines (or a
+    # per-request engine= override, which bypasses /engines/select entirely)
+    # doesn't stack two multi-GB models in memory — the accumulation behind the
+    # 16 GB-Mac OOM deaths. No-op when nothing else is resident, so steady-state
+    # single-engine use pays nothing. Opt out: OMNIVOICE_SINGLE_ENGINE_RESIDENT=0.
+    from services.engine_memory import evict_other_tts_engines
+    await evict_other_tts_engines(engine_id)
+
     _model = None
     _backend = None
     if backend_cls is OmniVoiceBackend:

@@ -992,7 +992,12 @@ class FasterWhisperBackend(ASRBackend):
         return out
 
     def unload(self) -> None:
-        self._asr = None
+        # #memory: this cleared self._asr — an attribute FasterWhisperBackend
+        # never assigns — so the actual model in self._model was never freed and
+        # a warm faster-whisper stayed resident for the life of the process.
+        # Clear the real handle so the model is released.
+        self._model = None
+        self._asr = None  # harmless if a subclass ever used it; keeps idempotence
         import gc
         gc.collect()
         try:
