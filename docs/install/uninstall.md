@@ -18,9 +18,41 @@ model cache, asks you to type `DELETE`, then removes everything and quits.
 This is the right path if you installed the **.dmg / .msi / AppImage** — you
 don't have the repo, so the script below isn't available to you.
 
-> Note: **Factory reset** (right above it) is a different, much smaller action —
-> it only clears UI preferences and leaves your voices, projects, and audio
-> alone.
+> **You may not need to uninstall.** Right above it, **Reset & remove** does the
+> same job at any scale you like — and leaves you with a working app instead of
+> no app. See [Resetting](#resetting-instead-of-uninstalling) below.
+
+## Resetting instead of uninstalling
+
+**Settings → Storage → Reset & remove** puts part — or all — of OmniVoice back to
+how it shipped, without removing the app. Every option shows its real size before
+you commit, and the app restarts itself when it's done.
+
+| Option | What it removes | What it keeps |
+| --- | --- | --- |
+| **UI preferences only** | Theme, layout, language, dub settings | Everything on disk |
+| **All settings** | The above, plus saved settings on disk (engine choices, voice defaults) | Voices, projects, audio, models |
+| **Downloaded assets & models** | Model weights, sidecar engines, audio tools, caches | Everything you made |
+| **Everything OmniVoice did** | All of the above, plus voices, projects, generated audio, history, logs | The app itself, and the Python environment it runs on |
+
+"Choose exactly what to remove" opens the same list as individual checkboxes, so
+you can drop just the model weights, just a wedged sidecar engine, or just the
+history — whatever is actually wrong.
+
+Two things it deliberately does **not** touch:
+
+- **Your storage locations.** If you pointed OmniVoice at a custom data or model
+  directory, a settings reset keeps that pointer. Clearing it would strand
+  gigabytes of already-downloaded weights at a path the app no longer looks in.
+- **The managed Python environment.** "Everything OmniVoice did" still leaves you
+  with a working app that restarts on the first-run screen. If you want the
+  interpreter gone too, that's **Remove all data** — the section above.
+
+The shared Hugging Face model cache is called out separately wherever it applies:
+on macOS and Linux it's the standard cache other AI tools use too, so removing it
+may delete models OmniVoice never downloaded. (On Windows, and in portable
+installs, the cache is OmniVoice's own — there's nothing to share, and the app
+says so.)
 
 ## The one-command uninstaller (from a clone)
 

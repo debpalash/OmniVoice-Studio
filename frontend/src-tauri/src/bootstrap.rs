@@ -132,13 +132,26 @@ pub fn get_bootstrap_logs(state: tauri::State<'_, BootstrapState>) -> Vec<LogPay
 
 #[tauri::command]
 pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapState>) {
-    if let Ok(mut guard) = state.stage.lock() {
+    respawn_backend(app, state.stage.clone(), state.logs.clone());
+}
+
+/// Take the port back and bring a healthy backend up on it, from scratch if
+/// need be. Shared by the Retry button and by a scoped reset (`reset.rs`), which
+/// deletes data out from under a stopped backend and needs the *same* recovery
+/// afterwards — a fresh process that re-runs `ensure_dirs()` and alembic, so a
+/// wiped database comes back empty rather than missing.
+pub fn respawn_backend(
+    app: tauri::AppHandle,
+    stage: Arc<Mutex<BootstrapStage>>,
+    logs: Arc<Mutex<Vec<LogPayload>>>,
+) {
+    if let Ok(mut guard) = stage.lock() {
         *guard = BootstrapStage::Checking;
     }
-    if let Ok(mut logs) = state.logs.lock() {
+    if let Ok(mut logs) = logs.lock() {
         logs.clear();
     }
-    let stage_handle = state.stage.clone();
+    let stage_handle = stage;
     std::thread::spawn(move || {
         let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
         if skip_spawn {

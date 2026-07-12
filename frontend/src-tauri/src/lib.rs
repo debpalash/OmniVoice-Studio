@@ -14,6 +14,7 @@ pub mod tools;
 pub mod backend;
 pub mod commands;
 pub mod crash;
+pub mod reset;
 pub mod uninstall;
 pub mod updater_channel;
 
@@ -403,6 +404,8 @@ pub fn run() {
             crash::acknowledge_backend_crash,
             uninstall::uninstall_scan,
             uninstall::uninstall_purge,
+            reset::reset_scan,
+            reset::reset_purge,
         ])
         .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;

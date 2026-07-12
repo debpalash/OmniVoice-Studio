@@ -189,8 +189,15 @@ export const GROUPS = [
           'storage',
           'data directory',
           'outputs directory',
+          // "factory reset" is what users search for even though the feature is
+          // now the broader "Reset & remove" — keep the old name findable.
           'factory reset',
           'reset',
+          'wipe',
+          'delete models',
+          'uninstall',
+          'remove all data',
+          'start over',
           'disk usage',
           'free space',
           'disk space',
@@ -199,7 +206,7 @@ export const GROUPS = [
           'temp files',
           'clear logs',
         ],
-        keywordKeys: ['settings.storage_usage', 'settings.factory_reset'],
+        keywordKeys: ['settings.storage_usage', 'settings.reset', 'settings.uninstall'],
       },
       {
         id: 'network',
