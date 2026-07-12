@@ -6,7 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.21] — 2026-07-12
+
+The memory release. The reason the app kept saying "Can't reach the local backend" on 16 GB machines was never really the network — the backend was quietly running out of memory and getting killed. This release fixes that at the source: the models it holds now get out of each other's way. Plus the uninstaller and factory reset grew into a proper Settings → Storage pair.
 
 ### Added
 
@@ -18,10 +20,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 - **Switching TTS engines no longer stacks their models in memory.** Using a second engine in a session (or a per-request engine override) loaded its model *on top of* the first one's, because the OmniVoice core model and the other engines live in two separate caches that never coordinated — measured on a 16 GB M2, an `omnivoice` → `mlx-audio` switch left the machine holding both (footprint 3.9 GB → 4.3 GB, the ~2.8 GB core never freed). That accumulation is a direct contributor to the memory pressure behind the "Can't reach the local backend" OOM deaths. Now only one TTS engine's model stays resident: resolving an engine hands back every *other* resident engine first (the same `omnivoice → mlx-audio` switch now drops to ~1.5 GB). Steady-state single-engine use is unaffected; an A/B switch pays a re-load on the way back (~8 s for the OmniVoice core, ~1–2 s for the lighter engines). Opt out with `OMNIVOICE_SINGLE_ENGINE_RESIDENT=0` if you have RAM to keep several warm. Two underlying leaks are fixed as part of this: every in-process TTS engine's `unload()` now actually frees its model and empties the device cache (previously all but OmniVoice were silent no-ops), and `faster-whisper`'s `unload()` cleared the wrong attribute so its model was never released.
 
-
-### Fixed
-
 - **The backend no longer sits on ~2 GB of idle dictation model — the real reason it was being killed on 16 GB Macs.** Four reports of *"Can't reach the local OmniVoice backend"* (#1076, #1092, #1093, #1101) all died at the same moment: during a generate, on a 16 GB machine. Measuring it showed the generate was never the problem — it costs about 116 MB. The problem was the **baseline**: the backend sat at **~6.2 GB even while idle**. The TTS model has always been unloaded after an idle timeout, but the speech-recognition model used for dictation never was — so once you dictated a single time, ~2 GB stayed resident for as long as the app ran. On a 16 GB Mac, that plus the app, macOS, and your other programs is enough for the system to run out of memory and kill the backend, which surfaced as the "can't reach the backend" error. Dictation's model now gets the same idle release the TTS model already had, handing that memory back. The only cost is a ~1.4-second re-warm on your next dictation after a long pause, and a live dictation session is pinned so nothing is ever unloaded mid-sentence.
+
 - **Folder sizes under 1 KB displayed as "0 KB".** The uninstall panel's `391 B` config folder rendered as `0 KB` — which reads as "nothing here" for a folder that very much exists. The Storage panels now share one byte formatter that can say `391 B`.
 
 - **Some styling silently did nothing.** A handful of components referenced CSS custom properties that were never defined (`--chrome-fg-subtle`, `--chrome-bg-raised`, `--color-warning`). An undefined `var()` makes the whole declaration invalid, so the browser drops it and the element quietly inherits — the dimmed folder paths in the Storage panels weren't dimmed at all. Fixed in those panels, and a new guard (`frontend/src/test/cssTokens.test.js`) fails on any bare `var(--token)` in JSX that isn't defined in a stylesheet or documented as runtime-injected, so a typo can't ship as invisible styling again.
