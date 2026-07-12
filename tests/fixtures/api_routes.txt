@@ -111,6 +111,7 @@ GET /setup/download-stream
 GET /setup/preflight
 GET /setup/recommendations
 GET /setup/status
+GET /stats/usage
 GET /sysinfo
 GET /system/asr-backends
 GET /system/diagnose

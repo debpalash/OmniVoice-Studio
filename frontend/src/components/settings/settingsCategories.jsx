@@ -35,6 +35,7 @@ import {
   FileText,
   Info,
   Braces,
+  BarChart3,
 } from 'lucide-react';
 
 /** Sidebar groups, in display order. `labelKey` resolves via i18n. */
@@ -178,6 +179,22 @@ export const GROUPS = [
           'vram',
           'compute',
           'platform',
+        ],
+      },
+      {
+        id: 'usage',
+        labelKey: 'settings.usage',
+        defaultLabel: 'Usage',
+        icon: BarChart3,
+        keywords: [
+          'usage',
+          'stats',
+          'statistics',
+          'insights',
+          'analytics',
+          'history',
+          'how much',
+          'privacy',
         ],
       },
       {
