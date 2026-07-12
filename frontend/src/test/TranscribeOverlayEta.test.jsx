@@ -24,9 +24,7 @@ describe('TranscribeOverlay ETA', () => {
   it('extrapolates from the observed rate, so a slow machine gets a big honest number', () => {
     // A 16-minute video, 10% done after 5 minutes => ~45 min left. The old code
     // would have said "~0s".
-    render(
-      <TranscribeOverlay elapsed={300} duration={960} progress={0.1} onAbort={() => {}} />,
-    );
+    render(<TranscribeOverlay elapsed={300} duration={960} progress={0.1} onAbort={() => {}} />);
     expect(screen.getByText(/45m/)).toBeInTheDocument();
     expect(screen.getByText('10%')).toBeInTheDocument();
   });

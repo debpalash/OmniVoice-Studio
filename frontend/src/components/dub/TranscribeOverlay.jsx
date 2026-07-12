@@ -37,8 +37,7 @@ function TranscribeOverlay({ elapsed, duration, progress = 0, onAbort }) {
   const ss = String(elapsed % 60).padStart(2, '0');
   const pct = progress > 0 ? Math.min(99, Math.round(progress * 100)) : null;
   // rate = progress / elapsed  =>  remaining = (1 - progress) / rate
-  const remaining =
-    progress > 0.01 && elapsed > 0 ? (elapsed / progress) * (1 - progress) : null;
+  const remaining = progress > 0.01 && elapsed > 0 ? (elapsed / progress) * (1 - progress) : null;
   return (
     <div className="flex flex-col items-center gap-[var(--space-5)] w-full">
       <div className="flex items-center gap-[var(--space-4)]">
