@@ -565,9 +565,17 @@ export function BootstrapSplash({ stage, message }) {
           <JourneyRail t={t} />
           <div className="mt-2 flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
-              <h1 className="m-0 font-serif text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight tracking-tight">
-                {t('bootstrap.title', 'OmniVoice Studio')}
-              </h1>
+              {/* Version rides beside the app name — same masthead across all
+                  three first-run acts (setup → install → models & engines), so a
+                  screenshot from any of them identifies the build. */}
+              <div className="flex flex-wrap items-baseline gap-2.5">
+                <h1 className="m-0 font-serif text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight tracking-tight">
+                  {t('bootstrap.title', 'OmniVoice Studio')}
+                </h1>
+                <span className="font-mono text-[0.62rem] tracking-[0.14em] text-fg-subtle">
+                  v{APP_VERSION}
+                </span>
+              </div>
               <p className="mt-1.5 text-sm leading-snug text-fg-muted" aria-live="polite">
                 {label}
               </p>
@@ -765,12 +773,6 @@ export function BootstrapSplash({ stage, message }) {
             </pre>
           )}
         </section>
-
-        <footer className="mt-auto pt-2">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-fg-subtle">
-            OVS&thinsp;·&thinsp;v{APP_VERSION}
-          </span>
-        </footer>
       </div>
     </div>
   );
