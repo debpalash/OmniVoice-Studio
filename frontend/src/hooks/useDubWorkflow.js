@@ -16,6 +16,7 @@ import { dialectMatchesLang } from '../api/dialects';
 import { segmentGenInputs, applySpeakerCloneDefaults } from '../utils/segments';
 import { apiPost, apiFetch } from '../api/client';
 import { API } from '../api/client';
+import { streamDropError } from '../utils/backendCrash';
 import { playPing } from '../utils/media';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
@@ -247,11 +248,13 @@ export default function useDubWorkflow({
             return;
           }
           close();
-          reject(
-            new Error(
-              'Transcribe stream dropped before emitting any segments. Likely ASR backend failed to load — check backend log + Settings → Models.',
-            ),
-          );
+          // The stream died with NO terminal event, which the backend contract
+          // forbids — so the backend PROCESS went away (on small GPUs, a VRAM
+          // abort while loading ASR is the usual trigger). Ask the shell's crash
+          // forensics rather than guessing "ASR failed to load" (#1062).
+          streamDropError(
+            'Transcribe stream dropped before emitting any segments. Likely ASR backend failed to load — check backend log + Settings → Models.',
+          ).then(reject, reject);
         });
       }),
     [setDubSegments, setDubTranscript, setSpeakerClones],
@@ -391,7 +394,9 @@ export default function useDubWorkflow({
             close();
             ctrl.signal.removeEventListener('abort', onAbort);
             if (lastData && lastData.type === 'ready') resolve(lastData);
-            else reject(new Error('prep stream closed unexpectedly'));
+            // Same class as the transcribe drop (#1062): a prep stream that
+            // closes with no terminal event means the backend died under it.
+            else streamDropError('prep stream closed unexpectedly').then(reject, reject);
           }
         };
       }),

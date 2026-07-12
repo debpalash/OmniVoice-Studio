@@ -80,3 +80,47 @@ export function crashAge(marker: Pick<BackendCrashMarker, 'ts'>, nowMs = Date.no
   if (min < 90) return `${min} min`;
   return `${Math.round(min / 60)} h`;
 }
+
+/**
+ * The honest error for an SSE/stream that died with NO terminal event (#1062).
+ *
+ * Every long-running stream the backend serves is contract-bound to emit a
+ * terminal event before it closes — even on failure (tests/test_dub_transcribe.py
+ * ::test_transcribe_stream_never_closes_without_terminal_event). So a stream that
+ * simply goes silent did NOT "probably fail to load a model": the backend
+ * PROCESS went away underneath it. On smaller GPUs the usual trigger is running
+ * out of VRAM while loading the ASR model on top of a resident TTS model, which
+ * aborts the process natively rather than raising a catchable Python error.
+ *
+ * When the desktop shell recorded a crash marker (#941), say what actually
+ * happened — exit code, how long ago, and the VRAM next step — and raise the
+ * crash notice so "View crash details" is one click away. With no marker (or
+ * outside the Tauri shell) the caller's own message stands.
+ *
+ * `getCrash` is an injectable seam (same idea as services/endpoint_race's
+ * injectable probers) so the branch logic is unit-testable without a shell.
+ */
+export async function streamDropError(
+  fallbackMessage: string,
+  getCrash: () => Promise<BackendCrashMarker | null> = getUnacknowledgedBackendCrash,
+): Promise<Error> {
+  let crash: BackendCrashMarker | null = null;
+  try {
+    crash = await getCrash();
+  } catch {
+    return new Error(fallbackMessage); // forensics unavailable — don't mask the caller
+  }
+  if (!crash) return new Error(fallbackMessage);
+  try {
+    window.dispatchEvent(new CustomEvent('ov:backend-crashed', { detail: crash }));
+  } catch {
+    /* no window (tests) — the Error below still tells the story */
+  }
+  return new Error(
+    `The local OmniVoice backend crashed (${describeCrashExit(crash)}) ${crashAge(crash)} ago, ` +
+      'which dropped this stream — it is being restarted automatically. Open the crash notice for ' +
+      'the error output. On smaller GPUs the usual cause is running out of VRAM while loading the ' +
+      'ASR model on top of the TTS model: flush the TTS model first, or pick a smaller ASR model ' +
+      'in Settings → Models.',
+  );
+}
