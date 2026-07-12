@@ -583,6 +583,16 @@ Yes. OmniVoice uses a <b>built-in backend registry</b>. To add an engine in ~50 
 </details>
 
 <details>
+<summary><b>Does OmniVoice collect any data about me?</b></summary>
+<br/>
+<b>Not unless you switch it on.</b> Out of the box OmniVoice sends nothing — no analytics, no telemetry, no accounts, no phone-home. Your text, your audio, your voices, and your projects never leave your machine, and that is true whatever you choose here.
+
+There is one <b>opt-in</b> toggle in <b>Settings → Privacy → "Help improve OmniVoice"</b>, which is <b>off by default</b>. If you turn it on, the app sends anonymous usage stats: which engine and language you used, how long a generation took, how many <i>characters</i> the text had (a number, not the text), and the <i>type</i> of any error. It <b>never</b> sends the text you type, your audio, your file names, your voice names, or anything identifying you — enforced in code by a property allowlist, not just a promise (<code>backend/core/analytics.py</code>). Crash tracebacks are deliberately <b>not</b> auto-captured, because they can contain file paths and tokens. You can turn it off again at any time.
+
+Want to see your own numbers instead? <b>Settings → Usage</b> shows them, computed entirely on your machine and sent nowhere.
+</details>
+
+<details>
 <summary><b>How do I uninstall it / remove all its data?</b></summary>
 <br/>
 OmniVoice is fully local — uninstalling is just deleting the app plus the folders it wrote (model cache, Python env, your voices/projects, config). Run <code>scripts/uninstall.sh</code> (macOS/Linux) or <code>scripts\uninstall.ps1</code> (Windows) — it prints every folder with its size as a dry-run first, then deletes on <code>--yes</code>. The full per-platform path list and app-removal steps are in <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>.

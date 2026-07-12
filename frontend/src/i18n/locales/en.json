@@ -756,7 +756,14 @@
     "translator_offline": "Offline translator",
     "translator_unknown": "Unknown",
     "change_translator": "Change translator",
-    "no_tracking": "None — no tracking"
+    "no_tracking": "None — no tracking",
+    "analytics_title": "Help improve OmniVoice",
+    "analytics_subtitle": "Off by default. Anonymous usage stats — never your content.",
+    "analytics_sends": "Sent: which engine and language you used, how long a generation took, how many characters (a number, not the text), and the type of any error.",
+    "analytics_never": "Never sent: the text you type, your audio, your file names, your voice names, or anything identifying you. Not your name, not your email, not your IP.",
+    "analytics_off_anytime": "You can turn this off again at any time, and nothing further is sent.",
+    "analytics_on": "Thanks — anonymous usage stats are on.",
+    "analytics_off": "Analytics off. Nothing is sent."
   },
   "credentials": {
     "title": "Credentials",

@@ -5,6 +5,7 @@ import { Badge, Button } from '../../ui';
 import { useAppStore } from '../../store';
 import { SettingsSection } from './primitives';
 import Row from './Row';
+import AnalyticsOptIn from './AnalyticsOptIn';
 
 // Providers that send dialogue text to a third-party service vs. the ones that
 // run fully on-device (backend/api/routers/dub_translate.py). Anything else —
@@ -75,6 +76,10 @@ export default function PrivacyTab({ info }) {
           </Badge>
         }
       />
+      {/* Opt-in product analytics. Renders nothing when the build ships no
+          destination, and is OFF until the user turns it on — so the
+          "no tracking" default above stays true for everyone who doesn't. */}
+      <AnalyticsOptIn />
     </SettingsSection>
   );
 }

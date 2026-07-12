@@ -1001,3 +1001,34 @@ def get_db_backup_state():
         "count": len(db_backup.list_backups(DB_PATH)),
         "keep": db_backup.KEEP_BACKUPS,
     }
+
+
+# ── Opt-in product analytics (hardened; default OFF) ───────────────────────
+# Local-first means silence is not consent: analytics runs only when the user
+# explicitly turns it on AND the build ships a destination token. See
+# core/analytics.py for the three rules (opt-in, no exception autocapture,
+# allowlisted metadata only).
+
+class _AnalyticsBody(BaseModel):
+    enabled: bool = Field(..., description="User's explicit choice. Default is OFF.")
+
+
+@router.get("/analytics")
+def get_analytics():
+    from core import analytics
+
+    return {
+        "enabled": analytics.enabled(),
+        "opted_in": analytics.user_opted_in(),
+        # False for source builds / any build with no token: analytics can never
+        # run, so the UI can say so instead of offering a toggle that does nothing.
+        "available": analytics.token_configured(),
+    }
+
+
+@router.put("/analytics")
+def set_analytics(body: _AnalyticsBody):
+    from core import analytics
+
+    analytics.set_opted_in(body.enabled)
+    return get_analytics()

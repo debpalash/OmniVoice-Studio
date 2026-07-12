@@ -692,6 +692,25 @@ async def _finalize_generation(
         logger.warning("history retention prune failed (non-fatal): %s", e)
     event_bus.emit("generation_history", {"action": "created", "id": audio_id})
 
+    # Opt-in analytics (core/analytics.py): no-op unless the user turned it on.
+    # Metadata only — text_length is the LENGTH of the text, never the text; the
+    # allowlist in analytics.sanitize_properties() enforces that regardless.
+    try:
+        from core.analytics import capture as _ph
+
+        _ph("speech_generated", {
+            "mode": history_mode,
+            "language": language or "auto",
+            "duration_seconds": audio_dur,
+            "gen_time_seconds": gen_time,
+            "text_length": len(text or ""),          # the LENGTH. never the text.
+            "has_profile": bool(resolved_profile_id),
+        })
+    except Exception:  # noqa: BLE001 — analytics may never break a generation…
+        # …but it must not fail SILENTLY either: a typo'd variable here would
+        # otherwise mean the event simply never fires and nobody ever knows.
+        logger.warning("analytics: speech_generated capture failed", exc_info=True)
+
     return audio_tensor, {
         "id": audio_id,
         "filename": audio_filename,
