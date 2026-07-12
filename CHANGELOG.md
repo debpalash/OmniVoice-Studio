@@ -18,6 +18,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 - **The first-run wizard shows the app version in its masthead**, next to the OmniVoice Studio title — so setup-time screenshots and bug reports identify the build at a glance (the install splash already did).
 
+- **Repo root decluttered.** Retired the finished planning archives (`.planning/`, `specs/`), the pre-React design mockups (`design/`), the legacy research dir (`research/`), and stale third-party agent rules (`.agents/`) — ~110 files of process noise gone; everything stays in git history, and the four load-bearing engine decision docs moved to `docs/adr/`. Contributor-facing only; the app is unchanged.
+
 ## [0.3.18] — 2026-07-12
 
 The self-sufficiency release. Two long-standing "works on my network / works after four terminal commands" walls came down: model downloads now find a reachable Hugging Face endpoint on their own (no more restricted-network first-run dead-ends), and IndexTTS-2 — previously the only engine that demanded a manual clone-venv-install ritual — installs itself with one click. Under the hood, a test-debt sweep hardened the suite that guards all of it.

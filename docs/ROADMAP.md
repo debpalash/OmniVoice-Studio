@@ -53,7 +53,7 @@ Together they compose: directorial edits trigger incremental re-dubs. That's the
 ⏳ Quality ceiling unchanged — one-shot translation, raw WhisperX segments, no speech-rate adaptation. **This is what Phase 1 fixes.**
 ⏳ UX ceiling — motion language, error messages, onboarding: partial. Launch animation shipped; error messages rewritten (10 sites); onboarding + sample clip still pending.
 
-See [`research/LEARNINGS.md`](research/LEARNINGS.md) for the competitor analysis this roadmap is built on · [`STRUCTURE.md`](STRUCTURE.md) for file layout · [`design/`](design/) for target-state ASCII mockups.
+See [`STRUCTURE.md`](STRUCTURE.md) for file layout. (The competitor analysis `research/LEARNINGS.md` and the `design/` ASCII mockups this roadmap was built on were removed in the 2026-07-12 root cleanup — git history.)
 
 ---
 
@@ -114,7 +114,7 @@ Progress: **7/8 (88 %)** · Phase 2.5 has overshot expectations thanks to the de
 | 2.5 | Design-system primitives | ✅ | **MASSIVELY overshot.** 14 primitives: Button, Panel, Field/Input/Textarea/Select, Dialog, Slider, Badge, Tabs, Segmented, Tooltip, Progress, Menu, Table. 9 components migrated. Inline-style migration (separate design-track row) has since drained DubTab (93→2), Header (24→1), Sidebar (21→8), CloneDesignTab (33→0). Sessions ran 2026-04-19 → 2026-04-21. |
 | 2.6 | Logging + telemetry baseline | ✅ | Shipped 2026-04-21. `print()` sweep in `services/model_manager.py` — all four calls now use `logger.info` (model load, torch.compile apply/skip, idle unload). New `OMNIVOICE_JSON_LOGS=1` env flag swaps every handler to a single-line JSON formatter (verified: `{"t": "...", "level": "INFO", "name": "omnivoice.api", "msg": "..."}`), including the rotating file handler. Per-stage Prometheus counters at `/metrics` deferred — land when a real observability need arises. |
 | 2.7 | Test floor ("every bug ships a regression test") | ✅ | Shipped 2026-04-21. New `tests/test_dub_pipeline_state.py` (8 tests — path safety, SSE shape, process tracking, in-memory + disk job round-trip) + `tests/test_translator.py` (5 tests — glossary preamble, no-LLM graceful fallback, empty-literal passthrough, full 3-step chain with mocked LLM, reflect-failure path). Total backend tests: **50** (up from 26) passing in 3.10 s. Integration tests covering the GPU / ASR model path stay out of CI — those are manual fixture-clip runs. |
-| 2.8 | Voice profile page | ✅ | Shipped 2026-04-21. New `mode: 'voice'` + `activeVoiceId` in `App.jsx`; lazy-loaded `frontend/src/pages/VoiceProfile.{jsx,css}` (hero + details + try-it + usage). Backend: new `GET /profiles/{id}`, `PUT /profiles/{id}`, `GET /profiles/{id}/usage` (scans `studio_projects.state_json` for dub-segment counts). Sidebar gets an "Open" action on clone/design cards that routes here; Back returns to the previous mode. Design target: [`design/03-voice-library.md`](design/03-voice-library.md). |
+| 2.8 | Voice profile page | ✅ | Shipped 2026-04-21. New `mode: 'voice'` + `activeVoiceId` in `App.jsx`; lazy-loaded `frontend/src/pages/VoiceProfile.{jsx,css}` (hero + details + try-it + usage). Backend: new `GET /profiles/{id}`, `PUT /profiles/{id}`, `GET /profiles/{id}/usage` (scans `studio_projects.state_json` for dub-segment counts). Sidebar gets an "Open" action on clone/design cards that routes here; Back returns to the previous mode. Design target: `design/03-voice-library.md` (retired 2026-07-12; git history). |
 
 **Exit criteria:** server can restart mid-dub without losing work. Frontend type-checks. No router file >300 lines. App.jsx ≤300 lines. CI blocks regressions.
 
@@ -223,7 +223,7 @@ None on the critical path to world-class. All are answers to real demand.
 | Perf regression budget (≤5 % on fixture clip) | ⏳ | No fixture clip yet. |
 | Accessibility (keyboard-first, WCAG AA, ARIA live regions) | 🟡 | Focus rings token defined; full audit pending. |
 | Privacy (zero telemetry by default, per-feature opt-in) | ✅ | Enforced in Settings → Privacy tab. |
-| Docs updated per phase | 🟡 | STRUCTURE.md, ROADMAP.md, ui/README.md, research/LEARNINGS.md, design/*.md all current. |
+| Docs updated per phase | 🟡 | STRUCTURE.md, ROADMAP.md, ui/README.md current (research/ + design/ retired 2026-07-12). |
 
 ---
 
@@ -596,7 +596,7 @@ Closes Phase 1.
 
 - New `backend/services/translator.py` — 3-step LLM chain (literal result passed in → LLM reflects on tone/idiom/length/pacing → LLM adapts). Bounded concurrency via `OMNIVOICE_LLM_CONCURRENCY` (default 6). Per-segment graceful fallback to literal on LLM failure.
 - `TranslateRequest` gains `quality: "fast"|"cinematic"` and `glossary: [{source, target, note}]`. Glossary, when provided, is prepended to both reflect and adapt prompts.
-- `POST /dub/translate` response gains `quality_used`, and per-segment `literal` + `critique` when Cinematic ran — set up for the Phase-1.3 three-column Translation Workbench view (see [`design/04-translation-workbench.md`](design/04-translation-workbench.md)).
+- `POST /dub/translate` response gains `quality_used`, and per-segment `literal` + `critique` when Cinematic ran — set up for the Phase-1.3 three-column Translation Workbench view (see `design/04-translation-workbench.md` (retired 2026-07-12; git history)).
 - Frontend: `translateQuality` state in `App.jsx` (localStorage-persisted), new `Segmented` control in DubTab settings bar, toast on `cinematic_skipped="no-llm-configured"` pointing to the env vars.
 - Works with real OpenAI, Ollama, LM Studio, Together, Anyscale — anything OpenAI-compatible. Env: `TRANSLATE_BASE_URL`, `TRANSLATE_API_KEY` (or `OPENAI_API_KEY`), `TRANSLATE_MODEL` (default `gpt-4o-mini`), `OMNIVOICE_LLM_TIMEOUT` (default 45 s).
 - Smoke suite still green: 12 / 12 in 2.85 s.
@@ -617,7 +617,7 @@ Closes Phase 1.
 
 ### 2026-04-20 — Research + design docs
 
-Documented `research/LEARNINGS.md` (competitor analysis: VideoLingo, pyVideoTrans, VoxCPM2), wrote the `design/` ASCII mockup set (architecture + 8 views), drafted v1 ROADMAP.md, published STRUCTURE.md after root cleanup.
+Documented `research/LEARNINGS.md` (competitor analysis: VideoLingo, pyVideoTrans, VoxCPM2), wrote the `design/` ASCII mockup set (architecture + 8 views), drafted v1 ROADMAP.md, published STRUCTURE.md after root cleanup. (Both dirs retired in the 2026-07-12 cleanup — git history.)
 
 ### Pre-2026-04-20
 
@@ -627,7 +627,7 @@ MVP feature-complete: transcribe → translate → dub → mux, voice cloning, t
 
 ## 🧭 Design target
 
-Intended shape captured in [`design/`](design/) — one ASCII mockup per view, plus a system-architecture diagram. Every phase brings the shipped product one step closer to what those views describe. When code and design diverge, one of them is wrong — decide which, then fix it.
+Intended shape captured in `design/` (retired 2026-07-12; git history) — one ASCII mockup per view, plus a system-architecture diagram. Every phase brings the shipped product one step closer to what those views describe. When code and design diverge, one of them is wrong — decide which, then fix it.
 
 ---
 

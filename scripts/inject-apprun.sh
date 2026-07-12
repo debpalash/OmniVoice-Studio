@@ -7,7 +7,7 @@
 # handling) with our conditional launcher.
 #
 # Issue: #56 (AppImage white-screen on Fedora 44 / Ubuntu 24.04)
-# Decision: .planning/decisions/apprun-strategy.md
+# Decision: docs/adr/apprun-strategy.md
 #
 # Idempotent + safe on non-Linux: if no AppDir staging exists (e.g. macOS
 # build, or `--bundles app` only), the script exits 0 cleanly.

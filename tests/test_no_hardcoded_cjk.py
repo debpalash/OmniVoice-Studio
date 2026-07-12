@@ -75,10 +75,8 @@ _ALLOWED_FILES = {
     # WER evaluation data
     "omnivoice/eval/wer/fleurs.py",
     "omnivoice/eval/wer/punctuations.lst",
-    # CLI / legacy research UI (bilingual demo labels; not the shipped app)
+    # CLI demo (bilingual demo labels; not the shipped app)
     "omnivoice/cli/demo.py",
-    "research/legacy_gradio/ui.py",
-    "research/legacy_gradio/ui_local.py",
     # Demo-audio generation scripts (multilingual TTS sample text)
     "scripts/build_demos.sh",
     "scripts/build_dub_demo.sh",

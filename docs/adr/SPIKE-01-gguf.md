@@ -1,3 +1,6 @@
+> **Archival note (2026-07-12):** moved here from `.planning/` in the root cleanup.
+> Internal `.planning/` / `specs/` paths below are historical — those trees were removed; see git history.
+
 # SPIKE-01: Adopt `Serveurperso/OmniVoice-GGUF` as hardware-adaptive default cloning engine
 
 **Status:** Proposed (research-supported) — Wave 1 build/smoke flips to Accepted in Task 3

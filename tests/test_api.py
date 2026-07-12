@@ -617,9 +617,8 @@ def test_set_env_loopback_still_validates_allowlist():
 
 # ---------------------------------------------------------------------------
 # Router-wide loopback guard — covers the previously-unprotected siblings
-# enumerated in
-# .planning/quick/260518-ivy-add-loopback-origin-check-to-system-set-/
-# 260518-ivy-deferred-items.md. Two representative routes are sampled here:
+# enumerated in the 260518-ivy loopback quick plan (removed with .planning/;
+# see git history). Two representative routes are sampled here:
 #   - /clean-audio  (POST, resource-exhaustion vector)
 #   - /system/info  (GET,  info-disclosure vector)
 # The router-level dependency means every other route on the system router

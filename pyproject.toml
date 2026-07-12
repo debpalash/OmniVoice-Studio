@@ -114,7 +114,7 @@ dependencies = [
     # silently disappear on a resolve, and we pull `hf-xet` explicitly: it is
     # the content-defined-chunking, parallel byte-range downloader that gives
     # IDM/uGet-style speed for Xet-backed repos (the entire current model
-    # catalog — see .planning/quick/260613-fdl-fast-model-downloads/SPIKE).
+    # catalog — FDL spike 2026-06-13; plan removed with .planning/, see git history).
     # hf-xet is 64-bit only (fine for every OmniVoice target). Do NOT add
     # `hf_transfer` — it is deprecated in favour of Xet and breaks progress
     # callbacks (the accurate-progress work in this same plan depends on tqdm).

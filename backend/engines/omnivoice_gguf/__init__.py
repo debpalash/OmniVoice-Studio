@@ -11,7 +11,7 @@ The public entry point is :class:`OmniVoiceGGUFBackend`. Registered in
 import of this package (and its `huggingface_hub` + `soundfile` + `torch`
 chain) is deferred until a caller actually instantiates the backend.
 
-See ``.planning/decisions/SPIKE-01-gguf.md`` for the GO rationale and the
+See ``docs/adr/SPIKE-01-gguf.md`` for the GO rationale and the
 pinned commit SHAs for both the GGUF quant repo and the `omnivoice.cpp`
 runtime source.
 """

@@ -1,8 +1,8 @@
 # tests/fixtures/omnivoice_data/
 
 **Frozen regression fixture** loaded by `tests/smoke/test_boot_smoke.py`
-on every PR (macOS / Windows / Linux). See GATE-01 in
-`.planning/REQUIREMENTS.md`.
+on every PR (macOS / Windows / Linux). (GATE-01; the requirements doc
+was removed with `.planning/` — see git history.)
 
 ## Do not edit by hand
 

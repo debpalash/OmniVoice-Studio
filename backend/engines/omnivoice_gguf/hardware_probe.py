@@ -6,7 +6,7 @@ CUDA / MPS / ROCm / CPU detection with VRAM bucketing so the
 ``quant_map.json``.
 
 Thresholds are deliberately conservative — see
-``.planning/phases/04-adaptive-specialty-engines-spike-first/04-RESEARCH.md``
+``docs/adr/SPIKE-01-gguf-research.md``
 §"Hardware probe extension" (Pitfall 2). The "default Q8_0 once you have
 ~1 GB of free VRAM" rule means we step up to Q8_0 at the 4 GB total-VRAM
 mark, not at the 1 GB free-VRAM mark — Q8_0 itself uses ~945 MB at runtime

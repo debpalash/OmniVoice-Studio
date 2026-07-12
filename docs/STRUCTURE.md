@@ -82,16 +82,6 @@ OmniVoice/
 │   ├── evaluation.md
 │   └── voice-design.md
 │
-├── design/                      ⟵ ASCII mockups of the target UX
-│   ├── README.md
-│   └── 00–08-*.md               per-feature specs
-│
-├── research/                    ⟵ reference material, competitor analysis, archived code
-│   ├── LEARNINGS.md             competitive analysis, what to absorb
-│   ├── TheWhisper/              vendored reference (read-only)
-│   ├── voice-pro/               vendored reference
-│   └── legacy_gradio/           archived Gradio UI (pre-React rewrite)
-│
 ├── examples/                    ⟵ runnable demos + sample inputs
 │
 ├── omnivoice_data/              ⟵ Docker bind-mount target (gitignored)
@@ -119,8 +109,7 @@ OmniVoice/
 | Everything executable but not user-facing | `scripts/` |
 | Tests | `tests/` |
 | Developer + user docs (Markdown) | `docs/` |
-| Target-state mockups | `design/` |
-| Competitor clones, legacy code, ref material | `research/` |
+| Architecture decision records (ADRs) | `docs/adr/` |
 | Runnable demos and sample data | `examples/` |
 | Runtime data (never committed) | `~/Library/Application Support/OmniVoice/` on Mac |
 
@@ -136,8 +125,18 @@ Removed in the cleanup pass:
 | `crash_log.txt` | Runtime log. Now written to `$DATA_DIR/crash_log.txt`. | Deleted. |
 | `omnivoice.zip` (148 MB) | Offline reference archive of the project itself. | Moved out of the repo to `../omnivoice.zip.bak`. |
 | `data/` | Only contained `.DS_Store`. | Deleted. |
-| `legacy_gradio/` | The pre-React Gradio UI. Kept for historical reference. | Archived to `research/legacy_gradio/`. |
+| `legacy_gradio/` | The pre-React Gradio UI. Kept for historical reference. | Archived to `research/legacy_gradio/`, then removed in the 2026-07-12 cleanup (git history). |
 | Scattered `.DS_Store` files | macOS Finder droppings. | Deleted from every non-ignored directory. |
+
+Removed in the 2026-07-12 cleanup pass (all preserved in git history):
+
+| Dir | Why it was there | Where it went |
+|---|---|---|
+| `.planning/` (74 files) | GSD-era planning archive: phases, quick plans, issue clusters. The GSD workflow was retired 2026-07-08. | Deleted; the four load-bearing decision docs moved to `docs/adr/`. |
+| `specs/` | spec-kit specs for features 001–007 — all shipped. | Deleted. |
+| `design/` | ASCII mockups of the pre-React target UX, superseded by the shipped app. | Deleted. |
+| `research/` | Archived legacy Gradio UI + April-2026 competitor notes. | Deleted. |
+| `.agents/` | Rules for a third-party agent tool no longer in use. | Deleted. |
 
 ## Scaling path (proposed, not yet executed)
 
@@ -156,9 +155,7 @@ OmniVoice/
 │   ├── docker/
 │   └── pyinstaller/
 ├── tests/
-├── docs/
-├── design/
-└── research/
+└── docs/
 ```
 
 **Do not execute this migration without a dedicated PR.** It breaks:

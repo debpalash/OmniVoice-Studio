@@ -1,3 +1,6 @@
+> **Archival note (2026-07-12):** moved here from `.planning/` in the root cleanup.
+> Internal `.planning/` / `specs/` paths below are historical — those trees were removed; see git history.
+
 # Phase 4: Adaptive & Specialty Engines (spike-first) — Research
 
 **Researched:** 2026-05-18

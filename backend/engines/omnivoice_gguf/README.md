@@ -20,8 +20,8 @@ under a different runtime.
 
 - Model card: https://huggingface.co/Serveurperso/OmniVoice-GGUF
 - Runtime source: https://github.com/ServeurpersoCom/omnivoice.cpp
-- Decision doc: `.planning/decisions/SPIKE-01-gguf.md`
-- Research: `.planning/phases/04-adaptive-specialty-engines-spike-first/04-RESEARCH.md`
+- Decision doc: `docs/adr/SPIKE-01-gguf.md`
+- Research: `docs/adr/SPIKE-01-gguf-research.md`
 
 ## Pinned SHAs
 

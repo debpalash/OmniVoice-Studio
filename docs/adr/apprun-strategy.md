@@ -1,3 +1,6 @@
+> **Archival note (2026-07-12):** moved here from `.planning/` in the root cleanup.
+> Internal `.planning/` / `specs/` paths below are historical — those trees were removed; see git history.
+
 # Decision — AppImage `AppRun` injection strategy
 
 **Date:** 2026-05-20

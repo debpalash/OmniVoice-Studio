@@ -1,6 +1,9 @@
+> **Archival note (2026-07-12):** moved here from `.planning/` in the root cleanup.
+> Internal `.planning/` / `specs/` paths below are historical — those trees were removed; see git history.
+
 # SPIKE-02: Adopt `ModelsLab/omnivoice-singing` as singing variant of the existing engine
 
-**Status:** ⚠️ **SUPERSEDED (2026-06-14)** by [`specs/006-dubbing-singing-mode/`](../../specs/006-dubbing-singing-mode/spec.md)
+**Status:** ⚠️ **SUPERSEDED (2026-06-14)** by `specs/006-dubbing-singing-mode/` (spec tree removed 2026-07-12 — feature shipped; see git history)
 **Date:** 2026-05-18 (superseded 2026-06-14)
 **Decision-makers:** [maintainer]
 **Related:** ROADMAP Phase 4; REQUIREMENTS SING-01..05; `.planning/phases/04-adaptive-specialty-engines-spike-first/04-RESEARCH.md`
