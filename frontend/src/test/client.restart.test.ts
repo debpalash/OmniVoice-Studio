@@ -139,3 +139,45 @@ describe('classifyBootstrapStage', () => {
     expect(classifyBootstrapStage(undefined)).toBe('unknown');
   });
 });
+
+// #1113 — reported on v0.3.21, the release that was supposed to end this class.
+// The user got "it may still be starting up, or it stopped" while the shell knew
+// the backend was RUNNING and no crash was ever recorded. Both halves of that
+// sentence were false: it hadn't stopped, and it wasn't starting. It was alive
+// and wedged. Saying "restart the app" for a stuck job is the wrong advice.
+describe('apiFetch — an alive-but-unresponsive backend says so (#1113)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    stageMock.mockReset();
+    stageMock.mockResolvedValue('unknown');
+  });
+
+  it('names the wedged-job case instead of claiming it stopped', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    stageMock.mockResolvedValue('ready'); // the shell KNOWS the process is alive
+
+    const p = apiFetch('/generate');
+    const assertion = expect(p).rejects.toMatchObject({
+      status: 0,
+      message: expect.stringContaining('running but stopped responding'),
+    });
+    await vi.advanceTimersByTimeAsync(CASCADE_MS + 12_000 + 2000);
+    await assertion;
+  });
+
+  it('still says "starting up or stopped" when the shell has no idea (no shell)', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    stageMock.mockResolvedValue('unknown');
+
+    const p = apiFetch('/model/status');
+    const assertion = expect(p).rejects.toMatchObject({
+      message: expect.stringContaining("Can't reach the local OmniVoice backend"),
+    });
+    await vi.advanceTimersByTimeAsync(CASCADE_MS + 100);
+    await assertion;
+  });
+});

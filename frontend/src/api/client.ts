@@ -165,6 +165,11 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
     : opts;
   const signal = finalOpts.signal as AbortSignal | null | undefined;
   let lastDetail = '';
+  // The shell's last word on the backend. When it still says `ready` after we've
+  // exhausted the reconcile window, the process is demonstrably ALIVE and simply
+  // not answering — a different failure from "it stopped", and it deserves a
+  // different sentence (#1113).
+  let lastStage = 'unknown';
   const startedAt = Date.now();
   for (let attempt = 0; ; attempt++) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -191,12 +196,12 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       // "starting", bounded by STARTUP_GRACE_MS.
       const elapsed = Date.now() - startedAt;
       if (elapsed < STARTUP_GRACE_MS) {
-        let stage = 'unknown';
         try {
-          stage = await backendLifecycleStage();
+          lastStage = await backendLifecycleStage();
         } catch {
           /* never let the lifecycle probe mask the real transport error */
         }
+        const stage = lastStage;
         if (stage === 'starting') {
           await new Promise((r) => setTimeout(r, RESTART_WAIT_INTERVAL_MS));
           continue;
@@ -231,6 +236,22 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
           `The local OmniVoice backend crashed (${describeCrashExit(crash)}) ${crashAge(crash)} ago ` +
             'and is being restarted — this request could not reach it. ' +
             'Open the crash notice for the error output, or check Settings → Logs → Backend.',
+          { status: 0, detail: lastDetail },
+        );
+      }
+      // #1113: no crash was recorded AND the shell still reports the backend as
+      // running — so it did NOT stop; it is alive and has stopped answering.
+      // Telling this user "it may still be starting up, or it stopped" is simply
+      // false, and it sends them to restart the app when the real cause is a
+      // wedged job holding the worker (a heavy generate/transcribe on a small
+      // GPU). Name what actually happened and point at the thing that fixes it.
+      if (lastStage === 'ready') {
+        throw new ApiError(
+          'The local OmniVoice backend is running but stopped responding. This usually means a ' +
+            'job (a generation or a transcription) is stuck holding the engine — often a model ' +
+            'too heavy for the available memory on this machine. Check Settings → Logs → Backend ' +
+            'for the last thing it was doing; a smaller model or engine (Settings → Models) is ' +
+            'the usual fix. Restarting the app clears it for now.',
           { status: 0, detail: lastDetail },
         );
       }
