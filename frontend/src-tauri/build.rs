@@ -34,6 +34,13 @@ fn ensure_sidecar_placeholder(name: &str) {
 }
 
 fn main() {
+    // backend.rs bakes the analytics destination in with option_env!, which cargo
+    // resolves at COMPILE time — so without these, a cached build would keep the
+    // token it was first compiled with (in practice: none), and the secret would
+    // appear to be ignored. Tell cargo the build depends on them.
+    println!("cargo:rerun-if-env-changed=VITE_POSTHOG_KEY");
+    println!("cargo:rerun-if-env-changed=VITE_POSTHOG_HOST");
+
     ensure_sidecar_placeholder("uv");
     ensure_sidecar_placeholder("ffmpeg");
     ensure_sidecar_placeholder("ffprobe");

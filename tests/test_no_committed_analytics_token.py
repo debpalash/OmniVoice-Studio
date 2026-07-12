@@ -63,3 +63,34 @@ def test_the_frontend_reads_its_token_from_the_build_env():
     """The mechanism that replaces the literal must stay in place."""
     src = (_REPO / "frontend/src/utils/analytics.ts").read_text(encoding="utf-8")
     assert "VITE_POSTHOG_KEY" in src
+
+
+# ── the token has to actually REACH both halves ──────────────────────────────
+#
+# The backend reads POSTHOG_PROJECT_TOKEN from its own environment at runtime,
+# on the user's machine, where nothing sets it. So the chain
+#
+#     repo secret -> release.yml -> tauri-action -> option_env! in backend.rs
+#                 -> spawned backend process env -> analytics.token_configured()
+#
+# has to hold end to end, and every link is invisible when it breaks: analytics
+# just silently never fires. These pin the two links that live in files a future
+# change could quietly drop.
+
+
+def test_release_workflow_still_passes_the_secret_to_the_build():
+    wf = (_REPO / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "VITE_POSTHOG_KEY" in wf, "the build no longer receives the analytics token"
+    assert "secrets.POSTHOG_PROJECT_TOKEN" in wf, "the token must come from the repo secret"
+
+
+def test_the_shell_hands_the_token_to_the_backend_it_spawns():
+    """Without this the backend's analytics is dead code in every shipped build."""
+    src = (_REPO / "frontend/src-tauri/src/backend.rs").read_text(encoding="utf-8")
+    assert 'option_env!("VITE_POSTHOG_KEY")' in src, "the shell no longer bakes in the token"
+    assert "POSTHOG_PROJECT_TOKEN" in src, "the backend process is no longer given a destination"
+
+    # option_env! is resolved at COMPILE time, so cargo must rebuild when the
+    # secret changes — otherwise a cached build keeps the token it first saw.
+    build_rs = (_REPO / "frontend/src-tauri/build.rs").read_text(encoding="utf-8")
+    assert "rerun-if-env-changed=VITE_POSTHOG_KEY" in build_rs

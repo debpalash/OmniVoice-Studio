@@ -278,6 +278,42 @@ fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
 
 // ── Spawn the backend via the bootstrapped venv Python ────────────────────
 
+/// Env the spawned backend needs in order to have an analytics destination at all.
+///
+/// `core/analytics.py` reads `POSTHOG_PROJECT_TOKEN` from its own environment at
+/// RUNTIME — but the backend runs on the *user's* machine, where nothing sets it.
+/// Without this, `token_configured()` is false forever and every backend event is
+/// dead code in every shipped build, no matter what secret CI holds.
+///
+/// The token is really a *build* input. release.yml passes the
+/// `POSTHOG_PROJECT_TOKEN` secret to the tauri-action step as `VITE_POSTHOG_KEY`,
+/// and that step compiles this binary as well as the frontend bundle — so
+/// `option_env!` bakes it in on exactly the builds that ship it, and we hand it to
+/// the child process here.
+///
+/// Two properties this preserves, both load-bearing:
+///   * **No token baked in (every source build) => nothing is passed** => the
+///     backend has no destination and analytics can never run. Correct default.
+///   * **A real process env var wins**, so a developer can point a local run at
+///     their own PostHog project without recompiling.
+///
+/// This only supplies a *destination*. Consent is a separate gate the backend
+/// checks in prefs (default off) — a token alone never causes a single event.
+fn analytics_env(baked_token: Option<&str>, baked_host: Option<&str>) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut pass = |name: &str, baked: Option<&str>| {
+        if std::env::var(name).is_ok() {
+            return; // caller's environment wins
+        }
+        if let Some(v) = baked.map(str::trim).filter(|v| !v.is_empty()) {
+            out.push((name.to_string(), v.to_string()));
+        }
+    };
+    pass("POSTHOG_PROJECT_TOKEN", baked_token);
+    pass("POSTHOG_HOST", baked_host);
+    out
+}
+
 pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
     let log_path = backend_log_path();
     let err_path = log_path.with_file_name("backend_err.log");
@@ -337,6 +373,8 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
             env.push(("OMNIVOICE_CACHE_DIR".into(), models_dir.to_string_lossy().into()));
         }
     }
+    // Analytics destination (#1123) — see analytics_env() below for why.
+    env.extend(analytics_env(option_env!("VITE_POSTHOG_KEY"), option_env!("VITE_POSTHOG_HOST")));
     let app_data = app.path().app_local_data_dir().unwrap_or_default();
     if let Some(ffmpeg_path) = resolve_ffmpeg(app, &app_data) {
         env.push(("FFMPEG_PATH".into(), ffmpeg_path.to_string_lossy().into()));
@@ -429,6 +467,51 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
 mod tests {
     use super::*;
     use std::io;
+
+    // #1123 shipped backend analytics that could never run: core/analytics.py reads
+    // POSTHOG_PROJECT_TOKEN from the runtime environment, and nothing on the user's
+    // machine ever set it. These pin the wiring that fixes it — and, just as
+    // importantly, pin that a build with no token stays silent.
+
+    /// The env-var tests below mutate process-global state; keep them off each
+    /// other's toes (cargo runs tests in threads by default).
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn a_baked_token_reaches_the_spawned_backend() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("POSTHOG_PROJECT_TOKEN");
+        std::env::remove_var("POSTHOG_HOST");
+
+        let env = analytics_env(Some("phc_baked"), Some("https://eu.i.posthog.com"));
+
+        // Without this the backend has no destination and every event is dropped.
+        assert!(env.contains(&("POSTHOG_PROJECT_TOKEN".into(), "phc_baked".into())));
+        assert!(env
+            .contains(&("POSTHOG_HOST".into(), "https://eu.i.posthog.com".into())));
+    }
+
+    #[test]
+    fn a_source_build_passes_no_destination_at_all() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("POSTHOG_PROJECT_TOKEN");
+        std::env::remove_var("POSTHOG_HOST");
+
+        // No secret at compile time (anyone building from source), and the empty
+        // string CI hands over when the secret is simply absent.
+        assert!(analytics_env(None, None).is_empty());
+        assert!(analytics_env(Some(""), Some("   ")).is_empty());
+    }
+
+    #[test]
+    fn the_process_environment_beats_the_baked_token() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("POSTHOG_PROJECT_TOKEN", "phc_developers_own_project");
+        let env = analytics_env(Some("phc_baked"), None);
+        // Don't override what the caller deliberately set — the child inherits it.
+        assert!(env.iter().all(|(k, _)| k != "POSTHOG_PROJECT_TOKEN"));
+        std::env::remove_var("POSTHOG_PROJECT_TOKEN");
+    }
 
     #[test]
     fn spawn_failure_diagnostic_surfaces_path_error_and_hint() {
