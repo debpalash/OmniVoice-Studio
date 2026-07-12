@@ -54,6 +54,20 @@ pub fn set_stage(state: &Arc<Mutex<BootstrapStage>>, stage: BootstrapStage) {
     }
 }
 
+/// True when the stage already carries a `Failed` diagnosis.
+///
+/// The venv bootstrap (`ensure_venv_ready`) records the REAL reason a start
+/// failed — "Intel Macs can't run the local AI backend", a `uv sync` error, a
+/// blocked GitHub — through `fail()`, which sets exactly this. The spawn watcher
+/// must not then bulldoze it with the generic "never started" (#1112): a caller
+/// that already knows the cause outranks one that only knows the symptom.
+pub fn already_diagnosed(state: &Arc<Mutex<BootstrapStage>>) -> bool {
+    state
+        .lock()
+        .map(|g| matches!(*g, BootstrapStage::Failed { .. }))
+        .unwrap_or(false)
+}
+
 // ── Splash log + byte-progress event channel ─────────────────────────────
 
 #[derive(Clone, Serialize)]
@@ -316,6 +330,27 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                             venv_dir.display()
                         );
                     }
+                }
+                // #1112: when the backend NEVER started, `ensure_venv_ready` has
+                // usually already diagnosed exactly why — Intel Mac unsupported,
+                // a failed `uv sync`, a blocked GitHub — and recorded it via
+                // `fail()` as a Failed stage carrying that reason. Overwriting it
+                // here with the generic "never started — no error output captured"
+                // destroyed every precise diagnosis: the user saw a message with
+                // no cause, and the UI's hint matcher (which keys off the specific
+                // text — e.g. the Intel-Mac hint) could never fire, so they were
+                // offered a Retry that can never work. Keep the specific reason.
+                //
+                // A REAL spawn failure (exec error) is unaffected: it writes its
+                // diagnostic to backend_err.log and leaves the stage un-Failed, so
+                // the message below still forms with that tail. Likewise a genuine
+                // crash after a successful start (stage is Ready/StartingBackend).
+                if already_diagnosed(stage_handle) {
+                    log::error!(
+                        "Backend never started ({}) — keeping the specific failure already diagnosed",
+                        exit_info
+                    );
+                    return;
                 }
                 let msg = if err_tail.is_empty() {
                     format!("Backend process exited ({}) — no error output captured", exit_info)
@@ -2225,5 +2260,51 @@ mod tests {
         invalidate_cudnn8_probe_cache(&venv_dir);
         assert!(!marker.is_file());
         let _ = fs::remove_dir_all(&venv_dir);
+    }
+}
+
+#[cfg(test)]
+mod failure_preservation_tests {
+    use super::*;
+
+    fn stage(s: BootstrapStage) -> Arc<Mutex<BootstrapStage>> {
+        Arc::new(Mutex::new(s))
+    }
+
+    /// #1112: the venv bootstrap diagnoses the REAL reason (Intel Mac, uv sync
+    /// failure, blocked GitHub) and records it as Failed. The spawn watcher, on
+    /// seeing "no child ever started", must NOT replace that with the generic
+    /// "never started — no error output captured": doing so left the user with a
+    /// causeless message AND stopped the UI's hint matcher (which keys off the
+    /// specific text) from ever firing, so they were offered a Retry that could
+    /// never work.
+    #[test]
+    fn a_specific_failure_is_recognised_as_already_diagnosed() {
+        let s = stage(BootstrapStage::Failed {
+            message: INTEL_MAC_UNSUPPORTED_MSG.to_string(),
+        });
+        assert!(already_diagnosed(&s));
+    }
+
+    #[test]
+    fn a_non_failed_stage_is_not_diagnosed_so_the_generic_message_still_forms() {
+        // A real crash after a successful start, or a raw exec failure: nobody
+        // diagnosed it, so the spawn watcher's message is the only one there is.
+        for st in [
+            BootstrapStage::Checking,
+            BootstrapStage::StartingBackend,
+            BootstrapStage::Ready,
+            BootstrapStage::InstallingDeps,
+        ] {
+            assert!(!already_diagnosed(&stage(st)));
+        }
+    }
+
+    /// The Intel-Mac message must keep the exact wording the frontend hint
+    /// matcher greps for — if this drifts, the user silently loses the only
+    /// hint that tells them retrying is pointless.
+    #[test]
+    fn intel_mac_message_matches_what_the_ui_hint_matcher_greps_for() {
+        assert!(INTEL_MAC_UNSUPPORTED_MSG.contains("Intel Macs can't run the local AI backend"));
     }
 }

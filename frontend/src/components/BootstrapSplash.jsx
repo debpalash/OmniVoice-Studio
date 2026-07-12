@@ -151,6 +151,16 @@ function detectHints(message, logs) {
   return hints;
 }
 
+/** Failures no retry can ever fix — offering a Retry button for these is the
+ *  dead end #1112 reported ("clicking the buttons does nothing"): the bootstrap
+ *  re-fails identically every time. Today that's the Intel Mac (#889): PyTorch
+ *  ships no macOS x86_64 wheels, so the dependency set can never resolve there.
+ *  Keyed off the same hint the matcher produces, so the two can't drift.
+ *  Pure + exported for tests. */
+export function isUnrecoverableFailure(message, logs = []) {
+  return detectHints(message, logs).includes('bootstrap.hint_intel_mac');
+}
+
 function formatEta(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '';
   if (seconds < 60) return '<1m';
@@ -370,6 +380,8 @@ export function BootstrapSplash({ stage, message }) {
   const label = t(`bootstrap.${stage}`, STAGE_LABEL[stage]);
   const stepIndex = Math.max(0, STEPS.indexOf(stage));
   const isFailed = stage === 'failed';
+  // Retrying an Intel-Mac install can never succeed — don't offer the dead end.
+  const isUnrecoverable = isFailed && isUnrecoverableFailure(message, logs);
   const [logs, setLogs] = useState([]);
   const [logsOpen, setLogsOpen] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -650,18 +662,35 @@ export function BootstrapSplash({ stage, message }) {
               </ul>
             </div>
             <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCleanRetry}
-                disabled={retrying}
-                leading={<Brush size={12} />}
-              >
-                {t('bootstrap.clean_retry', 'Clean & Retry')}
-              </Button>
-              <Button variant="primary" onClick={handleRetry} disabled={retrying}>
-                {retrying ? t('bootstrap.retrying', 'Retrying…') : t('bootstrap.retry', 'Retry')}
-              </Button>
+              {/* #1112: some failures can NEVER be retried away — an Intel Mac
+                  has no PyTorch wheels, so every retry re-fails identically and
+                  the buttons just look broken ("clicking them does nothing").
+                  Say so plainly and don't offer the dead end. */}
+              {isUnrecoverable ? (
+                <span className="text-sm text-fg-muted">
+                  {t(
+                    'bootstrap.unrecoverable',
+                    'Retrying cannot fix this — see the guidance above.',
+                  )}
+                </span>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCleanRetry}
+                    disabled={retrying}
+                    leading={<Brush size={12} />}
+                  >
+                    {t('bootstrap.clean_retry', 'Clean & Retry')}
+                  </Button>
+                  <Button variant="primary" onClick={handleRetry} disabled={retrying}>
+                    {retrying
+                      ? t('bootstrap.retrying', 'Retrying…')
+                      : t('bootstrap.retry', 'Retry')}
+                  </Button>
+                </>
+              )}
             </div>
           </section>
         ) : (

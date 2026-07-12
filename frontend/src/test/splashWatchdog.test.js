@@ -138,3 +138,24 @@ describe('startSplashWatchdog (#879)', () => {
     expect(onStuck).not.toHaveBeenCalled();
   });
 });
+
+// #1112: an Intel-Mac install can never be retried into working (PyTorch ships
+// no macOS x86_64 wheels), so the splash must not offer a Retry that re-fails
+// identically — the "clicking the buttons does nothing" dead end.
+describe('isUnrecoverableFailure (#1112)', () => {
+  it('flags the Intel-Mac failure as unrecoverable', async () => {
+    const { isUnrecoverableFailure } = await import('../components/BootstrapSplash.jsx');
+    expect(
+      isUnrecoverableFailure(
+        "Intel Macs can't run the local AI backend — PyTorch no longer ships…",
+      ),
+    ).toBe(true);
+  });
+
+  it('leaves ordinary failures retryable', async () => {
+    const { isUnrecoverableFailure } = await import('../components/BootstrapSplash.jsx');
+    expect(isUnrecoverableFailure('uv sync failed: connection timed out')).toBe(false);
+    expect(isUnrecoverableFailure('Backend process exited (never started)')).toBe(false);
+    expect(isUnrecoverableFailure('')).toBe(false);
+  });
+});

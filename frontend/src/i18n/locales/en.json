@@ -1671,6 +1671,7 @@
     "failed": "Setup failed",
     "what_to_try": "What to try:",
     "retry": "Retry",
+    "unrecoverable": "Retrying cannot fix this — see the guidance above.",
     "clean_retry": "Clean & Retry",
     "clean_retry_confirm": "This will delete the cached Python environment and re-download all dependencies (~5-10 min). Continue?",
     "hide_logs": "Hide logs",
