@@ -1318,6 +1318,41 @@ def _has_dedicated_vram():
     return False
 
 
+
+# Free RAM below which the TTS model is released before ASR loads on a
+# unified-memory machine. WhisperX large-v3 needs ~3 GB plus VAD and overhead,
+# so a box with less than this much headroom cannot hold both — and on a Mac the
+# loser is the whole backend process (the OS kills it). Tunable for bigger boxes.
+_UNIFIED_OFFLOAD_HEADROOM_GB = float(
+    os.environ.get("OMNIVOICE_UNIFIED_OFFLOAD_HEADROOM_GB", "6.0")
+)
+
+
+def _offload_unified_memory() -> bool:
+    """Release the TTS model on a unified-memory host when RAM is tight.
+
+    Returns True when the model was actually released. Never raises — a failure
+    to make room must not abort the transcription that asked for it."""
+    global model
+    try:
+        from services.memory_budget import available_memory
+
+        free_gb = available_memory().get("ram_available_gb")
+        if free_gb is not None and free_gb > _UNIFIED_OFFLOAD_HEADROOM_GB:
+            return False  # plenty of room — keep the model warm, pay no reload
+        logger.info(
+            "Unified memory tight (%s GB free) — releasing the TTS model so ASR has room "
+            "(it reloads on the next generation).",
+            "unknown" if free_gb is None else f"{free_gb:.1f}",
+        )
+        model = None
+        free_vram()
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.warning("unified-memory TTS offload failed (continuing): %s", e)
+        return False
+
+
 def offload_tts_for_asr():
     """Move TTS model to CPU to free VRAM for ASR (WhisperX large-v3).
 
@@ -1333,7 +1368,18 @@ def offload_tts_for_asr():
     if model is None:
         return
     if not _has_dedicated_vram():
-        return  # MPS / CPU / DirectML don't benefit from manual offloading
+        # UNIFIED MEMORY (Apple Silicon / CPU). Moving the model "to CPU" frees
+        # nothing here — it is the same physical RAM — which is why this used to
+        # bail out entirely. But the conclusion was wrong: the fix on unified
+        # memory isn't to MOVE the model, it's to RELEASE it.
+        #
+        # Holding the ~3.8 GB TTS model resident while WhisperX large-v3 (~3 GB)
+        # loads on top of it is what gets the backend OOM-killed mid-dub on a
+        # 16 GB Mac (#1119) — the transcribe stream just dies. Unload it and the
+        # room is real. get_model() lazily reloads on the next TTS use, so the
+        # only cost is that reload, and only when memory was actually tight.
+        _offload_unified_memory()
+        return
     try:
         # Check if there's enough free VRAM to skip offloading
         if torch.cuda.is_available():
@@ -1358,6 +1404,10 @@ def restore_tts_after_asr():
     if model is None:
         return
     if not _has_dedicated_vram():
+        # Nothing to restore on unified memory: offload UNLOADED the model, and
+        # get_model() reloads it lazily on the next TTS call. Reloading it here
+        # would just re-occupy the RAM we freed, right when the dub still has
+        # translation and synthesis ahead of it.
         return
     try:
         device = get_best_device()

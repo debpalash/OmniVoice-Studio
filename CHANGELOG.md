@@ -10,6 +10,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- **The backend stopped holding the voice model hostage while it loads the transcription model — the 16 GB dub crash.** Before transcribing a dub, OmniVoice makes room by setting the TTS model aside. On an NVIDIA GPU it did. On **Apple Silicon it did nothing at all** — the code bailed out with "unified memory doesn't benefit from offloading". That was half right and wholly wrong: on unified memory, *moving* a model to "CPU" frees nothing (it's the same RAM), but the answer is to **release** it, not to skip the step. So a 16 GB Mac went into a dub holding the ~3 GB voice model, then loaded a ~3 GB transcription model on top of it — measured here: 4.1 GB free before, and large-v3 needs 3 — and the operating system killed the backend mid-transcription. That's the dub that "dropped before emitting any segments". The voice model is now genuinely released when memory is tight (and left alone when it isn't, so a roomy machine pays nothing); it reloads by itself on your next generation. (#1119)
+
 - **A dub that dies mid-transcription still guessed at the cause.** v0.3.20 taught it to check the crash report before blaming the ASR model — but it checked *instantly*, the moment the stream dropped, and the desktop shell needs about two seconds to notice the backend died and write that report. So it kept looking too early, finding nothing, and falling back to the same old guess ("Likely ASR backend failed to load") even when the backend had in fact just crashed. It now waits for the shell to catch up, so you get the real cause — exit code and error output — instead of a guess. (#1119)
 
 ### Added
