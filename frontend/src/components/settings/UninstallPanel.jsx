@@ -141,7 +141,7 @@ export default function UninstallPanel() {
             {present.map((tg) => (
               <li
                 key={tg.key}
-                className="flex items-baseline justify-between gap-[var(--space-4)] border-b border-[var(--chrome-border)] py-[var(--space-2)] last:border-0"
+                className="flex items-baseline justify-between gap-[var(--space-4)] rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-2)] odd:bg-[var(--chrome-hover-bg)]"
               >
                 <span className="[font-family:var(--font-sans)] text-[length:var(--text-md)] text-[var(--chrome-fg)]">
                   {LABELS[tg.key] || tg.key}
@@ -215,7 +215,7 @@ export default function UninstallPanel() {
           </p>
 
           {models && (
-            <label className="flex cursor-pointer items-start gap-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--chrome-border)] p-[var(--space-3)]">
+            <label className="flex cursor-pointer items-start gap-[var(--space-3)] rounded-[var(--radius-md)] bg-[var(--chrome-hover-bg)] p-[var(--space-3)]">
               <input
                 type="checkbox"
                 checked={includeModels}
@@ -247,7 +247,7 @@ export default function UninstallPanel() {
               autoComplete="off"
               spellCheck="false"
               data-testid="uninstall-type-confirm"
-              className="rounded-[var(--radius-md)] border border-[var(--chrome-border)] bg-transparent px-[var(--space-3)] py-[var(--space-2)] [font-family:var(--font-mono)] text-[length:var(--text-md)] text-[var(--chrome-fg)]"
+              className="rounded-[var(--radius-md)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-3)] py-[var(--space-2)] [font-family:var(--font-mono)] text-[length:var(--text-md)] text-[var(--chrome-fg)] focus:outline-none"
             />
           </label>
         </div>
