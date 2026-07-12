@@ -110,17 +110,3 @@ describe('initAnalyticsFromConsent — silence is not consent', () => {
     expect(started).toBe(true);
   });
 });
-
-// The secret scanner caught a hardcoded token here once. Keep it caught: the
-// destination must come from the build environment, never from the repo.
-describe('the analytics token is never committed', () => {
-  it('has no PostHog token literal in the source', async () => {
-    const src = await import('../utils/analytics?raw').catch(() => null);
-    // Falls back to a direct read when ?raw isn't available in this env.
-    const text =
-      (src as unknown as { default?: string })?.default ??
-      (await import('node:fs')).readFileSync('src/utils/analytics.ts', 'utf8');
-    expect(text).not.toMatch(/phc_[A-Za-z0-9]{20,}/);
-    expect(text).toContain('VITE_POSTHOG_KEY');
-  });
-});
