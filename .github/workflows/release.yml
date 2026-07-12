@@ -723,6 +723,13 @@ jobs:
   # path, but a user who wants to clean up WITHOUT launching the app — or after
   # already deleting it — has no repo to run scripts/uninstall.sh from. Ship the
   # two scripts alongside the installers so they're one download away.
+  #
+  # MUST use `gh release upload` (attach to the EXISTING release), NOT
+  # softprops/action-gh-release: a second softprops publish races tauri-action's
+  # per-matrix draft and splits the platform installers across two releases for
+  # the tag (v0.3.20 shipped with only the Linux AppImage that way). `needs:
+  # [build]` guarantees the release already exists; `--clobber` makes a re-run
+  # idempotent. This can never create a second release.
   uninstall-scripts:
     needs: [build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -731,14 +738,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Attach uninstall scripts to the release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            scripts/uninstall.sh
-            scripts/uninstall.ps1
-          fail_on_unmatched_files: true
+      - name: Attach uninstall scripts to the existing release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            scripts/uninstall.sh scripts/uninstall.ps1 \
+            --clobber --repo "${{ github.repository }}"
 
   # ── Auto-generated preview release notes ──────────────────────────────────
   # tauri-action publishes the rolling `preview` release with the plain
