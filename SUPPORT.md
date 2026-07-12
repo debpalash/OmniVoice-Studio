@@ -9,6 +9,14 @@
 | [GitHub Discussions](https://github.com/debpalash/OmniVoice-Studio/discussions) | Design questions, ideas, show & tell |
 | Security issues | **Never a public issue** — see [SECURITY.md](SECURITY.md) for private reporting |
 
+## Uninstalling / removing all data
+
+OmniVoice is fully local — there's nothing to deactivate, just folders to
+delete. `scripts/uninstall.sh` (macOS/Linux) or `scripts\uninstall.ps1`
+(Windows) lists every OmniVoice folder with its size (dry-run first) and
+removes them on `--yes`. The complete per-platform path list is in
+[docs/install/uninstall.md](docs/install/uninstall.md).
+
 ## Model sources we support
 
 OmniVoice is built on the idea that everything it runs is **open and available

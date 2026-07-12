@@ -575,3 +575,27 @@ OmniVoice now tries, in order: the default GitHub host → a gh-proxy mirror →
    you can raise them further in the environment if a mirror is very slow.
 
 **Linked issues:** [#130](https://github.com/debpalash/OmniVoice-Studio/issues/130), [#60](https://github.com/debpalash/OmniVoice-Studio/issues/60), [#57](https://github.com/debpalash/OmniVoice-Studio/issues/57)
+
+## Uninstalling / removing all of OmniVoice's data
+
+OmniVoice is fully local — no accounts, no services, nothing to deactivate. To
+reclaim disk space or fully remove it, run the uninstaller, which lists every
+OmniVoice folder with its size (dry-run first) and deletes on `--yes`:
+
+```bash
+scripts/uninstall.sh            # macOS/Linux — dry-run
+scripts/uninstall.sh --yes      # delete app data/env/config/logs
+scripts/uninstall.sh --yes --models   # also delete the shared HF model cache
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\uninstall.ps1 -Yes   # Windows
+```
+
+The two big folders are the **model cache** (Hugging Face weights, several GB)
+and the **managed Python env** (`project/.venv`, a few GB). The complete
+per-platform path list, env-var overrides, portable-mode note, and the steps to
+remove the app binary itself are in
+[docs/install/uninstall.md](uninstall.md).
+
+**Linked issue:** [#1089](https://github.com/debpalash/OmniVoice-Studio/issues/1089)
