@@ -51,6 +51,10 @@ case "$OS" in
   Linux)
     data_default="$HOME/.omnivoice"
     config_default="${XDG_DATA_HOME:-$HOME/.local/share}/$IDENTIFIER"
+    # The BACKEND writes its own logs outside the app-data dir — see
+    # backend_log_path() in src-tauri/src/backend.rs. Missing this left a stray
+    # log dir behind on every Linux uninstall.
+    logs_extra=("${XDG_STATE_HOME:-$HOME/.local/state}/OmniVoice")
     models_default="$HOME/.cache/huggingface"
     ;;
   *)

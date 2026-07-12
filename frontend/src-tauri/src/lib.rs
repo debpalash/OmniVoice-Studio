@@ -14,6 +14,7 @@ pub mod tools;
 pub mod backend;
 pub mod commands;
 pub mod crash;
+pub mod uninstall;
 pub mod updater_channel;
 
 use std::process::Child;
@@ -400,6 +401,8 @@ pub fn run() {
             commands::clear_webview_cache_and_relaunch,
             crash::get_last_backend_crash,
             crash::acknowledge_backend_crash,
+            uninstall::uninstall_scan,
+            uninstall::uninstall_purge,
         ])
         .setup(move |app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;

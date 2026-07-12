@@ -6,6 +6,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Added
+
+- **Uninstall is now in the app: Settings → Storage → "Remove all data".** The v0.3.19 uninstaller was a *script* — which never reached the people who needed it, since anyone who installed the .dmg / .msi / AppImage has no repo to run it from (exactly the case in #1089). The app now lists every folder this install owns with its real size, deletes them behind a typed confirmation, and quits. The **downloaded model weights are a separate, opt-in checkbox**, because that's the standard Hugging Face cache shared with other AI tools on your machine — removing it can delete models OmniVoice never downloaded. Custom and portable install locations are honored, and nothing outside OmniVoice's own folders can be touched. The scripts now also ship as **release assets**, so you can clean up without launching the app at all. (#1089)
+
+### Fixed
+
+- **The uninstaller was leaving the backend's log folder behind on Linux and Windows.** It cleaned the app-data, config, and Python-env folders but missed where the backend actually writes `backend.log` / `backend_err.log` — `~/.local/state/OmniVoice` on Linux and `%LOCALAPPDATA%\OmniVoice\Logs` on Windows. Both the scripts and the documented path lists now cover them. (#1089)
+
 ## [0.3.19] — 2026-07-12
 
 The honesty release. Every error in here was already *technically* true and practically useless — so this round went after the lies the app tells when something goes wrong. "Can't reach the local OmniVoice backend" no longer fires while the backend is simply still starting; a dead Hugging Face mirror no longer strands the setup wizard with advice it can't follow; and a dub that dies mid-transcription now names the actual cause instead of guessing at it. Alongside that: generated speech starts playing on the *first* chunk instead of the last, and there's finally a real uninstaller.

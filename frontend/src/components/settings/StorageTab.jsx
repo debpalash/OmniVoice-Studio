@@ -24,6 +24,7 @@ import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
 import Row from './Row';
 import HistoryRetentionPanel from './HistoryRetentionPanel';
+import UninstallPanel from './UninstallPanel';
 
 export default function StorageTab() {
   const { t } = useTranslation();
@@ -127,6 +128,9 @@ export default function StorageTab() {
           {t('settings.factory_reset', { defaultValue: 'Factory reset' })}
         </Button>
       </SettingsSection>
+
+      {/* The real uninstaller (#1089) — factory reset above only clears UI prefs. */}
+      <UninstallPanel />
 
       <Dialog
         open={confirmOpen}

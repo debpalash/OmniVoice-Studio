@@ -56,8 +56,13 @@ function Get-FolderSize($path) {
   } catch { return '?' }
 }
 
+# The BACKEND writes its own logs here (backend_log_path() in
+# src-tauri/src/backend.rs) — a sibling of hf_cache under %LOCALAPPDATA%\OmniVoice,
+# so it is covered by neither the app-data nor the config dir.
+$logsDefault = Join-Path (Join-Path $localApp 'OmniVoice') 'Logs'
+
 $appTargets = @()
-foreach ($p in @($dataDir, $configDefault)) {
+foreach ($p in @($dataDir, $configDefault, $logsDefault)) {
   if (Test-Path -LiteralPath $p) { $appTargets += $p }
 }
 

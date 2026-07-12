@@ -9,7 +9,20 @@ and ships a script that finds and removes them for you (with a dry-run first).
 > cache** (the Hugging Face weights — several GB) and the **managed Python
 > environment** (`project/.venv` — a few GB). Everything else is small.
 
-## The one-command uninstaller (recommended)
+## In the app (easiest — no repo needed)
+
+**Settings → Storage → Remove all data.** It lists every folder this install
+owns with its real size, lets you opt in (separately) to the shared Hugging Face
+model cache, asks you to type `DELETE`, then removes everything and quits.
+
+This is the right path if you installed the **.dmg / .msi / AppImage** — you
+don't have the repo, so the script below isn't available to you.
+
+> Note: **Factory reset** (right above it) is a different, much smaller action —
+> it only clears UI preferences and leaves your voices, projects, and audio
+> alone.
+
+## The one-command uninstaller (from a clone)
 
 From a clone or the source tarball:
 
@@ -60,7 +73,8 @@ Four kinds of data, in up to four locations:
 
 ```
 ~/.omnivoice/                                     ← app data (voices, projects, omnivoice.db, outputs, omnivoice.log)
-~/.local/share/com.debpalash.omnivoice-studio/    ← config.json, logs, AND the managed Python env (project/.venv)
+~/.local/share/com.debpalash.omnivoice-studio/    ← config.json, shell logs, AND the managed Python env (project/.venv)
+~/.local/state/OmniVoice/                         ← backend logs (backend.log, backend_err.log)
 ~/.cache/huggingface/                             ← model weights (shared HF cache — see caveat)
 ```
 
@@ -68,7 +82,8 @@ Four kinds of data, in up to four locations:
 
 ```
 %APPDATA%\OmniVoice\                              ← app data (voices, projects, omnivoice.db, outputs, omnivoice.log)
-%LOCALAPPDATA%\com.debpalash.omnivoice-studio\    ← config.json, logs, AND the managed Python env (project\.venv)
+%LOCALAPPDATA%\com.debpalash.omnivoice-studio\    ← config.json, shell logs, AND the managed Python env (project\.venv)
+%LOCALAPPDATA%\OmniVoice\Logs\                    ← backend logs (backend.log, backend_err.log)
 %LOCALAPPDATA%\OmniVoice\hf_cache\                ← model weights (OmniVoice uses a short path here to dodge MAX_PATH)
 ```
 
@@ -98,7 +113,7 @@ model paths don't hit the 260-character `MAX_PATH` limit.
 
 ## Remove the app itself
 
-The script above clears the **data**; removing the installed **app** is the
+The steps above clear the **data**; removing the installed **app** is the
 normal per-platform step:
 
 - **macOS:** drag **OmniVoice Studio.app** from `/Applications` to the Trash.
