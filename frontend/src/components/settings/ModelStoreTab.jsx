@@ -475,7 +475,7 @@ export default function ModelStoreTab({ info, modelBadge }) {
             <div className="inline-flex items-center gap-[var(--space-2)]">
               <input
                 type="password"
-                className="min-w-0 rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-input-bg)] px-[var(--space-2)] py-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)] placeholder:text-[var(--chrome-fg-dim)] focus-visible:border-[var(--chrome-accent)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                className="min-w-0 rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-[var(--chrome-hover-bg)] px-[var(--space-2)] py-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)] placeholder:text-[var(--chrome-fg-dim)] focus-visible:border-[var(--chrome-accent)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
                 placeholder="hf_xxxxxxxxxxxx"
                 value={hfToken}
                 onChange={(e) => setHfToken(e.target.value)}

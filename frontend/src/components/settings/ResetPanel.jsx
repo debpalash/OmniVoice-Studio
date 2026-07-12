@@ -143,11 +143,14 @@ export function matchingPreset(selected) {
   return Object.keys(PRESETS).find((p) => same(PRESETS[p], selected)) || null;
 }
 
-export default function ResetPanel() {
+// `_forceAdvanced` starts the "choose exactly what to remove" list expanded —
+// used only by the visual-regression harness so a snapshot shows the full row
+// treatment. It has no effect on the real toggle.
+export default function ResetPanel({ _forceAdvanced = false } = {}) {
   const { t } = useTranslation();
   const [scopes, setScopes] = useState(null);
   const [selected, setSelected] = useState(PRESETS.ui);
-  const [advanced, setAdvanced] = useState(false);
+  const [advanced, setAdvanced] = useState(_forceAdvanced);
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);

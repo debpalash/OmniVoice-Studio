@@ -84,6 +84,23 @@ export function installFetchStub(handler) {
   };
 }
 
+// Stub the Tauri IPC bridge for specs that render desktop-shell panels (the
+// Storage destructive panels invoke `reset_scan` / `uninstall_scan` on mount).
+// `@tauri-apps/api/core` reads `window.__TAURI_INTERNALS__.invoke`, so seeding
+// that is enough for a dynamic `import('@tauri-apps/api/core')` to resolve to
+// our handler — and the panels' own `inTauri()` check (which looks for the same
+// global) then believes it is in the shell, so it renders instead of bailing.
+export function installTauriStub(handler) {
+  const real = window.__TAURI_INTERNALS__;
+  window.__TAURI_INTERNALS__ = {
+    ...real,
+    invoke: (cmd, args) => Promise.resolve(handler(cmd, args)),
+  };
+  return () => {
+    window.__TAURI_INTERNALS__ = real;
+  };
+}
+
 // Prepare all infrastructure a provider-spec asked for, BEFORE first render,
 // and return a function that wraps the spec's element in the live providers.
 // Idempotent per page load (the harness renders once).
@@ -109,6 +126,9 @@ export function applyProviders(providers, ctx) {
 
   // 4. Direct api/* fetches — stub the global fetch.
   if (resolved.fetch) installFetchStub(resolved.fetch);
+
+  // 5. Tauri IPC — stub window.__TAURI_INTERNALS__.invoke.
+  if (resolved.invoke) installTauriStub(resolved.invoke);
 
   return function Wrap({ children }) {
     return (

@@ -90,7 +90,7 @@ function ProportionBar({ value, max }) {
   const pct = max > 0 ? Math.max(value > 0 ? 1.5 : 0, (value / max) * 100) : 0;
   return (
     <div
-      className="h-[4px] w-full overflow-hidden rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-input-bg)]"
+      className="h-[4px] w-full overflow-hidden rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)]"
       aria-hidden="true"
     >
       <div
@@ -290,7 +290,7 @@ export default function StorageUsagePanel() {
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="mb-[var(--space-3)] h-[36px] animate-pulse rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-input-bg)]"
+              className="mb-[var(--space-3)] h-[36px] animate-pulse rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)]"
             />
           ))}
         </div>
@@ -313,7 +313,7 @@ export default function StorageUsagePanel() {
               })}
             </span>
           </div>
-          <div className="h-[6px] w-full overflow-hidden rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-input-bg)]">
+          <div className="h-[6px] w-full overflow-hidden rounded-[var(--chrome-radius-pill)] bg-[var(--chrome-hover-bg)]">
             <div
               className="h-full rounded-[var(--chrome-radius-pill)]"
               style={{

@@ -55,33 +55,27 @@ const RUNTIME_INJECTED = new Map([
 ]);
 
 /**
- * Pre-existing undefined tokens, inherited by this guard. These are REAL BUGS —
- * the styling silently does nothing — but they predate the guard and fixing each
- * one is a visual change that wants its own review. Shrink this list; never grow
- * it. A new entry here means you shipped invisible styling.
+ * Only BARE `var(--token)` is checked. `var(--token, #1d1d22)` supplies a
+ * fallback, so an undefined token still renders the fallback — that is valid CSS
+ * and several components rely on it deliberately. It is the bare form that fails
+ * silently, and only the bare form this guard forbids.
  */
-const KNOWN_BROKEN = new Set([
-  '--chrome-input-bg', // HistoryRetentionPanel, ModelStoreTab, StoragePanel, StorageUsagePanel
-  '--chrome-menu-bg', // VoicePanel
-  '--chrome-bg-inset', // EngineCompatibilityMatrix
-  '--border', // dub/IdleSkeleton
-  '--input-bg', // dub/IdleSkeleton
-  '--muted', // dub/IdleSkeleton
-]);
+const BARE_VAR = /var\(\s*(--[a-zA-Z0-9_-]+)\s*\)/g;
 
 describe('CSS custom properties referenced from JSX', () => {
   it('are all actually defined somewhere (or explicitly runtime-injected)', () => {
     const offenders = [];
     for (const file of FILES.filter((f) => /\.(jsx|tsx)$/.test(f))) {
-      for (const [, token] of read(file).matchAll(/var\((--[a-zA-Z0-9_-]+)/g)) {
-        if (DEFINED.has(token) || RUNTIME_INJECTED.has(token) || KNOWN_BROKEN.has(token)) continue;
+      for (const [, token] of read(file).matchAll(BARE_VAR)) {
+        if (DEFINED.has(token) || RUNTIME_INJECTED.has(token)) continue;
         offenders.push(`${relative(SRC, file)} → var(${token})`);
       }
     }
     expect(
       [...new Set(offenders)],
-      'Undefined CSS custom property — the declaration is invalid and silently does nothing.\n' +
-        'Fix the token name, or add it to RUNTIME_INJECTED with the reason it cannot be in CSS.',
+      'Undefined CSS custom property with no fallback — the declaration is invalid\n' +
+        'and silently does nothing (the element just inherits). Fix the token name,\n' +
+        'give it a fallback, or add it to RUNTIME_INJECTED with the reason.',
     ).toEqual([]);
   });
 
@@ -92,8 +86,12 @@ describe('CSS custom properties referenced from JSX', () => {
     expect(DEFINED.has('--chrome-fg-dim')).toBe(true);
   });
 
-  it('the known-broken list has not grown', () => {
-    // A ratchet: this number only ever goes down.
-    expect(KNOWN_BROKEN.size).toBeLessThanOrEqual(6);
+  it('catches the exact bug that motivated it', () => {
+    // --chrome-fg-subtle was used in two Storage panels and defined nowhere, so
+    // the folder paths meant to recede rendered at full body weight. There is no
+    // grandfather list here: every bare var() in the app resolves today, and this
+    // asserts the guard would still notice if one stopped.
+    expect(DEFINED.has('--chrome-fg-subtle')).toBe(false);
+    expect(DEFINED.has('--chrome-input-bg')).toBe(false);
   });
 });

@@ -42,7 +42,30 @@ import './harness.css';
 import AppearancePanel from '../../components/settings/AppearancePanel.jsx';
 import GeneralTab from '../../components/settings/GeneralTab.jsx';
 import StoragePanel from '../../components/settings/StoragePanel.jsx';
+import ResetPanel from '../../components/settings/ResetPanel.jsx';
+import UninstallPanel from '../../components/settings/UninstallPanel.jsx';
 import { queryKeys } from '../../api/hooks.ts';
+
+// Representative scan payloads for the two desktop-shell Storage panels, so the
+// harness renders their loaded state (sizes, bars, the shared-cache row) with no
+// backend. Sizes span B → GB on purpose: it's the spread the redesign is FOR.
+const RESET_SCAN = [
+  { key: 'ui_prefs', paths: [], size_bytes: 0, exists: true, shared: false, needs_restart: false },
+  { key: 'history', paths: [], size_bytes: 0, exists: true, shared: false, needs_restart: false },
+  { key: 'settings', paths: ['~/…/OmniVoice/prefs.json'], size_bytes: 4096, exists: true, shared: false, needs_restart: true },
+  { key: 'content', paths: ['~/…/OmniVoice/voices'], size_bytes: 5.4 * 1024 ** 3, exists: true, shared: false, needs_restart: true },
+  { key: 'engines', paths: ['~/…/OmniVoice/engines'], size_bytes: 2.3 * 1024 ** 3, exists: true, shared: false, needs_restart: true },
+  { key: 'tools', paths: ['~/…/OmniVoice/media_tools'], size_bytes: 96 * 1024 ** 2, exists: true, shared: false, needs_restart: true },
+  { key: 'models', paths: ['~/.cache/huggingface'], size_bytes: 14.2 * 1024 ** 3, exists: true, shared: true, needs_restart: true },
+  { key: 'caches', paths: ['~/…/OmniVoice/gallery_cache'], size_bytes: 11 * 1024 ** 2, exists: true, shared: false, needs_restart: true },
+  { key: 'logs', paths: ['~/…/OmniVoice/omnivoice.log'], size_bytes: 820, exists: true, shared: false, needs_restart: true },
+];
+const UNINSTALL_SCAN = [
+  { key: 'data', path: '~/Library/Application Support/OmniVoice', size_bytes: 720 * 1024, exists: true, shared: false },
+  { key: 'env', path: '~/Library/Application Support/com.debpalash.omnivoice-studio', size_bytes: 391, exists: true, shared: false },
+  { key: 'logs', path: '~/Library/Logs/OmniVoice', size_bytes: 4096, exists: true, shared: false },
+  { key: 'models', path: '~/.cache/huggingface', size_bytes: 7.5 * 1024 ** 3, exists: true, shared: true },
+];
 
 function Spec({ label, children }) {
   return (
@@ -441,5 +464,25 @@ export const SPECS = {
       },
     },
     render: () => <StoragePanel />,
+  },
+
+  // The scoped-reset panel, advanced list expanded so the full row treatment —
+  // icon, size, proportional bar, dimmed path, the shared-cache caution — is on
+  // screen at once.
+  ResetPanel: {
+    width: 640,
+    providers: {
+      invoke: (cmd) => (cmd === 'reset_scan' ? RESET_SCAN : null),
+    },
+    render: () => <ResetPanel _forceAdvanced />,
+  },
+
+  // The uninstaller list, with the shared HF cache in its own "Optional" group.
+  UninstallPanel: {
+    width: 640,
+    providers: {
+      invoke: (cmd) => (cmd === 'uninstall_scan' ? UNINSTALL_SCAN : null),
+    },
+    render: () => <UninstallPanel />,
   },
 };

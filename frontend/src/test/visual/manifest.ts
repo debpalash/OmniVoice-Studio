@@ -26,6 +26,8 @@ export const COMPONENTS = [
   'AppearancePanel',
   'GeneralTab',
   'StoragePanel',
+  'ResetPanel',
+  'UninstallPanel',
 ] as const;
 
 export const THEMES = ['default', 'midnight', 'catppuccin'] as const;
