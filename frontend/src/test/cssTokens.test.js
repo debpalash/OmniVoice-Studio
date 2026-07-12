@@ -34,8 +34,9 @@ const read = (p) => readFileSync(p, 'utf8');
 
 /** Custom properties defined anywhere in our stylesheets. */
 const DEFINED = new Set(
-  FILES.filter((f) => f.endsWith('.css'))
-    .flatMap((f) => [...read(f).matchAll(/(--[a-zA-Z0-9_-]+)\s*:/g)].map((m) => m[1])),
+  FILES.filter((f) => f.endsWith('.css')).flatMap((f) =>
+    [...read(f).matchAll(/(--[a-zA-Z0-9_-]+)\s*:/g)].map((m) => m[1]),
+  ),
 );
 
 /**

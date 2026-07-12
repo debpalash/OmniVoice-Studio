@@ -22,13 +22,62 @@ vi.mock('../../api/dub', () => ({ clearDubHistory: (...a) => clearDubHistory(...
 const SCOPES = [
   { key: 'ui_prefs', paths: [], size_bytes: 0, exists: true, shared: false, needs_restart: false },
   { key: 'history', paths: [], size_bytes: 0, exists: true, shared: false, needs_restart: false },
-  { key: 'settings', paths: ['/d/prefs.json'], size_bytes: 4_096, exists: true, shared: false, needs_restart: true },
-  { key: 'content', paths: ['/d/voices'], size_bytes: 5 * 1024 ** 3, exists: true, shared: false, needs_restart: true },
-  { key: 'engines', paths: ['/d/engines'], size_bytes: 2 * 1024 ** 3, exists: true, shared: false, needs_restart: true },
-  { key: 'tools', paths: ['/d/media_tools'], size_bytes: 100 * 1024 ** 2, exists: true, shared: false, needs_restart: true },
-  { key: 'models', paths: ['/hf'], size_bytes: 14 * 1024 ** 3, exists: true, shared: true, needs_restart: true },
-  { key: 'caches', paths: ['/d/gallery_cache'], size_bytes: 10 * 1024 ** 2, exists: true, shared: false, needs_restart: true },
-  { key: 'logs', paths: ['/d/omnivoice.log'], size_bytes: 1024, exists: true, shared: false, needs_restart: true },
+  {
+    key: 'settings',
+    paths: ['/d/prefs.json'],
+    size_bytes: 4_096,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
+  {
+    key: 'content',
+    paths: ['/d/voices'],
+    size_bytes: 5 * 1024 ** 3,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
+  {
+    key: 'engines',
+    paths: ['/d/engines'],
+    size_bytes: 2 * 1024 ** 3,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
+  {
+    key: 'tools',
+    paths: ['/d/media_tools'],
+    size_bytes: 100 * 1024 ** 2,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
+  {
+    key: 'models',
+    paths: ['/hf'],
+    size_bytes: 14 * 1024 ** 3,
+    exists: true,
+    shared: true,
+    needs_restart: true,
+  },
+  {
+    key: 'caches',
+    paths: ['/d/gallery_cache'],
+    size_bytes: 10 * 1024 ** 2,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
+  {
+    key: 'logs',
+    paths: ['/d/omnivoice.log'],
+    size_bytes: 1024,
+    exists: true,
+    shared: false,
+    needs_restart: true,
+  },
 ];
 
 const byKey = Object.fromEntries(SCOPES.map((s) => [s.key, s]));
@@ -68,7 +117,10 @@ describe('reset planning', () => {
   it('counts exactly what is ticked, so the button number is the truth', () => {
     expect(selectedBytes(SCOPES, ['settings'])).toBe(4_096);
     expect(selectedBytes(SCOPES, PRESETS.assets)).toBe(
-      byKey.models.size_bytes + byKey.engines.size_bytes + byKey.tools.size_bytes + byKey.caches.size_bytes,
+      byKey.models.size_bytes +
+        byKey.engines.size_bytes +
+        byKey.tools.size_bytes +
+        byKey.caches.size_bytes,
     );
     // Scopes that own no files contribute nothing.
     expect(selectedBytes(SCOPES, ['ui_prefs', 'history'])).toBe(0);
@@ -99,7 +151,8 @@ describe('ResetPanel', () => {
     window.__TAURI_INTERNALS__ = {};
     invoke.mockImplementation(async (cmd) => {
       if (cmd === 'reset_scan') return SCOPES;
-      if (cmd === 'reset_purge') return { removed: [], failed: [], refused: [], freed_bytes: 0, restarted: true };
+      if (cmd === 'reset_purge')
+        return { removed: [], failed: [], refused: [], freed_bytes: 0, restarted: true };
       return null;
     });
   });

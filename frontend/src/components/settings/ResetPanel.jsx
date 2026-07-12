@@ -98,16 +98,7 @@ export const PRESETS = {
   ui: ['ui_prefs'],
   settings: ['ui_prefs', 'settings'],
   assets: ['models', 'engines', 'tools', 'caches'],
-  everything: [
-    'ui_prefs',
-    'settings',
-    'content',
-    'engines',
-    'tools',
-    'models',
-    'caches',
-    'logs',
-  ],
+  everything: ['ui_prefs', 'settings', 'content', 'engines', 'tools', 'models', 'caches', 'logs'],
 };
 
 /** Bytes the reset will actually free — the sum of exactly what is ticked. */
@@ -139,7 +130,8 @@ export function plan(selected) {
 
 /** The preset whose scope set matches the current ticks exactly, if any. */
 export function matchingPreset(selected) {
-  const same = (a, b) => a.length === b.length && [...a].sort().every((v, i) => [...b].sort()[i] === v);
+  const same = (a, b) =>
+    a.length === b.length && [...a].sort().every((v, i) => [...b].sort()[i] === v);
   return Object.keys(PRESETS).find((p) => same(PRESETS[p], selected)) || null;
 }
 
@@ -171,10 +163,7 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
     scan();
   }, [scan]);
 
-  const byKey = useMemo(
-    () => Object.fromEntries((scopes || []).map((s) => [s.key, s])),
-    [scopes],
-  );
+  const byKey = useMemo(() => Object.fromEntries((scopes || []).map((s) => [s.key, s])), [scopes]);
   const willFree = selectedBytes(scopes, selected);
   const sharedModels = byKey.models?.shared && selected.includes('models');
   const typedOk = !needsTypedConfirm(selected) || typed.trim().toUpperCase() === CONFIRM_WORD;
@@ -461,7 +450,10 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
 
           {sharedModels && (
             <p className="m-0 flex items-start gap-[var(--space-3)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] leading-[1.6] text-[var(--chrome-fg-muted)]">
-              <AlertTriangle size={16} className="mt-1 shrink-0 text-[var(--chrome-severity-warn)]" />
+              <AlertTriangle
+                size={16}
+                className="mt-1 shrink-0 text-[var(--chrome-severity-warn)]"
+              />
               <span data-testid="reset-shared-warning">
                 {t('settings.reset_models_shared_warning', {
                   defaultValue:

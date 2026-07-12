@@ -8,10 +8,28 @@ const invoke = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a) => invoke(...a) }));
 
 const TARGETS = [
-  { key: 'data', path: '/u/Library/Application Support/OmniVoice', size_bytes: 720 * 1024, exists: true, shared: false },
-  { key: 'env', path: '/u/Library/Application Support/com.debpalash.omnivoice-studio', size_bytes: 391, exists: true, shared: false },
+  {
+    key: 'data',
+    path: '/u/Library/Application Support/OmniVoice',
+    size_bytes: 720 * 1024,
+    exists: true,
+    shared: false,
+  },
+  {
+    key: 'env',
+    path: '/u/Library/Application Support/com.debpalash.omnivoice-studio',
+    size_bytes: 391,
+    exists: true,
+    shared: false,
+  },
   { key: 'logs', path: '/u/Library/Logs/OmniVoice', size_bytes: 4096, exists: true, shared: false },
-  { key: 'models', path: '/u/.cache/huggingface', size_bytes: 7.5 * 1024 ** 3, exists: true, shared: true },
+  {
+    key: 'models',
+    path: '/u/.cache/huggingface',
+    size_bytes: 7.5 * 1024 ** 3,
+    exists: true,
+    shared: true,
+  },
 ];
 
 describe('UninstallPanel', () => {
