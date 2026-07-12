@@ -382,6 +382,93 @@ def _harden_speechbrain_lazy_imports() -> None:
     logger.debug("speechbrain LazyModule guard hardened for cross-platform inspect.py check")
 
 
+#: wav2vec2 aligners, keyed by (language, device). Shared across backends: the
+#: aligner is independent of whatever produced the segments, so MLX (which
+#: transcribes on the GPU) reuses exactly the aligner WhisperX would have used.
+_ALIGN_CACHE: dict[tuple[str, str], object] = {}
+
+#: Forced alignment is torch/wav2vec2 (not CTranslate2), so unlike Whisper itself
+#: it *can* run on MPS — measured on an M2: 20.3 s vs 28.4 s for a 30 s chunk, with
+#: byte-identical word timings. So MPS is preferred, but torchaudio's MPS coverage
+#: is uneven across aligner models, and a failure here would silently cost us the
+#: ±10-30 ms timing that lip-sync depends on. Hence: try MPS, fall back to **CPU**,
+#: and only then give up and keep Whisper's own looser timestamps.
+_ALIGN_DEVICE_ENV = "OMNIVOICE_ALIGN_DEVICE"
+
+
+def load_align_model(language_code: str, device: str):
+    """Lazy-load (and cache) the wav2vec2 aligner for a language.
+
+    Returns ``(model, metadata)``, or ``None`` when no aligner exists for the
+    language — WhisperX bundles them for ~20 major languages only, and the
+    caller then keeps Whisper's own (looser) word timestamps."""
+    key = (language_code, device)
+    if key in _ALIGN_CACHE:
+        return _ALIGN_CACHE[key]
+    try:
+        import whisperx
+
+        model, metadata = whisperx.load_align_model(
+            language_code=language_code, device=device,
+        )
+        _ALIGN_CACHE[key] = (model, metadata)
+    except Exception as e:  # noqa: BLE001 — missing aligner is normal, not fatal
+        logger.info(
+            "no wav2vec2 aligner for language=%r (%s); "
+            "falling back to Whisper's native word timestamps",
+            language_code, e,
+        )
+        _ALIGN_CACHE[key] = None
+    return _ALIGN_CACHE[key]
+
+
+def forced_align(segments: list, audio, language_code: str, device: str | None = None) -> list:
+    """Snap word boundaries to the audio with wav2vec2 forced alignment.
+
+    This is what buys the dub pipeline its ±10-30 ms word timing (vs Whisper's
+    own ±100-300 ms), and lip-sync quality depends on it. It takes *plain
+    segments*, so it is deliberately independent of which engine transcribed
+    them — which is what lets the MLX backend transcribe on the GPU and still
+    get WhisperX-grade timing.
+
+    Returns the aligned segments, or the originals unchanged if alignment isn't
+    available (no aligner for the language, whisperx not installed, or the
+    alignment itself failed). Never raises: worse timing beats no transcript.
+    """
+    if not segments:
+        return segments
+
+    pinned = device or os.environ.get(_ALIGN_DEVICE_ENV)
+    if pinned:
+        devices = [pinned]
+    elif _mps_available():
+        devices = ["mps", "cpu"]  # fast path, then the always-works path
+    else:
+        devices = ["cpu"]
+
+    for i, dev in enumerate(devices):
+        align = load_align_model(language_code, dev)
+        if align is None:
+            return segments  # no aligner for this language — not a device problem
+        model_a, metadata = align
+        try:
+            import whisperx
+
+            result = whisperx.align(
+                segments, model_a, metadata, audio, dev, return_char_alignments=False,
+            )
+            return result.get("segments", segments)
+        except Exception as e:  # noqa: BLE001
+            last = i == len(devices) - 1
+            if last:
+                logger.warning(
+                    "forced alignment failed on %s: %s — using native word timestamps", dev, e,
+                )
+                return segments
+            logger.info("forced alignment failed on %s (%s) — retrying on %s", dev, e, devices[i + 1])
+    return segments
+
+
 class WhisperXBackend(ASRBackend):
     id = "whisperx"
     display_name = "WhisperX (faster-whisper + wav2vec2 forced alignment)"
@@ -748,23 +835,7 @@ class WhisperXBackend(ASRBackend):
         """Lazy-load the wav2vec2 alignment model for this language. WhisperX
         bundles aligners for ~20 major languages; for the others we fall back
         to faster-whisper's native word timestamps (already in result)."""
-        if language_code in self._align_cache:
-            return self._align_cache[language_code]
-        import whisperx
-        try:
-            model, metadata = whisperx.load_align_model(
-                language_code=language_code, device=self._device,
-            )
-            self._align_cache[language_code] = (model, metadata)
-            return model, metadata
-        except Exception as e:
-            logger.info(
-                "whisperx: no alignment model for language=%r (%s); "
-                "falling back to Whisper's native word timestamps",
-                language_code, e,
-            )
-            self._align_cache[language_code] = None
-            return None
+        return load_align_model(language_code, self._device)
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         import whisperx  # used for whisperx.align() below
@@ -1057,10 +1128,25 @@ class MLXWhisperBackend(ASRBackend):
             path_or_hf_repo=self._model_name,
             word_timestamps=word_timestamps,
         )
+        # Forced alignment, same as WhisperX (#1127). On Apple Silicon this
+        # backend replaces WhisperX for dubbing — CTranslate2 has no Metal
+        # build, so WhisperX transcribes on the CPU while this runs the *same*
+        # whisper-large-v3 on the GPU. But lip-sync accuracy depends on
+        # wav2vec2 word boundaries, not just on being fast, so we keep them:
+        # Whisper's own timestamps are ±100-300 ms, the aligner's are ±10-30 ms.
+        # Degrades gracefully — a language with no aligner keeps MLX's native
+        # word timings rather than failing.
+        if word_timestamps and result.get("segments"):
+            result["segments"] = forced_align(
+                result["segments"],
+                _decode_audio_16k_mono(audio_path),
+                result.get("language", "en"),
+            )
         # Normalise to the `chunks` shape the rest of the pipeline expects.
-        if "segments" in result and "chunks" not in result:
+        if "segments" in result:
             result["chunks"] = [
-                {"text": seg["text"], "timestamp": (seg["start"], seg["end"])}
+                {"text": seg.get("text", ""),
+                 "timestamp": (seg.get("start"), seg.get("end"))}
                 for seg in result["segments"]
             ]
         return result
@@ -2077,35 +2163,50 @@ def _probe_available(cls) -> bool:
         return False
 
 
-def _auto_detect() -> str:
-    """Pick the best available ASR engine for the current hardware.
+def _mps_available() -> bool:
+    try:
+        import torch
 
-    Preference order:
-      1. whisperx       — faster-whisper transcription + wav2vec2 forced
-                          alignment (±10-30 ms word timing). Best for the
-                          dub pipeline because lip-sync quality depends on
-                          word-boundary accuracy.
-      2. faster-whisper — transcription only (no forced alignment). Slightly
-                          looser word boundaries but strictly faster; safe
-                          fallback when whisperx isn't installed.
-      3. mlx-whisper    — mac-ARM speedup if installed (~10-20% latency win
-                          vs faster-whisper int8 on Apple Silicon for
-                          large-v3). Optional; faster-whisper remains the
-                          baseline so we don't diverge mac-only behaviour.
-      4. pytorch-whisper — last resort; requires the TTS model to be loaded
-                          so it can reuse `_asr_pipe`.
+        return bool(hasattr(torch.backends, "mps") and torch.backends.mps.is_available())
+    except Exception:  # noqa: BLE001 — no torch / no MPS
+        return False
+
+
+def _auto_detect() -> str:
+    """Pick the best available ASR engine **for this hardware**.
+
+    The order used to be whisperx-first, unconditionally — and that quietly cost
+    Apple Silicon users a 4.4x slowdown on every dub (#1127). WhisperX and
+    faster-whisper are CTranslate2, which has **no Metal backend**: on a Mac they
+    transcribe on the *CPU*, no matter what GPU is sitting there. Measured on an
+    M2, one 30 s dub chunk, whisper-large-v3: **90.4 s on WhisperX (CPU) vs 20.5 s
+    on MLX (GPU)** — 3x slower than realtime, which is how a 16-minute video turned
+    into a ~48-minute transcribe and looked like a hang.
+
+    So the pick is device-aware:
+
+      1. mlx-whisper    — **Apple Silicon only.** Runs the *same* whisper-large-v3
+                          on the GPU, and we layer WhisperX's wav2vec2 forced
+                          alignment on top (see MLXWhisperBackend.transcribe), so
+                          word timing — and therefore lip-sync — is unchanged.
+                          Same model, same alignment, ~4x the speed.
+      2. whisperx       — everywhere else: faster-whisper + wav2vec2 forced
+                          alignment (±10-30 ms word timing). On CUDA it uses the
+                          GPU, so it remains the right default there.
+      3. faster-whisper — transcription only (no forced alignment); safe fallback
+                          when whisperx isn't installed.
+      4. pytorch-whisper — last resort; requires the TTS model to be loaded so it
+                          can reuse `_asr_pipe`.
+
+    Auto-detect only. An explicit ``OMNIVOICE_ASR_BACKEND`` or the ``asr_backend``
+    pref still wins, so anyone who pinned an engine keeps it.
     """
+    if _mps_available() and _probe_available(MLXWhisperBackend):
+        return "mlx-whisper"
     if _probe_available(WhisperXBackend):
         return "whisperx"
     if _probe_available(FasterWhisperBackend):
         return "faster-whisper"
-    try:
-        import torch
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            if _probe_available(MLXWhisperBackend):
-                return "mlx-whisper"
-    except Exception:
-        pass
     return "pytorch-whisper"
 
 

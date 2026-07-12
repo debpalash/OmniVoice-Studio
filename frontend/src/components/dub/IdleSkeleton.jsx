@@ -45,6 +45,7 @@ export default function IdleSkeleton({
   dubPrepProgress,
   handleDubAbort,
   transcribeElapsed,
+  transcribeProgress,
   dubDuration,
   dubNumSpeakers,
   setDubNumSpeakers,
@@ -182,6 +183,7 @@ export default function IdleSkeleton({
                   ) : dubStep === 'transcribing' ? (
                     <TranscribeOverlay
                       elapsed={transcribeElapsed}
+                      progress={transcribeProgress}
                       duration={dubDuration}
                       onAbort={handleDubAbort}
                     />
@@ -272,6 +274,7 @@ export default function IdleSkeleton({
             <div className="flex-1 flex flex-col items-center justify-center min-h-0">
               <TranscribeOverlay
                 elapsed={transcribeElapsed}
+                progress={transcribeProgress}
                 duration={dubDuration}
                 onAbort={handleDubAbort}
               />

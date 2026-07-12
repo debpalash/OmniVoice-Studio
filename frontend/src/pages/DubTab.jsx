@@ -23,6 +23,7 @@ export default function DubTab(props) {
     dubVideoFile,
     dubLocalBlobUrl,
     transcribeElapsed,
+    transcribeProgress,
     translateProvider,
     setTranslateProvider,
     showTranscript,
@@ -537,6 +538,7 @@ export default function DubTab(props) {
           dubPrepProgress={dubPrepProgress}
           handleDubAbort={handleDubAbort}
           transcribeElapsed={transcribeElapsed}
+          transcribeProgress={transcribeProgress}
           dubDuration={dubDuration}
           dubNumSpeakers={dubNumSpeakers}
           setDubNumSpeakers={setDubNumSpeakers}

@@ -95,6 +95,12 @@ export default function useDubWorkflow({
   const [previewAudios, setPreviewAudios] = useState({});
   const [transcribeStart, setTranscribeStart] = useState(null);
   const [transcribeElapsed, setTranscribeElapsed] = useState(0);
+  // Real fraction of chunks transcribed, straight from the backend's `segments`
+  // events. The overlay used to *invent* an ETA from the video's duration
+  // instead (#1127) — it assumed ~20x-realtime transcription, which is roughly
+  // true on a CUDA GPU and 50x wrong on a CPU, so it showed "~0s remaining" for
+  // 45 minutes. A measured fraction is the only thing that can't lie.
+  const [transcribeProgress, setTranscribeProgress] = useState(0);
 
   const dubAbortCtrlRef = useRef(null);
   const dubClientJobIdRef = useRef(null);
@@ -127,6 +133,7 @@ export default function useDubWorkflow({
   useEffect(() => {
     if (!transcribeStart) {
       setTranscribeElapsed(0);
+      setTranscribeProgress(0);
       return;
     }
     const iv = setInterval(
@@ -174,6 +181,9 @@ export default function useDubWorkflow({
               text_original: s.text_original || s.text || '',
             }));
             setDubSegments((prev) => [...prev, ...incoming]);
+            if (typeof m.progress === 'number' && m.progress > 0) {
+              setTranscribeProgress(Math.min(1, m.progress));
+            }
           } catch (err) {
             /* ignore parse errors */
           }
@@ -1049,6 +1059,7 @@ export default function useDubWorkflow({
     previewAudios,
     setPreviewAudios,
     transcribeElapsed,
+    transcribeProgress,
     handleDubUpload,
     handleDubIngestUrl,
     handleDubAbort,

@@ -492,6 +492,7 @@ function App() {
     setShowTranscript,
     setPreviewAudios,
     transcribeElapsed,
+    transcribeProgress,
     handleDubUpload: _handleDubUpload,
     handleDubIngestUrl,
     handleDubAbort,
@@ -1503,6 +1504,7 @@ function App() {
                     dubVideoFile={dubVideoFile}
                     dubLocalBlobUrl={dubLocalBlobUrl}
                     transcribeElapsed={transcribeElapsed}
+                    transcribeProgress={transcribeProgress}
                     translateProvider={translateProvider}
                     setTranslateProvider={setTranslateProvider}
                     onGlossaryChange={setGlossaryTerms}
