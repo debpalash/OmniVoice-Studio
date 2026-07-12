@@ -31,11 +31,25 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, AlertTriangle, ChevronRight } from 'lucide-react';
+import {
+  RotateCcw,
+  AlertTriangle,
+  ChevronRight,
+  Palette,
+  SlidersHorizontal,
+  History,
+  Folder,
+  Boxes,
+  Wrench,
+  Database,
+  Archive,
+  ScrollText,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
-import { fmtBytes } from './models/format';
+import { fmtBytes } from './bytes';
+import StorageTargetRow from './StorageTargetRow';
 import { clearLocalPreferences } from '../../utils/prefKeys';
 import { clearHistory } from '../../api/generate';
 import { clearDubHistory } from '../../api/dub';
@@ -47,6 +61,19 @@ export const FRONTEND_SCOPES = ['ui_prefs', 'history'];
 
 /** Deleting these cannot be undone, so they gate the typed confirmation. */
 export const IRREVERSIBLE_SCOPES = ['content'];
+
+/** One glyph per scope, so a nine-row list can be scanned instead of read. */
+const SCOPE_ICONS = {
+  ui_prefs: Palette,
+  settings: SlidersHorizontal,
+  history: History,
+  content: Folder,
+  engines: Boxes,
+  tools: Wrench,
+  models: Database,
+  caches: Archive,
+  logs: ScrollText,
+};
 
 /** Render order. Cheapest and safest first, so the list reads as an escalation. */
 export const SCOPE_ORDER = [
@@ -293,7 +320,7 @@ export default function ResetPanel() {
                   <label
                     key={tier.id}
                     className={`flex cursor-pointer items-start gap-[var(--space-3)] rounded-[var(--radius-md)] p-[var(--space-3)] ${
-                      on ? 'bg-[var(--chrome-bg-raised)]' : 'bg-[var(--chrome-hover-bg)]'
+                      on ? 'bg-[var(--chrome-accent-bg)]' : 'bg-[var(--chrome-hover-bg)]'
                     }`}
                   >
                     <input
@@ -336,45 +363,37 @@ export default function ResetPanel() {
             </button>
 
             {advanced && (
-              <ul className="m-0 mb-[var(--space-4)] list-none p-0" data-testid="reset-advanced">
+              <div
+                className="mb-[var(--space-4)] flex flex-col gap-[var(--space-2)]"
+                data-testid="reset-advanced"
+              >
                 {SCOPE_ORDER.map((key) => {
                   const s = byKey[key];
-                  const empty = s && !s.exists;
+                  const fileScope = !FRONTEND_SCOPES.includes(key);
                   return (
-                    <li
+                    <StorageTargetRow
                       key={key}
-                      className="rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-2)] odd:bg-[var(--chrome-hover-bg)]"
-                    >
-                      <label className="flex cursor-pointer items-start gap-[var(--space-3)]">
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(key)}
-                          onChange={() => toggle(key)}
-                          disabled={empty}
-                          data-testid={`reset-scope-${key}`}
-                          className="mt-1"
-                        />
-                        <span className="flex min-w-0 flex-1 items-baseline justify-between gap-[var(--space-3)]">
-                          <span className="[font-family:var(--font-sans)] text-[length:var(--text-md)] text-[var(--chrome-fg)]">
-                            {LABELS[key]}
-                            {s?.shared && (
-                              <span className="block [font-family:var(--font-sans)] text-[length:var(--text-xs)] leading-[1.5] text-[var(--chrome-fg-subtle)]">
-                                {t('settings.reset_models_shared', {
-                                  defaultValue:
-                                    'Shared Hugging Face cache — may hold models other AI tools downloaded.',
-                                })}
-                              </span>
-                            )}
-                          </span>
-                          <span className="shrink-0 [font-family:var(--font-mono)] text-[length:var(--text-sm)] tabular-nums text-[var(--chrome-fg-muted)]">
-                            {FRONTEND_SCOPES.includes(key) ? '—' : fmtBytes(s?.size_bytes ?? 0)}
-                          </span>
-                        </span>
-                      </label>
-                    </li>
+                      icon={SCOPE_ICONS[key]}
+                      label={LABELS[key]}
+                      hint={
+                        s?.shared
+                          ? t('settings.reset_models_shared', {
+                              defaultValue:
+                                'Shared Hugging Face cache — may hold models other AI tools downloaded.',
+                            })
+                          : undefined
+                      }
+                      size={fileScope ? (s?.size_bytes ?? 0) : undefined}
+                      share={willFree > 0 && fileScope ? (s?.size_bytes ?? 0) / willFree : 0}
+                      checked={selected.includes(key)}
+                      onToggle={() => toggle(key)}
+                      disabled={Boolean(s && !s.exists && fileScope)}
+                      warn={Boolean(s?.shared)}
+                      testId={`reset-scope-${key}`}
+                    />
                   );
                 })}
-              </ul>
+              </div>
             )}
           </>
         )}
@@ -439,7 +458,7 @@ export default function ResetPanel() {
 
           {sharedModels && (
             <p className="m-0 flex items-start gap-[var(--space-3)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] leading-[1.6] text-[var(--chrome-fg-muted)]">
-              <AlertTriangle size={16} className="mt-1 shrink-0 text-[var(--color-warning)]" />
+              <AlertTriangle size={16} className="mt-1 shrink-0 text-[var(--chrome-severity-warn)]" />
               <span data-testid="reset-shared-warning">
                 {t('settings.reset_models_shared_warning', {
                   defaultValue:

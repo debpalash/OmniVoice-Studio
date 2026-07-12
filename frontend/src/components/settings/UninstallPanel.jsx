@@ -23,25 +23,18 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Folder, Package, ScrollText, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
+import StorageTargetRow from './StorageTargetRow';
+import { fmtBytes } from './bytes';
 
 const inTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-/** "1.4 GB" / "820 MB" / "12 KB". Pure + exported for tests. */
-export function fmtBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i += 1;
-  }
-  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
-}
+// Re-exported: this was the panel's own helper before the Storage panels shared
+// one formatter, and it is imported by name in the tests.
+export { fmtBytes };
 
 /** Bytes the purge will actually free, given the opt-in on the shared cache.
  *  Pure + exported: the number shown on the button must match what gets deleted. */
@@ -50,6 +43,8 @@ export function freedBytes(targets, includeModels) {
     .filter((t) => t.exists && (!t.shared || includeModels))
     .reduce((sum, t) => sum + (t.size_bytes || 0), 0);
 }
+
+const ICONS = { data: Folder, env: Package, logs: ScrollText, models: Database };
 
 export default function UninstallPanel() {
   const { t } = useTranslation();
@@ -137,29 +132,53 @@ export default function UninstallPanel() {
           })}
         </p>
         {owned.length > 0 && (
-          <ul className="m-0 mb-[var(--space-4)] list-none p-0">
-            {present.map((tg) => (
-              <li
+          <div className="mb-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+            {owned.map((tg) => (
+              <StorageTargetRow
                 key={tg.key}
-                className="flex items-baseline justify-between gap-[var(--space-4)] rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-2)] odd:bg-[var(--chrome-hover-bg)]"
-              >
-                <span className="[font-family:var(--font-sans)] text-[length:var(--text-md)] text-[var(--chrome-fg)]">
-                  {LABELS[tg.key] || tg.key}
-                  {tg.shared && (
-                    <span className="ml-[var(--space-2)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)]">
-                      {t('settings.uninstall_shared_tag', { defaultValue: '— optional' })}
-                    </span>
-                  )}
-                  <span className="block [font-family:var(--font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg-subtle)]">
-                    {tg.path}
-                  </span>
-                </span>
-                <span className="shrink-0 [font-family:var(--font-mono)] text-[length:var(--text-sm)] tabular-nums text-[var(--chrome-fg-muted)]">
-                  {fmtBytes(tg.size_bytes)}
-                </span>
-              </li>
+                icon={ICONS[tg.key]}
+                label={LABELS[tg.key] || tg.key}
+                path={tg.path}
+                size={tg.size_bytes}
+                share={willFree > 0 ? tg.size_bytes / willFree : 0}
+                testId={`uninstall-target-${tg.key}`}
+              />
             ))}
-          </ul>
+
+            {/* The shared cache is a different KIND of thing, so it gets its own
+                group and its own checkbox — here, in the list, not buried in the
+                confirm dialog, so the total on the button moves when you tick it. */}
+            {models && (
+              <>
+                <span className="mt-[var(--space-2)] [font-family:var(--font-sans)] text-[length:var(--text-xs)] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
+                  {t('settings.uninstall_optional_group', { defaultValue: 'Optional' })}
+                </span>
+                <StorageTargetRow
+                  icon={ICONS.models}
+                  label={LABELS.models}
+                  hint={t('settings.uninstall_models_caveat', {
+                    defaultValue:
+                      'The standard Hugging Face cache, shared with other AI tools on this machine — removing it may delete models OmniVoice never downloaded. Anything OmniVoice needs downloads again.',
+                  })}
+                  path={models.path}
+                  size={models.size_bytes}
+                  share={willFree > 0 ? models.size_bytes / willFree : 0}
+                  checked={includeModels}
+                  onToggle={(e) => setIncludeModels(e.target.checked)}
+                  warn
+                  testId="uninstall-include-models"
+                />
+              </>
+            )}
+
+            <p className="m-0 mt-[var(--space-2)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)]">
+              {t('settings.uninstall_total', {
+                defaultValue: '{{count}} locations · {{size}} will be freed',
+                count: present.filter((x) => !x.shared || includeModels).length,
+                size: fmtBytes(willFree),
+              })}
+            </p>
+          </div>
         )}
         <Button
           variant="danger"
@@ -214,23 +233,39 @@ export default function UninstallPanel() {
             </span>
           </p>
 
-          {models && (
-            <label className="flex cursor-pointer items-start gap-[var(--space-3)] rounded-[var(--radius-md)] bg-[var(--chrome-hover-bg)] p-[var(--space-3)]">
-              <input
-                type="checkbox"
-                checked={includeModels}
-                onChange={(e) => setIncludeModels(e.target.checked)}
-                data-testid="uninstall-include-models"
-                className="mt-1"
+          {/* What is actually going, at the moment of no return. The opt-in for
+              the shared cache lives in the list behind this dialog — asking twice
+              invites the user to skim, and this is the screen to read. */}
+          <ul className="m-0 list-none p-0" data-testid="uninstall-summary">
+            {present
+              .filter((x) => !x.shared || includeModels)
+              .map((tg) => (
+                <li
+                  key={tg.key}
+                  className="flex items-baseline justify-between gap-[var(--space-3)] py-[var(--space-1)] [font-family:var(--font-sans)] text-[length:var(--text-md)] text-[var(--chrome-fg)]"
+                >
+                  <span>{LABELS[tg.key] || tg.key}</span>
+                  <span className="shrink-0 [font-family:var(--font-mono)] text-[length:var(--text-sm)] tabular-nums text-[var(--chrome-fg-muted)]">
+                    {fmtBytes(tg.size_bytes)}
+                  </span>
+                </li>
+              ))}
+          </ul>
+
+          {models && includeModels && (
+            <p className="m-0 flex items-start gap-[var(--space-3)] [font-family:var(--font-sans)] text-[length:var(--text-sm)] leading-[1.6] text-[var(--chrome-fg-muted)]">
+              <AlertTriangle
+                size={16}
+                className="mt-1 shrink-0 text-[var(--chrome-severity-warn)]"
               />
-              <span className="[font-family:var(--font-sans)] text-[length:var(--text-sm)] leading-[1.6] text-[var(--chrome-fg-muted)]">
-                {t('settings.uninstall_models_opt_in', {
+              <span data-testid="uninstall-models-warning">
+                {t('settings.uninstall_models_warning', {
                   defaultValue:
-                    'Also delete the downloaded model weights ({{size}}). This is the standard Hugging Face cache shared with other AI tools on this machine — removing it may delete models OmniVoice never downloaded. They can always be downloaded again.',
+                    'This includes the shared Hugging Face cache ({{size}}) — models other AI tools downloaded may go with it.',
                   size: fmtBytes(models.size_bytes),
                 })}
               </span>
-            </label>
+            </p>
           )}
 
           <label className="flex flex-col gap-[var(--space-2)]">
