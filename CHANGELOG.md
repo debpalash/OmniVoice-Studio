@@ -6,7 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.3.19] — 2026-07-12
+
+The honesty release. Every error in here was already *technically* true and practically useless — so this round went after the lies the app tells when something goes wrong. "Can't reach the local OmniVoice backend" no longer fires while the backend is simply still starting; a dead Hugging Face mirror no longer strands the setup wizard with advice it can't follow; and a dub that dies mid-transcription now names the actual cause instead of guessing at it. Alongside that: generated speech starts playing on the *first* chunk instead of the last, and there's finally a real uninstaller.
 
 ### Added
 
