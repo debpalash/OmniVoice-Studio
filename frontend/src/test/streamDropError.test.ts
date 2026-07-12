@@ -58,3 +58,57 @@ describe('streamDropError (#1062)', () => {
     expect(err.message).toBe(FALLBACK);
   });
 });
+
+// #1119 — reported on v0.3.21, which already HAD the #1098 fix. The user still
+// got the guess ("Likely ASR backend failed to load") because streamDropError
+// asked for the crash marker ONCE, instantly, at the moment the stream dropped —
+// racing the shell's ~2 s detect-and-write and losing. Same race #1102 fixed for
+// apiFetch; this path never got it.
+describe('streamDropError — waits for the shell to notice the death (#1119)', () => {
+  it('finds a marker that arrives LATE instead of falling back to the guess', async () => {
+    let calls = 0;
+    const getCrash = async () => {
+      calls += 1;
+      // The supervisor hasn't noticed yet on the first two polls.
+      return calls < 3 ? null : (marker() as never);
+    };
+    // Force the Tauri path so the wait loop engages, and make sleep instant.
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    try {
+      const err = await streamDropError(FALLBACK, getCrash, {
+        waitMs: 8000,
+        intervalMs: 1,
+        sleep: async () => {},
+      });
+      expect(err.message).toContain('backend crashed');
+      expect(err.message).not.toContain(FALLBACK);
+      expect(calls).toBeGreaterThanOrEqual(3);
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    }
+  });
+
+  it('still gives up and uses the caller message when no crash ever appears', async () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    try {
+      const err = await streamDropError(FALLBACK, async () => null, {
+        waitMs: 5,
+        intervalMs: 1,
+        sleep: async () => {},
+      });
+      expect(err.message).toBe(FALLBACK);
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    }
+  });
+
+  it('does not stall a browser/Docker user — no shell means no marker, ever', async () => {
+    let calls = 0;
+    const err = await streamDropError(FALLBACK, async () => {
+      calls += 1;
+      return null;
+    });
+    expect(err.message).toBe(FALLBACK);
+    expect(calls).toBe(1); // asked once, then stopped — no 8 s wait
+  });
+});

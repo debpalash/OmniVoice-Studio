@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A dub that dies mid-transcription still guessed at the cause.** v0.3.20 taught it to check the crash report before blaming the ASR model — but it checked *instantly*, the moment the stream dropped, and the desktop shell needs about two seconds to notice the backend died and write that report. So it kept looking too early, finding nothing, and falling back to the same old guess ("Likely ASR backend failed to load") even when the backend had in fact just crashed. It now waits for the shell to catch up, so you get the real cause — exit code and error output — instead of a guess. (#1119)
+
 ### Added
 
 - **Opt-in analytics — off by default, and it can't lie to you.** OmniVoice still sends **nothing** out of the box: no accounts, no telemetry, no phone-home, and your text, audio, voices, and projects never leave your machine regardless of what you choose. There is now one toggle in **Settings → Privacy → "Help improve OmniVoice"**, **off unless you turn it on**. If you do, it sends anonymous usage stats — which engine and language you used, how long a generation took, how many *characters* the text had (a number, not the text), and the *type* of any error. It never sends the text you type, your audio, your file names, your voice names, or anything identifying you. That isn't a promise in a policy: an **allowlist in the code** drops any property that isn't on it, so a future change can't leak content by accident, and crash tracebacks are deliberately **not** auto-captured (they can carry file paths and tokens). Turning it off stops everything immediately. Builds from source have no analytics destination at all and don't even show the toggle.

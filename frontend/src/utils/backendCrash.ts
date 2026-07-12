@@ -103,12 +103,33 @@ export function crashAge(marker: Pick<BackendCrashMarker, 'ts'>, nowMs = Date.no
 export async function streamDropError(
   fallbackMessage: string,
   getCrash: () => Promise<BackendCrashMarker | null> = getUnacknowledgedBackendCrash,
+  opts: { waitMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> } = {},
 ): Promise<Error> {
+  // #1119: the shell learns the backend died from a ~2 s POLL — it must notice
+  // the child exit and write the crash marker. Asking for that marker ONCE, at
+  // the instant the stream drops, races that poll and loses: we found nothing
+  // and fell back to the guess ("Likely ASR backend failed to load") even when
+  // the backend had in fact just died. That's the same race #1102 fixed for
+  // apiFetch, which this path never got. Give the shell time to catch up before
+  // believing there was no crash.
+  const waitMs = opts.waitMs ?? 8_000;
+  const intervalMs = opts.intervalMs ?? 1_000;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+
   let crash: BackendCrashMarker | null = null;
-  try {
-    crash = await getCrash();
-  } catch {
-    return new Error(fallbackMessage); // forensics unavailable — don't mask the caller
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try {
+      crash = await getCrash();
+    } catch {
+      return new Error(fallbackMessage); // forensics unavailable — don't mask the caller
+    }
+    if (crash) break;
+    // Outside the Tauri shell there is no marker to wait for, ever — don't
+    // stall a browser/Docker user for 8 s to learn nothing.
+    if (!inTauri()) break;
+    if (Date.now() >= deadline) break;
+    await sleep(intervalMs);
   }
   if (!crash) return new Error(fallbackMessage);
   try {
