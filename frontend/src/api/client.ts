@@ -133,6 +133,24 @@ const TRANSPORT_RETRY_BACKOFF_MS = [400, 900, 1600];
 const RESTART_WAIT_INTERVAL_MS = 1500;
 const STARTUP_GRACE_MS = 120_000;
 
+// #1101: the shell's stage is a 2-second POLL, not a live probe. When the
+// backend dies mid-generate, `supervise_backend` needs up to ~2 s to notice the
+// exit, record the crash marker, and flip the stage to "starting" — so a single
+// check at the end of the ~2.9 s cascade very often still sees `ready` and we
+// dead-ended on the generic "Can't reach the backend" anyway. That was the hole
+// in the #1094 fix, reported against 0.3.19.
+//
+// A transport failure CONTRADICTS `ready`: if the shell believed the backend
+// were reachable, the fetch would have succeeded. So `ready` is treated as a
+// STALE belief, not an authority — we keep retrying across this reconciliation
+// window, re-asking each time, which lets a death the supervisor hasn't noticed
+// yet turn into "starting" (→ the long wait + banner) and gives the crash marker
+// time to be written so the error can tell the honest story instead of guessing.
+// Only `failed` (the shell gave up) or `unknown` (no shell — browser/Docker)
+// still errors immediately.
+const RECONCILE_MS = 12_000;
+const RECONCILE_INTERVAL_MS = 1000;
+
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
   const key = _apiKey();
@@ -170,10 +188,9 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       // The short cascade is exhausted, but the desktop shell may KNOW the
       // backend is mid-start/restart (a real one takes 10–20+ s — torch
       // import — not 2.9 s). Keep waiting exactly as long as the shell says
-      // "starting", bounded by STARTUP_GRACE_MS; 'failed'/'unknown' (no
-      // shell, or the shell gave up) falls through to the error below so a
-      // truly dead backend still surfaces promptly.
-      if (Date.now() - startedAt < STARTUP_GRACE_MS) {
+      // "starting", bounded by STARTUP_GRACE_MS.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < STARTUP_GRACE_MS) {
         let stage = 'unknown';
         try {
           stage = await backendLifecycleStage();
@@ -182,6 +199,16 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
         }
         if (stage === 'starting') {
           await new Promise((r) => setTimeout(r, RESTART_WAIT_INTERVAL_MS));
+          continue;
+        }
+        // `ready` while the transport is failing is a contradiction — the
+        // shell's 2 s poll simply hasn't caught up with a backend that just
+        // died (#1101). Don't believe it yet: keep retrying briefly so the
+        // supervisor can notice, flip to "starting", and write the crash
+        // marker. 'failed'/'unknown' fall through and error now, so a shell
+        // that gave up — or no shell at all — still surfaces promptly.
+        if (stage === 'ready' && elapsed < RECONCILE_MS) {
+          await new Promise((r) => setTimeout(r, RECONCILE_INTERVAL_MS));
           continue;
         }
       }

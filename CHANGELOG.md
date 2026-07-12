@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Can't reach the local OmniVoice backend" could still fire on 0.3.19 — the fix had a hole.** The app asks the desktop shell whether a start/restart is in progress before showing that error, but the shell learns of a dead backend from a **2-second poll**: when the backend dies mid-generation, the supervisor needs a moment to notice it, record the crash, and flip its state to "restarting". The app was asking **once**, ~3 seconds in — often still hearing "everything's fine" — and dead-ending on the generic toast anyway. A failed connection *contradicts* "everything's fine", so that answer is now treated as stale rather than authoritative: the app keeps retrying briefly, letting the shell catch up, which turns the failure into the "backend is restarting — hang tight" banner (and gives the crash report time to be written, so you get the real cause instead of a guess). A shell that has genuinely given up, or no shell at all, still errors immediately. (#1101)
+
 ### Added
 
 - **Uninstall is now in the app: Settings → Storage → "Remove all data".** The v0.3.19 uninstaller was a *script* — which never reached the people who needed it, since anyone who installed the .dmg / .msi / AppImage has no repo to run it from (exactly the case in #1089). The app now lists every folder this install owns with its real size, deletes them behind a typed confirmation, and quits. The **downloaded model weights are a separate, opt-in checkbox**, because that's the standard Hugging Face cache shared with other AI tools on your machine — removing it can delete models OmniVoice never downloaded. Custom and portable install locations are honored, and nothing outside OmniVoice's own folders can be touched. The scripts now also ship as **release assets**, so you can clean up without launching the app at all. (#1089)

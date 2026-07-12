@@ -64,6 +64,47 @@ describe('apiFetch — lifecycle-aware restart wait', () => {
     await assertion;
   });
 
+  // #1101 — the hole in the original fix, reported against 0.3.19. The shell's
+  // stage is a 2 s POLL: when the backend dies mid-generate the supervisor needs
+  // a moment to notice, flip to "starting" and write the crash marker. Asking
+  // once at the end of the cascade still saw `ready`, so the request dead-ended
+  // on the generic toast anyway. A transport failure contradicts `ready`, so we
+  // must keep retrying long enough for the shell to catch up.
+  it('does NOT believe a stale "ready" — it waits for the shell to notice the death', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+    // The supervisor hasn't ticked yet: still 'ready' for the first few polls,
+    // then it notices the death and flips to 'starting'.
+    stageMock
+      .mockResolvedValueOnce('ready')
+      .mockResolvedValueOnce('ready')
+      .mockResolvedValue('starting');
+
+    const p = apiFetch('/generate');
+    // Never settles into the generic error — it keeps waiting.
+    const settled = vi.fn();
+    p.then(settled, settled);
+    await vi.advanceTimersByTimeAsync(CASCADE_MS + 1000 + 1000 + 1500);
+    expect(settled).not.toHaveBeenCalled();
+
+    // Once the backend comes back, the request succeeds — the toast never fired.
+    fetchMock.mockResolvedValue(new Response('ok', { status: 200 }));
+    await vi.advanceTimersByTimeAsync(1500 * 2);
+    await expect(p).resolves.toMatchObject({ status: 200 });
+  });
+
+  it('still gives up when a "ready" backend stays unreachable past the reconcile window', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    stageMock.mockResolvedValue('ready'); // shell insists it's fine; it never recovers
+
+    const p = apiFetch('/model/status');
+    const assertion = expect(p).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(CASCADE_MS + 12_000 + 2000);
+    await assertion;
+  });
+
   it('keeps the old prompt failure outside the Tauri shell (stage unknown)', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
