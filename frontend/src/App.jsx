@@ -44,6 +44,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import FloatingPill from './components/FloatingPill';
 import GlobalAudioPlayer from './components/GlobalAudioPlayer';
 import BackendCrashNotice from './components/BackendCrashNotice';
+import BackendRestartBanner from './components/BackendRestartBanner';
 // RemoteAuthGate is mounted at the true outermost provider in main-app.jsx so
 // it covers all app states (setup check / wizard / bootstrap), not just the
 // main studio return below. Do not re-wrap here — double-gating renders two
@@ -1248,6 +1249,9 @@ function App() {
         {/* Double-click-to-maximize is handled globally in main.jsx for every
             drag region (splash, first-run, wizard, main) on all platforms. */}
         <div data-tauri-drag-region className="app-wizard-dragstrip" />
+        {/* The wizard is where the multi-GB downloads happen — a mid-download
+            backend restart needs its banner here too, not only in the studio. */}
+        <BackendRestartBanner />
         <Suspense fallback={<LazyFallback />}>
           <SetupWizard
             onReady={() => {
@@ -1328,6 +1332,11 @@ function App() {
       {/* #941: honest surfacing of backend process crashes (exit code +
           stderr tail from the shell's crash marker), with ack-on-view. */}
       <BackendCrashNotice />
+
+      {/* #567's visible half: while the shell auto-restarts a dead backend
+          (10–20 s), say so once — instead of every request surfacing its own
+          "Can't reach the backend" toast. */}
+      <BackendRestartBanner />
 
       <Header
         mode={mode}

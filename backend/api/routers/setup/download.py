@@ -52,6 +52,15 @@ def _sweep_cooldowns(now: float) -> None:
     for k in stale:
         _install_cooldowns.pop(k, None)
 
+
+def clear_install_cooldowns() -> None:
+    """Reset every install cooldown. Called when the HF endpoint changes
+    (PUT /hf-mirror): the cooldown exists to stop hammering a network that
+    just failed, but switching endpoints changes that situation — the user's
+    very next action is "retry the failed download on the new mirror", and a
+    429 there would dead-end the wizard's switch-and-retry flow."""
+    _install_cooldowns.clear()
+
 # Repo_ids the user asked to cancel (FDL-11). Checked between retry attempts.
 # Note: a single in-flight snapshot_download/Xet fetch is not interruptible
 # mid-file in hf_hub 1.7.2 — cancel stops further retries, marks the row
@@ -552,14 +561,17 @@ async def install_model(req: InstallModelRequest):
             # unreachable, name the mirror + the setting instead of leaking the
             # raw connectivity error. #959: likewise for the SOCKS-proxy class
             # (missing socksio fails the download's session construction).
-            # No-op for every other failure.
-            from core.failure import append_hint
+            # No-op for every other failure. docs_topic carries the failure
+            # class so the wizard can react structurally (HF_MIRROR_UNREACHABLE
+            # raises the inline mirror picker) without string-matching.
+            from core.failure import append_hint, classify
             hf_progress.emit({
                 "repo_id": req.repo_id,
                 "filename": req.repo_id,
                 "downloaded": 0, "total": 0, "pct": 0.0,
                 "phase": "install_error",
                 "error": append_hint(str(e)),
+                "docs_topic": classify(str(e)),
             })
         finally:
             _cancelled.discard(req.repo_id)

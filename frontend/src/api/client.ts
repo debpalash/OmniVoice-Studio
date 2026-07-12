@@ -17,6 +17,7 @@ import {
   crashAge,
   type BackendCrashMarker,
 } from '../utils/backendCrash.ts';
+import { backendLifecycleStage } from '../utils/backendLifecycle.ts';
 
 const viteEnv = import.meta.env ?? {};
 // Remote-backend settings (Wave 2.3): user-configured in Settings → Sharing.
@@ -116,9 +117,21 @@ async function readError(res: Response): Promise<string> {
 
 // Backoff (ms) for retrying a *transport-level* failure — the backend briefly
 // down while the auto-restart supervisor brings it back (#567/#570/#571). One
-// short cascade (~2.9 s total) so a restart window becomes invisible, yet a
+// short cascade (~2.9 s total) so a blip becomes invisible, yet a
 // genuinely-down backend still surfaces the actionable error promptly.
 const TRANSPORT_RETRY_BACKOFF_MS = [400, 900, 1600];
+
+// A REAL backend start/restart is 10–20+ s (venv python spawn + torch
+// import), not 2.9 s — measured on a 16 GB M-series Mac; slower disks take
+// longer. When the desktop shell says the backend is starting/restarting
+// (bootstrap_status ≠ ready/failed), keep retrying at this interval instead
+// of dead-ending every request mid-restart with "Can't reach the local
+// OmniVoice backend". Bounded by STARTUP_GRACE_MS (matches the supervisor's
+// own 120 s respawn-health wait in src-tauri/src/bootstrap.rs); the shell
+// flipping to `failed` — or being absent (browser/Docker) — exits the wait
+// immediately, so a truly dead backend still errors promptly.
+const RESTART_WAIT_INTERVAL_MS = 1500;
+const STARTUP_GRACE_MS = 120_000;
 
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
@@ -134,6 +147,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
     : opts;
   const signal = finalOpts.signal as AbortSignal | null | undefined;
   let lastDetail = '';
+  const startedAt = Date.now();
   for (let attempt = 0; ; attempt++) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     let res: Response;
@@ -152,6 +166,24 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       if (attempt < TRANSPORT_RETRY_BACKOFF_MS.length) {
         await new Promise((r) => setTimeout(r, TRANSPORT_RETRY_BACKOFF_MS[attempt]));
         continue;
+      }
+      // The short cascade is exhausted, but the desktop shell may KNOW the
+      // backend is mid-start/restart (a real one takes 10–20+ s — torch
+      // import — not 2.9 s). Keep waiting exactly as long as the shell says
+      // "starting", bounded by STARTUP_GRACE_MS; 'failed'/'unknown' (no
+      // shell, or the shell gave up) falls through to the error below so a
+      // truly dead backend still surfaces promptly.
+      if (Date.now() - startedAt < STARTUP_GRACE_MS) {
+        let stage = 'unknown';
+        try {
+          stage = await backendLifecycleStage();
+        } catch {
+          /* never let the lifecycle probe mask the real transport error */
+        }
+        if (stage === 'starting') {
+          await new Promise((r) => setTimeout(r, RESTART_WAIT_INTERVAL_MS));
+          continue;
+        }
       }
       // #941: if the desktop shell recorded an unacknowledged backend crash,
       // tell the honest story instead of the vague "can't reach" — and let

@@ -1,10 +1,13 @@
 """#874: a model download that fails because the CONFIGURED Hugging Face
 mirror (HF_ENDPOINT, Settings → Models → Hugging Face mirror) is unreachable
 must surface an actionable error that (1) names the mirror, (2) says it may be
-down, (3) points at the setting + the restart requirement (HF reads
-HF_ENDPOINT at backend start), and (4) suggests the official endpoint when the
-model isn't cached — instead of leaking the raw transformers message
-("We couldn't connect to 'https://hf-mirror.com' …") as a bare 500 detail.
+down, (3) points at the setting AND says downloads pick up a mirror change
+immediately (the download paths resolve the endpoint per call — the old hint
+falsely claimed a restart was always required, dead-ending first-run users
+whose only recovery path is switch-and-retry inside the wizard), and
+(4) suggests the official endpoint when the model isn't cached — instead of
+leaking the raw transformers message ("We couldn't connect to
+'https://hf-mirror.com' …") as a bare 500 detail.
 
 Fail-before/pass-after: before the fix `classify()` had no mirror class and
 `build_failure()` / `append_hf_mirror_hint()` attached no hint to these
@@ -51,7 +54,7 @@ def test_hub_connection_error_classifies_by_host(mirror_env):
     assert failure.classify(_HUB_CONN_ERROR) == "HF_MIRROR_UNREACHABLE"
 
 
-def test_hint_names_mirror_setting_restart_and_official(mirror_env):
+def test_hint_names_mirror_setting_retry_and_official(mirror_env):
     evt = failure.build_failure(
         OSError(_TRANSFORMERS_874), stage="model-load", include_diagnostic=False
     )
@@ -59,8 +62,15 @@ def test_hint_names_mirror_setting_restart_and_official(mirror_env):
     hint = evt["hint"]
     assert "https://hf-mirror.com" in hint  # (1) names the configured mirror
     assert "may be down" in hint  # (2) says it may be down
-    # (3) the setting path + the restart requirement (HF_ENDPOINT applies at start)
+    # (3) the setting path + the truth about when the change applies: downloads
+    # resolve the endpoint per call, so switch-and-retry works WITHOUT a
+    # restart — the old "applied when the app starts" claim dead-ended
+    # first-run users, who can't reach Settings and would lose wizard progress.
     assert "Settings → Models → Hugging Face mirror" in hint
+    assert "immediately" in hint
+    assert "applied when the app starts" not in hint
+    # Restart survives only as the fallback for import-time readers
+    # (transformers-side model loads) when a retry still fails.
     assert "restart" in hint.lower()
     # (4) suggests the official endpoint for an un-cached model
     assert "Hugging Face (official)" in hint

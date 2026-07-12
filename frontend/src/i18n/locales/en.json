@@ -1778,6 +1778,11 @@
     "stderr_title": "Last error output (stderr)",
     "no_stderr": "No error output was captured."
   },
+  "backend": {
+    "restarting": "The voice backend stopped and is restarting automatically — hang tight, this takes ~15 seconds.",
+    "restored": "Voice backend is back — carrying on.",
+    "restart_failed": "The voice backend keeps crashing and couldn't be restarted — check the crash notice or Settings → Logs → Backend."
+  },
   "common": {
     "open": "Open",
     "cancel": "Cancel",

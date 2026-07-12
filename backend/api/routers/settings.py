@@ -845,12 +845,25 @@ def set_hf_mirror(body: _HFMirrorBody):
             user_env.unset_user_env(_HF_ENDPOINT_ENV)
             os.environ.pop(_HF_ENDPOINT_ENV, None)
         from core import prefs
-        if mode == "auto":
-            prefs.delete("hf_endpoint")  # the pref fallback is explicit config too
+        if not url:
+            # No endpoint anywhere: clearing to official (manual) or switching
+            # to auto must also drop the legacy `hf_endpoint` pref fallback —
+            # otherwise it silently keeps resolving as an explicit mirror and
+            # "switch to official" doesn't actually switch.
+            prefs.delete("hf_endpoint")
         endpoint_race.set_mode_pref(mode)
     except Exception:
         logger.exception("set_hf_mirror failed")
         raise HTTPException(status_code=500, detail="Failed to persist mirror setting")
+    # An endpoint change invalidates the failed-recently install cooldowns: the
+    # user's next action is "retry that download on the new endpoint", and a
+    # 429 would dead-end the wizard's switch-and-retry flow.
+    try:
+        from api.routers.setup.download import clear_install_cooldowns
+
+        clear_install_cooldowns()
+    except Exception:  # pragma: no cover — cooldown reset must never fail the save
+        logger.warning("could not clear install cooldowns after mirror change", exc_info=True)
     if mode == "auto":
         # Freshly chosen Auto should show a real pick immediately — race now
         # unless a fresh cached decision already exists (probes are ≤3 s and

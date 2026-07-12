@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reduceWizardDownloadEvent } from '../components/WizardLibrary.jsx';
+import { reduceWizardDownloadEvent, mirrorBlockedRepos } from '../components/WizardLibrary.jsx';
 
 const REPO = 'org/model';
 
@@ -44,5 +44,38 @@ describe('reduceWizardDownloadEvent — install_error persists (P1-A)', () => {
   it('ignores keepalive events without a repo_id', () => {
     const prev = { [REPO]: { phase: 'install_error', error: 'x' } };
     expect(reduceWizardDownloadEvent(prev, {})).toBe(prev);
+  });
+
+  it('stores the docs_topic failure class on install_error (mirror rescue trigger)', () => {
+    let s = reduceWizardDownloadEvent({}, { repo_id: REPO, phase: 'install_start' });
+    s = reduceWizardDownloadEvent(s, {
+      repo_id: REPO,
+      phase: 'install_error',
+      error: 'mirror down',
+      docs_topic: 'HF_MIRROR_UNREACHABLE',
+    });
+    expect(s[REPO].docsTopic).toBe('HF_MIRROR_UNREACHABLE');
+    // Absent docs_topic (older backend / other failures) degrades to ''.
+    const s2 = reduceWizardDownloadEvent({}, { repo_id: REPO, phase: 'install_error', error: 'x' });
+    expect(s2[REPO].docsTopic).toBe('');
+  });
+});
+
+// The wizard renders the inline mirror picker (MirrorRescue) ONLY for the
+// mirror-unreachable class — the error hint points at Settings, which the
+// first-run wizard gates, so switch-and-retry must be possible in place.
+describe('mirrorBlockedRepos', () => {
+  it('lists only install_error rows with the HF_MIRROR_UNREACHABLE class', () => {
+    const progress = {
+      'a/mirror-blocked': { phase: 'install_error', docsTopic: 'HF_MIRROR_UNREACHABLE' },
+      'b/other-error': { phase: 'install_error', docsTopic: '' },
+      'c/downloading': { phase: 'active', docsTopic: 'HF_MIRROR_UNREACHABLE' },
+    };
+    expect(mirrorBlockedRepos(progress)).toEqual(['a/mirror-blocked']);
+  });
+
+  it('is empty for empty/undefined progress', () => {
+    expect(mirrorBlockedRepos({})).toEqual([]);
+    expect(mirrorBlockedRepos(undefined)).toEqual([]);
   });
 });

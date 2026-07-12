@@ -444,6 +444,28 @@ call.
 > paths scrubbed. The raw markers live next to the backend logs in
 > `backend_crash_markers.json`.
 
+## 14b. "Can't reach the local OmniVoice backend" flashing during startup or an automatic restart
+
+**Symptom (older builds):** while the backend was still starting — or while the
+desktop shell was auto-restarting a crashed backend — every click produced a
+**"Can't reach the local OmniVoice backend"** toast, over and over, even though
+the backend came back on its own a few seconds later.
+
+**Cause:** a real backend start/restart takes **10–20+ seconds** (Python venv
+spawn plus the PyTorch import), but the UI's transport retry only bridged ~3
+seconds before giving up — so every request landing inside that window
+dead-ended with the scary toast, which read as a recurring bug rather than a
+self-heal in progress.
+
+**Fixed:** newer desktop builds ask the shell whether a start/restart is
+actually in progress and simply **wait for it** (up to 2 minutes, matching the
+shell's own restart budget) instead of erroring, and show a single pinned
+**"backend is restarting — hang tight"** banner while it happens, followed by a
+"backend is back" confirmation. A backend that is *truly* dead (the shell gave
+up, or you're not running the desktop app) still errors promptly. If you see
+the error persistently on a current build, that's section **14** (a wedged GPU
+job) or the crash notice above — not this window.
+
 ## 15. Stuck at "preparing" forever after a crash / BSOD (Windows)
 
 **Symptom:** after an unclean shutdown (Windows BSOD, forced power-off), every

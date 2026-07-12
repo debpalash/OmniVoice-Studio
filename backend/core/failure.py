@@ -141,10 +141,13 @@ def hf_mirror_hint(reason: Optional[str]) -> str:
     and a non-default mirror endpoint is configured; "" otherwise.
 
     The hint names the configured mirror, says it may be down, points at the
-    setting (Settings → Models → Hugging Face mirror), suggests the official
-    endpoint when the model isn't cached yet, and notes the restart
-    requirement (HF reads HF_ENDPOINT at import time — see the hf-mirror
-    endpoints in api/routers/settings.py). Never raises.
+    setting (Settings → Models → Hugging Face mirror; during first-run the
+    wizard renders its own inline picker), and suggests the official endpoint
+    when the model isn't cached yet. Model *downloads* pick up a mirror change
+    immediately (PUT /hf-mirror updates os.environ and the download paths
+    resolve the endpoint per call) — only transformers-side model *loads*,
+    which read HF_ENDPOINT at import time, still need a restart, so restart is
+    framed as the fallback when a retry still fails. Never raises.
     """
     mirror = configured_hf_mirror()
     if not mirror:
@@ -166,9 +169,11 @@ def hf_mirror_hint(reason: Optional[str]) -> str:
         f"Your Hugging Face mirror is set to {mirror}, which couldn't be "
         "reached — the mirror may be down or blocked on your network. If the "
         'model isn\'t in your local cache yet, switch to "Hugging Face '
-        '(official)" in Settings → Models → Hugging Face mirror (or wait for '
-        "the mirror to recover), then restart OmniVoice — the mirror setting "
-        "is applied when the app starts."
+        '(official)" in Settings → Models → Hugging Face mirror — during '
+        "first-run setup, use the mirror picker right on this screen — or "
+        "wait for the mirror to recover, then retry: downloads pick up a "
+        "mirror change immediately. If a retry still fails after switching, "
+        "restart OmniVoice."
     )
 
 

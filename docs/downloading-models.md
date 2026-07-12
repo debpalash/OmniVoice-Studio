@@ -102,7 +102,12 @@ first run, the setup wizard's network check reports which endpoint the
 automatic selection picked, and still offers the mirror quick-pick when
 nothing is reachable — the check is a warning, not a blocker, so an offline
 or firewalled machine can still finish setup once models are available
-(mirror, or manual download below). Caveats:
+(mirror, or manual download below). If a wizard download fails because the
+**configured** mirror is unreachable, the same quick-pick (including
+**Hugging Face (official)**) appears right next to the failed row — switching
+applies to downloads **immediately** (no restart; only already-loaded engines
+re-read the endpoint at startup), clears the retry cooldown, and retries the
+failed download at once. Caveats:
 
 - A mirror serves the **classic** download path, **not Xet** — you lose
   chunk-dedup and Xet's parallel fetch, but you gain reachability. On the

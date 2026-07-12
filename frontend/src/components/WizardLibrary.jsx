@@ -26,6 +26,7 @@ import { useModels, useInstallModel } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
 import { listEngines, selectEngine } from '../api/engines';
 import { notifyEngineSelected } from '../utils/engineSelectToast';
+import MirrorRescue from './MirrorRescue';
 import { Badge, Button } from '../ui';
 
 const fmtGB = (gb) => (gb == null ? '' : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
@@ -125,8 +126,19 @@ export function reduceWizardDownloadEvent(prev, ev) {
     return next;
   }
   // Error terminal → KEEP the row + its message so it renders with a Retry.
+  // docs_topic carries the backend's failure class (core.failure.classify) so
+  // the wizard can react structurally — e.g. HF_MIRROR_UNREACHABLE raises the
+  // inline mirror picker — instead of string-matching the error text.
   if (ev.phase === 'install_error') {
-    return { ...prev, [ev.repo_id]: { ...cur, phase: 'install_error', error: ev.error } };
+    return {
+      ...prev,
+      [ev.repo_id]: {
+        ...cur,
+        phase: 'install_error',
+        error: ev.error,
+        docsTopic: ev.docs_topic || '',
+      },
+    };
   }
   // Authoritative overall progress (download_aggregator).
   if (ev.phase === 'aggregate') {
@@ -155,6 +167,19 @@ export function reduceWizardDownloadEvent(prev, ev) {
     },
   };
   return { ...prev, [ev.repo_id]: { ...cur, files } };
+}
+
+/**
+ * Repo ids whose install failed because the CONFIGURED Hugging Face mirror is
+ * unreachable (#874 class). Non-empty → the wizard shows the inline mirror
+ * picker next to the failed rows: during first-run the Settings panel the
+ * error hint names is unreachable (the wizard gates the studio), so the
+ * switch-and-retry affordance must live right here. Pure + exported for tests.
+ */
+export function mirrorBlockedRepos(progress) {
+  return Object.entries(progress || {})
+    .filter(([, p]) => p?.phase === 'install_error' && p?.docsTopic === 'HF_MIRROR_UNREACHABLE')
+    .map(([repoId]) => repoId);
 }
 
 // LED dot tone per row state.
@@ -324,7 +349,7 @@ export default function WizardLibrary() {
         size={fmtGB(m.size_gb)}
         sub={
           errored ? (
-            <span className="block max-w-[280px] font-mono text-[0.64rem] leading-snug text-danger">
+            <span className="block max-w-[520px] font-mono text-[0.64rem] leading-snug text-danger">
               {t('firstrun.lib_install_failed', {
                 error: p.error,
                 defaultValue: 'Install failed: {{error}}',
@@ -424,6 +449,16 @@ export default function WizardLibrary() {
         </Button>
       )}
       {showTail && tail.map((m) => modelRow(m, t('firstrun.chip_optional', 'optional'), 'opt'))}
+      {/* A download failed because the CONFIGURED mirror is unreachable: the
+          error hint points at Settings, but the wizard gates the studio — so
+          the mirror picker renders right here. PUT /hf-mirror applies to
+          downloads immediately and clears the install cooldown, so the failed
+          rows retry the moment a new endpoint is applied. */}
+      {mirrorBlockedRepos(progress).length > 0 && (
+        <MirrorRescue
+          onApplied={() => mirrorBlockedRepos(progress).forEach((repoId) => install(repoId))}
+        />
+      )}
       {Object.keys(progress).length > 0 && (
         <p className="m-0 text-xs text-fg-subtle">
           {t(

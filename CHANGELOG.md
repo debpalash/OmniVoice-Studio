@@ -6,6 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **"Can't reach the local OmniVoice backend" stopped crying wolf during startups and restarts.** A real backend start or auto-restart takes 10–20+ seconds (Python spawn plus the PyTorch import), but the app's transport retry only bridged ~3 seconds — every click inside that window dead-ended with the scary toast, over and over, even though the backend healed itself moments later. The app now asks the desktop shell whether a start/restart is actually in progress and simply waits for it (up to the shell's own 2-minute restart budget), and shows a single "backend is restarting — hang tight" banner with a "back — carrying on" confirmation — the reconnecting affordance the supervisor has promised since #567. A truly dead backend (or a non-desktop deployment) still errors promptly, and the crash notice keeps telling the honest story.
+
+- **A dead Hugging Face mirror can no longer strand the first-run wizard.** When a model download failed because the *configured* mirror was unreachable, the error pointed at Settings — which first-run users can't open (the wizard gates the studio) — and falsely claimed the mirror setting only applies after a restart (downloads actually pick it up per call, immediately). Now the wizard shows the mirror quick-pick (including "Hugging Face (official)") right next to the failed download and retries it the moment you switch; the corrected hint says retry-first, restart only if it still fails. Two backend holes in the same flow are closed too: switching endpoints clears the "failed recently" retry cooldown (no more 429 on the immediate retry), and clearing to official also removes the legacy `hf_endpoint` pref, which used to silently keep the dead mirror in effect.
+
+### Changed
+
+- **The first-run wizard shows the app version in its masthead**, next to the OmniVoice Studio title — so setup-time screenshots and bug reports identify the build at a glance (the install splash already did).
+
 ## [0.3.18] — 2026-07-12
 
 The self-sufficiency release. Two long-standing "works on my network / works after four terminal commands" walls came down: model downloads now find a reachable Hugging Face endpoint on their own (no more restricted-network first-run dead-ends), and IndexTTS-2 — previously the only engine that demanded a manual clone-venv-install ritual — installs itself with one click. Under the hood, a test-debt sweep hardened the suite that guards all of it.

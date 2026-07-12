@@ -163,6 +163,32 @@ def test_put_mode_auto_clears_pref_fallback(settings_mod):
     assert prefs.get("hf_endpoint") is None
 
 
+def test_clear_to_official_also_clears_pref_fallback(settings_mod):
+    """Switching to official (manual, empty url) must also drop the legacy
+    `hf_endpoint` pref fallback — the download paths resolve it as an explicit
+    mirror, so leaving it behind meant "switch to official" didn't actually
+    switch (the wizard's mirror rescue kept failing on the dead mirror)."""
+    from core import prefs
+    import services.endpoint_race as er
+
+    prefs.set_("hf_endpoint", "https://hf-mirror.com")
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="", mode="manual"))
+    assert prefs.get("hf_endpoint") is None
+    assert er.explicit_endpoint() == ""
+
+
+def test_mirror_change_clears_install_cooldowns(settings_mod):
+    """A mirror change resets the failed-recently install cooldowns: the
+    wizard's switch-and-retry flow retries the failed download immediately,
+    and a 429 there would dead-end it (the cooldown guards against hammering
+    a broken network — which the endpoint switch just changed)."""
+    from api.routers.setup import download as dl
+
+    dl._install_cooldowns["org/model"] = 10.0 ** 12  # far future — never sweeps
+    settings_mod.set_hf_mirror(settings_mod._HFMirrorBody(url="https://hf-mirror.com"))
+    assert dl._install_cooldowns == {}
+
+
 def test_put_rejects_unknown_mode(settings_mod):
     from fastapi import HTTPException
     with pytest.raises(HTTPException) as ei:
