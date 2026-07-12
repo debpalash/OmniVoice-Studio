@@ -49,7 +49,7 @@ function Stat({ label, value, sub }) {
         {label}
       </span>
       {sub && (
-        <span className="[font-family:var(--font-sans)] text-[length:var(--text-xs)] text-[var(--chrome-fg-subtle)]">
+        <span className="[font-family:var(--font-sans)] text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)]">
           {sub}
         </span>
       )}
