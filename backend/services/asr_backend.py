@@ -27,7 +27,9 @@ import asyncio
 import logging
 import os
 import re
+import contextlib
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Optional
@@ -2238,6 +2240,74 @@ _capture_backend_key: str | None = None
 # check-then-build must be atomic to avoid two threads each building a model.
 _capture_backend_lock = threading.Lock()
 
+# ── Idle release of the warm capture/dictation ASR (#1101 class) ────────────
+#
+# The TTS model has always been idle-unloaded (model_manager.idle_worker), but
+# the capture ASR singleton above was not: once you dictated even once, its
+# model stayed resident for the life of the process. Measured on a 16 GB M2:
+# the backend sits at ~6.2 GB idle — TTS 3.8 GB plus ~2 GB of warm ASR — while
+# an actual generate costs only ~116 MB on top. That baseline, not any spike, is
+# what pushes a 16 GB machine into memory pressure until the OS kills the
+# backend mid-generate — the death behind #1076/#1092/#1093/#1101. Freeing
+# 3.8 GB of TTS while silently holding 2 GB of ASR forever was the asymmetry.
+#
+# Reclaiming it costs a model re-warm on the next dictation (~1.4 s for
+# mlx-whisper turbo) and only after a full idle timeout — the same bargain the
+# TTS model already makes.
+_capture_last_used: float = 0.0
+# Live dictation streams hold the singleton for the WHOLE session while calling
+# nothing that would refresh `_capture_last_used`, so a long session could have
+# its model unloaded mid-sentence. A lease pins it for exactly that window.
+_capture_leases: int = 0
+
+
+def _touch_capture() -> None:
+    """Mark the capture backend as used now (resets its idle clock)."""
+    global _capture_last_used
+    _capture_last_used = time.monotonic()
+
+
+@contextlib.contextmanager
+def capture_lease():
+    """Pin the warm capture backend for the duration of a live session, so the
+    idle reaper can never unload the model out from under an open dictation
+    stream. Releasing the lease restarts the idle clock."""
+    global _capture_leases
+    with _capture_backend_lock:
+        _capture_leases += 1
+    try:
+        yield
+    finally:
+        with _capture_backend_lock:
+            _capture_leases = max(0, _capture_leases - 1)
+        _touch_capture()
+
+
+def release_idle_capture_backend(idle_s: float, *, now: float | None = None) -> bool:
+    """Unload the warm capture/dictation ASR once it has gone unused for
+    ``idle_s`` seconds. Returns True when a model was actually released.
+
+    No-ops while a live session holds a lease, when nothing is loaded, or when
+    the model was used recently. Never raises — a failed unload must not take
+    the idle worker down with it."""
+    global _capture_backend, _capture_backend_key
+    now = time.monotonic() if now is None else now
+    with _capture_backend_lock:
+        if _capture_backend is None or _capture_leases > 0:
+            return False
+        if now - _capture_last_used < idle_s:
+            return False
+        backend, _capture_backend, _capture_backend_key = _capture_backend, None, None
+    try:
+        backend.unload()
+    except Exception:  # noqa: BLE001 — a stuck unload must not kill idle_worker
+        logger.warning("capture ASR unload failed", exc_info=True)
+    logger.info(
+        "Idle timeout reached. Unloading capture ASR (%s) to free memory.",
+        type(backend).__name__,
+    )
+    return True
+
 
 def get_sherpa_dictation_backend(model_id: str) -> "SherpaDictationBackend":
     """Return a shared, warm-cached :class:`SherpaDictationBackend` for
@@ -2252,6 +2322,7 @@ def get_sherpa_dictation_backend(model_id: str) -> "SherpaDictationBackend":
     :func:`get_capture_asr_backend`. Thread-safe: the recognizer is shared;
     each session creates its own decode stream (see capture_ws)."""
     global _capture_backend, _capture_backend_key
+    _touch_capture()  # any handout resets the idle clock
     with _capture_backend_lock:
         if (isinstance(_capture_backend, SherpaDictationBackend)
                 and _capture_backend_key == model_id):
@@ -2299,6 +2370,7 @@ def get_capture_asr_backend() -> ASRBackend:
     """
     global _capture_backend, _capture_backend_key
 
+    _touch_capture()  # any handout resets the idle clock (#1101 class)
     # Atomic resolve+build so the preload thread and a WS session (which may
     # call get_sherpa_dictation_backend concurrently) can't both build a model.
     with _capture_backend_lock:

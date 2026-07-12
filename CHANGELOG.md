@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Fixed
+
+- **The backend no longer sits on ~2 GB of idle dictation model — the real reason it was being killed on 16 GB Macs.** Four reports of *"Can't reach the local OmniVoice backend"* (#1076, #1092, #1093, #1101) all died at the same moment: during a generate, on a 16 GB machine. Measuring it showed the generate was never the problem — it costs about 116 MB. The problem was the **baseline**: the backend sat at **~6.2 GB even while idle**. The TTS model has always been unloaded after an idle timeout, but the speech-recognition model used for dictation never was — so once you dictated a single time, ~2 GB stayed resident for as long as the app ran. On a 16 GB Mac, that plus the app, macOS, and your other programs is enough for the system to run out of memory and kill the backend, which surfaced as the "can't reach the backend" error. Dictation's model now gets the same idle release the TTS model already had, handing that memory back. The only cost is a ~1.4-second re-warm on your next dictation after a long pause, and a live dictation session is pinned so nothing is ever unloaded mid-sentence.
+
 ## [0.3.20] — 2026-07-12
 
 The follow-through release. v0.3.19 promised that "Can't reach the local OmniVoice backend" would stop firing while the backend was merely restarting — and then a user hit it anyway, on 0.3.19, because the fix had a race in it. That's closed properly here. Uninstalling also stopped being a thing only maintainers could do: it's now a button in the app, where the person who asked for it can actually reach it.

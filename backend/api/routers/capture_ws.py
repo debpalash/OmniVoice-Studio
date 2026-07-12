@@ -158,13 +158,20 @@ async def ws_transcribe(websocket: WebSocket):
     # legacy Whisper/WebM path, byte-for-byte unchanged.
     spec = _select_sherpa_spec(websocket)
     if spec is not None:
-        from services.asr_backend import SherpaDictationBackend
+        from services.asr_backend import SherpaDictationBackend, capture_lease
         ok, _reason = SherpaDictationBackend.is_available()
         if ok:
-            if spec.streaming:
-                await _run_sherpa_streaming(websocket, spec)
-            else:
-                await _run_sherpa_offline(websocket, spec)
+            # A live session holds the shared capture backend for its whole
+            # lifetime without ever re-resolving it, so the idle reaper
+            # (#1101 class) must not unload the model out from under it — even
+            # if the user leaves the mic open, silent, past the idle timeout.
+            # The lease pins it for exactly this window and restarts the idle
+            # clock on the way out.
+            with capture_lease():
+                if spec.streaming:
+                    await _run_sherpa_streaming(websocket, spec)
+                else:
+                    await _run_sherpa_offline(websocket, spec)
             return
         # sherpa not installed → fall through to the legacy path so the user
         # still gets dictation (just not live partials).

@@ -1273,11 +1273,27 @@ async def idle_worker():
     torch = _lazy_torch()
     while True:
         await asyncio.sleep(30)
+        idle_timeout = _resolve_idle_timeout()
         async with _model_lock:
-            if model is not None and time.time() - _last_used > _resolve_idle_timeout():
+            if model is not None and time.time() - _last_used > idle_timeout:
                 logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
                 model = None
                 free_vram()
+        # The capture/dictation ASR was never idle-released — so once a user
+        # dictated, its model stayed resident for the life of the process while
+        # the TTS model dutifully freed its 3.8 GB. On a 16 GB Mac that left the
+        # backend sitting at ~6.2 GB idle, which is what tipped it into the
+        # memory pressure that gets it killed mid-generate (#1076/#1092/#1093/
+        # #1101). Give it the same bargain the TTS model already makes. Held
+        # off while a live dictation stream has a lease, so nothing is unloaded
+        # mid-sentence.
+        try:
+            from services.asr_backend import release_idle_capture_backend
+
+            if release_idle_capture_backend(idle_timeout):
+                free_vram()
+        except Exception:  # noqa: BLE001 — the reaper must never kill idle_worker
+            logger.warning("idle capture-ASR release failed", exc_info=True)
 
 def free_vram():
     """Release cached GPU memory on any accelerator (CUDA, MPS, XPU)."""
