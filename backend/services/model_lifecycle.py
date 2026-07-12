@@ -133,7 +133,70 @@ def list_loaded() -> dict:
     except Exception:
         pass
 
-    return {"models": models, "count": len(models)}
+    # 5. In-process engine instances that hold a model (mlx-audio, cosyvoice,
+    #    voxcpm2, kittentts, …). These live in the generate path's instance
+    #    cache, separate from the OmniVoice core above — and were INVISIBLE here
+    #    until now, so a resident non-OmniVoice engine (up to a few GB) didn't
+    #    show in the panel at all. Report each that currently holds a model.
+    #    VRAM isn't self-reported by these engines → 0 (unmeasured), same
+    #    convention as a CPU/uninstrumented sidecar. Enumeration is best-effort.
+    try:
+        from api.routers.engines import _ENGINE_INSTANCES
+        from services.tts_backend import OmniVoiceBackend
+
+        for cls, inst in list(_ENGINE_INSTANCES.items()):
+            if cls is OmniVoiceBackend:
+                continue  # the shared core is already section 1 (mm.model)
+            if not any(getattr(inst, a, None) is not None
+                       for a in getattr(inst, "_MODEL_ATTRS", ("_model", "_tts"))):
+                continue  # instance exists but hasn't loaded its weights
+            eid = getattr(cls, "id", cls.__name__)
+            models.append({
+                "id": f"engine:{eid}",
+                "name": getattr(inst, "display_name", None) or f"{eid} (engine)",
+                "checkpoint": eid,
+                "device": get_best_device(),
+                "vram_mb": 0,  # not self-reported by in-process engines
+                "unloadable": True,
+                **_tts_attribution(eid, active_tts),
+            })
+    except Exception:
+        pass
+
+    # 6. The warm capture/dictation ASR singleton — resident until idle-released
+    #    (#1101 class). Held separately from the co-loaded WhisperX ASR above.
+    try:
+        import services.asr_backend as ab
+
+        cap = getattr(ab, "_capture_backend", None)
+        if cap is not None:
+            models.append({
+                "id": "capture-asr",
+                "name": f"{type(cap).__name__} (dictation)",
+                "checkpoint": getattr(ab, "_capture_backend_key", None) or type(cap).__name__,
+                "device": get_best_device(),
+                "vram_mb": 0,
+                "unloadable": True,
+                "note": "released after the idle timeout",
+            })
+    except Exception:
+        pass
+
+    # System memory snapshot — free/total RAM (and VRAM on a dedicated GPU) plus
+    # a low-memory advisory, so the panel can show pressure instead of leaving
+    # the 16 GB-Mac OOM class invisible until the backend dies.
+    system: dict = {}
+    try:
+        from services.memory_budget import available_memory, low_memory_warning
+
+        system = available_memory()
+        warn = low_memory_warning()
+        if warn:
+            system["warning"] = warn
+    except Exception:
+        pass
+
+    return {"models": models, "count": len(models), "system": system}
 
 
 async def unload(model_id: str) -> dict:

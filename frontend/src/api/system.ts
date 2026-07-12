@@ -94,7 +94,7 @@ export async function modelStatus(): Promise<ModelStatus> {
  *  `engine_id`/`is_active_engine` attribute TTS-family entries to an engine
  *  (a model can stay resident after the user switches engines). */
 export interface LoadedModel {
-  id: string; // 'tts' | 'asr' | 'diarization' | 'sidecar:<engine>'
+  id: string; // 'tts' | 'asr' | 'diarization' | 'sidecar:<e>' | 'engine:<e>' | 'capture-asr'
   name: string;
   checkpoint: string;
   device: string;
@@ -105,9 +105,21 @@ export interface LoadedModel {
   is_active_engine?: boolean | null;
 }
 
+/** Free/total memory snapshot from GET /model/loaded. RAM is always present;
+ *  VRAM fields appear only on a dedicated-GPU host; `warning` is a low-memory
+ *  advisory string when free memory is below the headroom threshold. */
+export interface SystemMemory {
+  ram_available_gb?: number;
+  ram_total_gb?: number;
+  vram_free_gb?: number;
+  vram_total_gb?: number;
+  warning?: string;
+}
+
 export interface LoadedModelsResponse {
   models: LoadedModel[];
   count: number;
+  system?: SystemMemory;
 }
 
 export async function listLoadedModels(): Promise<LoadedModelsResponse> {

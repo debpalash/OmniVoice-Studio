@@ -792,6 +792,18 @@ async def generate_speech(
     from services.engine_memory import evict_other_tts_engines
     await evict_other_tts_engines(engine_id)
 
+    # Non-blocking breadcrumb: if free memory is already low before this load,
+    # log it. A later OOM kill (the 16 GB-Mac class) then has a trail pointing
+    # at the load that tipped it, instead of a silent process death. Never
+    # blocks — the OS can reclaim cache, and a hard refuse would brick
+    # legitimate loads.
+    try:
+        from services.memory_budget import log_if_low
+
+        log_if_low(f"TTS load ({engine_id})")
+    except Exception:
+        pass
+
     _model = None
     _backend = None
     if backend_cls is OmniVoiceBackend:

@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+### Added
+
+- **The memory panel now tells the whole truth.** `Settings → Models` (and `GET /model/loaded`) used to report only the OmniVoice core model — a resident second engine like MLX-Audio, or the warm dictation model, was invisible, so the memory picture looked ~2 GB lighter than reality. It now lists every resident model (in-process engines and the dictation ASR included) and adds a system block with free/total RAM (and free VRAM on a dedicated GPU) plus a low-memory warning. On top of that, a load that starts while memory is already low leaves a breadcrumb in the backend log, so a subsequent out-of-memory kill points at the load that tipped it instead of dying silently. Advisory only — nothing is blocked (the OS can reclaim memory, and refusing a load on an estimate would brick machines that would actually cope). Tune the threshold with `OMNIVOICE_LOW_MEMORY_HEADROOM_GB` (default 2).
+
 ## [0.3.21] — 2026-07-12
 
 The memory release. The reason the app kept saying "Can't reach the local backend" on 16 GB machines was never really the network — the backend was quietly running out of memory and getting killed. This release fixes that at the source: the models it holds now get out of each other's way. Plus the uninstaller and factory reset grew into a proper Settings → Storage pair.
