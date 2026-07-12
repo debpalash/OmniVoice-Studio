@@ -18,6 +18,7 @@ build/
 #  Node / Turborepo / Tauri
 # ─────────────────────────────────────────────────────────────────────────
 node_modules/
+node_modules
 .turbo/
 bun.lockb
 frontend/src-tauri/target/

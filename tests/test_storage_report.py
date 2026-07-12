@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import os
+from pathlib import Path
 
 import pytest
 
@@ -49,9 +50,12 @@ def roots(tmp_path):
     _write(str(hf / "hub" / "version.txt"), 3)  # non-model remainder
 
     engines = tmp_path / "engines"
+    # A real sidecar install = venv + git checkout + multi-GB weights; the whole
+    # <id> dir is its footprint, so all three of these count.
     _write(str(engines / "indextts" / ".venv" / "lib" / "x.py"), 60)
-    _write(str(engines / "indextts" / "main.py"), 999)  # NOT a venv file — excluded
-    _write(str(engines / "_echo" / "no_venv.py"), 999)  # no .venv — excluded
+    _write(str(engines / "indextts" / "main.py"), 40)          # checkout
+    _write(str(engines / "indextts" / "checkpoints" / "w.bin"), 900)  # weights
+    _write(str(engines / "_echo" / "no_venv.py"), 999)  # no .venv → not an install, excluded
 
     tmp = tmp_path / "tmp"
     _write(str(tmp / "omnivoice_frames_abc" / "f.png"), 25)
@@ -97,8 +101,8 @@ def test_category_sizes_computed(roots):
     assert data["bytes"] == sum(child.values())
 
     venvs = _cat(r, "engine_venvs")
-    assert venvs["bytes"] == 60       # only .venv contents count
-    assert venvs["items"] == [{"name": "indextts", "bytes": 60}]
+    assert venvs["bytes"] == 1000     # whole install: .venv 60 + checkout 40 + weights 900
+    assert venvs["items"] == [{"name": "indextts", "bytes": 1000}]
 
     tmp = _cat(r, "temp")
     assert tmp["bytes"] == 25         # only omnivoice* entries
@@ -109,8 +113,46 @@ def test_app_venv_included(roots, tmp_path):
     _write(str(venv / "bin" / "python"), 80)
     r = _build(roots, app_venv=str(venv))
     venvs = _cat(r, "engine_venvs")
-    assert venvs["bytes"] == 60 + 80
+    assert venvs["bytes"] == 1000 + 80
     assert {"name": "app", "bytes": 80} in venvs["items"]
+
+
+def test_sidecar_under_data_dir_is_counted_once_not_double(tmp_path):
+    # The real layout: sidecars install to DATA_DIR/engines/<id>. The engine-venv
+    # category owns that subtree; the data dir's "other" must NOT also count it,
+    # or a multi-GB IndexTTS-2 install inflates the report by its own size twice.
+    data = tmp_path / "data"
+    _write(str(data / "voices" / "v.wav"), 100)
+    _write(str(data / "engines" / "indextts2" / ".venv" / "x"), 300)
+    _write(str(data / "engines" / "indextts2" / "checkpoints" / "w.bin"), 5000)
+
+    r = storage_report.build_report(
+        data_dir=str(data),
+        hf_cache_dir=str(tmp_path / "hf"),
+        engines_dir=str(data / "engines"),  # child of data_dir, as in production
+        temp_root=str(tmp_path / "tmp"),
+        app_venv=None,
+    )
+    data_cat = _cat(r, "data")
+    other = next(c["bytes"] for c in data_cat["children"] if c["id"] == "other")
+    venvs = _cat(r, "engine_venvs")
+
+    assert venvs["bytes"] == 5300, "engine category owns the whole sidecar dir"
+    assert other == 0, "the sidecar must not also land in data → other"
+    # And it appears exactly once in the grand total.
+    grand = sum(c["bytes"] for c in r["categories"])
+    assert grand == 100 + 5300
+
+
+def test_default_engines_dir_points_at_data_dir_not_the_source_tree(monkeypatch):
+    # Guards the actual bug: default_engines_dir() used to return backend/engines
+    # (built-in modules, no venvs) so sidecar installs were invisible.
+    import core.config as config
+
+    monkeypatch.setattr(config, "DATA_DIR", "/tmp/some-data-dir", raising=False)
+    got = storage_report.default_engines_dir()
+    assert got == str(Path("/tmp/some-data-dir") / "engines")
+    assert "backend" not in got
 
 
 def test_missing_dirs_are_zero_not_warnings(tmp_path):

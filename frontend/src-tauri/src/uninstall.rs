@@ -124,9 +124,26 @@ pub fn uninstall_scan(app: tauri::AppHandle) -> Vec<UninstallTarget> {
     if let Some(logs) = backend_log_dir() {
         out.push(target("logs", logs, false));
     }
+    // The durable per-user env file (backend/core/user_env.py). It persists the
+    // model-cache location (and can hold HF_TOKEN); leaving it behind silently
+    // redirected a fresh reinstall's cache to the old spot. Same path on every
+    // OS (expanduser("~/.config/omnivoice/env")), so it sits under neither the
+    // data nor the config dir above.
+    if let Some(user_env) = user_env_dir() {
+        if user_env.exists() {
+            out.push(target("userenv", user_env, false));
+        }
+    }
     // Shared with every other huggingface_hub tool on this machine → opt-in.
     out.push(target("models", models, true));
     out
+}
+
+/// `~/.config/omnivoice` — the directory holding the durable per-user env file.
+/// Mirrors `backend/core/user_env.py::USER_ENV_PATH`, which uses `expanduser`
+/// on every platform, so this is `%USERPROFILE%\.config\omnivoice` on Windows.
+fn user_env_dir() -> Option<PathBuf> {
+    dirs_next::home_dir().map(|h| h.join(".config").join("omnivoice"))
 }
 
 /// Stop the backend and delete the scanned folders. `include_models` opts into
@@ -214,6 +231,8 @@ mod tests {
             "/Users/someone/.local/state/OmniVoice",
             "/Users/someone/.local/share/com.debpalash.omnivoice-studio",
             "/Users/someone/.cache/huggingface",
+            // The durable per-user env dir — must clear the same guard as the rest.
+            "/Users/someone/.config/omnivoice",
             "C:\\Users\\someone\\AppData\\Roaming\\OmniVoice",
         ] {
             let path = PathBuf::from(p);
@@ -225,5 +244,13 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn user_env_dir_is_under_dot_config_and_recognizably_ours() {
+        // The leftover that used to silently redirect a reinstall's model cache.
+        let dir = user_env_dir().expect("home dir resolves in test env");
+        assert!(dir.ends_with(".config/omnivoice"));
+        assert!(is_recognizably_ours(&dir, dirs_next::home_dir().as_deref()));
     }
 }

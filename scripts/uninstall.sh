@@ -66,11 +66,16 @@ esac
 DATA_DIR="${OMNIVOICE_DATA_DIR:-$data_default}"
 # Model cache precedence matches the app: OMNIVOICE_CACHE_DIR → HF_HOME → HF_HUB_CACHE → default.
 MODELS_DIR="${OMNIVOICE_CACHE_DIR:-${HF_HOME:-${HF_HUB_CACHE:-$models_default}}}"
+# Durable per-user env file — backend/core/user_env.py, same path on every OS.
+# It persists OMNIVOICE_CACHE_DIR (and can hold HF_TOKEN); leaving it behind
+# silently redirected a fresh reinstall's model cache to the old location.
+USER_ENV_DIR="$HOME/.config/omnivoice"
 
 # ── Collect existing targets ────────────────────────────────────────────────
 app_targets=()
 [ -e "$DATA_DIR" ] && app_targets+=("$DATA_DIR")
 [ -e "$config_default" ] && app_targets+=("$config_default")
+[ -e "$USER_ENV_DIR" ] && app_targets+=("$USER_ENV_DIR")
 for d in "${logs_extra[@]:-}"; do [ -n "$d" ] && [ -e "$d" ] && app_targets+=("$d"); done
 
 human_size() { du -sh "$1" 2>/dev/null | cut -f1 || echo "?"; }

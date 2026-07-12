@@ -47,8 +47,29 @@ _GB = 1024 ** 3
 
 
 def default_engines_dir() -> str:
-    """``backend/engines`` — where per-engine venvs live (`<id>/.venv`)."""
-    return str(Path(__file__).resolve().parents[1] / "engines")
+    """``DATA_DIR/engines`` — where sidecar engine installs (IndexTTS-2 & friends)
+    keep their per-engine venv (`<id>/.venv`) and weights.
+
+    Not ``backend/engines`` (the built-in engine *modules*, which share the app
+    venv and have no `.venv` of their own): that dir is import-time code, and a
+    sidecar install never lands there. Pointing the report at it meant the
+    engine-venv category always measured an empty tree while a real multi-GB
+    IndexTTS-2 install silently rolled up into the data dir's "other" subtotal.
+    Mirrors ``backend/services/sidecar_install.py`` (`DATA_DIR/engines/<id>`).
+    """
+    from core.config import DATA_DIR
+
+    return str(Path(DATA_DIR) / "engines")
+
+
+def _engines_child_name(engines_dir: str, data_dir: str) -> str | None:
+    """Basename of ``engines_dir`` when it is a direct child of ``data_dir`` —
+    so the data category can skip it and not double-count what the engine-venv
+    category already measures. ``None`` when engines live elsewhere."""
+    parent = os.path.dirname(os.path.normpath(engines_dir))
+    if os.path.normpath(parent) == os.path.normpath(data_dir):
+        return os.path.basename(os.path.normpath(engines_dir))
+    return None
 
 
 def default_app_venv() -> str | None:
@@ -249,6 +270,12 @@ def build_report(
     children: list[dict] = []
     claimed: set[str] = set()
 
+    # When sidecar engines live under DATA_DIR/engines, the engine-venv category
+    # below owns that subtree — claim it here so it isn't also swept into "other".
+    engines_child = _engines_child_name(engines_dir, data_dir)
+    if engines_child:
+        claimed.add(engines_child)
+
     for name in _DATA_CHILD_DIRS:
         p = os.path.join(data_dir, name)
         size, ok, err = _dir_size(p, deadline)
@@ -319,10 +346,14 @@ def build_report(
     except OSError:
         engine_dirs = []
     for edir in engine_dirs:
-        venv_dir = os.path.join(edir, ".venv")
-        if not os.path.isdir(venv_dir):
+        # A sidecar install is the venv PLUS a git checkout PLUS multi-GB weights
+        # (`checkpoints/`) — measure the whole `<id>` dir, not just `.venv`, or the
+        # weights (usually the bulk) go uncounted now that the data category no
+        # longer sweeps this subtree into "other". Only real installs have a venv,
+        # so that gate still skips a bare/interrupted dir.
+        if not os.path.isdir(os.path.join(edir, ".venv")):
             continue
-        size, ok, err = _dir_size(venv_dir, deadline)
+        size, ok, err = _dir_size(edir, deadline)
         venv_total += size
         venv_complete = venv_complete and ok
         venv_err = venv_err or err

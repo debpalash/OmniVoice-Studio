@@ -583,6 +583,7 @@
     "uninstall_target_data": "Voices, projects, generated audio, history",
     "uninstall_target_env": "Settings + the managed Python environment",
     "uninstall_target_logs": "Logs",
+    "uninstall_target_userenv": "Saved environment (cache location, tokens)",
     "uninstall_target_models": "Downloaded model weights (shared Hugging Face cache)",
     "uninstall_confirm_title": "Remove all OmniVoice data?",
     "uninstall_confirm_body": "Your voice profiles, projects, and generated audio will be permanently deleted. This cannot be undone.",

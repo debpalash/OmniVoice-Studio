@@ -61,8 +61,14 @@ function Get-FolderSize($path) {
 # so it is covered by neither the app-data nor the config dir.
 $logsDefault = Join-Path (Join-Path $localApp 'OmniVoice') 'Logs'
 
+# Durable per-user env file — backend/core/user_env.py uses expanduser('~/.config/
+# omnivoice/env') on EVERY OS, so it lands under %USERPROFILE% on Windows too. It
+# persists OMNIVOICE_CACHE_DIR (and can hold HF_TOKEN); leaving it behind silently
+# redirected a fresh reinstall's model cache to the old location.
+$userEnvDir = Join-Path ([Environment]::GetEnvironmentVariable('USERPROFILE')) '.config\omnivoice'
+
 $appTargets = @()
-foreach ($p in @($dataDir, $configDefault, $logsDefault)) {
+foreach ($p in @($dataDir, $configDefault, $logsDefault, $userEnvDir)) {
   if (Test-Path -LiteralPath $p) { $appTargets += $p }
 }
 

@@ -332,6 +332,48 @@ pub async fn reset_scan(app: tauri::AppHandle) -> Vec<ResetScope> {
     .unwrap_or_default()
 }
 
+/// The destructive core: delete every target of every wanted scope, guarding
+/// each path against the validated roots. Pure over the filesystem — no
+/// `AppHandle`, no backend — so it can be exercised end-to-end against a real
+/// on-disk OmniVoice tree in a test. `reset_purge` is this plus stop-backend
+/// before and restart-backend after.
+///
+/// `wanted` is assumed already filtered to `DISK_SCOPES`; unknown names yield no
+/// targets and are harmless.
+pub fn purge_scopes(roots: &Roots, wanted: &[String], home: Option<&Path>) -> ResetReport {
+    let mut report = ResetReport::default();
+    for key in DISK_SCOPES.iter().filter(|k| wanted.iter().any(|w| w == *k)) {
+        for path in scope_targets(key, roots) {
+            if !path.exists() {
+                continue;
+            }
+            if !target_allowed(&path, roots, home) {
+                log::warn!("reset: refusing to delete unrecognized path {}", path.display());
+                report.refused.push(path.to_string_lossy().to_string());
+                continue;
+            }
+            let size = dir_size(&path);
+            let outcome = if path.is_dir() {
+                fs::remove_dir_all(&path)
+            } else {
+                fs::remove_file(&path)
+            };
+            match outcome {
+                Ok(()) => {
+                    log::info!("reset[{key}]: removed {}", path.display());
+                    report.freed_bytes += size;
+                    report.removed.push(path.to_string_lossy().to_string());
+                }
+                Err(e) => {
+                    log::error!("reset[{key}]: failed to remove {}: {e}", path.display());
+                    report.failed.push(path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    report
+}
+
 /// Delete the selected scopes, then bring the backend back.
 ///
 /// Unknown or frontend-only scope names are ignored rather than erroring: the
@@ -365,37 +407,7 @@ pub async fn reset_purge(app: tauri::AppHandle, scopes: Vec<String>) -> Result<R
 
         let roots = roots_for(&purge_app);
         let home = dirs_next::home_dir();
-
-        for key in DISK_SCOPES.iter().filter(|k| wanted.iter().any(|w| w == *k)) {
-            for path in scope_targets(key, &roots) {
-                if !path.exists() {
-                    continue;
-                }
-                if !target_allowed(&path, &roots, home.as_deref()) {
-                    log::warn!("reset: refusing to delete unrecognized path {}", path.display());
-                    report.refused.push(path.to_string_lossy().to_string());
-                    continue;
-                }
-                let size = dir_size(&path);
-                let outcome = if path.is_dir() {
-                    fs::remove_dir_all(&path)
-                } else {
-                    fs::remove_file(&path)
-                };
-                match outcome {
-                    Ok(()) => {
-                        log::info!("reset[{key}]: removed {}", path.display());
-                        report.freed_bytes += size;
-                        report.removed.push(path.to_string_lossy().to_string());
-                    }
-                    Err(e) => {
-                        log::error!("reset[{key}]: failed to remove {}: {e}", path.display());
-                        report.failed.push(path.to_string_lossy().to_string());
-                    }
-                }
-            }
-        }
-        report
+        purge_scopes(&roots, &wanted, home.as_deref())
     })
     .await
     .map_err(|e| format!("reset failed: {e}"))?;
@@ -533,5 +545,151 @@ mod tests {
         assert!(target_allowed(&r.temp.join("omnivoice_dub_42"), &r, None));
         // Somebody else's scratch dir in the same temp root.
         assert!(!target_allowed(&r.temp.join("com.apple.something"), &r, None));
+    }
+
+    // ── End-to-end deletion against a real on-disk tree ───────────────────────
+    //
+    // Everything above tests target RESOLUTION; these run the actual
+    // `fs::remove_*` loop against a filesystem that looks like a real install, so
+    // the destructive path is exercised for real (not mocked) before it ever
+    // touches a user's machine.
+
+    /// Build a tree that mirrors a lived-in OmniVoice install and return `Roots`.
+    fn seed_install(base: &Path) -> Roots {
+        let data = base.join("OmniVoice");
+        let models = base.join(".cache").join("huggingface");
+        let logs = base.join("Logs").join("OmniVoice");
+        let temp = base.join("tmp");
+        let mk = |p: &Path| fs::create_dir_all(p).unwrap();
+        let touch = |p: PathBuf, n: usize| {
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, vec![b'x'; n]).unwrap();
+        };
+
+        // content
+        touch(data.join("voices").join("alice.wav"), 4096);
+        touch(data.join("outputs").join("take1.wav"), 8192);
+        touch(data.join("dub_jobs").join("job1").join("seg_0.wav"), 2048);
+        touch(data.join("preview").join("p.wav"), 512);
+        for f in ["omnivoice.db", "omnivoice.db-wal", "omnivoice.db-shm"] {
+            touch(data.join(f), 1024);
+        }
+        // settings + install-shape files that must SURVIVE a settings reset
+        touch(data.join("prefs.json"), 200);
+        touch(data.join("config.json"), 100);
+        // engines / tools / caches / logs
+        touch(data.join("engines").join("indextts2").join(".venv").join("pyvenv.cfg"), 64);
+        touch(data.join("media_tools").join("ffbin-abc").join("ffmpeg"), 4096);
+        touch(data.join("gallery_cache").join("thumb.png"), 256);
+        touch(data.join("gallery_sources.json"), 64);
+        touch(data.join("crash_log.txt"), 128);
+        touch(data.join("error_journal.jsonl"), 128);
+        touch(data.join("omnivoice.log"), 512);
+        touch(data.join("omnivoice.log.1"), 512);
+        mk(&logs);
+        touch(logs.join("backend.log"), 256);
+        // models (shared HF cache)
+        touch(models.join("hub").join("models--org--x").join("snapshot").join("w.bin"), 16384);
+        // temp scratch — ours and a stranger's
+        touch(temp.join("omnivoice_scratch").join("f"), 128);
+        touch(temp.join("com.apple.keep").join("f"), 128);
+
+        Roots { data, models, logs: Some(logs), temp }
+    }
+
+    #[test]
+    fn everything_scope_wipes_the_install_but_leaves_the_python_env_and_foreign_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let roots = seed_install(dir.path());
+
+        // A neighbour dir the user also keeps under the same parent, and the
+        // managed Python env that a RESET (unlike uninstall) must never remove.
+        let neighbour = dir.path().join("Documents");
+        fs::create_dir_all(neighbour.join("thesis")).unwrap();
+        let env = dir.path().join("com.debpalash.omnivoice-studio");
+        fs::create_dir_all(env.join("project").join(".venv")).unwrap();
+
+        // "Everything OmniVoice did" minus the frontend-only scopes.
+        let wanted: Vec<String> =
+            ["settings", "content", "engines", "tools", "models", "caches", "logs"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+        let report = purge_scopes(&roots, &wanted, dir.path().to_str().map(Path::new));
+
+        // The install is gone…
+        for gone in [
+            roots.data.join("voices"),
+            roots.data.join("outputs"),
+            roots.data.join("omnivoice.db"),
+            roots.data.join("omnivoice.db-wal"),
+            roots.data.join("prefs.json"),
+            roots.data.join("engines"),
+            roots.data.join("media_tools"),
+            roots.data.join("gallery_cache"),
+            roots.data.join("crash_log.txt"),
+            roots.data.join("omnivoice.log"),
+            roots.models.clone(),
+            roots.logs.clone().unwrap(),
+            roots.temp.join("omnivoice_scratch"),
+        ] {
+            assert!(!gone.exists(), "should have been removed: {}", gone.display());
+        }
+
+        // …but the Python env, a stranger's temp dir, and the user's neighbour
+        // folder are untouched.
+        assert!(env.join("project").join(".venv").exists(), "reset must not touch the venv");
+        assert!(roots.temp.join("com.apple.keep").exists(), "another app's scratch is off-limits");
+        assert!(neighbour.join("thesis").exists(), "a sibling user folder must survive");
+
+        assert!(report.refused.is_empty(), "nothing legitimate should be refused: {:?}", report.refused);
+        assert!(report.failed.is_empty(), "no deletion should fail: {:?}", report.failed);
+        assert!(report.freed_bytes > 16_000, "freed byte count should reflect the models blob");
+    }
+
+    #[test]
+    fn settings_reset_keeps_content_the_env_pointer_and_the_models() {
+        let dir = tempfile::tempdir().unwrap();
+        let roots = seed_install(dir.path());
+
+        let report = purge_scopes(&roots, &["settings".to_string()], dir.path().to_str().map(Path::new));
+
+        // prefs.json is gone; everything that is data or install-shape stays.
+        assert!(!roots.data.join("prefs.json").exists());
+        assert!(roots.data.join("config.json").exists(), "storage-location choice must survive");
+        assert!(roots.data.join("voices").join("alice.wav").exists(), "voices are not a preference");
+        assert!(roots.data.join("omnivoice.db").exists(), "the database is not a preference");
+        assert!(roots.models.join("hub").exists(), "a settings reset must not delete model weights");
+        assert_eq!(report.removed.len(), 1);
+    }
+
+    #[test]
+    fn a_poisoned_data_dir_pointing_at_home_deletes_nothing() {
+        // If config.json were corrupted to data_dir="$HOME", every target resolves
+        // under $HOME and the guard must refuse the lot rather than wipe it.
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().to_path_buf();
+        fs::create_dir_all(home.join("Pictures")).unwrap();
+        let roots = Roots {
+            data: home.clone(),
+            models: home.join(".cache/huggingface"),
+            logs: Some(home.join("Logs/OmniVoice")),
+            temp: home.join("tmp"),
+        };
+        // Make the resolved targets exist so only the guard stands between them
+        // and deletion.
+        fs::create_dir_all(home.join("voices")).unwrap();
+        fs::write(home.join("prefs.json"), b"x").unwrap();
+
+        let report = purge_scopes(
+            &roots,
+            &["settings".to_string(), "content".to_string()],
+            Some(home.as_path()),
+        );
+
+        assert!(home.join("Pictures").exists(), "$HOME contents must be untouched");
+        assert!(home.join("prefs.json").exists(), "guard must refuse a data dir that IS $HOME");
+        assert!(report.removed.is_empty());
+        assert!(!report.refused.is_empty(), "the refusal must be recorded, not silent");
     }
 }

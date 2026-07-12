@@ -23,7 +23,15 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2, AlertTriangle, Folder, Package, ScrollText, Database } from 'lucide-react';
+import {
+  Trash2,
+  AlertTriangle,
+  Folder,
+  Package,
+  ScrollText,
+  Database,
+  KeyRound,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Dialog } from '../../ui';
 import { SettingsSection } from './primitives';
@@ -44,7 +52,13 @@ export function freedBytes(targets, includeModels) {
     .reduce((sum, t) => sum + (t.size_bytes || 0), 0);
 }
 
-const ICONS = { data: Folder, env: Package, logs: ScrollText, models: Database };
+const ICONS = {
+  data: Folder,
+  env: Package,
+  logs: ScrollText,
+  userenv: KeyRound,
+  models: Database,
+};
 
 export default function UninstallPanel() {
   const { t } = useTranslation();
@@ -111,6 +125,9 @@ export default function UninstallPanel() {
       defaultValue: 'Settings + the managed Python environment',
     }),
     logs: t('settings.uninstall_target_logs', { defaultValue: 'Logs' }),
+    userenv: t('settings.uninstall_target_userenv', {
+      defaultValue: 'Saved environment (cache location, tokens)',
+    }),
     models: t('settings.uninstall_target_models', {
       defaultValue: 'Downloaded model weights (shared Hugging Face cache)',
     }),

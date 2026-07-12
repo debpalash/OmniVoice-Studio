@@ -98,6 +98,7 @@ Four kinds of data, in up to four locations:
 ~/Library/Application Support/com.debpalash.omnivoice-studio/  ← config.json + the managed Python env (project/.venv)
 ~/Library/Logs/OmniVoice/                                      ← backend logs (backend.log, backend_err.log)
 ~/Library/Logs/com.debpalash.omnivoice-studio/                ← desktop-shell log (tauri.log)
+~/.config/omnivoice/                                           ← saved env file (cache location, HF token)
 ~/.cache/huggingface/                                          ← model weights (shared HF cache — see caveat)
 ```
 
@@ -107,6 +108,7 @@ Four kinds of data, in up to four locations:
 ~/.omnivoice/                                     ← app data (voices, projects, omnivoice.db, outputs, omnivoice.log)
 ~/.local/share/com.debpalash.omnivoice-studio/    ← config.json, shell logs, AND the managed Python env (project/.venv)
 ~/.local/state/OmniVoice/                         ← backend logs (backend.log, backend_err.log)
+~/.config/omnivoice/                              ← saved env file (cache location, HF token)
 ~/.cache/huggingface/                             ← model weights (shared HF cache — see caveat)
 ```
 
@@ -116,6 +118,7 @@ Four kinds of data, in up to four locations:
 %APPDATA%\OmniVoice\                              ← app data (voices, projects, omnivoice.db, outputs, omnivoice.log)
 %LOCALAPPDATA%\com.debpalash.omnivoice-studio\    ← config.json, shell logs, AND the managed Python env (project\.venv)
 %LOCALAPPDATA%\OmniVoice\Logs\                    ← backend logs (backend.log, backend_err.log)
+%USERPROFILE%\.config\omnivoice\                  ← saved env file (cache location, HF token)
 %LOCALAPPDATA%\OmniVoice\hf_cache\                ← model weights (OmniVoice uses a short path here to dodge MAX_PATH)
 ```
 
