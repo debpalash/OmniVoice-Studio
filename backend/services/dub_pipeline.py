@@ -135,6 +135,19 @@ def find_cached_job(content_hash: str, exclude_job_id: str) -> Optional[dict]:
         vocals = job.get("vocals_path") or os.path.join(cached_dir, "vocals.wav")
         if not os.path.isfile(vocals):
             continue
+        # Separation-quality gate: stems produced before the HQ-extraction
+        # change were separated from the 16 kHz MONO ASR file — a mono,
+        # 8 kHz-ceiling music bed. audio_hq.wav in the cached job dir is the
+        # marker that its stems came from the full-quality stereo extraction;
+        # without it, reusing the cache would silently keep serving the
+        # narrow-band mono bed forever for that video. Re-separating once is
+        # the better deal.
+        if not os.path.isfile(os.path.join(cached_dir, "audio_hq.wav")):
+            logger.info(
+                "cache candidate %s has pre-HQ (mono/16k-derived) stems — "
+                "skipping reuse so separation reruns at full quality", row["id"],
+            )
+            continue
         return {
             "job_dir": cached_dir,
             "job_id": row["id"],

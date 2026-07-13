@@ -245,3 +245,36 @@ def test_demucs_separates_the_hq_stereo_extraction(tmp_path, monkeypatch):
     assert any(str(a).endswith("audio_hq.wav") for a in demucs), (
         "demucs must separate the HQ stereo extraction, not the mono ASR file"
     )
+
+
+def test_pre_hq_stem_cache_is_not_reused(tmp_path, monkeypatch):
+    """Content-hash cache gate (review finding on the HQ-extraction change):
+    stems separated before the HQ change came from the 16 kHz mono ASR file.
+    Reusing them would keep serving the narrow-band mono bed forever for that
+    video — the cache must skip candidates whose job dir lacks the
+    audio_hq.wav marker, and reuse ones that have it."""
+    import json as _json
+    from services import dub_pipeline as dp
+    from core.db import db_conn
+
+    def _seed(job_id):
+        d = tmp_path / job_id
+        d.mkdir()
+        (d / "vocals.wav").write_bytes(b"RIFF")
+        with db_conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO dub_history (id, job_data, content_hash, created_at)"
+                " VALUES (?, ?, ?, datetime('now'))",
+                (job_id, _json.dumps({"vocals_path": str(d / "vocals.wav")}), "hash1"),
+            )
+            conn.commit()
+        return d
+
+    monkeypatch.setattr(dp, "safe_job_dir", lambda jid: str(tmp_path / jid))
+
+    old = _seed("job_old")          # pre-HQ stems: no audio_hq.wav marker
+    assert dp.find_cached_job("hash1", "someone_else") is None
+
+    (old / "audio_hq.wav").write_bytes(b"RIFF")   # HQ marker present → reusable
+    hit = dp.find_cached_job("hash1", "someone_else")
+    assert hit is not None and hit["job_id"] == "job_old"
