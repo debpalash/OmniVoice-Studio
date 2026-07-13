@@ -172,7 +172,11 @@ dependencies = [
     # promoted to a direct dependency because we now import it ourselves.
     "num2words>=0.5.14",
     "pip>=26.1.2",
-    "en-core-web-sm",
+    # Direct URL (not [tool.uv.sources]) so EVERY installer sees it — Docker's
+    # `uv pip install --system .` reads only project metadata and would try to
+    # resolve a bare name from PyPI, where spaCy models don't exist. Same form
+    # as kittentts above.
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
 
 [project.optional-dependencies]
@@ -230,7 +234,6 @@ torch = [
 torchaudio = [
   { index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
-en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [[tool.uv.index]]
 name = "pytorch-cuda"

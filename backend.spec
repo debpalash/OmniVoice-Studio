@@ -95,6 +95,16 @@ if IS_MAC_ARM:
         'mlx_audio.tts.models', 'mlx_audio.tts.generate',
         'mlx_audio.stt', 'mlx_audio.codec',
     ]
+    # Kokoro's phonemizer (misaki) loads the spaCy model en_core_web_sm
+    # DYNAMICALLY (spacy.load by name), so PyInstaller never sees the import —
+    # a frozen build without it would hit misaki's in-process downloader at
+    # first English generation (#1133 class; contained since #1143, but the
+    # generation still degrades). It's a plain data-heavy package with no
+    # nanobind involvement, so collect_all is safe here (unlike mlx itself).
+    _sm_datas, _sm_bins, _sm_hidden = collect_all('en_core_web_sm')
+    datas += _sm_datas
+    binaries += _sm_bins
+    hiddenimports += _sm_hidden
 
 # Note: we deliberately DON'T enumerate mlx submodules here. Any variant of
 # `collect_submodules('mlx')` or `collect_all('mlx')` — even filtered to
