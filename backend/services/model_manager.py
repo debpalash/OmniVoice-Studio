@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import asyncio
 import logging
@@ -1301,19 +1302,29 @@ def release_tts_side_caches():
 
     The voice-clone prompt cache (services.tts_backend) holds encoded reference
     tensors belonging to *this* model instance. If the model is unloaded but the
-    prompts survive, an "unload" no longer means unload (#1119) — the tensors sit
-    in the very memory the unload was trying to reclaim.
+    prompts survive, an "unload" no longer means unload (#1119) — they sit in the
+    very memory the unload was reclaiming (``_offload_unified_memory`` drops the
+    model precisely to hand that RAM to the ASR model).
 
-    Previously only ``OmniVoiceBackend.unload()`` cleared them, which was enough
+    Previously only ``OmniVoiceBackend.unload()`` cleared them, which sufficed
     while the cache was adapter-only. The native ``/generate`` path now populates
-    it too, and that path unloads through *here*, not through the adapter.
+    it too, and that path unloads through *here*, never through the adapter.
 
-    Best-effort by construction: cache hygiene must never be able to break an
-    unload, since a failed unload is how the backend gets OOM-killed.
+    Reached through ``sys.modules`` rather than an import, deliberately:
+    ``tts_backend`` already imports this module, so importing it back would close
+    a real cycle — and doing it at *import* time (e.g. a registration hook) drags
+    ``core.config`` in earlier than it is today, which perturbs DATA_DIR binding.
+    A plain lookup has neither problem, and is exactly right besides: if the module
+    was never imported, it has no cache to clear.
+
+    Best-effort by construction — cache hygiene must never be able to break an
+    unload, because a failed unload is how the backend gets OOM-killed.
     """
+    mod = sys.modules.get("services.tts_backend")
+    if mod is None:
+        return
     try:
-        from services.tts_backend import clear_clone_prompt_cache
-        clear_clone_prompt_cache()
+        mod.clear_clone_prompt_cache()
     except Exception:  # noqa: BLE001
         logger.debug("clone-prompt cache clear failed during unload", exc_info=True)
 

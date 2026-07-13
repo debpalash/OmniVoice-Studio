@@ -171,3 +171,55 @@ def test_encode_failure_falls_back_to_inline_reference(ref_wav, monkeypatch):
     out = _run(m, "Still works.", ref_wav)
     assert out is not None
     assert m.generates == 1  # fell back to ref_audio=... and still produced audio
+
+
+def test_model_rejecting_the_prompt_falls_back_to_inline_reference(ref_wav):
+    """The prompt encodes fine, but the model refuses it.
+
+    The cache is an optimization, so this must degrade to the inline reference and
+    still produce audio — never turn a generation that would have succeeded into an
+    error. (The adapter always did this; the shared helper has to as well, or moving
+    the native path onto the cache would have made it *less* robust than before.)
+    """
+    class _RejectsPrompts(_StubModel):
+        def __init__(self):
+            super().__init__()
+            self.attempts = []
+
+        def generate(self, **kw):
+            self.attempts.append(
+                "prompt" if kw.get("voice_clone_prompt") is not None else "inline"
+            )
+            if kw.get("voice_clone_prompt") is not None:
+                raise RuntimeError("this model does not accept precomputed prompts")
+            return super().generate(**kw)
+
+    m = _RejectsPrompts()
+    out = _run(m, "Still works.", ref_wav)
+    assert out is not None
+    # It tried the cached prompt, was refused, and retried inline — which worked.
+    assert m.attempts == ["prompt", "inline"]
+    assert m.generates == 1  # exactly one call actually produced audio
+
+
+def test_audiobook_native_synth_encodes_reference_once_per_voice(ref_wav):
+    """The audiobook renderer is the worst case: hundreds of segments, one voice.
+
+    It has its own native model.generate() call site, so it needs its own guard —
+    the /generate tests above would not catch a regression here.
+    """
+    from services.tts_backend import generate_with_cached_ref
+
+    m = _StubModel()
+    # Mirrors audiobook.py's synth(): one generate per segment, same voice.
+    for i in range(12):
+        generate_with_cached_ref(
+            m, ref_audio=ref_wav, ref_text="hello",
+            text=f"Segment {i}.", language=None, instruct=None,
+            duration=None, speed=1.0,
+        )
+    assert m.generates == 12
+    assert m.encodes == 1, (
+        f"reference re-encoded {m.encodes}x across 12 audiobook segments — "
+        "a book would pay this hundreds of times"
+    )
