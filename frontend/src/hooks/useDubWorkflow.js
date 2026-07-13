@@ -835,9 +835,13 @@ export default function useDubWorkflow({
             }),
             { duration: 6000 },
           );
-        } else if (degraded.length) {
-          // Everything translated — some segments just missed the polish pass.
-          // A warning with the honest story, not a red "failed" over a success.
+        }
+        if (degraded.length) {
+          // Some segments missed the polish pass but translated fine — a
+          // warning with the honest story, not a red "failed" over a success.
+          // Fires ALONGSIDE the error toast when a response carries both:
+          // real failures shouldn't erase the story of the rows that
+          // succeeded plainly.
           const unique = [...new Set(degraded.map((d) => d.reason))];
           toast(
             t('dub_workflow.translate_degraded', {
@@ -847,7 +851,8 @@ export default function useDubWorkflow({
             }),
             { icon: '⚠️', duration: 8000 },
           );
-        } else {
+        }
+        if (!errors.length && !degraded.length) {
           const qLabel =
             data.quality_used === 'cinematic' ? t('dub_workflow.translated_cinematic_suffix') : '';
           toast.success(

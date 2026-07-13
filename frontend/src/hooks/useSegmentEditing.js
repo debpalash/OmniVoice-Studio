@@ -65,6 +65,14 @@ export default function useSegmentEditing() {
           if (field === 'text' && lang) {
             next.translations = { ...s.translations, [lang]: value };
           }
+          if (field === 'text') {
+            // The user rewrote the line — the machine-translation annotations
+            // ("translation error", "polish pass skipped") describe text that
+            // no longer exists. Leaving them makes the row wear a stale badge
+            // over human-authored words.
+            next.translate_error = undefined;
+            next.translate_degraded = undefined;
+          }
           return next;
         }),
       );
