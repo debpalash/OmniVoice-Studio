@@ -827,6 +827,31 @@ async def ingest_pipeline(
             if p.returncode != 0:
                 msg = (stderr.decode(errors="replace") or f"ffmpeg returned exit code {p.returncode}").strip()[:500]
                 raise Exception(msg)
+            # Second, FULL-QUALITY extraction for source separation. audio.wav
+            # is deliberately 16 kHz mono — that's what ASR wants — but Demucs
+            # used to separate that same file, so the music bed inherited mono
+            # (stereo image destroyed: L/R correlation 1.000 vs the original's
+            # 0.754, measured) and an 8 kHz ceiling (nothing real above half
+            # the ASR rate — the bed's "muffled" sound at its source). Demucs
+            # resamples to 44.1 kHz internally either way, so separating the
+            # stereo original costs about the same and returns a true-stereo,
+            # full-band bed. Best-effort: on failure Demucs falls back to the
+            # ASR file, which is exactly the old behavior.
+            audio_hq_path = os.path.join(job_dir, "audio_hq.wav")
+            try:
+                p_hq, _, stderr_hq = await run_proc([
+                    ffmpeg, "-i", video_path, "-vn", "-acodec", "pcm_s16le",
+                    "-ar", "44100", "-ac", "2", audio_hq_path, "-y",
+                ])
+                if p_hq.returncode != 0 or not os.path.exists(audio_hq_path):
+                    logger.warning(
+                        "HQ audio extraction failed (rc=%s) — separation falls "
+                        "back to the 16k mono ASR file", p_hq.returncode,
+                    )
+                    audio_hq_path = None
+            except Exception as e_hq:  # noqa: BLE001 — quality upgrade, never fatal
+                logger.warning("HQ audio extraction errored (%s) — falling back", e_hq)
+                audio_hq_path = None
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -914,7 +939,7 @@ async def ingest_pipeline(
             try:
                 demucs_cmd = [sys.executable, "-m", "demucs.separate",
                               "--two-stems", "vocals", "-n", "htdemucs", "-d", get_best_device(),
-                              audio_path, "-o", job_dir]
+                              audio_hq_path or audio_path, "-o", job_dir]
                 rc = -1
                 stderr_full = b""
                 last_pct = -1
@@ -934,7 +959,12 @@ async def ingest_pipeline(
                         rc, stderr_full = evt[1], evt[2]
                 if rc != 0:
                     raise Exception(stderr_full.decode(errors="replace")[:500])
-                demucs_out = os.path.join(job_dir, "htdemucs", "audio")
+                # Stems land under the INPUT's basename ("audio_hq" when the
+                # full-quality extraction succeeded, "audio" on its fallback).
+                demucs_out = os.path.join(
+                    job_dir, "htdemucs",
+                    os.path.splitext(os.path.basename(audio_hq_path or audio_path))[0],
+                )
                 if os.path.exists(os.path.join(demucs_out, "vocals.wav")):
                     shutil.move(os.path.join(demucs_out, "vocals.wav"), vocals_path)
                     shutil.move(os.path.join(demucs_out, "no_vocals.wav"), no_vocals_path)

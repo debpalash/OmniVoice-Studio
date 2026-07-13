@@ -109,3 +109,15 @@ def test_bed_mix_filter_uniq_labels_do_not_collide():
     labels_a = set(re.findall(r"\[(bm[bv]\d*)\]", a))
     labels_b = set(re.findall(r"\[(bm[bv]\d*)\]", b))
     assert labels_a and labels_b and not (labels_a & labels_b)
+
+
+def test_background_mix_preserves_stereo_width():
+    """The synthesized voice is MONO; amix negotiates one layout for all
+    inputs, so without an explicit stereo aformat on both legs the stereo
+    music bed collapsed to mono (measured: L/R correlation 1.000 vs the
+    original's 0.754 — the whole stereo image gone)."""
+    cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
+    s = _flat(cmd)
+    assert s.count("aformat=channel_layouts=stereo") == 2, (
+        "both amix legs must be stereo or the bed loses its width"
+    )

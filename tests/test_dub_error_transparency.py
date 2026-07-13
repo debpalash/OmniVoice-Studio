@@ -179,3 +179,69 @@ def test_fatal_error_event_carries_sanitized_diagnostic():
     assert evt.get("diagnostic"), "fatal error must carry a copyable diagnostic block"
     assert "task" in evt["diagnostic"]
     assert leaked not in evt["diagnostic"], "diagnostic must not leak the HF token"
+
+
+def test_demucs_separates_the_hq_stereo_extraction(tmp_path, monkeypatch):
+    """The music bed's fidelity ceiling is set at INGEST: Demucs used to
+    separate audio.wav — the 16 kHz MONO file extracted for ASR — so every
+    dub's background inherited mono (stereo image gone; measured L/R
+    correlation 1.000 vs the original's 0.754) and an 8 kHz bandwidth
+    ceiling. Separation must run on the full-quality stereo extraction, with
+    the ASR file only as the fallback when that extraction fails."""
+    import asyncio
+    from services import dub_pipeline as dp
+
+    calls = []
+
+    def _factory(job_id):
+        async def run_proc(cmd, **kw):
+            calls.append([str(c) for c in cmd])
+            # Fake every subprocess as success; create expected outputs.
+            for i, c in enumerate(cmd):
+                if str(c).endswith(".wav") and str(cmd[0]).endswith(("ffmpeg", "ffmpeg.exe")) is False:
+                    pass
+            # ffmpeg extraction: last arg before -y or the .wav path
+            for c in cmd:
+                if str(c).endswith(".wav"):
+                    open(c, "wb").write(b"RIFF")
+            class P: returncode = 0
+            return P(), b"", b""
+        return run_proc
+
+    async def _streaming(job_id, cmd, timeout=0):
+        calls.append([str(c) for c in cmd])
+        # Pretend demucs succeeded but wrote nothing — pipeline degrades to
+        # mixed audio, which is fine: this test only inspects the COMMANDS.
+        yield ("done", 0, b"")
+
+    monkeypatch.setattr(dp, "run_proc_factory", _factory)
+    monkeypatch.setattr(dp, "run_proc_streaming_stderr", _streaming)
+    monkeypatch.setattr(dp, "find_ffmpeg", lambda: "ffmpeg")
+    monkeypatch.setattr(dp, "get_best_device", lambda: "cpu")
+
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"\x00" * 64)
+
+    async def _drain():
+        async for _ in dp.ingest_pipeline(
+            job_id="t_hq", job_dir=str(tmp_path),
+            source={"kind": "path", "path": str(video)},
+        ):
+            pass
+
+    try:
+        asyncio.run(_drain())
+    except Exception:
+        pass  # later stages may bail on fake media; the commands are recorded
+
+    extracts = [c for c in calls if c and c[0] == "ffmpeg" and "-vn" in c]
+    assert len(extracts) >= 2, f"expected ASR + HQ extractions, got {len(extracts)}"
+    asr = next(c for c in extracts if "16000" in c)
+    hq = next(c for c in extracts if "44100" in c)
+    assert "1" == asr[asr.index("-ac") + 1]      # ASR stays mono 16k
+    assert "2" == hq[hq.index("-ac") + 1]        # separation input is stereo 44.1k
+    demucs = next((c for c in calls if "demucs.separate" in " ".join(c)), None)
+    assert demucs is not None
+    assert any(str(a).endswith("audio_hq.wav") for a in demucs), (
+        "demucs must separate the HQ stereo extraction, not the mono ASR file"
+    )
