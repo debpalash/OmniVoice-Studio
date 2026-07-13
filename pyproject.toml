@@ -171,6 +171,7 @@ dependencies = [
     # (services/text_normalization.py). Was already installed transitively;
     # promoted to a direct dependency because we now import it ourselves.
     "num2words>=0.5.14",
+    "pip>=26.1.2",
 ]
 
 [project.optional-dependencies]

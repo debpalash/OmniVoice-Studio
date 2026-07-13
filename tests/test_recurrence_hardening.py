@@ -248,3 +248,17 @@ def test_transcribe_guard_contains_system_exit():
 
     with pytest.raises(RuntimeError, match="SystemExit 2"):
         asyncio.run(run_transcribe_guarded(ex, _asr_code_that_exits, what="ASR"))
+
+
+def test_managed_venv_ships_pip():
+    """#1133 root trigger: uv-managed venvs ship no pip, but engine
+    dependencies written as CLIs (spaCy's model downloader, invoked in-process
+    by mlx-audio's phonemizer via misaki) shell out to `python -m pip`. pip is
+    now a real project dependency so it survives the update drift-sync
+    (anything installed ad-hoc would be stripped by `uv sync` on update,
+    resurrecting the crash after every release)."""
+    import importlib.util
+    assert importlib.util.find_spec("pip") is not None, (
+        "pip missing from the managed venv — spaCy-style in-process "
+        "downloaders will fail (and pre-#1143, kill the backend)"
+    )
