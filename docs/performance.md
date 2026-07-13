@@ -26,16 +26,19 @@ Before touching any knob, check these — they account for most slowness reports
 ## What a generation actually spends time on
 
 For a cloned voice, one generation is: encode the reference clip (~0.4 s,
-measured; cached after the first use of a voice) → synthesize (the bulk; scales
-with output length) → post-process (mastering, watermark; fractions of a
-second). Long texts are split into chunks synthesized sequentially — time
-scales roughly linearly with text length.
+measured; cached after the first use for the voices you reuse — a dub's
+per-line clips are each used once, so there's nothing for a cache to save
+there) → synthesize (the bulk; scales with output length) → post-process
+(mastering, watermark; fractions of a second). Long texts are split into
+chunks synthesized sequentially — time scales roughly linearly with text
+length.
 
 For a dub, the stages are: audio extraction + vocal separation (one-time,
-minutes for long videos) → transcription (GPU-accelerated on all platforms;
-Apple Silicon uses MLX since v0.3.21) → translation (parallel, 6 concurrent
-requests for LLM providers) → per-segment synthesis (sequential, the bulk of
-the time) → mixing and export (mostly stream-copied, fast).
+minutes for long videos) → transcription (on the best accelerator available —
+Apple Silicon uses MLX since v0.3.21, NVIDIA uses CUDA; CPU-only installs fall
+back to the processor) → translation (parallel, 6 concurrent requests for LLM
+providers) → per-segment synthesis (sequential, the bulk of the time) →
+mixing and export (mostly stream-copied, fast).
 
 ## Knobs you can actually turn
 
@@ -56,11 +59,14 @@ None of them are required — the defaults are chosen for the common case.
 | `OMNIVOICE_ASR_VRAM_PREFLIGHT` | `1` | Downgrade transcription precision instead of crashing when VRAM is short (CUDA). Leave on. |
 | `OMNIVOICE_GENERATE_TIMEOUT_S` | `300` | Abandon a generation after this many seconds. Raise for very long single generations on slow hardware. |
 
-**torch.compile** is attempted automatically where it helps (CUDA with Triton
-available) and skipped where it can't work (Windows, MPS, CPU). The only
-user-facing control is Settings → Performance → "Disable torch.compile"
-(Windows), for the rare case where a partial Triton install makes the attempt
-itself crash — see [Windows install notes](install/windows.md).
+**torch.compile** is probe-based, not platform-based: it's attempted only
+where the runtime check says it can work (a CUDA device with Triton importable
+and a supported GPU architecture) and skipped automatically everywhere else —
+MPS, CPU, and the typical Windows install (Triton ships no Windows wheel).
+The one user-facing control is Settings → Performance → "Disable
+torch.compile" (shown on Windows), for the rare setup where a partial Triton
+install makes the probe pass but the compile attempt itself crash — see
+[Windows install notes](install/windows.md).
 
 ## Platform notes
 
