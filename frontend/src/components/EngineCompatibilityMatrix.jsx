@@ -409,21 +409,42 @@ export default function EngineCompatibilityMatrix({
   // At most ONE in-flight status request per engine — otherwise a slow
   // backend lets responses land out of order (an old 'running' snapshot
   // overwriting a newer 'succeeded' would restart the poller forever).
-  const installInflightRef = useRef(new Set());
+  // Maps id → the in-flight request promise so a must-not-drop caller can
+  // wait it out instead of being dropped (see `force` below).
+  const installInflightRef = useRef(new Map());
   // Consecutive poll failures per engine — after a few in a row the backend
   // is gone, so drop the stale snapshot instead of showing "Installing…"
   // (and hammering the endpoint) indefinitely.
   const installPollFailuresRef = useRef({});
 
   const refreshInstall = useCallback(
-    async (id) => {
-      if (installInflightRef.current.has(id)) return null; // serialize per engine
-      installInflightRef.current.add(id);
-      try {
+    async (id, { force = false } = {}) => {
+      const inflight = installInflightRef.current.get(id);
+      if (inflight) {
+        // Advisory callers (the 1.5s poller, the mount re-attach probe) drop
+        // on overlap — that's the ordering guard above. But the Install
+        // click's refresh must NOT be droppable: if it lands while the mount
+        // probe is still awaiting, dropping it leaves the pre-install 'idle'
+        // snapshot in place, the poller (which only watches 'running' jobs)
+        // never starts, and the progress panel silently never appears. So a
+        // forced caller waits the in-flight request out and then fetches its
+        // own fresh snapshot — still strictly ordered, never dropped.
+        if (!force) return null;
+        try {
+          await inflight;
+        } catch {
+          /* the in-flight caller counted its own failure */
+        }
+      }
+      const req = (async () => {
         const st = await apiInstallStatus(id);
         installPollFailuresRef.current[id] = 0;
         setInstallByEngine((prev) => ({ ...prev, [id]: st }));
         return st;
+      })();
+      installInflightRef.current.set(id, req);
+      try {
+        return await req;
       } catch {
         const n = (installPollFailuresRef.current[id] || 0) + 1;
         installPollFailuresRef.current[id] = n;
@@ -436,7 +457,9 @@ export default function EngineCompatibilityMatrix({
         }
         return null; // advisory — polling errors never break the matrix
       } finally {
-        installInflightRef.current.delete(id);
+        if (installInflightRef.current.get(id) === req) {
+          installInflightRef.current.delete(id);
+        }
       }
     },
     [apiInstallStatus],
@@ -451,7 +474,9 @@ export default function EngineCompatibilityMatrix({
           reload();
           return;
         }
-        const st = await refreshInstall(id);
+        // force: this snapshot must never be dropped by the overlap guard —
+        // it's what makes the progress panel appear at all.
+        const st = await refreshInstall(id, { force: true });
         // A repair-only rerun can finish before this first status snapshot —
         // the poller below only watches 'running' jobs, so reload here too.
         if (st?.job?.state === 'succeeded') reload();

@@ -1333,6 +1333,48 @@ describe('EngineCompatibilityMatrix', () => {
     expect(screen.getByTestId('install-indextts2')).toHaveTextContent('Retry install');
   });
 
+  it('an Install click during the mount status probe is not silently dropped', async () => {
+    // The regression this pins: refreshInstall serializes per engine, and the
+    // mount re-attach probe holds that slot while its request is in flight. A
+    // click in that window had its status refresh dropped (`return null`), so
+    // the state kept the pre-install 'idle' snapshot, the poller (which only
+    // watches 'running' jobs) never started, and the progress panel never
+    // appeared — no error, no retry, just nothing. On fast machines the probe
+    // wins the race and hides the bug; on a loaded CI runner it flaked.
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
+    let releaseProbe;
+    const probeGate = new Promise((resolve) => {
+      releaseProbe = resolve;
+    });
+    const apiInstallStatus = vi
+      .fn()
+      // Mount probe: hangs until we release it — the race window, held open
+      // deterministically instead of hoping the scheduler reproduces it.
+      .mockImplementationOnce(async () => {
+        await probeGate;
+        return makeIdleStatus();
+      })
+      .mockResolvedValue(makeInstallStatus('running'));
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    // Click while the probe is still pending…
+    fireEvent.click(screen.getByTestId('install-indextts2'));
+    // …and only then let the probe finish.
+    releaseProbe();
+
+    const progress = await screen.findByTestId('install-progress-indextts2', {}, { timeout: 3000 });
+    expect(progress).toBeInTheDocument();
+  });
+
   it('already_installed responses skip the job and just reload the matrix', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
     const apiInstallEngine = vi
