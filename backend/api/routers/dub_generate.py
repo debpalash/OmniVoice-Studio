@@ -445,6 +445,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                 ref_audio = None
                 ref_text = None
                 used_seed = None
+                # Per-segment refs are a distinct file per segment, each used
+                # exactly once in this render — telling the prompt cache to
+                # store them would evict the per-speaker / locked-profile
+                # prompts that every OTHER segment reuses (LRU of 8 vs
+                # potentially hundreds of segment clips). cache_ref=False =
+                # "encode it, don't let it displace anything".
+                ref_single_use = False
 
                 # Auto-clones extracted from the source video during prepare
                 # (see services/speaker_clone.py) live at job["speaker_clones"]
@@ -458,6 +465,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     if info:
                         ref_audio = info.get("ref_audio")
                         ref_text = info.get("ref_text")
+                        ref_single_use = True
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 elif profile_id and profile_id.startswith("auto:"):
@@ -474,6 +482,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     if seg_ref:
                         ref_audio = seg_ref.get("ref_audio")
                         ref_text = seg_ref.get("ref_text")
+                        ref_single_use = True
                     else:
                         key = profile_id[len("auto:"):]
                         clones = job.get("speaker_clones") or {}
@@ -517,6 +526,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     audio_out = backend.generate(
                         text=text, language=lang if lang != "Auto" else None,
                         ref_audio=ref_audio, ref_text=ref_text,
+                        cache_ref=not ref_single_use,
                         instruct=instruct_str if instruct_str else None,
                         duration=dur_s, num_step=nstep, guidance_scale=cfg,
                         speed=spd, denoise=True, postprocess_output=True,
@@ -564,6 +574,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         audio_out = backend.generate(
                             text=text, language=lang if lang != "Auto" else None,
                             ref_audio=ref_audio, ref_text=ref_text,
+                            cache_ref=not ref_single_use,
                             instruct=instruct_str if instruct_str else None,
                             duration=dur_s, num_step=retry_steps, guidance_scale=cfg,
                             speed=spd, denoise=True, postprocess_output=True,

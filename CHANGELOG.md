@@ -8,7 +8,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **A performance guide, at last.** [docs/performance.md](docs/performance.md) explains where generation and dubbing time actually goes, the three classic causes of "it got slow" (an empty Transcript field on a voice profile chief among them), every tuning knob the backend reads — none of which were documented anywhere — and which settings to leave alone (raising `OMNIVOICE_GPU_WORKERS` on a small GPU is how you get the crash the default exists to prevent). Includes how to run the built-in profiler so a slowness report can carry numbers instead of vibes.
+
 ### Fixed
+
+- **Dubbing kept re-studying the same speaker's voice, hundreds of times per video.** Each dubbed line clones from a clip of its own source audio (that's what makes deliveries match), and lines too short to clone from fall back to a per-speaker sample. But the app's memory for already-studied voices only holds 8 — and a long dub streams *hundreds* of one-shot per-line clips through it, each pushing out the per-speaker samples that every other line needs. Result: the speaker sample was re-studied (~0.4 s, measured) over and over. One-shot clips are now studied without displacing anything, so the per-speaker samples stay warm for the whole dub. Nothing about the audio changes — same clips, same voices, less repeated work. (#1132)
 
 - **Clicking "Install" on an engine right after opening Settings could silently do nothing.** When the Engines page opens, it quietly checks each installable engine for an in-flight install to re-attach to. If you clicked Install while that check was still running, your click's status update was thrown away to keep requests orderly — so no progress panel, no error, no retry, just nothing (the install itself *did* start in the background; the UI simply never showed it). Fast machines usually won the race, which is why this mostly showed up as a once-in-a-while CI test failure. The Install click's update can no longer be dropped — it politely waits out the startup check instead. (#1131)
 

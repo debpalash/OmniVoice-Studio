@@ -203,6 +203,8 @@ Pick your OS and follow the guide end-to-end:
 - 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
 - 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
 
+Feels slow? [docs/performance.md](docs/performance.md) covers where generation time actually goes, the tuning knobs, and the three classic causes of "it got slow".
+
 > Coming from **[CorentinJ/Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning)** (now archived)? There's a dedicated migration guide: [docs/migration/real-time-voice-cloning.md](docs/migration/real-time-voice-cloning.md).
 
 <details>

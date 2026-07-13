@@ -223,3 +223,34 @@ def test_audiobook_native_synth_encodes_reference_once_per_voice(ref_wav):
         f"reference re-encoded {m.encodes}x across 12 audiobook segments — "
         "a book would pay this hundreds of times"
     )
+
+
+def test_cache_ref_false_is_popped_and_skips_the_insert(ref_wav):
+    """The dub loop marks per-segment refs cache_ref=False. Two contracts:
+    the flag must never reach model.generate (explicit signature → TypeError
+    on the real model), and the encoded prompt must not enter the LRU (a dub's
+    flood of one-shot clips would evict the per-speaker prompts that ARE
+    reused — the scan-resistance this exists for)."""
+    from services.tts_backend import generate_with_cached_ref
+
+    class _RejectsUnknownKwargs(_StubModel):
+        def generate(self, **kw):
+            assert "cache_ref" not in kw, "cache_ref leaked through to the model"
+            return super().generate(**kw)
+
+    m = _RejectsUnknownKwargs()
+    generate_with_cached_ref(
+        m, ref_audio=ref_wav, ref_text="hello",
+        text="One-shot segment.", language=None, instruct=None,
+        duration=None, speed=1.0, cache_ref=False,
+    )
+    assert m.encodes == 1
+    assert len(_tb()._prompt_cache) == 0, "single-use ref was inserted into the LRU"
+
+    # Default (cache_ref absent) still caches — the /generate & audiobook paths.
+    generate_with_cached_ref(
+        m, ref_audio=ref_wav, ref_text="hello",
+        text="Reused voice.", language=None, instruct=None,
+        duration=None, speed=1.0,
+    )
+    assert len(_tb()._prompt_cache) == 1

@@ -314,10 +314,21 @@ def _clone_prompt_key(ref_audio: str, ref_text, preprocess_prompt: bool = True):
     return (os.path.abspath(ref_audio), mtime, ref_text or "", bool(preprocess_prompt))
 
 
-def _get_clone_prompt(model, ref_audio: str, ref_text, preprocess_prompt: bool = True):
+def _get_clone_prompt(
+    model, ref_audio: str, ref_text, preprocess_prompt: bool = True, *,
+    store: bool = True,
+):
     """Return a cached/precomputed ``VoiceClonePrompt`` for
     (ref_audio, ref_text, preprocess_prompt), or ``None`` to fall back to the
-    inline ref path. Never raises."""
+    inline ref path. Never raises.
+
+    ``store=False`` still *reads* the cache (a hit is free) but never inserts:
+    it exists for single-use references — a dub's per-segment ref clips are each
+    a distinct file used exactly once, and inserting a stream of them into an
+    LRU of 8 evicts the per-speaker and locked-profile prompts that ARE reused.
+    Every short segment falling back to its speaker ref then re-encodes it
+    (~0.4 s each, measured). Scan-resistance, not a second cache policy.
+    """
     try:
         key = _clone_prompt_key(ref_audio, ref_text, preprocess_prompt)
     except Exception:
@@ -336,6 +347,8 @@ def _get_clone_prompt(model, ref_audio: str, ref_text, preprocess_prompt: bool =
     except Exception as e:  # noqa: BLE001 — fall back, never break synthesis
         logger.warning("voice-clone prompt precompute failed; using inline ref: %s", e)
         return None
+    if not store:
+        return prompt
     with _prompt_cache_lock:
         _prompt_cache[key] = prompt
         _prompt_cache.move_to_end(key)
@@ -364,10 +377,18 @@ def generate_with_cached_ref(model, *, ref_audio, ref_text, **gen_kw):
     synthesize exactly as before. A latency optimization must never be able to turn
     a generation that would have succeeded into an error.
     """
+    # cache_ref=False marks a single-use reference (a dub's per-segment clips):
+    # look the cache up, but never insert — see _get_clone_prompt(store=). MUST
+    # be popped: the model's generate() has an explicit signature and would
+    # TypeError on an unknown kwarg.
+    cache_ref = bool(gen_kw.pop("cache_ref", True))
     # Stays in gen_kw too: the model needs it on the inline branch, and it is inert
     # on the prompt branch (that prompt is already encoded).
     preprocess_prompt = bool(gen_kw.get("preprocess_prompt", True))
-    prompt = _get_clone_prompt(model, ref_audio, ref_text, preprocess_prompt) if ref_audio else None
+    prompt = (
+        _get_clone_prompt(model, ref_audio, ref_text, preprocess_prompt, store=cache_ref)
+        if ref_audio else None
+    )
     if prompt is not None:
         try:
             return model.generate(voice_clone_prompt=prompt, **gen_kw)
@@ -465,6 +486,9 @@ class OmniVoiceBackend(TTSBackend):
         # used to be dropped on the floor here — the API accepted it and gen_kw
         # never carried it, so it silently did nothing.
         gen_kw["preprocess_prompt"] = bool(kw.get("preprocess_prompt", True))
+        # Single-use reference hint (dub per-segment clips) — see
+        # generate_with_cached_ref, which pops it before the model sees it.
+        gen_kw["cache_ref"] = bool(kw.get("cache_ref", True))
         # The cached-reference path lives in generate_with_cached_ref, shared with
         # the native callers. Deliberately NOT a second copy: this logic living in
         # one place here and a subtly different one there is exactly how the cache
