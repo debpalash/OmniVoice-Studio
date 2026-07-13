@@ -121,6 +121,17 @@ export interface DubTrackInfo {
 
 /** Per-track metadata (duration, timing strategy, …) keyed by language code.
  *  Backs the track-pill tooltips; the store only carries the track codes. */
+/** Per-segment texts for one generated track ({segKey: text}, may be empty). */
+export async function dubSegmentsText(
+  jobId: string,
+  lang: string,
+): Promise<Record<string, string>> {
+  const res = await apiJson<{ texts?: Record<string, string> }>(
+    `/dub/segments-text/${encodeURIComponent(jobId)}?lang=${encodeURIComponent(lang)}`,
+  );
+  return res?.texts || {};
+}
+
 export async function dubListTracks(jobId: string): Promise<Record<string, DubTrackInfo>> {
   const res = await apiJson<{ tracks?: Record<string, DubTrackInfo> }>(
     `/dub/tracks/${encodeURIComponent(jobId)}`,

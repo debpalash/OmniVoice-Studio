@@ -14,7 +14,11 @@ vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn(), loading: vi.fn() },
 }));
 const dubListTracks = vi.hoisted(() => vi.fn());
-vi.mock('../api/dub', () => ({ dubListTracks: (...a) => dubListTracks(...a) }));
+const dubSegmentsTextMock = vi.hoisted(() => vi.fn());
+vi.mock('../api/dub', () => ({
+  dubListTracks: (...a) => dubListTracks(...a),
+  dubSegmentsText: (...a) => dubSegmentsTextMock(...a),
+}));
 
 import DubLeftColumn from '../components/dub/DubLeftColumn';
 import { useAppStore } from '../store';
@@ -66,6 +70,7 @@ function makeProps(over = {}) {
 
 beforeEach(() => {
   dubListTracks.mockResolvedValue({ tracks: {} });
+  dubSegmentsTextMock.mockResolvedValue({ 2: 'Zeile zwei (vom Server)' });
   useAppStore.setState({
     dubLangCode: 'bn',
     dubLang: 'Bengali',
@@ -95,5 +100,45 @@ describe('preview tab → transcript language sync', () => {
     render(<DubLeftColumn {...makeProps()} />);
     fireEvent.click(screen.getByRole('radio', { name: /original/i }));
     expect(useAppStore.getState().dubLangCode).toBe('bn');
+  });
+});
+
+describe('review round: partial translations + dialect guard', () => {
+  it('hydrates rows missing the incoming language from the backend store', async () => {
+    useAppStore.setState({
+      dubJobId: 'job1',
+      dubLangCode: 'bn',
+      dubSegments: [
+        {
+          id: '1',
+          text: 'বাংলা ১',
+          text_original: 'o1',
+          translations: { bn: 'বাংলা ১', de: 'Zeile eins' },
+        },
+        { id: '2', text: 'বাংলা ২', text_original: 'o2', translations: { bn: 'বাংলা ২' } }, // de missing
+      ],
+    });
+    render(<DubLeftColumn {...makeProps()} />);
+    fireEvent.click(screen.getByRole('radio', { name: /german|deutsch/i }));
+    // switch applied immediately for stored rows…
+    expect(useAppStore.getState().dubSegments[0].text).toBe('Zeile eins');
+    // …and the missing row hydrates asynchronously from segments_i18n.
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().dubSegments[1].text).toBe('Zeile zwei (vom Server)');
+    });
+    expect(useAppStore.getState().dubSegments[1].translations.de).toBe('Zeile zwei (vom Server)');
+  });
+
+  it('switching language clears a dialect that no longer matches', () => {
+    useAppStore.setState({ dubDialect: 'bn-BD', dubLangCode: 'bn' });
+    useAppStore.getState().switchDubLangCode('de');
+    expect(useAppStore.getState().dubDialect).toBe('');
+    // …and keeps one that still matches.
+    useAppStore.setState({ dubDialect: 'de-AT', dubLangCode: 'de' });
+    useAppStore.getState().switchDubLangCode('de-CH' in {} ? 'x' : 'de');
+    useAppStore.getState().switchDubLangCode('bn');
+    useAppStore.setState({ dubDialect: 'bn-BD', dubLangCode: 'bn' });
+    useAppStore.getState().switchDubLangCode('bn');
+    expect(useAppStore.getState().dubDialect).toBe('bn-BD'); // same code → untouched
   });
 });

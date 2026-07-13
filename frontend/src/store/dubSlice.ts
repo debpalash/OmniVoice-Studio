@@ -307,7 +307,19 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
           ...(typeof incoming === 'string' && incoming.trim() ? { text: incoming } : {}),
         };
       });
-      return { dubLangCode: code, dubSegments };
+      // The dropdown paths each cleared a stale dialect by hand; doing it
+      // here means EVERY caller (dropdown, multi-language loop, the Export
+      // preview tabs) inherits the guard. Same predicate as
+      // api/dialects.dialectMatchesLang, inlined to keep the store slice
+      // dependency-free: a dialect "es-AR" only survives a switch to a
+      // language whose base code it extends.
+      const base = code.toLowerCase().split('-')[0];
+      const dialectStillValid = !!s.dubDialect && s.dubDialect.toLowerCase().startsWith(`${base}-`);
+      return {
+        dubLangCode: code,
+        dubSegments,
+        ...(dialectStillValid ? {} : { dubDialect: '' }),
+      };
     }),
   setDubNumSpeakers: (v) => set((s) => ({ dubNumSpeakers: resolve(v, s.dubNumSpeakers) })),
   setDubDialect: (v) => set((s) => ({ dubDialect: resolve(v, s.dubDialect) })),

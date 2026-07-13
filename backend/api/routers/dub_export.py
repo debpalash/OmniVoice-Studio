@@ -170,6 +170,25 @@ async def dub_list_tracks(job_id: str):
     return {"tracks": job.get("dubbed_tracks", {})}
 
 
+@router.get("/dub/segments-text/{job_id}")
+async def dub_segments_text(job_id: str, lang: str = Query(...)):
+    """Per-segment texts for one generated track: ``{"texts": {segKey: text}}``.
+
+    Backing store is ``job["segments_i18n"]`` (P1.2) — the authoritative
+    per-language map every generate rebuilds. The Export preview tabs use it
+    to hydrate segments whose in-browser ``translations[lang]`` entry is
+    missing (tracks generated before per-language persistence, partial
+    regens), so switching the preview language can't leave a mixed-language
+    transcript. Empty map when the job predates segments_i18n or the track
+    was never generated — the client keeps whatever it has.
+    """
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    i18n = job.get("segments_i18n") or {}
+    return {"texts": i18n.get(lang) or {}}
+
+
 def _segments_for_lang(job: dict, lang: "str | None") -> list:
     """Job segments with `text` overlaid from ``job["segments_i18n"][lang]``.
 

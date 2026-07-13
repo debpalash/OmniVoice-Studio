@@ -121,3 +121,22 @@ def test_background_mix_preserves_stereo_width():
     assert s.count("aformat=channel_layouts=stereo") == 2, (
         "both amix legs must be stereo or the bed loses its width"
     )
+
+
+def test_segments_text_endpoint_serves_i18n_map():
+    """Export preview tabs hydrate missing per-segment translations from
+    segments_i18n — the authoritative per-language store (#1148 review)."""
+    import asyncio
+    from api.routers import dub_export as de
+    from unittest.mock import patch
+
+    job = {"segments_i18n": {"de": {"1": "die Zeile"}, "bn": {"1": "লাইন"}}}
+    with patch.object(de, "_get_job", lambda jid: job):
+        out = asyncio.run(de.dub_segments_text("j1", lang="de"))
+        assert out == {"texts": {"1": "die Zeile"}}
+        out = asyncio.run(de.dub_segments_text("j1", lang="fr"))
+        assert out == {"texts": {}}  # never-generated track → empty, not error
+
+    with patch.object(de, "_get_job", lambda jid: {"segments": []}):
+        out = asyncio.run(de.dub_segments_text("j1", lang="de"))
+        assert out == {"texts": {}}  # legacy job predating segments_i18n

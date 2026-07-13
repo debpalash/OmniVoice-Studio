@@ -23,6 +23,7 @@ import { LANG_CODES } from '../../utils/languages';
 import ALL_LANGUAGES from '../../languages.json';
 import { POPULAR_LANGS, PRESETS } from '../../utils/constants';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../../api/dialects';
+import { dubSegmentsText } from '../../api/dub';
 import { copyText } from '../../utils/copyText';
 import { openExternal } from '../../api/external';
 import { TRANSLATION_ENGINES_DOCS } from '../../utils/errorDocsMap';
@@ -197,6 +198,45 @@ export default function DubLeftColumn({
     return parts.length ? parts.join(' · ') : undefined;
   };
 
+  async function hydrateMissingTranslations(code) {
+    const st = useAppStore.getState();
+    const jobId = st.dubJobId;
+    if (!jobId) return;
+    const missing = st.dubSegments.some(
+      (seg) =>
+        !(
+          seg.translations &&
+          typeof seg.translations[code] === 'string' &&
+          seg.translations[code].trim()
+        ),
+    );
+    if (!missing) return;
+    try {
+      const texts = await dubSegmentsText(jobId, code);
+      if (!texts || !Object.keys(texts).length) return;
+      const cur = useAppStore.getState();
+      if (cur.dubLangCode !== code) return; // user already switched again
+      cur.setDubSegments(
+        cur.dubSegments.map((seg, i) => {
+          const key = seg.id != null ? String(seg.id) : String(i);
+          const incoming = texts[key];
+          const has =
+            seg.translations &&
+            typeof seg.translations[code] === 'string' &&
+            seg.translations[code].trim();
+          if (has || typeof incoming !== 'string' || !incoming.trim()) return seg;
+          return {
+            ...seg,
+            text: incoming,
+            translations: { ...seg.translations, [code]: incoming },
+          };
+        }),
+      );
+    } catch {
+      /* advisory — rows keep their previous-language text, as before */
+    }
+  }
+
   return (
     <div className="studio-panel dub-panel-col">
       {hasDubbedTrack && (
@@ -234,6 +274,15 @@ export default function DubLeftColumn({
                   const st = useAppStore.getState();
                   st.setDubLang(label);
                   st.switchDubLangCode(code);
+                  // Review finding (#1148): the in-browser translations map
+                  // can be PARTIAL (tracks generated before per-language
+                  // persistence, partial regens) — the non-destructive switch
+                  // then leaves those rows in the previous language, a
+                  // mixed-language transcript under a single-language track.
+                  // Hydrate the gaps from the backend's authoritative
+                  // segments_i18n store. Failure-silent: no data → the rows
+                  // keep what they had, exactly the pre-hydration behavior.
+                  hydrateMissingTranslations(code);
                 }}
                 title={trackTooltip(code)}
               >
