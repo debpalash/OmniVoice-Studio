@@ -60,6 +60,16 @@ export const FONT_STACKS: Record<FontId, string | null> = {
 type TimingStrategy = 'concise' | 'smart_fit' | 'stretch_video' | 'strict_slot';
 
 /**
+ * Dub voice-identity mode (DubRequest.voice_match). `per_line` (default —
+ * unchanged Wave 3.2 behaviour) clones each line from a reference cut from
+ * its OWN source audio: best prosody match, but the voice identity can drift
+ * line to line. `consistent` resolves every line of a speaker to ONE
+ * reference — the pooled speaker clone, or (heuristic diarization, where no
+ * speaker clones exist) one deterministic best clip — for a steady identity.
+ */
+type VoiceMatch = 'per_line' | 'consistent';
+
+/**
  * Knob overrides for the `smart_fit` strategy. `null` (default) sends no
  * `fit_options` and the backend uses its canonical FitParams defaults —
  * identical behavior on every platform out of the box.
@@ -114,6 +124,9 @@ export interface PrefsSlice {
    */
   fitOptions: FitOptions | null;
 
+  /** Dub voice-identity mode — see the VoiceMatch type doc. */
+  voiceMatch: VoiceMatch;
+
   /**
    * Last app version whose release notes the user has seen (feat/safe-updates).
    * `null` = never recorded (fresh install / pre-feature profile): the first
@@ -153,6 +166,7 @@ export interface PrefsSlice {
   setShowHeaderLiveStats: (on: boolean) => void;
   setTimingStrategy: (s: TimingStrategy) => void;
   setFitOptions: (o: FitOptions | null) => void;
+  setVoiceMatch: (m: VoiceMatch) => void;
 
   /**
    * Opt-in dictate-over-playback echo cancellation (parity Action 8). When
@@ -238,6 +252,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   showHeaderLiveStats: false,
   timingStrategy: 'concise',
   fitOptions: null,
+  voiceMatch: 'per_line',
   whatsNewSeenVersion: null,
   aecEnabled: false,
   autoPlayPreview: true,
@@ -260,6 +275,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),
   setTimingStrategy: (s) => set({ timingStrategy: s }),
   setFitOptions: (o) => set({ fitOptions: o }),
+  setVoiceMatch: (m) => set({ voiceMatch: m }),
   setWhatsNewSeenVersion: (v) => set({ whatsNewSeenVersion: v }),
   setAecEnabled: (on) => set({ aecEnabled: on }),
   setAutoPlayPreview: (on) => set({ autoPlayPreview: on }),

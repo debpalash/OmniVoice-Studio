@@ -148,6 +148,8 @@ export default function DubTab(props) {
   const setBurnSubs = useAppStore((s) => s.setBurnSubs);
   const timingStrategy = useAppStore((s) => s.timingStrategy);
   const setTimingStrategy = useAppStore((s) => s.setTimingStrategy);
+  const voiceMatch = useAppStore((s) => s.voiceMatch);
+  const setVoiceMatch = useAppStore((s) => s.setVoiceMatch);
 
   const showIdleSkeleton = !(
     dubJobId &&
@@ -661,6 +663,8 @@ export default function DubTab(props) {
               dubTracks={dubTracks}
               timingStrategy={timingStrategy}
               setTimingStrategy={setTimingStrategy}
+              voiceMatch={voiceMatch}
+              setVoiceMatch={setVoiceMatch}
               dubTranscript={dubTranscript}
               showTranscript={showTranscript}
               setShowTranscript={setShowTranscript}

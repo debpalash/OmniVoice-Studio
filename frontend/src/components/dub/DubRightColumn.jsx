@@ -33,6 +33,8 @@ export default function DubRightColumn({
   dubTracks,
   timingStrategy,
   setTimingStrategy,
+  voiceMatch,
+  setVoiceMatch,
   dubTranscript,
   showTranscript,
   setShowTranscript,
@@ -155,6 +157,28 @@ export default function DubRightColumn({
                 label: 'Strict slot',
                 title:
                   'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.',
+              },
+            ]}
+          />
+        </div>
+        {/* Voice match — whether each line clones from its own source clip
+            (best prosody, identity may drift) or every line of a speaker
+            shares ONE reference (steady identity). */}
+        <div className={OUT_ROW} title={t('dub.voice_match_title')}>
+          <span className={OUT_TITLE}>{t('dub.voice_match')}</span>
+          <Segmented
+            value={voiceMatch}
+            onChange={setVoiceMatch}
+            items={[
+              {
+                value: 'per_line',
+                label: t('dub.voice_match_per_line'),
+                title: t('dub.voice_match_per_line_title'),
+              },
+              {
+                value: 'consistent',
+                label: t('dub.voice_match_consistent'),
+                title: t('dub.voice_match_consistent_title'),
               },
             ]}
           />

@@ -296,6 +296,9 @@ export default function useSegmentEditing() {
     setFingerprintsByLang((prev) => ({ ...prev, [key]: map || {} }));
   }, []);
   const [incrementalPlan, setIncrementalPlan] = useState(null);
+  // Subscribed (not getState()) so the plan effect in App.jsx re-fires when
+  // the Voice-match toggle flips — the badge refreshes to "N stale" at once.
+  const voiceMatch = useAppStore((s) => s.voiceMatch);
 
   const recomputeIncremental = useCallback(async () => {
     if (!dubSegments.length || !Object.keys(lastGenFingerprints).length) {
@@ -311,12 +314,16 @@ export default function useSegmentEditing() {
         segments: dubSegments.map((s) => ({ id: String(s.id), ...segmentGenInputs(s) })),
         stored_hashes: lastGenFingerprints,
         lang: dubLangCode,
+        // Voice-match mode is part of the fingerprint when non-default, so
+        // flipping the toggle honestly reports every segment stale — the
+        // audio really would render from a different reference (#281 class).
+        voice_match: voiceMatch || 'per_line',
       });
       setIncrementalPlan({ stale: res.stale, fresh: res.fresh });
     } catch (e) {
       console.warn('incremental plan failed', e);
     }
-  }, [dubSegments, lastGenFingerprints, dubLangCode]);
+  }, [dubSegments, lastGenFingerprints, dubLangCode, voiceMatch]);
 
   return {
     // Undo/Redo

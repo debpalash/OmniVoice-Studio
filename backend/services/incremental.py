@@ -49,7 +49,9 @@ def _canon_value(field: str, value):
     return value
 
 
-def segment_fingerprint(seg: dict, track_lang: str | None = None) -> str:
+def segment_fingerprint(
+    seg: dict, track_lang: str | None = None, voice_match: str | None = None
+) -> str:
     """Deterministic hash of the inputs that actually affect TTS output.
 
     Any change to `_GEN_INPUT_FIELDS` flips the hash and the segment becomes
@@ -71,10 +73,21 @@ def segment_fingerprint(seg: dict, track_lang: str | None = None) -> str:
     a legacy hash therefore never matches a lang-scoped fingerprint and the
     segment reads as stale — the safe direction (one clean regen, never a
     wrong-language splice).
+
+    ``voice_match`` is the job-level voice-identity mode (DubRequest.voice_match).
+    "consistent" resolves `auto:`/default `auto-seg:` bindings to a different
+    reference than "per_line" does, so audio rendered under one mode must not
+    vouch for the other — flipping the toggle has to mark segments stale, or
+    "Regen changed" would splice mixed-identity voices (#281 class). Same
+    back-compat trick as ``track_lang``: only mixed in when NON-DEFAULT, so
+    every hash stored by previous builds (and by per_line runs) keeps its
+    value and per_line stays byte-identical to the pre-toggle behaviour.
     """
     payload = {k: _canon_value(k, seg.get(k)) for k in _GEN_INPUT_FIELDS}
     if track_lang:
         payload["track_lang"] = str(track_lang)
+    if voice_match and voice_match != "per_line":
+        payload["voice_match"] = str(voice_match)
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha1(blob.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
@@ -133,6 +146,7 @@ def plan_incremental(
     *,
     stored_hashes: dict[str, str] | None = None,
     track_lang: str | None = None,
+    voice_match: str | None = None,
 ) -> dict:
     """Return `{stale, fresh, total, fingerprints}` where:
 
@@ -153,6 +167,10 @@ def plan_incremental(
     the active track, never against whatever language was generated last.
     Must match the language the generate run hashed with, or every segment
     reads stale (#281 parity class).
+
+    `voice_match` must likewise match the mode the generate run hashed with
+    (send the store's current voice-match mode); omitted/`"per_line"` hashes
+    identically to legacy calls.
     """
     stored = stored_hashes or {}
     stale: list[str] = []
@@ -162,7 +180,7 @@ def plan_incremental(
         sid = str(seg.get("id", ""))
         if not sid:
             continue
-        fp = segment_fingerprint(seg, track_lang=track_lang)
+        fp = segment_fingerprint(seg, track_lang=track_lang, voice_match=voice_match)
         fingerprints[sid] = fp
         prev = stored.get(sid)
         if prev == fp:

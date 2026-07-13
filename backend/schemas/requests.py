@@ -110,6 +110,21 @@ class DubRequest(BaseModel):
     # fields default server-side to fit_planner.FitParams values.
     fit_options: Optional[FitOptions] = None
 
+    # Voice-identity control for auto-clone bindings (owner report: each dub
+    # line clones from a reference cut from ITS OWN source audio — great
+    # prosody match, but the voice identity drifts line to line, and
+    # heuristic-diarized jobs have no pooled speaker clones to anchor it).
+    #   "per_line"   — Wave 3.2 behaviour, DEFAULT: an `auto:` binding prefers
+    #                  this segment's own clip, per-speaker clone as fallback.
+    #   "consistent" — ONE reference per speaker for the whole dub: the pooled
+    #                  per-speaker clone, or — when none exists (heuristic
+    #                  diarization skips speaker-clone extraction entirely) —
+    #                  a deterministic pick among that speaker's segment clips
+    #                  (longest clip ≥3 s, tie-break lowest segment id),
+    #                  reused for every segment. Explicit `auto-seg:` cross
+    #                  bindings still honour their clip.
+    voice_match: Optional[Literal["per_line", "consistent"]] = "per_line"
+
 class TranslateSegment(BaseModel):
     id: str
     text: str

@@ -87,6 +87,7 @@ export default function useDubWorkflow({
   const condenseSuggest = useAppStore((s) => s.condenseSuggest);
   const timingStrategy = useAppStore((s) => s.timingStrategy);
   const fitOptions = useAppStore((s) => s.fitOptions);
+  const voiceMatch = useAppStore((s) => s.voiceMatch);
   const glossaryTerms = useAppStore((s) => s.glossaryTerms);
   const dubDialect = useAppStore((s) => s.dubDialect);
 
@@ -926,6 +927,9 @@ export default function useDubWorkflow({
           speed,
           preview,
           timing_strategy: timingStrategy || 'concise',
+          // Voice-identity mode for auto-clone bindings (per_line default =
+          // unchanged behaviour; consistent = one reference per speaker).
+          voice_match: voiceMatch || 'per_line',
           // Smart Fit knob overrides — only when the user customised them;
           // otherwise the backend's canonical defaults apply.
           ...(timingStrategy === 'smart_fit' && fitOptions ? { fit_options: fitOptions } : {}),
@@ -999,6 +1003,9 @@ export default function useDubWorkflow({
                           ...segmentGenInputs(s),
                         })),
                         lang: genLang,
+                        // Must match the mode this generate ran with — it's
+                        // part of the fingerprint when non-default (#281).
+                        voice_match: voiceMatch || 'per_line',
                       });
                       setLastGenFingerprints(plan.fingerprints || {}, genLang);
                     } catch (err) {
@@ -1050,6 +1057,7 @@ export default function useDubWorkflow({
       dubStep,
       timingStrategy,
       fitOptions,
+      voiceMatch,
       setDubStep,
       setDubProgress,
       setDubError,

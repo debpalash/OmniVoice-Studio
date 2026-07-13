@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 import time
@@ -154,6 +155,99 @@ def _legacy_seg_cache_ok(job: dict, lang_code: str) -> bool:
     """
     tracks = job.get("dubbed_tracks") or {}
     return not any(lc != lang_code for lc in tracks)
+
+
+# ── voice_match="consistent" resolution ─────────────────────────────────────
+# Owner report: "still 4 segments different in voice". Per-segment refs (Wave
+# 3.2) clone each line from a clip of its own source audio — best prosody
+# match, but the voice IDENTITY drifts line to line, and heuristic-diarized
+# jobs have no pooled speaker clones to anchor it. `voice_match="consistent"`
+# resolves every segment of a speaker to ONE reference: the per-speaker clone
+# when it exists, otherwise a deterministic pick among that speaker's own
+# per-segment clips.
+
+# Below ~3 s zero-shot prompt-priming gets unstable, so prefer clips at or
+# above it when choosing the one shared reference.
+CONSISTENT_MIN_REF_S = 3.0
+
+
+def _speaker_key_matches(speaker_id: str, key: str) -> bool:
+    """Same matching rule the `auto:` branch has always used: the safe-name
+    slug first (`auto_profile_id`), the raw speaker id as fallback."""
+    return speaker_id.lower().replace(" ", "_") == key or speaker_id == key
+
+
+def _find_speaker_clone(clones: dict, key: str):
+    for spk, info in (clones or {}).items():
+        if _speaker_key_matches(spk, key):
+            return info
+    return None
+
+
+def _seg_id_order(sid: str):
+    """Sort key for the tie-break: numeric suffix when there is one (so
+    'seg_2' < 'seg_10'), plain string ordering otherwise. Deterministic for
+    any id shape."""
+    m = re.search(r"(\d+)$", sid)
+    return (0, int(m.group(1)), sid) if m else (1, 0, sid)
+
+
+def _speaker_key_for_segment(job: dict, sid) -> str | None:
+    """The `auto:`-style key of the speaker that owns segment `sid`, from the
+    job's diarized segment rows. None when the segment is unknown (the caller
+    then keeps per-line behaviour for it — best effort, never a crash)."""
+    for row in job.get("segments") or []:
+        if isinstance(row, dict) and str(row.get("id", "")) == str(sid):
+            spk = row.get("speaker_id") or "Speaker 1"
+            return spk.lower().replace(" ", "_")
+    return None
+
+
+def resolve_consistent_ref(job: dict, speaker_key: str, memo: dict | None = None):
+    """ONE clone reference for every segment of `speaker_key`.
+
+    Preference order:
+      1. the pooled per-speaker clone (job["speaker_clones"]) — same lookup
+         the per-line path uses as its fallback;
+      2. no speaker clone (heuristic diarization skips extraction entirely —
+         the key case): a deterministic pick among that speaker's per-segment
+         clips: longest clip ≥3 s, tie-break lowest segment id. Clips all
+         shorter than 3 s degrade to "longest overall", same tie-break.
+
+    Returns the clone info dict ({"ref_audio", "ref_text", ...}) or None.
+    Pure function of the job dict; `memo` (keyed by speaker_key) just avoids
+    rescanning per segment — the pick is deterministic with or without it.
+    """
+    if memo is not None and speaker_key in memo:
+        return memo[speaker_key]
+
+    ref = _find_speaker_clone(job.get("speaker_clones") or {}, speaker_key)
+    if ref is None:
+        seg_clones = job.get("segment_clones") or {}
+        candidates = []
+        for row in job.get("segments") or []:
+            if not isinstance(row, dict):
+                continue
+            spk = row.get("speaker_id") or "Speaker 1"
+            if not _speaker_key_matches(spk, speaker_key):
+                continue
+            sid = str(row.get("id", ""))
+            info = seg_clones.get(sid)
+            if info and info.get("ref_audio"):
+                candidates.append((sid, info))
+        if candidates:
+            usable = [
+                c for c in candidates
+                if float(c[1].get("duration") or 0.0) >= CONSISTENT_MIN_REF_S
+            ] or candidates
+            usable.sort(
+                key=lambda c: (-float(c[1].get("duration") or 0.0), _seg_id_order(c[0]))
+            )
+            ref = usable[0][1]
+
+    if memo is not None:
+        memo[speaker_key] = ref
+    return ref
 
 
 router = APIRouter()
@@ -322,6 +416,11 @@ async def dub_generate(job_id: str, req: DubRequest):
         regen_only = set(req.regen_only or []) if req.regen_only is not None else None
         seg_ids = req.segment_ids or []
         strategy = (req.timing_strategy or "concise").lower()
+        # Voice-identity mode (see DubRequest.voice_match). The memo makes the
+        # "consistent" pick once per speaker and hands the SAME reference to
+        # every segment of that speaker for the whole run.
+        voice_match = (req.voice_match or "per_line").lower()
+        _consistent_ref_memo: dict = {}
         # Strategy-transition guard: smart_fit re-mixes the *natural-rate*
         # per-segment WAVs from disk. If the previous run used strict_slot,
         # the on-disk WAVs are slot-squeezed ("slotted") — reusing them would
@@ -473,39 +572,69 @@ async def dub_generate(job_id: str, req: DubRequest):
                 if profile_id and profile_id.startswith("auto-seg:"):
                     sid = profile_id[len("auto-seg:"):]
                     info = (job.get("segment_clones") or {}).get(sid)
-                    if info:
+                    # voice_match="consistent": an auto-seg binding to the
+                    # segment's OWN id is the server default from prepare —
+                    # heuristic diarization skips speaker-clone extraction, so
+                    # every long line gets `auto-seg:{its own id}` (see
+                    # dub_core's assignment loop). That's not a user choice
+                    # (the Voice dropdown can't even render auto-seg ids), so
+                    # swap it for the speaker's ONE consistent reference. A
+                    # CROSS binding (sid != this segment) can only come from an
+                    # explicit request — honour its clip unchanged.
+                    _consistent_alt = None
+                    if voice_match == "consistent" and sid == str(seg_id):
+                        _spk_key = _speaker_key_for_segment(job, sid)
+                        if _spk_key:
+                            _consistent_alt = resolve_consistent_ref(
+                                job, _spk_key, _consistent_ref_memo
+                            )
+                    if _consistent_alt:
+                        ref_audio = _consistent_alt.get("ref_audio")
+                        ref_text = _consistent_alt.get("ref_text")
+                        # Shared by every segment of the speaker → multi-use;
+                        # keep it warm in the prompt cache (#1132 semantics).
+                    elif info:
                         ref_audio = info.get("ref_audio")
                         ref_text = info.get("ref_text")
                         ref_single_use = True
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 elif profile_id and profile_id.startswith("auto:"):
-                    # #486: an `auto:{speaker}` binding still prefers THIS
-                    # segment's own per-segment ref when one exists (cut from
-                    # this line's source audio → matches its prosody), falling
-                    # back to the per-speaker clone otherwise. This keeps the
-                    # Wave 3.2 per-segment-ref quality win while letting every
-                    # segment carry the UI-visible `auto:` id the dub editor's
-                    # Voice dropdown can actually render ("From Video →
-                    # Speaker N"). `seg_id` is closed over from the per-segment
-                    # loop below.
-                    seg_ref = (job.get("segment_clones") or {}).get(str(seg_id))
-                    if seg_ref:
-                        ref_audio = seg_ref.get("ref_audio")
-                        ref_text = seg_ref.get("ref_text")
-                        ref_single_use = True
-                    else:
-                        key = profile_id[len("auto:"):]
-                        clones = job.get("speaker_clones") or {}
-                        # Match by the safe-name key first, fall back to speaker_id.
-                        auto = None
-                        for spk, info in clones.items():
-                            if spk.lower().replace(" ", "_") == key or spk == key:
-                                auto = info
-                                break
+                    key = profile_id[len("auto:"):]
+                    if voice_match == "consistent":
+                        # ONE reference per speaker for the whole dub: the
+                        # pooled per-speaker clone, else the deterministic
+                        # segment-clip pick (heuristic-diarized jobs have no
+                        # speaker_clones at all — the key case). Multi-use by
+                        # construction → ref_single_use stays False so the
+                        # prompt cache keeps it warm across segments (#1132).
+                        auto = resolve_consistent_ref(job, key, _consistent_ref_memo)
                         if auto:
                             ref_audio = auto.get("ref_audio")
                             ref_text = auto.get("ref_text")
+                    else:
+                        # per_line (DEFAULT) — #486: an `auto:{speaker}`
+                        # binding still prefers THIS segment's own per-segment
+                        # ref when one exists (cut from this line's source
+                        # audio → matches its prosody), falling back to the
+                        # per-speaker clone otherwise. This keeps the Wave 3.2
+                        # per-segment-ref quality win while letting every
+                        # segment carry the UI-visible `auto:` id the dub
+                        # editor's Voice dropdown can actually render ("From
+                        # Video → Speaker N"). `seg_id` is closed over from
+                        # the per-segment loop below.
+                        seg_ref = (job.get("segment_clones") or {}).get(str(seg_id))
+                        if seg_ref:
+                            ref_audio = seg_ref.get("ref_audio")
+                            ref_text = seg_ref.get("ref_text")
+                            ref_single_use = True
+                        else:
+                            auto = _find_speaker_clone(
+                                job.get("speaker_clones") or {}, key
+                            )
+                            if auto:
+                                ref_audio = auto.get("ref_audio")
+                                ref_text = auto.get("ref_text")
                     profile_id = None  # prevent the voice_profiles lookup below
 
                 if profile_id:
@@ -737,7 +866,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         "speed": getattr(seg, "speed", None),
                         "direction": getattr(seg, "direction", None),
                         "effect_preset": getattr(seg, "effect_preset", None),
-                    }, track_lang=lang_code)
+                    }, track_lang=lang_code, voice_match=voice_match)
                 except Exception as e:
                     logger.debug("seg fingerprint skipped for %s: %s", seg_id, e)
 
