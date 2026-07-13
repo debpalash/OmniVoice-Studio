@@ -66,7 +66,14 @@ def test_background_mix_preserves_bed_level_and_bandwidth(monkeypatch):
     """
     import services.ffmpeg_utils as fu
 
-    monkeypatch.setattr(fu, "_AMIX_NORMALIZE", True)
+    # Patch the globals dict the CALL CHAIN actually reads. Several suites
+    # purge/reload sys.modules["services.*"] and "api.routers.*", so under
+    # random test order a freshly-imported module object and the function this
+    # file bound at collection time can disagree — patching either module by
+    # name then misses (the test_clone_prompt_wiring stale-alias class).
+    # Following __globals__ from the function under test cannot miss.
+    _bed_mix = _build_audio_export_cmd.__globals__["bed_mix_filter"]
+    monkeypatch.setitem(_bed_mix.__globals__, "_AMIX_NORMALIZE", True)
     cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
     s = _flat(cmd)
     assert f"aresample={fu.BED_MIX_SAMPLE_RATE}" in s, "bed bandwidth collapses to the 24kHz voice rate"
@@ -82,7 +89,8 @@ def test_background_mix_legacy_ffmpeg_fallback(monkeypatch):
     exports on a rejected option."""
     import services.ffmpeg_utils as fu
 
-    monkeypatch.setattr(fu, "_AMIX_NORMALIZE", False)
+    _bed_mix = _build_audio_export_cmd.__globals__["bed_mix_filter"]
+    monkeypatch.setitem(_bed_mix.__globals__, "_AMIX_NORMALIZE", False)
     cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
     s = _flat(cmd)
     assert "normalize=0" not in s
