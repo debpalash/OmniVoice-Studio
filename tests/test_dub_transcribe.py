@@ -115,6 +115,14 @@ def test_transcribe_stream_surfaces_model_load_failure(tmp_path, monkeypatch):
     drop the connection (the UI renders a dropped stream as a misleading generic
     "Transcribe stream dropped … Likely ASR backend failed to load").
 
+    Scoped to OMNIVOICE_PRELOAD_TTS_ASR, because that is now the only case in
+    which transcribe loads the TTS core at all: the preflight used to load it
+    unconditionally just to read an `_asr_pipe` that is None unless preloaded, and
+    then free it again (see tests/test_dub_no_tts_load_for_asr.py). With preload
+    off there is no TTS load on this path, so there is no TTS load failure to
+    surface — the ASR load failure, which is the one that can still happen, has
+    its own preflight guard and is covered separately.
+
     Drives the route's async generator directly (no TestClient/lifespan) — the
     preflight-error path yields a single event with no executor/Queue, so it
     stays isolated from the app event loop.
@@ -128,6 +136,7 @@ def test_transcribe_stream_surfaces_model_load_failure(tmp_path, monkeypatch):
     async def _boom():
         raise RuntimeError("CUDA driver init failed: simulated")
 
+    monkeypatch.setattr(dc, "should_preload_tts_asr", lambda: True)
     monkeypatch.setattr(dc, "get_model", _boom)
 
     async def _collect():

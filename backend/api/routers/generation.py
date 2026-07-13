@@ -459,6 +459,18 @@ def _run_inference(
 
         sr = model.sampling_rate if hasattr(model, 'sampling_rate') else 24000
 
+        from services.tts_backend import generate_with_cached_ref
+
+        def _gen(gen_text, gen_duration):
+            """One generate call for this request's voice, reference encoded once."""
+            return generate_with_cached_ref(
+                model, ref_audio=ref_audio_path, ref_text=ref_text,
+                text=gen_text, language=language, instruct=instruct,
+                duration=gen_duration, num_step=num_step,
+                guidance_scale=guidance_scale, speed=speed, denoise=denoise,
+                postprocess_output=postprocess_output, **kwargs
+            )
+
         # Inline [pause Nms] markers (issue #276): split the text and stitch
         # silence between independently-synthesized spans. Fully opt-in — text
         # without a marker takes the unchanged single-shot path below.
@@ -470,13 +482,7 @@ def _run_inference(
             def _gen_span(span_text):
                 # Per-span duration is left to the model; an explicit overall
                 # `duration` can't be meaningfully split across spans.
-                return model.generate(
-                    text=span_text, language=language, ref_audio=ref_audio_path,
-                    ref_text=ref_text, instruct=instruct, duration=None,
-                    num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-                    denoise=denoise, postprocess_output=postprocess_output,
-                    **kwargs
-                )[0]
+                return _gen(span_text, None)[0]
             audio_out = _render_with_pauses(_gen_span, segments, sr)
         else:
             # Wave 1.2: long text is split at sentence boundaries and the
@@ -497,23 +503,10 @@ def _run_inference(
                     # correlated RNG artifacts across chunk boundaries.
                     if used_seed is not None:
                         torch.manual_seed(used_seed + i)
-                    parts.append(model.generate(
-                        text=chunk_text, language=language, ref_audio=ref_audio_path,
-                        ref_text=ref_text, instruct=instruct, duration=None,
-                        num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-                        denoise=denoise, postprocess_output=postprocess_output,
-                        **kwargs
-                    )[0])
+                    parts.append(_gen(chunk_text, None)[0])
                 audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms)
             else:
-                audios = model.generate(
-                    text=text, language=language, ref_audio=ref_audio_path,
-                    ref_text=ref_text, instruct=instruct, duration=duration,
-                    num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-                    denoise=denoise, postprocess_output=postprocess_output,
-                    **kwargs
-                )
-                audio_out = audios[0]
+                audio_out = _gen(text, duration)[0]
 
         # Apply DSP effect preset. The OmniVoice model never masters its own
         # output, so mastering always runs here (unchanged behavior).
@@ -1108,12 +1101,15 @@ async def generate_speech(
                     if layer_penalty_factor is not None: kwargs["layer_penalty_factor"] = layer_penalty_factor
                     if position_temperature is not None: kwargs["position_temperature"] = position_temperature
                     if class_temperature is not None: kwargs["class_temperature"] = class_temperature
-                    raw = _model.generate(
-                        text=chunk_text, language=language, ref_audio=ref_audio_path,
-                        ref_text=ref_text, instruct=instruct, duration=None,
-                        num_step=num_step, guidance_scale=guidance_scale, speed=speed,
-                        denoise=denoise, postprocess_output=postprocess_output,
-                        **kwargs
+                    # Same cached-reference path as _run_inference: chunk 0 encodes
+                    # the reference, chunks 1..N hit the cache instead of re-encoding.
+                    from services.tts_backend import generate_with_cached_ref
+                    raw = generate_with_cached_ref(
+                        _model, ref_audio=ref_audio_path, ref_text=ref_text,
+                        text=chunk_text, language=language, instruct=instruct,
+                        duration=None, num_step=num_step,
+                        guidance_scale=guidance_scale, speed=speed, denoise=denoise,
+                        postprocess_output=postprocess_output, **kwargs
                     )[0]
                     sr = _model.sampling_rate if hasattr(_model, "sampling_rate") else 24000
                     skip = False

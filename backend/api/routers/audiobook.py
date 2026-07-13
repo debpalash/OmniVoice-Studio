@@ -300,11 +300,16 @@ async def _prepare_synth(default_voice: str | None, language: str | None = None)
         model = await info["get_model"]()
         sr = getattr(model, "sampling_rate", 24000)
 
+        from services.tts_backend import generate_with_cached_ref
+
         def synth(text, voice_id, speed=None):
             v = resolve(voice_id)
-            return model.generate(
-                text=text, language=lang, ref_audio=v["ref_audio"],
-                ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
+            # A book is the worst case for the re-encode this avoids: hundreds of
+            # segments, one voice. The reference is encoded on the first segment
+            # and reused for every one after it.
+            return generate_with_cached_ref(
+                model, ref_audio=v["ref_audio"], ref_text=v["ref_text"],
+                text=text, language=lang, instruct=v["instruct"], duration=None,
                 speed=float(speed) if speed else 1.0,
             )[0]
         return synth, sr, resolve, engine_id

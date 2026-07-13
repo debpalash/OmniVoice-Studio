@@ -301,19 +301,25 @@ _prompt_cache: "OrderedDict[tuple, object]" = OrderedDict()
 _prompt_cache_lock = threading.Lock()
 
 
-def _clone_prompt_key(ref_audio: str, ref_text):
+def _clone_prompt_key(ref_audio: str, ref_text, preprocess_prompt: bool = True):
     try:
         mtime = os.path.getmtime(ref_audio)
     except OSError:
         mtime = 0.0
-    return (os.path.abspath(ref_audio), mtime, ref_text or "")
+    # preprocess_prompt is part of the key: it changes the encoded prompt
+    # (silence removal + trimming + ref-text punctuation, omnivoice.py:675/722),
+    # so a False request must not be served a True-encoded prompt — or poison
+    # the cache for the True callers. /generate never sets it (always the True
+    # default); /v1/audio/speech exposes it.
+    return (os.path.abspath(ref_audio), mtime, ref_text or "", bool(preprocess_prompt))
 
 
-def _get_clone_prompt(model, ref_audio: str, ref_text):
-    """Return a cached/precomputed ``VoiceClonePrompt`` for (ref_audio, ref_text),
-    or ``None`` to fall back to the inline ref path. Never raises."""
+def _get_clone_prompt(model, ref_audio: str, ref_text, preprocess_prompt: bool = True):
+    """Return a cached/precomputed ``VoiceClonePrompt`` for
+    (ref_audio, ref_text, preprocess_prompt), or ``None`` to fall back to the
+    inline ref path. Never raises."""
     try:
-        key = _clone_prompt_key(ref_audio, ref_text)
+        key = _clone_prompt_key(ref_audio, ref_text, preprocess_prompt)
     except Exception:
         return None
     with _prompt_cache_lock:
@@ -322,9 +328,11 @@ def _get_clone_prompt(model, ref_audio: str, ref_text):
             _prompt_cache.move_to_end(key)
             return hit
     try:
-        # Encode outside the lock (slow); default preprocess matches the inline
-        # ref_audio path's preprocessing.
-        prompt = model.create_voice_clone_prompt(ref_audio, ref_text=ref_text)
+        # Encode outside the lock (slow). Mirrors exactly what generate() would
+        # do inline for this ref (omnivoice.py:964-978), so output is identical.
+        prompt = model.create_voice_clone_prompt(
+            ref_audio, ref_text=ref_text, preprocess_prompt=preprocess_prompt
+        )
     except Exception as e:  # noqa: BLE001 — fall back, never break synthesis
         logger.warning("voice-clone prompt precompute failed; using inline ref: %s", e)
         return None
@@ -334,6 +342,29 @@ def _get_clone_prompt(model, ref_audio: str, ref_text):
         while len(_prompt_cache) > _PROMPT_CACHE_MAX:
             _prompt_cache.popitem(last=False)
     return prompt
+
+
+def generate_with_cached_ref(model, *, ref_audio, ref_text, **gen_kw):
+    """``model.generate()`` with the reference clip encoded once, not once per call.
+
+    The native (non-adapter) callers of the OmniVoice model — ``/generate`` and its
+    streaming twin, and the audiobook/long-form renderer — used to pass
+    ``ref_audio=<path>`` straight through, so the codec encoder re-ran the reference
+    on **every generate call**: once per chunk, per pause-span, and per audiobook
+    segment, not merely once per request. The prompt cache below (#427/#473) existed
+    the whole time but only ``OmniVoiceBackend`` (the adapter path) ever called it,
+    and the default engine doesn't take that path.
+
+    This is the one place that knows the rule, so it can't be re-broken piecemeal:
+    ``voice_clone_prompt`` and ``ref_audio``/``ref_text`` are **mutually exclusive** —
+    pass both and the model warns and ignores the latter (omnivoice.py:957). A
+    ``None`` prompt (no reference, or any failure inside the cache) falls back to the
+    inline ref path: identical output, just without the saved encode.
+    """
+    prompt = _get_clone_prompt(model, ref_audio, ref_text) if ref_audio else None
+    if prompt is not None:
+        return model.generate(voice_clone_prompt=prompt, **gen_kw)
+    return model.generate(ref_audio=ref_audio, ref_text=ref_text, **gen_kw)
 
 
 def clear_clone_prompt_cache() -> None:
@@ -414,6 +445,12 @@ class OmniVoiceBackend(TTSBackend):
             denoise=kw.get("denoise", True),
             postprocess_output=kw.get("postprocess_output", True),
         )
+        # /v1/audio/speech exposes preprocess_prompt (openai_compat.py) and it
+        # used to be dropped on the floor here — the API accepted it, gen_kw
+        # never carried it, and the cached prompt was always built with it True.
+        # Honor it, and key the cache on it (see _clone_prompt_key).
+        preprocess_prompt = bool(kw.get("preprocess_prompt", True))
+        gen_kw["preprocess_prompt"] = preprocess_prompt
         # #427: when cloning from a reference file, reuse a cached voice-clone
         # prompt so the reference isn't re-encoded every call. Any failure in the
         # prompt path falls back to the inline ref — output is identical either
@@ -421,7 +458,7 @@ class OmniVoiceBackend(TTSBackend):
         # repeated encode. The design/instruct path (no ref_audio) is untouched.
         audios = None
         if ref_audio:
-            prompt = _get_clone_prompt(self._model, ref_audio, ref_text)
+            prompt = _get_clone_prompt(self._model, ref_audio, ref_text, preprocess_prompt)
             if prompt is not None:
                 try:
                     audios = self._model.generate(voice_clone_prompt=prompt, **gen_kw)

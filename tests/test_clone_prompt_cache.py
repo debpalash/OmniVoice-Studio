@@ -16,11 +16,11 @@ class _StubModel:
         self.calls = 0
         self.fail = fail
 
-    def create_voice_clone_prompt(self, ref_audio, ref_text=None):
+    def create_voice_clone_prompt(self, ref_audio, ref_text=None, preprocess_prompt=True):
         self.calls += 1
         if self.fail:
             raise RuntimeError("encode boom")
-        return f"PROMPT::{ref_audio}::{ref_text}"
+        return f"PROMPT::{ref_audio}::{ref_text}::{preprocess_prompt}"
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +78,30 @@ def test_encode_failure_returns_none_and_does_not_cache(tmp_path):
     ref = _wav(tmp_path)
     assert tb._get_clone_prompt(m, ref, "x") is None   # caller falls back to inline ref
     assert len(tb._prompt_cache) == 0
+
+
+def test_preprocess_prompt_is_part_of_the_key(tmp_path):
+    """preprocess_prompt changes the encoded prompt (silence trim + ref-text
+    punctuation), so it must key the cache. It didn't — and /v1/audio/speech
+    exposes the flag, so a preprocess_prompt=False request could be served a
+    True-encoded prompt (and poison the entry for everyone else)."""
+    m = _StubModel()
+    ref = _wav(tmp_path)
+    a = tb._get_clone_prompt(m, ref, "hi", True)
+    b = tb._get_clone_prompt(m, ref, "hi", False)
+    assert m.calls == 2, "preprocess_prompt=False was served the True-encoded prompt"
+    assert a != b
+    # And each variant is independently cached.
+    tb._get_clone_prompt(m, ref, "hi", True)
+    tb._get_clone_prompt(m, ref, "hi", False)
+    assert m.calls == 2
+
+
+def test_preprocess_prompt_reaches_the_encoder(tmp_path):
+    """It was accepted by the API and dropped on the floor before reaching here."""
+    m = _StubModel()
+    prompt = tb._get_clone_prompt(m, _wav(tmp_path), "hi", False)
+    assert prompt.endswith("::False")
 
 
 def test_clear_empties_cache(tmp_path):

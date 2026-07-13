@@ -15,7 +15,7 @@ from core.config import PREVIEW_DIR
 from core.tasks import task_manager
 from core import event_bus
 from schemas.requests import DubIngestUrlRequest
-from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr
+from services.model_manager import get_model, _gpu_pool, _cpu_pool, get_diarization_pipeline, offload_tts_for_asr, restore_tts_after_asr, should_preload_tts_asr
 from services.asr_backend import ASRTimeoutError, reset_pool_after_wedge, run_transcribe_guarded
 from services.audio_io import _safe_soundfile_write
 from services.ffmpeg_utils import find_ffmpeg
@@ -433,22 +433,37 @@ async def dub_transcribe_stream(
     asr_audio_target: Optional[str] = None
     _asr_backend = None
     scene_cuts: list = []
+    # Defaulted here, not just inside the preflight block below: it is read from
+    # _gen_body (separated_vocals=), so a preflight that bails early would
+    # otherwise leave it unbound and raise NameError instead of the real error.
+    asr_on_vocals = False
 
     if not job:
         preflight_error = "Job not found. It may have been cleaned up or was never created."
     else:
-        # Guard the model load: if it raises, the SSE stream would otherwise die
-        # before emitting any event, and the UI shows a misleading generic
-        # "stream dropped" message instead of the real cause (issue #255).
-        try:
-            _model = await get_model()
-        except Exception as e:
-            logger.exception("transcribe preflight: model load failed (job=%s)", job_id)
-            from core.failure import build_failure
-            f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
-            preflight_error = f["reason"] + (f" — {f['hint']}" if f.get("hint") else "")
-            _model = None
-        if _model is not None:
+        # The TTS core model is loaded here for exactly one reason: to harvest a
+        # preloaded `_asr_pipe` off it (passed to get_active_asr_backend below).
+        # That attribute is only ever set by OmniVoice.from_pretrained under
+        # OMNIVOICE_PRELOAD_TTS_ASR, which is off by default — so in the default
+        # config this loaded ~3 GB, harvested None, and then offload_tts_for_asr()
+        # freed it again 60 lines below. On unified memory that offload is a full
+        # UNLOAD (#1119), so dub_generate later cold-reloaded the same model (~8s).
+        # Every dub paid load → unload → reload for an attribute that was always
+        # None. Load it only when there is actually something to harvest.
+        _model = None
+        if should_preload_tts_asr():
+            # Guard the model load: if it raises, the SSE stream would otherwise die
+            # before emitting any event, and the UI shows a misleading generic
+            # "stream dropped" message instead of the real cause (issue #255).
+            try:
+                _model = await get_model()
+            except Exception as e:
+                logger.exception("transcribe preflight: model load failed (job=%s)", job_id)
+                from core.failure import build_failure
+                f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
+                preflight_error = f["reason"] + (f" — {f['hint']}" if f.get("hint") else "")
+                _model = None
+        if preflight_error is None:
             asr_audio_target = job.get("vocals_path")
             if not asr_audio_target or not os.path.exists(asr_audio_target):
                 asr_audio_target = job.get("audio_path")
@@ -1161,7 +1176,12 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    _model = await get_model()
+    # Same as the streaming preflight: the only use of the TTS core here is the
+    # last-resort `_model._asr_pipe` fallback below, which exists solely under
+    # OMNIVOICE_PRELOAD_TTS_ASR — and when it is off, that branch raises "fallback
+    # is not preloaded" anyway. Loading ~3 GB to reach a None attribute (and then
+    # having offload_tts_for_asr free it) was pure cost.
+    _model = await get_model() if should_preload_tts_asr() else None
 
     def _transcribe():
 
