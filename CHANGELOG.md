@@ -10,6 +10,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- **A "Voice match" toggle for dubbing — keep one steady voice per speaker.** Each dubbed line clones from a snippet of its own original audio, which matches the delivery beautifully but can make the *voice itself* drift from line to line — most audibly on videos where speaker detection ran in fallback mode ("still 4 segments different in voice", as one report put it). A new control next to the Timing picker chooses: **Per line** (the default, unchanged) for the best per-line delivery match, or **Consistent** to clone every line of a speaker from one shared reference — the speaker's pooled sample, or the best single clip when none exists — for a steady identity across the whole dub. Flipping it honestly marks segments as needing regeneration, and the shared reference is encoded once and reused, not re-studied per line. (#1147)
+
 - **A performance guide, at last.** [docs/performance.md](docs/performance.md) explains where generation and dubbing time actually goes, the three classic causes of "it got slow" (an empty Transcript field on a voice profile chief among them), every tuning knob the backend reads — none of which were documented anywhere — and which settings to leave alone (raising `OMNIVOICE_GPU_WORKERS` on a small GPU is how you get the crash the default exists to prevent). Includes how to run the built-in profiler so a slowness report can carry numbers instead of vibes.
 
 ### Fixed
