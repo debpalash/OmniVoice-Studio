@@ -1125,7 +1125,13 @@ async def _load_model_with_timeout():
 
     Raises RuntimeError on timeout (and resets the poisoned pool) so callers
     surface an actionable error instead of hanging indefinitely.
+
+    This is the shared load boundary for BOTH get_model() and the startup
+    preload_model() — the memory reclaim must live here, or a memory-tight
+    machine gets protected on demand loads but OS-killed during the startup
+    preload (review finding on the original placement in get_model()).
     """
+    _make_room_before_tts_load()
     loop = asyncio.get_running_loop()
     timeout = _model_load_timeout()
     try:
@@ -1152,7 +1158,6 @@ async def get_model():
 
     async with _model_lock:
         if model is None:
-            _make_room_before_tts_load()
             model = await _load_model_with_timeout()
     return model
 

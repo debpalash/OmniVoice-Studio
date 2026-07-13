@@ -130,7 +130,14 @@ def _drop_invalid_path_keys() -> None:
             continue
         try:
             os.makedirs(val, exist_ok=True)
-            usable = os.path.isdir(val)
+            # Existing-but-read-only (an external mount, a permissions accident)
+            # passes isdir yet fails on first real use — probe actual write
+            # capability, not just existence (review finding).
+            probe = os.path.join(val, f".omnivoice-write-probe-{os.getpid()}")
+            with open(probe, "w") as f:
+                f.write("ok")
+            os.remove(probe)
+            usable = True
         except OSError:
             usable = False
         if not usable:

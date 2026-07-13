@@ -44,8 +44,8 @@ def safe_replace(src: str, dst: str) -> None:
             if os.path.exists(tmp):
                 os.remove(tmp)
         except OSError:
-            pass
+            pass  # best-effort temp cleanup; the replace above already landed or raised
     try:
         os.remove(src)
     except OSError:
-        pass
+        pass  # src may be gone already (another EXDEV fallback won the race)

@@ -187,3 +187,24 @@ def test_generate_timeout_env_floor_respected(monkeypatch):
     monkeypatch.setattr(mm, "GPU_JOB_TIMEOUT_S", 900.0)
     from api.routers import generation as g
     assert g._generate_timeout_s("short") == pytest.approx(900.0)
+
+
+def test_user_env_drops_read_only_path(tmp_path, monkeypatch):
+    """An existing directory on a read-only mount passes isdir but fails on
+    first real use — validation must probe actual write capability."""
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        pytest.skip("root writes anywhere; the probe cannot fail")
+    ro = tmp_path / "readonly-cache"
+    ro.mkdir()
+    ro.chmod(0o500)
+    env_file = tmp_path / "env"
+    env_file.write_text(f"OMNIVOICE_CACHE_DIR={ro}\n")
+    monkeypatch.delenv("OMNIVOICE_CACHE_DIR", raising=False)
+    try:
+        from core import user_env
+        assert user_env.load_into_environ(str(env_file)) is True
+        assert "OMNIVOICE_CACHE_DIR" not in os.environ, (
+            "read-only path was kept — downloads would fail on first use"
+        )
+    finally:
+        ro.chmod(0o700)
