@@ -571,6 +571,11 @@ async def dub_generate(job_id: str, req: DubRequest):
                         nstep, retry_steps,
                     )
                     try:
+                        # An OOM retry on a single-use ref pays the reference
+                        # encode a second time (~0.4s) — deliberate: caching it
+                        # would reintroduce the eviction this flag exists to
+                        # prevent, to optimize a path that only runs after an
+                        # OOM already cost seconds.
                         audio_out = backend.generate(
                             text=text, language=lang if lang != "Auto" else None,
                             ref_audio=ref_audio, ref_text=ref_text,

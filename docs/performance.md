@@ -93,7 +93,9 @@ RAM/VRAM) turns a guessing game into a bisect.
 ## Things that look like knobs but aren't
 
 - **Deleting and re-adding a voice** doesn't speed anything up; the reference
-  encode is cached per file.
+  encode is cached per file for voices you reuse. (A dub's per-line reference
+  clips are the deliberate exception — each is a distinct clip used once, so
+  there's nothing for a cache to save.)
 - **Killing the backend between generations** makes everything slower — you
   pay the model load every time. The idle timeout already frees memory when
   it's genuinely idle.
