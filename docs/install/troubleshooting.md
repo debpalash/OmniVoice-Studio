@@ -442,7 +442,9 @@ call.
 > the last error output). Use **Report this bug** from that notice — the crash
 > evidence is attached to the prefilled GitHub issue automatically, with home
 > paths scrubbed. The raw markers live next to the backend logs in
-> `backend_crash_markers.json`.
+> `backend_crash_markers.json`. Markers are per-version: after you update the
+> app, notices recorded by the previous version are cleaned up rather than
+> resurfacing — the update may well have fixed that crash.
 
 ## 14b. "Can't reach the local OmniVoice backend" flashing during startup or an automatic restart
 

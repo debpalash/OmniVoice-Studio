@@ -17,6 +17,11 @@
 //! Only the last [`MAX_MARKERS`] crashes are kept. Acknowledgment is a
 //! persisted timestamp (not deletion!) so viewing the crash details doesn't
 //! destroy the evidence a subsequent bug report needs.
+//!
+//! Markers are **version-gated**: each records the app version that wrote it,
+//! and markers from a different release than the running build are ignored
+//! and pruned on read — an unacknowledged "backend crashed" notice must not
+//! resurface after the upgrade that may well have fixed the crash.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,7 +83,15 @@ pub struct CrashMarker {
     pub signal: Option<i32>,
     /// Human-readable `ExitStatus` display ("exit status: 134", …).
     pub exit_desc: String,
-    /// App/backend version (lockstep per the versioning rule).
+    /// App/backend version (lockstep per the versioning rule) that recorded
+    /// this marker. `#[serde(default)]` so a legacy marker written before
+    /// this field was version-gated still deserializes (as `""`) instead of
+    /// discarding the whole store — and `""` never matches the running
+    /// version, so legacy markers are treated as stale. That's the safe
+    /// default: a marker of unknown provenance may predate the running
+    /// build, and a stale post-upgrade crash notice is exactly the bug the
+    /// gate exists to prevent.
+    #[serde(default)]
     pub backend_version: String,
     /// Seconds the backend had been running when it died.
     pub uptime_s: u64,
@@ -111,6 +124,34 @@ pub fn push_marker(store: &mut CrashStore, marker: CrashMarker) {
 /// Newest marker + whether the user has already acknowledged it.
 pub fn newest_with_ack(store: &CrashStore) -> Option<(CrashMarker, bool)> {
     store.markers.first().map(|m| (m.clone(), m.ts <= store.acked_ts))
+}
+
+// ── Version gating ─────────────────────────────────────────────────────────
+
+/// The release part of a version — `"0.3.22-7"` (preview stamp) → `"0.3.22"`.
+fn base_version(version: &str) -> &str {
+    version.split(['-', '+']).next().unwrap_or(version)
+}
+
+/// Whether a marker written by `marker_version` is still current news for an
+/// app running `current_version`. Preview builds stamp `X.Y.Z-N` onto the
+/// same release, so only the base version has to match. A legacy marker with
+/// no recorded version deserializes as `""` and never matches — stale by
+/// design (see the `backend_version` field docs).
+fn same_release(marker_version: &str, current_version: &str) -> bool {
+    !marker_version.is_empty() && base_version(marker_version) == base_version(current_version)
+}
+
+/// Drop markers recorded by a different release than `current_version` —
+/// after an upgrade they describe a build the user no longer runs (quite
+/// possibly the build whose crash the upgrade fixed), so neither the crash
+/// notice nor the bug-report prefill should surface them. Returns whether
+/// anything was dropped so callers can persist the prune. Pure, like
+/// [`push_marker`], so the policy is unit-tested without the filesystem.
+pub fn prune_stale_versions(store: &mut CrashStore, current_version: &str) -> bool {
+    let before = store.markers.len();
+    store.markers.retain(|m| same_release(&m.backend_version, current_version));
+    store.markers.len() != before
 }
 
 // ── Persistence ────────────────────────────────────────────────────────────
@@ -172,6 +213,10 @@ pub fn record_crash(marker: CrashMarker) {
     );
     let path = markers_path();
     let mut store = load_store_from(&path);
+    // A fresh crash also retires markers from older releases: the version
+    // gate below would never surface them again, and they shouldn't occupy
+    // rotation slots the current release's evidence needs.
+    prune_stale_versions(&mut store, env!("CARGO_PKG_VERSION"));
     push_marker(&mut store, marker);
     save_store_to(&path, &store);
 }
@@ -189,9 +234,16 @@ pub struct CrashNotice {
 
 /// Newest backend crash marker, or null when the backend has never crashed.
 /// `acknowledged` tells the UI whether the user already viewed/dismissed it.
+/// Markers from a different release than this build are ignored — and pruned
+/// from disk — so one stale unacknowledged crash can't resurface after an
+/// upgrade (recurrence audit follow-up to #941).
 #[tauri::command]
 pub fn get_last_backend_crash() -> Option<CrashNotice> {
-    let store = load_store_from(&markers_path());
+    let path = markers_path();
+    let mut store = load_store_from(&path);
+    if prune_stale_versions(&mut store, env!("CARGO_PKG_VERSION")) {
+        save_store_to(&path, &store);
+    }
     newest_with_ack(&store).map(|(marker, acknowledged)| CrashNotice { marker, acknowledged })
 }
 
@@ -201,11 +253,17 @@ pub fn get_last_backend_crash() -> Option<CrashNotice> {
 pub fn acknowledge_backend_crash() {
     let path = markers_path();
     let mut store = load_store_from(&path);
+    // Same gate as the read path, so the ack lands on the marker the user
+    // actually saw — never on a stale one from a previous release.
+    let mut dirty = prune_stale_versions(&mut store, env!("CARGO_PKG_VERSION"));
     if let Some(newest_ts) = store.markers.first().map(|m| m.ts) {
         if store.acked_ts < newest_ts {
             store.acked_ts = newest_ts;
-            save_store_to(&path, &store);
+            dirty = true;
         }
+    }
+    if dirty {
+        save_store_to(&path, &store);
     }
 }
 
@@ -289,6 +347,58 @@ mod tests {
         let loaded = load_store_from(&path);
         assert_eq!(loaded, store, "Option fields (code=None, signal=Some) must roundtrip");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn same_release_matches_previews_and_rejects_versionless() {
+        // Preview builds stamp X.Y.Z-N (run number) on the same release — a
+        // crash under 0.3.22-7 is current news for 0.3.22 and 0.3.22-9 alike.
+        assert!(same_release("0.3.22-7", "0.3.22"));
+        assert!(same_release("0.3.22", "0.3.22-9"));
+        assert!(same_release("0.3.22+meta", "0.3.22"));
+        assert!(!same_release("0.3.21", "0.3.22"), "older release is stale");
+        assert!(!same_release("", "0.3.22"), "no recorded version = stale");
+    }
+
+    #[test]
+    fn current_release_markers_survive_the_version_gate() {
+        let mut store = CrashStore::default();
+        push_marker(&mut store, marker(100)); // backend_version "0.0.0-test"
+        assert!(
+            !prune_stale_versions(&mut store, "0.0.0"),
+            "same release (modulo preview stamp) → nothing pruned"
+        );
+        let (m, acked) = newest_with_ack(&store).expect("current-release marker surfaces");
+        assert_eq!(m.ts, 100);
+        assert!(!acked);
+    }
+
+    #[test]
+    fn different_release_markers_are_ignored_and_pruned() {
+        // The post-upgrade scenario: an unacknowledged crash from the build
+        // the user just upgraded away from must not surface as if the new
+        // build had crashed.
+        let mut store = CrashStore::default();
+        push_marker(&mut store, marker(100)); // "0.0.0-test" — the old build
+        let mut current = marker(50);
+        current.backend_version = "9.9.9".into();
+        push_marker(&mut store, current);
+        assert!(prune_stale_versions(&mut store, "9.9.9"), "stale marker dropped");
+        let kept: Vec<&str> = store.markers.iter().map(|m| m.backend_version.as_str()).collect();
+        assert_eq!(kept, vec!["9.9.9"], "only the running release's evidence remains");
+    }
+
+    #[test]
+    fn legacy_versionless_markers_deserialize_and_are_stale() {
+        // A marker JSON with no backend_version at all must (a) not wedge
+        // deserialization of the whole store and (b) never surface: with no
+        // provenance it may predate the running build, and a stale
+        // post-upgrade crash notice is exactly the bug the gate prevents.
+        let json = r#"{"acked_ts":0,"markers":[{"ts":1,"exit_code":1,"signal":null,"exit_desc":"exit status: 1","uptime_s":5,"last_stderr":""}]}"#;
+        let mut store: CrashStore = serde_json::from_str(json).expect("legacy shape still loads");
+        assert_eq!(store.markers[0].backend_version, "", "serde default fills the gap");
+        assert!(prune_stale_versions(&mut store, "0.3.22"));
+        assert!(newest_with_ack(&store).is_none(), "legacy marker never surfaces");
     }
 
     #[test]

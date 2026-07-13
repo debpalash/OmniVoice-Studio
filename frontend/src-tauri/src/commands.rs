@@ -1,7 +1,7 @@
 //! Tauri IPC commands: sysinfo, logs, HF cache, paste, tray, quit, dictation shortcut.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -553,6 +553,11 @@ pub fn save_text_file(path: String, contents: String) -> Result<(), String> {
 
 const CLEAR_WEBVIEW_MARKER: &str = ".clear-webview-cache";
 const WEBVIEW_CACHE_DIR: &str = "EBWebView";
+/// Retry budget for step 2: `app.restart()` spawns the new process before the
+/// old one has fully exited, so its WebView2 children may still hold locks on
+/// the profile — 20 × 500 ms rides out that handoff.
+const CLEAR_WEBVIEW_ATTEMPTS: u32 = 20;
+const CLEAR_WEBVIEW_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 /// (marker file, cache dir) under the pre-app local data dir. Mirrors
 /// `config::config_path_pre_app()` — `%LOCALAPPDATA%\<identifier>` on
@@ -592,18 +597,30 @@ pub fn clear_webview_cache_if_marked() {
     let Some((marker, cache)) = webview_cache_paths() else {
         return;
     };
+    clear_webview_cache_at(&marker, &cache, CLEAR_WEBVIEW_ATTEMPTS, CLEAR_WEBVIEW_RETRY_DELAY);
+}
+
+/// Filesystem half of [`clear_webview_cache_if_marked`], parameterized over
+/// paths and retry policy so the contract is unit-testable on every platform
+/// (the wrapper above is Windows-gated and pins the real paths/policy).
+/// Contract, pinned by `webview_cache_repair_tests`:
+///   - no marker → nothing is touched;
+///   - the marker is consumed FIRST, unconditionally — one-shot, so a failing
+///     repair can never loop across launches;
+///   - a missing cache dir is success; a locked one is retried, then given up
+///     on with an error log — startup is never bricked over a failed repair.
+fn clear_webview_cache_at(marker: &Path, cache: &Path, attempts: u32, retry_delay: Duration) {
     if !marker.exists() {
         return;
     }
-    let _ = fs::remove_file(&marker);
+    let _ = fs::remove_file(marker);
     if !cache.exists() {
         return;
     }
     // `app.restart()` spawns the new process before the old one has fully
     // exited, so its WebView2 children may still hold locks — retry briefly.
-    const ATTEMPTS: u32 = 20;
-    for attempt in 1..=ATTEMPTS {
-        match fs::remove_dir_all(&cache) {
+    for attempt in 1..=attempts {
+        match fs::remove_dir_all(cache) {
             Ok(()) => {
                 log::warn!(
                     "cleared WebView2 profile cache at {} (attempt {attempt}) — issue #879 repair",
@@ -612,9 +629,9 @@ pub fn clear_webview_cache_if_marked() {
                 return;
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
-            Err(e) if attempt < ATTEMPTS => {
+            Err(e) if attempt < attempts => {
                 log::debug!("WebView2 cache still locked ({e}) — retrying");
-                std::thread::sleep(Duration::from_millis(500));
+                std::thread::sleep(retry_delay);
             }
             Err(e) => {
                 // Never brick startup over a failed repair: WebView2 rebuilds
@@ -625,6 +642,83 @@ pub fn clear_webview_cache_if_marked() {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod webview_cache_repair_tests {
+    use super::clear_webview_cache_at;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    /// Tests must not sleep 20 × 500 ms — the retry policy is a parameter.
+    const FEW: u32 = 3;
+    const NO_WAIT: Duration = Duration::from_millis(1);
+
+    /// Marker file + cache dir (with nested content, like a real profile)
+    /// under a fresh temp dir.
+    fn seed(dir: &Path) -> (PathBuf, PathBuf) {
+        let marker = dir.join(super::CLEAR_WEBVIEW_MARKER);
+        let cache = dir.join(super::WEBVIEW_CACHE_DIR);
+        fs::write(&marker, b"test").unwrap();
+        fs::create_dir_all(cache.join("Default/Cache")).unwrap();
+        fs::write(cache.join("Default/Cache/data_0"), b"x").unwrap();
+        (marker, cache)
+    }
+
+    #[test]
+    fn marker_present_clears_cache_and_consumes_marker_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let (marker, cache) = seed(dir.path());
+        clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
+        assert!(!cache.exists(), "cache dir must be removed");
+        assert!(!marker.exists(), "marker must be consumed");
+        // One-shot: with the marker gone, a rebuilt cache is left alone.
+        fs::create_dir_all(cache.join("Default")).unwrap();
+        clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
+        assert!(cache.exists(), "second call without a marker is a no-op");
+    }
+
+    #[test]
+    fn no_marker_touches_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let (marker, cache) = seed(dir.path());
+        fs::remove_file(&marker).unwrap();
+        clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
+        assert!(
+            cache.join("Default/Cache/data_0").exists(),
+            "without a marker the cache must be untouched"
+        );
+    }
+
+    #[test]
+    fn missing_cache_dir_still_consumes_marker_and_returns() {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join(super::CLEAR_WEBVIEW_MARKER);
+        let cache = dir.path().join(super::WEBVIEW_CACHE_DIR);
+        fs::write(&marker, b"test").unwrap();
+        clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
+        assert!(!marker.exists(), "marker consumed even with nothing to clear");
+    }
+
+    /// A cache that can't be deleted (Windows: WebView2 file locks; simulated
+    /// here with a write-protected dir) must never panic or brick startup —
+    /// and the marker is STILL consumed, so the failure can't loop across
+    /// launches.
+    #[cfg(unix)]
+    #[test]
+    fn locked_cache_never_panics_and_marker_is_still_consumed() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let (marker, cache) = seed(dir.path());
+        // Deny writes on the cache dir so its entries can't be unlinked.
+        fs::set_permissions(&cache, fs::Permissions::from_mode(0o555)).unwrap();
+        clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
+        assert!(!marker.exists(), "one-shot: marker consumed even on failure");
+        assert!(cache.exists(), "a locked cache survives the failed repair");
+        // Restore permissions so TempDir can clean up.
+        fs::set_permissions(&cache, fs::Permissions::from_mode(0o755)).unwrap();
     }
 }
 

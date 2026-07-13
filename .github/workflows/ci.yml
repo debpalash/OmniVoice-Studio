@@ -135,7 +135,8 @@ jobs:
   # Catches platform-specific Rust regressions on PR (cfg(target_os=...)
   # gates, missing Windows/macOS deps, etc.) without spending the 15+ min
   # per-platform that a full `tauri build` takes. `cargo check` is the
-  # lightest gate that exercises type-checking + linking for each target.
+  # lightest gate that exercises type-checking + linking for each target,
+  # and `cargo test --lib` runs the shell's unit tests natively on each OS.
   # Full bundling stays in release.yml on tag push.
   tauri-cross-platform:
     name: Tauri shell check (${{ matrix.label }})
@@ -210,6 +211,15 @@ jobs:
       - name: Cargo check (Tauri shell)
         working-directory: frontend/src-tauri
         run: cargo check --target ${{ matrix.rust_target }} --message-format=short
+
+      # `cargo check` never compiles #[cfg(test)] code, so without this the
+      # shell's unit tests (crash.rs, reset.rs, commands.rs, …) neither build
+      # nor run anywhere in CI. --lib scopes it to the unit tests; each
+      # matrix target equals its host triple, so the test binary runs
+      # natively. Codegen is warmed by the rust-cache above.
+      - name: Cargo test (Tauri shell unit tests)
+        working-directory: frontend/src-tauri
+        run: cargo test --lib --target ${{ matrix.rust_target }} --message-format=short
 
   # ── Cross-platform Python runtime smoke (Phase 0 GATE-02) ───────────────
   # Loads the frozen tests/fixtures/omnivoice_data/ fixture and boots the
