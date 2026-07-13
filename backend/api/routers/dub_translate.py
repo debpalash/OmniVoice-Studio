@@ -1031,6 +1031,15 @@ async def _maybe_cinematic(translated, req, src_lang, loop, *, already_llm=False
             "literal": r["literal"],
             "critique": r.get("critique", ""),
         }
+        # `degraded` ≠ `error`: a degraded row fell back to its literal text
+        # (reflect/adapt skipped — rate limit, budget, divergence) but is fully
+        # usable, so the fit pass, condense pass, and duration planning below
+        # must still run on it. Marking these `error` used to (a) skip all
+        # three passes — overlong lines then hit heavy time-compression at mix,
+        # audibly degrading the dub — and (b) make the UI report "N/N segments
+        # failed" for a translate that succeeded.
+        if r.get("degraded"):
+            out["degraded"] = r["degraded"]
         if r.get("error"):
             out["error"] = r["error"]
         merged.append(out)

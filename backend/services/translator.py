@@ -38,6 +38,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
+import time
 from typing import Iterable, Optional
 
 logger = logging.getLogger("omnivoice.translator")
@@ -270,18 +272,62 @@ def _glossary_text(glossary: Iterable[dict] | None) -> str:
     )
 
 
+#: Longest Retry-After we'll honor with an in-place wait. Anything above this
+#: means "the provider is down for a while" — fail fast and let the segment
+#: degrade to its literal translation instead of stalling the whole dub.
+_RETRY_AFTER_CAP_S = 30.0
+
+
+def _retry_after_seconds(exc) -> float | None:
+    """Retry-After from a rate-limit error, or None when this isn't a 429.
+
+    Providers frequently 429 with a *tiny* hint (OpenRouter's free pool says
+    "Retry-After: 2"); giving up instantly on those turned a two-second wait
+    into a whole failed reflect pass — 6 segments fire concurrently, so one
+    throttle window used to take out every segment at once. Defensive on
+    purpose: the exception shape differs across openai-lib versions and
+    OpenAI-compatible servers, and a parsing surprise must never break the
+    caller's own error handling.
+    """
+    try:
+        if getattr(exc, "status_code", None) != 429:
+            return None
+        headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+        raw = headers.get("retry-after") or headers.get("Retry-After")
+        seconds = float(raw) if raw is not None else 2.0
+        return max(0.5, min(seconds, _RETRY_AFTER_CAP_S))
+    except Exception:  # noqa: BLE001 — a weird header is not worth a crash
+        return None
+
+
 def _chat(client, *, system: str, user: str) -> str:
-    """One-shot chat completion. Raises on failure."""
-    res = client.chat.completions.create(
-        model=_llm_model(),
-        timeout=_llm_timeout(),
-        temperature=0.2,  # pinned like the Fast path — default 1.0 drifts/invents
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-    )
-    return (res.choices[0].message.content or "").strip()
+    """One-shot chat completion. Raises on failure.
+
+    One polite retry on a rate limit: when the provider sends a 429 with a
+    bounded Retry-After, wait it out once (plus jitter so the 6-wide
+    concurrent segment fan-out doesn't re-stampede the same window) and try
+    again. A second 429 propagates — the caller degrades to the literal text.
+    """
+    attempts = 0
+    while True:
+        try:
+            res = client.chat.completions.create(
+                model=_llm_model(),
+                timeout=_llm_timeout(),
+                temperature=0.2,  # pinned like the Fast path — default 1.0 drifts/invents
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            return (res.choices[0].message.content or "").strip()
+        except Exception as e:  # noqa: BLE001 — re-raised unless a retryable 429
+            wait = _retry_after_seconds(e)
+            if wait is None or attempts >= 1:
+                raise
+            attempts += 1
+            logger.info("LLM rate-limited; honoring Retry-After=%.1fs (one retry)", wait)
+            time.sleep(wait + random.uniform(0.1, 1.0))
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -320,7 +366,7 @@ def cinematic_refine_sync(
 
     client = _llm_client()
     if client is None:
-        return {**result_ok, "error": "no-llm"}
+        return {**result_ok, "degraded": "no-llm"}
 
     glossary_preamble = _glossary_text(glossary)
 
@@ -357,7 +403,7 @@ def cinematic_refine_sync(
         critique = _chat(client, system=_with_preamble(_REFLECT_PROMPT), user=reflect_user)
     except Exception as e:
         logger.warning("cinematic reflect failed: %s", e)
-        return {**result_ok, "error": f"reflect: {e}"}
+        return {**result_ok, "degraded": f"reflect: {e}"}
 
     # Step 3 — adapt
     try:
@@ -373,7 +419,7 @@ def cinematic_refine_sync(
             "text": literal_text,
             "literal": literal_text,
             "critique": critique,
-            "error": f"adapt: {e}",
+            "degraded": f"adapt: {e}",
         }
 
     final = (adapted or "").strip() or literal_text
@@ -396,8 +442,8 @@ def cinematic_refine_sync(
                 "text": literal_text,
                 "literal": literal_text,
                 "critique": critique,
-                "error": (f"adapt-wrong-script:{target_lang}" if wrong_script
-                          else "adapt-diverged"),
+                "degraded": (f"adapt-wrong-script:{target_lang}" if wrong_script
+                             else "adapt-diverged"),
             }
     return {
         "text": final,
@@ -478,6 +524,11 @@ async def cinematic_refine_many(
                 logger.warning("cinematic segment %s failed: %s", sid, e)
         else:
             task.cancel()  # stop awaiting; the executor thread is abandoned (#730 pattern)
+        # "degraded", not "error": the literal translation is used, so the
+        # segment is fully usable — downstream passes (speech-rate fit,
+        # duration planning) must still run on it, and the UI must not count
+        # it as a failed segment. `error` is reserved for rows with no usable
+        # text at all (the base translation itself failed).
         out.append({"id": sid, "text": lit, "literal": lit, "critique": "",
-                    "error": "cinematic-budget"})
+                    "degraded": "cinematic-budget"})
     return out

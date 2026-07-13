@@ -352,11 +352,13 @@ function DubSegmentRow({
           title={
             seg.translate_error
               ? t('segment.translate_error_title', { error: seg.translate_error })
-              : overBudget
-                ? t('segment.budget_title', {
-                    pct: Math.round((seg.text.length / seg.text_original.length) * 100),
-                  })
-                : t('segment.text_title')
+              : seg.translate_degraded
+                ? t('segment.translate_degraded_title', { reason: seg.translate_degraded })
+                : overBudget
+                  ? t('segment.budget_title', {
+                      pct: Math.round((seg.text.length / seg.text_original.length) * 100),
+                    })
+                  : t('segment.text_title')
           }
           style={
             overBudget

@@ -46,7 +46,8 @@ def test_cinematic_no_llm_returns_literal_with_marker(monkeypatch):
     assert res["text"] == "Hola."
     assert res["literal"] == "Hola."
     assert res["critique"] == ""
-    assert res.get("error") == "no-llm"
+    assert res.get("degraded") == "no-llm"
+    assert "error" not in res
 
 
 def test_cinematic_empty_literal_is_passthrough():
@@ -112,7 +113,8 @@ def test_cinematic_reflect_failure_returns_literal(monkeypatch):
     )
     assert res["text"] == "Hola"
     assert res["literal"] == "Hola"
-    assert "reflect" in res.get("error", "")
+    assert "reflect" in res.get("degraded", "")
+    assert "error" not in res
 
 
 # ── Divergence guard (v0.3.9 field report: hallucinated dub lines) ─────────
@@ -135,7 +137,8 @@ def test_cinematic_adapt_runaway_length_falls_back_to_literal(monkeypatch):
         source_lang="en", target_lang="es",
     )
     assert res["text"] == literal
-    assert res.get("error") == "adapt-diverged"
+    assert res.get("degraded") == "adapt-diverged"
+    assert "error" not in res
     assert res["critique"] == "fine but a bit stiff"  # UI still sees what happened
 
 
@@ -152,7 +155,8 @@ def test_cinematic_adapt_critique_echo_rejected(monkeypatch):
         source_lang="en", target_lang="es",
     )
     assert res["text"] == literal
-    assert res.get("error") == "adapt-diverged"
+    assert res.get("degraded") == "adapt-diverged"
+    assert "error" not in res
 
 
 def test_cinematic_sane_adaptation_accepted(monkeypatch):
@@ -178,7 +182,8 @@ def test_cinematic_adapt_wrong_script_falls_back_to_literal(monkeypatch):
         source_lang="en", target_lang="hi",
     )
     assert res["text"] == literal
-    assert res.get("error") == "adapt-wrong-script:hi"
+    assert res.get("degraded") == "adapt-wrong-script:hi"
+    assert "error" not in res
 
 
 def test_chat_pins_low_temperature(monkeypatch):
@@ -241,7 +246,8 @@ def test_cinematic_budget_degrades_slow_segments_to_literal(monkeypatch):
     assert [r["id"] for r in out] == ["s1", "s2"]      # order + length preserved
     for r in out:
         assert r["text"] == r["literal"]                # degraded to literal
-        assert r.get("error") == "cinematic-budget"
+        assert r.get("degraded") == "cinematic-budget"
+        assert "error" not in r
 
 
 def test_cinematic_budget_disabled_runs_to_completion(monkeypatch):
@@ -263,3 +269,89 @@ def test_cinematic_budget_disabled_runs_to_completion(monkeypatch):
 
     out = asyncio.run(_run())
     assert out[0]["text"] == "R:hola" and "error" not in out[0]
+
+
+# ── Retry-After honoring (#1133 class: a 2s throttle used to fail the pass) ──
+
+
+class _RateLimit(Exception):
+    """Shaped like an openai APIStatusError: status_code + response.headers."""
+
+    def __init__(self, retry_after=None):
+        super().__init__("429 simulated")
+        self.status_code = 429
+
+        class _Resp:
+            headers = {"retry-after": retry_after} if retry_after is not None else {}
+
+        self.response = _Resp()
+
+
+def _client_429_then_ok(retry_after="2"):
+    """chat.completions.create raises one 429, then succeeds."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    calls = {"n": 0}
+
+    def create(**kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _RateLimit(retry_after)
+        res = MagicMock()
+        res.choices[0].message.content = "recovered"
+        return res
+
+    client.chat.completions.create = create
+    return client, calls
+
+
+def test_chat_honors_retry_after_once(monkeypatch):
+    """A 429 with a small Retry-After gets ONE polite wait + retry, not a hard
+    fail. OpenRouter's free pool says 'Retry-After: 2' — giving up instantly
+    turned a two-second wait into a whole failed reflect pass."""
+    sleeps = []
+    monkeypatch.setattr(tr.time, "sleep", lambda s: sleeps.append(s))
+    client, calls = _client_429_then_ok("2")
+    out = tr._chat(client, system="s", user="u")
+    assert out == "recovered"
+    assert calls["n"] == 2
+    assert len(sleeps) == 1 and 2.0 <= sleeps[0] <= 3.5  # Retry-After + jitter
+
+
+def test_chat_caps_absurd_retry_after(monkeypatch):
+    """A provider demanding a 10-minute wait gets the cap, not a stalled dub."""
+    sleeps = []
+    monkeypatch.setattr(tr.time, "sleep", lambda s: sleeps.append(s))
+    client, _ = _client_429_then_ok("600")
+    tr._chat(client, system="s", user="u")
+    assert sleeps and sleeps[0] <= tr._RETRY_AFTER_CAP_S + 1.5
+
+
+def test_chat_second_429_propagates(monkeypatch):
+    """One retry only — a persistent throttle degrades the segment instead of
+    looping."""
+    monkeypatch.setattr(tr.time, "sleep", lambda s: None)
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.chat.completions.create = MagicMock(side_effect=_RateLimit("1"))
+    import pytest as _pytest
+    with _pytest.raises(_RateLimit):
+        tr._chat(client, system="s", user="u")
+    assert client.chat.completions.create.call_count == 2
+
+
+def test_chat_non_429_does_not_retry(monkeypatch):
+    """Only rate limits are retryable; real errors propagate immediately."""
+    slept = []
+    monkeypatch.setattr(tr.time, "sleep", lambda s: slept.append(s))
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.chat.completions.create = MagicMock(side_effect=RuntimeError("boom"))
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError):
+        tr._chat(client, system="s", user="u")
+    assert client.chat.completions.create.call_count == 1
+    assert not slept

@@ -234,7 +234,7 @@ def test_disabled_translation_reports_cinematic_unavailable(skills, store):
     # and the per-segment refine degrades to the literal with the no-llm marker
     out = translator.cinematic_refine_sync(
         "hello", "hallo", source_lang="en", target_lang="de")
-    assert out["text"] == "hallo" and out.get("error") == "no-llm"
+    assert out["text"] == "hallo" and out.get("degraded") == "no-llm"
 
 
 def test_disabled_refinement_is_pass_through(skills, store, monkeypatch):

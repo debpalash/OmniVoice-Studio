@@ -118,6 +118,7 @@ export default function useSegmentEditing() {
             text: restored,
             ...(lang ? { translations: { ...s.translations, [lang]: restored } } : {}),
             translate_error: undefined,
+            translate_degraded: undefined,
           };
         }),
       );

@@ -764,9 +764,15 @@ export default function useDubWorkflow({
         });
         const translatedMap = {};
         const errors = [];
+        const degraded = [];
         (data.translated || []).forEach((t) => {
           translatedMap[t.id] = t;
           if (t.error) errors.push({ id: t.id, error: t.error });
+          // Degraded ≠ failed: the segment translated fine but the cinematic
+          // polish pass was skipped (rate limit, budget, divergent reply) and
+          // the literal text is in use. Counting these as errors used to show
+          // "4/4 segment(s) failed" over a translate that succeeded.
+          else if (t.degraded) degraded.push({ id: t.id, reason: t.degraded });
         });
         setDubSegments((prev) =>
           prev.map((s) => {
@@ -782,6 +788,7 @@ export default function useDubWorkflow({
               // instead of destroying the previous language's work.
               ...(gotText ? { translations: { ...s.translations, [targetLang]: hit.text } } : {}),
               translate_error: hit.error || undefined,
+              translate_degraded: hit.degraded || undefined,
               translate_literal: hit.literal || undefined,
               translate_critique: hit.critique || undefined,
               // Carry over the predicted compression ratio so the per-row
@@ -827,6 +834,18 @@ export default function useDubWorkflow({
               firstError: unique[0].slice(0, 120),
             }),
             { duration: 6000 },
+          );
+        } else if (degraded.length) {
+          // Everything translated — some segments just missed the polish pass.
+          // A warning with the honest story, not a red "failed" over a success.
+          const unique = [...new Set(degraded.map((d) => d.reason))];
+          toast(
+            t('dub_workflow.translate_degraded', {
+              count: degraded.length,
+              totalCount: data.translated.length,
+              reason: unique[0].slice(0, 120),
+            }),
+            { icon: '⚠️', duration: 8000 },
           );
         } else {
           const qLabel =

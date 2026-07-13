@@ -747,6 +747,7 @@ export default function DubLeftColumn({
                     ...s,
                     text: s.text_original || s.text,
                     translate_error: undefined,
+                    translate_degraded: undefined,
                   })),
                 )
               }
