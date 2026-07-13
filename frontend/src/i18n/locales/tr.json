@@ -940,6 +940,8 @@
     "fit_overflows_title": "Çevrilen metin orijinal alandan {{seconds}}s daha uzundu. Ses sert bir şekilde kesilmişti; metni kısaltın veya Zamanlamayı \"Videoyu Uzat\" olarak değiştirin.",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Uzatılmış Video modu: Bu bölümün videosu, doğal dub sese uyacak şekilde {{ratio}}× değerine yavaşlatıldı.",
+    "fit_slowed": "yavaşlatıldı {{ratio}}×",
+    "fit_slowed_title": "Dublajlı replik zaman aralığından kısa kaldı — {{ratio}}× yavaşlatıldı (perde korundu), böylece konuşma boşluk bırakmak yerine orijinal konuşma süresini kaplıyor",
     "fit_compressed_title": "TTS sesi yuvanın %{{pct}}'si kadardır ve yoğun şekilde sıkıştırılmıştır.",
     "fit_audio_title": "Ses yuvanın içine sığar.",
     "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır.",

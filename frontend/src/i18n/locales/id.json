@@ -940,6 +940,8 @@
     "fit_overflows_title": "Teks yang diterjemahkan lebih panjang dari slot aslinya sebanyak {{seconds}}s. Audionya terpotong dengan keras; persingkat teks atau alihkan Timing ke \"Regangkan Video\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Mode Peregangan Video: video segmen ini diperlambat ke {{ratio}}× agar sesuai dengan audio sulih suara alami.",
+    "fit_slowed": "diperlambat {{ratio}}×",
+    "fit_slowed_title": "Baris sulih suara lebih pendek dari slotnya — diperlambat {{ratio}}× (nada dipertahankan) agar ucapan menutupi waktu bicara asli, bukan meninggalkan celah",
     "fit_compressed_title": "Audio TTS menempati {{pct}}% dari slot — sangat terkompresi.",
     "fit_audio_title": "Audio pas di dalam slot.",
     "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot.",

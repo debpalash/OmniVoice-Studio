@@ -1202,6 +1202,8 @@
     "fit_overflows_title": "Translated text was longer than the original slot by {{seconds}}s. The audio was hard-trimmed; shorten the text or switch Timing to \"Stretch Video\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Stretch Video mode: this segment's video was slowed to {{ratio}}× to fit the natural dub audio.",
+    "fit_slowed": "slowed {{ratio}}×",
+    "fit_slowed_title": "The dubbed line ran shorter than its slot — slowed {{ratio}}× (pitch preserved) so speech covers the original speaking time instead of leaving a hole",
     "fit_compressed_title": "TTS audio is {{pct}}% of the slot — heavily compressed.",
     "fit_audio_title": "Audio fit inside the slot.",
     "fit_ratio_title": "TTS audio is {{pct}}% of the slot.",

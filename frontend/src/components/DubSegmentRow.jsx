@@ -127,6 +127,16 @@ function DubSegmentRow({
         label: t('segment.fit_stretched', { ratio: r.toFixed(2) }),
         title: t('segment.fit_stretched_title', { ratio: r.toFixed(2) }),
       };
+    } else if (fitStatus.status === 'audio_slowed') {
+      // Underrun fill: the line ran shorter than its slot and was slowed
+      // (pitch-preserved) toward it so speech covers the on-screen mouth time.
+      const r = fitStatus.audio_rate || 1.0;
+      fitBadge = {
+        color: '#83a598',
+        Icon: Circle,
+        label: t('segment.fit_slowed', { ratio: r.toFixed(2) }),
+        title: t('segment.fit_slowed_title', { ratio: r.toFixed(2) }),
+      };
     }
   } else if (seg.sync_ratio !== undefined) {
     const r = seg.sync_ratio;

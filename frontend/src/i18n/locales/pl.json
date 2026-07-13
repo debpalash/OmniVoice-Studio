@@ -940,6 +940,8 @@
     "fit_overflows_title": "Przetłumaczony tekst był dłuższy niż oryginalny fragment o {{seconds}}s. Dźwięk został mocno przycięty; skróć tekst lub przełącz synchronizację na „Rozciągnij wideo”.",
     "fit_stretched": "Wideo {{ratio}}×",
     "fit_stretched_title": "Tryb rozciągania wideo: wideo tego segmentu zostało spowolnione do {{ratio}}×, aby dopasować je do naturalnego dźwięku dubowego.",
+    "fit_slowed": "spowolniono {{ratio}}×",
+    "fit_slowed_title": "Zdubbingowana kwestia była krótsza niż jej slot — spowolniona {{ratio}}× (z zachowaniem wysokości), by mowa pokryła oryginalny czas wypowiedzi zamiast zostawiać dziurę",
     "fit_compressed_title": "Dźwięk TTS stanowi {{pct}}% szczeliny — jest mocno skompresowany.",
     "fit_audio_title": "Dźwięk mieści się w gnieździe.",
     "fit_ratio_title": "Dźwięk TTS zajmuje {{pct}}% szczeliny.",

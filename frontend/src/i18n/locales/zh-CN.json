@@ -899,6 +899,8 @@
     "fit_overflows_title": "翻译后的文本比原始文本长 {{seconds}}s。音频经过严格修剪；缩短文本或将计时切换为“拉伸视频”。",
     "fit_stretched": "视频{{ratio}}×",
     "fit_stretched_title": "拉伸视频模式：该片段的视频速度减慢至 {{ratio}}× 以适应自然的配音音频。",
+    "fit_slowed": "放慢 {{ratio}}×",
+    "fit_slowed_title": "配音台词比原时段短 — 放慢 {{ratio}}×（保持音高），让语音覆盖原说话时间而不留空洞",
     "fit_compressed_title": "TTS 音频占插槽的 {{pct}}% — 被严重压缩。",
     "fit_audio_title": "音频适合插槽内。",
     "fit_ratio_title": "TTS 音频占插槽的 {{pct}}%。",

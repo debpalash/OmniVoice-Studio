@@ -940,6 +940,8 @@
     "fit_overflows_title": "Le texte traduit était plus long que l'emplacement d'origine de {{seconds}}s. L’audio était dur ; raccourcissez le texte ou réglez le timing sur « Étirer la vidéo ».",
     "fit_stretched": "Vidéo {{ratio}}×",
     "fit_stretched_title": "Mode vidéo extensible : la vidéo de ce segment a été ralentie à {{ratio}}× pour s'adapter à l'audio naturel du doublage.",
+    "fit_slowed": "ralenti {{ratio}}×",
+    "fit_slowed_title": "La réplique doublée était plus courte que son créneau — ralentie {{ratio}}× (hauteur préservée) pour couvrir le temps de parole d'origine au lieu de laisser un trou",
     "fit_compressed_title": "L'audio TTS représente {{pct}}% de l'emplacement — fortement compressé.",
     "fit_audio_title": "L'audio s'adapte à l'intérieur de la fente.",
     "fit_ratio_title": "L'audio TTS représente {{pct}}% de l'emplacement.",

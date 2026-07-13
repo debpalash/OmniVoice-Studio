@@ -940,6 +940,8 @@
     "fit_overflows_title": "Den översatta texten var längre än den ursprungliga platsen med {{seconds}}s. Ljudet var hårt trimmat; förkorta texten eller ändra Timing till \"Stretch Video\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Stretch Video-läge: detta segments video saktades ner till {{ratio}}× för att passa det naturliga dubbljudet.",
+    "fit_slowed": "saktad {{ratio}}×",
+    "fit_slowed_title": "Den dubbade repliken var kortare än sin lucka — saktad {{ratio}}× (tonhöjd bevarad) så talet täcker den ursprungliga taltiden i stället för att lämna ett hål",
     "fit_compressed_title": "TTS-ljud är {{pct}}% av kortplatsen — kraftigt komprimerat.",
     "fit_audio_title": "Ljudet passar in i öppningen.",
     "fit_ratio_title": "TTS-ljud är {{pct}}% av kortplatsen.",

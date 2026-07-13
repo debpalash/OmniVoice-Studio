@@ -45,6 +45,16 @@ from dataclasses import dataclass, field
 # garbled stream no DSP can rescue.
 MAX_AUDIO_RATE_HARD = 1.8
 
+# Underrun fill: a dubbed line that finishes well before its slot leaves a
+# hole — on screen the mouth keeps moving while the dub has gone quiet, and
+# what the listener hears in the hole is the thin under-speech residue of the
+# separated background (measured at ~37% of the original's energy), which
+# reads as dead air. Translations routinely run shorter than the source
+# delivery (measured live: 8.8s of holes across 18.7s of speech), so this is
+# the common case, not a corner. Slots filled to within this fraction are
+# left alone — a <5% hole is imperceptible and not worth an ffmpeg pass.
+UNDERRUN_TOLERANCE = 0.95
+
 _EPS = 1e-9
 
 
@@ -61,6 +71,10 @@ class FitParams:
     video_slow_cap: float = 2.0
     gap_guard_s: float = 0.05
     allow_video_retime: bool = True
+    # Underrun fill floor: a segment shorter than its slot is slowed toward it
+    # (pitch-preserving), never below this rate — 0.85× stays comfortably
+    # natural-sounding. 1.0 disables the fill entirely.
+    min_audio_rate: float = 0.85
 
 
 @dataclass
@@ -68,7 +82,7 @@ class SegmentFit:
     """Planner verdict for one segment."""
     index: int
     seg_id: str
-    audio_rate: float       # ≥ 1.0 — pitch-preserving speed-up applied to TTS audio
+    audio_rate: float       # pitch-preserving rate: >1 speeds up (fit), <1 slows down (fill)
     video_ratio: float      # ≥ 1.0 — setpts slow-down applied to the video chunk
     new_start: float        # placement on the fitted (possibly longer) timeline
     new_end: float          # end of the video chunk on the fitted timeline
@@ -97,6 +111,12 @@ class FitPlan:
 def _fit_one(need: float, params: FitParams) -> tuple[float, float, str]:
     """Resolve one segment's need ratio into (audio_rate, video_ratio, status)."""
     if need <= 1.0 + _EPS:
+        # Underrun fill: slow the audio toward the slot so the dub keeps
+        # speaking while the on-screen mouth does. Bounded by min_audio_rate;
+        # near-full slots (within UNDERRUN_TOLERANCE) and degenerate needs
+        # (empty audio) stay untouched.
+        if need > _EPS and need < UNDERRUN_TOLERANCE and params.min_audio_rate < 1.0 - _EPS:
+            return max(need, params.min_audio_rate), 1.0, "audio_slowed"
         return 1.0, 1.0, "fits"
     if need <= params.max_audio_only_rate + _EPS:
         return need, 1.0, "audio_stretched"

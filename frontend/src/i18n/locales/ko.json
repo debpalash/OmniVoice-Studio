@@ -940,6 +940,8 @@
     "fit_overflows_title": "번역된 텍스트가 원래 슬롯보다 {{seconds}}s 길었습니다. 오디오가 잘 다듬어졌습니다. 텍스트를 줄이거나 타이밍을 \"비디오 늘이기\"로 전환하세요.",
     "fit_stretched": "비디오 {{ratio}}×",
     "fit_stretched_title": "비디오 늘이기 모드: 자연스러운 더빙 오디오에 맞추기 위해 이 세그먼트의 비디오가 {{ratio}}× 속도로 느려졌습니다.",
+    "fit_slowed": "감속 {{ratio}}×",
+    "fit_slowed_title": "더빙된 대사가 슬롯보다 짧아 {{ratio}}× 감속(음높이 유지) — 공백 대신 원래 말하는 시간을 채웁니다",
     "fit_compressed_title": "TTS 오디오는 슬롯의 {{pct}}%입니다. — 심하게 압축되었습니다.",
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
     "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다.",

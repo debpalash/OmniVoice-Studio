@@ -940,6 +940,8 @@
     "fit_overflows_title": "Der übersetzte Text war um {{seconds}}s länger als der ursprüngliche Text. Der Ton war stark gekürzt; kürzen Sie den Text oder stellen Sie das Timing auf „Video dehnen“ um.",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Modus „Video dehnen“: Das Video dieses Segments wurde auf {{ratio}}× verlangsamt, um dem natürlichen Dub-Audio zu entsprechen.",
+    "fit_slowed": "verlangsamt {{ratio}}×",
+    "fit_slowed_title": "Die synchronisierte Zeile war kürzer als ihr Zeitfenster — {{ratio}}× verlangsamt (Tonhöhe erhalten), damit die Sprache die originale Sprechzeit abdeckt statt ein Loch zu lassen",
     "fit_compressed_title": "TTS-Audio macht {{pct}} % des Slots aus – stark komprimiert.",
     "fit_audio_title": "Audio passt in den Steckplatz.",
     "fit_ratio_title": "TTS-Audio macht {{pct}} % des Slots aus.",

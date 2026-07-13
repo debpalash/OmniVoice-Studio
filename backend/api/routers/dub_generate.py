@@ -26,7 +26,7 @@ from services.ffmpeg_utils import (
 )
 from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint, fit_fingerprint
-from services.fit_planner import FitParams, plan_fit
+from services.fit_planner import UNDERRUN_TOLERANCE, FitParams, plan_fit
 from services.watermark import embed_watermark
 from api.routers.dub_core import _get_job, _save_job
 from omnivoice.utils.voice_design import heal_design_instruct
@@ -41,6 +41,17 @@ logger = logging.getLogger("omnivoice.dub")
 # in services/speech_rate.py, gap absorption below) keeps us under this
 # in practice — this is only a guard rail.
 MAX_STRETCH_RATIO = 1.8
+
+
+def _underrun_min_rate() -> float:
+    """Floor for the underrun fill (audio slowed toward its slot, never below
+    this rate). Default 0.85 stays natural-sounding; OMNIVOICE_UNDERRUN_MIN_RATE=1.0
+    disables the fill. Clamped to atempo's per-stage sane range."""
+    try:
+        v = float(os.environ.get("OMNIVOICE_UNDERRUN_MIN_RATE", "0.85"))
+    except ValueError:
+        v = 0.85
+    return min(1.0, max(0.5, v))
 # How far a too-long segment is allowed to bleed into the silent gap
 # before the next segment. Buys headroom on languages with higher
 # information density (Bengali, Hindi, Arabic…) without the audio
@@ -884,6 +895,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                 video_slow_cap=float(getattr(_fo, "video_slow_cap", None) or _fit_defaults.video_slow_cap),
                 gap_guard_s=float(_fo.gap_guard_s) if _fo is not None and _fo.gap_guard_s is not None else _fit_defaults.gap_guard_s,
                 allow_video_retime=bool(_fo.allow_video_retime) if _fo is not None and _fo.allow_video_retime is not None else _fit_defaults.allow_video_retime,
+                min_audio_rate=_underrun_min_rate(),
             )
             _seg_order = job.get("seg_order") or []
             fit_plan = plan_fit(
@@ -958,7 +970,10 @@ async def dub_generate(job_id: str, req: DubRequest):
                     # chunk) is persisted below for the export pipeline.
                     sf = fit_plan.segments[i]
                     place_at = sf.new_start
-                    if sf.audio_rate > 1.0 + 1e-6 and wl > 0:
+                    # Both directions: >1 compresses an overrun, <1 slows an
+                    # underrun toward the slot (the "hole" fix — a dub that
+                    # finishes early leaves the mouth moving over near-silence).
+                    if abs(sf.audio_rate - 1.0) > 1e-6 and wl > 0:
                         target = max(1, int(round(wl / sf.audio_rate)))
                         try:
                             adjusted = await _pitch_preserving_stretch(
@@ -985,7 +1000,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                         wl = adjusted.shape[-1]
                     # Truthful per-segment verdict for the UI badge.
                     entry = {"status": sf.status}
-                    if sf.audio_rate > 1.0 + 1e-6:
+                    if abs(sf.audio_rate - 1.0) > 1e-6:
                         entry["audio_rate"] = round(sf.audio_rate, 3)
                     if sf.video_ratio > 1.0 + 1e-6:
                         entry["video_ratio"] = round(sf.video_ratio, 3)
@@ -1071,6 +1086,29 @@ async def dub_generate(job_id: str, req: DubRequest):
                                 ).squeeze(0)
                         else:  # "trim"
                             adjusted = adjusted[..., :slot_samples]
+                        wl = adjusted.shape[-1]
+                    elif (
+                        slot_fit == "time_stretch"
+                        and slot_samples > 0
+                        and wl > 0
+                        and wl < slot_samples * UNDERRUN_TOLERANCE
+                        and _underrun_min_rate() < 1.0 - 1e-6
+                    ):
+                        # Underrun fill (mirror of the compression above): the
+                        # dub finished early, leaving the on-screen mouth moving
+                        # over the thin under-speech bed residue — perceived as
+                        # dead air. Slow toward the slot, never below the floor.
+                        rate = max(wl / slot_samples, _underrun_min_rate())
+                        target = min(slot_samples, int(round(wl / rate)))
+                        try:
+                            adjusted = await _pitch_preserving_stretch(
+                                adjusted, target, sr,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "underrun fill failed for seg %d (%.2f×), "
+                                "keeping natural rate: %s", i, rate, e,
+                            )
                         wl = adjusted.shape[-1]
                     fit_status.append({
                         "status": "fits",

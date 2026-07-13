@@ -940,6 +940,8 @@
     "fit_overflows_title": "De vertaalde tekst was {{seconds}}s langer dan de oorspronkelijke tekst. De audio was hard getrimd; verkort de tekst of schakel Timing naar \"Video uitrekken\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Stretch Video-modus: de video van dit segment is vertraagd tot {{ratio}}× om te passen bij de natuurlijke dub-audio.",
+    "fit_slowed": "vertraagd {{ratio}}×",
+    "fit_slowed_title": "De nagesynchroniseerde zin was korter dan zijn slot — {{ratio}}× vertraagd (toonhoogte behouden) zodat de spraak de originele spreektijd dekt in plaats van een gat te laten",
     "fit_compressed_title": "TTS-audio is {{pct}}% van de sleuf – zwaar gecomprimeerd.",
     "fit_audio_title": "Audio past in de sleuf.",
     "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf.",

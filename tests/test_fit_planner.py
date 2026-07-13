@@ -44,13 +44,46 @@ def _single_seg_plan(natural: float, *, slot: float = 1.0, params: FitParams | N
 # ── Threshold boundaries ───────────────────────────────────────────────
 
 
-def test_need_below_one_fits():
+def test_need_below_one_is_slowed_toward_the_slot():
+    """Underrun fill: a line shorter than its slot is slowed (pitch-preserving)
+    so speech covers the on-screen mouth time instead of leaving a hole of
+    thin bed residue (measured live: 8.8s of holes across 18.7s of speech)."""
     p = _single_seg_plan(0.9)
+    sf = p.segments[0]
+    assert sf.status == "audio_slowed"
+    assert sf.audio_rate == pytest.approx(0.9)   # exactly fills the slot
+    assert sf.video_ratio == 1.0
+    assert sf.overflow_s == 0.0
+
+
+def test_underrun_fill_is_bounded_by_the_floor():
+    """A drastically short line only slows to min_audio_rate — 0.6× speech
+    would sound wrong; a smaller hole remains, honestly."""
+    p = _single_seg_plan(0.6)
+    sf = p.segments[0]
+    assert sf.status == "audio_slowed"
+    assert sf.audio_rate == pytest.approx(FitParams().min_audio_rate)
+
+
+def test_near_full_slots_are_left_alone():
+    """Within UNDERRUN_TOLERANCE the hole is imperceptible — no ffmpeg pass."""
+    p = _single_seg_plan(0.97)
     sf = p.segments[0]
     assert sf.status == "fits"
     assert sf.audio_rate == 1.0
-    assert sf.video_ratio == 1.0
-    assert sf.overflow_s == 0.0
+
+
+def test_underrun_fill_disabled_via_min_audio_rate():
+    p = _single_seg_plan(0.6, params=FitParams(min_audio_rate=1.0))
+    sf = p.segments[0]
+    assert sf.status == "fits"
+    assert sf.audio_rate == 1.0
+
+
+def test_empty_audio_is_not_slowed():
+    p = _single_seg_plan(0.0)
+    assert p.segments[0].status == "fits"
+    assert p.segments[0].audio_rate == 1.0
 
 
 def test_need_exactly_one_fits():
@@ -155,7 +188,8 @@ def test_last_segment_absorbs_tail_to_video_end():
     )
     sf = p.segments[0]
     assert sf.effective_end == pytest.approx(5.0)
-    assert sf.status == "fits"  # 4.5 / 5.0
+    assert sf.status == "audio_slowed"  # 4.5 / 5.0 → filled toward the slot
+    assert sf.audio_rate == pytest.approx(0.9)
     assert p.total_duration == pytest.approx(5.0)
 
 

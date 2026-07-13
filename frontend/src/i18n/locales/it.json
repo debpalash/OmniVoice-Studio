@@ -940,6 +940,8 @@
     "fit_overflows_title": "Il testo tradotto era più lungo dello spazio originale di {{seconds}}s. L'audio è stato ridotto al minimo; accorcia il testo o imposta il timing su \"Stretch Video\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Modalità Stretch Video: il video di questo segmento è stato rallentato a {{ratio}}× per adattarsi all'audio naturale del doppiaggio.",
+    "fit_slowed": "rallentato {{ratio}}×",
+    "fit_slowed_title": "La battuta doppiata era più corta del suo intervallo — rallentata {{ratio}}× (tonalità preservata) così il parlato copre il tempo originale invece di lasciare un vuoto",
     "fit_compressed_title": "L'audio TTS è il {{pct}}% dello slot: fortemente compresso.",
     "fit_audio_title": "L'audio si inserisce all'interno dello slot.",
     "fit_ratio_title": "L'audio TTS è il {{pct}}% dello slot.",

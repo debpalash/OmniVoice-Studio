@@ -940,6 +940,8 @@
     "fit_overflows_title": "Văn bản được dịch dài hơn vị trí ban đầu {{seconds}}s. Âm thanh đã được cắt bớt cứng; rút ngắn văn bản hoặc chuyển Thời gian thành \"Căng video\".",
     "fit_stretched": "Video {{ratio}}×",
     "fit_stretched_title": "Chế độ Kéo dài video: video của phân đoạn này được giảm tốc độ xuống {{ratio}}× để phù hợp với âm thanh lồng tiếng tự nhiên.",
+    "fit_slowed": "làm chậm {{ratio}}×",
+    "fit_slowed_title": "Câu lồng tiếng ngắn hơn khung thời gian — làm chậm {{ratio}}× (giữ cao độ) để lời nói phủ hết thời gian thoại gốc thay vì để khoảng trống",
     "fit_compressed_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe — bị nén rất nhiều.",
     "fit_audio_title": "Âm thanh vừa vặn bên trong khe cắm.",
     "fit_ratio_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe.",

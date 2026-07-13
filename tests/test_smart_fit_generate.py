@@ -269,8 +269,10 @@ def test_zero_and_negative_duration_segments_dont_crash(patched_generate):
 
 def test_smart_fit_audio_only_stretch_keeps_original_duration(patched_generate):
     run, model, job, job_dir = patched_generate
-    # seg0 [0,1] natural 0.5s → fits.  seg1 [2,3] is last → slot extends to
-    # 4.0s (2.0s); natural 2.2s → need 1.1 → audio-only 1.1×, no video.
+    # seg0 [0,1] natural 0.5s → far short of its slack-extended ~1.95s slot →
+    # underrun fill slows it at the 0.85× floor (it still ends inside the
+    # slot).  seg1 [2,3] is last → slot extends to 4.0s (2.0s); natural 2.2s
+    # → need 1.1 → audio-only 1.1×, no video.
     segs = [
         {"start": 0.0, "end": 1.0, "text": "0.5:hola"},
         {"start": 2.0, "end": 3.0, "text": "2.2:buenos dias"},
@@ -279,7 +281,8 @@ def test_smart_fit_audio_only_stretch_keeps_original_duration(patched_generate):
 
     assert done["timing_strategy"] == "smart_fit"
     fs = done["fit_status"]
-    assert fs[0] == {"status": "fits"}
+    assert fs[0]["status"] == "audio_slowed"
+    assert fs[0]["audio_rate"] == pytest.approx(0.85, abs=1e-3)
     assert fs[1]["status"] == "audio_stretched"
     assert fs[1]["audio_rate"] == pytest.approx(1.1, abs=1e-3)
     assert "video_ratio" not in fs[1]

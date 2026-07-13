@@ -28,7 +28,7 @@
       "video_ratio": 1.17444
     },
     {
-      "audio_rate": 1.0,
+      "audio_rate": 0.85,
       "effective_end": 5.0,
       "index": 2,
       "new_end": 5.2529,
@@ -37,7 +37,7 @@
       "orig_start": 3.0,
       "overflow_s": 0.0,
       "seg_id": "g2",
-      "status": "fits",
+      "status": "audio_slowed",
       "video_ratio": 1.0
     }
   ],

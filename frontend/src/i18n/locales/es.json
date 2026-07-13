@@ -940,6 +940,8 @@
     "fit_overflows_title": "El texto traducido era más largo que el espacio original en {{seconds}}s. El audio estaba muy recortado; acorte el texto o cambie el tiempo a \"Estirar vídeo\".",
     "fit_stretched": "Vídeo {{ratio}}×",
     "fit_stretched_title": "Modo Stretch Video: el video de este segmento se ralentizó a {{ratio}}× para adaptarse al audio doblado natural.",
+    "fit_slowed": "ralentizado {{ratio}}×",
+    "fit_slowed_title": "La línea doblada duró menos que su intervalo — se ralentizó {{ratio}}× (tono preservado) para que el habla cubra el tiempo original en vez de dejar un hueco",
     "fit_compressed_title": "El audio TTS es el {{pct}}% de la ranura: muy comprimido.",
     "fit_audio_title": "El audio encaja dentro de la ranura.",
     "fit_ratio_title": "El audio TTS es el {{pct}}% de la ranura.",
