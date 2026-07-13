@@ -1,5 +1,5 @@
-# OmniVoice backend API route snapshot — regenerate with scripts/dump_api_routes.py
 # Guards against accidental endpoint removal/rename (tests/test_api_route_inventory.py).
+# OmniVoice backend API route snapshot — regenerate with scripts/dump_api_routes.py
 DELETE /api/mcp/bindings/{client_id}
 DELETE /api/settings/hf-token
 DELETE /batch/jobs/{job_id}
@@ -64,6 +64,7 @@ GET /dub/media/{job_id}
 GET /dub/onsets/{job_id}
 GET /dub/preview-video/{job_id}
 GET /dub/preview/{job_id}/{segment_index}
+GET /dub/segments-text/{job_id}
 GET /dub/srt/{job_id}
 GET /dub/srt/{job_id}/{filename}
 GET /dub/thumb/{job_id}
