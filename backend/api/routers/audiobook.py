@@ -244,6 +244,34 @@ def _resolve_default_language(language: str | None, default_voice: str | None) -
     return None
 
 
+#: Longform renders run at the model's documented quality preset (#1139).
+#: This used to be an accident of omission — the synth wrappers below passed
+#: no num_step/guidance_scale, silently inheriting OmniVoiceGenerationConfig's
+#: defaults (32 / 2.0) while interactive /generate defaults to num_step=16 —
+#: and users correctly heard audiobooks as more stable than the Voice page.
+#: Named constants make the divergence a documented decision (a book is a
+#: cached batch job: quality beats latency) and pin book quality against any
+#: upstream config-default drift.
+LONGFORM_NUM_STEP = 32
+LONGFORM_GUIDANCE_SCALE = 2.0
+
+
+def _seed_segment_rng(base_seed, text: str) -> None:
+    """Apply a profile's pinned seed to this synth call (#1139).
+
+    ``_resolve_voice`` has always fetched the profile ``seed`` — but only the
+    cache signature ever used it; generation itself ran unseeded, so a locked
+    take's pinned seed silently did nothing here while /generate honored it.
+    No pinned seed → no-op (fresh-render variety unchanged).
+    """
+    if base_seed is None:
+        return
+    import torch
+
+    from services.audiobook import segment_seed
+    torch.manual_seed(segment_seed(base_seed, text))
+
+
 def _build_synth(default_voice: str | None, language: str | None = None) -> dict:
     """Describe how to synthesize for the active TTS engine.
 
@@ -279,6 +307,7 @@ def _build_synth(default_voice: str | None, language: str | None = None) -> dict
 
     def synth(text, voice_id, speed=None):
         v = resolve(voice_id)
+        _seed_segment_rng(v.get("seed"), text)
         return backend.generate(
             text, language=language, ref_audio=v["ref_audio"],
             ref_text=v["ref_text"], instruct=v["instruct"], duration=None,
@@ -304,12 +333,15 @@ async def _prepare_synth(default_voice: str | None, language: str | None = None)
 
         def synth(text, voice_id, speed=None):
             v = resolve(voice_id)
+            _seed_segment_rng(v.get("seed"), text)
             # A book is the worst case for the re-encode this avoids: hundreds of
             # segments, one voice. The reference is encoded on the first segment
             # and reused for every one after it.
             return generate_with_cached_ref(
                 model, ref_audio=v["ref_audio"], ref_text=v["ref_text"],
                 text=text, language=lang, instruct=v["instruct"], duration=None,
+                num_step=LONGFORM_NUM_STEP,
+                guidance_scale=LONGFORM_GUIDANCE_SCALE,
                 speed=float(speed) if speed else 1.0,
             )[0]
         return synth, sr, resolve, engine_id

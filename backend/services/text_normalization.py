@@ -106,6 +106,9 @@ _FULL_NAME_TO_CODE = {
     "hebrew": "he",
     "persian": "fa",
     "azerbaijani": "az",
+    # "vietnamese" → "vi" kept for documentation, but vi is deliberately
+    # absent from _NUM2WORDS_LANGS (see the note there): the membership gate
+    # in _num2words_lang makes this entry inert, so Vietnamese keeps digits.
     "vietnamese": "vi",
     "kazakh": "kz",
     "standard arabic": "ar",
@@ -117,10 +120,15 @@ _ISO_ALIASES = {"kk": "kz"}
 # Locales verified against the pinned num2words (cardinal + basic rendering).
 # zh/ja/ko/th are deliberately absent: unsegmented scripts where injecting
 # space-delimited words is wrong, and their engines read digits natively.
+# vi is absent too (#1139): num2words' Vietnamese cardinals misuse "lẻ" for
+# 2001-2099 ("hai nghìn lẻ hai mươi bốn" for 2024 — "lẻ" is only valid before
+# a lone units digit) and there is no to="year" form, so years read wrong;
+# the engine pronounces Vietnamese digits natively, so digits pass through —
+# the same conservative rule that already excludes vi from _DECIMAL_LANGS.
 _NUM2WORDS_LANGS = frozenset({
     "en", "de", "es", "fr", "it", "pt", "nl", "ru", "uk", "pl", "tr", "cs",
     "da", "fi", "sv", "no", "ro", "hu", "id", "lt", "lv", "sl", "sr", "ar",
-    "he", "fa", "az", "vi", "kz",
+    "he", "fa", "az", "kz",
 })
 
 # Locales whose num2words decimal rendering was vetted ("drei Komma fünf",
@@ -147,7 +155,13 @@ _ISO_CODE_RE = re.compile(r"^([a-z]{2,3})(?:[-_]|$)")
 
 def _num2words_lang(language: Optional[str]) -> Optional[str]:
     """Resolve a request language (display name or ISO-ish code) to a
-    num2words locale, or ``None`` when digits should be left alone."""
+    num2words locale, or ``None`` when digits should be left alone.
+
+    Both lookup paths gate on ``_NUM2WORDS_LANGS`` — the vetted set is the
+    single authority. Display names used to bypass it (#1139: "Vietnamese"
+    reached num2words while "vi" wouldn't have), so an unvetted locale could
+    mangle numbers depending on how the caller spelled the language.
+    """
     if not language:
         return None
     s = str(language).strip().lower()
@@ -155,7 +169,7 @@ def _num2words_lang(language: Optional[str]) -> Optional[str]:
         return None
     code = _FULL_NAME_TO_CODE.get(s)
     if code:
-        return code
+        return code if code in _NUM2WORDS_LANGS else None
     m = _ISO_CODE_RE.match(s)
     if m:
         c = _ISO_ALIASES.get(m.group(1), m.group(1))
@@ -436,7 +450,7 @@ def _numbers_to_words(text: str, lang: str) -> str:
         if len(raw) == 4 and 1500 <= n <= 2099:
             # Bare 4-digit numbers in this range read as years
             # ("nineteen eighty-four"); fall back to cardinal where the
-            # locale has no year form (sv, vi).
+            # locale has no year form (sv).
             try:
                 return num2words(n, lang=lang, to="year")
             except Exception:  # noqa: BLE001

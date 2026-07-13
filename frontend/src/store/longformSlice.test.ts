@@ -86,6 +86,17 @@ describe('longformSlice — long-form fields', () => {
     expect(get().projectMode).toBe('stories');
   });
 
+  it('lastOutput survives as store state and clears on newProject (#1139)', () => {
+    // The finished render's filename used to be AudiobookTab useState — the
+    // Download affordance evaporated on the first tab switch.
+    const { get } = harness();
+    expect(get().lastOutput).toBe('');
+    get().setLastOutput('audiobook_abc123.m4b');
+    expect(get().lastOutput).toBe('audiobook_abc123.m4b');
+    get().newProject('audiobook');
+    expect(get().lastOutput).toBe(''); // a new book doesn't show the old file
+  });
+
   it('setProjectMeta MERGES; setLexicon REPLACES; setOutputPrefs merges', () => {
     const { get } = harness();
     get().setProjectMeta({ title: 'The Crown' });

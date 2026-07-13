@@ -90,6 +90,12 @@ export interface LongformSlice {
   outputFormat: 'm4b' | 'mp3';
   loudness: 'off' | 'acx' | 'podcast';
   defaultVoice: string | null;
+  // Last finished render's server filename (#1139): the Audiobook tab's
+  // player + Download link used to live in component useState, so a finished
+  // book's export affordance evaporated on the first tab switch and users
+  // reported "no way to download". A server filename (never a blob: URL) is
+  // safe to persist and rehydrate.
+  lastOutput: string;
   // NB: named `projectMode` (not `mode`) to avoid colliding with the app-level
   // navigation `mode` (uiSlice, AppMode). The stored LongformProject.mode is a
   // nested record field and keeps its name.
@@ -110,6 +116,7 @@ export interface LongformSlice {
     defaultVoice?: string | null;
   }) => void; // merge (I2)
   setCoverRef: (ref: CoverRef | null) => void;
+  setLastOutput: (output: string) => void;
   convertMode: (mode: LongformMode) => void; // flips mode only (#24 seam)
   // Project lifecycle:
   saveProject: (name: string) => void;
@@ -133,6 +140,7 @@ export const SLICE_DEFAULTS = {
   outputFormat: 'm4b' as 'm4b' | 'mp3',
   loudness: 'off' as 'off' | 'acx' | 'podcast',
   defaultVoice: null as string | null,
+  lastOutput: '' as string,
   projectMode: 'stories' as LongformMode,
 } as const;
 
@@ -189,6 +197,7 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
       defaultVoice: patch.defaultVoice !== undefined ? patch.defaultVoice : s.defaultVoice,
     })),
   setCoverRef: (coverRef) => set({ coverRef: coverRef ? { ...coverRef } : null }),
+  setLastOutput: (lastOutput) => set({ lastOutput }),
   convertMode: (mode) => {
     if (mode !== 'stories' && mode !== 'audiobook') return; // G3
     if (get().projectMode === mode) return; // G2 idempotent

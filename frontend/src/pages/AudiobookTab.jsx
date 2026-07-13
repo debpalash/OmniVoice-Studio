@@ -54,7 +54,11 @@ export default function AudiobookTab({ profiles = [] }) {
   const [planLoading, setPlanLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(null); // {current,total,title,assembling}
-  const [output, setOutput] = useState('');
+  // Store-backed (#1139): the finished render's filename used to be component
+  // useState, so the player + Download link vanished on the first tab switch —
+  // users reported "no way to export". It now survives tab switches/reloads.
+  const output = useAppStore((s) => s.lastOutput);
+  const setOutput = useAppStore((s) => s.setLastOutput);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null); // {cached_chapters, failed_chapters}
   const [chapterPrev, setChapterPrev] = useState({}); // index → {url, loading}

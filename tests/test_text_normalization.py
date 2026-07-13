@@ -105,6 +105,14 @@ _UNCHANGED_CASES = [
     ("Thai", "42 cats"),
     ("Chinese", "42 cats"),
     ("Korean", "42 cats"),
+    # Vietnamese keeps every digit (#1139): num2words' vi cardinals misuse
+    # "lẻ" for 2001-2099 and vi has no year form, so years read wrong — the
+    # engine pronounces Vietnamese digits natively. Display name AND ISO code
+    # must behave identically (the name used to bypass the vetted-locale gate).
+    ("Vietnamese", "Sinh năm 1995, gặp lại năm 2024"),
+    ("Vietnamese", "Các năm 2008, 2010 và 2025"),
+    ("vi", "Sinh năm 1995, gặp lại năm 2024"),
+    ("vi-VN", "42 con mèo"),
     (None, "42 cats"),                          # no language pin → no digits pass
     ("Auto", "42 cats"),
     # Bracket grammar is never rewritten
@@ -119,6 +127,26 @@ _UNCHANGED_CASES = [
 @pytest.mark.parametrize("language,raw", _UNCHANGED_CASES)
 def test_leaves_unchanged(language, raw):
     assert normalize_text(raw, language) == raw
+
+
+def test_full_name_lookup_gated_by_vetted_set():
+    """#1139 recurrence guard: the display-name path must never bypass
+    _NUM2WORDS_LANGS. "Vietnamese" used to resolve straight to "vi" (numbers
+    mangled) while "vi" itself would have been rejected — the two spellings of
+    one language behaved differently. Every resolvable display name must land
+    inside the vetted set, or resolve to None."""
+    from services.text_normalization import (
+        _FULL_NAME_TO_CODE,
+        _NUM2WORDS_LANGS,
+        _num2words_lang,
+    )
+    for name in _FULL_NAME_TO_CODE:
+        code = _num2words_lang(name)
+        assert code is None or code in _NUM2WORDS_LANGS, name
+    # And the reported case specifically: both spellings resolve to "leave
+    # digits alone".
+    assert _num2words_lang("Vietnamese") is None
+    assert _num2words_lang("vi") is None
 
 
 def test_cjk_passthrough_untouched():
