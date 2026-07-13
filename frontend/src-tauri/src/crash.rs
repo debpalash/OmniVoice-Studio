@@ -19,9 +19,12 @@
 //! destroy the evidence a subsequent bug report needs.
 //!
 //! Markers are **version-gated**: each records the app version that wrote it,
-//! and markers from a different release than the running build are ignored
-//! and pruned on read — an unacknowledged "backend crashed" notice must not
-//! resurface after the upgrade that may well have fixed the crash.
+//! and markers from a different release than the running build are ignored on
+//! read — an unacknowledged "backend crashed" notice must not resurface after
+//! the upgrade that may well have fixed the crash. Stale markers are pruned
+//! from disk by the WRITE paths only ([`record_crash`], the ack command):
+//! the read path must never write, because it is polled concurrently with
+//! the death watchers (see [`get_last_backend_crash`]).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -146,8 +149,9 @@ fn same_release(marker_version: &str, current_version: &str) -> bool {
 /// after an upgrade they describe a build the user no longer runs (quite
 /// possibly the build whose crash the upgrade fixed), so neither the crash
 /// notice nor the bug-report prefill should surface them. Returns whether
-/// anything was dropped so callers can persist the prune. Pure, like
-/// [`push_marker`], so the policy is unit-tested without the filesystem.
+/// anything was dropped. Pure, like [`push_marker`], so the policy is
+/// unit-tested without the filesystem. Only WRITE paths may persist the
+/// pruned store — see [`read_notice_from`] for why the read path must not.
 pub fn prune_stale_versions(store: &mut CrashStore, current_version: &str) -> bool {
     let before = store.markers.len();
     store.markers.retain(|m| same_release(&m.backend_version, current_version));
@@ -232,19 +236,33 @@ pub struct CrashNotice {
     pub acknowledged: bool,
 }
 
+/// Read half of [`get_last_backend_crash`], parameterized over path/version
+/// so the read-only contract is unit-testable.
+///
+/// STRICTLY READ-ONLY — stale-version markers are filtered in memory, never
+/// pruned to disk here. The frontend polls this command every second for 8 s
+/// after a stream drops (#1119's `streamDropError`) — i.e. exactly while the
+/// death watcher may be inside `record_crash`'s load→push→save. A
+/// load→prune→save here could interleave with that write and clobber the
+/// fresh marker with our older snapshot, destroying the only evidence of the
+/// crash (Greptile P1 on #1145). Disk cleanup of stale markers happens on
+/// the write paths instead ([`record_crash`], `acknowledge_backend_crash`),
+/// where a crash-vs-ack collision was already the pre-existing (rare,
+/// user-paced) exposure.
+pub fn read_notice_from(path: &Path, current_version: &str) -> Option<CrashNotice> {
+    let mut store = load_store_from(path);
+    prune_stale_versions(&mut store, current_version);
+    newest_with_ack(&store).map(|(marker, acknowledged)| CrashNotice { marker, acknowledged })
+}
+
 /// Newest backend crash marker, or null when the backend has never crashed.
 /// `acknowledged` tells the UI whether the user already viewed/dismissed it.
-/// Markers from a different release than this build are ignored — and pruned
-/// from disk — so one stale unacknowledged crash can't resurface after an
-/// upgrade (recurrence audit follow-up to #941).
+/// Markers from a different release than this build are ignored, so one
+/// stale unacknowledged crash can't resurface after an upgrade (recurrence
+/// audit follow-up to #941).
 #[tauri::command]
 pub fn get_last_backend_crash() -> Option<CrashNotice> {
-    let path = markers_path();
-    let mut store = load_store_from(&path);
-    if prune_stale_versions(&mut store, env!("CARGO_PKG_VERSION")) {
-        save_store_to(&path, &store);
-    }
-    newest_with_ack(&store).map(|(marker, acknowledged)| CrashNotice { marker, acknowledged })
+    read_notice_from(&markers_path(), env!("CARGO_PKG_VERSION"))
 }
 
 /// Mark the newest crash as seen. Deliberately does NOT delete the marker —
@@ -399,6 +417,38 @@ mod tests {
         assert_eq!(store.markers[0].backend_version, "", "serde default fills the gap");
         assert!(prune_stale_versions(&mut store, "0.3.22"));
         assert!(newest_with_ack(&store).is_none(), "legacy marker never surfaces");
+    }
+
+    #[test]
+    fn the_read_path_filters_stale_markers_without_touching_the_file() {
+        // Greptile P1 on #1145: the frontend polls get_last_backend_crash
+        // every second while the death watcher may be mid-record_crash. If
+        // the read path persisted its prune, that save could interleave with
+        // the watcher's and clobber the brand-new marker with an older
+        // snapshot. Contract: reading filters in memory and NEVER writes.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_crash_markers.json");
+        let mut store = CrashStore::default();
+        push_marker(&mut store, marker(100)); // "0.0.0-test" — a stale release
+        save_store_to(&path, &store);
+        let before = fs::read(&path).unwrap();
+
+        // Stale marker is invisible to the notice…
+        assert!(read_notice_from(&path, "9.9.9").is_none());
+        // …but the file is byte-identical: the read left the store alone, so
+        // a marker recorded concurrently could not have been overwritten.
+        assert_eq!(fs::read(&path).unwrap(), before, "read path must not write");
+
+        // And a current-release marker still surfaces over the stale one.
+        let mut current = marker(200);
+        current.backend_version = "9.9.9".into();
+        push_marker(&mut store, current);
+        save_store_to(&path, &store);
+        let before = fs::read(&path).unwrap();
+        let notice = read_notice_from(&path, "9.9.9").expect("current marker surfaces");
+        assert_eq!(notice.marker.ts, 200);
+        assert!(!notice.acknowledged);
+        assert_eq!(fs::read(&path).unwrap(), before, "read path must not write");
     }
 
     #[test]
