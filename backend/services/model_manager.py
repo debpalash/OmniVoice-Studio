@@ -222,6 +222,32 @@ class GpuJobTimeoutError(TimeoutError):
     """
 
 
+def _contain_system_exit(fn, what: str):
+    """Wrap a pool job so library code calling ``sys.exit()`` cannot kill the app.
+
+    Real case (#1133): mlx-audio's Kokoro pipeline uses misaki's G2P, which
+    runs ``spacy.cli.download()`` IN-PROCESS on first use; spaCy's CLI error
+    printer responds to a missing pip (uv-managed venvs ship none) with
+    ``sys.exit(1)``. ``except Exception`` never catches SystemExit, so it rode
+    the executor future into the event loop — where uvicorn treats SystemExit
+    as "shut down", killing the whole backend 21 s after start. Any engine
+    dependency written as a CLI can do this; containing it here covers every
+    load and generate that dispatches through the pool.
+    """
+    def wrapped():
+        try:
+            return fn()
+        except SystemExit as e:  # noqa: PERF203 — the whole point
+            raise RuntimeError(
+                f"{what}: engine code tried to exit the process "
+                f"(SystemExit {e.code}) — contained. This usually means an "
+                f"engine dependency failed to auto-install something (e.g. a "
+                f"spaCy model needing pip); see the backend log above this "
+                f"line for the real error."
+            ) from e
+    return wrapped
+
+
 async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
                                   timeout: float = GPU_JOB_TIMEOUT_S,
                                   executor=None):
@@ -236,7 +262,7 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
     """
     loop = asyncio.get_running_loop()
     ex = executor if executor is not None else _get_gpu_pool()
-    fut = loop.run_in_executor(ex, fn)
+    fut = loop.run_in_executor(ex, _contain_system_exit(fn, what))
     try:
         return await asyncio.wait_for(fut, timeout=timeout)
     except asyncio.TimeoutError:

@@ -208,3 +208,43 @@ def test_user_env_drops_read_only_path(tmp_path, monkeypatch):
         )
     finally:
         ro.chmod(0o700)
+
+
+# ── #1133: a library's sys.exit() must not kill the backend ──────────────────
+
+
+def test_pool_contains_system_exit(monkeypatch):
+    """mlx-audio → misaki → spacy.cli.download() calls sys.exit(1) in-process
+    when pip is missing (uv venvs ship none); SystemExit is not an Exception,
+    so it rode the executor future into the event loop and uvicorn shut the
+    whole backend down. The pool boundary must convert it to a normal error."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    from services.model_manager import run_on_gpu_pool_guarded
+
+    def _engine_code_that_exits():
+        raise SystemExit(1)
+
+    ex = ThreadPoolExecutor(max_workers=1)
+    with pytest.raises(RuntimeError, match="SystemExit 1"):
+        asyncio.run(run_on_gpu_pool_guarded(
+            _engine_code_that_exits, what="TTS generate", executor=ex,
+        ))
+    # And the pool is still usable — the process (and executor) survived.
+    assert asyncio.run(run_on_gpu_pool_guarded(
+        lambda: "alive", what="probe", executor=ex,
+    )) == "alive"
+
+
+def test_transcribe_guard_contains_system_exit():
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    from services.asr_backend import run_transcribe_guarded
+
+    ex = ThreadPoolExecutor(max_workers=1)
+
+    def _asr_code_that_exits():
+        raise SystemExit(2)
+
+    with pytest.raises(RuntimeError, match="SystemExit 2"):
+        asyncio.run(run_transcribe_guarded(ex, _asr_code_that_exits, what="ASR"))
