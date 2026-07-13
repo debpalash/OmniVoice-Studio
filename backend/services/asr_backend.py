@@ -30,6 +30,8 @@ import re
 import contextlib
 import threading
 import time
+from utils.containment import contain_system_exit
+
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Optional
@@ -165,8 +167,7 @@ async def run_transcribe_guarded(executor, fn, *, what: str = "ASR",
     loop = asyncio.get_running_loop()
     # Same SystemExit containment as the TTS pool (#1133 class): an ASR
     # dependency written as a CLI must not be able to shut the backend down.
-    from services.model_manager import _contain_system_exit
-    fut = loop.run_in_executor(executor, _contain_system_exit(fn, what))
+    fut = loop.run_in_executor(executor, contain_system_exit(fn, what))
     try:
         result = await asyncio.wait_for(fut, timeout=timeout)
     except asyncio.TimeoutError:
