@@ -448,13 +448,17 @@ export default function EngineCompatibilityMatrix({
       let inflight = installInflightRef.current.get(id);
       while (inflight) {
         if (!force) return null;
+        let waitTimer;
         const timedOut = await Promise.race([
           inflight.promise.then(
             () => false,
             () => false, // the in-flight caller counted its own failure
           ),
-          new Promise((resolve) => setTimeout(() => resolve(true), FORCE_WAIT_TIMEOUT_MS)),
+          new Promise((resolve) => {
+            waitTimer = setTimeout(() => resolve(true), FORCE_WAIT_TIMEOUT_MS);
+          }),
         ]);
+        clearTimeout(waitTimer); // don't leak the losing leg's 5s timer
         if (timedOut) break;
         inflight = installInflightRef.current.get(id);
       }
