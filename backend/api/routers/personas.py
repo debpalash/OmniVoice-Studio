@@ -16,6 +16,8 @@ import asyncio
 import functools
 import logging
 import os
+
+from utils.fsops import safe_replace
 import time
 import uuid
 
@@ -276,7 +278,7 @@ def _rename_for_new_id(written: list[str], new_id: str) -> list[str]:
         new_base = new_id + base[8:]
         new_path = os.path.join(d, new_base)
         try:
-            os.replace(p, new_path)
+            safe_replace(p, new_path)
             out.append(new_path)
         except OSError:
             out.append(p)

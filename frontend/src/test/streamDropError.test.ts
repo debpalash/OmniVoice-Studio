@@ -112,3 +112,17 @@ describe('streamDropError — waits for the shell to notice the death (#1119)', 
     expect(calls).toBe(1); // asked once, then stopped — no 8 s wait
   });
 });
+
+describe('crashCauseHint', () => {
+  it('attributes SIGKILL to system memory, not VRAM', async () => {
+    const { crashCauseHint } = await import('../utils/backendCrash');
+    const hint = crashCauseHint({ exit_code: null, signal: 9 });
+    expect(hint).toMatch(/memory \(RAM\)/);
+    expect(hint).not.toMatch(/VRAM/);
+  });
+
+  it('keeps the VRAM guidance for real GPU aborts', async () => {
+    const { crashCauseHint } = await import('../utils/backendCrash');
+    expect(crashCauseHint({ exit_code: 1, signal: null })).toMatch(/VRAM/);
+  });
+});

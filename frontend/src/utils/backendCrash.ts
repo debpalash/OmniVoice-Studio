@@ -72,6 +72,29 @@ export function describeCrashExit(
   return marker.exit_desc || 'unknown exit';
 }
 
+/**
+ * Likely-cause line for the crash message, branched on HOW the process died.
+ *
+ * SIGKILL (signal 9) with no stderr is the operating system's memory killer —
+ * on a unified-memory Mac that means system RAM, and the old one-size message
+ * blamed "VRAM" on machines that have none (audit finding: OS-OOM kills were
+ * misattributed). Everything else keeps the small-GPU VRAM guidance, which is
+ * the dominant cause for real GPU aborts.
+ */
+export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'>): string {
+  if (marker.signal === 9) {
+    return (
+      'It was force-killed (signal 9), which usually means the operating system ran out of ' +
+      'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
+      'Settings → Models, or flush the TTS model before transcribing.'
+    );
+  }
+  return (
+    'On smaller GPUs the usual cause is running out of VRAM while loading the ASR model on top ' +
+    'of the TTS model: flush the TTS model first, or pick a smaller ASR model in Settings → Models.'
+  );
+}
+
 /** Coarse "12 s" / "3 min" / "2 h" age of a marker, for the honest message. */
 export function crashAge(marker: Pick<BackendCrashMarker, 'ts'>, nowMs = Date.now()): string {
   const s = Math.max(0, Math.round(nowMs / 1000 - marker.ts));
@@ -140,8 +163,6 @@ export async function streamDropError(
   return new Error(
     `The local OmniVoice backend crashed (${describeCrashExit(crash)}) ${crashAge(crash)} ago, ` +
       'which dropped this stream — it is being restarted automatically. Open the crash notice for ' +
-      'the error output. On smaller GPUs the usual cause is running out of VRAM while loading the ' +
-      'ASR model on top of the TTS model: flush the TTS model first, or pick a smaller ASR model ' +
-      'in Settings → Models.',
+      `the error output. ${crashCauseHint(crash)}`,
   );
 }

@@ -222,7 +222,8 @@ class _WindowsSafeRotatingFileHandler(RotatingFileHandler):
                 dfn = self.rotation_filename("%s.%d" % (self.baseFilename, i + 1))
                 if os.path.exists(sfn):
                     try:
-                        os.replace(sfn, dfn)
+                        from utils.fsops import safe_replace
+                        safe_replace(sfn, dfn)
                     except OSError as e:
                         _log.warning("log rotation rename failed: %s", e)
             dfn = self.rotation_filename(self.baseFilename + ".1")

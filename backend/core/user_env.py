@@ -106,4 +106,37 @@ def load_into_environ(path: Optional[str] = None) -> bool:
     except ImportError:
         return False
     dotenv.load_dotenv(path, override=True)
+    _drop_invalid_path_keys()
     return True
+
+
+#: Path-valued keys this file can persist. A reinstall that skipped uninstall
+#: inherits the old file unconditionally — including e.g. an OMNIVOICE_CACHE_DIR
+#: pointing at an unplugged drive or a deleted folder. Exporting a dead path
+#: sends every model download/lookup somewhere that cannot exist and the app
+#: looks broken out of the box (the audit's "reinstall inherits stale durable
+#: state" gap). Validate after load: a directory that exists or can be created
+#: is honored; anything else is dropped for THIS run with a loud log line (the
+#: file itself is left alone — plugging the drive back in restores the setting).
+_PATH_KEYS = ("OMNIVOICE_CACHE_DIR", "OMNIVOICE_DATA_DIR")
+
+
+def _drop_invalid_path_keys() -> None:
+    import logging
+    logger = logging.getLogger("omnivoice.user_env")
+    for key in _PATH_KEYS:
+        val = os.environ.get(key)
+        if not val:
+            continue
+        try:
+            os.makedirs(val, exist_ok=True)
+            usable = os.path.isdir(val)
+        except OSError:
+            usable = False
+        if not usable:
+            logger.warning(
+                "%s from the saved env file points at an unusable path (%s) — "
+                "ignoring it for this run and falling back to the default "
+                "location. Fix or clear it in Settings → Models.", key, val,
+            )
+            os.environ.pop(key, None)

@@ -9,6 +9,7 @@ import { modelStatus as apiModelStatus } from '../api/system';
 import { useModelStatus } from '../api/hooks';
 import useRealtimeEvents from './useRealtimeEvents';
 import { mergeDescribedAttrs } from '../utils/voiceInstruct';
+import { sanitizeOmniUi } from '../utils/omniUiSchema';
 
 /**
  * Encapsulates all data-loading effects, localStorage persistence,
@@ -179,7 +180,11 @@ export default function useAppData() {
     loadAll();
     // Restore local UI state
     try {
-      const saved = JSON.parse(localStorage.getItem('omni_ui') || '{}');
+      // Whitelist + shape-check every persisted field (audit: the #1067 class
+      // was healed per-field; this closes it generically — malformed values
+      // are dropped up front instead of throwing mid-restore and silently
+      // discarding every field after the bad one).
+      const saved = sanitizeOmniUi(JSON.parse(localStorage.getItem('omni_ui') || '{}'));
       if (saved.uiScale) setUiScale(saved.uiScale);
       if (saved.text) setText(saved.text);
       // Legacy shim (voice-studio-unification P4): the old 'clone'/'design'

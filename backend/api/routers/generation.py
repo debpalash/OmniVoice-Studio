@@ -439,6 +439,22 @@ def _oom_friendly_reraise(e):
     ) from e
 
 
+def _generate_timeout_s(text: str) -> float:
+    """Wall-clock budget for one generate, scaled to the request.
+
+    The fixed OMNIVOICE_GENERATE_TIMEOUT_S (300s) was sized for typical
+    requests on a GPU — a legitimately long text on a slow CPU box times out
+    with the exact user-facing 503 the audit flagged as a recurring class
+    (#1033/#1037 wave), and the remedy was "go set an env var". Scale the
+    budget with input size instead: the floor stays the configured value, and
+    long inputs get 1 extra second per 40 characters — generous enough for
+    CPU-class hardware, still bounded (a wedged job is caught in minutes, not
+    hours). An explicit OMNIVOICE_GENERATE_TIMEOUT_S remains the floor/knob.
+    """
+    from services.model_manager import GPU_JOB_TIMEOUT_S
+    return max(GPU_JOB_TIMEOUT_S, GPU_JOB_TIMEOUT_S + (max(0, len(text or "") - 1200) / 40.0))
+
+
 def _run_inference(
     model, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, t_shift, denoise,
@@ -1263,6 +1279,7 @@ async def generate_speech(
                     max_chunk_chars, crossfade_ms,
                 ),
                 what="TTS generate",
+                timeout=_generate_timeout_s(text),
             )
             # Read after generation: engines with lazy model loading report
             # their real rate only once weights are up.
@@ -1278,6 +1295,7 @@ async def generate_speech(
                     max_chunk_chars, crossfade_ms,
                 ),
                 what="TTS generate",
+                timeout=_generate_timeout_s(text),
             )
             sample_rate = _model.sampling_rate
         # Watermark → save → history → prune → emit, shared with the streaming

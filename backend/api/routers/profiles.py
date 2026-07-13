@@ -95,6 +95,14 @@ async def create_profile(
         # rebuild the tags from vd_states — so the row is always generation-safe
         # regardless of which frontend build saved it.
         instruct = heal_design_instruct(instruct, parsed)
+    else:
+        # Clone-kind saves get the same server-side choke point (audit finding:
+        # this class — "Unsupported instruct items" 400s on every later use —
+        # recurred THREE times via clients that bypassed the frontend filter,
+        # and the save-time heal above was gated to design-kind). A clone
+        # profile has no vd_states to rebuild from, so this is sanitize-only:
+        # valid tags survive, prose/"[object Object]" is dropped.
+        instruct = sanitize_instruct(instruct)
 
     profile_id = str(uuid.uuid4())[:8]
 

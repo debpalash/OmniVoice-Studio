@@ -19,7 +19,11 @@ def test_user_env_overrides_preinjected_value(tmp_path, monkeypatch):
     """A value in the per-user env file must beat one a launcher (Tauri) already
     injected into the environment — the core of #480."""
     envfile = tmp_path / "env"
-    envfile.write_text("OMNIVOICE_CACHE_DIR=/new/models/dir\n")
+    # A real, creatable path: since the stale-reinstall hardening, load-time
+    # validation drops path keys that can't exist — this test is about
+    # PRECEDENCE, so keep the path valid and assert the file value wins.
+    new_dir = tmp_path / "new-models-dir"
+    envfile.write_text(f"OMNIVOICE_CACHE_DIR={new_dir}\n")
     monkeypatch.setenv("OMNIVOICE_ENV_FILE", str(envfile))
     # simulate Tauri injecting the OLD value before the backend loads the file
     monkeypatch.setenv("OMNIVOICE_CACHE_DIR", "/old/models/dir")
@@ -27,18 +31,19 @@ def test_user_env_overrides_preinjected_value(tmp_path, monkeypatch):
     loaded = _user_env().load_into_environ()
 
     assert loaded is True
-    assert os.environ["OMNIVOICE_CACHE_DIR"] == "/new/models/dir"
+    assert os.environ["OMNIVOICE_CACHE_DIR"] == str(new_dir)
 
 
 def test_user_env_sets_value_absent_from_environ(tmp_path, monkeypatch):
     """When nothing was pre-injected, the file value is applied as-is."""
     envfile = tmp_path / "env"
-    envfile.write_text("OMNIVOICE_CACHE_DIR=/chosen/dir\n")
+    chosen = tmp_path / "chosen-dir"
+    envfile.write_text(f"OMNIVOICE_CACHE_DIR={chosen}\n")
     monkeypatch.setenv("OMNIVOICE_ENV_FILE", str(envfile))
     monkeypatch.delenv("OMNIVOICE_CACHE_DIR", raising=False)
 
     assert _user_env().load_into_environ() is True
-    assert os.environ["OMNIVOICE_CACHE_DIR"] == "/chosen/dir"
+    assert os.environ["OMNIVOICE_CACHE_DIR"] == str(chosen)
 
 
 def test_user_env_missing_file_is_noop(tmp_path, monkeypatch):

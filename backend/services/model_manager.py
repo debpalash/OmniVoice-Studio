@@ -1152,8 +1152,44 @@ async def get_model():
 
     async with _model_lock:
         if model is None:
+            _make_room_before_tts_load()
             model = await _load_model_with_timeout()
     return model
+
+
+def _make_room_before_tts_load() -> None:
+    """Evict-then-load: free what we already own before a tight TTS load.
+
+    The audit's top gap: on a 16 GB unified-memory box a plain TTS load could
+    still be OS-killed — the dub path frees memory before *ASR* loads
+    (offload_tts_for_asr, #1119), but nothing freed memory before a *TTS*
+    load, and a warm dictation model (~2 GB) is routinely the difference.
+
+    Deliberately NOT admission control: refusing a load on an estimate would
+    brick machines that would actually cope (the #1111 decision — advisory
+    only). This only releases things the app already reclaims on idle anyway
+    (the capture-ASR model, engine instances, allocator caches), just *now*
+    instead of after the idle timeout — and only when free memory is actually
+    tight, so a roomy machine pays nothing.
+    """
+    try:
+        from services.memory_budget import available_memory
+        free_gb = (available_memory() or {}).get("ram_available_gb")
+        if free_gb is None or free_gb >= _UNIFIED_OFFLOAD_HEADROOM_GB:
+            return
+        logger.info(
+            "Memory tight before TTS load (%.1f GB free) — releasing idle "
+            "models first.", free_gb,
+        )
+        try:
+            from services.asr_backend import release_idle_capture_backend
+            release_idle_capture_backend(0.0)  # 0s idle = release if unleased
+        except Exception:  # noqa: BLE001 — best-effort, never block the load
+            logger.debug("capture-ASR pre-load release failed", exc_info=True)
+        release_tts_side_caches()
+        free_vram()
+    except Exception:  # noqa: BLE001 — making room must never break loading
+        logger.debug("pre-load memory reclaim skipped", exc_info=True)
 
 
 def _checkpoint_in_local_cache(checkpoint: str) -> bool:
