@@ -223,7 +223,18 @@ export default function DubLeftColumn({
                 role="radio"
                 aria-checked={previewMode === code}
                 className={`dub-lang-pill ${previewMode === code ? 'is-active' : ''}`}
-                onClick={() => setPreviewMode(code)}
+                onClick={() => {
+                  setPreviewMode(code);
+                  // The transcript/segment list follows the previewed track:
+                  // swap segment texts to this language's saved translations
+                  // (the P1.2 per-language store — non-destructive, exactly
+                  // what the language dropdown and multi-language generate
+                  // already do). Without this, previewing German played
+                  // German audio over, say, Bengali segment text.
+                  const st = useAppStore.getState();
+                  st.setDubLang(label);
+                  st.switchDubLangCode(code);
+                }}
                 title={trackTooltip(code)}
               >
                 {label}
