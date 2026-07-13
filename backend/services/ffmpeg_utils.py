@@ -15,6 +15,61 @@ logger = logging.getLogger("omnivoice.api")
 _FFMPEG_SEMAPHORE: "asyncio.Semaphore | None" = None
 _FFMPEG_CONCURRENCY = 2
 
+# ── Background-bed mixing (dub voice over the separated no_vocals stem) ──────
+#
+# Every dub export mixes the synthesized voice track over the original video's
+# separated background (music/ambience). Two fidelity bugs lived in the old
+# per-site `amix` strings, and they are exactly what "the background music
+# doesn't sound like the original" reports describe:
+#
+#   1. LEVEL — `amix` NORMALIZES: each input is scaled by weight/sum(weights).
+#      The old `weights=0.8 1.2` therefore played the music bed at 40% of its
+#      original level (−8 dB) and the voice at 60%. (batch.py was worse still:
+#      an explicit volume=0.15 plus amix's ÷2 left the bed at 7.5%.) We keep
+#      amix for its duration/dropout semantics but multiply the mix by
+#      sum(weights) afterwards, which cancels the normalization exactly — the
+#      weights below ARE the absolute gains.
+#   2. BANDWIDTH — the voice track is synthesized at 24 kHz and amix
+#      negotiates one common rate, so the 44.1/48 kHz bed was silently
+#      downsampled to 24 kHz: everything above 12 kHz (cymbals, air,
+#      brightness) vanished from the music. Both inputs are now explicitly
+#      resampled to 48 kHz before the mix, so the bed keeps its top end.
+#
+# Bed at −0.9 dB (0.9×) keeps the music essentially at the original level
+# while letting dialogue sit just above it; the limiter transparently catches
+# the rare summed peak that now can exceed full scale (the old normalization
+# made clipping impossible by making everything quiet).
+BED_MIX_SAMPLE_RATE = 48000
+BED_GAIN = 0.9
+VOICE_GAIN = 1.1
+
+
+def bed_mix_filter(
+    bed_in: str,
+    voice_in: str,
+    *,
+    out: str = "aout",
+    duration: str = "longest",
+    tail: str = "",
+    uniq: str = "",
+) -> str:
+    """One ffmpeg filter chain mixing `voice_in` over `bed_in` at original level.
+
+    `bed_in`/`voice_in` are filtergraph input labels ("0:a", "1:a", …); `out`
+    is the output label (without brackets). `tail` appends extra filters after
+    the gain stage (e.g. ",apad=whole_dur=…"). `uniq` disambiguates internal
+    labels when several chains share one filtergraph.
+    """
+    b, v = f"bmb{uniq}", f"bmv{uniq}"
+    total = BED_GAIN + VOICE_GAIN
+    return (
+        f"[{bed_in}]aresample={BED_MIX_SAMPLE_RATE}[{b}];"
+        f"[{voice_in}]aresample={BED_MIX_SAMPLE_RATE}[{v}];"
+        f"[{b}][{v}]amix=inputs=2:duration={duration}:dropout_transition=2:"
+        f"weights={BED_GAIN:g} {VOICE_GAIN:g},volume={total:g},"
+        f"alimiter=level=false:limit=0.98{tail}[{out}]"
+    )
+
 
 def _get_semaphore() -> asyncio.Semaphore:
     global _FFMPEG_SEMAPHORE

@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from core.config import DUB_DIR, dub_seg_path
 from core.tasks import task_manager
 from api.routers.dub_core import _get_job
-from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
+from services.ffmpeg_utils import bed_mix_filter, find_ffmpeg, run_ffmpeg
 from services.video_retime import (
     DRIFT_TOLERANCE_S,
     RetimeError,
@@ -393,7 +393,7 @@ def _build_audio_export_cmd(
         # Mix the dubbed voice over the original background bed (same weights
         # as the video mux path) so ambience/music is preserved.
         cmd += ["-i", bg_path, "-filter_complex",
-                "[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=1.2 0.8[aout]",
+                bed_mix_filter("1:a", "0:a"),
                 "-map", "[aout]"]
     cmd += codec
     cmd.append(out_path)
@@ -662,12 +662,11 @@ async def dub_download(
 
     if bg_idx is not None:
         for i, t in enumerate(tracks_to_process):
-            out_label = f"[aout{i}]"
-            chain = f"[{bg_idx}:a][{t['idx']}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2"
-            if apad_dur:
-                chain += f",apad=whole_dur={apad_dur:.4f}"
-            filter_parts.append(chain + out_label)
-            t["out_label"] = out_label
+            tail = f",apad=whole_dur={apad_dur:.4f}" if apad_dur else ""
+            filter_parts.append(bed_mix_filter(
+                f"{bg_idx}:a", f"{t['idx']}:a", out=f"aout{i}", tail=tail, uniq=str(i),
+            ))
+            t["out_label"] = f"[aout{i}]"
         for t in tracks_to_process:
             cmd += ["-map", t["out_label"]]
     elif apad_dur:
@@ -998,10 +997,8 @@ async def dub_preview_video(
 
         audio_map = f"{track_idx}:a:0"
         if bg_idx is not None:
-            chain = f"[{bg_idx}:a][{track_idx}:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2"
-            if apad_dur:
-                chain += f",apad=whole_dur={apad_dur:.4f}"
-            filter_parts.append(chain + "[aout]")
+            tail = f",apad=whole_dur={apad_dur:.4f}" if apad_dur else ""
+            filter_parts.append(bed_mix_filter(f"{bg_idx}:a", f"{track_idx}:a", tail=tail))
             audio_map = "[aout]"
         elif apad_dur:
             filter_parts.append(f"[{track_idx}:a]apad=whole_dur={apad_dur:.4f}[aout]")
@@ -1330,7 +1327,7 @@ async def dub_download_audio(job_id: str, lang: str = Query(None), preserve_bg: 
         final_audio_path = os.path.join(exports_dir, f"mixed_dub_{lang_label}_{stamp}.wav")
         cmd = [
             ffmpeg, "-i", bg_audio, "-i", wav_path,
-            "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2[aout]",
+            "-filter_complex", bed_mix_filter("0:a", "1:a"),
             "-map", "[aout]", "-c:a", "pcm_s16le", "-y", final_audio_path
         ]
         try:
@@ -1559,7 +1556,7 @@ async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bo
         mixed_path = os.path.join(exports_dir, f"mixed_mp3_{lang_label}_{stamp}.wav")
         cmd_mix = [
             ffmpeg, "-i", bg_audio, "-i", wav_path,
-            "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=2:weights=0.8 1.2[aout]",
+            "-filter_complex", bed_mix_filter("0:a", "1:a"),
             "-map", "[aout]", "-c:a", "pcm_s16le", "-y", mixed_path
         ]
         try:

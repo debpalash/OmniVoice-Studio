@@ -107,7 +107,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
     _set_progress(job, "extract", 0)
     audio_path = os.path.join(batch_dir, "audio.wav")
 
-    from services.ffmpeg_utils import find_ffmpeg
+    from services.ffmpeg_utils import bed_mix_filter, find_ffmpeg
     ffmpeg = find_ffmpeg()
 
     def _extract():
@@ -385,7 +385,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                      "-i", video_path,
                      "-i", track_path,
                      "-filter_complex",
-                     "[0:a]volume=0.15[bg];[1:a]volume=1.0[dub];[bg][dub]amix=inputs=2:duration=first[out]",
+                     bed_mix_filter("0:a", "1:a", out="out", duration="first"),
                      "-map", "0:v", "-map", "[out]",
                      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
                      "-shortest", output_path],

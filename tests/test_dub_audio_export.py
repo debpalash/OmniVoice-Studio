@@ -50,3 +50,36 @@ def test_unknown_format_falls_back_to_aac_m4a():
     # Defensive: an unexpected format string must not produce a broken command.
     cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", None, "/j/out.bin", "weird")
     assert "aac" in _flat(cmd)
+
+
+def test_background_mix_preserves_bed_level_and_bandwidth():
+    """The two fidelity bugs that made dub music 'not sound like the original':
+
+    1. amix normalizes (input × weight/sum-of-weights) — the old weights left
+       the music bed at 40% of its original level. The chain must carry the
+       compensating volume multiply that cancels normalization.
+    2. amix negotiates one common rate; against a 24 kHz voice track the
+       44.1 kHz bed was silently downsampled — everything above 12 kHz gone.
+       Both inputs must be resampled UP to the mix rate before amix.
+    """
+    from services.ffmpeg_utils import BED_GAIN, BED_MIX_SAMPLE_RATE, VOICE_GAIN
+
+    cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
+    s = _flat(cmd)
+    assert f"aresample={BED_MIX_SAMPLE_RATE}" in s, "bed bandwidth collapses to the 24kHz voice rate"
+    assert f"volume={BED_GAIN + VOICE_GAIN:g}" in s, "amix normalization not compensated — bed plays at 40%"
+    assert BED_GAIN >= 0.85, "bed gain drifted away from 'almost like the original'"
+    assert "alimiter" in s  # full-scale mixing needs the peak guard
+
+
+def test_bed_mix_filter_uniq_labels_do_not_collide():
+    """Several chains can share one filtergraph (multi-track mux) — internal
+    labels must be disambiguated or ffmpeg rejects the graph."""
+    from services.ffmpeg_utils import bed_mix_filter
+
+    a = bed_mix_filter("0:a", "1:a", out="aout0", uniq="0")
+    b = bed_mix_filter("0:a", "2:a", out="aout1", uniq="1")
+    import re
+    labels_a = set(re.findall(r"\[(bm[bv]\d*)\]", a))
+    labels_b = set(re.findall(r"\[(bm[bv]\d*)\]", b))
+    assert labels_a and labels_b and not (labels_a & labels_b)
