@@ -23,7 +23,21 @@ import pytest
 torch = pytest.importorskip("torch")
 
 from api.routers import generation as gen  # noqa: E402
-from services import tts_backend as tb  # noqa: E402
+
+
+def _tb():
+    """The *live* services.tts_backend.
+
+    Several suites purge ``sys.modules["services.*"]`` for DB isolation
+    (test_model_load_timeout, test_model_manager_preload), so a module-level
+    ``import ... as tb`` can go stale mid-run. The production code imports this
+    module at call time and therefore always sees the live one; binding it at
+    import time here would leave us inspecting a *different* module's cache than
+    the one the code under test just populated — the test would fail for a reason
+    that has nothing to do with the behavior it checks.
+    """
+    import services.tts_backend as m
+    return m
 
 
 class _StubModel:
@@ -61,9 +75,9 @@ class _StubModel:
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
-    tb.clear_clone_prompt_cache()
+    _tb().clear_clone_prompt_cache()
     yield
-    tb.clear_clone_prompt_cache()
+    _tb().clear_clone_prompt_cache()
 
 
 @pytest.fixture()
@@ -125,6 +139,25 @@ def test_no_reference_still_generates(ref_wav):
     m = _StubModel()
     _run(m, "Designed voice.", None, ref_text=None, instruct="calm narrator")
     assert (m.generates, m.encodes) == (1, 0)
+
+
+def test_unloading_the_model_drops_its_cached_prompts(ref_wav):
+    """An unload must mean unload (#1119).
+
+    Cached prompts hold tensors belonging to the model instance. Only the adapter's
+    unload() used to clear them — enough while the cache was adapter-only, but the
+    native path now fills it and unloads through model_manager instead. A surviving
+    prompt would sit in exactly the memory that offload_tts_for_asr() unloads the
+    model to reclaim for ASR.
+    """
+    from services import model_manager as mm
+
+    m = _StubModel()
+    _run(m, "Warm the cache.", ref_wav)
+    assert len(_tb()._prompt_cache) == 1
+
+    mm.release_tts_side_caches()
+    assert len(_tb()._prompt_cache) == 0, "model unloaded but its encoded prompts survived"
 
 
 def test_encode_failure_falls_back_to_inline_reference(ref_wav, monkeypatch):

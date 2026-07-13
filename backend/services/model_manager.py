@@ -1278,6 +1278,7 @@ async def idle_worker():
             if model is not None and time.time() - _last_used > idle_timeout:
                 logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
                 model = None
+                release_tts_side_caches()
                 free_vram()
         # The capture/dictation ASR was never idle-released — so once a user
         # dictated, its model stayed resident for the life of the process while
@@ -1294,6 +1295,28 @@ async def idle_worker():
                 free_vram()
         except Exception:  # noqa: BLE001 — the reaper must never kill idle_worker
             logger.warning("idle capture-ASR release failed", exc_info=True)
+
+def release_tts_side_caches():
+    """Drop caches keyed to the TTS model, for when the model itself is released.
+
+    The voice-clone prompt cache (services.tts_backend) holds encoded reference
+    tensors belonging to *this* model instance. If the model is unloaded but the
+    prompts survive, an "unload" no longer means unload (#1119) — the tensors sit
+    in the very memory the unload was trying to reclaim.
+
+    Previously only ``OmniVoiceBackend.unload()`` cleared them, which was enough
+    while the cache was adapter-only. The native ``/generate`` path now populates
+    it too, and that path unloads through *here*, not through the adapter.
+
+    Best-effort by construction: cache hygiene must never be able to break an
+    unload, since a failed unload is how the backend gets OOM-killed.
+    """
+    try:
+        from services.tts_backend import clear_clone_prompt_cache
+        clear_clone_prompt_cache()
+    except Exception:  # noqa: BLE001
+        logger.debug("clone-prompt cache clear failed during unload", exc_info=True)
+
 
 def free_vram():
     """Release cached GPU memory on any accelerator (CUDA, MPS, XPU)."""
@@ -1346,6 +1369,7 @@ def _offload_unified_memory() -> bool:
             "unknown" if free_gb is None else f"{free_gb:.1f}",
         )
         model = None
+        release_tts_side_caches()
         free_vram()
         return True
     except Exception as e:  # noqa: BLE001
