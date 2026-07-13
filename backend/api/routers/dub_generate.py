@@ -1047,6 +1047,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                     # keep passing.
                     place_at = start
                     effective_end = end
+                    slowed_rate = None
                     if i + 1 < len(all_segment_wavs):
                         next_start = all_segment_wavs[i + 1][0]
                         gap = next_start - end
@@ -1104,17 +1105,27 @@ async def dub_generate(job_id: str, req: DubRequest):
                             adjusted = await _pitch_preserving_stretch(
                                 adjusted, target, sr,
                             )
+                            slowed_rate = rate
                         except Exception as e:
                             logger.warning(
                                 "underrun fill failed for seg %d (%.2f×), "
                                 "keeping natural rate: %s", i, rate, e,
                             )
                         wl = adjusted.shape[-1]
-                    fit_status.append({
-                        "status": "fits",
-                        "compression_applied": (slot_fit == "time_stretch"
-                                                and wl != int(natural_dur * sr)),
-                    })
+                    # Truthful verdict: a slowed segment says so (and by how
+                    # much) instead of hiding behind "fits" — the same honesty
+                    # contract the smart_fit branch keeps.
+                    if slowed_rate is not None:
+                        fit_status.append({
+                            "status": "audio_slowed",
+                            "audio_rate": round(slowed_rate, 3),
+                        })
+                    else:
+                        fit_status.append({
+                            "status": "fits",
+                            "compression_applied": (slot_fit == "time_stretch"
+                                                    and wl != int(natural_dur * sr)),
+                        })
 
                 # Common: short fades to avoid pops, then mix into disk-backed audio.
                 fade_ms = 15
