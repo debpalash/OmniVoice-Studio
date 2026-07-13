@@ -141,6 +141,13 @@ const ROUTING_BADGE = {
 
 const TEST_COOLDOWN_MS = 5000;
 
+// How long a forced (Install-click) status refresh will wait for an already
+// in-flight request to settle before proceeding anyway. A wedged request has
+// no abort signal, so without a bound the click would trade "silently
+// dropped" for "silently stuck"; the per-engine epoch makes proceeding safe.
+// Exported for the regression test (fake timers).
+export const FORCE_WAIT_TIMEOUT_MS = 5000;
+
 // ── Strict two-line row geometry ─────────────────────────────────────────
 // One shared grid template on the header row AND every engine row — identical
 // fixed tracks are what keep the STATUS / GPU COMPAT / ISOLATION / ACTIONS
@@ -409,9 +416,15 @@ export default function EngineCompatibilityMatrix({
   // At most ONE in-flight status request per engine — otherwise a slow
   // backend lets responses land out of order (an old 'running' snapshot
   // overwriting a newer 'succeeded' would restart the poller forever).
-  // Maps id → the in-flight request promise so a must-not-drop caller can
-  // wait it out instead of being dropped (see `force` below).
+  // Maps id → { promise } for the in-flight request so a must-not-drop
+  // caller can wait it out instead of being dropped (see `force` below).
   const installInflightRef = useRef(new Map());
+  // Monotonic per-engine request epoch: a response may only be applied if no
+  // NEWER request has started since it was issued. This is the actual
+  // ordering guarantee — the inflight slot above is just throttling — so even
+  // a request that settles arbitrarily late (wedged backend, transport
+  // retries) can never overwrite a fresher snapshot with a stale one.
+  const installReqEpochRef = useRef({});
   // Consecutive poll failures per engine — after a few in a row the backend
   // is gone, so drop the stale snapshot instead of showing "Installing…"
   // (and hammering the endpoint) indefinitely.
@@ -419,36 +432,49 @@ export default function EngineCompatibilityMatrix({
 
   const refreshInstall = useCallback(
     async (id, { force = false } = {}) => {
-      const inflight = installInflightRef.current.get(id);
-      if (inflight) {
-        // Advisory callers (the 1.5s poller, the mount re-attach probe) drop
-        // on overlap — that's the ordering guard above. But the Install
-        // click's refresh must NOT be droppable: if it lands while the mount
-        // probe is still awaiting, dropping it leaves the pre-install 'idle'
-        // snapshot in place, the poller (which only watches 'running' jobs)
-        // never starts, and the progress panel silently never appears. So a
-        // forced caller waits the in-flight request out and then fetches its
-        // own fresh snapshot — still strictly ordered, never dropped.
+      // Advisory callers (the 1.5s poller, the mount re-attach probe) drop on
+      // overlap — throttling. But the Install click's refresh must NOT be
+      // droppable: if it lands while the mount probe is still awaiting,
+      // dropping it leaves the pre-install 'idle' snapshot in place, the
+      // poller (which only watches 'running' jobs) never starts, and the
+      // progress panel silently never appears. So a forced caller waits until
+      // it owns the per-engine slot — re-checking the map after every await,
+      // because two rapid forced clicks waking from the SAME await would
+      // otherwise both proceed and race each other. The wait is bounded: a
+      // wedged probe (no abort signal, transport retries) must not turn
+      // "silently dropped" into "silently stuck" — on timeout we proceed, and
+      // the epoch check below makes the wedged request's late response
+      // harmless.
+      let inflight = installInflightRef.current.get(id);
+      while (inflight) {
         if (!force) return null;
-        try {
-          await inflight;
-        } catch {
-          /* the in-flight caller counted its own failure */
-        }
+        const timedOut = await Promise.race([
+          inflight.promise.then(
+            () => false,
+            () => false, // the in-flight caller counted its own failure
+          ),
+          new Promise((resolve) => setTimeout(() => resolve(true), FORCE_WAIT_TIMEOUT_MS)),
+        ]);
+        if (timedOut) break;
+        inflight = installInflightRef.current.get(id);
       }
-      const req = (async () => {
+      const epoch = (installReqEpochRef.current[id] = (installReqEpochRef.current[id] || 0) + 1);
+      const entry = { promise: null };
+      entry.promise = (async () => {
         const st = await apiInstallStatus(id);
         installPollFailuresRef.current[id] = 0;
-        setInstallByEngine((prev) => ({ ...prev, [id]: st }));
+        if (installReqEpochRef.current[id] === epoch) {
+          setInstallByEngine((prev) => ({ ...prev, [id]: st }));
+        }
         return st;
       })();
-      installInflightRef.current.set(id, req);
+      installInflightRef.current.set(id, entry);
       try {
-        return await req;
+        return await entry.promise;
       } catch {
         const n = (installPollFailuresRef.current[id] || 0) + 1;
         installPollFailuresRef.current[id] = n;
-        if (n >= 4) {
+        if (n >= 4 && installReqEpochRef.current[id] === epoch) {
           installPollFailuresRef.current[id] = 0;
           setInstallByEngine((prev) => {
             const { [id]: _stale, ...rest } = prev;
@@ -457,7 +483,7 @@ export default function EngineCompatibilityMatrix({
         }
         return null; // advisory — polling errors never break the matrix
       } finally {
-        if (installInflightRef.current.get(id) === req) {
+        if (installInflightRef.current.get(id) === entry) {
           installInflightRef.current.delete(id);
         }
       }

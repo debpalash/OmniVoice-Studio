@@ -17,7 +17,9 @@ vi.mock('../api/system', () => ({
   unloadLoadedModel: vi.fn(),
 }));
 
-import EngineCompatibilityMatrix from '../components/EngineCompatibilityMatrix';
+import EngineCompatibilityMatrix, {
+  FORCE_WAIT_TIMEOUT_MS,
+} from '../components/EngineCompatibilityMatrix';
 
 /** Build a minimal AllEnginesResponse with the three rows the plan calls for. */
 function makeEnginesResponse({ inProcessAvailable = true, inProcessHasLastError = false } = {}) {
@@ -1373,6 +1375,97 @@ describe('EngineCompatibilityMatrix', () => {
 
     const progress = await screen.findByTestId('install-progress-indextts2', {}, { timeout: 3000 });
     expect(progress).toBeInTheDocument();
+  });
+
+  it('two rapid Install clicks never fetch status concurrently', async () => {
+    // Both clicks wake from awaiting the SAME probe promise; without the
+    // re-check loop they'd both proceed and their responses could land out
+    // of order (stale 'running' overwriting 'succeeded' restarts the poller).
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
+    let releaseProbe;
+    const probeGate = new Promise((resolve) => {
+      releaseProbe = resolve;
+    });
+    let active = 0;
+    let maxActive = 0;
+    const apiInstallStatus = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await probeGate;
+        return makeIdleStatus();
+      })
+      .mockImplementation(async () => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        active -= 1;
+        return makeInstallStatus('running');
+      });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+    fireEvent.click(screen.getByTestId('install-indextts2'));
+    fireEvent.click(screen.getByTestId('install-indextts2'));
+    releaseProbe();
+
+    await screen.findByTestId('install-progress-indextts2', {}, { timeout: 3000 });
+    expect(maxActive).toBe(1); // strictly serialized — never two in flight
+  });
+
+  it('a wedged probe cannot stall the Install click forever, nor clobber it late', async () => {
+    // Two guarantees in one scenario. (1) Bounded wait: the mount probe hangs
+    // (no abort signal exists), so the forced refresh proceeds after
+    // FORCE_WAIT_TIMEOUT_MS instead of trading "silently dropped" for
+    // "silently stuck". (2) Epoch: when the wedged probe finally settles with
+    // its stale pre-install snapshot, that response is discarded — it must
+    // not overwrite the fresh 'running' state and hide the progress panel.
+    const apiListEngines = vi.fn().mockResolvedValue(makeInstallableResponse());
+    const apiInstallEngine = vi.fn().mockResolvedValue({ status: 'started', engine: 'indextts2' });
+    let releaseProbe;
+    const probeGate = new Promise((resolve) => {
+      releaseProbe = resolve;
+    });
+    const apiInstallStatus = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await probeGate;
+        return makeIdleStatus(); // stale: pre-install idle, arriving very late
+      })
+      .mockResolvedValue(makeInstallStatus('running'));
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiInstallEngine={apiInstallEngine}
+        apiInstallStatus={apiInstallStatus}
+      />,
+    );
+    await waitFor(() => screen.getByText('IndexTTS2 (test)'));
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByTestId('install-indextts2'));
+      // The probe never resolves; the forced wait must give up on its own.
+      await vi.advanceTimersByTimeAsync(FORCE_WAIT_TIMEOUT_MS + 50);
+    } finally {
+      vi.useRealTimers();
+    }
+    await screen.findByTestId('install-progress-indextts2', {}, { timeout: 3000 });
+
+    // Now the wedged probe finally settles with its stale idle snapshot…
+    releaseProbe();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    // …and must NOT have clobbered the running state.
+    expect(screen.getByTestId('install-progress-indextts2')).toBeInTheDocument();
   });
 
   it('already_installed responses skip the job and just reload the matrix', async () => {
