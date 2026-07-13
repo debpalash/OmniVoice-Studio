@@ -257,8 +257,16 @@ def test_managed_venv_ships_pip():
     now a real project dependency so it survives the update drift-sync
     (anything installed ad-hoc would be stripped by `uv sync` on update,
     resurrecting the crash after every release)."""
+    # Note: this inspects the interpreter running pytest — which in CI and
+    # the packaged app IS the uv-synced managed venv, so it verifies the lock
+    # produces these packages (review note on the original phrasing).
     import importlib.util
     assert importlib.util.find_spec("pip") is not None, (
         "pip missing from the managed venv — spaCy-style in-process "
         "downloaders will fail (and pre-#1143, kill the backend)"
+    )
+    assert importlib.util.find_spec("en_core_web_sm") is not None, (
+        "the phonemizer's spaCy model is not bundled — first English "
+        "MLX-Audio generation would trigger a raw GitHub download that "
+        "bypasses the mirror system and fails offline"
     )

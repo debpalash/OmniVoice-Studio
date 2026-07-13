@@ -172,6 +172,7 @@ dependencies = [
     # promoted to a direct dependency because we now import it ourselves.
     "num2words>=0.5.14",
     "pip>=26.1.2",
+    "en-core-web-sm",
 ]
 
 [project.optional-dependencies]
@@ -229,6 +230,7 @@ torch = [
 torchaudio = [
   { index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
