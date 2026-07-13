@@ -263,6 +263,16 @@ def _seed_segment_rng(base_seed, text: str) -> None:
     cache signature ever used it; generation itself ran unseeded, so a locked
     take's pinned seed silently did nothing here while /generate honored it.
     No pinned seed → no-op (fresh-render variety unchanged).
+
+    Concurrency contract: this seeds the process-global torch RNG, exactly
+    like /generate's #526 seeding (generation.py's ``torch.manual_seed`` in
+    ``_run_inference``/``_run_backend_inference``, same GPU pool). Both are
+    strictly deterministic wherever the pool has one worker — the default on
+    MPS/CPU and small-VRAM CUDA (model_manager._pick_gpu_workers) — and
+    best-effort when a >1-worker CUDA pool runs another seeded job in the
+    same window. Making that window race-free requires threading a per-call
+    torch.Generator through the model's samplers app-wide; if that lands, it
+    must cover /generate and here together, not one path.
     """
     if base_seed is None:
         return

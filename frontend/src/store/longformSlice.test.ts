@@ -97,6 +97,16 @@ describe('longformSlice — long-form fields', () => {
     expect(get().lastOutput).toBe(''); // a new book doesn't show the old file
   });
 
+  it('loadProject clears lastOutput — no cross-project leak (#1139 review)', () => {
+    const { get } = harness();
+    get().setScript('# Book B');
+    get().saveProject('B');
+    const idB = get().currentProjectId;
+    get().setLastOutput('audiobook_from_a.m4b'); // pretend A rendered meanwhile
+    get().loadProject(idB);
+    expect(get().lastOutput).toBe(''); // loading B never presents A's render
+  });
+
   it('setProjectMeta MERGES; setLexicon REPLACES; setOutputPrefs merges', () => {
     const { get } = harness();
     get().setProjectMeta({ title: 'The Crown' });

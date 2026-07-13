@@ -251,6 +251,9 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
       outputFormat: p.outputFormat ?? SLICE_DEFAULTS.outputFormat,
       loudness: p.loudness ?? SLICE_DEFAULTS.loudness,
       defaultVoice: p.defaultVoice ?? SLICE_DEFAULTS.defaultVoice,
+      // A render belongs to the project it was made in — loading another
+      // project must not present A's finished file as B's output (#1139).
+      lastOutput: SLICE_DEFAULTS.lastOutput,
       projectMode: p.mode === 'audiobook' ? 'audiobook' : 'stories', // E3 default-safe
       currentProjectId: id,
     });

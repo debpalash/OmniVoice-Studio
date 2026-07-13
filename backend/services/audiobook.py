@@ -39,6 +39,15 @@ def segment_seed(base_seed: int, text: str) -> int:
     cache-independent: a partially cached chapter re-renders its missing
     segments with the exact seeds a full render would have used. Pure —
     torch-free — so the router's synth wrappers stay unit-testable.
+
+    Text-keyed on purpose: identical repeated lines get identical takes.
+    That is already the longform pipeline's shipped semantic — the
+    content-addressed SegmentCache (longform_render.segment_cache_key hashes
+    text + voice sig, not position) replays one WAV for every identical span
+    — and it only applies when the user pinned a seed, i.e. asked for
+    reproducibility. Position-based keys would break it: inserting one
+    paragraph would shift every later span's seed, so a partial re-render
+    after an edit would no longer match the original render.
     """
     return (int(base_seed) + zlib.crc32(text.encode("utf-8"))) % (2**31)
 
