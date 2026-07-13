@@ -43,6 +43,40 @@ BED_MIX_SAMPLE_RATE = 48000
 BED_GAIN = 0.9
 VOICE_GAIN = 1.1
 
+# Whether the resolved ffmpeg's amix supports `normalize` (added in 5.x).
+# Probed once per process; None = not probed yet.
+_AMIX_NORMALIZE: "bool | None" = None
+
+
+def _amix_supports_normalize() -> bool:
+    """True when the resolved ffmpeg's ``amix`` accepts ``normalize=0``.
+
+    Matters because amix's normalization is DYNAMIC: it rescales whenever an
+    input ends. A constant post-mix compensation is therefore only exact while
+    both streams are active — after the (usually marginally shorter) voice
+    stream ends, the bed's internal scale jumps from w/sum to 1.0 and a fixed
+    multiply would BOOST the tail music into the limiter. ``normalize=0``
+    turns amix into a plain sum, immune to stream-end rescaling. Old system
+    ffmpegs (<5) lack the option and would reject the whole graph, so probe
+    once and fall back to the compensated form there (its tail quirk is the
+    lesser evil next to a failed export).
+    """
+    global _AMIX_NORMALIZE
+    if _AMIX_NORMALIZE is None:
+        supported = False
+        try:
+            ff = find_ffmpeg()
+            if ff:
+                res = subprocess.run(
+                    [ff, "-hide_banner", "-h", "filter=amix"],
+                    capture_output=True, timeout=10, check=False,
+                )
+                supported = b"normalize" in (res.stdout or b"")
+        except Exception as e:  # noqa: BLE001 — a probe failure must not break exports
+            logger.debug("amix normalize probe failed: %s", e)
+        _AMIX_NORMALIZE = supported
+    return _AMIX_NORMALIZE
+
 
 def bed_mix_filter(
     bed_in: str,
@@ -61,6 +95,19 @@ def bed_mix_filter(
     labels when several chains share one filtergraph.
     """
     b, v = f"bmb{uniq}", f"bmv{uniq}"
+    if _amix_supports_normalize():
+        # Gains applied per input, amix reduced to a plain sum: levels are
+        # exact for the whole timeline, including after either stream ends.
+        return (
+            f"[{bed_in}]aresample={BED_MIX_SAMPLE_RATE},volume={BED_GAIN:g}[{b}];"
+            f"[{voice_in}]aresample={BED_MIX_SAMPLE_RATE},volume={VOICE_GAIN:g}[{v}];"
+            f"[{b}][{v}]amix=inputs=2:duration={duration}:dropout_transition=2:"
+            f"normalize=0,alimiter=level=false:limit=0.98{tail}[{out}]"
+        )
+    # Legacy ffmpeg (<5, no `normalize`): cancel amix's normalization with a
+    # compensating multiply. Exact while both streams run; if one ends early
+    # the tail is over-boosted into the limiter until the graph ends — a known
+    # quirk accepted only on old ffmpeg, where the alternative is no export.
     total = BED_GAIN + VOICE_GAIN
     return (
         f"[{bed_in}]aresample={BED_MIX_SAMPLE_RATE}[{b}];"

@@ -52,24 +52,42 @@ def test_unknown_format_falls_back_to_aac_m4a():
     assert "aac" in _flat(cmd)
 
 
-def test_background_mix_preserves_bed_level_and_bandwidth():
+def test_background_mix_preserves_bed_level_and_bandwidth(monkeypatch):
     """The two fidelity bugs that made dub music 'not sound like the original':
 
-    1. amix normalizes (input × weight/sum-of-weights) — the old weights left
-       the music bed at 40% of its original level. The chain must carry the
-       compensating volume multiply that cancels normalization.
+    1. amix normalizes each input — the old weight strings left the music bed
+       at ~57% of its original level (measured). On modern ffmpeg the chain
+       must disable normalization outright (normalize=0 + per-input gains);
+       amix's normalization is DYNAMIC, so the naive fix (a constant post-mix
+       compensation) over-boosts the bed after the voice stream ends.
     2. amix negotiates one common rate; against a 24 kHz voice track the
        44.1 kHz bed was silently downsampled — everything above 12 kHz gone.
        Both inputs must be resampled UP to the mix rate before amix.
     """
-    from services.ffmpeg_utils import BED_GAIN, BED_MIX_SAMPLE_RATE, VOICE_GAIN
+    import services.ffmpeg_utils as fu
 
+    monkeypatch.setattr(fu, "_AMIX_NORMALIZE", True)
     cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
     s = _flat(cmd)
-    assert f"aresample={BED_MIX_SAMPLE_RATE}" in s, "bed bandwidth collapses to the 24kHz voice rate"
-    assert f"volume={BED_GAIN + VOICE_GAIN:g}" in s, "amix normalization not compensated — bed plays at 40%"
-    assert BED_GAIN >= 0.85, "bed gain drifted away from 'almost like the original'"
+    assert f"aresample={fu.BED_MIX_SAMPLE_RATE}" in s, "bed bandwidth collapses to the 24kHz voice rate"
+    assert "normalize=0" in s, "amix normalization not disabled — bed level depends on stream lifetimes"
+    assert f"volume={fu.BED_GAIN:g}" in s and f"volume={fu.VOICE_GAIN:g}" in s
+    assert fu.BED_GAIN >= 0.85, "bed gain drifted away from 'almost like the original'"
     assert "alimiter" in s  # full-scale mixing needs the peak guard
+
+
+def test_background_mix_legacy_ffmpeg_fallback(monkeypatch):
+    """ffmpeg <5 has no amix `normalize` option — the graph must fall back to
+    the compensated form (weights + post-multiply) instead of failing whole
+    exports on a rejected option."""
+    import services.ffmpeg_utils as fu
+
+    monkeypatch.setattr(fu, "_AMIX_NORMALIZE", False)
+    cmd = _build_audio_export_cmd("ffmpeg", "/j/dubbed_de.wav", "/j/no_vocals.wav", "/j/out.m4a", "m4a")
+    s = _flat(cmd)
+    assert "normalize=0" not in s
+    assert f"volume={fu.BED_GAIN + fu.VOICE_GAIN:g}" in s  # the compensation multiply
+    assert "alimiter" in s
 
 
 def test_bed_mix_filter_uniq_labels_do_not_collide():
