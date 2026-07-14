@@ -115,7 +115,8 @@ if (typeof window !== 'undefined') {
       params.delete('pin');
       params.delete('api_key');
       const qs = params.toString();
-      window.history.replaceState(null, '', qs ? `${url.pathname}?${qs}` : url.pathname);
+      // Preserve url.hash (deep-link fragments, e.g. #settings) when rebuilding.
+      window.history.replaceState(null, '', url.pathname + (qs ? `?${qs}` : '') + url.hash);
     }
   } catch {
     /* noop */
