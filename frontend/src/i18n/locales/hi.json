@@ -2141,6 +2141,12 @@
     "label": "पिन तक पहुंचें",
     "connect": "कनेक्ट करें"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "संपर्क करें",
     "hero_desc": "प्रश्न, बग, लाइसेंसिंग, या सिर्फ नमस्ते कहना - यहां बताया गया है कि मुझ तक कैसे पहुंचा जाए।",

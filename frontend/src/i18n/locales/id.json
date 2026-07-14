@@ -2141,6 +2141,12 @@
     "label": "Akses PIN",
     "connect": "Hubungkan"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "Hubungi kami",
     "hero_desc": "Pertanyaan, bug, perizinan, atau sekadar menyapa — inilah cara menghubungi saya.",

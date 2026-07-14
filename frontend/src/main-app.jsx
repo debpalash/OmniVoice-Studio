@@ -64,7 +64,7 @@ export async function bootstrapApp() {
             loads a bare URL (no ?pin=) during first-run setup states —
             setup-status check, SetupWizard, BootstrapSplash — still gets the
             PIN dialog instead of a silent 401. Loopback / QR users are
-            unaffected (the gate only shows on an ov:pin-required event). */}
+            unaffected (the gate only shows on an ov:auth-required event). */}
         <RemoteAuthGate>
           {isWidget ? (
             <Suspense

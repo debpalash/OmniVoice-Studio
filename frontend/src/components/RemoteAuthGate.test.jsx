@@ -3,8 +3,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import RemoteAuthGate from './RemoteAuthGate';
 
 describe('RemoteAuthGate', () => {
-  beforeEach(() => sessionStorage.clear());
-  afterEach(() => sessionStorage.clear());
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+  afterEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
 
   it('renders children when not gated', () => {
     render(
@@ -24,5 +30,16 @@ describe('RemoteAuthGate', () => {
     fireEvent.change(screen.getByLabelText(/access pin/i), { target: { value: '999111' } });
     fireEvent.click(screen.getByRole('button', { name: /connect/i }));
     expect(sessionStorage.getItem('ov_pin')).toBe('999111');
+  });
+
+  it('stores the entered API key (apikey mode)', () => {
+    render(
+      <RemoteAuthGate forceGate forceMode="apikey">
+        <div>app-content</div>
+      </RemoteAuthGate>,
+    );
+    fireEvent.change(screen.getByLabelText(/api key/i), { target: { value: 'secret123' } });
+    fireEvent.click(screen.getByRole('button', { name: /connect/i }));
+    expect(localStorage.getItem('ov_api_key')).toBe('secret123');
   });
 });

@@ -2141,6 +2141,12 @@
     "label": "訪問密碼",
     "connect": "連接"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "聯絡我們",
     "hero_desc": "如果有問題、錯誤、許可，或只是想打個招呼，請按以下方式與我聯絡。",

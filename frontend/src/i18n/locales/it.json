@@ -2141,6 +2141,12 @@
     "label": "PIN di accesso",
     "connect": "Connettiti"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "Mettiti in contatto",
     "hero_desc": "Domande, bug, licenze o semplicemente per salutarmi: ecco come contattarmi.",

@@ -83,6 +83,22 @@ Settings → Sharing → **Remote backend**:
 
 Leave the URL empty to go back to the local backend.
 
+### From a browser (no desktop app)
+
+You can also drive the remote from a plain browser — open the URL with the key
+in the query string once:
+
+```
+https://gpu-box.your-tailnet.ts.net/?api_key=<key>
+```
+
+The key is stored for that browser and the `?api_key=` param is scrubbed from
+the address bar (so it doesn't linger in history or get re-applied on a reload).
+Thereafter the UI loads normally with the key attached to every request. If a
+request ever 401s again (wrong/rotated key), you're prompted to re-enter it. The
+same gate shows a LAN-share **PIN** prompt instead when network sharing — not a
+remote key — is what's gating access.
+
 ## Security notes
 
 - **Plain HTTP is sniffable.** A bearer key over `http://` on a hostile

@@ -2141,6 +2141,12 @@
     "label": "รหัสการเข้าถึง",
     "connect": "เชื่อมต่อ"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "สนใจติดต่อ",
     "hero_desc": "คำถาม ข้อบกพร่อง ใบอนุญาต หรือเพียงทักทาย ต่อไปนี้เป็นวิธีติดต่อฉัน",

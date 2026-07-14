@@ -2141,6 +2141,12 @@
     "label": "PIN 액세스",
     "connect": "연결하다"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "연락하세요",
     "hero_desc": "질문, 버그, 라이센싱 또는 간단한 인사말 등 제게 연락하는 방법은 다음과 같습니다.",

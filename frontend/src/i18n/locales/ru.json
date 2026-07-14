@@ -2141,6 +2141,12 @@
     "label": "PIN-код доступа",
     "connect": "Соединять"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "Свяжитесь с нами",
     "hero_desc": "Вопросы, ошибки, лицензирование или просто поздороваться — вот как со мной связаться.",

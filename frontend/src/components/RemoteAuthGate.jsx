@@ -1,47 +1,68 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { saveApiKey } from '../api/client';
 
-// When LAN sharing is on, a non-loopback request that lacks the PIN gets a 401
-// from the backend middleware. `client.ts` dispatches `ov:pin-required` on that
-// 401; this gate listens for it and swaps the app tree for a PIN entry form.
-// `forceGate` is test-only. Submitting stores the PIN in sessionStorage (read
-// by apiFetch on every subsequent request) and reloads so the gated requests
-// retry with the header attached.
-export default function RemoteAuthGate({ children, forceGate = false }) {
+// On a remote device the backend can demand EITHER a LAN-share PIN
+// (NetworkAccessMiddleware → "PIN required") OR an API key (BearerKeyMiddleware
+// → "API key required") — both 401. client.ts reads the detail, decides which,
+// and dispatches a single `ov:auth-required` CustomEvent carrying the mode; this
+// gate listens for it and swaps the app tree for the matching entry form.
+// `forceGate` / `forceMode` are test-only. Submitting stores the credential
+// (sessionStorage for the session PIN, localStorage for the durable API key) and
+// reloads so the gated requests retry with the header attached. If both gates
+// are active the reload cycle re-shows this gate in whichever mode the next 401
+// dictates.
+export default function RemoteAuthGate({ children, forceGate = false, forceMode = 'pin' }) {
   const { t } = useTranslation();
   const [gated, setGated] = useState(forceGate);
-  const [pin, setPin] = useState('');
+  const [mode, setMode] = useState(forceMode);
+  const [value, setValue] = useState('');
 
   useEffect(() => {
-    const onRequired = () => setGated(true);
-    window.addEventListener('ov:pin-required', onRequired);
-    return () => window.removeEventListener('ov:pin-required', onRequired);
+    const onRequired = (e) => {
+      setMode(e.detail?.mode === 'apikey' ? 'apikey' : 'pin');
+      setGated(true);
+    };
+    window.addEventListener('ov:auth-required', onRequired);
+    return () => window.removeEventListener('ov:auth-required', onRequired);
   }, []);
 
   if (!gated) return children;
 
+  const i18nKey = mode === 'apikey' ? 'remote_apikey_gate' : 'remote_gate';
+
   const submit = (e) => {
     e.preventDefault();
-    const v = pin.trim();
+    const v = value.trim();
     if (!v) return;
-    sessionStorage.setItem('ov_pin', v);
-    window.location.reload();
+    // Persist, then reload so the gated requests retry with the credential
+    // attached. A failed write (privacy-mode storage, etc.) must NOT reload into
+    // a loop — leave the form up so the user isn't silently re-prompted forever.
+    let ok = true;
+    try {
+      if (mode === 'apikey') ok = saveApiKey(v);
+      else sessionStorage.setItem('ov_pin', v);
+    } catch {
+      ok = false;
+    }
+    if (ok) window.location.reload();
   };
 
   return (
     <div className="remote-auth-gate" role="dialog" aria-modal="true">
       <form onSubmit={submit} className="remote-auth-gate__card">
-        <h2>{t('remote_gate.title')}</h2>
-        <p>{t('remote_gate.body')}</p>
-        <label htmlFor="ov-pin">{t('remote_gate.label')}</label>
+        <h2>{t(`${i18nKey}.title`)}</h2>
+        <p>{t(`${i18nKey}.body`)}</p>
+        <label htmlFor="ov-cred">{t(`${i18nKey}.label`)}</label>
         <input
-          id="ov-pin"
-          inputMode="numeric"
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
+          id="ov-cred"
+          type={mode === 'apikey' ? 'password' : 'text'}
+          inputMode={mode === 'apikey' ? undefined : 'numeric'}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
           autoFocus
         />
-        <button type="submit">{t('remote_gate.connect')}</button>
+        <button type="submit">{t(`${i18nKey}.connect`)}</button>
       </form>
     </div>
   );

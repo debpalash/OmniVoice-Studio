@@ -64,6 +64,21 @@ function _apiKey(): string | null {
   }
 }
 
+/** Persist the durable remote API key (trimmed). localStorage so it survives
+ * reloads; read back by `_apiKey()` on every request. Returns false (without
+ * writing) when the value is empty-after-trim or storage is unavailable, so the
+ * caller can avoid reloading into a loop. */
+export function saveApiKey(v: string): boolean {
+  const t = v.trim();
+  if (!t) return false;
+  try {
+    localStorage.setItem(LS_API_KEY, t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Build a ws:// or wss:// URL for a backend WebSocket endpoint.
  *
  * Scheme derives from the API base itself (NOT window.location — a Tauri
@@ -82,8 +97,26 @@ export function wsUrl(path: string): string {
 // sessionStorage so apiFetch attaches it to every request automatically.
 if (typeof window !== 'undefined') {
   try {
-    const p = new URL(window.location.href).searchParams.get('pin');
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    const p = params.get('pin');
     if (p) sessionStorage.setItem('ov_pin', p);
+    // Deep-link bootstrap for a remote backend: a URL like
+    // http://gpu-box:3900/?api_key=<key> pre-fills the durable API key the same
+    // way ?pin= pre-fills a session PIN. localStorage (not sessionStorage)
+    // because the key is the durable remote credential — matches RemoteBackendPanel.
+    const k = params.get('api_key');
+    if (k) saveApiKey(k);
+    // One-shot: scrub consumed credentials from the address bar so a later reload
+    // (the gate and Settings both reload after saving) can't re-apply a stale
+    // ?api_key=/?pin= over the user's just-corrected value — and so the secret
+    // doesn't linger in the URL / browser history.
+    if (p || k) {
+      params.delete('pin');
+      params.delete('api_key');
+      const qs = params.toString();
+      window.history.replaceState(null, '', qs ? `${url.pathname}?${qs}` : url.pathname);
+    }
   } catch {
     /* noop */
   }
@@ -262,12 +295,19 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       );
     }
     if (!res.ok) {
-      // 401 from the LAN PIN middleware on a remote device → surface the gate.
       // An HTTP error means the backend *did* respond — never retry it.
-      if (res.status === 401 && typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('ov:pin-required'));
-      }
       const detail = await readError(res);
+      // 401 on a remote device: route to the right gate by reading the detail.
+      // "API key required" (BearerKeyMiddleware, OMNIVOICE_API_KEY) vs anything
+      // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
+      // detail is the only discriminator (only two 401 sites exist backend-side).
+      if (res.status === 401 && typeof window !== 'undefined') {
+        // String(): readError's declared `string` return is not guaranteed at
+        // runtime — `j.detail` can be a structured object/array on a future 401,
+        // which would crash .toLowerCase(). Coerce before matching.
+        const mode = String(detail).toLowerCase().includes('api key') ? 'apikey' : 'pin';
+        window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
+      }
       throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, {
         status: res.status,
         detail,

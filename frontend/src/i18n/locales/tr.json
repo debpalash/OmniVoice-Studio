@@ -2141,6 +2141,12 @@
     "label": "Erişim PIN'i",
     "connect": "Bağlan"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "İletişime geçin",
     "hero_desc": "Sorular, hatalar, lisanslama veya sadece merhaba demek için; bana şu şekilde ulaşabilirsiniz.",

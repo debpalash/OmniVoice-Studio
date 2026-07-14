@@ -2455,6 +2455,12 @@
     "label": "Access PIN",
     "connect": "Connect"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "reportBug": {
     "label": "Report a bug",
     "title": "Opens a prefilled GitHub Issues page in your browser. Nothing is sent until you click Submit."

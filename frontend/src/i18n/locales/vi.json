@@ -2141,6 +2141,12 @@
     "label": "Mã PIN truy cập",
     "connect": "Kết nối"
   },
+  "remote_apikey_gate": {
+    "title": "Enter API key",
+    "body": "This backend requires an API key. Enter the value of OMNIVOICE_API_KEY set on the server.",
+    "label": "API key",
+    "connect": "Connect"
+  },
   "contact": {
     "hero_title": "Hãy liên lạc",
     "hero_desc": "Các câu hỏi, lỗi, giấy phép hoặc chỉ để chào hỏi — đây là cách liên hệ với tôi.",

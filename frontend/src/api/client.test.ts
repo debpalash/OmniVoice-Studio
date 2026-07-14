@@ -50,3 +50,61 @@ describe('apiFetch PIN header', () => {
     expect(String(err.detail)).toMatch(/Failed to fetch/);
   });
 });
+
+describe('apiFetch 401 routing', () => {
+  // The backend has two 401-returning middlewares distinguished only by their
+  // `detail` body: "API key required" (BearerKeyMiddleware) vs "PIN required"
+  // (NetworkAccessMiddleware). apiFetch reads the detail and dispatches a single
+  // `ov:auth-required` CustomEvent whose `detail.mode` tells the gate which form.
+  let realFetch: typeof globalThis.fetch;
+  let dispatch: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+    sessionStorage.clear();
+    localStorage.clear();
+    dispatch = vi.spyOn(window, 'dispatchEvent');
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    sessionStorage.clear();
+    localStorage.clear();
+    dispatch.mockRestore();
+  });
+
+  const stub401 = (detail: string) =>
+    vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: async () => JSON.stringify({ detail }),
+      }),
+    ) as any;
+
+  const authEvent = () =>
+    dispatch.mock.calls.map((c) => c[0]).find((e) => (e as Event).type === 'ov:auth-required');
+
+  it('dispatches ov:auth-required {mode:"apikey"} on an "API key required" 401', async () => {
+    globalThis.fetch = stub401('API key required');
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/system/info');
+    } catch {
+      /* ApiError expected */
+    }
+    expect(authEvent()).toBeTruthy();
+    expect((authEvent() as any).detail.mode).toBe('apikey');
+  });
+
+  it('dispatches ov:auth-required {mode:"pin"} on a "PIN required" 401', async () => {
+    globalThis.fetch = stub401('PIN required');
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/system/info');
+    } catch {
+      /* ApiError expected */
+    }
+    expect(authEvent()).toBeTruthy();
+    expect((authEvent() as any).detail.mode).toBe('pin');
+  });
+});
