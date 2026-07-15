@@ -303,10 +303,12 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
       // detail is the only discriminator (only two 401 sites exist backend-side).
       if (res.status === 401 && typeof window !== 'undefined') {
-        // String(): readError's declared `string` return is not guaranteed at
-        // runtime — `j.detail` can be a structured object/array on a future 401,
-        // which would crash .toLowerCase(). Coerce before matching.
-        const mode = String(detail).toLowerCase().includes('api key') ? 'apikey' : 'pin';
+        // readError's declared `string` return isn't guaranteed at runtime —
+        // `j.detail` can be a structured object/array on a future 401. Match only
+        // real strings (avoids both a `.toLowerCase()` crash and `String()` itself
+        // throwing on a malformed object); anything else falls back to PIN.
+        const mode =
+          typeof detail === 'string' && detail.toLowerCase().includes('api key') ? 'apikey' : 'pin';
         window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
       }
       throw new ApiError(`${res.status} ${res.statusText}: ${detail}`, {
