@@ -86,14 +86,18 @@ Leave the URL empty to go back to the local backend.
 ### From a browser (no desktop app)
 
 You can also drive the remote from a plain browser — open the URL with the key
-in the query string once:
+in the **fragment** once:
 
 ```
-https://gpu-box.your-tailnet.ts.net/?api_key=<key>
+https://gpu-box.your-tailnet.ts.net/#api_key=<key>
 ```
 
-The key is stored for that browser and the `?api_key=` param is scrubbed from
-the address bar (so it doesn't linger in history or get re-applied on a reload).
+Use the fragment (`#`, not `?`) deliberately: fragments are never sent to the
+server, so the key stays out of the GPU box's and any reverse proxy's request
+logs. The key is stored for that browser and the fragment is scrubbed from the
+address bar (so it doesn't linger in history or get re-applied on a reload). If
+your key contains `+`, `&`, `#`, or `=`, URL-encode it (e.g. `#api_key=a%2Bb`);
+keys from `secrets.token_urlsafe` (above) need no encoding.
 Thereafter the UI loads normally with the key attached to every request. If a
 request ever 401s again (wrong/rotated key), you're prompted to re-enter it. The
 same gate shows a LAN-share **PIN** prompt instead when network sharing — not a

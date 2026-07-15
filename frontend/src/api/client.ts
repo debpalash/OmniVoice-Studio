@@ -92,32 +92,58 @@ export function wsUrl(path: string): string {
   return `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`;
 }
 
-// Capture a QR-supplied PIN once on load. When LAN sharing is on, the host's
-// QR code links to `http://<lan-ip>:<port>/?pin=<pin>`; stash it in
-// sessionStorage so apiFetch attaches it to every request automatically.
+/**
+ * Pull deep-link credentials out of a URL and return them plus a scrubbed URL.
+ * Pure (no side effects) so it's unit-testable; the on-load block below applies
+ * the effects.
+ *   • ?pin=<pin>     (query)    — LAN-share QR. Returned as `pin` (session).
+ *   • #api_key=<key> (fragment) — remote-backend deep link. Returned as `apiKey`
+ *     (durable). Read from the FRAGMENT because fragments aren't sent to the
+ *     server, so the durable secret stays out of request logs; the PIN stays in
+ *     the query since the QR flow needs the server to see it.
+ * A stray legacy ?api_key= in the query is scrubbed from `cleanUrl` but NOT
+ * returned — reading it would resend the secret to the server on reload, the
+ * very leak the fragment avoids. `scrubbed` is true when any credential param
+ * was present, so the caller knows to rewrite the address bar.
+ *
+ * Caveat: the fragment is parsed with URLSearchParams, so a key containing `+`
+ * decodes as a space — URL-encode such keys (`#api_key=a%2Bb`). Keys from the
+ * documented `secrets.token_urlsafe` / hex generators don't contain `+`.
+ */
+export function _parseDeepLinkCredentials(href: string): {
+  pin: string | null;
+  apiKey: string | null;
+  cleanUrl: string;
+  scrubbed: boolean;
+} {
+  const url = new URL(href);
+  const pin = url.searchParams.get('pin');
+  const legacyQueryKey = url.searchParams.get('api_key');
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const apiKey = hashParams.get('api_key');
+  if (pin) url.searchParams.delete('pin');
+  if (legacyQueryKey) url.searchParams.delete('api_key');
+  if (apiKey) {
+    hashParams.delete('api_key');
+    url.hash = hashParams.toString();
+  }
+  return {
+    pin,
+    apiKey,
+    cleanUrl: url.pathname + url.search + url.hash,
+    scrubbed: Boolean(pin || apiKey || legacyQueryKey),
+  };
+}
+
+// On load, capture deep-link credentials (?pin= from the QR query, #api_key=
+// from a remote-backend fragment) so apiFetch attaches them automatically, then
+// scrub them from the address bar (one-shot — see _parseDeepLinkCredentials).
 if (typeof window !== 'undefined') {
   try {
-    const url = new URL(window.location.href);
-    const params = url.searchParams;
-    const p = params.get('pin');
-    if (p) sessionStorage.setItem('ov_pin', p);
-    // Deep-link bootstrap for a remote backend: a URL like
-    // http://gpu-box:3900/?api_key=<key> pre-fills the durable API key the same
-    // way ?pin= pre-fills a session PIN. localStorage (not sessionStorage)
-    // because the key is the durable remote credential — matches RemoteBackendPanel.
-    const k = params.get('api_key');
-    if (k) saveApiKey(k);
-    // One-shot: scrub consumed credentials from the address bar so a later reload
-    // (the gate and Settings both reload after saving) can't re-apply a stale
-    // ?api_key=/?pin= over the user's just-corrected value — and so the secret
-    // doesn't linger in the URL / browser history.
-    if (p || k) {
-      params.delete('pin');
-      params.delete('api_key');
-      const qs = params.toString();
-      // Preserve url.hash (deep-link fragments, e.g. #settings) when rebuilding.
-      window.history.replaceState(null, '', url.pathname + (qs ? `?${qs}` : '') + url.hash);
-    }
+    const { pin, apiKey, cleanUrl, scrubbed } = _parseDeepLinkCredentials(window.location.href);
+    if (pin) sessionStorage.setItem('ov_pin', pin);
+    if (apiKey) saveApiKey(apiKey);
+    if (scrubbed) window.history.replaceState(null, '', cleanUrl);
   } catch {
     /* noop */
   }

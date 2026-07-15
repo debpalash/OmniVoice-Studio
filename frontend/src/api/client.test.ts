@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { _parseDeepLinkCredentials } from './client';
 
 describe('apiFetch PIN header', () => {
   let realFetch: typeof globalThis.fetch;
@@ -106,5 +107,50 @@ describe('apiFetch 401 routing', () => {
     }
     expect(authEvent()).toBeTruthy();
     expect((authEvent() as any).detail.mode).toBe('pin');
+  });
+});
+
+describe('_parseDeepLinkCredentials', () => {
+  it('reads the API key from the fragment (not the query) and scrubs it', () => {
+    const r = _parseDeepLinkCredentials('https://h:3900/#api_key=SECRET');
+    expect(r.apiKey).toBe('SECRET');
+    expect(r.pin).toBeNull();
+    expect(r.scrubbed).toBe(true);
+    expect(r.cleanUrl).toBe('/');
+  });
+
+  it('reads the PIN from the query and scrubs it', () => {
+    const r = _parseDeepLinkCredentials('https://h/?pin=1234');
+    expect(r.pin).toBe('1234');
+    expect(r.apiKey).toBeNull();
+    expect(r.cleanUrl).toBe('/');
+  });
+
+  it('scrubs a legacy ?api_key= from the query WITHOUT reading it (no leak)', () => {
+    const r = _parseDeepLinkCredentials('https://h/?api_key=LEGACY');
+    expect(r.apiKey).toBeNull();
+    expect(r.scrubbed).toBe(true);
+    expect(r.cleanUrl).toBe('/');
+  });
+
+  it('preserves other query state and a bare #settings fragment when no api_key is consumed', () => {
+    const r = _parseDeepLinkCredentials('https://h/?pin=1&lang=fr#settings');
+    expect(r.pin).toBe('1');
+    expect(r.apiKey).toBeNull();
+    expect(r.cleanUrl).toBe('/?lang=fr#settings');
+  });
+
+  it('preserves other fragment params alongside api_key', () => {
+    const r = _parseDeepLinkCredentials('https://h/#api_key=S&theme=dark');
+    expect(r.apiKey).toBe('S');
+    expect(r.cleanUrl).toBe('/#theme=dark');
+  });
+
+  it('reports scrubbed=false and leaves the URL intact when no credential is present', () => {
+    const r = _parseDeepLinkCredentials('https://h/path?page=2#top');
+    expect(r.pin).toBeNull();
+    expect(r.apiKey).toBeNull();
+    expect(r.scrubbed).toBe(false);
+    expect(r.cleanUrl).toBe('/path?page=2#top');
   });
 });
