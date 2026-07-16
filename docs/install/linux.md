@@ -181,7 +181,12 @@ that picks these defaults automatically; for v0.3 set them by hand.
 ROCm support is **Linux-only and opt-in**. The **default install ships the
 CUDA build** of PyTorch (the `pytorch-cuda` index in `pyproject.toml`), so on
 an AMD-only machine `torch.cuda.is_available()` is `False` and OmniVoice runs
-on CPU until you opt into the ROCm variant. (On Windows there is no ROCm path
+on CPU until you opt into the ROCm variant.
+
+> **Running in Docker or Podman instead?** There's a prebuilt ROCm image —
+> `ghcr.io/debpalash/omnivoice-studio:rocm` — with GPU acceleration out of the
+> box; see [docker.md](docker.md#pull-and-run-amd-gpu--rocm). The rest of this
+> section is about source/desktop installs. (On Windows there is no ROCm path
 at all — PyTorch publishes no Windows ROCm wheels; see
 [windows.md](windows.md#gpu-support).)
 

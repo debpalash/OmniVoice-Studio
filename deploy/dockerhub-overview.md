@@ -49,7 +49,29 @@ docker run -d --name omnivoice --gpus all \
 
 GPU mode needs the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-on the host. There's also a Compose file in the repo with `cpu` / `gpu` profiles
+on the host.
+
+## Quick start (AMD GPU / ROCm)
+
+AMD GPUs use the dedicated `:rocm` image variant (the default image is
+CUDA-only and runs on CPU on AMD hardware). No toolkit needed — pass the GPU
+through as device nodes; the host only needs the `amdgpu` kernel driver:
+
+```bash
+docker run -d --name omnivoice \
+  --device /dev/kfd --device /dev/dri \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  palashdeb/omnivoice-studio:rocm
+```
+
+Podman users: same two `--device` flags (Quadlet: `AddDevice=/dev/kfd` +
+`AddDevice=/dev/dri`). On RDNA3 consumer cards (RX 7900 XTX/XT), add
+`-e HSA_OVERRIDE_GFX_VERSION=11.0.0` if the GPU isn't detected — details in
+the [Docker install guide](https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/install/docker.md).
+
+There's also a Compose file in the repo with `cpu` / `gpu` / `rocm` profiles
 — see the [Docker install guide](https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/install/docker.md).
 
 ---
@@ -64,6 +86,8 @@ on the host. There's also a Compose file in the repo with `cpu` / `gpu` profiles
 | `:0.3` | Latest patch within the `0.3` minor |
 | `:main` | Alias of the same rolling `main` build as `:latest` |
 | `:sha-xxxxxxx` | A specific commit (produced by manual workflow dispatch) |
+| `:rocm` | **AMD GPU (ROCm) build** of the rolling preview — the ROCm analogue of `:latest` |
+| `:stable-rocm`, `:0.3.6-rocm`, `:0.3-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding tags above |
 
 `main` always carries *last release + 1 patch*, so `:latest` (preview)
 version-sorts above `:stable` — upgrades flow naturally. The same images and tags

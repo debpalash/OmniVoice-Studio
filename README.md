@@ -281,7 +281,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 > On GPUs with **≤8 GB VRAM**, OmniVoice automatically offloads TTS to CPU during transcription — no config needed. A dedicated GPU is not required; the entire pipeline runs on CPU (just slower).
 
 > [!NOTE]
-> **AMD GPUs:** ROCm acceleration is **Linux-only and opt-in** — pick **"AMD GPU (ROCm)"** on the first-run setup screen or set `OMNIVOICE_TORCH_VARIANT=rocm` ([docs/install/linux.md](docs/install/linux.md#amd-gpu-rocm)). **On Windows, AMD GPUs (incl. Ryzen AI iGPUs) run CPU-only**: PyTorch has no Windows ROCm wheels, so Windows GPU acceleration is NVIDIA/CUDA-only ([docs/install/windows.md](docs/install/windows.md#gpu-support)).
+> **AMD GPUs:** ROCm acceleration is **Linux-only and opt-in** — pick **"AMD GPU (ROCm)"** on the first-run setup screen or set `OMNIVOICE_TORCH_VARIANT=rocm` ([docs/install/linux.md](docs/install/linux.md#amd-gpu-rocm)). In **Docker/Podman**, pull the dedicated ROCm image instead: `ghcr.io/debpalash/omnivoice-studio:rocm` ([docs/install/docker.md](docs/install/docker.md#pull-and-run-amd-gpu--rocm)). **On Windows, AMD GPUs (incl. Ryzen AI iGPUs) run CPU-only**: PyTorch has no Windows ROCm wheels, so Windows GPU acceleration is NVIDIA/CUDA-only ([docs/install/windows.md](docs/install/windows.md#gpu-support)).
 
 > [!IMPORTANT]
 > **macOS Intel (x86_64) is unsupported for the local backend:** the app UI installs, but the Python backend cannot run because PyTorch no longer ships Intel-Mac wheels ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). Intel-Mac users can still point the UI at a remote backend on another machine — see [docs/install/macos.md](docs/install/macos.md).

@@ -14,6 +14,14 @@
 #   :0.3      — major.minor floating tag (updated on every patch within the minor)
 #   :sha-xxxx — specific commit SHA; produced by workflow_dispatch
 #
+# ROCm/AMD GPU variant (#1165) — same semantics, `-rocm` suffixed, built by the
+# build-and-push-rocm job from the same Dockerfile via the BASE_IMAGE build-arg:
+#   :rocm           — rolling preview from main (the ROCm analogue of :latest)
+#   :stable-rocm    — most recent versioned release, ROCm build
+#   :0.3.6-rocm     — exact version, ROCm build
+#   :0.3-rocm       — major.minor floating tag, ROCm build
+#   :sha-xxxx-rocm  — specific commit SHA, ROCm build
+#
 # Images land at: ghcr.io/debpalash/omnivoice-studio AND docker.io/palashdeb/omnivoice-studio
 # (Docker Hub push gated on the DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets;
 # if unset the build still pushes to GHCR.)
@@ -136,3 +144,85 @@ jobs:
           repository: ${{ env.DOCKERHUB_IMAGE }}
           short-description: "Local ElevenLabs alternative: voice cloning, design & video dubbing in 646 languages. No API keys."
           readme-filepath: ./deploy/dockerhub-overview.md
+
+  # ── ROCm/AMD GPU image variant (#1165) ──────────────────────────────────
+  # Same Dockerfile, ROCm PyTorch base swapped in via the BASE_IMAGE
+  # build-arg; tags mirror the CUDA job's with a `-rocm` suffix (table in the
+  # header comment). Kept as a SEPARATE job — not a matrix leg or a second
+  # build step — so it gets a full runner disk to itself: the ROCm base alone
+  # is ~10 GB compressed / ~25 GB unpacked.
+  build-and-push-rocm:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ROCm base plus the built image don't fit in the runner's default
+      # free space. Drop the preinstalled toolchains this job never uses
+      # (~25-30 GB reclaimed).
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h /
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same Docker Hub gating as the CUDA job: push there only when the
+      # secret exists, so forks still publish to GHCR.
+      - name: Check Docker Hub credentials
+        id: dockerhub
+        run: echo "enabled=${{ secrets.DOCKERHUB_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hub
+        if: steps.dockerhub.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Mirrors the CUDA job's tag rules (incl. the workflow_dispatch and
+      # prerelease gating) with a `-rocm` suffix on every tag.
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ steps.dockerhub.outputs.enabled == 'true' && env.DOCKERHUB_IMAGE || '' }}
+          # latest=false is load-bearing: metadata-action's default (`auto`)
+          # would add a bare un-suffixed `:latest` on release-tag pushes,
+          # clobbering the CUDA preview channel with a ROCm image.
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}},suffix=-rocm,enable=${{ github.event_name == 'push' }}
+            type=semver,pattern={{major}}.{{minor}},suffix=-rocm,enable=${{ github.event_name == 'push' }}
+            type=raw,value=stable-rocm,enable=${{ github.event_name == 'push' && github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=raw,value=rocm,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,suffix=-rocm,format=short
+
+      # cache-from only: reading the CUDA job's exported cache reuses the
+      # identical frontend-builder stage. Deliberately NO cache-to — the
+      # multi-GB ROCm runtime layers would blow GitHub's 10 GB per-repo
+      # Actions cache budget and evict the CUDA job's cache.
+      - name: Build and push (ROCm)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          build-args: |
+            BASE_IMAGE=rocm/pytorch:rocm7.2.4_ubuntu24.04_py3.12_pytorch_release_2.8.0
+            GPU_FLAVOR=rocm
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

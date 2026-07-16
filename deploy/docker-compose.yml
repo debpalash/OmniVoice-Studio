@@ -2,10 +2,11 @@
 #  OmniVoice Studio — Docker Compose
 #
 #  Quick start:
-#    docker compose -f deploy/docker-compose.yml --profile cpu up   # CPU mode
-#    docker compose -f deploy/docker-compose.yml --profile gpu up   # GPU mode
+#    docker compose -f deploy/docker-compose.yml --profile cpu up    # CPU mode
+#    docker compose -f deploy/docker-compose.yml --profile gpu up    # NVIDIA GPU
+#    docker compose -f deploy/docker-compose.yml --profile rocm up   # AMD GPU (ROCm)
 #
-#  Both services bind to port 3900, so they MUST be opt-in via profiles —
+#  All services bind to port 3900, so they MUST be opt-in via profiles —
 #  otherwise `compose up` would race them and one would fail to bind.
 #
 #  First run downloads ~4 GB of models. Progress is shown in logs.
@@ -98,6 +99,53 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    restart: unless-stopped
+
+  # ── AMD GPU (ROCm) mode — activate with: docker compose --profile rocm up
+  # Uses the dedicated `:rocm` image variant (#1165). The GPU is passed
+  # through as plain device nodes — no toolkit needed, the host only needs
+  # the amdgpu kernel driver (the ROCm userspace ships inside the image).
+  # Podman works with the same two --device flags (Quadlet: AddDevice=).
+  omnivoice-rocm:
+    image: ghcr.io/debpalash/omnivoice-studio:rocm
+    # To build from source instead of pulling, comment out `image:` and
+    # uncomment the lines below. BASE_IMAGE/GPU_FLAVOR are required — the
+    # Dockerfile's defaults build the CUDA variant.
+    # build:
+    #   context: ..
+    #   dockerfile: deploy/Dockerfile
+    #   args:
+    #     BASE_IMAGE: rocm/pytorch:rocm7.2.4_ubuntu24.04_py3.12_pytorch_release_2.8.0
+    #     GPU_FLAVOR: rocm
+    container_name: omnivoice-studio-rocm
+    profiles: ["rocm"]
+    ports:
+      - "127.0.0.1:3900:3900"
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    volumes:
+      - omnivoice-data:/app/omnivoice_data
+    environment:
+      - HF_HOME=/app/omnivoice_data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+      - OMNIVOICE_DATA_DIR=/app/omnivoice_data
+      - PYTHONPATH=/app/backend
+      - PYTHONUNBUFFERED=1
+      # See the CPU service above — container-internal bind + relaxed
+      # loopback origin gate for the headless Docker deployment.
+      - OMNIVOICE_BIND_HOST=0.0.0.0
+      - OMNIVOICE_SERVER_MODE=1
+      # RDNA3 consumer cards (RX 7900 XTX/XT and friends, gfx1100): if the
+      # GPU is not detected, uncomment the override below. The backend
+      # auto-sets it for known consumer GFX IDs, so try without it first.
+      # - HSA_OVERRIDE_GFX_VERSION=11.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
     restart: unless-stopped
 
 volumes:

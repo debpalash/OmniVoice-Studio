@@ -1,3 +1,11 @@
+# Base image for the Python/PyTorch runtime stage. The default builds the
+# CUDA variant; CI also builds a ROCm/AMD variant (issue #1165) by overriding:
+#   BASE_IMAGE=rocm/pytorch:rocm7.2.4_ubuntu24.04_py3.12_pytorch_release_2.8.0
+#   GPU_FLAVOR=rocm
+# Both bases ship torch/torchaudio 2.8.0 preinstalled; the dependency install
+# below deliberately preserves them (see the GPU_FLAVOR guard).
+ARG BASE_IMAGE=pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+
 # ==========================================
 # Builder Stage: Compile React Frontend
 # ==========================================
@@ -18,7 +26,7 @@ RUN bun run --cwd frontend build
 # ==========================================
 # Runtime Stage: Python & PyTorch Backend
 # ==========================================
-FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime AS runtime
+FROM ${BASE_IMAGE} AS runtime
 WORKDIR /app
 
 # Enable unbuffered logs and optimizations
@@ -45,15 +53,40 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# PEP 668: the ROCm base (Ubuntu 24.04) marks its system Python
+# EXTERNALLY-MANAGED, which would refuse `pip install` / `uv pip install
+# --system`. Inside a single-purpose container image installing into the
+# base env is exactly what we want. No-ops on the conda-based CUDA image.
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+ENV UV_BREAK_SYSTEM_PACKAGES=1
+
 # Install `uv` for blazing-fast reliable pip resolution
-RUN pip install --no-cache-dir uv
+# (`python3 -m pip` — not every base symlinks a bare `pip` onto PATH)
+RUN python3 -m pip install --no-cache-dir uv
 
 # Copy python packaging specs (README.md required by hatchling metadata)
 COPY pyproject.toml uv.lock README.md ./
 
 # Install the project (non-editable — no need for -e in containers).
 # Uses `uv` for exponentially faster resolution than plain pip.
-RUN uv pip install --system --no-cache .  
+#
+# NOTE: `uv pip install` (without --upgrade) keeps already-installed packages
+# that satisfy the requirements, so the base image's GPU-built torch/torchaudio
+# (2.8.0, satisfying our `torch>=2.4`) survive this step instead of being
+# clobbered by PyPI's CUDA-default wheels. That property is what makes the
+# ROCm variant possible at all — the guard below pins it down.
+RUN uv pip install --system --no-cache .
+
+# Guard (fails the build, not the user at runtime): assert the dependency
+# install did NOT replace the base image's GPU torch. A future dep bump that
+# forces a different torch version would otherwise silently ship a CUDA build
+# in the ROCm image (= CPU-only for AMD users) — catch it here instead.
+ARG GPU_FLAVOR=cuda
+RUN python3 -c "import os, torch, torchaudio; \
+    flavor = os.environ['GPU_FLAVOR']; \
+    accel = torch.version.hip if flavor == 'rocm' else torch.version.cuda; \
+    print(f'torch={torch.__version__} torchaudio={torchaudio.__version__} {flavor}={accel}'); \
+    assert accel, f'base image {flavor} torch was clobbered (now {torch.__version__})'"
 
 # Copy application source
 COPY backend/ ./backend/

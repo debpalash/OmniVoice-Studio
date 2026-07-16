@@ -8,6 +8,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ## [Unreleased]
 
+### Added
+
+- **A Docker image for AMD GPUs: `ghcr.io/debpalash/omnivoice-studio:rocm`.** The Docker image was CUDA-only, so AMD cards (an RX 7900 XTX under Podman, say) silently ran on CPU. Every preview and release now also ships a ROCm variant — `:rocm` is the rolling preview, with `:stable-rocm` / `:X.Y.Z-rocm` mirroring the release tags on GHCR and Docker Hub alike. Pass the GPU through with `--device /dev/kfd --device /dev/dri` (works for Docker and Podman/Quadlet; no container toolkit needed) and it's auto-detected; a new `rocm` profile in the Compose file does the same. (#1165)
+
 ### Fixed
 
 - **A missing (or broken) MCP dependency can no longer kill the whole backend at startup.** One Windows user's backend loaded all 32 models and then died with exit code 1 because the `mcp` package couldn't be imported — the MCP integration called "exit the program" and a technicality (`SystemExit` isn't an `Exception`) let it slip past the guard meant to make MCP optional. The MCP layer now degrades to "/mcp disabled" on any import failure, the error names what actually failed (the package can be present but broken — e.g. pywin32 on Windows — and "not installed" was a misdiagnosis), and the exit-containment now covers this whole class. (#1156)

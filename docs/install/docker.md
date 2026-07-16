@@ -17,6 +17,8 @@ and [`palashdeb/omnivoice-studio` on Docker Hub](https://hub.docker.com/r/palash
 > | `:0.3` | Latest patch within the 0.3 minor |
 > | `:main` | Alias of the same rolling `main` build as `:latest` |
 > | `:sha-xxxxxxx` | Specific commit (produced by manual workflow dispatch) |
+> | `:rocm` | **AMD GPU (ROCm) build** of the rolling preview — the ROCm analogue of `:latest` |
+> | `:stable-rocm`, `:0.3.17-rocm`, `:0.3-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding CUDA tags above |
 >
 > Versioning rule: `main` always carries *last release + 1 patch*, so `:latest`
 > (preview) version-sorts above `:stable` — upgrades flow naturally.
@@ -58,6 +60,56 @@ GPU mode requires the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 on the host.
 
+## Pull and run (AMD GPU / ROCm)
+
+AMD GPUs use the dedicated **`:rocm` image variant** — the default (CUDA)
+image runs CPU-only on AMD hardware. The ROCm userspace ships inside the
+image; the host only needs the `amdgpu` kernel driver. Pass the GPU through
+as plain device nodes (no container toolkit needed):
+
+```bash
+docker run -d --name omnivoice \
+  --device /dev/kfd --device /dev/dri \
+  -p 127.0.0.1:3900:3900 \
+  -v omnivoice-data:/app/omnivoice_data \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  ghcr.io/debpalash/omnivoice-studio:rocm
+```
+
+The same flags work with **Podman** (`podman run --device /dev/kfd
+--device /dev/dri …`); in a **Quadlet** unit that's two `AddDevice=` lines:
+
+```ini
+# ~/.config/containers/systemd/omnivoice.container
+[Container]
+Image=ghcr.io/debpalash/omnivoice-studio:rocm
+AddDevice=/dev/kfd
+AddDevice=/dev/dri
+PublishPort=127.0.0.1:3900:3900
+Volume=omnivoice-data:/app/omnivoice_data
+```
+
+Release pins exist too: `:stable-rocm`, `:0.3.22-rocm`, `:0.3-rocm` mirror
+the CUDA tags exactly.
+
+> **RDNA3 consumer cards (RX 7900 XTX/XT, gfx1100):** the backend auto-sets
+> `HSA_OVERRIDE_GFX_VERSION` for consumer GFX IDs missing from ROCm's official
+> support matrix, so try without any override first. If the GPU still isn't
+> detected, force it explicitly with `-e HSA_OVERRIDE_GFX_VERSION=11.0.0`
+> (user-set on the container — it is deliberately **not** baked into the
+> image, because the right value depends on your card).
+
+Verify the container sees the GPU:
+
+```bash
+docker exec omnivoice python3 -c \
+  "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+(ROCm-built PyTorch reports through `torch.cuda.*` — `True` plus your card's
+name means GPU acceleration is active. The Settings → System panel shows the
+same device.)
+
 ## Docker Compose (recommended)
 
 ```bash
@@ -66,6 +118,9 @@ docker compose -f deploy/docker-compose.yml --profile cpu up -d
 
 # NVIDIA GPU
 docker compose -f deploy/docker-compose.yml --profile gpu up -d
+
+# AMD GPU (ROCm)
+docker compose -f deploy/docker-compose.yml --profile rocm up -d
 ```
 
 The `docker-compose.yml` shipped in `deploy/` defaults to `127.0.0.1:3900`
@@ -142,5 +197,11 @@ Two paths are worth persisting across container restarts:
   to re-enable the strict gate.
 - **Media-preview 404 in LAN mode:** see the [LAN access](#lan-access) section
   above — the `window.location.host` fix shipped in v0.3.
-- **GPU not detected:** verify `docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi` succeeds first.
+- **GPU not detected (NVIDIA):** verify `docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi` succeeds first.
+- **GPU not detected (AMD):** make sure you pulled the `:rocm` tag (the default
+  image is CUDA-only) and passed `--device /dev/kfd --device /dev/dri`. Check
+  the container sees the card with
+  `docker exec omnivoice rocminfo | grep -i gfx`; on RDNA3 consumer cards try
+  `-e HSA_OVERRIDE_GFX_VERSION=11.0.0` — see
+  [Pull and run (AMD GPU / ROCm)](#pull-and-run-amd-gpu--rocm) above.
 - More entries: [docs/install/troubleshooting.md](troubleshooting.md).
