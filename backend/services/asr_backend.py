@@ -1658,7 +1658,7 @@ def _normalize_funasr(res) -> dict:
     for s in item.get("sentence_info") or []:
         if not isinstance(s, dict):
             continue
-        txt = _clean_funasr_text(s.get("text", ""))
+        txt = _clean_funasr_text(s.get("text") or s.get("sentence", ""))
         if not txt:
             continue
         seg = {"text": txt, "start": _ms_to_s(s.get("start", 0)) or 0.0, "end": _ms_to_s(s.get("end"))}
@@ -1712,13 +1712,20 @@ class FunASRBackend(ASRBackend):
         kwargs = {"model": self._model_name, "vad_model": self._vad_model, "disable_update": True}
         if self._spk_model:
             kwargs["spk_model"] = self._spk_model
+            # FunASR 1.3.1 defaults to punc_segment, which requires a separate
+            # punc_model and crashes when SenseVoice is loaded without one.
+            kwargs["spk_mode"] = "vad_segment"
         logger.info("FunASR loading %s (vad=%s, spk=%s)", self._model_name, self._vad_model, self._spk_model or "off")
         self._model = AutoModel(**kwargs)
 
     def transcribe(self, audio_path: str, *, word_timestamps: bool = True) -> dict:
         self._ensure_model()
         logger.info("FunASR transcribing %s", audio_path)
-        res = self._model.generate(input=audio_path, cache={}, language="auto", use_itn=True)
+        kwargs = {"input": audio_path, "cache": {}, "language": "auto", "use_itn": True}
+        if self._spk_model:
+            # vad_segment reads SenseVoice's timestamps to build sentence_info.
+            kwargs["output_timestamp"] = True
+        res = self._model.generate(**kwargs)
         return _normalize_funasr(res)
 
     def unload(self) -> None:
