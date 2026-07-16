@@ -271,6 +271,11 @@ def _decode_audio_16k_mono(audio_path: str):
 class ASRBackend(ABC):
     id: str = "base"
     display_name: str = "Base ASR"
+    # Backends normally receive bounded chunks from the dub stream. Set this
+    # when speaker labels are clustered only within one transcribe() call: the
+    # caller must then submit the full recording or identical numeric labels
+    # from separate chunks can refer to different people.
+    requires_full_audio_for_speaker_consistency: bool = False
     # Accelerator families this backend can use, in preference order; always
     # includes a fallback. Subset of {cuda, rocm, mps, xpu, cpu}. Mirrors the
     # TTSBackend.gpu_compat contract so engine_routing.resolve_routing() can
@@ -1696,6 +1701,12 @@ class FunASRBackend(ASRBackend):
         # to disable and fall back to the dub pipeline's pyannote/heuristic path.
         self._spk_model = os.environ.get("ASR_FUNASR_SPK", "cam++")
         self._model = None
+
+    @property
+    def requires_full_audio_for_speaker_consistency(self) -> bool:
+        # CAM++ assigns cluster IDs per generate() call. Let FunASR's internal
+        # VAD split long recordings so one call retains global voice identity.
+        return bool(self._spk_model)
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
