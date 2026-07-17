@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "desktop": "tauri dev",
+    "desktop": "bun ../scripts/desktop-dev.mjs",
     "build": "vite build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
