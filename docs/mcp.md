@@ -30,6 +30,11 @@ To bind this agent to a specific voice, send an
 `X-OmniVoice-Client-Id` header (e.g. `claude-code`). See
 [per-agent voices](#per-agent-voices).
 
+**Agents in Docker or on another machine:** the MCP SDK rejects non-localhost
+Host headers by default (DNS-rebinding guard). Set
+`OMNIVOICE_MCP_ALLOWED_HOSTS` to a comma-separated list of host patterns the
+agent connects from (e.g. `host.containers.internal:*,192.168.1.50:*`):
+
 ### stdio (clients that only speak stdio)
 
 Use the bundled shim — it proxies stdio ↔ the mounted HTTP endpoint. Drop
