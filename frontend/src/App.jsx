@@ -1165,9 +1165,6 @@ function App() {
     return (
       <div style={{ zoom: uiScale }}>
         <BootstrapSplash stage={bootstrapStage} message={bootstrapMessage} />
-        <Suspense fallback={null}>
-          <LogsFooter />
-        </Suspense>
       </div>
     );
   }
@@ -1203,9 +1200,6 @@ function App() {
               setSetupNeeded(false);
             }}
           />
-        </Suspense>
-        <Suspense fallback={null}>
-          <LogsFooter />
         </Suspense>
       </div>
     );
