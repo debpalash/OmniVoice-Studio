@@ -116,3 +116,4 @@ def test_mcp_allowed_hosts_env_extends_allowlist(monkeypatch):
     assert "10.0.0.1:*" in allowed
     origins = server.settings.transport_security.allowed_origins
     assert "http://host.containers.internal:*" in origins
+    assert "https://host.containers.internal:*" in origins

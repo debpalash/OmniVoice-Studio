@@ -122,11 +122,13 @@ def create_mcp_server():
         hosts = [h.strip() for h in _mcp_hosts.split(",") if h.strip()]
         try:
             mcp.settings.transport_security.allowed_hosts.extend(hosts)
-            # Also extend origins (browser-based MCP clients behind a proxy send
-            # an Origin header — agent clients typically don't).
-            mcp.settings.transport_security.allowed_origins.extend(
-                f"http://{h}" for h in hosts
-            )
+            # Also extend origins for both http and https (browser-based MCP
+            # clients behind a proxy send an Origin header — agent clients
+            # typically don't, but a reverse proxy may use either scheme).
+            origins = [
+                f"{scheme}://{h}" for h in hosts for scheme in ("http", "https")
+            ]
+            mcp.settings.transport_security.allowed_origins.extend(origins)
         except Exception as e:
             logger.warning("OMNIVOICE_MCP_ALLOWED_HOSTS not applied (%s)", e)
 
