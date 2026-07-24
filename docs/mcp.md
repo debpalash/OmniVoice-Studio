@@ -33,7 +33,10 @@ To bind this agent to a specific voice, send an
 **Agents in Docker or on another machine:** the MCP SDK rejects non-localhost
 Host headers by default (DNS-rebinding guard). Set
 `OMNIVOICE_MCP_ALLOWED_HOSTS` to a comma-separated list of host patterns the
-agent connects from (e.g. `host.containers.internal:*,192.168.1.50:*`):
+agent connects from (e.g. `host.containers.internal:*,192.168.1.50:*`).
+Keep this on a trusted LAN or behind TLS (Tailscale Serve, a reverse proxy
+with HTTPS) — the MCP transport is not authenticated, so don't expose it on
+the open internet.
 
 ### stdio (clients that only speak stdio)
 
