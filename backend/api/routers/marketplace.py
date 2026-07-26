@@ -39,6 +39,7 @@ from core.config import OUTPUTS_DIR, VOICES_DIR
 from core.db import db_conn
 from core import event_bus
 from core.version import APP_VERSION
+from core.http_headers import content_disposition
 
 logger = logging.getLogger("omnivoice.marketplace")
 
@@ -131,7 +132,7 @@ def export_profile(profile_id: str):
         buf,
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": content_disposition(filename),
             "Content-Length": str(buf.getbuffer().nbytes),
         },
     )

@@ -314,6 +314,67 @@ def find_ffprobe():
     return None
 
 
+def ensure_media_tools_on_path() -> list[str]:
+    """Put the resolved ffmpeg/ffprobe on ``PATH`` for third-party code (#1256).
+
+    OmniVoice's own call sites always resolve an explicit path, so a bundled
+    sidecar that was never on ``PATH`` works fine for us. Our dependencies do
+    not get that courtesy: a library that shells out to ``ffprobe`` by bare
+    name dies with ``FileNotFoundError: [Errno 2] No such file or directory:
+    'ffprobe'``. The reporter of #1256 hit that mid-synthesis and was told the
+    engine had "stopped with an error OmniVoice doesn't recognize", on a Mac
+    where the app's OWN ffprobe was sitting on disk, resolvable, the whole
+    time.
+
+    Prepending the resolved binaries' directories fixes every such dependency
+    at once, rather than chasing them one import at a time. Prepended (not
+    appended) so the copy we validated wins over a broken system one.
+
+    Returns the directories added. Idempotent, best-effort, never raises.
+    """
+    added: list[str] = []
+    try:
+        directories: list[str] = []
+        for resolve in (find_ffmpeg, find_ffprobe):
+            try:
+                path = resolve()
+            except Exception:
+                continue
+            if not path:
+                continue
+            directory = os.path.dirname(os.path.abspath(path))
+            if directory and directory not in directories:
+                directories.append(directory)
+
+        current = os.environ.get("PATH", "")
+        entries = current.split(os.pathsep) if current else []
+        # Case-insensitive comparison on Windows/macOS, where PATH is not
+        # case-sensitive and "already present" must not depend on casing.
+        normalize = os.path.normcase
+        present = {normalize(e) for e in entries if e}
+        for directory in directories:
+            if normalize(directory) in present:
+                continue
+            entries.insert(0, directory)
+            present.add(normalize(directory))
+            added.append(directory)
+
+        if added:
+            os.environ["PATH"] = os.pathsep.join(entries)
+            # Count, not paths: a user-set FFMPEG_PATH resolves under their home
+            # directory, and absolute home paths must not reach the log
+            # (#1256 review). find_ffmpeg/find_ffprobe already log their own
+            # resolution at debug level when that detail is wanted.
+            logger.info(
+                "Published %d media-tool director%s on PATH so dependencies can "
+                "find ffmpeg/ffprobe (#1256)",
+                len(added), "y" if len(added) == 1 else "ies",
+            )
+    except Exception as e:  # diagnosis must never break the thing it helps
+        logger.debug("ensure_media_tools_on_path failed (non-fatal): %s", e)
+    return added
+
+
 async def _spawn_async(cmd, **kwargs):
     """Try asyncio subprocess; fall back to thread-based subprocess on Windows
     where ProactorEventLoop may not be available (e.g. under uvicorn --reload)."""

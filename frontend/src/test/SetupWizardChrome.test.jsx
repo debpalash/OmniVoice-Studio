@@ -1,0 +1,124 @@
+/**
+ * First-run wizard chrome: the pinned action row must stay on screen, and the
+ * studio's status bar must not appear before the user reaches the studio.
+ *
+ * The bug: `SetupWizard`'s root was `fixed inset-0`, so it laid itself out
+ * against the VIEWPORT rather than `.app-wizard-wrap` — the box App.jsx sizes
+ * to stop above the fixed `LogsFooter`. Its pinned footer (Continue, Back, and
+ * the "set a Hugging Face token" card) therefore rendered underneath the status
+ * bar, clipped off the bottom of the window: on the Models & engines step the
+ * Continue button was simply unreachable.
+ *
+ * Both halves are pinned here — the root must not be `fixed`, and the wizard
+ * branch must render no `LogsFooter` — because either one alone reintroduces
+ * the clip.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
+import fs from 'node:fs';
+import path from 'node:path';
+import i18n from '../i18n';
+
+vi.mock('../components/WizardLibrary', () => ({ default: () => null }));
+vi.mock('../components/MediaEngineCard', () => ({ default: () => null }));
+vi.mock('../components/MirrorRescue', () => ({ default: () => null }));
+vi.mock('../components/DictationDemo', () => ({ default: () => null }));
+vi.mock('../components/HfTokenCard', () => ({
+  default: ({ className }) => <div data-testid="hf-token-card" className={className} />,
+}));
+vi.mock('../api/external', () => ({ openExternal: vi.fn(() => Promise.resolve()) }));
+
+vi.mock('../api/hooks', () => ({
+  useSetupStatus: () => ({
+    data: { models_ready: true, missing: [], hf_cache_dir: '/tmp/hf' },
+    refetch: vi.fn(),
+  }),
+  usePreflight: () => ({
+    data: { ok: true, has_warnings: false, checks: [] },
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock('../api/client', () => ({
+  apiJson: vi.fn(() => Promise.resolve({ available: false, prompted: true })),
+  apiFetch: vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })),
+  API: '',
+}));
+
+import SetupWizard from '../pages/SetupWizard';
+
+const withI18n = (node) => <I18nextProvider i18n={i18n}>{node}</I18nextProvider>;
+
+const readSrc = (rel) => fs.readFileSync(path.resolve(__dirname, '..', rel), 'utf8');
+
+beforeEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('SetupWizard — the pinned action row stays on screen', () => {
+  it('does not position its root against the viewport', () => {
+    const { container } = render(withI18n(<SetupWizard onReady={() => {}} />));
+    const root = container.firstElementChild;
+
+    // `fixed` ignores .app-wizard-wrap's box; `absolute` fills it.
+    expect(root.className).not.toMatch(/\bfixed\b/);
+    expect(root.className).toMatch(/\babsolute\b/);
+    // ...and the pinned row needs clearance now that it really is the last
+    // thing on screen — flush against the window edge is the same bug's
+    // cosmetic tail.
+    expect(root.className).toMatch(/\bpb-\d/);
+  });
+
+  it('keeps Continue and the HF-token card OUT of the scrolling region', async () => {
+    render(withI18n(<SetupWizard onReady={() => {}} />));
+    fireEvent.click(await screen.findByText(/All good — continue/i));
+
+    // Models step: the token card and the action row are siblings of the
+    // scroller, not children of it — otherwise they scroll away instead of
+    // staying pinned.
+    const card = await screen.findByTestId('hf-token-card');
+    expect(card.className).toMatch(/shrink-0/);
+
+    const cta = await screen.findByText(/Required models ready/i);
+    const row = cta.closest('div');
+    expect(row.className).toMatch(/shrink-0/);
+
+    let el = card;
+    while (el) {
+      expect(el.className || '').not.toMatch(/overflow-y-auto/);
+      el = el.parentElement;
+    }
+  });
+});
+
+describe('studio chrome does not appear before the studio', () => {
+  it('renders no LogsFooter in the first-run wizard or the pre-wizard splash', () => {
+    const app = readSrc('App.jsx');
+
+    // Split App.jsx at the last pre-studio early return. Everything above is a
+    // screen the user sees BEFORE the studio (awaiting_setup splash,
+    // !setupChecked splash, the wizard); everything below is the studio.
+    const split = app.indexOf('// Block the main UI until Rust reports the backend is ready');
+    expect(split).toBeGreaterThan(0);
+    const preStudio = app.slice(app.indexOf("if (bootstrapStage === 'awaiting_setup')"), split);
+    const studio = app.slice(split);
+
+    // Asserted per-branch rather than as a global count: a bare count of 1
+    // would still pass if the mount MOVED from the studio into the splash.
+    expect(preStudio).not.toContain('LogsFooter');
+    expect(studio.match(/<LogsFooter\s*\/>/g) || []).toHaveLength(1);
+  });
+
+  it('gives the wizard the whole viewport, since nothing is reserved below it', () => {
+    const css = readSrc('index.css');
+    const rule = css.slice(css.indexOf('.app-wizard-wrap {'));
+    const body = rule.slice(0, rule.indexOf('}'));
+    // A leftover `bottom: var(--logs-footer-height)` would strand a dead 28px
+    // gap under the wizard now that no footer is rendered there.
+    expect(body).not.toContain('--logs-footer-height');
+    expect(body).toMatch(/bottom:\s*0;/);
+  });
+});

@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from core.config import DUB_DIR, dub_seg_path
 from core.tasks import task_manager
+from core.http_headers import content_disposition
 from api.routers.dub_core import _get_job
 from services.ffmpeg_utils import (
     bed_mix_filter,
@@ -515,7 +516,7 @@ async def dub_download(
             return _native_save(out_path, save_path, dl_name, media_type=media_type)
         return FileResponse(
             out_path, media_type=media_type,
-            headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+            headers={"Content-Disposition": content_disposition(dl_name)},
         )
 
     # Determine whether this export should drive video through a per-segment
@@ -798,7 +799,7 @@ async def dub_download(
 
     return FileResponse(
         output_path, media_type="video/mp4",
-        headers={"Content-Disposition": f'attachment; filename="{dl_name}"', **extra_headers},
+        headers={"Content-Disposition": content_disposition(dl_name), **extra_headers},
     )
 
 
@@ -1382,7 +1383,7 @@ async def dub_download_audio(job_id: str, lang: str = Query(None), preserve_bg: 
         return _native_save(wav_path, save_path, dl_name, media_type="audio/wav")
     return FileResponse(
         wav_path, media_type="audio/wav",
-        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+        headers={"Content-Disposition": content_disposition(dl_name)},
     )
 
 
@@ -1469,7 +1470,7 @@ async def dub_export_srt(
     return Response(
         content=srt_content,
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+        headers={"Content-Disposition": content_disposition(dl_name)},
     )
 
 def _format_vtt_time(seconds):
@@ -1516,7 +1517,7 @@ async def dub_export_vtt(
     return Response(
         content=vtt_content,
         media_type="text/vtt",
-        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+        headers={"Content-Disposition": content_disposition(dl_name)},
     )
 
 
@@ -1557,7 +1558,7 @@ async def dub_export_segments_zip(job_id: str, lang: str = Query(None)):
     return Response(
         content=zip_buffer.read(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="segments_{safe_name}.zip"'},
+        headers={"Content-Disposition": content_disposition(f"segments_{safe_name}.zip")},
     )
 
 @router.get("/dub/download-mp3/{job_id}")
@@ -1637,7 +1638,7 @@ async def dub_download_mp3(job_id: str, lang: str = Query(None), preserve_bg: bo
         return _native_save(mp3_path, save_path, dl_name, media_type="audio/mpeg")
     return FileResponse(
         mp3_path, media_type="audio/mpeg",
-        headers={"Content-Disposition": f'attachment; filename="{dl_name}"'},
+        headers={"Content-Disposition": content_disposition(dl_name)},
     )
 
 @router.get("/dub/export-stems/{job_id}")
@@ -1676,5 +1677,5 @@ async def dub_export_stems(job_id: str, lang: str = Query(None)):
     return Response(
         content=zip_buffer.read(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="stems_{safe_name}.zip"'},
+        headers={"Content-Disposition": content_disposition(f"stems_{safe_name}.zip")},
     )

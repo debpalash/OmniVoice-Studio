@@ -17,6 +17,19 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A GPU too small for the chosen engine now says so up front, not after a five-minute wait
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
+- First run: Continue and the Hugging Face token box no longer sit under the status bar
+- macOS 12 (Monterey): the app launches again instead of dying on startup
+- Exporting a voice or a dub no longer fails when the name isn't spelled in Latin letters
+- Two more failures that used to arrive as raw OS text now say what to do about them
+- Unload works on every model the panel offers it for, and a language the active engine can't speak says so
+
+### Changed
+
+- First run: the status bar (Logs, version, Sponsors) appears once you reach the studio, instead of overlaying the setup steps (#1241)
+
+### Added
+
+- `OMNIVOICE_MCP_ALLOWED_HOSTS` — comma-separated host patterns (e.g. `host.containers.internal:*,192.168.1.5:*`) that extend the MCP SDK's DNS-rebinding allowlist, so AI agents running in Docker containers or on other machines can reach the `/mcp` endpoint. The SDK default is localhost-only; this env var is opt-in (#1249)
 
 ### Docs
 
@@ -24,6 +37,13 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- macOS 12 (Monterey): the app threw on startup and never started the backend — it called a Safari 16 method on the WebView that macOS ships. It launches and works now; some styling still needs a newer WebView (tracked in #1268) — thanks @singhrahat! (#1245)
+- Settings → Engines: Unload failed with `400 Unknown model id: engine:kittentts` on any in-process engine — the panel offered the button for ids the backend never accepted; the warm dictation model had the same gap — thanks @JavaxmI! (#1247)
+- Picking a language the active engine can't speak recited 23 codes without saying which engine refused or that switching engine was the fix — thanks @pulananave! (#1257)
+- A YouTube import that failed as "DRM protected" and then worked on a manual retry now escalates the player client automatically, and a genuinely undownloadable video says so — thanks @gysahlgreene! (#1254)
+- Exporting a voice profile, persona, dub, subtitle or stem whose name is Chinese, Japanese, Korean, Cyrillic, Greek, Hebrew or emoji failed with a `'latin-1' codec` 500 — every download endpoint now sends the name correctly, and browsers get the real one back — thanks @zvxzdx! (#1262)
+- A synth that failed because ffmpeg/ffprobe wasn't on the system path said "an error OmniVoice doesn't recognize"; it now names the media engine and points at Settings → Audio tools, and the app's own copy is published on PATH so dependencies find it in the first place — thanks @Heuvelsma! (#1256)
+- Windows "The paging file is too small" arrived as a bare 500; it now explains that this is a virtual-memory setting, not full RAM, and gives the steps to raise it — thanks @trankeny545-sudo! (#1251)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
 - AMD/ROCm: `HSA_OVERRIDE_GFX_VERSION` is auto-set only when your card genuinely needs it and the remap target exists in your build; gfx1150/gfx1151 (Strix Point/Halo) added to the map (#1228)
@@ -36,6 +56,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Colab notebook: the install cell now catches a broken environment with the real error, instead of a 5-minute health timeout two cells later — thanks @Navdeep-Chauhan-777! (#1229)
 - A GPU with less VRAM than the chosen engine needs is flagged in Settings → Engines before you generate, instead of showing a clean green "accelerated" until the job times out — thanks @AdityaHemantBhat and @beingavais! (#1226, #1222)
 - A generation timeout now names your actual card and its VRAM and recommends a lighter engine (#1226, #1222)
+- First run: Continue and the Hugging Face token box rendered underneath the status bar, off the bottom of the window — the wizard laid itself out against the viewport instead of its own frame (#1241)
 - A busy port 3900 now reports a port conflict instead of "Backend died (exit code 1)", in every language — thanks @xipb14! (#1223)
 - The app verifies it actually freed the port before starting the backend, rather than assuming the kill worked (#1223)
 - A model download truncated near the end is now retried and resumed instead of aborting the whole install — thanks @Reaksa-Cambodia! (#1224)

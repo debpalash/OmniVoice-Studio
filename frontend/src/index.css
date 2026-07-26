@@ -2533,12 +2533,16 @@ input[type="file"]::file-selector-button:hover {
 }
 .app-startup__title { font-size: 18px; color: #ebdbb2; }
 .app-wizard-wrap {
-  /* Fill viewport above the fixed LogsFooter */
+  /* Fills the WHOLE viewport: the first-run wizard deliberately renders no
+     LogsFooter (studio chrome belongs to the studio), so there is nothing to
+     reserve space for. While it did reserve 28px, the wizard's own root was
+     `fixed inset-0` and escaped this box anyway — its pinned Continue / HF
+     token row rendered underneath the status bar and was unreachable. */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: var(--logs-footer-height, 28px);
+  bottom: 0;
   overflow: hidden;
   background: var(--color-bg, #1d2021);
   display: flex;
