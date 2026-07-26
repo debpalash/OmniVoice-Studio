@@ -569,6 +569,33 @@ def describe_path_target(path: str) -> str:
     return "; ".join(facts)
 
 
+#: Exception types whose ``str()`` is a bare VALUE rather than a sentence, so
+#: showing it alone tells the user nothing about what went wrong.
+#: ``str(KeyError("mgw39lx3"))`` is ``"'mgw39lx3'"`` — the repr of the key.
+_VALUE_ONLY_STR_EXCEPTIONS = (KeyError,)
+
+
+def describe_exception(exc: BaseException) -> str:
+    """``str(exc)`` in a form a human can act on.
+
+    #1252/#1253: a dub ingest failed with the toast ``ingest: 'mgw39lx3'`` and
+    nothing else — the entire user-facing reason was the repr of a dict key,
+    because ``str(KeyError)`` does not mention that a lookup failed, or that it
+    was an exception at all. The reporter's ``'mgw39lx3'`` was their own job id
+    reflected back at them with no context.
+
+    Naming the class is the floor, not the goal: a failure that reaches here at
+    all is one nobody wrote a message for. It keeps the report diagnosable
+    instead of cryptic while the specific path gets its own handling.
+    """
+    text = str(exc).strip()
+    if not text:
+        return type(exc).__name__
+    if isinstance(exc, _VALUE_ONLY_STR_EXCEPTIONS):
+        return f"{type(exc).__name__}: {text}"
+    return text
+
+
 def build_failure(
     exc_or_msg: Any,
     *,
@@ -582,7 +609,7 @@ def build_failure(
     """
     if isinstance(exc_or_msg, BaseException):
         error_class = type(exc_or_msg).__name__
-        raw = str(exc_or_msg).strip() or error_class
+        raw = describe_exception(exc_or_msg)
     else:
         error_class = "Error"
         raw = str(exc_or_msg).strip() or "Unknown failure"

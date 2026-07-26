@@ -22,6 +22,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Exporting a voice or a dub no longer fails when the name isn't spelled in Latin letters
 - Two more failures that used to arrive as raw OS text now say what to do about them
 - Unload works on every model the panel offers it for, and a language the active engine can't speak says so
+- Deleting a dub no longer un-deletes itself when the job it belonged to finishes
 
 ### Changed
 
@@ -37,6 +38,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Deleting a dub while it was still importing crashed the import with the toast `ingest: 'mgw39lx3'` — a dict key and nothing else — and the delete could then be undone by the job's own pending write, in history or mid-render; both are fixed, and no failure can present itself as a bare value again — thanks @dustmaker124-ui! (#1252, #1253)
 - macOS 12 (Monterey): the app threw on startup and never started the backend — it called a Safari 16 method on the WebView that macOS ships. It launches and works now; some styling still needs a newer WebView (tracked in #1268) — thanks @singhrahat! (#1245)
 - Settings → Engines: Unload failed with `400 Unknown model id: engine:kittentts` on any in-process engine — the panel offered the button for ids the backend never accepted; the warm dictation model had the same gap — thanks @JavaxmI! (#1247)
 - Picking a language the active engine can't speak recited 23 codes without saying which engine refused or that switching engine was the fix — thanks @pulananave! (#1257)
