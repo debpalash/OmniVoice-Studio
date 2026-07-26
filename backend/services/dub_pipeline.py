@@ -755,10 +755,23 @@ _YT_PLAYER_CLIENTS = ["tv", "android", "web_safari"]
 
 
 def _is_forbidden_download_error(exc: BaseException) -> bool:
-    """True for an HTTP 403 — not transient (the same client keeps 403ing), but
-    often fixable by switching the YouTube player client."""
+    """True for a failure the CURRENT player client can't get past, but another
+    one commonly can.
+
+    A 403 is the original case (#625): extraction worked, the media fetch was
+    refused, and the same client keeps refusing. "This video is DRM protected"
+    (#1254) behaves identically and belongs here for the same reason — YouTube
+    serves a DRM-only format set to *some* player clients for videos that are
+    not actually DRM'd. The reporter saw it fail and then succeed on a plain
+    retry of the same URL, which is exactly what a per-client format set looks
+    like from outside. Escalating the client is the fix; a bare retry only
+    works when the next attempt happens to draw a different one.
+    """
     s = str(exc)
-    return "403" in s or "Forbidden" in s
+    if "403" in s or "Forbidden" in s:
+        return True
+    low = s.lower()
+    return "drm protected" in low or "drm-protected" in low
 
 
 def _cleanup_partial_download(job_dir: str) -> None:

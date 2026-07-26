@@ -28,6 +28,7 @@ from core import event_bus
 from core.config import VOICES_DIR  # noqa: F401 — re-exported for tests/monkeypatch
 from core.db import db_conn
 from core.version import APP_VERSION
+from core.http_headers import content_disposition
 from services import persona_bundle as pb
 
 router = APIRouter()
@@ -100,7 +101,7 @@ async def export_persona(
         BytesIO(content),
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": content_disposition(filename),
             "Content-Length": str(len(content)),
         },
     )

@@ -32,6 +32,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from services.model_manager import _gpu_pool, run_on_gpu_pool_guarded
+from core.http_headers import content_disposition
 
 logger = logging.getLogger("omnivoice.openai_compat")
 
@@ -466,7 +467,7 @@ async def create_speech(req: SpeechRequest):
 
     _headers = {
         "Content-Length": str(len(audio_bytes)),
-        "Content-Disposition": f'inline; filename="speech.{ext}"',
+        "Content-Disposition": content_disposition(f"speech.{ext}", disposition="inline"),
     }
     if _routing_notice:
         from services.engine_routing import header_safe_reason
