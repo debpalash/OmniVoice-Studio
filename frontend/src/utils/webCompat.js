@@ -30,10 +30,11 @@ export function installAbortSignalTimeout() {
     const controller = new AbortController();
     setTimeout(() => {
       // The spec aborts with a DOMException named TimeoutError, which is how
-      // callers tell "we gave up" apart from "the user cancelled". Safari 15.6
-      // predates `abort(reason)`, so the argument is simply ignored there —
-      // the abort itself, which is what every call site actually branches on,
-      // still fires.
+      // callers tell "we gave up" apart from "the user cancelled". Pass it:
+      // `abort(reason)` has been supported since Safari 15.4, so it IS
+      // honoured on our 15.6 floor. Do not "simplify" this to a bare
+      // `controller.abort()` — that would silently turn every TimeoutError
+      // into an AbortError and break exactly the distinction it exists for.
       let reason;
       try {
         reason = new DOMException('signal timed out', 'TimeoutError');

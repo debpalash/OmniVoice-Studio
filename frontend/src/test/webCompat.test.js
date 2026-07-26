@@ -87,14 +87,32 @@ describe('AbortSignal.timeout polyfill', () => {
 /**
  * The recurrence guard. `AbortSignal.timeout` was not special — it was
  * whichever post-floor API we happened to reach for first. Each entry is an
- * API that does NOT exist in Safari 15.6 (our declared macOS floor) and that
- * `webCompat.js` does not fill in, so using one would break Monterey exactly
- * the way #1245 did.
+ * API that does NOT exist in Safari 15.6 (the WebView shipped with the macOS
+ * version `tauri.conf.json` declares) and that `webCompat.js` does not fill
+ * in, so using one would break Monterey exactly the way #1245 did.
  *
  * To use one of these: either fill it in inside `webCompat.js` and delete the
  * entry, or guard the call site with a runtime check and a fallback.
+ *
+ * WHAT THIS DOES NOT COVER — deliberately stated so it is not over-trusted:
+ *
+ *  - **Syntax.** A post-floor *grammar* feature (RegExp lookbehind, Safari
+ *    16.4) is a parse-time SyntaxError that kills its whole chunk before a
+ *    line runs, and no polyfill can help. Text patterns here cannot see that.
+ *  - **Dependencies.** Only `frontend/src` is scanned. A bundled library using
+ *    a post-floor API or grammar is invisible here and ships anyway.
+ *  - **CSS.** Tailwind v4's own floor is Safari 16.4, and `index.css` uses
+ *    `color-mix()` (16.2) throughout, so the *rendering* floor is already
+ *    above macOS 12 regardless of what JavaScript does. See #1268.
+ *  - **Computed access.** `AbortSignal["timeout"]` or a destructured
+ *    reference evades every pattern below.
+ *
+ * This guard closes the class it can see — first-party source. The rest is
+ * tracked in #1268 rather than pretended away.
  */
 const POST_FLOOR_APIS = [
+  // Safari 18.0
+  { pattern: /\bURL\s*\.\s*parse\s*\(/, name: 'URL.parse', since: 'Safari 18.0' },
   // Safari 17.4
   { pattern: /\bAbortSignal\s*\.\s*any\b/, name: 'AbortSignal.any', since: 'Safari 17.4' },
   { pattern: /\bObject\s*\.\s*groupBy\b/, name: 'Object.groupBy', since: 'Safari 17.4' },
@@ -104,15 +122,23 @@ const POST_FLOOR_APIS = [
     name: 'Promise.withResolvers',
     since: 'Safari 17.4',
   },
+  { pattern: /\.checkVisibility\s*\(/, name: 'Element#checkVisibility', since: 'Safari 17.4' },
   // Safari 17.0
   { pattern: /\bURL\s*\.\s*canParse\b/, name: 'URL.canParse', since: 'Safari 17.0' },
-  { pattern: /\.isWellFormed\s*\(/, name: 'String#isWellFormed', since: 'Safari 17.0' },
   // Safari 16.4
-  { pattern: /\.toSorted\s*\(/, name: 'Array#toSorted', since: 'Safari 16.4' },
-  { pattern: /\.toReversed\s*\(/, name: 'Array#toReversed', since: 'Safari 16.4' },
-  { pattern: /\.toSpliced\s*\(/, name: 'Array#toSpliced', since: 'Safari 16.4' },
-  // Safari 16.0 — the one that actually bit us; listed so removing the
-  // polyfill without removing the call sites fails here too.
+  { pattern: /\.isWellFormed\s*\(/, name: 'String#isWellFormed', since: 'Safari 16.4' },
+  { pattern: /\.toWellFormed\s*\(/, name: 'String#toWellFormed', since: 'Safari 16.4' },
+  { pattern: /\bArray\s*\.\s*fromAsync\b/, name: 'Array.fromAsync', since: 'Safari 16.4' },
+  // Safari 16.0 — the change-by-copy family. `with` is the one most likely to
+  // be reached for in React state code (`arr.with(i, v)`), and it was missing
+  // from this list until review caught it.
+  { pattern: /\.toSorted\s*\(/, name: 'Array#toSorted', since: 'Safari 16.0' },
+  { pattern: /\.toReversed\s*\(/, name: 'Array#toReversed', since: 'Safari 16.0' },
+  { pattern: /\.toSpliced\s*\(/, name: 'Array#toSpliced', since: 'Safari 16.0' },
+  // `arr.with(i, v)` is the idiomatic immutable-state form in React code, so
+  // it is the sibling most likely to be reached for. It was missing from this
+  // list until review caught it.
+  { pattern: /\.with\s*\(/, name: 'Array#with', since: 'Safari 16.0' },
   { pattern: /\bAbortSignal\s*\.\s*timeout\b/, name: 'AbortSignal.timeout', since: 'Safari 16.0' },
 ];
 
@@ -133,12 +159,18 @@ const walk = (dir, out = []) => {
 };
 
 describe('no app code depends on an API newer than the macOS floor', () => {
-  it('matches the floor tauri.conf.json and the install docs promise', () => {
+  it('is written against the macOS version tauri.conf.json declares', () => {
     const conf = JSON.parse(
       fs.readFileSync(path.resolve(SRC, '..', 'src-tauri', 'tauri.conf.json'), 'utf8'),
     );
-    // If the floor is ever raised, this list should be re-derived — the test
-    // is only as correct as the version it is written against.
+    // The list above is derived from the WebView that ships with this macOS
+    // version (12.0 → WKWebView 15.6). If the floor moves, re-derive it — the
+    // test is only as correct as the version it is written against.
+    //
+    // Note this asserts what we DECLARE, not what we deliver: the CSS layer
+    // (Tailwind v4, color-mix) needs Safari 16.4, so 12.0 is currently a
+    // promise the frontend stack does not keep. Tracked in #1268; asserted
+    // here so raising the floor forces this list to be revisited.
     expect(conf.bundle?.macOS?.minimumSystemVersion).toBe('12.0');
   });
 
