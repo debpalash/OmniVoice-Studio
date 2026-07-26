@@ -50,8 +50,16 @@ export async function checkForUpdate(store) {
     const { invoke } = await import('@tauri-apps/api/core');
     const channel = await currentChannel();
     const update = await invoke('check_update', { channel });
-    if (update) store.setUpdateAvailable(update.version, update.notes || null);
-    else store.setUpdateIdle();
+    if (update) {
+      store.setUpdateAvailable(update.version, update.notes || null);
+      // Announce it where the user is looking. The footer's version dot stays
+      // as the persistent, non-intrusive marker; this is the one-time nudge.
+      // Lazy so the toast never loads in a browser/dev build that can't update.
+      const { showUpdateToast } = await import('../components/UpdateToast');
+      showUpdateToast(update.version);
+    } else {
+      store.setUpdateIdle();
+    }
   } catch (e) {
     // Endpoint 404s until the first signed release on a channel — non-fatal.
     console.debug('Update check failed (non-fatal):', e);

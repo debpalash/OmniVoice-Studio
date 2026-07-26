@@ -1895,7 +1895,11 @@
     "whats_new": "¿Qué hay de nuevo?",
     "failed": "La actualización falló",
     "retry": "Reintentar",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "toast_available": "OmniVoice Studio {{version}} está disponible",
+    "toast_install": "Instalar y reiniciar",
+    "toast_whats_new": "Novedades",
+    "toast_later": "Más tarde"
   },
   "archetypes": {
     "featured": "Destacado",

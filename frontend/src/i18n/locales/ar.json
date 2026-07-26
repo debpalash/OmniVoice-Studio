@@ -1895,7 +1895,11 @@
     "whats_new": "ما هو الجديد",
     "failed": "فشل التحديث",
     "retry": "أعد المحاولة",
-    "dismiss": "استبعاد"
+    "dismiss": "استبعاد",
+    "toast_available": "الإصدار {{version}} من OmniVoice Studio متاح",
+    "toast_install": "تثبيت وإعادة التشغيل",
+    "toast_whats_new": "ما الجديد",
+    "toast_later": "لاحقًا"
   },
   "archetypes": {
     "featured": "مميز",

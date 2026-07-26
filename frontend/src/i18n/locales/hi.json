@@ -1895,7 +1895,11 @@
     "whats_new": "नया क्या है",
     "failed": "अद्यतन विफल रहा",
     "retry": "पुनः प्रयास करें",
-    "dismiss": "ख़ारिज करें"
+    "dismiss": "ख़ारिज करें",
+    "toast_available": "OmniVoice Studio {{version}} उपलब्ध है",
+    "toast_install": "इंस्टॉल करें और पुनः आरंभ करें",
+    "toast_whats_new": "नया क्या है",
+    "toast_later": "बाद में"
   },
   "archetypes": {
     "featured": "विशेष रुप से प्रदर्शित",

@@ -6,6 +6,20 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+**Highlights**
+
+- The update prompt is a small toast with buttons, not a screenful of release notes
+
+### Changed
+
+- An available update now announces itself as a toast with **Install and restart**, **What's new** and **Later**, instead of only a dot beside the version number. The release notes stay in Settings → Updates, where there is room for them — a version's notes are the whole changelog section, and rendering them inline is what made the old prompt fill the screen (#1272)
+
+### Fixed
+
+- Dub history: clearing a large history while a render was running could still resurrect the deleted job — which markers survived depended on the process hash seed, and an oversized purge could discard a live one (#1252)
+
 ## [0.4.1] — 2026-07-27
 
 **Highlights**

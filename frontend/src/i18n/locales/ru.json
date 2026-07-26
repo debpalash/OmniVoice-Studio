@@ -1895,7 +1895,11 @@
     "whats_new": "Что нового",
     "failed": "Обновление не удалось",
     "retry": "Повторить попытку",
-    "dismiss": "Увольнять"
+    "dismiss": "Увольнять",
+    "toast_available": "OmniVoice Studio {{version}} доступна",
+    "toast_install": "Установить и перезапустить",
+    "toast_whats_new": "Что нового",
+    "toast_later": "Позже"
   },
   "archetypes": {
     "featured": "Рекомендуемые",

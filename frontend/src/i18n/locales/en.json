@@ -47,7 +47,11 @@
     "whats_new": "What's new",
     "failed": "Update failed",
     "retry": "Retry",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "toast_available": "OmniVoice Studio {{version}} is available",
+    "toast_install": "Install and restart",
+    "toast_whats_new": "What's new",
+    "toast_later": "Later"
   },
   "updates": {
     "tab": "Updates",

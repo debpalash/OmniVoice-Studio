@@ -1895,7 +1895,11 @@
     "whats_new": "มีอะไรใหม่",
     "failed": "การอัปเดตล้มเหลว",
     "retry": "ลองอีกครั้ง",
-    "dismiss": "ยกเลิก"
+    "dismiss": "ยกเลิก",
+    "toast_available": "OmniVoice Studio {{version}} พร้อมใช้งาน",
+    "toast_install": "ติดตั้งและรีสตาร์ท",
+    "toast_whats_new": "มีอะไรใหม่",
+    "toast_later": "ภายหลัง"
   },
   "archetypes": {
     "featured": "จุดเด่น",

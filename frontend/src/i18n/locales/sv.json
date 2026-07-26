@@ -1895,7 +1895,11 @@
     "whats_new": "Vad är nytt",
     "failed": "Uppdateringen misslyckades",
     "retry": "Försök igen",
-    "dismiss": "Avvisa"
+    "dismiss": "Avvisa",
+    "toast_available": "OmniVoice Studio {{version}} är tillgänglig",
+    "toast_install": "Installera och starta om",
+    "toast_whats_new": "Nyheter",
+    "toast_later": "Senare"
   },
   "archetypes": {
     "featured": "Utvalda",

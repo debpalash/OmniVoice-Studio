@@ -1895,7 +1895,11 @@
     "whats_new": "Có gì mới",
     "failed": "Cập nhật không thành công",
     "retry": "Thử lại",
-    "dismiss": "Loại bỏ"
+    "dismiss": "Loại bỏ",
+    "toast_available": "OmniVoice Studio {{version}} đã có",
+    "toast_install": "Cài đặt và khởi động lại",
+    "toast_whats_new": "Có gì mới",
+    "toast_later": "Để sau"
   },
   "archetypes": {
     "featured": "Nổi bật",

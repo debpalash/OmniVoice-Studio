@@ -1895,7 +1895,11 @@
     "whats_new": "Wat is er nieuw",
     "failed": "Update mislukt",
     "retry": "Opnieuw proberen",
-    "dismiss": "Negeren"
+    "dismiss": "Negeren",
+    "toast_available": "OmniVoice Studio {{version}} is beschikbaar",
+    "toast_install": "Installeren en herstarten",
+    "toast_whats_new": "Wat is er nieuw",
+    "toast_later": "Later"
   },
   "archetypes": {
     "featured": "Uitgelicht",

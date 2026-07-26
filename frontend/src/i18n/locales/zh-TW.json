@@ -1895,7 +1895,11 @@
     "whats_new": "有什麼新消息",
     "failed": "更新失敗",
     "retry": "重試",
-    "dismiss": "解僱"
+    "dismiss": "解僱",
+    "toast_available": "OmniVoice Studio {{version}} 可用",
+    "toast_install": "安裝並重新啟動",
+    "toast_whats_new": "新增內容",
+    "toast_later": "稍後"
   },
   "archetypes": {
     "featured": "精選",

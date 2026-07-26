@@ -1895,7 +1895,11 @@
     "whats_new": "新機能",
     "failed": "アップデートに失敗しました",
     "retry": "再試行",
-    "dismiss": "解雇する"
+    "dismiss": "解雇する",
+    "toast_available": "OmniVoice Studio {{version}} が利用可能です",
+    "toast_install": "インストールして再起動",
+    "toast_whats_new": "新機能",
+    "toast_later": "後で"
   },
   "archetypes": {
     "featured": "注目の",

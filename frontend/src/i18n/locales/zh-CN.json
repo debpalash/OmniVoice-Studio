@@ -1902,7 +1902,11 @@
     "whats_new": "更新内容",
     "failed": "更新失败",
     "retry": "重试",
-    "dismiss": "解雇"
+    "dismiss": "解雇",
+    "toast_available": "OmniVoice Studio {{version}} 可用",
+    "toast_install": "安装并重启",
+    "toast_whats_new": "新增内容",
+    "toast_later": "稍后"
   },
   "archetypes": {
     "featured": "精选",

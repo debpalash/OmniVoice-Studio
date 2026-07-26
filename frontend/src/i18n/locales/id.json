@@ -1895,7 +1895,11 @@
     "whats_new": "Apa yang baru",
     "failed": "Pembaruan gagal",
     "retry": "Coba lagi",
-    "dismiss": "Singkirkan"
+    "dismiss": "Singkirkan",
+    "toast_available": "OmniVoice Studio {{version}} tersedia",
+    "toast_install": "Instal dan mulai ulang",
+    "toast_whats_new": "Yang baru",
+    "toast_later": "Nanti"
   },
   "archetypes": {
     "featured": "Unggulan",
