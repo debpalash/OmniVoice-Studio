@@ -294,7 +294,12 @@ export default function SetupWizard({ onReady }) {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center overflow-hidden bg-bg px-6 pt-12 font-sans text-fg">
+    // `absolute`, not `fixed`: this mounts inside `.app-wizard-wrap`, and a
+    // fixed root would ignore that box and lay its pinned footer out against
+    // the viewport — putting Continue and the HF-token card behind the status
+    // bar, off the bottom of the window. `pb-4` keeps the pinned row off the
+    // very edge now that it really is the last thing on screen.
+    <div className="absolute inset-0 flex flex-col items-center overflow-hidden bg-bg px-6 pb-4 pt-12 font-sans text-fg">
       <div className="flex w-full max-w-[1100px] flex-1 flex-col">
         {/* ── Masthead: identical identity to setup + install acts ────────── */}
         <header
