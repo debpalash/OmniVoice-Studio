@@ -522,8 +522,13 @@ def _is_missing_media_tool(low: str) -> bool:
     """
     if "no such file or directory" not in low and "[winerror 2]" not in low:
         return False
+    # The name must appear UNQUALIFIED — quoted with no directory part, which
+    # is how a bare-name spawn fails. A path that merely ends in the tool's
+    # name ('/tmp/ffmpeg', '~/Movies/my-ffmpeg-export.mp4') is a missing FILE,
+    # an entirely different problem that must not get the "repair your media
+    # engine" remedy (#1256 review).
     return any(
-        f"'{tool}'" in low or f'"{tool}"' in low or low.rstrip().endswith(tool)
+        f"'{tool}'" in low or f'"{tool}"' in low
         for tool in _MEDIA_TOOLS
     )
 

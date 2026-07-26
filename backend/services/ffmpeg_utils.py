@@ -361,9 +361,14 @@ def ensure_media_tools_on_path() -> list[str]:
 
         if added:
             os.environ["PATH"] = os.pathsep.join(entries)
+            # Count, not paths: a user-set FFMPEG_PATH resolves under their home
+            # directory, and absolute home paths must not reach the log
+            # (#1256 review). find_ffmpeg/find_ffprobe already log their own
+            # resolution at debug level when that detail is wanted.
             logger.info(
-                "Media tools added to PATH so dependencies can find them: %s (#1256)",
-                ", ".join(added),
+                "Published %d media-tool director%s on PATH so dependencies can "
+                "find ffmpeg/ffprobe (#1256)",
+                len(added), "y" if len(added) == 1 else "ies",
             )
     except Exception as e:  # diagnosis must never break the thing it helps
         logger.debug("ensure_media_tools_on_path failed (non-fatal): %s", e)

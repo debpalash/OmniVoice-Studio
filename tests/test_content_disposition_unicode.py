@@ -138,3 +138,19 @@ def test_every_download_endpoint_actually_uses_the_builder():
         "openai_compat.py",
     ):
         assert expected in users, f"{expected} still builds the header itself"
+
+
+def test_a_hostile_custom_fallback_cannot_reach_the_header(): 
+    """Review finding (#1262): `fallback` landed in `filename=` verbatim
+    whenever the real name folded away entirely, so a non-ASCII or CRLF
+    fallback walked past every guard the real name goes through."""
+    header = content_disposition("我的声音.ovsvoice", fallback='ev"il\r\nX-Evil: 1')
+    header.encode("latin-1")
+    assert "\r" not in header and "\n" not in header
+    assert header.count("filename=") == 1
+    assert header.count("filename*=") == 1
+
+    # A fallback that is ENTIRELY non-ASCII must still leave a usable name.
+    header = content_disposition("我的声音.ovsvoice", fallback="声音")
+    header.encode("latin-1")
+    assert 'filename=""' not in header

@@ -80,6 +80,11 @@ def content_disposition(
     understand the extended form ignore the plain one, so the user gets
     ``我的声音.ovsvoice`` while nothing anywhere has to encode it as latin-1.
     """
-    safe = ascii_filename(filename, fallback=fallback)
-    encoded = quote(_UNSAFE.sub("_", filename or fallback), safe="")
+    # The fallback is a caller-supplied string that lands in the header
+    # verbatim whenever the real name folds away entirely, so it gets the same
+    # treatment as the name itself — otherwise a non-ASCII or quote/CRLF
+    # fallback walks straight past every guard here (#1262 review).
+    safe_fallback = _fold(fallback) or "download"
+    safe = ascii_filename(filename, fallback=safe_fallback)
+    encoded = quote(_UNSAFE.sub("_", filename or safe_fallback), safe="")
     return f"{disposition}; filename=\"{safe}\"; filename*=UTF-8''{encoded}"

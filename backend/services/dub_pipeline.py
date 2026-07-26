@@ -218,6 +218,50 @@ def merge_job(job_id: str, updates: dict) -> bool:
         return True
 
 
+def merge_and_save_job(
+    job_id: str,
+    updates: dict,
+    *,
+    filename: str = "",
+    duration: float = 0.0,
+    content_hash: str = "",
+) -> bool:
+    """:func:`merge_job` and :func:`save_job` as ONE atomic step.
+
+    Splitting them leaves a window that resurrects deleted work (#1252 review):
+    merge succeeds, the user deletes the dub — removing the row *and* the
+    in-memory entry — and the pending ``save_job`` then UPSERTs the row straight
+    back, so a dub the user deleted reappears in history. The delete endpoints
+    take this same lock around their own row-delete + evict, so the two
+    sequences cannot interleave at all.
+
+    Returns ``False`` when the job is already gone; the caller stops there.
+    """
+    with _dub_jobs_lock:
+        job = _dub_jobs.get(job_id)
+        if job is None:
+            return False
+        job.update(updates)
+        save_job(job_id, job, filename, duration, content_hash)
+        return True
+
+
+def purge_jobs(job_ids, *, delete_rows) -> None:
+    """Delete history rows and evict the in-memory records as ONE atomic step.
+
+    ``delete_rows`` is called with the lock held, so a concurrent
+    :func:`merge_and_save_job` cannot slip between the row-delete and the
+    evict and write the job straight back (#1252 review). Both delete
+    endpoints go through here; ``DELETE /dub/history`` previously never evicted
+    from memory at all, so an in-flight job survived "clear history" entirely
+    and re-saved itself on completion.
+    """
+    with _dub_jobs_lock:
+        delete_rows()
+        for job_id in job_ids:
+            _dub_jobs.pop(job_id, None)
+
+
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
     """Persist dub job state to SQLite so it survives restarts. Uses UPSERT
     on `id` so repeated saves in a session keep the latest snapshot.
@@ -1162,16 +1206,24 @@ async def ingest_pipeline(
             # toast `ingest: 'mgw39lx3'` (#1252/#1253). A withdrawn job is not
             # an error: stop quietly rather than re-persisting what the user
             # just deleted.
-            if not merge_job(job_id, {
-                "vocals_path": vocals_path,
-                "no_vocals_path": no_vocals_path,
-                "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
-                "scene_cuts": scene_cuts,
-            }):
+            # Merge and persist as one step: a delete landing BETWEEN them
+            # would remove the row and then have it written straight back, so
+            # the dub the user deleted reappears in history (#1252 review).
+            if not merge_and_save_job(
+                job_id,
+                {
+                    "vocals_path": vocals_path,
+                    "no_vocals_path": no_vocals_path,
+                    "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
+                    "scene_cuts": scene_cuts,
+                },
+                filename=filename,
+                duration=dur,
+                content_hash=content_hash,
+            ):
                 logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
                 yield prep_event("cancelled")
                 return
-            save_job(job_id, get_job(job_id) or {}, filename, dur, content_hash)
             yield prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
 
     except asyncio.CancelledError:

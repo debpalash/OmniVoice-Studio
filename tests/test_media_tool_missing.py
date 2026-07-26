@@ -162,3 +162,32 @@ def test_a_raising_resolver_never_breaks_startup(monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin")
 
     assert ffmpeg_utils.ensure_media_tools_on_path() == []
+
+
+def test_a_path_that_merely_ends_in_the_tool_name_is_not_a_missing_tool():
+    """Review finding (#1256): the match accepted any message ending in
+    'ffmpeg'/'ffprobe', so a missing FILE at /tmp/ffmpeg was handed the
+    "repair your media engine" remedy."""
+    for path in ("/tmp/ffmpeg", "/home/u/ffprobe", "C:\\work\\ffmpeg"):
+        assert classify(f"[Errno 2] No such file or directory: {path}") != (
+            "MEDIA_TOOL_MISSING"
+        ), path
+
+
+def test_the_published_paths_are_not_logged(monkeypatch, tmp_path, caplog):
+    """Review finding (#1256): a user-set FFMPEG_PATH resolves under their home
+    directory, and absolute home paths must not reach the log."""
+    import logging
+
+    bin_dir = tmp_path / "Users" / "alice" / "media"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "ffmpeg").write_text("")
+    monkeypatch.setattr(ffmpeg_utils, "find_ffmpeg", lambda: str(bin_dir / "ffmpeg"))
+    monkeypatch.setattr(ffmpeg_utils, "find_ffprobe", lambda: None)
+    monkeypatch.setenv("PATH", "/usr/bin")
+
+    with caplog.at_level(logging.INFO, logger="omnivoice.api"):
+        ffmpeg_utils.ensure_media_tools_on_path()
+
+    assert str(bin_dir) not in caplog.text
+    assert "alice" not in caplog.text
