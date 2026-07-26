@@ -460,6 +460,19 @@ except Exception:
     pass
 
 
+# #1256: our own ffmpeg/ffprobe call sites pass an explicit path, so a bundled
+# sidecar that isn't on PATH works for us — but a dependency that shells out to
+# `ffprobe` by bare name dies with FileNotFoundError, mid-synthesis, on a
+# machine where the app's own copy was resolvable the whole time. Publish the
+# resolved directories once here, after prefs have restored any FFMPEG_PATH
+# override and before any engine loads.
+try:
+    from services.ffmpeg_utils import ensure_media_tools_on_path
+    ensure_media_tools_on_path()
+except Exception:
+    pass  # best-effort: find_ffprobe() still resolves it for our own callers
+
+
 def _env_flag(name: str, default: bool = False) -> bool:
     value = os.environ.get(name)
     if value is None:

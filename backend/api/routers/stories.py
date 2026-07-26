@@ -14,6 +14,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
 
 from services.ffmpeg_utils import find_ffmpeg, spawn_subprocess
+from core.http_headers import content_disposition
 
 router = APIRouter()
 
@@ -76,7 +77,7 @@ async def stories_encode(
         return Response(
             content=encoded,
             media_type=mime,
-            headers={"Content-Disposition": f'attachment; filename="story.{ext}"'},
+            headers={"Content-Disposition": content_disposition(f"story.{ext}")},
         )
     finally:
         for p in (in_path, out_path):

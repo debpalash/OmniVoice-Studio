@@ -42,6 +42,8 @@ _HINTS: dict[str, str] = {
     "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete, or a package it loads models through (torchaudio) is missing or mismatched with your torch. Reinstall them together (`uv pip install --reinstall torch torchaudio transformers`), then restart the backend. If only transcription is affected, switching ASR to faster-whisper (Settings → Models) also works around it.",
     "WINDOWS_APP_CONTROL_BLOCKED": "Windows refused to load a file OmniVoice needs — an Application Control policy (Smart App Control, WDAC, or AppLocker) blocked it. On a personal PC: Windows Security → App & browser control → Smart App Control → Off (Windows only lets you turn it off once — re-enabling requires a Windows reset), then restart OmniVoice. On a managed/work PC, ask IT to allow the OmniVoice install folder.",
+    "WINDOWS_PAGING_FILE_TOO_SMALL": "Windows ran out of virtual memory while mapping the model into memory — its paging file is smaller than the model needs. This is not the same as your RAM being full, and closing other apps usually won't fix it: Windows has to be allowed to back the mapping. Set a bigger paging file — Settings → System → About → Advanced system settings → Performance → Settings → Advanced → Virtual memory → Change: untick \"Automatically manage\", pick your system drive, choose \"Custom size\" and set both Initial and Maximum to at least 32768 MB (more than the model's size), then OK and restart Windows. A smaller/quantized engine (OmniVoice GGUF, Supertonic-3) also avoids the large mapping entirely.",
+    "MEDIA_TOOL_MISSING": "OmniVoice's media engine (ffmpeg/ffprobe) wasn't on the system path when a component went looking for it. Open Settings → Audio tools and use Download/Repair to fetch the bundled copy, then retry — a restart picks it up for everything. If you'd rather use a system install, install ffmpeg (macOS: `brew install ffmpeg`; Windows: `winget install Gyan.FFmpeg`; Linux: your package manager) and restart OmniVoice, or point FFMPEG_PATH / OMNIVOICE_FFPROBE_PATH at the binaries in Settings.",
     "AUDIO_IO_FAILED": "An audio file couldn't be read or written at the OS level. Check the drive isn't full, that the output and temp folders exist and are writable, and that antivirus or OneDrive isn't locking them (add an OmniVoice exclusion if you use one).",
     "VIDEO_DOWNLOAD_OS_ERROR": "The OS refused a file operation while saving the downloaded video — this is a disk/folder problem, not a network one, so retrying the same link won't help. The download is written to a job folder under your OmniVoice data directory (Settings → Storage shows the path): check that drive isn't full, that the folder exists and is writable, and that antivirus or a cloud-sync client (OneDrive, Dropbox) isn't locking it — add an OmniVoice exclusion if you use one. If your data directory sits on a synced or network drive, move it to a local one.",
     "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add an OmniVoice antivirus exclusion if you use one), then retry.",
@@ -272,6 +274,24 @@ def classify(reason: str) -> str:
         marker in low for marker in _DOWNLOAD_CONTEXT_MARKERS
     ):
         return "VIDEO_DOWNLOAD_OS_ERROR"
+    # #1256: a third-party library shelled out to `ffprobe`/`ffmpeg` BY NAME and
+    # the OS had nothing to run. OmniVoice's own code always resolves the
+    # bundled sidecar explicitly, so this only ever comes from a dependency —
+    # which meant it arrived with no class at all and the user was told the
+    # engine "stopped with an error OmniVoice doesn't recognize". Checked
+    # before the generic errno-2 rules, which would otherwise claim it.
+    if _is_missing_media_tool(low):
+        return "MEDIA_TOOL_MISSING"
+    # #1251: Windows refused to map the model because the PAGING FILE is too
+    # small. The generate path already counted this as an OOM, but that hint
+    # ("close other apps, use a lighter engine") is the wrong remedy — the
+    # machine had 32 GB of RAM. Matched on the numeric code too, since the OS
+    # translates the message text, and in both the Python (`[WinError 1455]`)
+    # and Rust (`os error 1455`, from the safetensors mmap) spellings.
+    if "1455" in low and ("winerror" in low or "os error" in low):
+        return "WINDOWS_PAGING_FILE_TOO_SMALL"
+    if "paging file is too small" in low:
+        return "WINDOWS_PAGING_FILE_TOO_SMALL"
     if "errno 22" in low:
         return "OS_INVALID_ARGUMENT"
     # An HF cache whose snapshot entries don't resolve (dangling symlinks /
@@ -480,6 +500,26 @@ _DOWNLOAD_CONTEXT_MARKERS = (
 )
 
 
+#: The media binaries a dependency may shell out to by bare name.
+_MEDIA_TOOLS = ("ffprobe", "ffmpeg")
+
+
+def _is_missing_media_tool(low: str) -> bool:
+    """True when the failure is "the OS could not find ffprobe/ffmpeg" (#1256).
+
+    Deliberately narrow: it must name the binary *as the thing that could not
+    be found*, so a perfectly ordinary "ffmpeg failed: no such file or
+    directory: /path/to/input.wav" — a missing INPUT, an entirely different
+    problem — is not handed the "install the media engine" remedy.
+    """
+    if "no such file or directory" not in low and "[winerror 2]" not in low:
+        return False
+    return any(
+        f"'{tool}'" in low or f'"{tool}"' in low or low.rstrip().endswith(tool)
+        for tool in _MEDIA_TOOLS
+    )
+
+
 def is_os_write_refusal(reason: Optional[str]) -> bool:
     """True when *reason* looks like the OS refusing a file operation (a full
     or removed drive, a read-only folder, an antivirus/cloud-sync lock) rather
@@ -516,6 +556,33 @@ def describe_path_target(path: str) -> str:
     return "; ".join(facts)
 
 
+#: Exception types whose ``str()`` is a bare VALUE rather than a sentence, so
+#: showing it alone tells the user nothing about what went wrong.
+#: ``str(KeyError("mgw39lx3"))`` is ``"'mgw39lx3'"`` — the repr of the key.
+_VALUE_ONLY_STR_EXCEPTIONS = (KeyError,)
+
+
+def describe_exception(exc: BaseException) -> str:
+    """``str(exc)`` in a form a human can act on.
+
+    #1252/#1253: a dub ingest failed with the toast ``ingest: 'mgw39lx3'`` and
+    nothing else — the entire user-facing reason was the repr of a dict key,
+    because ``str(KeyError)`` does not mention that a lookup failed, or that it
+    was an exception at all. The reporter's ``'mgw39lx3'`` was their own job id
+    reflected back at them with no context.
+
+    Naming the class is the floor, not the goal: a failure that reaches here at
+    all is one nobody wrote a message for. It keeps the report diagnosable
+    instead of cryptic while the specific path gets its own handling.
+    """
+    text = str(exc).strip()
+    if not text:
+        return type(exc).__name__
+    if isinstance(exc, _VALUE_ONLY_STR_EXCEPTIONS):
+        return f"{type(exc).__name__}: {text}"
+    return text
+
+
 def build_failure(
     exc_or_msg: Any,
     *,
@@ -529,7 +596,7 @@ def build_failure(
     """
     if isinstance(exc_or_msg, BaseException):
         error_class = type(exc_or_msg).__name__
-        raw = str(exc_or_msg).strip() or error_class
+        raw = describe_exception(exc_or_msg)
     else:
         error_class = "Error"
         raw = str(exc_or_msg).strip() or "Unknown failure"

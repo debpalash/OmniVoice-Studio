@@ -195,7 +195,11 @@ class TestSubtitleSaveResponseShape:
         assert res.status_code == 200
         assert res.text.startswith("1\n")
         disposition = res.headers.get("content-disposition", "")
-        assert disposition.endswith('.srt"')
+        # Asserted on content, not on position: since #1262 the header also
+        # carries an RFC 5987 `filename*=` so non-latin-1 names don't 500, and
+        # that parameter comes last.
+        assert '.srt"' in disposition
+        assert disposition.startswith("attachment;")
 
     def test_plain_srt_get_still_returns_text_body(self, client, translated_job):
         job_id, _ = translated_job

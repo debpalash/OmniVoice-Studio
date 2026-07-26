@@ -197,6 +197,27 @@ def put_job(job_id: str, job: dict) -> None:
         _dub_jobs[job_id] = job
 
 
+def merge_job(job_id: str, updates: dict) -> bool:
+    """Merge *updates* into an existing in-memory job. Does NOT persist.
+
+    Returns ``False`` when the job is gone — which is a real, reachable state,
+    not a defensive nicety: ingest runs for minutes (demucs, scene detection,
+    thumbnailing) and ``DELETE /dub/history/{id}`` pops the entry out from
+    under it. The pipeline used to finish with a bare
+    ``_dub_jobs[job_id].update(...)``, so deleting an in-flight dub surfaced as
+    the toast ``ingest: 'mgw39lx3'`` — ``str(KeyError)`` is the repr of the
+    key, nothing more (#1252/#1253). Callers treat ``False`` as "the user
+    withdrew this job" and stop, rather than resurrecting a record that was
+    deliberately deleted.
+    """
+    with _dub_jobs_lock:
+        job = _dub_jobs.get(job_id)
+        if job is None:
+            return False
+        job.update(updates)
+        return True
+
+
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
     """Persist dub job state to SQLite so it survives restarts. Uses UPSERT
     on `id` so repeated saves in a session keep the latest snapshot.
@@ -1122,13 +1143,22 @@ async def ingest_pipeline(
                     logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
                     yield prep_event("warning", **failure.build_failure(e, stage="thumbnail", include_diagnostic=False))
 
-            _dub_jobs[job_id].update({
+            # The job can legitimately be gone by now — everything above takes
+            # minutes and `DELETE /dub/history/{id}` pops the record. Deleting
+            # an in-flight dub used to raise KeyError here and surface as the
+            # toast `ingest: 'mgw39lx3'` (#1252/#1253). A withdrawn job is not
+            # an error: stop quietly rather than re-persisting what the user
+            # just deleted.
+            if not merge_job(job_id, {
                 "vocals_path": vocals_path,
                 "no_vocals_path": no_vocals_path,
                 "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
                 "scene_cuts": scene_cuts,
-            })
-            save_job(job_id, _dub_jobs[job_id], filename, dur, content_hash)
+            }):
+                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
+                yield prep_event("cancelled")
+                return
+            save_job(job_id, get_job(job_id) or {}, filename, dur, content_hash)
             yield prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
 
     except asyncio.CancelledError:

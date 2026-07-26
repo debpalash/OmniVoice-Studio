@@ -17,6 +17,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A GPU too small for the chosen engine now says so up front, not after a five-minute wait
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
+- Exporting a voice or a dub no longer fails when the name isn't spelled in Latin letters
+- Three more failures that used to arrive as raw OS text now say what to do about them
 
 ### Docs
 
@@ -24,6 +26,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Exporting a voice profile, persona, dub, subtitle or stem whose name is Chinese, Japanese, Korean, Cyrillic, Greek, Hebrew or emoji failed with a `'latin-1' codec` 500 — every download endpoint now sends the name correctly, and browsers get the real one back — thanks @zvxzdx! (#1262)
+- A synth that failed because ffmpeg/ffprobe wasn't on the system path said "an error OmniVoice doesn't recognize"; it now names the media engine and points at Settings → Audio tools, and the app's own copy is published on PATH so dependencies find it in the first place — thanks @Heuvelsma! (#1256)
+- Windows "The paging file is too small" arrived as a bare 500; it now explains that this is a virtual-memory setting, not full RAM, and gives the steps to raise it — thanks @trankeny545-sudo! (#1251)
+- Deleting a dub while it was still importing crashed the import with the toast `ingest: 'mgw39lx3'` — a dict key and nothing else; the import now stops quietly, and no failure can present itself as a bare value again — thanks @dustmaker124-ui! (#1252, #1253)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
 - AMD/ROCm: `HSA_OVERRIDE_GFX_VERSION` is auto-set only when your card genuinely needs it and the remap target exists in your build; gfx1150/gfx1151 (Strix Point/Halo) added to the map (#1228)
