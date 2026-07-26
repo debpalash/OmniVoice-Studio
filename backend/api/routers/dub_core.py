@@ -229,7 +229,16 @@ def clear_dub_history():
     """Delete persisted dub rows and their on-disk dirs (scoped to known IDs)."""
     with db_conn() as conn:
         ids = [r["id"] for r in conn.execute("SELECT id FROM dub_history").fetchall()]
-        conn.execute("DELETE FROM dub_history")
+
+    def _delete_rows():
+        with db_conn() as conn:
+            conn.execute("DELETE FROM dub_history")
+
+    # Row-delete + in-memory evict together, so an ingest finishing right now
+    # can't re-save a job the user just cleared (#1252 review). This path
+    # never evicted from memory at all before, so an in-flight job survived
+    # "clear history" outright.
+    dub_pipeline.purge_jobs(ids, delete_rows=_delete_rows, include_inflight=True)
     for jid in ids:
         safe = _safe_job_dir(jid)
         if safe and os.path.isdir(safe):
@@ -239,12 +248,15 @@ def clear_dub_history():
 
 @router.delete("/dub/history/{history_id}")
 def delete_single_dub_history(history_id: str):
-    with db_conn() as conn:
-        conn.execute("DELETE FROM dub_history WHERE id=?", (history_id,))
+    def _delete_row():
+        with db_conn() as conn:
+            conn.execute("DELETE FROM dub_history WHERE id=?", (history_id,))
+
+    # Atomic with the evict — see purge_jobs (#1252 review).
+    dub_pipeline.purge_jobs([history_id], delete_rows=_delete_row)
     safe = _safe_job_dir(history_id)
     if safe and os.path.isdir(safe):
         shutil.rmtree(safe, ignore_errors=True)
-    _dub_jobs.pop(history_id, None)
     event_bus.emit("dub_history", {"action": "deleted", "id": history_id})
     return {"deleted": True}
 
