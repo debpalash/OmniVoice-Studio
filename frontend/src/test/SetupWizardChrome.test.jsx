@@ -52,8 +52,7 @@ import SetupWizard from '../pages/SetupWizard';
 
 const withI18n = (node) => <I18nextProvider i18n={i18n}>{node}</I18nextProvider>;
 
-const readSrc = (rel) =>
-  fs.readFileSync(path.resolve(__dirname, '..', rel), 'utf8');
+const readSrc = (rel) => fs.readFileSync(path.resolve(__dirname, '..', rel), 'utf8');
 
 beforeEach(() => {
   document.body.innerHTML = '';
