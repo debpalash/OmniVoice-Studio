@@ -288,6 +288,14 @@ def merge_and_save_job(
     sequences cannot interleave at all.
 
     Returns ``False`` when the job is already gone; the caller stops there.
+
+    The ``save_job`` write happens INSIDE the lock deliberately. That serialises
+    dub job-state access against one SQLite UPSERT — normally microseconds under
+    WAL, but up to sqlite3's 5 s default busy timeout if another writer is
+    holding the write lock. The alternative — releasing the lock before the
+    write — is the resurrection race this exists to close, so a rare latency
+    blip is the better trade. No locked region here calls another locked
+    function, so the plain (non-reentrant) ``_dub_jobs_lock`` cannot deadlock.
     """
     with _dub_jobs_lock:
         job = _dub_jobs.get(job_id)

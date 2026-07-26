@@ -138,55 +138,60 @@ def test_a_deleted_job_is_never_persisted(monkeypatch):
 
 
 def test_a_delete_landing_mid_save_cannot_be_overtaken(monkeypatch):
-    """The race itself, actually interleaved.
+    """The race itself — asserted on ORDER, which is the only thing that
+    distinguishes it.
 
-    An earlier version deleted the job BEFORE calling merge_and_save_job, which
-    only re-tested the already-absent case and would have passed with the two
-    steps still split (#1252 review). Here a second thread runs the purge while
-    the save is executing: if merge and save did not hold the lock together,
-    the purge would land between them and the row would be written back.
+    Two earlier versions of this test were not tests. The first deleted the job
+    before calling `merge_and_save_job`, so it merely re-checked the absent-job
+    case. The second interleaved a real thread but asserted only *what*
+    happened, not *when* — so splitting merge from save (the exact bug) still
+    passed, because a save landing AFTER the delete looks identical to one
+    landing before if you only check that both occurred.
+
+    The resurrection is precisely `save` completing after `delete`. So record
+    the order and assert on it: with merge+save atomic under the lock, the
+    purge cannot start until the save has finished, and the sequence is always
+    save-then-delete. Split them and the purge is free to run first.
     """
     import threading
 
+    order = []
+    order_lock = threading.Lock()
     entered_save = threading.Event()
     purge_attempted = threading.Event()
-    purge_finished = threading.Event()
-    saved = []
 
     def _slow_save(job_id, job, *a, **kw):
         entered_save.set()
-        # Wait for the purge thread to REACH its purge call, then give it a
-        # moment to actually block on the lock. Waiting on `purge_finished`
-        # here would always exhaust its timeout — the purge cannot finish while
-        # we hold the lock — so it would add a fixed stall and synchronise
-        # nothing (#1252 review).
+        # Wait until the purge thread has actually reached its purge call, so
+        # the two are genuinely in flight together, then hold a moment.
         purge_attempted.wait(timeout=2.0)
         time.sleep(0.05)
-        saved.append(job_id)
+        with order_lock:
+            order.append("save")
 
     monkeypatch.setattr(dub_pipeline, "save_job", _slow_save)
     dub_pipeline.put_job("job1", {"filename": "a.mp4"})
 
-    deleted_rows = []
+    def _delete_rows():
+        with order_lock:
+            order.append("delete")
 
     def _purge():
         entered_save.wait(timeout=2.0)
         purge_attempted.set()
-        dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: deleted_rows.append("job1"))
-        purge_finished.set()
+        dub_pipeline.purge_jobs(["job1"], delete_rows=_delete_rows)
 
     purger = threading.Thread(target=_purge)
     purger.start()
     merged = dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]})
     purge_attempted.set()  # release the save if the purge never got that far
     purger.join(timeout=5.0)
-    assert purge_finished.wait(timeout=5.0), "the purge must complete once the lock frees"
 
     assert merged is True, "the save started first, so it must complete"
-    assert saved == ["job1"]
-    # The purge ran strictly AFTER the save released the lock, so the row it
-    # deleted is the one that had just been written — nothing survives.
-    assert deleted_rows == ["job1"]
+    assert order == ["save", "delete"], (
+        f"the write must never land after the delete — got {order}. "
+        "'delete' first means the row was resurrected."
+    )
     assert "job1" not in dub_pipeline._dub_jobs
 
 
