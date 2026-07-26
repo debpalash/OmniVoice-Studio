@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import pytest
 
+import time
+
 from core.failure import build_failure, describe_exception
 from services import dub_pipeline
 
@@ -147,14 +149,19 @@ def test_a_delete_landing_mid_save_cannot_be_overtaken(monkeypatch):
     import threading
 
     entered_save = threading.Event()
+    purge_attempted = threading.Event()
     purge_finished = threading.Event()
     saved = []
 
     def _slow_save(job_id, job, *a, **kw):
         entered_save.set()
-        # Give the purge thread every chance to interleave. It cannot: it
-        # blocks on the same lock this call is holding.
-        purge_finished.wait(timeout=2.0)
+        # Wait for the purge thread to REACH its purge call, then give it a
+        # moment to actually block on the lock. Waiting on `purge_finished`
+        # here would always exhaust its timeout — the purge cannot finish while
+        # we hold the lock — so it would add a fixed stall and synchronise
+        # nothing (#1252 review).
+        purge_attempted.wait(timeout=2.0)
+        time.sleep(0.05)
         saved.append(job_id)
 
     monkeypatch.setattr(dub_pipeline, "save_job", _slow_save)
@@ -164,14 +171,16 @@ def test_a_delete_landing_mid_save_cannot_be_overtaken(monkeypatch):
 
     def _purge():
         entered_save.wait(timeout=2.0)
+        purge_attempted.set()
         dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: deleted_rows.append("job1"))
         purge_finished.set()
 
     purger = threading.Thread(target=_purge)
     purger.start()
     merged = dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]})
-    purge_finished.set()  # release the save if the purge never got that far
+    purge_attempted.set()  # release the save if the purge never got that far
     purger.join(timeout=5.0)
+    assert purge_finished.wait(timeout=5.0), "the purge must complete once the lock frees"
 
     assert merged is True, "the save started first, so it must complete"
     assert saved == ["job1"]
@@ -233,3 +242,122 @@ def test_the_ingest_pipeline_persists_atomically():
     assert "merge_and_save_job(" in src
     # The two-step form is what the race lived in.
     assert "save_job(job_id, get_job(" not in src
+
+
+# ── withdrawal survives a job's FIRST write ──────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _clean_tombstones():
+    dub_pipeline._inflight_jobs.clear()
+    dub_pipeline._withdrawn_jobs.clear()
+    yield
+    dub_pipeline._inflight_jobs.clear()
+    dub_pipeline._withdrawn_jobs.clear()
+
+
+def test_clearing_history_mid_ingest_is_not_undone_by_the_next_checkpoint(monkeypatch):
+    """Review finding (#1252): dict membership can't express "withdrawn".
+
+    An ingest's FIRST persistence CREATES the entry, so an absent key means
+    "not written yet" for a new job and "deleted" for an established one — two
+    opposite instructions from one signal. A clear-history landing before that
+    first checkpoint was therefore silently undone by the checkpoint recreating
+    the row, and the run went on to persist its result into history the user
+    had just cleared.
+    """
+    saved = []
+    monkeypatch.setattr(
+        dub_pipeline, "save_job", lambda job_id, job, *a, **kw: saved.append(job_id),
+    )
+
+    dub_pipeline.begin_ingest("job1")
+    # Clear history BEFORE the job has ever been written. It appears in no row,
+    # so `job_ids` is empty — only the in-flight sweep can catch it.
+    dub_pipeline.purge_jobs([], delete_rows=lambda: None, include_inflight=True)
+
+    assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is False
+    assert saved == [], "the checkpoint must not recreate a cleared job"
+    # ...and the terminal write stays refused too.
+    assert dub_pipeline.merge_and_save_job("job1", {"scene_cuts": []}) is False
+
+
+def test_a_single_delete_also_withdraws_an_inflight_job(monkeypatch):
+    saved = []
+    monkeypatch.setattr(
+        dub_pipeline, "save_job", lambda job_id, job, *a, **kw: saved.append(job_id),
+    )
+    dub_pipeline.begin_ingest("job1")
+    dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"})
+    saved.clear()
+
+    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
+
+    assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is False
+    assert saved == []
+
+
+def test_a_normal_ingest_is_unaffected(monkeypatch):
+    """The gate must be invisible when nobody deletes anything — this runs on
+    every import."""
+    saved = []
+    monkeypatch.setattr(
+        dub_pipeline, "save_job", lambda job_id, job, *a, **kw: saved.append(job_id),
+    )
+    dub_pipeline.begin_ingest("job1")
+
+    assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is True
+    assert dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]}) is True
+    assert saved == ["job1", "job1"]
+
+
+def test_the_tombstone_does_not_outlive_the_ingest(monkeypatch):
+    """A withdrawn id must not poison a LATER job that reuses it, and the sets
+    must not grow without bound."""
+    monkeypatch.setattr(dub_pipeline, "save_job", lambda *a, **kw: None)
+
+    dub_pipeline.begin_ingest("job1")
+    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
+    assert "job1" in dub_pipeline._withdrawn_jobs
+
+    dub_pipeline.end_ingest("job1")
+    assert dub_pipeline._withdrawn_jobs == set()
+    assert dub_pipeline._inflight_jobs == set()
+
+    # A fresh run with the same id starts clean.
+    dub_pipeline.begin_ingest("job1")
+    assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is True
+
+
+def test_a_job_that_was_never_in_flight_is_not_tombstoned(monkeypatch):
+    """Deleting an old, finished dub must not leave a tombstone behind — only
+    a running ingest can be withdrawn."""
+    monkeypatch.setattr(dub_pipeline, "save_job", lambda *a, **kw: None)
+    dub_pipeline.put_job("old", {"filename": "a.mp4"})
+
+    dub_pipeline.purge_jobs(["old"], delete_rows=lambda: None)
+
+    assert dub_pipeline._withdrawn_jobs == set()
+
+
+def test_the_pipeline_registers_and_releases_its_run():
+    import inspect
+
+    src = inspect.getsource(dub_pipeline.ingest_pipeline)
+    assert "begin_ingest(job_id)" in src
+    assert "end_ingest(job_id)" in src, "a leaked tombstone would block a later run"
+    # Released in `finally`, so a crash or cancel can't leak it.
+    finally_block = src[src.rindex("finally:"):]
+    assert "end_ingest(job_id)" in finally_block
+
+
+def test_clear_history_sweeps_inflight_jobs():
+    import inspect
+
+    from api.routers import dub_core
+
+    src = inspect.getsource(dub_core.clear_dub_history)
+    assert "include_inflight=True" in src, (
+        "an ingest with no row yet appears in no id list — only the in-flight "
+        "sweep can clear it"
+    )

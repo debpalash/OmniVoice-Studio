@@ -238,7 +238,7 @@ def clear_dub_history():
     # can't re-save a job the user just cleared (#1252 review). This path
     # never evicted from memory at all before, so an in-flight job survived
     # "clear history" outright.
-    dub_pipeline.purge_jobs(ids, delete_rows=_delete_rows)
+    dub_pipeline.purge_jobs(ids, delete_rows=_delete_rows, include_inflight=True)
     for jid in ids:
         safe = _safe_job_dir(jid)
         if safe and os.path.isdir(safe):

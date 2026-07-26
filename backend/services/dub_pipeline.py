@@ -69,6 +69,20 @@ logger = logging.getLogger("omnivoice.dub_pipeline")
 _dub_jobs: dict[str, dict] = {}
 _dub_jobs_lock = threading.Lock()
 
+#: Ingests currently running, and those whose history was deleted mid-run.
+#: Both guarded by ``_dub_jobs_lock``.
+#:
+#: Dict membership alone cannot express "the user withdrew this job" (#1252
+#: review): an ingest's FIRST persistence creates the entry, so an absent key
+#: means "not written yet" for a new job and "deleted" for an established one —
+#: two opposite instructions from the same signal. A delete arriving before the
+#: first checkpoint would therefore be silently undone by that checkpoint
+#: recreating the row, and the run would go on to persist its result into
+#: history the user had just cleared. The tombstone says it explicitly, and is
+#: dropped when the ingest ends, so it stays bounded by concurrent ingests.
+_inflight_jobs: set[str] = set()
+_withdrawn_jobs: set[str] = set()
+
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
 _HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
 
@@ -218,6 +232,20 @@ def merge_job(job_id: str, updates: dict) -> bool:
         return True
 
 
+def begin_ingest(job_id: str) -> None:
+    """Mark an ingest as running. Clears any stale tombstone for this id."""
+    with _dub_jobs_lock:
+        _inflight_jobs.add(job_id)
+        _withdrawn_jobs.discard(job_id)
+
+
+def end_ingest(job_id: str) -> None:
+    """Mark an ingest as finished, however it ended. Drops its tombstone."""
+    with _dub_jobs_lock:
+        _inflight_jobs.discard(job_id)
+        _withdrawn_jobs.discard(job_id)
+
+
 def put_and_save_job(
     job_id: str,
     job: dict,
@@ -225,20 +253,21 @@ def put_and_save_job(
     filename: str = "",
     duration: float = 0.0,
     content_hash: str = "",
-) -> None:
+) -> bool:
     """:func:`put_job` and :func:`save_job` as ONE atomic step.
 
-    The ingest's mid-pipeline checkpoints write a job record before the run
-    finishes. Unlocked, a "clear history" landing between the two leaves the
-    row recreated behind the purge — a ghost entry for work the user just
-    cleared (#1252 review). Under the lock, the purge either happens wholly
-    before (this write recreates a row the still-running job legitimately owns,
-    and its final :func:`merge_and_save_job` then finds the job evicted and
-    stops) or wholly after (the row is deleted, correctly).
+    Returns ``False`` when the job was withdrawn — the user deleted or cleared
+    its history while this ingest was running — in which case nothing is
+    written. Gating on the tombstone rather than on dict membership is what
+    makes this correct for a job's FIRST write, where an absent key is normal
+    (#1252 review).
     """
     with _dub_jobs_lock:
+        if job_id in _withdrawn_jobs:
+            return False
         _dub_jobs[job_id] = job
         save_job(job_id, job, filename, duration, content_hash)
+        return True
 
 
 def merge_and_save_job(
@@ -262,14 +291,14 @@ def merge_and_save_job(
     """
     with _dub_jobs_lock:
         job = _dub_jobs.get(job_id)
-        if job is None:
+        if job is None or job_id in _withdrawn_jobs:
             return False
         job.update(updates)
         save_job(job_id, job, filename, duration, content_hash)
         return True
 
 
-def purge_jobs(job_ids, *, delete_rows) -> None:
+def purge_jobs(job_ids, *, delete_rows, include_inflight: bool = False) -> None:
     """Delete history rows and evict the in-memory records as ONE atomic step.
 
     ``delete_rows`` is called with the lock held, so a concurrent
@@ -281,8 +310,15 @@ def purge_jobs(job_ids, *, delete_rows) -> None:
     """
     with _dub_jobs_lock:
         delete_rows()
-        for job_id in job_ids:
+        targets = set(job_ids)
+        if include_inflight:
+            # "Clear history" means everything, including a job whose first row
+            # hasn't been written yet — it wouldn't appear in `job_ids` at all.
+            targets |= _inflight_jobs
+        for job_id in targets:
             _dub_jobs.pop(job_id, None)
+            if job_id in _inflight_jobs:
+                _withdrawn_jobs.add(job_id)
 
 
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
@@ -938,6 +974,9 @@ async def ingest_pipeline(
     # Audio-only jobs (#119) skip scene detection + thumbnailing below; the
     # transcribe → translate → TTS core is identical.
     input_type = (source.get("input_type") or "video").lower()
+    # Declare the run so a "clear history" arriving before this job's first
+    # persistence can still withdraw it (#1252 review).
+    begin_ingest(job_id)
     try:
         if source.get("kind") == "url":
             url = source["url"]
@@ -1106,9 +1145,12 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            put_and_save_job(
+            if not put_and_save_job(
                 job_id, full_job, filename=filename, duration=dur, content_hash=content_hash,
-            )
+            ):
+                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
+                yield prep_event("cancelled")
+                return
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
             yield prep_event("cached",
                              has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)),
@@ -1131,9 +1173,12 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            put_and_save_job(
+            if not put_and_save_job(
                 job_id, partial, filename=filename, duration=dur, content_hash=content_hash,
-            )
+            ):
+                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
+                yield prep_event("cancelled")
+                return
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
 
             vocals_path = os.path.join(job_dir, "vocals.wav")
@@ -1268,5 +1313,6 @@ async def ingest_pipeline(
         yield prep_event("error", **failure.build_failure(e, stage="ingest"))
         return
     finally:
+        end_ingest(job_id)
         with _active_procs_lock:
             _active_procs.pop(job_id, None)
