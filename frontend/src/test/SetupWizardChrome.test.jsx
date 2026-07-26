@@ -66,6 +66,10 @@ describe('SetupWizard — the pinned action row stays on screen', () => {
     // `fixed` ignores .app-wizard-wrap's box; `absolute` fills it.
     expect(root.className).not.toMatch(/\bfixed\b/);
     expect(root.className).toMatch(/\babsolute\b/);
+    // ...and the pinned row needs clearance now that it really is the last
+    // thing on screen — flush against the window edge is the same bug's
+    // cosmetic tail.
+    expect(root.className).toMatch(/\bpb-\d/);
   });
 
   it('keeps Continue and the HF-token card OUT of the scrolling region', async () => {
@@ -93,16 +97,21 @@ describe('SetupWizard — the pinned action row stays on screen', () => {
 describe('studio chrome does not appear before the studio', () => {
   it('renders no LogsFooter in the first-run wizard or the pre-wizard splash', () => {
     const app = readSrc('App.jsx');
-    // One render site remains: the studio itself.
-    const mounts = app.match(/<LogsFooter\s*\/>/g) || [];
-    expect(mounts).toHaveLength(1);
 
-    // ...and it is not inside either pre-home branch.
-    const wizardBranch = app.slice(
-      app.indexOf('className="app-wizard-wrap"'),
-      app.indexOf('// Block the main UI until Rust reports the backend is ready'),
+    // Split App.jsx at the last pre-studio early return. Everything above is a
+    // screen the user sees BEFORE the studio (awaiting_setup splash,
+    // !setupChecked splash, the wizard); everything below is the studio.
+    const split = app.indexOf(
+      '// Block the main UI until Rust reports the backend is ready',
     );
-    expect(wizardBranch).not.toContain('<LogsFooter />');
+    expect(split).toBeGreaterThan(0);
+    const preStudio = app.slice(app.indexOf("if (bootstrapStage === 'awaiting_setup')"), split);
+    const studio = app.slice(split);
+
+    // Asserted per-branch rather than as a global count: a bare count of 1
+    // would still pass if the mount MOVED from the studio into the splash.
+    expect(preStudio).not.toContain('LogsFooter');
+    expect(studio.match(/<LogsFooter\s*\/>/g) || []).toHaveLength(1);
   });
 
   it('gives the wizard the whole viewport, since nothing is reserved below it', () => {
