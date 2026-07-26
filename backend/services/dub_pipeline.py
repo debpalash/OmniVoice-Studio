@@ -37,7 +37,6 @@ import subprocess
 import sys
 import threading
 import time
-from collections import OrderedDict
 from typing import AsyncIterator, Optional
 
 import soundfile as sf
@@ -68,33 +67,7 @@ logger = logging.getLogger("omnivoice.dub_pipeline")
 # backward compat during the transition.
 
 _dub_jobs: dict[str, dict] = {}
-# Re-entrant: `save_job` takes this lock itself (see below), and the atomic
-# helpers call it while already holding it.
-_dub_jobs_lock = threading.RLock()
-
-#: Ingests currently running. Used only so "clear history" can also sweep a job
-#: that has no row yet — it would appear in no id list otherwise.
-_inflight_jobs: set[str] = set()
-
-#: Recently-deleted job ids, most-recent last. Guarded by ``_dub_jobs_lock``.
-#:
-#: Dict membership alone cannot express "the user withdrew this job" (#1252
-#: review): a job's FIRST persistence creates the entry, so an absent key means
-#: "not written yet" for a new job and "deleted" for an established one — two
-#: opposite instructions from one signal.
-#:
-#: Scoped to DELETED, not to in-flight ingests. Scoping it to ingests looked
-#: right and closed nothing that mattered: a dub is imported once and rendered
-#: many times, so the realistic delete lands during a RENDER, long after its
-#: ingest ended — and a render's save would then write the row straight back.
-#:
-#: Bounded rather than cleared on completion, because there is no moment at
-#: which a delete stops mattering: any operation still holding that job can
-#: persist it. An LRU keeps the window generous (well past a long render) while
-#: the set stays small; ``begin_ingest`` drops an id explicitly, since
-#: re-importing is a deliberate revival.
-_WITHDRAWN_MAX = 256
-_withdrawn_jobs: "OrderedDict[str, None]" = OrderedDict()
+_dub_jobs_lock = threading.Lock()
 
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
 _HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
@@ -224,134 +197,6 @@ def put_job(job_id: str, job: dict) -> None:
         _dub_jobs[job_id] = job
 
 
-def merge_job(job_id: str, updates: dict) -> bool:
-    """Merge *updates* into an existing in-memory job. Does NOT persist.
-
-    Returns ``False`` when the job is gone — which is a real, reachable state,
-    not a defensive nicety: ingest runs for minutes (demucs, scene detection,
-    thumbnailing) and ``DELETE /dub/history/{id}`` pops the entry out from
-    under it. The pipeline used to finish with a bare
-    ``_dub_jobs[job_id].update(...)``, so deleting an in-flight dub surfaced as
-    the toast ``ingest: 'mgw39lx3'`` — ``str(KeyError)`` is the repr of the
-    key, nothing more (#1252/#1253). Callers treat ``False`` as "the user
-    withdrew this job" and stop, rather than resurrecting a record that was
-    deliberately deleted.
-    """
-    with _dub_jobs_lock:
-        job = _dub_jobs.get(job_id)
-        if job is None:
-            return False
-        job.update(updates)
-        return True
-
-
-def begin_ingest(job_id: str) -> None:
-    """Mark an ingest as running.
-
-    Re-importing an id is a deliberate revival, so this clears any tombstone —
-    the only thing that legitimately un-deletes a job.
-    """
-    with _dub_jobs_lock:
-        _inflight_jobs.add(job_id)
-        _withdrawn_jobs.pop(job_id, None)
-
-
-def end_ingest(job_id: str) -> None:
-    """Mark an ingest as finished, however it ended.
-
-    Deliberately does NOT clear the tombstone: the ingest ending is not the
-    user un-deleting anything, and a render started before the delete can still
-    be holding that job.
-    """
-    with _dub_jobs_lock:
-        _inflight_jobs.discard(job_id)
-
-
-def put_and_save_job(
-    job_id: str,
-    job: dict,
-    *,
-    filename: str = "",
-    duration: float = 0.0,
-    content_hash: str = "",
-) -> bool:
-    """:func:`put_job` and :func:`save_job` as ONE atomic step.
-
-    Returns ``False`` when the job was withdrawn — the user deleted or cleared
-    its history while this ingest was running — in which case nothing is
-    written. Gating on the tombstone rather than on dict membership is what
-    makes this correct for a job's FIRST write, where an absent key is normal
-    (#1252 review).
-    """
-    with _dub_jobs_lock:
-        if job_id in _withdrawn_jobs:
-            return False
-        _dub_jobs[job_id] = job
-        save_job(job_id, job, filename, duration, content_hash)
-        return True
-
-
-def merge_and_save_job(
-    job_id: str,
-    updates: dict,
-    *,
-    filename: str = "",
-    duration: float = 0.0,
-    content_hash: str = "",
-) -> bool:
-    """:func:`merge_job` and :func:`save_job` as ONE atomic step.
-
-    Splitting them leaves a window that resurrects deleted work (#1252 review):
-    merge succeeds, the user deletes the dub — removing the row *and* the
-    in-memory entry — and the pending ``save_job`` then UPSERTs the row straight
-    back, so a dub the user deleted reappears in history. The delete endpoints
-    take this same lock around their own row-delete + evict, so the two
-    sequences cannot interleave at all.
-
-    Returns ``False`` when the job is already gone; the caller stops there.
-
-    The ``save_job`` write happens INSIDE the lock deliberately. That serialises
-    dub job-state access against one SQLite UPSERT — normally microseconds under
-    WAL, but up to sqlite3's 5 s default busy timeout if another writer is
-    holding the write lock. The alternative — releasing the lock before the
-    write — is the resurrection race this exists to close, so a rare latency
-    blip is the better trade. No locked region here calls another locked
-    function, so the plain (non-reentrant) ``_dub_jobs_lock`` cannot deadlock.
-    """
-    with _dub_jobs_lock:
-        job = _dub_jobs.get(job_id)
-        if job is None or job_id in _withdrawn_jobs:
-            return False
-        job.update(updates)
-        save_job(job_id, job, filename, duration, content_hash)
-        return True
-
-
-def purge_jobs(job_ids, *, delete_rows, include_inflight: bool = False) -> None:
-    """Delete history rows and evict the in-memory records as ONE atomic step.
-
-    ``delete_rows`` is called with the lock held, so a concurrent
-    :func:`merge_and_save_job` cannot slip between the row-delete and the
-    evict and write the job straight back (#1252 review). Both delete
-    endpoints go through here; ``DELETE /dub/history`` previously never evicted
-    from memory at all, so an in-flight job survived "clear history" entirely
-    and re-saved itself on completion.
-    """
-    with _dub_jobs_lock:
-        delete_rows()
-        targets = set(job_ids)
-        if include_inflight:
-            # "Clear history" means everything, including a job whose first row
-            # hasn't been written yet — it wouldn't appear in `job_ids` at all.
-            targets |= _inflight_jobs
-        for job_id in targets:
-            _dub_jobs.pop(job_id, None)
-            _withdrawn_jobs.pop(job_id, None)
-            _withdrawn_jobs[job_id] = None  # most-recent last
-        while len(_withdrawn_jobs) > _WITHDRAWN_MAX:
-            _withdrawn_jobs.popitem(last=False)
-
-
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
     """Persist dub job state to SQLite so it survives restarts. Uses UPSERT
     on `id` so repeated saves in a session keep the latest snapshot.
@@ -364,22 +209,6 @@ def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, 
     keys history restore off language_code, so a frozen "" hid finished
     tracks until the user re-picked a language.
     """
-    with _dub_jobs_lock:
-        # The withdrawal gate lives HERE, not in the callers (#1252 review).
-        # Eight call sites across generate / translate / export / core persist
-        # jobs directly, so gating only the ingest helpers left every
-        # post-ingest save able to resurrect a dub the user deleted mid-render.
-        # One choke point closes the class and the ninth caller inherits it.
-        if job_id in _withdrawn_jobs:
-            logger.info(
-                "Dub job %s was deleted while it was still running — not persisting", job_id,
-            )
-            return
-        _persist_job(job_id, job, filename, duration, content_hash)
-
-
-def _persist_job(job_id: str, job: dict, filename: str, duration: float, content_hash: str) -> None:
-    """The actual write. Callers go through :func:`save_job`, which gates it."""
     try:
         segments = job.get("segments") or []
         tracks = list((job.get("dubbed_tracks") or {}).keys())
@@ -1021,9 +850,6 @@ async def ingest_pipeline(
     # Audio-only jobs (#119) skip scene detection + thumbnailing below; the
     # transcribe → translate → TTS core is identical.
     input_type = (source.get("input_type") or "video").lower()
-    # Declare the run so a "clear history" arriving before this job's first
-    # persistence can still withdraw it (#1252 review).
-    begin_ingest(job_id)
     try:
         if source.get("kind") == "url":
             url = source["url"]
@@ -1192,12 +1018,8 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            if not put_and_save_job(
-                job_id, full_job, filename=filename, duration=dur, content_hash=content_hash,
-            ):
-                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
-                yield prep_event("cancelled")
-                return
+            put_job(job_id, full_job)
+            save_job(job_id, full_job, filename, dur, content_hash)
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
             yield prep_event("cached",
                              has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)),
@@ -1220,12 +1042,8 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            if not put_and_save_job(
-                job_id, partial, filename=filename, duration=dur, content_hash=content_hash,
-            ):
-                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
-                yield prep_event("cancelled")
-                return
+            put_job(job_id, partial)
+            save_job(job_id, partial, filename, dur, content_hash)
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
 
             vocals_path = os.path.join(job_dir, "vocals.wav")
@@ -1317,30 +1135,13 @@ async def ingest_pipeline(
                     logger.warning("Thumbnail extraction failed for %s: %s", job_id, e)
                     yield prep_event("warning", **failure.build_failure(e, stage="thumbnail", include_diagnostic=False))
 
-            # The job can legitimately be gone by now — everything above takes
-            # minutes and `DELETE /dub/history/{id}` pops the record. Deleting
-            # an in-flight dub used to raise KeyError here and surface as the
-            # toast `ingest: 'mgw39lx3'` (#1252/#1253). A withdrawn job is not
-            # an error: stop quietly rather than re-persisting what the user
-            # just deleted.
-            # Merge and persist as one step: a delete landing BETWEEN them
-            # would remove the row and then have it written straight back, so
-            # the dub the user deleted reappears in history (#1252 review).
-            if not merge_and_save_job(
-                job_id,
-                {
-                    "vocals_path": vocals_path,
-                    "no_vocals_path": no_vocals_path,
-                    "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
-                    "scene_cuts": scene_cuts,
-                },
-                filename=filename,
-                duration=dur,
-                content_hash=content_hash,
-            ):
-                logger.info("Dub job %s was deleted during ingest — discarding its result", job_id)
-                yield prep_event("cancelled")
-                return
+            _dub_jobs[job_id].update({
+                "vocals_path": vocals_path,
+                "no_vocals_path": no_vocals_path,
+                "thumb_path": thumb_path if (thumb_path and os.path.exists(thumb_path)) else None,
+                "scene_cuts": scene_cuts,
+            })
+            save_job(job_id, _dub_jobs[job_id], filename, dur, content_hash)
             yield prep_event("ready", job_id=job_id, duration=round(dur, 2), filename=filename)
 
     except asyncio.CancelledError:
@@ -1360,6 +1161,5 @@ async def ingest_pipeline(
         yield prep_event("error", **failure.build_failure(e, stage="ingest"))
         return
     finally:
-        end_ingest(job_id)
         with _active_procs_lock:
             _active_procs.pop(job_id, None)
