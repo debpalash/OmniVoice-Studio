@@ -17,13 +17,16 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A GPU too small for the chosen engine now says so up front, not after a five-minute wait
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
+- Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
 
 ### Docs
 
+- Linux install: a new section for the Mesa 26.1+ blank window, stating plainly that no environment variable works and why (#1258)
 - Docker: ROCm section explains that `torch.cuda.is_available() == True` isn't proof the app is on the GPU, and notes the `--group-add` needed for `/dev/kfd` on rootless hosts (#1228)
 
 ### Fixed
 
+- Linux AppImage: a permanently blank window on Mesa 26.1+ hosts (Arch/CachyOS and other rolling distros) — the bundled WebKit ran against a newer system Mesa than it was built for, and no environment variable could help because the failure precedes every rendering flag; the launcher now lets a newer system WebKitGTK take precedence — thanks @rvasilev and @HannaLovvold! (#1258, #1244)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
 - AMD/ROCm: `HSA_OVERRIDE_GFX_VERSION` is auto-set only when your card genuinely needs it and the remap target exists in your build; gfx1150/gfx1151 (Strix Point/Halo) added to the map (#1228)
@@ -41,6 +44,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A model download truncated near the end is now retried and resumed instead of aborting the whole install — thanks @Reaksa-Cambodia! (#1224)
 - Engine first-use downloads (VoxCPM2, MOSS-TTS-Nano) retry transient network failures instead of failing the load outright (#1224)
 - A backend killed by the OS mid-stream now leaves a low-memory trail in the crash report (#1224)
+
+### CI
+
+- The AppImage launcher's unit tests now run in CI — they existed but nothing executed them (#1258)
 
 ## [0.4.0] — 2026-07-21
 
@@ -89,6 +96,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### CI
 
+- The AppImage launcher's unit tests now run in CI — they existed but nothing executed them (#1258)
 - The quiet changelog style and 21-locale key/placeholder parity are now enforced by plain pytest checks; CodeRabbit/Greptile carry the house rules via `.coderabbit.yaml`/`greptile.json` (#1198)
 
 ### Docs

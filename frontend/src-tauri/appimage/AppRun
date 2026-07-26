@@ -56,8 +56,63 @@ _detect_webkit_workaround() {
 
 _detect_webkit_workaround
 
-# Standard AppImage env that Tauri's auto-generated AppRun would have set.
-export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+# ── Bundled-vs-system WebKit priority (#1258, #1244) ───────────────────────
+#
+# The bundled WebKitGTK links against the HOST's Mesa — the AppImage ships no
+# libEGL of its own. That pairing is only tested for the Mesa of the build
+# runner, and it breaks outright as hosts move ahead: on Mesa >= 26.1 the
+# Ubuntu-built libwebkit2gtk calls eglGetPlatformDisplay() with parameters the
+# newer driver rejects, and the app dies before it renders anything:
+#
+#     Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...
+#     blank window detected (#root children = -2); reload 1/3
+#
+# No env var helps, because the failure is in EGL display creation — it happens
+# before WebKit consults any rendering-path flag. #1258 confirmed
+# WEBKIT_DISABLE_DMABUF_RENDERER, WEBKIT_DMABUF_RENDERER_FORCE_SHM,
+# WEBKIT_SKIA_ENABLE_CPU_RENDERING, EGL_PLATFORM=surfaceless and
+# MESA_LOADER_DRIVER_OVERRIDE=swrast all fail identically.
+#
+# What DOES work on those machines is the host's own WebKitGTK, because the
+# distro compiled it against the very Mesa it ships — which is why building
+# from source works on the exact hardware where the AppImage does not.
+#
+# Chasing the build runner's WebKit version (#961 bumped 22.04 → 24.04) cannot
+# fix this class: whatever we bundle is frozen, and host Mesa keeps moving. So
+# when the host has a WebKitGTK at least as new as ours, let it win — append
+# the bundle's lib dir instead of prepending it. The bundle still provides
+# every library the host lacks, so a host with no WebKitGTK is unaffected and
+# keeps today's behaviour exactly.
+_prefer_system_webkit() {
+  # Only meaningful when we know what we bundled; an unstamped bundle keeps
+  # the old ordering rather than guessing.
+  local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/.bundled-webkitgtk-version}"
+  [ -r "$marker" ] || return 1
+  local bundled
+  bundled="$(cat "$marker" 2>/dev/null | tr -d '[:space:]')"
+  [ -n "$bundled" ] && [ "$bundled" != "0.0" ] || return 1
+
+  local system
+  system="$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null || echo "")"
+  [ -n "$system" ] || return 1
+
+  # `sort -V` puts the older version first; the host wins only on >=.
+  [ "$(printf '%s\n%s\n' "$bundled" "$system" | sort -V | head -1)" = "$bundled" ]
+}
+
+if _prefer_system_webkit; then
+  # System libraries resolve first; ours fill only the gaps.
+  export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}${LD_LIBRARY_PATH:+:}${HERE}/usr/lib"
+  # The workaround above was chosen for the BUNDLED version. The host's copy is
+  # newer by construction here, so re-decide against the one that will run.
+  unset WEBKIT_DISABLE_COMPOSITING_MODE
+  case "$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null || echo 0.0)" in
+    2.44.*|2.46.*) export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
+  esac
+else
+  # Standard AppImage env that Tauri's auto-generated AppRun would have set.
+  export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+fi
 export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 exec "${HERE}/usr/bin/omnivoice-studio" "$@"
