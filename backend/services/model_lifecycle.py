@@ -225,6 +225,45 @@ async def unload(model_id: str) -> dict:
             return {"unloaded": "diarization", "success": True}
         return {"unloaded": "diarization", "success": False, "reason": "not loaded"}
 
+    # The warm dictation ASR (#1247, same defect). It is listed with
+    # ``"unloadable": True`` and had no branch either — found by the contract
+    # test written for the engine case, which is the whole reason that test
+    # enumerates the listing instead of hard-coding ids.
+    if model_id == "capture-asr":
+        import services.asr_backend as ab
+
+        if getattr(ab, "_capture_backend", None) is None:
+            return {"unloaded": model_id, "success": False, "reason": "not loaded"}
+        # idle_s=0 → release now. Still declines while a dictation stream holds
+        # a lease; yanking the model out from under an open session is exactly
+        # what the lease exists to prevent.
+        if ab.release_idle_capture_backend(0.0):
+            return {"unloaded": model_id, "success": True}
+        return {"unloaded": model_id, "success": False, "reason": "in use by dictation"}
+
+    # In-process engines (#1247). `list_loaded_models` has advertised these as
+    # `engine:<id>` with `"unloadable": True` since they were made visible in
+    # the panel — but this dispatcher never grew a branch for them, so pressing
+    # Unload on any of those rows answered `400 Unknown model id:
+    # engine:kittentts`. The engines already implement `unload()`; only the
+    # routing was missing.
+    if model_id.startswith("engine:"):
+        engine_id = model_id.split(":", 1)[1]
+        from api.routers.engines import _ENGINE_INSTANCES
+
+        for cls, inst in list(_ENGINE_INSTANCES.items()):
+            if (getattr(cls, "id", cls.__name__)) != engine_id:
+                continue
+            held = any(
+                getattr(inst, attr, None) is not None
+                for attr in getattr(inst, "_MODEL_ATTRS", ("_model", "_tts"))
+            )
+            if not held:
+                return {"unloaded": model_id, "success": False, "reason": "not loaded"}
+            inst.unload()  # idempotent by contract; frees device caches itself
+            return {"unloaded": model_id, "success": True}
+        return {"unloaded": model_id, "success": False, "reason": "not loaded"}
+
     raise ValueError(f"Unknown model id: {model_id}")
 
 
