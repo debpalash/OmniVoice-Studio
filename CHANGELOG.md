@@ -17,6 +17,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A GPU too small for the chosen engine now says so up front, not after a five-minute wait
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
+- The app opens on macOS 12 (Monterey) again, instead of a dead window
 
 ### Docs
 
@@ -24,6 +25,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- macOS 12 (Monterey): the app died during its first render and never started the backend — it called a WebKit 16 method on a WebView we promise to support — thanks @singhrahat! (#1245)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
 - AMD/ROCm: `HSA_OVERRIDE_GFX_VERSION` is auto-set only when your card genuinely needs it and the remap target exists in your build; gfx1150/gfx1151 (Strix Point/Halo) added to the map (#1228)
