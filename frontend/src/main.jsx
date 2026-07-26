@@ -6,6 +6,12 @@ if (import.meta.env.DEV && !window.__vite_plugin_react_preamble_installed__) {
   window.__vite_plugin_react_preamble_installed__ = true;
 }
 
+// Web-platform gap fills for the oldest WebView we support (macOS 12 ships
+// WKWebView 15.6). MUST be first: these are touched during the first React
+// render, so a missing one throws mid-render and leaves a dead window rather
+// than a degraded feature (#1245).
+import './utils/webCompat.js';
+
 // AudioContext autoplay-policy unlock — MUST install before any module that
 // constructs an AudioContext (wavesurfer.js, the AEC tap, the dictation
 // capture, etc.). The side-effecting import patches `window.AudioContext`

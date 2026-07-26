@@ -45,10 +45,14 @@ memxt.db-wal
 #  Editor / tool caches
 # ─────────────────────────────────────────────────────────────────────────
 # Ignore ad-hoc Claude Code state, but allow project-bundled skills
-# (CLAUDE.md invites `.claude/skills/<name>/SKILL.md`).
+# (CLAUDE.md invites `.claude/skills/<name>/SKILL.md`) and project-bundled
+# review agents — the owner's review standards belong with the code they
+# govern, not in one machine's local state.
 .claude/*
 !.claude/skills/
 !.claude/skills/**
+!.claude/agents/
+!.claude/agents/**
 /.cache*
 /.tmp/
 

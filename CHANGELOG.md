@@ -18,6 +18,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
 - First run: Continue and the Hugging Face token box no longer sit under the status bar
+- macOS 12 (Monterey): the app launches again instead of dying on startup
 - Exporting a voice or a dub no longer fails when the name isn't spelled in Latin letters
 - Three more failures that used to arrive as raw OS text now say what to do about them
 - Unload works on every model the panel offers it for, and a language the active engine can't speak says so
@@ -26,12 +27,17 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 - First run: the status bar (Logs, version, Sponsors) appears once you reach the studio, instead of overlaying the setup steps (#1241)
 
+### Added
+
+- `OMNIVOICE_MCP_ALLOWED_HOSTS` — comma-separated host patterns (e.g. `host.containers.internal:*,192.168.1.5:*`) that extend the MCP SDK's DNS-rebinding allowlist, so AI agents running in Docker containers or on other machines can reach the `/mcp` endpoint. The SDK default is localhost-only; this env var is opt-in (#1249)
+
 ### Docs
 
 - Docker: ROCm section explains that `torch.cuda.is_available() == True` isn't proof the app is on the GPU, and notes the `--group-add` needed for `/dev/kfd` on rootless hosts (#1228)
 
 ### Fixed
 
+- macOS 12 (Monterey): the app threw on startup and never started the backend — it called a Safari 16 method on the WebView that macOS ships. It launches and works now; some styling still needs a newer WebView (tracked in #1268) — thanks @singhrahat! (#1245)
 - Settings → Engines: Unload failed with `400 Unknown model id: engine:kittentts` on any in-process engine — the panel offered the button for ids the backend never accepted; the warm dictation model had the same gap — thanks @JavaxmI! (#1247)
 - Picking a language the active engine can't speak recited 23 codes without saying which engine refused or that switching engine was the fix — thanks @pulananave! (#1257)
 - A YouTube import that failed as "DRM protected" and then worked on a manual retry now escalates the player client automatically, and a genuinely undownloadable video says so — thanks @gysahlgreene! (#1254)

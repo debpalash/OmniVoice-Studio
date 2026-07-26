@@ -103,3 +103,17 @@ def test_decode_ref_audio_rejects_garbage_without_raising():
 def test_sniff_audio_ext_matches_magic_bytes(raw, ext):
     from mcp_server import _sniff_audio_ext
     assert _sniff_audio_ext(raw) == ext
+
+
+def test_mcp_allowed_hosts_env_extends_allowlist(monkeypatch):
+    """OMNIVOICE_MCP_ALLOWED_HOSTS must extend the transport-security allowlist."""
+    from mcp_server import create_mcp_server
+
+    monkeypatch.setenv("OMNIVOICE_MCP_ALLOWED_HOSTS", "host.containers.internal:*,10.0.0.1:*")
+    server = create_mcp_server()
+    allowed = server.settings.transport_security.allowed_hosts
+    assert "host.containers.internal:*" in allowed
+    assert "10.0.0.1:*" in allowed
+    origins = server.settings.transport_security.allowed_origins
+    assert "http://host.containers.internal:*" in origins
+    assert "https://host.containers.internal:*" in origins

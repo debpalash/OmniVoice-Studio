@@ -114,6 +114,24 @@ def create_mcp_server():
     except Exception:
         pass
 
+    # Extend the MCP SDK's DNS-rebinding allowlist so agents on non-localhost
+    # hosts (Docker's host.containers.internal, a LAN IP, a reverse proxy) can
+    # reach the /mcp endpoint. The SDK default is localhost-only.
+    _mcp_hosts = os.environ.get("OMNIVOICE_MCP_ALLOWED_HOSTS", "")
+    if _mcp_hosts.strip():
+        hosts = [h.strip() for h in _mcp_hosts.split(",") if h.strip()]
+        try:
+            mcp.settings.transport_security.allowed_hosts.extend(hosts)
+            # Also extend origins for both http and https (browser-based MCP
+            # clients behind a proxy send an Origin header — agent clients
+            # typically don't, but a reverse proxy may use either scheme).
+            origins = [
+                f"{scheme}://{h}" for h in hosts for scheme in ("http", "https")
+            ]
+            mcp.settings.transport_security.allowed_origins.extend(origins)
+        except Exception as e:
+            logger.warning("OMNIVOICE_MCP_ALLOWED_HOSTS not applied (%s)", e)
+
     # ── Helpers ─────────────────────────────────────────────────────────
 
     def _api_base() -> str:
