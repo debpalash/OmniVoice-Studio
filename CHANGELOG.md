@@ -19,6 +19,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A model download that dies at 90% now resumes instead of failing the install
 - First run: Continue and the Hugging Face token box no longer sit under the status bar
 - macOS 12 (Monterey): the app launches again instead of dying on startup
+- Deleting a dub no longer un-deletes itself when the job it belonged to finishes
 
 ### Changed
 
@@ -34,6 +35,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Deleting a dub while it was still importing crashed the import with the toast `ingest: 'mgw39lx3'` — a dict key and nothing else — and the delete could then be undone by the job's own pending write, in history or mid-render; both are fixed, and no failure can present itself as a bare value again — thanks @dustmaker124-ui! (#1252, #1253)
 - macOS 12 (Monterey): the app threw on startup and never started the backend — it called a Safari 16 method on the WebView that macOS ships. It launches and works now; some styling still needs a newer WebView (tracked in #1268) — thanks @singhrahat! (#1245)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
