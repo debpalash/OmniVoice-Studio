@@ -88,13 +88,25 @@ _inflight_jobs: set[str] = set()
 #: many times, so the realistic delete lands during a RENDER, long after its
 #: ingest ended — and a render's save would then write the row straight back.
 #:
-#: Bounded rather than cleared on completion, because there is no moment at
+#: Retained rather than cleared on completion, because there is no moment at
 #: which a delete stops mattering: any operation still holding that job can
-#: persist it. An LRU keeps the window generous (well past a long render) while
-#: the set stays small; ``begin_ingest`` drops an id explicitly, since
-#: re-importing is a deliberate revival.
-_WITHDRAWN_MAX = 256
-_withdrawn_jobs: "OrderedDict[str, None]" = OrderedDict()
+#: persist it. ``begin_ingest`` drops an id explicitly, since re-importing is a
+#: deliberate revival.
+#:
+#: Expired by AGE, not by count. A count-bounded LRU is evictable by ordinary
+#: use: ``DELETE /dub/history`` purges every row with no limit, so a user
+#: clearing a large history mid-render would push the rendering job's own
+#: marker out and the render would then write it back (#1252 review). Age
+#: cannot be gamed that way — what matters is how long ago the delete happened,
+#: not how many others followed it.
+#:
+#: The count cap is a memory backstop only, set far above any real history:
+#: ~4096 short ids is a few hundred KB. Reaching it needs 4096 deletions inside
+#: one TTL window, at which point the oldest markers are the least likely to
+#: still be held.
+_WITHDRAWN_TTL_S = 6 * 3600   # outlives any realistic render or transcribe
+_WITHDRAWN_MAX = 4096         # memory backstop, not the eviction policy
+_withdrawn_jobs: "OrderedDict[str, float]" = OrderedDict()
 
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
 _HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
@@ -245,6 +257,22 @@ def merge_job(job_id: str, updates: dict) -> bool:
         return True
 
 
+def _expire_withdrawn(now: float) -> None:
+    """Drop withdrawal markers that are too old to still matter.
+
+    Caller must hold ``_dub_jobs_lock``. Age first — that is the policy — then
+    the count cap purely so the mapping cannot grow without bound.
+    """
+    cutoff = now - _WITHDRAWN_TTL_S
+    while _withdrawn_jobs:
+        _, deleted_at = next(iter(_withdrawn_jobs.items()))
+        if deleted_at >= cutoff:
+            break
+        _withdrawn_jobs.popitem(last=False)
+    while len(_withdrawn_jobs) > _WITHDRAWN_MAX:
+        _withdrawn_jobs.popitem(last=False)
+
+
 def begin_ingest(job_id: str) -> None:
     """Mark an ingest as running.
 
@@ -344,12 +372,12 @@ def purge_jobs(job_ids, *, delete_rows, include_inflight: bool = False) -> None:
             # "Clear history" means everything, including a job whose first row
             # hasn't been written yet — it wouldn't appear in `job_ids` at all.
             targets |= _inflight_jobs
+        now = time.monotonic()
         for job_id in targets:
             _dub_jobs.pop(job_id, None)
             _withdrawn_jobs.pop(job_id, None)
-            _withdrawn_jobs[job_id] = None  # most-recent last
-        while len(_withdrawn_jobs) > _WITHDRAWN_MAX:
-            _withdrawn_jobs.popitem(last=False)
+            _withdrawn_jobs[job_id] = now  # most-recent last
+        _expire_withdrawn(now)
 
 
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:

@@ -372,15 +372,59 @@ def test_re_importing_the_same_id_revives_it(monkeypatch):
     assert written == ["job1"]
 
 
-def test_the_tombstone_set_is_bounded():
-    """Kept for the life of the process, so it must not grow without limit."""
-    for i in range(dub_pipeline._WITHDRAWN_MAX + 50):
+def test_clearing_a_large_history_mid_render_does_not_evict_the_running_job(
+    monkeypatch,
+):
+    """Review finding (#1252, Greptile P1): a count-bounded LRU is evictable by
+    ordinary use.
+
+    `DELETE /dub/history` selects every row with no limit, so a user with a
+    large history clearing it while a render is running would push that very
+    job's marker out — and the render would then write it straight back. Age is
+    the honest policy: what matters is how long ago the delete happened, not how
+    many others happened to follow it.
+    """
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+
+    # One dub is mid-render; the user clears a history far larger than any
+    # count cap would keep.
+    everything = ["rendering"] + [f"old{i}" for i in range(5000)]
+    dub_pipeline.purge_jobs(everything, delete_rows=lambda: None)
+
+    dub_pipeline.save_job("rendering", {"filename": "a.mp4"})
+    assert written == [], "the running job's withdrawal must survive the sweep"
+
+
+def test_markers_expire_by_age(monkeypatch):
+    """They are held for the life of the process otherwise, so something has to
+    let them go — but it must be time, not volume."""
+    import time as _time
+
+    base = _time.monotonic()
+    monkeypatch.setattr(dub_pipeline.time, "monotonic", lambda: base)
+    dub_pipeline.purge_jobs(["old"], delete_rows=lambda: None)
+    assert "old" in dub_pipeline._withdrawn_jobs
+
+    # Well past the TTL, a later delete sweeps the stale one out.
+    monkeypatch.setattr(
+        dub_pipeline.time, "monotonic",
+        lambda: base + dub_pipeline._WITHDRAWN_TTL_S + 1,
+    )
+    dub_pipeline.purge_jobs(["fresh"], delete_rows=lambda: None)
+
+    assert "old" not in dub_pipeline._withdrawn_jobs
+    assert "fresh" in dub_pipeline._withdrawn_jobs
+
+
+def test_the_marker_map_cannot_grow_without_bound():
+    """The count cap is a memory backstop, not the policy."""
+    for i in range(dub_pipeline._WITHDRAWN_MAX + 100):
         dub_pipeline.purge_jobs([f"job{i}"], delete_rows=lambda: None)
 
-    assert len(dub_pipeline._withdrawn_jobs) == dub_pipeline._WITHDRAWN_MAX
-    # The most recent deletions are the ones that still matter.
-    assert f"job{dub_pipeline._WITHDRAWN_MAX + 49}" in dub_pipeline._withdrawn_jobs
-    assert "job0" not in dub_pipeline._withdrawn_jobs
+    assert len(dub_pipeline._withdrawn_jobs) <= dub_pipeline._WITHDRAWN_MAX
 
 
 def test_the_pipeline_registers_and_releases_its_run():
