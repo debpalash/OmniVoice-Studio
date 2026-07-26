@@ -366,3 +366,57 @@ def test_clear_history_sweeps_inflight_jobs():
         "an ingest with no row yet appears in no id list — only the in-flight "
         "sweep can clear it"
     )
+
+
+# ── the gate is at the choke point, not in the callers ───────────────────
+
+
+def test_every_direct_save_path_honours_a_withdrawal(monkeypatch):
+    """Review finding (#1252, Greptile P1): gating only the ingest helpers left
+    eight direct `save_job` call sites — across dub generate, translate, export
+    and core — able to resurrect a dub the user deleted *mid-render*. Deleting
+    during generation is at least as likely as deleting during import.
+
+    The gate now lives in `save_job` itself, so every caller inherits it and
+    the ninth one cannot forget."""
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+
+    dub_pipeline.begin_ingest("job1")
+    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
+
+    # The shape every router uses: a bare save_job, no lock, no helper.
+    dub_pipeline.save_job("job1", {"filename": "a.mp4"})
+
+    assert written == [], "a post-ingest save must not resurrect a deleted dub"
+
+
+def test_a_normal_save_still_writes(monkeypatch):
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+    dub_pipeline.save_job("job1", {"filename": "a.mp4"})
+    assert written == ["job1"]
+
+
+def test_the_lock_is_reentrant():
+    """`save_job` acquires the lock, and the atomic helpers call it while
+    already holding it — a plain Lock would deadlock the backend here."""
+    import threading
+
+    assert isinstance(dub_pipeline._dub_jobs_lock, type(threading.RLock()))
+
+
+def test_the_atomic_helpers_still_work_through_the_reentrant_path(monkeypatch):
+    """Guards the deadlock directly: if this hangs, the RLock regressed."""
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+    dub_pipeline.begin_ingest("job1")
+    assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is True
+    assert dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]}) is True
+    assert written == ["job1", "job1"]

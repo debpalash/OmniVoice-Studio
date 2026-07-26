@@ -67,7 +67,9 @@ logger = logging.getLogger("omnivoice.dub_pipeline")
 # backward compat during the transition.
 
 _dub_jobs: dict[str, dict] = {}
-_dub_jobs_lock = threading.Lock()
+# Re-entrant: `save_job` takes this lock itself (see below), and the atomic
+# helpers call it while already holding it.
+_dub_jobs_lock = threading.RLock()
 
 #: Ingests currently running, and those whose history was deleted mid-run.
 #: Both guarded by ``_dub_jobs_lock``.
@@ -341,6 +343,22 @@ def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, 
     keys history restore off language_code, so a frozen "" hid finished
     tracks until the user re-picked a language.
     """
+    with _dub_jobs_lock:
+        # The withdrawal gate lives HERE, not in the callers (#1252 review).
+        # Eight call sites across generate / translate / export / core persist
+        # jobs directly, so gating only the ingest helpers left every
+        # post-ingest save able to resurrect a dub the user deleted mid-render.
+        # One choke point closes the class and the ninth caller inherits it.
+        if job_id in _withdrawn_jobs:
+            logger.info(
+                "Dub job %s was deleted while it was still running — not persisting", job_id,
+            )
+            return
+        _persist_job(job_id, job, filename, duration, content_hash)
+
+
+def _persist_job(job_id: str, job: dict, filename: str, duration: float, content_hash: str) -> None:
+    """The actual write. Callers go through :func:`save_job`, which gates it."""
     try:
         segments = job.get("segments") or []
         tracks = list((job.get("dubbed_tracks") or {}).keys())
