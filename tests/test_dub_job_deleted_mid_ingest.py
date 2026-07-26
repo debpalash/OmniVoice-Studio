@@ -316,33 +316,71 @@ def test_a_normal_ingest_is_unaffected(monkeypatch):
     assert saved == ["job1", "job1"]
 
 
-def test_the_tombstone_does_not_outlive_the_ingest(monkeypatch):
-    """A withdrawn id must not poison a LATER job that reuses it, and the sets
-    must not grow without bound."""
-    monkeypatch.setattr(dub_pipeline, "save_job", lambda *a, **kw: None)
+def test_a_delete_during_a_RENDER_is_honoured(monkeypatch):
+    """The case Greptile actually reported, and the one an earlier version of
+    this fix did not close.
 
+    A dub is imported ONCE and rendered many times, so the realistic delete
+    lands during a render — long after its ingest ended. Scoping the tombstone
+    to in-flight ingests looked right and protected almost nothing: the render's
+    own `save_job` wrote the row straight back.
+    """
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+
+    # An ordinary saved dub whose import finished long ago.
+    dub_pipeline.begin_ingest("old1")
+    dub_pipeline.put_and_save_job("old1", {"filename": "a.mp4"})
+    dub_pipeline.end_ingest("old1")
+    written.clear()
+
+    # Deleted from history while a render is still running.
+    dub_pipeline.purge_jobs(["old1"], delete_rows=lambda: None)
+    # The render completes and persists, exactly as dub_generate.py does.
+    dub_pipeline.save_job("old1", {"filename": "a.mp4", "dubbed_tracks": {"en": {}}})
+
+    assert written == [], "a render finishing after the delete must not revive it"
+
+
+def test_the_ingest_ending_is_not_an_un_delete(monkeypatch):
+    """`end_ingest` used to clear the tombstone, which is what opened the gap
+    above — the ingest finishing is not the user un-deleting anything."""
+    monkeypatch.setattr(dub_pipeline, "_persist_job", lambda *a, **kw: None)
     dub_pipeline.begin_ingest("job1")
     dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
-    assert "job1" in dub_pipeline._withdrawn_jobs
 
     dub_pipeline.end_ingest("job1")
-    assert dub_pipeline._withdrawn_jobs == set()
+
+    assert "job1" in dub_pipeline._withdrawn_jobs
     assert dub_pipeline._inflight_jobs == set()
 
-    # A fresh run with the same id starts clean.
-    dub_pipeline.begin_ingest("job1")
+
+def test_re_importing_the_same_id_revives_it(monkeypatch):
+    """The one thing that legitimately un-deletes a job."""
+    written = []
+    monkeypatch.setattr(
+        dub_pipeline, "_persist_job", lambda *a, **kw: written.append(a[0]),
+    )
+    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
+    assert dub_pipeline.save_job("job1", {"filename": "a.mp4"}) is None
+    assert written == []
+
+    dub_pipeline.begin_ingest("job1")  # a deliberate re-import
     assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is True
+    assert written == ["job1"]
 
 
-def test_a_job_that_was_never_in_flight_is_not_tombstoned(monkeypatch):
-    """Deleting an old, finished dub must not leave a tombstone behind — only
-    a running ingest can be withdrawn."""
-    monkeypatch.setattr(dub_pipeline, "save_job", lambda *a, **kw: None)
-    dub_pipeline.put_job("old", {"filename": "a.mp4"})
+def test_the_tombstone_set_is_bounded():
+    """Kept for the life of the process, so it must not grow without limit."""
+    for i in range(dub_pipeline._WITHDRAWN_MAX + 50):
+        dub_pipeline.purge_jobs([f"job{i}"], delete_rows=lambda: None)
 
-    dub_pipeline.purge_jobs(["old"], delete_rows=lambda: None)
-
-    assert dub_pipeline._withdrawn_jobs == set()
+    assert len(dub_pipeline._withdrawn_jobs) == dub_pipeline._WITHDRAWN_MAX
+    # The most recent deletions are the ones that still matter.
+    assert f"job{dub_pipeline._WITHDRAWN_MAX + 49}" in dub_pipeline._withdrawn_jobs
+    assert "job0" not in dub_pipeline._withdrawn_jobs
 
 
 def test_the_pipeline_registers_and_releases_its_run():

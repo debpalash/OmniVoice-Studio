@@ -37,6 +37,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import OrderedDict
 from typing import AsyncIterator, Optional
 
 import soundfile as sf
@@ -71,19 +72,29 @@ _dub_jobs: dict[str, dict] = {}
 # helpers call it while already holding it.
 _dub_jobs_lock = threading.RLock()
 
-#: Ingests currently running, and those whose history was deleted mid-run.
-#: Both guarded by ``_dub_jobs_lock``.
+#: Ingests currently running. Used only so "clear history" can also sweep a job
+#: that has no row yet — it would appear in no id list otherwise.
+_inflight_jobs: set[str] = set()
+
+#: Recently-deleted job ids, most-recent last. Guarded by ``_dub_jobs_lock``.
 #:
 #: Dict membership alone cannot express "the user withdrew this job" (#1252
-#: review): an ingest's FIRST persistence creates the entry, so an absent key
-#: means "not written yet" for a new job and "deleted" for an established one —
-#: two opposite instructions from the same signal. A delete arriving before the
-#: first checkpoint would therefore be silently undone by that checkpoint
-#: recreating the row, and the run would go on to persist its result into
-#: history the user had just cleared. The tombstone says it explicitly, and is
-#: dropped when the ingest ends, so it stays bounded by concurrent ingests.
-_inflight_jobs: set[str] = set()
-_withdrawn_jobs: set[str] = set()
+#: review): a job's FIRST persistence creates the entry, so an absent key means
+#: "not written yet" for a new job and "deleted" for an established one — two
+#: opposite instructions from one signal.
+#:
+#: Scoped to DELETED, not to in-flight ingests. Scoping it to ingests looked
+#: right and closed nothing that mattered: a dub is imported once and rendered
+#: many times, so the realistic delete lands during a RENDER, long after its
+#: ingest ended — and a render's save would then write the row straight back.
+#:
+#: Bounded rather than cleared on completion, because there is no moment at
+#: which a delete stops mattering: any operation still holding that job can
+#: persist it. An LRU keeps the window generous (well past a long render) while
+#: the set stays small; ``begin_ingest`` drops an id explicitly, since
+#: re-importing is a deliberate revival.
+_WITHDRAWN_MAX = 256
+_withdrawn_jobs: "OrderedDict[str, None]" = OrderedDict()
 
 _DUB_DIR_REAL = os.path.realpath(DUB_DIR)
 _HASH_BUF_SIZE = 1 << 18  # 256 KB chunks for hashing
@@ -235,17 +246,25 @@ def merge_job(job_id: str, updates: dict) -> bool:
 
 
 def begin_ingest(job_id: str) -> None:
-    """Mark an ingest as running. Clears any stale tombstone for this id."""
+    """Mark an ingest as running.
+
+    Re-importing an id is a deliberate revival, so this clears any tombstone —
+    the only thing that legitimately un-deletes a job.
+    """
     with _dub_jobs_lock:
         _inflight_jobs.add(job_id)
-        _withdrawn_jobs.discard(job_id)
+        _withdrawn_jobs.pop(job_id, None)
 
 
 def end_ingest(job_id: str) -> None:
-    """Mark an ingest as finished, however it ended. Drops its tombstone."""
+    """Mark an ingest as finished, however it ended.
+
+    Deliberately does NOT clear the tombstone: the ingest ending is not the
+    user un-deleting anything, and a render started before the delete can still
+    be holding that job.
+    """
     with _dub_jobs_lock:
         _inflight_jobs.discard(job_id)
-        _withdrawn_jobs.discard(job_id)
 
 
 def put_and_save_job(
@@ -327,8 +346,10 @@ def purge_jobs(job_ids, *, delete_rows, include_inflight: bool = False) -> None:
             targets |= _inflight_jobs
         for job_id in targets:
             _dub_jobs.pop(job_id, None)
-            if job_id in _inflight_jobs:
-                _withdrawn_jobs.add(job_id)
+            _withdrawn_jobs.pop(job_id, None)
+            _withdrawn_jobs[job_id] = None  # most-recent last
+        while len(_withdrawn_jobs) > _WITHDRAWN_MAX:
+            _withdrawn_jobs.popitem(last=False)
 
 
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:
