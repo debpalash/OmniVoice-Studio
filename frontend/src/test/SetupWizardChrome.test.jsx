@@ -101,9 +101,7 @@ describe('studio chrome does not appear before the studio', () => {
     // Split App.jsx at the last pre-studio early return. Everything above is a
     // screen the user sees BEFORE the studio (awaiting_setup splash,
     // !setupChecked splash, the wizard); everything below is the studio.
-    const split = app.indexOf(
-      '// Block the main UI until Rust reports the backend is ready',
-    );
+    const split = app.indexOf('// Block the main UI until Rust reports the backend is ready');
     expect(split).toBeGreaterThan(0);
     const preStudio = app.slice(app.indexOf("if (bootstrapStage === 'awaiting_setup')"), split);
     const studio = app.slice(split);
