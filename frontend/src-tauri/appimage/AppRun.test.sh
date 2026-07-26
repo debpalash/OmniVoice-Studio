@@ -140,9 +140,13 @@ run_marker_case "empty marker fails safe"      ""       "2.48.0" "1"
 
 run_ldpath_case() {
   local label="$1" marker_content="$2" system_version="$3" expected="$4"
-  local marker_file
+  local marker_file wklibdir
   marker_file="$(mktemp)"
   printf '%s\n' "$marker_content" > "$marker_file"
+  # A REAL file: AppRun's libdir probe uses `[ -e ]`, which is a shell builtin
+  # and cannot be stubbed.
+  wklibdir="$(mktemp -d)"
+  touch "$wklibdir/libwebkit2gtk-4.1.so.0"
 
   local actual
   actual=$(
@@ -150,25 +154,35 @@ run_ldpath_case() {
       set +e
       export OMNIVOICE_APPRUN_WK_MARKER="'"$marker_file"'"
       sys="'"$system_version"'"
+      wklibdir="'"$wklibdir"'"
 
-      pkg-config() { [ -n "$sys" ] && echo "$sys" || return 1; }
+      pkg-config() {
+        [ -n "$sys" ] || return 1
+        case "$1" in
+          --variable=libdir) echo "$wklibdir" ;;
+          *)                 echo "$sys" ;;
+        esac
+      }
       export -f pkg-config
 
       exec() { :; }
       export -f exec
 
-      export LD_LIBRARY_PATH="/host/lib"
+      unset LD_LIBRARY_PATH
       # shellcheck disable=SC1090
       source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
 
-      # Which side of the search path did the bundle land on?
+      # The bug this pins: LD_LIBRARY_PATH is searched BEFORE the linker default
+      # paths regardless of ordering within it, so merely appending the bundle
+      # still let the bundled WebKit win on a normal (empty) launch. The host
+      # libdir must be named explicitly, ahead of ours.
       case "$LD_LIBRARY_PATH" in
-        /host/lib*) echo "system-first" ;;
-        *)          echo "bundle-first" ;;
+        "$wklibdir":*) echo "system-first" ;;
+        *)             echo "bundle-first" ;;
       esac
     '
   )
-  rm -f "$marker_file"
+  rm -rf "$marker_file" "$wklibdir"
 
   if [[ "$actual" == "$expected" ]]; then
     echo "PASS [$label]"
@@ -192,13 +206,79 @@ run_ldpath_case "no host WebKit → bundle"       "2.48.0"  ""       "bundle-fir
 # An unstamped bundle can't compare, so it must not gamble.
 run_ldpath_case "unknown bundle → bundle"       "0.0"     "2.52.5" "bundle-first"
 
+# Runtime-only hosts (an end user who never installed the -dev package) have the
+# library but no .pc file, so the version is unknowable from here. Preferring an
+# unverified copy could hand the user an OLDER WebKit than we ship (#961), so
+# the default stays with the bundle and an explicit opt-in exists for the
+# machines where the bundle simply cannot start (#1258 review).
+run_optin_case() {
+  local label="$1" optin="$2" marker_content="$3" system_version="$4" expected="$5"
+  local marker_file wklibdir
+  marker_file="$(mktemp)"
+  printf '%s\n' "$marker_content" > "$marker_file"
+  wklibdir="$(mktemp -d)"
+  touch "$wklibdir/libwebkit2gtk-4.1.so.0"
+
+  local actual
+  actual=$(
+    bash -c '
+      set +e
+      export OMNIVOICE_APPRUN_WK_MARKER="'"$marker_file"'"
+      export OMNIVOICE_PREFER_SYSTEM_WEBKIT="'"$optin"'"
+      sys="'"$system_version"'"
+      wklibdir="'"$wklibdir"'"
+
+      pkg-config() {
+        [ -n "$sys" ] || return 1
+        case "$1" in
+          --variable=libdir) echo "$wklibdir" ;;
+          *)                 echo "$sys" ;;
+        esac
+      }
+      export -f pkg-config
+      # A runtime-only host: no pkg-config metadata, but ldconfig knows the lib.
+      ldconfig() { echo "  libwebkit2gtk-4.1.so.0 (libc6,x86-64) => $wklibdir/libwebkit2gtk-4.1.so.0"; }
+      export -f ldconfig
+      exec() { :; }
+      export -f exec
+
+      unset LD_LIBRARY_PATH
+      # shellcheck disable=SC1090
+      source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
+      case "$LD_LIBRARY_PATH" in
+        "$wklibdir":*) echo "system-first" ;;
+        *)             echo "bundle-first" ;;
+      esac'
+  )
+  rm -rf "$marker_file" "$wklibdir"
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS [$label]"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [$label]: expected '$expected' got '$actual'" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+# No pkg-config metadata → version unknowable → keep the bundle by default.
+run_optin_case "runtime-only host defaults to bundle" ""  "2.44.3" "" "bundle-first"
+# ...and the opt-in gets that user running without building from source.
+run_optin_case "opt-in overrides the unknown"         "1" "2.44.3" "" "system-first"
+# The opt-out is honoured even when the host would otherwise win.
+run_optin_case "opt-out keeps the bundle"             "0" "2.44.3" "2.52.5" "bundle-first"
+
 # When the host's copy is chosen, the compositing workaround must be decided
 # against THAT version, not the bundled one it was picked for.
 run_workaround_with_system() {
   local label="$1" marker_content="$2" system_version="$3" expected="$4"
-  local marker_file
+  local marker_file wklibdir
   marker_file="$(mktemp)"
   printf '%s\n' "$marker_content" > "$marker_file"
+  # A REAL file: AppRun's libdir probe uses `[ -e ]`, which is a shell builtin
+  # and cannot be stubbed.
+  wklibdir="$(mktemp -d)"
+  touch "$wklibdir/libwebkit2gtk-4.1.so.0"
 
   local actual
   actual=$(
@@ -206,7 +286,14 @@ run_workaround_with_system() {
       set +e
       export OMNIVOICE_APPRUN_WK_MARKER="'"$marker_file"'"
       sys="'"$system_version"'"
-      pkg-config() { [ -n "$sys" ] && echo "$sys" || return 1; }
+      wklibdir="'"$wklibdir"'"
+      pkg-config() {
+        [ -n "$sys" ] || return 1
+        case "$1" in
+          --variable=libdir) echo "$wklibdir" ;;
+          *)                 echo "$sys" ;;
+        esac
+      }
       export -f pkg-config
       exec() { :; }
       export -f exec

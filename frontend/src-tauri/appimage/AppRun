@@ -79,11 +79,50 @@ _detect_webkit_workaround
 #
 # Chasing the build runner's WebKit version (#961 bumped 22.04 → 24.04) cannot
 # fix this class: whatever we bundle is frozen, and host Mesa keeps moving. So
-# when the host has a WebKitGTK at least as new as ours, let it win — append
-# the bundle's lib dir instead of prepending it. The bundle still provides
-# every library the host lacks, so a host with no WebKitGTK is unaffected and
-# keeps today's behaviour exactly.
+# when the host has a WebKitGTK at least as new as ours, let its copy win.
+#
+# Note it is NOT enough to merely stop prepending the bundle: LD_LIBRARY_PATH is
+# searched ahead of the linker's default paths no matter where in that variable
+# a directory sits, so on a normal launch (empty LD_LIBRARY_PATH) the bundle
+# would still be the only explicit directory and still win. The host's WebKit
+# libdir has to be named explicitly, ahead of ours (#1258 review).
+
+#: Directory holding the host's libwebkit2gtk-4.1.so.0, or empty.
+_system_webkit_libdir() {
+  local dir
+  # pkg-config is exact, but only present with the -dev package installed.
+  dir="$(pkg-config --variable=libdir webkit2gtk-4.1 2>/dev/null || echo "")"
+  if [ -n "$dir" ] && [ -e "$dir/libwebkit2gtk-4.1.so.0" ]; then
+    printf '%s' "$dir"
+    return 0
+  fi
+  # Runtime-only hosts (an end user who never installed -dev) have the library
+  # but no .pc file. ldconfig knows where it is (#1258 review).
+  if command -v ldconfig >/dev/null 2>&1; then
+    dir="$(ldconfig -p 2>/dev/null \
+           | awk '/libwebkit2gtk-4\.1\.so\.0 /{print $NF; exit}')"
+    if [ -n "$dir" ] && [ -e "$dir" ]; then
+      printf '%s' "$(dirname -- "$dir")"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+#: Host WebKitGTK version, or empty when it can't be established.
+_system_webkit_version() {
+  pkg-config --modversion webkit2gtk-4.1 2>/dev/null || echo ""
+}
+
 _prefer_system_webkit() {
+  # An explicit override for the case we cannot decide automatically: a host
+  # with the runtime but no pkg-config metadata, where the version is unknowable
+  # from here. Documented in docs/install/linux.md.
+  if [ "${OMNIVOICE_PREFER_SYSTEM_WEBKIT:-}" = "1" ]; then
+    return 0
+  fi
+  [ "${OMNIVOICE_PREFER_SYSTEM_WEBKIT:-}" = "0" ] && return 1
+
   # Only meaningful when we know what we bundled; an unstamped bundle keeps
   # the old ordering rather than guessing.
   local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/.bundled-webkitgtk-version}"
@@ -93,21 +132,29 @@ _prefer_system_webkit() {
   [ -n "$bundled" ] && [ "$bundled" != "0.0" ] || return 1
 
   local system
-  system="$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null || echo "")"
+  system="$(_system_webkit_version)"
+  # Unknown host version → keep the bundle. Preferring an unverified copy could
+  # hand the user an OLDER WebKit than we ship, which is the #961 regression;
+  # OMNIVOICE_PREFER_SYSTEM_WEBKIT=1 is the escape hatch for that host.
   [ -n "$system" ] || return 1
 
   # `sort -V` puts the older version first; the host wins only on >=.
   [ "$(printf '%s\n%s\n' "$bundled" "$system" | sort -V | head -1)" = "$bundled" ]
 }
 
+_SYS_WK_LIBDIR=""
 if _prefer_system_webkit; then
-  # System libraries resolve first; ours fill only the gaps.
-  export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}${LD_LIBRARY_PATH:+:}${HERE}/usr/lib"
-  # The workaround above was chosen for the BUNDLED version. The host's copy is
-  # newer by construction here, so re-decide against the one that will run.
+  _SYS_WK_LIBDIR="$(_system_webkit_libdir || echo "")"
+fi
+
+if [ -n "$_SYS_WK_LIBDIR" ]; then
+  # The host's WebKit resolves first; ours fills only what the host lacks.
+  export LD_LIBRARY_PATH="${_SYS_WK_LIBDIR}:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+  # The workaround above was chosen for the BUNDLED version; re-decide it
+  # against the copy that will actually run.
   unset WEBKIT_DISABLE_COMPOSITING_MODE
-  case "$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null || echo 0.0)" in
-    2.44.*|2.46.*) export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
+  case "$(_system_webkit_version)" in
+    2.44.*|2.46.*|"") export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
   esac
 else
   # Standard AppImage env that Tauri's auto-generated AppRun would have set.

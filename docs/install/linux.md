@@ -153,12 +153,27 @@ which is why building from source works on the same machine.
 
 **From v0.4.1 the AppImage handles this itself:** when your system has a
 WebKitGTK at least as new as the bundled one, the launcher lets your copy take
-precedence, and the bundled libraries fill in only what your system lacks. If
-you are on v0.4.0 or older, either update or build from source:
+precedence, and the bundled libraries fill in only what your system lacks.
+
+That check reads your WebKit version from `pkg-config`, which is only installed
+alongside the **development** package. If you have the runtime but not the dev
+package, the launcher can't compare versions and keeps the bundled copy — so
+tell it explicitly:
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio
-cd OmniVoice-Studio/frontend && bun install && bun run desktop-prod
+OMNIVOICE_PREFER_SYSTEM_WEBKIT=1 ./OmniVoice.Studio_*.AppImage
+```
+
+(Set it to `0` to force the bundled copy — useful if your distro's WebKitGTK is
+older than ours and you'd rather keep the newer bundled one.)
+
+If you are on v0.4.0 or older, either update or build from source:
+
+```bash
+git clone https://github.com/debpalash/OmniVoice-Studio.git
+cd OmniVoice-Studio
+bun install
+bun run desktop-prod
 ```
 
 Tracking issues: [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
