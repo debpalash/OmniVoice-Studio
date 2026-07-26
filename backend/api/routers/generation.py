@@ -648,11 +648,23 @@ def _run_backend_inference(
 # That assumption is false — the underlying library raises, and the reporter got
 # a bare 400 that recited 23 language codes without saying which engine was
 # refusing, or that switching engines was the fix.
+# Each signature must be about the LANGUAGE itself. "Unsupported language" as a
+# bare prefix also matches "Unsupported language model configuration" — a model
+# problem handed engine-switch advice it has no use for (#1257 review) — so the
+# looser wordings require the rejected thing to end there or be a code/name.
 _LANGUAGE_REJECTION_SIGNATURES = (
     "invalid language code",
-    "unsupported language",
     "language not supported",
     "language is not supported",
+    "unsupported language code",
+)
+
+#: `unsupported language: xx` / `unsupported language 'xx'` — but not
+#: `unsupported language model ...`.
+_LANGUAGE_REJECTION_RE = re.compile(
+    r"unsupported language\s*[:=]|unsupported language\s*['\"]|"
+    r"unsupported language\s*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -663,8 +675,11 @@ def _language_rejection_or(e: BaseException, backend, language):
     Matched on the message, not the type: the engines multiplex third-party
     libraries that each raise their own class.
     """
-    low = str(e).lower()
-    if not any(sig in low for sig in _LANGUAGE_REJECTION_SIGNATURES):
+    text = str(e)
+    low = text.lower()
+    if not any(sig in low for sig in _LANGUAGE_REJECTION_SIGNATURES) and not (
+        _LANGUAGE_REJECTION_RE.search(text)
+    ):
         return e
     engine = getattr(backend, "display_name", None) or getattr(
         type(backend), "id", type(backend).__name__

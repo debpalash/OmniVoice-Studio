@@ -82,22 +82,80 @@ def test_an_unrelated_failure_is_returned_untouched():
     assert _language_rejection_or(disk, _Engine(), "en") is disk
 
 
+def _run(backend, exc, language="bn"):
+    """Drive the real `_run_backend_inference` with a backend that raises."""
+    from api.routers.generation import _run_backend_inference
+
+    class _Raiser:
+        id = getattr(backend, "id", "x")
+        display_name = getattr(backend, "display_name", None)
+        sample_rate = 24000
+        applies_own_mastering = True
+
+        def generate(self, *a, **kw):
+            raise exc
+
+    return _run_backend_inference(
+        _Raiser(), "hello", language, None, None, None, None,
+        None, None, 1.0, False, False, None,
+    )
+
+
+def test_the_wiring_rewrites_a_language_rejection_end_to_end():
+    """Exercised through the real call path, not by reading its source: an
+    assertion on source text passes even when the call is unreachable or its
+    result discarded (#1224 taught this lesson on this same codebase)."""
+    with pytest.raises(ValueError) as caught:
+        _run(_Engine(), RuntimeError(REPORTED))
+
+    assert "Settings → Engines" in str(caught.value)
+    assert "MLX Audio" in str(caught.value)
+
+
 def test_an_oom_still_reaches_the_oom_path():
-    """Guards the wiring, not just the helper: `_run_backend_inference` now
-    passes non-ValueError failures through this before `_oom_friendly_reraise`,
-    and that ordering must not swallow the OOM handling."""
-    import inspect
+    """The rewrite wraps every failure on the path, so the OOM handling that
+    was already there must survive it."""
+    with pytest.raises(Exception) as caught:
+        _run(_Engine(), RuntimeError("CUDA out of memory. Tried to allocate 2.00 GiB"))
 
-    from api.routers import generation
+    message = str(caught.value)
+    assert "Settings → Engines" not in message, "an OOM is not a language problem"
+    # _oom_friendly_reraise rewrites it into its own guidance.
+    assert "memory" in message.lower()
 
-    src = inspect.getsource(generation._run_backend_inference)
-    assert "_oom_friendly_reraise(e)" in src, "the OOM path must still be reached"
 
-
-def test_a_nameless_backend_still_produces_a_usable_message():
+def test_a_nameless_backend_still_names_itself():
+    """`or "engine" in message` would always pass — the production template
+    contains the word — so it proved nothing about the fallback (#1257
+    review). Assert the class name the fallback actually resolves to."""
     class _Bare:
         pass
 
     message = str(_language_rejection_or(ValueError(REPORTED), _Bare(), None))
-    assert "_Bare" in message or "engine" in message
+    assert "_Bare" in message
     assert "Settings → Engines" in message
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Unsupported language model configuration: gpt2-medium",
+        "unsupported language modeling head",
+    ],
+)
+def test_a_model_failure_that_merely_says_unsupported_language_is_untouched(reason):
+    """Review finding (#1257): a bare "unsupported language" prefix also
+    matches "Unsupported language model ...", which is a model/config problem
+    that would then be handed engine-switch advice it has no use for."""
+    exc = RuntimeError(reason)
+    assert _language_rejection_or(exc, _Engine(), "en") is exc
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ["Unsupported language: bn", "Unsupported language 'bn'", "Unsupported language"],
+)
+def test_a_genuine_unsupported_language_still_matches(reason):
+    assert "Settings → Engines" in str(
+        _language_rejection_or(RuntimeError(reason), _Engine(), "bn")
+    )

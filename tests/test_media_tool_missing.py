@@ -164,11 +164,19 @@ def test_a_raising_resolver_never_breaks_startup(monkeypatch):
     assert ffmpeg_utils.ensure_media_tools_on_path() == []
 
 
-def test_a_path_that_merely_ends_in_the_tool_name_is_not_a_missing_tool():
+def test_a_path_that_merely_ends_in_the_tool_name_is_not_a_missing_tool(tmp_path):
     """Review finding (#1256): the match accepted any message ending in
-    'ffmpeg'/'ffprobe', so a missing FILE at /tmp/ffmpeg was handed the
-    "repair your media engine" remedy."""
-    for path in ("/tmp/ffmpeg", "/home/u/ffprobe", "C:\\work\\ffmpeg"):
+    'ffmpeg'/'ffprobe', so a missing FILE whose name happens to be the tool's
+    was handed the "repair your media engine" remedy.
+
+    Paths are built from `tmp_path` rather than written as literals — they are
+    only error-message data here, but a hardcoded /tmp trips Ruff S108."""
+    paths = [
+        str(tmp_path / "ffmpeg"),
+        str(tmp_path / "sub" / "ffprobe"),
+        "C:\\work\\ffmpeg",
+    ]
+    for path in paths:
         assert classify(f"[Errno 2] No such file or directory: {path}") != (
             "MEDIA_TOOL_MISSING"
         ), path

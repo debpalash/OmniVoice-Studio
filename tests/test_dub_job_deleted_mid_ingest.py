@@ -136,27 +136,82 @@ def test_a_deleted_job_is_never_persisted(monkeypatch):
 
 
 def test_a_delete_landing_mid_save_cannot_be_overtaken(monkeypatch):
-    """The lock is the mechanism, so exercise it: a purge that runs while the
-    merge+save holds the lock must not interleave.
+    """The race itself, actually interleaved.
 
-    `purge_jobs` calls its row-delete WITH the lock held, so if
-    `merge_and_save_job` did not hold the same lock across both of its steps,
-    this would deadlock or reorder. Asserting the observable contract: after a
-    purge, a later merge finds nothing and writes nothing."""
+    An earlier version deleted the job BEFORE calling merge_and_save_job, which
+    only re-tested the already-absent case and would have passed with the two
+    steps still split (#1252 review). Here a second thread runs the purge while
+    the save is executing: if merge and save did not hold the lock together,
+    the purge would land between them and the row would be written back.
+    """
+    import threading
+
+    entered_save = threading.Event()
+    purge_finished = threading.Event()
     saved = []
-    monkeypatch.setattr(
-        dub_pipeline, "save_job",
-        lambda job_id, job, *a, **kw: saved.append(job_id),
-    )
+
+    def _slow_save(job_id, job, *a, **kw):
+        entered_save.set()
+        # Give the purge thread every chance to interleave. It cannot: it
+        # blocks on the same lock this call is holding.
+        purge_finished.wait(timeout=2.0)
+        saved.append(job_id)
+
+    monkeypatch.setattr(dub_pipeline, "save_job", _slow_save)
     dub_pipeline.put_job("job1", {"filename": "a.mp4"})
 
     deleted_rows = []
-    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: deleted_rows.append("job1"))
 
+    def _purge():
+        entered_save.wait(timeout=2.0)
+        dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: deleted_rows.append("job1"))
+        purge_finished.set()
+
+    purger = threading.Thread(target=_purge)
+    purger.start()
+    merged = dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]})
+    purge_finished.set()  # release the save if the purge never got that far
+    purger.join(timeout=5.0)
+
+    assert merged is True, "the save started first, so it must complete"
+    assert saved == ["job1"]
+    # The purge ran strictly AFTER the save released the lock, so the row it
+    # deleted is the one that had just been written — nothing survives.
     assert deleted_rows == ["job1"]
     assert "job1" not in dub_pipeline._dub_jobs
+
+
+def test_a_purge_that_wins_the_race_stops_the_save_entirely(monkeypatch):
+    """The other ordering: purge first, then the pipeline reaches its save."""
+    saved = []
+    monkeypatch.setattr(
+        dub_pipeline, "save_job", lambda job_id, job, *a, **kw: saved.append(job_id),
+    )
+    dub_pipeline.put_job("job1", {"filename": "a.mp4"})
+
+    dub_pipeline.purge_jobs(["job1"], delete_rows=lambda: None)
+
     assert dub_pipeline.merge_and_save_job("job1", {"scene_cuts": []}) is False
-    assert saved == []
+    assert saved == [], "a withdrawn job must never reach the database"
+
+
+def test_the_create_checkpoints_are_atomic_too(monkeypatch):
+    """Review finding (#1252): the mid-pipeline put_job + save_job pairs were
+    still unlocked, so a clear-history landing between them left a ghost row
+    behind the purge."""
+    import inspect
+
+    src = inspect.getsource(dub_pipeline.ingest_pipeline)
+    assert "put_and_save_job(" in src
+    assert "put_job(job_id," not in src, "the unlocked pair is the race"
+
+    saved = []
+    monkeypatch.setattr(
+        dub_pipeline, "save_job", lambda job_id, job, *a, **kw: saved.append(job_id),
+    )
+    dub_pipeline.put_and_save_job("job2", {"filename": "b.mp4"})
+    assert saved == ["job2"]
+    assert dub_pipeline._dub_jobs["job2"]["filename"] == "b.mp4"
 
 
 def test_clear_history_also_evicts_in_memory_jobs(monkeypatch):

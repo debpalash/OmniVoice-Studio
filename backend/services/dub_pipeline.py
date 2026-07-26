@@ -218,6 +218,29 @@ def merge_job(job_id: str, updates: dict) -> bool:
         return True
 
 
+def put_and_save_job(
+    job_id: str,
+    job: dict,
+    *,
+    filename: str = "",
+    duration: float = 0.0,
+    content_hash: str = "",
+) -> None:
+    """:func:`put_job` and :func:`save_job` as ONE atomic step.
+
+    The ingest's mid-pipeline checkpoints write a job record before the run
+    finishes. Unlocked, a "clear history" landing between the two leaves the
+    row recreated behind the purge — a ghost entry for work the user just
+    cleared (#1252 review). Under the lock, the purge either happens wholly
+    before (this write recreates a row the still-running job legitimately owns,
+    and its final :func:`merge_and_save_job` then finds the job evicted and
+    stops) or wholly after (the row is deleted, correctly).
+    """
+    with _dub_jobs_lock:
+        _dub_jobs[job_id] = job
+        save_job(job_id, job, filename, duration, content_hash)
+
+
 def merge_and_save_job(
     job_id: str,
     updates: dict,
@@ -1083,8 +1106,9 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            put_job(job_id, full_job)
-            save_job(job_id, full_job, filename, dur, content_hash)
+            put_and_save_job(
+                job_id, full_job, filename=filename, duration=dur, content_hash=content_hash,
+            )
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
             yield prep_event("cached",
                              has_bg=bool(no_vocals_path and os.path.exists(no_vocals_path)),
@@ -1107,8 +1131,9 @@ async def ingest_pipeline(
                 "youtube_subs": youtube_subs_by_lang or None,
                 "input_type": input_type,
             }
-            put_job(job_id, partial)
-            save_job(job_id, partial, filename, dur, content_hash)
+            put_and_save_job(
+                job_id, partial, filename=filename, duration=dur, content_hash=content_hash,
+            )
             yield prep_event("extract_done", job_id=job_id, duration=round(dur, 2), filename=filename)
 
             vocals_path = os.path.join(job_dir, "vocals.wav")
