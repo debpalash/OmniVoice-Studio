@@ -257,11 +257,19 @@ def merge_job(job_id: str, updates: dict) -> bool:
         return True
 
 
-def _expire_withdrawn(now: float) -> None:
+def _expire_withdrawn(now: float, protected: int = 0) -> None:
     """Drop withdrawal markers that are too old to still matter.
 
     Caller must hold ``_dub_jobs_lock``. Age first — that is the policy — then
-    the count cap purely so the mapping cannot grow without bound.
+    a size cap purely so the mapping cannot grow without bound.
+
+    ``protected`` is how many markers the current purge just recorded. Those sit
+    at the end (newest) and are never evicted by the size cap: they are the most
+    likely to still be held by a running job, and dropping one is exactly the
+    resurrection this whole mechanism exists to prevent. A single "clear
+    history" larger than the cap would otherwise force us to discard live
+    markers — which is what broke CI. The bound therefore is
+    ``cap + one purge``, not ``cap``.
     """
     cutoff = now - _WITHDRAWN_TTL_S
     while _withdrawn_jobs:
@@ -269,7 +277,8 @@ def _expire_withdrawn(now: float) -> None:
         if deleted_at >= cutoff:
             break
         _withdrawn_jobs.popitem(last=False)
-    while len(_withdrawn_jobs) > _WITHDRAWN_MAX:
+    floor = max(_WITHDRAWN_MAX, protected)
+    while len(_withdrawn_jobs) > floor:
         _withdrawn_jobs.popitem(last=False)
 
 
@@ -367,17 +376,20 @@ def purge_jobs(job_ids, *, delete_rows, include_inflight: bool = False) -> None:
     """
     with _dub_jobs_lock:
         delete_rows()
-        targets = set(job_ids)
+        # Deterministic order, de-duplicated. A `set` here made which markers
+        # the size cap evicts depend on PYTHONHASHSEED — the test for this very
+        # behaviour passed locally and failed in CI for that reason alone.
+        targets = list(dict.fromkeys(job_ids))
         if include_inflight:
             # "Clear history" means everything, including a job whose first row
             # hasn't been written yet — it wouldn't appear in `job_ids` at all.
-            targets |= _inflight_jobs
+            targets += [j for j in sorted(_inflight_jobs) if j not in set(targets)]
         now = time.monotonic()
         for job_id in targets:
             _dub_jobs.pop(job_id, None)
             _withdrawn_jobs.pop(job_id, None)
             _withdrawn_jobs[job_id] = now  # most-recent last
-        _expire_withdrawn(now)
+        _expire_withdrawn(now, protected=len(targets))
 
 
 def save_job(job_id: str, job: dict, filename: str = "", duration: float = 0.0, content_hash: str = "") -> None:

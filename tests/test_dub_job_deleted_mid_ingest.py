@@ -391,7 +391,11 @@ def test_clearing_a_large_history_mid_render_does_not_evict_the_running_job(
 
     # One dub is mid-render; the user clears a history far larger than any
     # count cap would keep.
-    everything = ["rendering"] + [f"old{i}" for i in range(5000)]
+    # Deliberately larger than the size cap, so the cap is forced to choose —
+    # which is exactly the situation that evicted a live marker before.
+    everything = ["rendering"] + [
+        f"old{i}" for i in range(dub_pipeline._WITHDRAWN_MAX + 500)
+    ]
     dub_pipeline.purge_jobs(everything, delete_rows=lambda: None)
 
     dub_pipeline.save_job("rendering", {"filename": "a.mp4"})
@@ -502,3 +506,35 @@ def test_the_atomic_helpers_still_work_through_the_reentrant_path(monkeypatch):
     assert dub_pipeline.put_and_save_job("job1", {"filename": "a.mp4"}) is True
     assert dub_pipeline.merge_and_save_job("job1", {"scene_cuts": [1.0]}) is True
     assert written == ["job1", "job1"]
+
+
+def test_eviction_order_does_not_depend_on_hash_seed():
+    """A `set` of target ids made eviction order depend on PYTHONHASHSEED — so
+    which markers survived a cap-forced trim was luck. The test for the
+    behaviour above passed locally and reddened main for that reason alone.
+
+    Same input, same surviving markers, every time.
+    """
+    ids = [f"j{i}" for i in range(50)]
+
+    dub_pipeline._withdrawn_jobs.clear()
+    dub_pipeline.purge_jobs(ids, delete_rows=lambda: None)
+    first = list(dub_pipeline._withdrawn_jobs)
+
+    dub_pipeline._withdrawn_jobs.clear()
+    dub_pipeline.purge_jobs(ids, delete_rows=lambda: None)
+    assert list(dub_pipeline._withdrawn_jobs) == first == ids
+
+
+def test_a_purge_larger_than_the_cap_keeps_all_of_its_own_markers():
+    """The cap must never discard a marker the current purge just recorded:
+    those are the newest and the likeliest to still be held. The bound is
+    therefore `cap + one purge`, which is the honest guarantee."""
+    dub_pipeline._withdrawn_jobs.clear()
+    oversized = [f"x{i}" for i in range(dub_pipeline._WITHDRAWN_MAX + 750)]
+
+    dub_pipeline.purge_jobs(oversized, delete_rows=lambda: None)
+
+    assert len(dub_pipeline._withdrawn_jobs) == len(oversized)
+    for job_id in oversized:
+        assert job_id in dub_pipeline._withdrawn_jobs
