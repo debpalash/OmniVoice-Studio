@@ -9,7 +9,21 @@
  * downgraded to CPU on this machine (backend note: engines.py select echo).
  *
  *   - routing_status === 'cpu_fallback' → warn-tone toast naming the reason.
- *   - everything else (accelerated / cpu_only / n/a / legacy) → plain success.
+ *   - accelerated BUT carrying a caveat → warn-tone toast naming the reason.
+ *   - everything else → plain success.
+ *
+ * That middle case is #1226's under-provisioned-VRAM caveat, and dropping it
+ * is what made the low-VRAM reports so bad (#1240, #1246, #1248, #1277 — four
+ * on 4 GB cards, one on 6 GB). Routing computes the warning ("this engine
+ * wants about 6 GB"), returns it in routing_reason, and this function used to
+ * throw it away for anything that wasn't a CPU fallback: the pick returned a
+ * green "switched" success, and the user only learned their card was
+ * under-provisioned after waiting out the entire 300s compute budget.
+ *
+ * Advisory, not blocking — matching the routing layer's deliberate contract
+ * (the driver can page to system RAM, and short inputs fit where long ones
+ * don't). The engine still gets selected; the user just finds out now instead
+ * of five minutes from now.
  *
  * Shared by Settings → Engines and the first-run WizardLibrary so both paths
  * consume the echo identically.
@@ -24,6 +38,19 @@ export function notifyEngineSelected(r, t, family = 'tts') {
         reason: r.routing_reason || '',
       }),
       { icon: '⚠️' },
+    );
+    return;
+  }
+  // Accelerated, but routing attached a caveat worth hearing before the first
+  // generate rather than after it times out. Longer duration than a success
+  // toast: it names the hardware limit and the ways around it.
+  if (r?.routing_reason) {
+    toast(
+      t('engines.selectWithCaveat', {
+        engine: r.active,
+        reason: r.routing_reason,
+      }),
+      { icon: '⚠️', duration: 10000 },
     );
     return;
   }

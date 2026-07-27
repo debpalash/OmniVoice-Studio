@@ -578,7 +578,8 @@
     "routingRemote": "Remoto",
     "routingUnknown": "Desconhecido",
     "routingEffectiveChip": "Funciona em {{device}} nesta máquina",
-    "routingCaveatTitle": "GPU selecionada, mas: {{reason}}"
+    "routingCaveatTitle": "GPU selecionada, mas: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "As teclas de atalho globais funcionam apenas no aplicativo de desktop. A IU da web usa um atalho <1>Ctrl+Shift+Space</1> na página enquanto a janela está em foco.",

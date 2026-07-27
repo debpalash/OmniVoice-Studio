@@ -578,7 +578,8 @@
     "routingRemote": "Op afstand",
     "routingUnknown": "Onbekend",
     "routingEffectiveChip": "Draait op {{device}} op deze machine",
-    "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}"
+    "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "Globale sneltoetsen werken alleen in de desktop-app. De webinterface gebruikt een sneltoets <1>Ctrl+Shift+Spatie</1> op de pagina terwijl het venster focus heeft.",

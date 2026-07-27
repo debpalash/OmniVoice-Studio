@@ -578,7 +578,8 @@
     "routingRemote": "بعيد",
     "routingUnknown": "غير معروف",
     "routingEffectiveChip": "يعمل على {{device}} على هذا الجهاز",
-    "routingCaveatTitle": "تم تحديد وحدة معالجة الرسومات، ولكن: {{reason}}"
+    "routingCaveatTitle": "تم تحديد وحدة معالجة الرسومات، ولكن: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "تعمل مفاتيح التشغيل السريع العامة فقط في تطبيق سطح المكتب. تستخدم واجهة مستخدم الويب اختصارًا <1>Ctrl+Shift+Space</1> داخل الصفحة أثناء التركيز على النافذة.",

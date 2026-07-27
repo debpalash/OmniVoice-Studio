@@ -63,6 +63,46 @@ describe('notifyEngineSelected (routing echo → toast)', () => {
     expect(toastFn.success).toHaveBeenCalledTimes(1);
   });
 
+  // #1226's under-provisioned-VRAM caveat rides on an ACCELERATED verdict, so
+  // it used to fall through to the green "switched" toast and vanish. Four of
+  // the low-VRAM reports (#1240, #1246, #1248 on 4 GB; #1277 on 6 GB) learned
+  // their card was too small only after waiting out the full 300s budget —
+  // the warning existed the whole time and was thrown away here.
+  it('warns when an accelerated pick carries a VRAM caveat', () => {
+    const reason =
+      'NVIDIA GeForce GTX 1650 Ti has 4.0 GB VRAM; this engine wants about ' +
+      '6 GB. It will run, but expect slow generations that may time out.';
+    notifyEngineSelected(
+      { active: 'omnivoice', routing_status: 'accelerated', routing_reason: reason },
+      t,
+      'tts',
+    );
+
+    expect(toastFn.success).not.toHaveBeenCalled();
+    expect(toastFn).toHaveBeenCalledTimes(1);
+    const [msg, opts] = toastFn.mock.calls[0];
+    expect(msg).toContain('engines.selectWithCaveat');
+    expect(msg).toContain('omnivoice');
+    expect(msg).toContain('4.0 GB VRAM');
+    expect(opts).toMatchObject({ icon: expect.any(String) });
+    // Long enough to actually read — it names the limit and the ways around it.
+    expect(opts.duration).toBeGreaterThanOrEqual(8000);
+  });
+
+  it('warns on a kernel-risk caveat too, not just the VRAM one', () => {
+    notifyEngineSelected(
+      {
+        active: 'omnivoice',
+        routing_status: 'accelerated',
+        routing_reason: "CUDA selected, but: GPU (sm_61) not in this torch build's archs",
+      },
+      t,
+      'tts',
+    );
+    expect(toastFn.success).not.toHaveBeenCalled();
+    expect(toastFn).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a plain success toast for a legacy response with no routing_status', () => {
     notifyEngineSelected({ active: 'legacy' }, t, 'asr');
     expect(toastFn).not.toHaveBeenCalled();

@@ -578,7 +578,8 @@
     "routingRemote": "Remoto",
     "routingUnknown": "Sconosciuto",
     "routingEffectiveChip": "Funziona su {{device}} su questa macchina",
-    "routingCaveatTitle": "GPU selezionata, ma: {{reason}}"
+    "routingCaveatTitle": "GPU selezionata, ma: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "I tasti di scelta rapida globali funzionano solo nell'app desktop. L'interfaccia utente Web utilizza una scorciatoia <1>Ctrl+Shift+Spazio</1> nella pagina mentre la finestra è attiva.",

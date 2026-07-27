@@ -1905,7 +1905,8 @@
     "installStep_verify": "Verifying the environment",
     "installStep_fetch_weights": "Downloading model weights",
     "installStep_persist": "Saving configuration",
-    "installAria": "Install {{engine}}"
+    "installAria": "Install {{engine}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

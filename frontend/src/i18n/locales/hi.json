@@ -578,7 +578,8 @@
     "routingRemote": "रिमोट",
     "routingUnknown": "अज्ञात",
     "routingEffectiveChip": "इस मशीन पर {{device}} पर चलता है",
-    "routingCaveatTitle": "GPU चयनित, लेकिन: {{reason}}"
+    "routingCaveatTitle": "GPU चयनित, लेकिन: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "ग्लोबल हॉटकीज़ केवल डेस्कटॉप ऐप में काम करती हैं। वेब यूआई इन-पेज <1>Ctrl+Shift+Space</1> शॉर्टकट का उपयोग करता है जबकि विंडो पर फोकस होता है।",

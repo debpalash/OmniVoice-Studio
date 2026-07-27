@@ -578,7 +578,8 @@
     "routingRemote": "Дистанційний",
     "routingUnknown": "Невідомий",
     "routingEffectiveChip": "Працює на {{device}} на цій машині",
-    "routingCaveatTitle": "Графічний процесор вибрано, але: {{reason}}"
+    "routingCaveatTitle": "Графічний процесор вибрано, але: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "Глобальні гарячі клавіші працюють лише в настільній програмі. Веб-інтерфейс використовує ярлик <1>Ctrl+Shift+Пробіл</1> на сторінці, коли вікно має фокус.",

@@ -578,7 +578,8 @@
     "routingRemote": "Uzaktan",
     "routingUnknown": "Bilinmiyor",
     "routingEffectiveChip": "Bu makinede {{device}} tarihinde çalışıyor",
-    "routingCaveatTitle": "GPU seçildi, ancak: {{reason}}"
+    "routingCaveatTitle": "GPU seçildi, ancak: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "Genel kısayol tuşları yalnızca masaüstü uygulamasında çalışır. Web kullanıcı arayüzü, pencere odaktayken sayfa içi <1>Ctrl+Shift+Space</1> kısayolunu kullanır.",

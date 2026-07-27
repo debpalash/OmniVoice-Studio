@@ -578,7 +578,8 @@
     "routingRemote": "Remoto",
     "routingUnknown": "Desconocido",
     "routingEffectiveChip": "Se ejecuta en {{device}} en esta máquina",
-    "routingCaveatTitle": "GPU seleccionada, pero: {{reason}}"
+    "routingCaveatTitle": "GPU seleccionada, pero: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "Las teclas de acceso rápido globales solo funcionan en la aplicación de escritorio. La interfaz de usuario web utiliza un acceso directo <1>Ctrl+Shift+Espacio</1> en la página mientras la ventana tiene el foco.",

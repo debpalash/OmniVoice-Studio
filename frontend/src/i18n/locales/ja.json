@@ -578,7 +578,8 @@
     "routingRemote": "リモート",
     "routingUnknown": "不明",
     "routingEffectiveChip": "このマシンの {{device}} で実行されます",
-    "routingCaveatTitle": "GPU が選択されましたが: {{reason}}"
+    "routingCaveatTitle": "GPU が選択されましたが: {{reason}}",
+    "selectWithCaveat": "{{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "グローバル ホットキーはデスクトップ アプリでのみ機能します。 Web UI は、ウィンドウにフォーカスがある間、ページ内 <1>Ctrl+Shift+Space</1> ショートカットを使用します。",

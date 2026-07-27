@@ -578,7 +578,8 @@
     "routingRemote": "À distance",
     "routingUnknown": "Inconnu",
     "routingEffectiveChip": "Fonctionne le {{device}} sur cette machine",
-    "routingCaveatTitle": "GPU sélectionné, mais : {{reason}}"
+    "routingCaveatTitle": "GPU sélectionné, mais : {{reason}}",
+    "selectWithCaveat": "{{engine}} : {{reason}}"
   },
   "capture": {
     "desc": "Les raccourcis clavier globaux ne fonctionnent que dans l'application de bureau. L'interface utilisateur Web utilise un raccourci <1>Ctrl+Shift+Espace</1> sur la page lorsque la fenêtre a le focus.",
