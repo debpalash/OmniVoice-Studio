@@ -888,6 +888,25 @@ async def scalar_docs():
     )
 
 
+def _cors_headers_for(request: Request) -> "dict[str, str]":
+    """Allowed-origin headers for a hand-built error response.
+
+    CORSMiddleware doesn't always get a shot at `exception_handler`-created
+    responses, which leaves the browser reporting the error as a bare CORS
+    failure instead of surfacing the real `detail`. Every error response this
+    module builds must go through here — a 503 whose actionable message the
+    browser discards is no better than the 500 it replaced.
+    """
+    origin = request.headers.get("origin", "")
+    if origin and (origin in _allowed or "*" in _allowed):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
+    return {}
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     # Client disconnected mid-stream (browser canceled a <video>/range fetch).
@@ -919,7 +938,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, ModelLoadInterruptedByShutdown) or exc_name == (
         "ModelLoadInterruptedByShutdown"
     ):
-        logger.info("Model load skipped during shutdown for %s — benign.", request.url)
+        # `.path`, not the full URL — a query string can carry tokens and
+        # newlines, and neither belongs in a log line.
+        logger.info(
+            "Model load skipped during shutdown for %s — benign.", request.url.path
+        )
         return JSONResponse(
             status_code=503,
             content={
@@ -928,7 +951,7 @@ async def global_exception_handler(request: Request, exc: Exception):
                     "model. Reopen the app and try again."
                 )
             },
-            headers={"Retry-After": "5"},
+            headers={"Retry-After": "5", **_cors_headers_for(request)},
         )
     try:
         # Serialize writes so concurrent unhandled exceptions don't interleave frames.
@@ -946,15 +969,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     _entry = error_journal.record(
         exc, route=str(request.url.path), trace=traceback.format_exc()
     )
-    # CORSMiddleware doesn't always get a shot at `exception_handler`-created
-    # responses, which leaves the browser reporting every 500 as a bare CORS
-    # error. Attach the headers manually so the real `detail` bubbles up.
-    origin = request.headers.get("origin", "")
-    headers: dict[str, str] = {}
-    if origin and (origin in _allowed or "*" in _allowed):
-        headers["Access-Control-Allow-Origin"] = origin
-        headers["Access-Control-Allow-Credentials"] = "true"
-        headers["Vary"] = "Origin"
+    headers: dict[str, str] = _cors_headers_for(request)
     # #874: a model download that failed because the CONFIGURED Hugging Face
     # mirror (HF_ENDPOINT) is unreachable used to leak the raw transformers
     # message ("We couldn't connect to 'https://hf-mirror.com' …") as the 500

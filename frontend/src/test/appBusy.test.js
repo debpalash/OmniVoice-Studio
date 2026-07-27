@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { isAppBusy } from '../utils/appBusy';
 
-const idle = { dubStep: 'idle', stage: 'idle', ttsGenerating: false };
+const idle = { dubStep: 'idle', stage: 'idle', ttsInflight: 0 };
 
 describe('isAppBusy', () => {
   it.each([
@@ -27,7 +27,8 @@ describe('isAppBusy', () => {
     ['pill-tracked synth', { stage: 'generating' }],
     ['export encode', { stage: 'exporting' }],
     ['refine pass', { stage: 'refining' }],
-    ['standalone TTS synth', { ttsGenerating: true }],
+    ['standalone TTS synth', { ttsInflight: 1 }],
+    ['overlapping synths', { ttsInflight: 3 }],
   ])('is busy during %s', (_label, state) => {
     expect(isAppBusy({ ...idle, ...state })).toBe(true);
   });

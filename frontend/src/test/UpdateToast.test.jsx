@@ -25,7 +25,7 @@ const { toastCalls, dismissed, installUpdate, openSettingsTab, storeState } = vi
   dismissed: [],
   installUpdate: vi.fn(),
   openSettingsTab: vi.fn(),
-  storeState: { dubStep: 'idle', stage: 'idle', ttsGenerating: false },
+  storeState: { dubStep: 'idle', stage: 'idle', ttsInflight: 0 },
 }));
 
 vi.mock('react-hot-toast', () => {
@@ -55,7 +55,7 @@ beforeEach(() => {
   dismissed.length = 0;
   installUpdate.mockClear();
   openSettingsTab.mockClear();
-  Object.assign(storeState, { dubStep: 'idle', stage: 'idle', ttsGenerating: false });
+  Object.assign(storeState, { dubStep: 'idle', stage: 'idle', ttsInflight: 0 });
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -126,7 +126,8 @@ describe('the toast body', () => {
     ['an ASR model load', { stage: 'loading-model' }],
     ['a dictation capture', { stage: 'recording' }],
     ['an export', { stage: 'exporting' }],
-    ['a standalone TTS synth', { ttsGenerating: true }],
+    ['a standalone TTS synth', { ttsInflight: 1 }],
+    ['a voice preview overlapping another synth', { ttsInflight: 2 }],
   ])('refuses to restart during %s', async (_label, state) => {
     Object.assign(storeState, state);
     render(withI18n(<UpdateToastBody id="t1" version="0.4.2" />));
@@ -137,7 +138,7 @@ describe('the toast body', () => {
 
   // The mirror image: a guard that never lets go is just a broken updater.
   it.each([
-    ['nothing is running', { dubStep: 'idle', stage: 'idle' }],
+    ['nothing is running', { dubStep: 'idle', stage: 'idle', ttsInflight: 0 }],
     ['the transcript is open for editing', { dubStep: 'editing' }],
     ['a dub has finished', { dubStep: 'done' }],
   ])('still installs when %s', async (_label, state) => {

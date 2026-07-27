@@ -1891,7 +1891,7 @@
     "install_hint": "Scarica l'aggiornamento e riavvia nella nuova versione",
     "downloading": "Aggiornamento… {{pct}}%",
     "restart": "Riavvia per aggiornare",
-    "busy": "Completa prima il tuo doppiaggio, poi installa l'aggiornamento.",
+    "busy": "Attendi il completamento del lavoro in corso, poi installa l’aggiornamento.",
     "whats_new": "Cosa c'è di nuovo",
     "failed": "Aggiornamento non riuscito",
     "retry": "Riprova",

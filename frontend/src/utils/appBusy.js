@@ -15,8 +15,13 @@
  *   - `stage`        — the floating status pill, which every long background
  *                      operation already pushes to (ASR model load, dictation
  *                      capture, transcribe, translate, export, refine)
- *   - `ttsGenerating` — standalone synth, mirrored out of useTTS's local state
- *                      precisely so a global check like this one can see it
+ *   - `ttsInflight`  — a COUNT of synth requests in flight, maintained by
+ *                      `api/generate.ts` around the one `/generate` call every
+ *                      synth path shares (Generate tab, voice previews, the
+ *                      compare modal, the stories editor, profile previews).
+ *                      A count because those overlap: a boolean would be
+ *                      cleared by whichever finished first while the rest were
+ *                      still running.
  *
  * Deliberately NOT busy:
  *
@@ -50,7 +55,7 @@ export function isAppBusy(state) {
   return (
     BUSY_DUB_STEPS.has(state.dubStep) ||
     BUSY_PILL_STAGES.has(state.stage) ||
-    state.ttsGenerating === true
+    (state.ttsInflight ?? 0) > 0
   );
 }
 

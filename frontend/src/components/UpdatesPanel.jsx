@@ -42,7 +42,7 @@ export default function UpdatesPanel() {
   // so it has to re-render when the work starts or finishes.
   const dubStep = useAppStore((s) => s.dubStep);
   const pillStage = useAppStore((s) => s.stage);
-  const ttsGenerating = useAppStore((s) => s.ttsGenerating);
+  const ttsInflight = useAppStore((s) => s.ttsInflight);
 
   const [changelog, setChangelog] = useState([]);
   const [backup, setBackup] = useState(null);
@@ -74,9 +74,11 @@ export default function UpdatesPanel() {
   // Installing relaunches the process. `dubStep === 'generating'` used to be
   // the whole check, which let a relaunch through during an upload, a
   // transcription, a translation, an export or a standalone synth.
-  const busy = isAppBusy({ dubStep, stage: pillStage, ttsGenerating });
+  const busy = isAppBusy({ dubStep, stage: pillStage, ttsInflight });
   const onInstall = () => {
-    if (busy) {
+    // Re-read at CLICK time, not render time: work can start between the last
+    // render and the click, and `busy` above only exists to disable the button.
+    if (isAppBusy(useAppStore.getState())) {
       toast(t('update.busy'), { icon: '⏳' });
       return;
     }
