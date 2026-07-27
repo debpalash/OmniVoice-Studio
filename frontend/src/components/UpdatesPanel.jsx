@@ -74,10 +74,14 @@ export default function UpdatesPanel() {
   // Installing relaunches the process. `dubStep === 'generating'` used to be
   // the whole check, which let a relaunch through during an upload, a
   // transcription, a translation, an export or a standalone synth.
+  //
+  // Subscribed (not getState()) so this re-renders when work starts or stops:
+  // it greys the button out and says why, rather than letting the user click
+  // and get a toast back.
   const busy = isAppBusy({ dubStep, stage: pillStage, ttsInflight });
   const onInstall = () => {
-    // Re-read at CLICK time, not render time: work can start between the last
-    // render and the click, and `busy` above only exists to disable the button.
+    // The click-time read is the authority — work can start between the last
+    // render and the click, so `busy` above cannot be the safety check.
     if (isAppBusy(useAppStore.getState())) {
       toast(t('update.busy'), { icon: '⏳' });
       return;
@@ -91,7 +95,12 @@ export default function UpdatesPanel() {
     <div className="updates-panel">
       <div className="updates-panel__live">
         {status === 'available' && (
-          <button className="updates-panel__cta" onClick={onInstall}>
+          <button
+            className="updates-panel__cta"
+            onClick={onInstall}
+            disabled={busy}
+            title={busy ? t('update.busy') : undefined}
+          >
             <Download size={13} /> {t('update.available', { version: version || '' })} ·{' '}
             {t('update.install')}
           </button>
@@ -105,7 +114,12 @@ export default function UpdatesPanel() {
           </span>
         )}
         {status === 'ready' && (
-          <button className="updates-panel__cta" onClick={onInstall}>
+          <button
+            className="updates-panel__cta"
+            onClick={onInstall}
+            disabled={busy}
+            title={busy ? t('update.busy') : undefined}
+          >
             <RotateCw size={13} /> {t('update.restart')}
           </button>
         )}
