@@ -383,6 +383,7 @@ from core.config import OUTPUTS_DIR, VOICES_DIR, CRASH_LOG_PATH
 from core.tasks import task_manager
 from core import job_store
 from services.model_manager import (
+    ModelLoadInterruptedByShutdown,
     begin_shutdown as model_loads_begin_shutdown,
     idle_worker,
     preload_model,
@@ -899,6 +900,28 @@ async def global_exception_handler(request: Request, exc: Exception):
     ) or "Content-Length" in str(exc):
         logger.info("Client disconnect during %s (%s)", request.url, exc_name)
         return Response(status_code=499)
+    # The backend is on its way out and a request asked for a model load
+    # (#1276). #1174 already made this benign for the *background preload*,
+    # but a user-initiated request fell through to the generic 500 path below
+    # — crash log, ERROR traceback, journal entry — so quitting the app while
+    # a generate was queued surfaced "500 Internal Server Error: model load
+    # skipped: backend shutting down" and offered to file a bug for it.
+    #
+    # Nothing failed: the process is exiting. 503 + Retry-After is what a
+    # shutting-down server owes a client, and it keeps this out of the
+    # crash/bug-report pipeline entirely.
+    if isinstance(exc, ModelLoadInterruptedByShutdown):
+        logger.info("Model load skipped during shutdown for %s — benign.", request.url)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    "OmniVoice is shutting down, so it didn't start loading the "
+                    "model. Reopen the app and try again."
+                )
+            },
+            headers={"Retry-After": "5"},
+        )
     try:
         # Serialize writes so concurrent unhandled exceptions don't interleave frames.
         with _crash_log_lock, open(CRASH_LOG_PATH, "a", encoding="utf-8", errors="backslashreplace") as f:

@@ -20,6 +20,14 @@ const USER_FIXABLE_MARKERS = {
   '[clone_ref_unusable]': 'tts_errors.ref_audio_unusable',
 };
 
+// #1276: 503 means "not now, try again" — a shutting-down or still-warming
+// backend, by definition not a fault. Offering to file a GitHub issue for one
+// invites bug reports for normal lifecycle events (quitting the app with a
+// generate queued reported "500 … model load skipped: backend shutting down"
+// before the backend started answering 503 here). Show the message; the
+// backend's detail already says what to do.
+const TRANSIENT_STATUSES = new Set([503]);
+
 export function toastErrorWithReport(message, error) {
   const err = error instanceof Error ? error : new Error(String(error ?? message));
   const raw = `${err.message ?? ''} ${message ?? ''}`;
@@ -28,6 +36,10 @@ export function toastErrorWithReport(message, error) {
       toast.error(i18next.t(i18nKey), { duration: 8000 });
       return;
     }
+  }
+  if (TRANSIENT_STATUSES.has(error?.status)) {
+    toast.error(message, { duration: 8000 });
+    return;
   }
   toast.error(
     (tst) => (

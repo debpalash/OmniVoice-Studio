@@ -61,3 +61,52 @@ describe('toastErrorWithReport user-fixable marker mapping (#1188)', () => {
     }
   });
 });
+
+// #1276: a 503 is "not now, try again" — a shutting-down or still-warming
+// backend. Quitting the app with a generate queued used to answer 500 and
+// offer to file a GitHub issue for what is a normal lifecycle event. The
+// backend now answers 503 with an actionable detail; the toast must show it
+// without the Report action.
+describe('toastErrorWithReport transient-status handling (#1276)', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+  });
+
+  const shuttingDown = () => {
+    const e = new Error(
+      "OmniVoice is shutting down, so it didn't start loading the model. " +
+        'Reopen the app and try again.',
+    );
+    e.name = 'ApiError';
+    e.status = 503;
+    return e;
+  };
+
+  it('shows a plain toast for a 503, with no Report action', () => {
+    const err = shuttingDown();
+    toastErrorWithReport(err.message, err);
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    const [body, opts] = toastErrorMock.mock.calls[0];
+    // A plain string, not the JSX render-prop that carries the Report button.
+    expect(typeof body).toBe('string');
+    expect(body).toContain('Reopen the app');
+    expect(opts).toEqual({ duration: 8000 });
+  });
+
+  it('still offers Report for a genuine 500', () => {
+    const err = new Error('500 Internal Server Error: something actually broke');
+    err.name = 'ApiError';
+    err.status = 500;
+    toastErrorWithReport(err.message, err);
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    // The reportable path passes a render function, not a string.
+    expect(typeof toastErrorMock.mock.calls[0][0]).toBe('function');
+  });
+
+  it('still offers Report when there is no status at all', () => {
+    toastErrorWithReport('Something broke', new Error('Something broke'));
+    expect(typeof toastErrorMock.mock.calls[0][0]).toBe('function');
+  });
+});

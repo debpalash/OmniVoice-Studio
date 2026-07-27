@@ -331,3 +331,73 @@ def test_lifespan_shutdown_mid_load_is_clean_and_clears_sentinel(
     finally:
         release.set()
         run_sentinel._reset_for_tests()
+
+
+def test_request_during_shutdown_gets_503_not_a_crash_shaped_500():
+    """A user-initiated request that triggers a load while the backend is
+    shutting down must answer 503, not 500 (#1276).
+
+    #1174 made this benign for the background preload, but a request took the
+    generic unhandled-exception path: crash log, ERROR traceback, and an
+    error-journal entry that feeds the bug-report pipeline. Quitting the app
+    with a generate queued therefore surfaced "500 Internal Server Error:
+    model load skipped: backend shutting down" and offered to file a bug for
+    a normal teardown.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise ModelLoadInterruptedByShutdown("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        resp = client.get("/boom")
+
+    assert resp.status_code == 503, resp.status_code
+    # Answer a shutting-down server owes a client, so the UI can retry rather
+    # than treat it as a fault.
+    assert resp.headers.get("Retry-After") == "5"
+    detail = resp.json()["detail"]
+    # Actionable, and free of the internal phrasing that read as a crash.
+    assert "shutting down" in detail
+    assert "Reopen the app" in detail
+    assert "Internal Server Error" not in detail
+
+
+def test_shutdown_request_is_not_written_to_the_crash_log_or_journal(tmp_path, monkeypatch):
+    """The same teardown must leave no crash-log entry and no journal record —
+    those are what the auto bug reporter reads (#1276)."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+    from core import error_journal
+
+    crash_log = tmp_path / "crash.log"
+    monkeypatch.setattr(main_mod, "CRASH_LOG_PATH", str(crash_log))
+
+    recorded = []
+    monkeypatch.setattr(
+        error_journal, "record", lambda *a, **k: recorded.append(a) or {}
+    )
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise ModelLoadInterruptedByShutdown("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/boom").status_code == 503
+
+    assert not crash_log.exists(), crash_log.read_text()
+    assert recorded == []
