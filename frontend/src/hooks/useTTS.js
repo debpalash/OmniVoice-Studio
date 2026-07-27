@@ -108,6 +108,9 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       return toast.error(t('tts_errors.upload_or_select'));
     addBreadcrumb(`generate:start (${defineMethod})`);
     setIsGenerating(true);
+    // Mirror it globally too: a relaunch would lose this synth, and the
+    // updater's guard (utils/appBusy) can't see hook-local state.
+    useAppStore.getState().setTtsGenerating?.(true);
     setGenerationTime(0);
     const st = Date.now();
     timerRef.current = setInterval(() => {
@@ -324,6 +327,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       if (abortTimer) clearTimeout(abortTimer);
       clearInterval(timerRef.current);
       setIsGenerating(false);
+      useAppStore.getState().setTtsGenerating?.(false);
     }
   }, [
     text,

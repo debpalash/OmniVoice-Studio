@@ -21,6 +21,7 @@ import { prepareReleases } from '../utils/updatePresentation';
 import { setChannel } from '../utils/channelControl';
 import { fetchChangelog, fetchBackupState } from '../utils/updatesApi';
 import { APP_VERSION } from '../utils/appVersion';
+import { isAppBusy } from '../utils/appBusy';
 import MarkdownLite from './MarkdownLite';
 import ChangelogViewer from './ChangelogViewer';
 
@@ -37,7 +38,11 @@ export default function UpdatesPanel() {
   const releasesStatus = useAppStore((s) => s.releasesStatus);
   const loadReleases = useAppStore((s) => s.loadReleases);
   const dismissUpdate = useAppStore((s) => s.dismissUpdate);
+  // Subscribed, not read via getState() — `busy` disables the install button,
+  // so it has to re-render when the work starts or finishes.
   const dubStep = useAppStore((s) => s.dubStep);
+  const pillStage = useAppStore((s) => s.stage);
+  const ttsGenerating = useAppStore((s) => s.ttsGenerating);
 
   const [changelog, setChangelog] = useState([]);
   const [backup, setBackup] = useState(null);
@@ -66,7 +71,10 @@ export default function UpdatesPanel() {
     if (v) useAppStore.getState().setWhatsNewSeenVersion?.(v);
   }, [appVersion]);
 
-  const busy = dubStep === 'generating';
+  // Installing relaunches the process. `dubStep === 'generating'` used to be
+  // the whole check, which let a relaunch through during an upload, a
+  // transcription, a translation, an export or a standalone synth.
+  const busy = isAppBusy({ dubStep, stage: pillStage, ttsGenerating });
   const onInstall = () => {
     if (busy) {
       toast(t('update.busy'), { icon: '⏳' });

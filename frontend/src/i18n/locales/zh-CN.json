@@ -96,8 +96,8 @@
     "frontend": "前端",
     "tauri": "Tauri",
     "cancelOp": "取消操作",
-    "dismiss": "解雇",
-    "dismissStatus": "解除状态",
+    "dismiss": "关闭",
+    "dismissStatus": "关闭状态",
     "search": "搜索...",
     "no_matches": "没有匹配项",
     "recent_and_popular": "最近和热门",
@@ -1239,7 +1239,7 @@
       "later": "也许稍后",
       "star": "在 GitHub 上加星标",
       "opt_out": "不要再问",
-      "dismiss_aria": "解雇"
+      "dismiss_aria": "关闭"
     }
   },
   "enterprise": {
@@ -1902,7 +1902,7 @@
     "whats_new": "更新内容",
     "failed": "更新失败",
     "retry": "重试",
-    "dismiss": "解雇",
+    "dismiss": "关闭",
     "toast_available": "OmniVoice Studio {{version}} 可用",
     "toast_install": "安装并重启",
     "toast_whats_new": "新增内容",

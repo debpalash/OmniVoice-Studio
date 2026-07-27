@@ -308,7 +308,7 @@
     "frontend": "Внешний интерфейс",
     "tauri": "Тавр",
     "cancelOp": "Отменить операцию",
-    "dismiss": "Увольнять",
+    "dismiss": "Закрыть",
     "dismissStatus": "Отклонить статус",
     "search": "Поиск…",
     "no_matches": "Нет совпадений",
@@ -1276,7 +1276,7 @@
       "later": "Может быть, позже",
       "star": "Звезда на GitHub",
       "opt_out": "Не спрашивай больше",
-      "dismiss_aria": "Увольнять"
+      "dismiss_aria": "Закрыть"
     }
   },
   "enterprise": {
@@ -1895,7 +1895,7 @@
     "whats_new": "Что нового",
     "failed": "Обновление не удалось",
     "retry": "Повторить попытку",
-    "dismiss": "Увольнять",
+    "dismiss": "Закрыть",
     "toast_available": "OmniVoice Studio {{version}} доступна",
     "toast_install": "Установить и перезапустить",
     "toast_whats_new": "Что нового",

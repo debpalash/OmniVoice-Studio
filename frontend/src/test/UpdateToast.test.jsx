@@ -18,8 +18,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 
-const toastCalls = [];
-const dismissed = [];
+// vi.hoisted: vi.mock factories are lifted above every import, so anything
+// they close over has to be hoisted with them rather than declared below.
+const { toastCalls, dismissed, installUpdate, openSettingsTab, storeState } = vi.hoisted(() => ({
+  toastCalls: [],
+  dismissed: [],
+  installUpdate: vi.fn(),
+  openSettingsTab: vi.fn(),
+  storeState: { dubStep: 'idle', stage: 'idle', ttsGenerating: false },
+}));
 
 vi.mock('react-hot-toast', () => {
   const toast = vi.fn();
@@ -31,14 +38,11 @@ vi.mock('react-hot-toast', () => {
   return { default: toast, toast };
 });
 
-const installUpdate = vi.fn();
 vi.mock('../utils/updater', () => ({ installUpdate: (...a) => installUpdate(...a) }));
 
-const openSettingsTab = vi.fn();
-let dubStep = 'idle';
 vi.mock('../store', () => ({
   useAppStore: Object.assign(() => undefined, {
-    getState: () => ({ openSettingsTab, dubStep }),
+    getState: () => ({ openSettingsTab, ...storeState }),
   }),
 }));
 
@@ -51,7 +55,7 @@ beforeEach(() => {
   dismissed.length = 0;
   installUpdate.mockClear();
   openSettingsTab.mockClear();
-  dubStep = 'idle';
+  Object.assign(storeState, { dubStep: 'idle', stage: 'idle', ttsGenerating: false });
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -110,12 +114,38 @@ describe('the toast body', () => {
     expect(dismissed).toContain('t1');
   });
 
-  it('refuses to restart while a generation is running', async () => {
-    dubStep = 'generating';
+  // Installing relaunches the process. The guard used to be
+  // `dubStep === 'generating'` alone, which let the relaunch through — and
+  // silently discarded the work — during every other long operation.
+  it.each([
+    ['a dub upload', { dubStep: 'uploading' }],
+    ['a dub transcription', { dubStep: 'transcribing' }],
+    ['a dub synth', { dubStep: 'generating' }],
+    ['a dub being stopped', { dubStep: 'stopping' }],
+    ['a translation', { stage: 'translating' }],
+    ['an ASR model load', { stage: 'loading-model' }],
+    ['a dictation capture', { stage: 'recording' }],
+    ['an export', { stage: 'exporting' }],
+    ['a standalone TTS synth', { ttsGenerating: true }],
+  ])('refuses to restart during %s', async (_label, state) => {
+    Object.assign(storeState, state);
     render(withI18n(<UpdateToastBody id="t1" version="0.4.2" />));
     fireEvent.click(await screen.findByText(/Install and restart/i));
 
     expect(installUpdate).not.toHaveBeenCalled();
+  });
+
+  // The mirror image: a guard that never lets go is just a broken updater.
+  it.each([
+    ['nothing is running', { dubStep: 'idle', stage: 'idle' }],
+    ['the transcript is open for editing', { dubStep: 'editing' }],
+    ['a dub has finished', { dubStep: 'done' }],
+  ])('still installs when %s', async (_label, state) => {
+    Object.assign(storeState, state);
+    render(withI18n(<UpdateToastBody id="t1" version="0.4.2" />));
+    fireEvent.click(await screen.findByText(/Install and restart/i));
+
+    expect(installUpdate).toHaveBeenCalled();
   });
 
   it('Later removes it without installing', async () => {

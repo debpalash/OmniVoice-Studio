@@ -308,8 +308,8 @@
     "frontend": "フロントエンド",
     "tauri": "タウリ",
     "cancelOp": "操作をキャンセルする",
-    "dismiss": "解雇する",
-    "dismissStatus": "ステータスを却下",
+    "dismiss": "閉じる",
+    "dismissStatus": "ステータスを閉じる",
     "search": "検索…",
     "no_matches": "一致しません",
     "recent_and_popular": "最近の人気の",
@@ -1276,7 +1276,7 @@
       "later": "たぶん後で",
       "star": "GitHub でスターを付ける",
       "opt_out": "二度と聞かないでください",
-      "dismiss_aria": "解雇する"
+      "dismiss_aria": "閉じる"
     }
   },
   "enterprise": {
@@ -1895,7 +1895,7 @@
     "whats_new": "新機能",
     "failed": "アップデートに失敗しました",
     "retry": "再試行",
-    "dismiss": "解雇する",
+    "dismiss": "閉じる",
     "toast_available": "OmniVoice Studio {{version}} が利用可能です",
     "toast_install": "インストールして再起動",
     "toast_whats_new": "新機能",

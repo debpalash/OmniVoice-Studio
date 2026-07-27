@@ -45,6 +45,15 @@ export interface GenerateSlice {
   designSeed: number | null;
   keepSeed: boolean;
 
+  /**
+   * Whether a standalone synth is running right now. Mirrors useTTS's local
+   * `isGenerating` — that state lives in a hook, so anything outside the
+   * Generate tab (notably the updater's "don't relaunch mid-synth" guard in
+   * `utils/appBusy`) has no way to see it. Transient: never persisted, since a
+   * synth cannot survive a reload.
+   */
+  ttsGenerating: boolean;
+
   setText: (v: string) => void;
   setRefText: (v: string) => void;
   setInstruct: (v: string) => void;
@@ -65,6 +74,7 @@ export interface GenerateSlice {
 
   setDesignSeed: (v: number | null) => void;
   setKeepSeed: (v: boolean) => void;
+  setTtsGenerating: (v: boolean) => void;
 }
 
 const INITIAL_VD: VDStates = {
@@ -97,6 +107,7 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
 
   designSeed: null,
   keepSeed: false,
+  ttsGenerating: false,
 
   setText: (v) => set({ text: v }),
   setRefText: (v) => set({ refText: v }),
@@ -121,4 +132,5 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
 
   setDesignSeed: (v) => set({ designSeed: v }),
   setKeepSeed: (v) => set({ keepSeed: v }),
+  setTtsGenerating: (v) => set({ ttsGenerating: v }),
 });

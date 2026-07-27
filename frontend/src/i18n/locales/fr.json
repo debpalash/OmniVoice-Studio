@@ -309,7 +309,7 @@
     "tauri": "Taureau",
     "cancelOp": "Annuler l'opération",
     "dismiss": "Rejeter",
-    "dismissStatus": "Statut de rejet",
+    "dismissStatus": "Ignorer le statut",
     "search": "Rechercher…",
     "no_matches": "Aucune correspondance",
     "recent_and_popular": "Récents et populaires",

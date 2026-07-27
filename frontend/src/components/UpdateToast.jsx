@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { installUpdate } from '../utils/updater';
+import { isAppBusy } from '../utils/appBusy';
 
 /** Toast id — one per version, so a re-check can't stack duplicates. */
 const toastId = (version) => `update-available-${version}`;
@@ -31,10 +32,12 @@ function UpdateToastBody({ id, version }) {
   };
 
   const install = () => {
-    // A generation in flight would be lost to the relaunch. UpdatesPanel makes
-    // the same check; it lives there too because that path can be reached
-    // without this toast.
-    if (useAppStore.getState().dubStep === 'generating') {
+    // Installing relaunches the process, so anything in flight is lost — not
+    // just a dub synth, but an upload, a transcription, a translation, an
+    // export or a standalone TTS run. `isAppBusy` is the shared answer;
+    // UpdatesPanel asks it too, because that path is reachable without this
+    // toast and the two checks must not drift.
+    if (isAppBusy(useAppStore.getState())) {
       toast(t('update.busy'), { icon: '⏳' });
       return;
     }

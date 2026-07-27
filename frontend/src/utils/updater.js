@@ -55,8 +55,17 @@ export async function checkForUpdate(store) {
       // Announce it where the user is looking. The footer's version dot stays
       // as the persistent, non-intrusive marker; this is the one-time nudge.
       // Lazy so the toast never loads in a browser/dev build that can't update.
-      const { showUpdateToast } = await import('../components/UpdateToast');
-      showUpdateToast(update.version);
+      //
+      // Caught separately: a failed chunk load must not fall through to the
+      // outer catch, which calls setUpdateIdle() and would erase the update we
+      // just found. The announcement is the optional part — the available
+      // state (footer dot, Settings → Updates) is what has to survive.
+      try {
+        const { showUpdateToast } = await import('../components/UpdateToast');
+        showUpdateToast(update.version);
+      } catch (e) {
+        console.debug('Update toast failed to load (non-fatal):', e);
+      }
     } else {
       store.setUpdateIdle();
     }

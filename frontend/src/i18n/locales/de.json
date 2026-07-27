@@ -308,8 +308,8 @@
     "frontend": "Frontend",
     "tauri": "Tauri",
     "cancelOp": "Vorgang abbrechen",
-    "dismiss": "Entlassen",
-    "dismissStatus": "Status entlassen",
+    "dismiss": "Schließen",
+    "dismissStatus": "Status schließen",
     "search": "Suchen…",
     "no_matches": "Keine Übereinstimmungen",
     "recent_and_popular": "Neu und beliebt",
@@ -1276,7 +1276,7 @@
       "later": "Vielleicht später",
       "star": "Stern auf GitHub",
       "opt_out": "Fragen Sie nicht noch einmal",
-      "dismiss_aria": "Entlassen"
+      "dismiss_aria": "Schließen"
     }
   },
   "enterprise": {
@@ -1895,7 +1895,7 @@
     "whats_new": "Was ist neu?",
     "failed": "Update fehlgeschlagen",
     "retry": "Versuchen Sie es noch einmal",
-    "dismiss": "Entlassen",
+    "dismiss": "Schließen",
     "toast_available": "OmniVoice Studio {{version}} ist verfügbar",
     "toast_install": "Installieren und neu starten",
     "toast_whats_new": "Neuerungen",

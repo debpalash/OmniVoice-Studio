@@ -308,8 +308,8 @@
     "frontend": "前端",
     "tauri": "金牛座",
     "cancelOp": "取消操作",
-    "dismiss": "解僱",
-    "dismissStatus": "解除狀態",
+    "dismiss": "關閉",
+    "dismissStatus": "關閉狀態",
     "search": "搜尋...",
     "no_matches": "沒有匹配項",
     "recent_and_popular": "最近和熱門",
@@ -1276,7 +1276,7 @@
       "later": "也許稍後",
       "star": "在 GitHub 上加星標",
       "opt_out": "不要再問",
-      "dismiss_aria": "解僱"
+      "dismiss_aria": "關閉"
     }
   },
   "enterprise": {
@@ -1895,7 +1895,7 @@
     "whats_new": "有什麼新消息",
     "failed": "更新失敗",
     "retry": "重試",
-    "dismiss": "解僱",
+    "dismiss": "關閉",
     "toast_available": "OmniVoice Studio {{version}} 可用",
     "toast_install": "安裝並重新啟動",
     "toast_whats_new": "新增內容",
