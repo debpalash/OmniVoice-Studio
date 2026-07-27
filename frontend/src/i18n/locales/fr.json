@@ -1438,7 +1438,8 @@
     "report": "Signaler ce bogue",
     "report_failed": "Impossible d'ouvrir le rapport de bug. Réessayez, ou copiez les détails ci-dessus dans un nouveau ticket.",
     "searchIssues": "Rechercher des problèmes similaires",
-    "unexpected": "Erreur inattendue : {{message}}"
+    "unexpected": "Erreur inattendue : {{message}}",
+    "backend_shutting_down": "OmniVoice est en cours de fermeture. Rouvrez l’application et réessayez."
   },
   "keyboard": {
     "title": "Raccourcis clavier",

@@ -365,6 +365,11 @@ def test_request_during_shutdown_gets_503_not_a_crash_shaped_500():
     # than treat it as a fault.
     assert resp.headers.get("Retry-After") == "5"
     detail = resp.json()["detail"]
+    # Cross-layer contract: the UI keys off this marker to drop the "Report"
+    # action (utils/errorToast.jsx). It must NOT key off the 503 status alone —
+    # a real engine-load timeout and an unavailable engine are 503 too, and
+    # those are reportable bugs. Renaming this marker breaks that; keep in sync.
+    assert "[shutting_down]" in detail
     # Actionable, and free of the internal phrasing that read as a crash.
     assert "shutting down" in detail
     assert "Reopen the app" in detail

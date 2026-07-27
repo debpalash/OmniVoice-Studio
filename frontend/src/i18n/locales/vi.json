@@ -1438,7 +1438,8 @@
     "report": "Báo cáo lỗi này",
     "report_failed": "Không mở được báo cáo lỗi. Vui lòng thử lại, hoặc sao chép chi tiết ở trên vào một issue mới.",
     "searchIssues": "Tìm các vấn đề tương tự",
-    "unexpected": "Lỗi không mong muốn: {{message}}"
+    "unexpected": "Lỗi không mong muốn: {{message}}",
+    "backend_shutting_down": "OmniVoice đang tắt. Mở lại ứng dụng rồi thử lại."
   },
   "keyboard": {
     "title": "Phím tắt",

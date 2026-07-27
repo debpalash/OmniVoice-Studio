@@ -1438,7 +1438,8 @@
     "report": "Bu hatayı bildir",
     "report_failed": "Hata raporu açılamadı. Tekrar deneyin veya yukarıdaki ayrıntıları yeni bir konuya kopyalayın.",
     "searchIssues": "Benzer sorunları ara",
-    "unexpected": "Beklenmeyen hata: {{message}}"
+    "unexpected": "Beklenmeyen hata: {{message}}",
+    "backend_shutting_down": "OmniVoice kapanıyor. Uygulamayı yeniden açıp tekrar dene."
   },
   "keyboard": {
     "title": "Klavye kısayolları",

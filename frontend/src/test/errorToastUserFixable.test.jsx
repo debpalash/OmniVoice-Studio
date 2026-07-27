@@ -62,46 +62,61 @@ describe('toastErrorWithReport user-fixable marker mapping (#1188)', () => {
   });
 });
 
-// #1276: a 503 is "not now, try again" — a shutting-down or still-warming
-// backend. Quitting the app with a generate queued used to answer 500 and
-// offer to file a GitHub issue for what is a normal lifecycle event. The
-// backend now answers 503 with an actionable detail; the toast must show it
-// without the Report action.
-describe('toastErrorWithReport transient-status handling (#1276)', () => {
+// #1276: a shutdown is not a fault and must not offer a bug report. Matched on
+// the [shutting_down] MARKER, never on the bare 503 status — 503 is also how a
+// real engine-load timeout and an unavailable engine are reported (#1246,
+// #1260, #1277), and those are genuine bugs users need to be able to file.
+describe('toastErrorWithReport shutdown handling (#1276)', () => {
   beforeEach(() => {
     toastErrorMock.mockClear();
   });
 
-  const shuttingDown = () => {
-    const e = new Error(
-      "OmniVoice is shutting down, so it didn't start loading the model. " +
-        'Reopen the app and try again.',
-    );
+  const withStatus = (message, status) => {
+    const e = new Error(message);
     e.name = 'ApiError';
-    e.status = 503;
+    e.status = status;
     return e;
   };
 
-  it('shows a plain toast for a 503, with no Report action', () => {
-    const err = shuttingDown();
+  const SHUTDOWN =
+    "[shutting_down] OmniVoice is shutting down, so it didn't start loading " +
+    'the model. Reopen the app and try again.';
+
+  it('shows localized guidance for the shutdown marker, with no Report action', () => {
+    const err = withStatus(SHUTDOWN, 503);
     toastErrorWithReport(err.message, err);
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
-    const [body, opts] = toastErrorMock.mock.calls[0];
-    // A plain string, not the JSX render-prop that carries the Report button.
-    expect(typeof body).toBe('string');
-    expect(body).toContain('Reopen the app');
-    expect(opts).toEqual({ duration: 8000 });
+    expect(toastErrorMock).toHaveBeenCalledWith('t:errors.backend_shutting_down', {
+      duration: 8000,
+    });
+  });
+
+  // The regression this exists to prevent: an earlier version of the fix keyed
+  // off the 503 status alone, which would have removed the Report button from
+  // the compute-timeout class — the exact bug #1277 was filed for.
+  it('still offers Report for a 503 that is a real failure', () => {
+    const err = withStatus(
+      '503 Service Unavailable: TTS generate ran for more than 300s of actual ' +
+        'compute time and was abandoned',
+      503,
+    );
+    toastErrorWithReport(err.message, err);
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    // A render function, not a string — the reportable path.
+    expect(typeof toastErrorMock.mock.calls[0][0]).toBe('function');
+  });
+
+  it('still offers Report for an engine-unavailable 503', () => {
+    const err = withStatus("503 Service Unavailable: TTS engine 'xtts' is unavailable", 503);
+    toastErrorWithReport(err.message, err);
+    expect(typeof toastErrorMock.mock.calls[0][0]).toBe('function');
   });
 
   it('still offers Report for a genuine 500', () => {
-    const err = new Error('500 Internal Server Error: something actually broke');
-    err.name = 'ApiError';
-    err.status = 500;
+    const err = withStatus('500 Internal Server Error: something actually broke', 500);
     toastErrorWithReport(err.message, err);
-
-    expect(toastErrorMock).toHaveBeenCalledTimes(1);
-    // The reportable path passes a render function, not a string.
     expect(typeof toastErrorMock.mock.calls[0][0]).toBe('function');
   });
 

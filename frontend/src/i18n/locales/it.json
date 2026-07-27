@@ -1438,7 +1438,8 @@
     "report": "Segnala questo bug",
     "report_failed": "Impossibile aprire la segnalazione. Riprova oppure copia i dettagli qui sopra in una nuova issue.",
     "searchIssues": "Cerca problemi simili",
-    "unexpected": "Errore imprevisto: {{message}}"
+    "unexpected": "Errore imprevisto: {{message}}",
+    "backend_shutting_down": "OmniVoice si sta chiudendo. Riapri l’app e riprova."
   },
   "keyboard": {
     "title": "Scorciatoie da tastiera",

@@ -1438,7 +1438,8 @@
     "report": "Diesen Fehler melden",
     "report_failed": "Der Fehlerbericht konnte nicht geöffnet werden. Versuche es erneut oder kopiere die obigen Details in ein neues Issue.",
     "searchIssues": "Ähnliche Probleme suchen",
-    "unexpected": "Unerwarteter Fehler: {{message}}"
+    "unexpected": "Unerwarteter Fehler: {{message}}",
+    "backend_shutting_down": "OmniVoice wird beendet. Öffne die App erneut und versuche es noch einmal."
   },
   "keyboard": {
     "title": "Tastaturkürzel",

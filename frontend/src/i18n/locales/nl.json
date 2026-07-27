@@ -1438,7 +1438,8 @@
     "report": "Deze bug melden",
     "report_failed": "Kon het bugrapport niet openen. Probeer het opnieuw of kopieer de details hierboven naar een nieuwe issue.",
     "searchIssues": "Vergelijkbare problemen zoeken",
-    "unexpected": "Onverwachte fout: {{message}}"
+    "unexpected": "Onverwachte fout: {{message}}",
+    "backend_shutting_down": "OmniVoice wordt afgesloten. Open de app opnieuw en probeer het nog eens."
   },
   "keyboard": {
     "title": "Sneltoetsen",

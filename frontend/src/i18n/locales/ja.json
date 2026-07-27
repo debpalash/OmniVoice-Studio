@@ -1438,7 +1438,8 @@
     "report": "このバグを報告",
     "report_failed": "バグレポートを開けませんでした。もう一度お試しいただくか、上記の内容を新しい Issue にコピーしてください。",
     "searchIssues": "類似の問題を検索",
-    "unexpected": "予期しないエラー: {{message}}"
+    "unexpected": "予期しないエラー: {{message}}",
+    "backend_shutting_down": "OmniVoice を終了しています。アプリを開き直してからもう一度お試しください。"
   },
   "keyboard": {
     "title": "キーボードショートカット",

@@ -1438,7 +1438,8 @@
     "report": "Rapportera den här buggen",
     "report_failed": "Det gick inte att öppna felrapporten. Försök igen, eller kopiera detaljerna ovan till ett nytt ärende.",
     "searchIssues": "Sök liknande problem",
-    "unexpected": "Oväntat fel: {{message}}"
+    "unexpected": "Oväntat fel: {{message}}",
+    "backend_shutting_down": "OmniVoice stängs av. Öppna appen igen och försök på nytt."
   },
   "keyboard": {
     "title": "Kortkommandon",

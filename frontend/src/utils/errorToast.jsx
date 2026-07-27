@@ -14,19 +14,22 @@ import { buildBugReportUrl } from './bugReport';
 // #1188: backend errors that carry a machine-readable "[code]" marker are
 // user-fixable input problems, not bugs — show localized guidance (what
 // happened + the concrete fix) instead of the raw English detail, and skip
-// the "Report" action. Markers are emitted by the backend (the
-// [clone_ref_unusable] one in omnivoice/utils/audio.py) — keep in sync.
+// the "Report" action.
+//
+// #1276 adds [shutting_down]: the backend is on its way out, so nothing
+// failed and there is nothing to report.
+//
+// Matched on the MARKER, never on the bare 503 status. 503 is also how a real
+// engine-load timeout and an unavailable engine are reported (#1246, #1260,
+// #1277) — those are genuine bugs users need to file, and keying off the
+// status alone would silence exactly that class.
+//
+// Markers are emitted by the backend ([clone_ref_unusable] in
+// omnivoice/utils/audio.py, [shutting_down] in main.py) — keep in sync.
 const USER_FIXABLE_MARKERS = {
   '[clone_ref_unusable]': 'tts_errors.ref_audio_unusable',
+  '[shutting_down]': 'errors.backend_shutting_down',
 };
-
-// #1276: 503 means "not now, try again" — a shutting-down or still-warming
-// backend, by definition not a fault. Offering to file a GitHub issue for one
-// invites bug reports for normal lifecycle events (quitting the app with a
-// generate queued reported "500 … model load skipped: backend shutting down"
-// before the backend started answering 503 here). Show the message; the
-// backend's detail already says what to do.
-const TRANSIENT_STATUSES = new Set([503]);
 
 export function toastErrorWithReport(message, error) {
   const err = error instanceof Error ? error : new Error(String(error ?? message));
@@ -36,10 +39,6 @@ export function toastErrorWithReport(message, error) {
       toast.error(i18next.t(i18nKey), { duration: 8000 });
       return;
     }
-  }
-  if (TRANSIENT_STATUSES.has(error?.status)) {
-    toast.error(message, { duration: 8000 });
-    return;
   }
   toast.error(
     (tst) => (

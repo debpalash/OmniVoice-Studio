@@ -946,9 +946,15 @@ async def global_exception_handler(request: Request, exc: Exception):
         return JSONResponse(
             status_code=503,
             content={
+                # The [shutting_down] marker is what the UI keys off to skip the
+                # "Report" action (the same convention as [clone_ref_unusable]).
+                # NOT the bare 503 status: 503 is also how a real engine-load
+                # timeout and an unavailable engine are reported, and those are
+                # genuinely reportable bugs — suppressing the report button for
+                # every 503 would silence exactly the class users need to file.
                 "detail": (
-                    "OmniVoice is shutting down, so it didn't start loading the "
-                    "model. Reopen the app and try again."
+                    "[shutting_down] OmniVoice is shutting down, so it didn't "
+                    "start loading the model. Reopen the app and try again."
                 )
             },
             headers={"Retry-After": "5", **_cors_headers_for(request)},

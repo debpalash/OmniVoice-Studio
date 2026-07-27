@@ -1438,7 +1438,8 @@
     "report": "이 버그 신고",
     "report_failed": "버그 리포트를 열지 못했습니다. 다시 시도하거나 위 내용을 새 이슈에 복사해 주세요.",
     "searchIssues": "유사한 문제 검색",
-    "unexpected": "예기치 않은 오류: {{message}}"
+    "unexpected": "예기치 않은 오류: {{message}}",
+    "backend_shutting_down": "OmniVoice를 종료하는 중입니다. 앱을 다시 열고 시도하세요."
   },
   "keyboard": {
     "title": "키보드 단축키",

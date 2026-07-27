@@ -1438,7 +1438,8 @@
     "report": "Informar de este error",
     "report_failed": "No se pudo abrir el informe de error. Inténtalo de nuevo o copia los detalles anteriores en una incidencia nueva.",
     "searchIssues": "Buscar problemas similares",
-    "unexpected": "Error inesperado: {{message}}"
+    "unexpected": "Error inesperado: {{message}}",
+    "backend_shutting_down": "OmniVoice se está cerrando. Vuelve a abrir la aplicación e inténtalo de nuevo."
   },
   "keyboard": {
     "title": "Atajos de teclado",

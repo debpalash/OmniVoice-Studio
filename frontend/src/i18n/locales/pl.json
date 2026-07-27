@@ -1438,7 +1438,8 @@
     "report": "Zgłoś ten błąd",
     "report_failed": "Nie udało się otworzyć zgłoszenia błędu. Spróbuj ponownie lub skopiuj powyższe szczegóły do nowego zgłoszenia.",
     "searchIssues": "Szukaj podobnych problemów",
-    "unexpected": "Nieoczekiwany błąd: {{message}}"
+    "unexpected": "Nieoczekiwany błąd: {{message}}",
+    "backend_shutting_down": "OmniVoice się zamyka. Otwórz aplikację ponownie i spróbuj jeszcze raz."
   },
   "keyboard": {
     "title": "Skróty klawiaturowe",

@@ -1438,7 +1438,8 @@
     "report": "回報此錯誤",
     "report_failed": "無法開啟錯誤回報。請重試，或將上方的詳細資訊複製到新的 issue 中。",
     "searchIssues": "搜尋類似問題",
-    "unexpected": "未預期的錯誤：{{message}}"
+    "unexpected": "未預期的錯誤：{{message}}",
+    "backend_shutting_down": "OmniVoice 正在關閉。請重新開啟應用程式後再試。"
   },
   "keyboard": {
     "title": "鍵盤快速鍵",

@@ -1444,7 +1444,8 @@
     "report": "报告此错误",
     "report_failed": "无法打开错误报告。请重试，或将上面的详细信息复制到新的 issue 中。",
     "searchIssues": "搜索类似问题",
-    "unexpected": "意外错误：{{message}}"
+    "unexpected": "意外错误：{{message}}",
+    "backend_shutting_down": "OmniVoice 正在关闭。请重新打开应用后再试。"
   },
   "keyboard": {
     "title": "键盘快捷键",

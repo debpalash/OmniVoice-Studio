@@ -1438,7 +1438,8 @@
     "report": "Laporkan bug ini",
     "report_failed": "Tidak dapat membuka laporan bug. Coba lagi, atau salin detail di atas ke isu baru.",
     "searchIssues": "Cari masalah serupa",
-    "unexpected": "Kesalahan tak terduga: {{message}}"
+    "unexpected": "Kesalahan tak terduga: {{message}}",
+    "backend_shutting_down": "OmniVoice sedang ditutup. Buka kembali aplikasinya lalu coba lagi."
   },
   "keyboard": {
     "title": "Pintasan keyboard",
