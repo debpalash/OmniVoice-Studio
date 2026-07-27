@@ -515,6 +515,59 @@ jobs:
           mv "$tmp" "$CONF"
           echo "Stamped preview version: $PREVIEW_VERSION"
 
+      # The rolling `preview` release is REUSED every night, and macOS updater
+      # artifacts are the only ones Tauri names WITHOUT the version:
+      #
+      #   OmniVoice Studio_0.4.1-103_x64.dmg     <- unique per run, uploads fine
+      #   OmniVoice Studio_x64.app.tar.gz        <- constant, collides
+      #
+      # So every preview build after the first failed the macOS legs with
+      # `Validation Failed: {"resource":"ReleaseAsset","code":"already_exists"}`
+      # — and it failed AFTER the dmg upload, so the run went red while looking
+      # partially successful. The macOS updater bundles on `preview` went stale
+      # on 2026-07-04/05 and stayed that way for three weeks: Preview-channel
+      # macOS users had no working update path, and the nightly run was red
+      # every night.
+      #
+      # Delete this arch's updater bundle before uploading the new one. Scoped
+      # to the preview path (a `v*` tag makes a fresh release, nothing to
+      # collide with) and to this job's own arch, so the parallel aarch64/x64
+      # legs never touch each other's assets. Failure to delete is non-fatal:
+      # if the asset isn't there, there was nothing to collide with anyway.
+      - name: Clear this arch's stale preview updater bundle (macOS)
+        if: needs.preview-gate.outputs.is_preview == 'true' && runner.os == 'macOS'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # aarch64-apple-darwin -> aarch64 ; x86_64-apple-darwin -> x64
+          case "${{ matrix.arch }}" in
+            aarch64-*) SUFFIX=aarch64 ;;
+            x86_64-*)  SUFFIX=x64 ;;
+            *) echo "unexpected arch ${{ matrix.arch }}"; exit 0 ;;
+          esac
+          # Match the STORED name, not the uploaded one: GitHub rewrites spaces
+          # to dots, so "OmniVoice Studio_x64.app.tar.gz" is stored as
+          # "OmniVoice.Studio_x64.app.tar.gz". Query the release and filter,
+          # rather than guessing which spelling to pass.
+          if ! gh release view preview --json assets -q '.assets[].name' \
+                 > /tmp/preview-assets.txt 2>/dev/null; then
+            echo "No preview release yet — nothing to clear."
+            exit 0
+          fi
+          grep -E "[ .]Studio_${SUFFIX}\.app\.tar\.gz(\.sig)?$" /tmp/preview-assets.txt \
+            > /tmp/stale.txt || true
+          if [ ! -s /tmp/stale.txt ]; then
+            echo "No stale ${SUFFIX} updater bundle on preview — nothing to clear."
+            exit 0
+          fi
+          while IFS= read -r name; do
+            echo "Removing stale preview asset: $name"
+            gh release delete-asset preview "$name" --yes \
+              || echo "  (delete failed — upload may still collide)"
+          done < /tmp/stale.txt
+
       - name: Build + release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
