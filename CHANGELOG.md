@@ -6,11 +6,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
-## [Unreleased]
+## [0.4.2] — 2026-07-28
 
 **Highlights**
 
 - The update prompt is a small toast with buttons, not a screenful of release notes
+- Installing an update no longer throws away work that is still running
+- Quitting the app mid-generate stops reporting itself as a crash
+- A half-downloaded model repairs itself instead of dead-ending
+- "Dismiss" no longer reads as "terminate an employee" in five languages
 
 ### Changed
 
@@ -18,11 +22,12 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Installing an update no longer relaunches the app while work is running. The check only knew about dub synthesis, so a restart could silently discard an upload, a transcription, a translation, an export or a standalone synth — and two overlapping synths used to cancel each other's protection. Install is now greyed out while anything is in flight (#1272)
 - A half-downloaded model now repairs itself instead of failing with a raw 500. The automatic repair recognised only one of the two ways the loader reports missing weights, so an interrupted download whose subfolder failed to load got neither the repair nor a hint about what to do (#1273)
-- Quitting the app with a generate queued reported "500 Internal Server Error: model load skipped: backend shutting down" and offered to file a bug for it. A shutdown is not a fault: the backend now answers 503 with what to do, and no error toast offers a bug report for a 503 (#1276)
-- Installing an update no longer relaunches the app while work is running. The check only knew about dub synthesis, so a restart could silently discard an upload, a transcription, a translation, an export or a standalone synth (#1272)
+- Quitting the app with a generate queued reported "500 Internal Server Error: model load skipped: backend shutting down" and offered to file a bug for it. A shutdown is not a fault: the backend now answers 503 with what to do, and no bug report is offered for it (#1276)
 - Dub history: clearing a large history while a render was running could still resurrect the deleted job — which markers survived depended on the process hash seed, and an oversized purge could discard a live one (#1252)
 - German, Japanese, Russian and both Chinese locales rendered "Dismiss" as the employment sense — "terminate an employee" — on close buttons (#1272)
+- The "wait for the current job to finish" message named dubbing specifically, though it now covers uploads, transcription, translation, exports and synthesis; reworded across all 21 languages (#1272)
 
 ## [0.4.1] — 2026-07-27
 
