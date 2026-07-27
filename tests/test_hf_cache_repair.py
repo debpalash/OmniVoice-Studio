@@ -504,3 +504,45 @@ def test_classify_repair_messages():
 def test_classify_unrelated_errors_not_cache_corrupt():
     assert failure.classify("disk full") != "MODEL_CACHE_CORRUPT"
     assert failure.classify("") != "MODEL_CACHE_CORRUPT"
+
+
+# ── the second transformers wording (#1273) ────────────────────────────────
+#
+# transformers has two unrelated ways of saying "this snapshot has no weight
+# shard". The hub-load wording is _SIGNATURE above; loading a *subfolder* of
+# an already-cached snapshot raises this one instead, with no words in common.
+# Matching only the first meant a half-written repo produced neither the
+# automatic repair nor an actionable message — just a raw 500 (#1273, on a
+# host with 10 GB free, i.e. a download that ran out of room).
+_SIGNATURE_LOCAL_DIR = (
+    "Error no file named model.safetensors, or pytorch_model.bin, found in "
+    r"directory C:\Users\u\AppData\Local\OmniVoice\hf_cache\models--k2-fsa--"
+    r"OmniVoice\snapshots\c5fdb5ccb189668d56333f77ba2629f4cd7535f4\audio_tokenizer."
+)
+
+
+def test_classify_local_directory_missing_weights_signature():
+    assert failure.classify(_SIGNATURE_LOCAL_DIR) == "MODEL_CACHE_CORRUPT"
+    evt = failure.build_failure(_SIGNATURE_LOCAL_DIR, stage="model-load",
+                                include_diagnostic=False)
+    assert evt["docs_topic"] == "MODEL_CACHE_CORRUPT"
+    assert "repairs this automatically" in evt["hint"]
+
+
+def test_self_heal_recognises_both_wordings():
+    """The repair ladder keys off the same predicate as the classifier — if it
+    misses a wording, the user gets a hint about an automatic repair that
+    never ran."""
+    from services import model_manager as mm
+
+    assert mm._is_incomplete_cache_error(OSError(_SIGNATURE))
+    assert mm._is_incomplete_cache_error(OSError(_SIGNATURE_LOCAL_DIR))
+
+
+def test_incomplete_cache_predicate_does_not_overmatch():
+    # "found in directory" and "no file named" are common English; both
+    # fragments together are what identifies the class.
+    assert not failure.is_incomplete_cache_message("no file named foo.wav")
+    assert not failure.is_incomplete_cache_message("nothing found in directory /tmp")
+    assert not failure.is_incomplete_cache_message("")
+    assert failure.classify("no file named foo.wav") != "MODEL_CACHE_CORRUPT"

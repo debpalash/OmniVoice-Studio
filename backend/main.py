@@ -910,7 +910,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     # Nothing failed: the process is exiting. 503 + Retry-After is what a
     # shutting-down server owes a client, and it keeps this out of the
     # crash/bug-report pipeline entirely.
-    if isinstance(exc, ModelLoadInterruptedByShutdown):
+    #
+    # Matched by isinstance OR class name: `services.model_manager` can be
+    # imported under two module names (`main`/`backend.main` on different
+    # sys.path roots, and the frozen build's own layout), which makes two
+    # distinct class objects and breaks a bare isinstance. The name check is
+    # the durable half — don't "simplify" it away.
+    if isinstance(exc, ModelLoadInterruptedByShutdown) or exc_name == (
+        "ModelLoadInterruptedByShutdown"
+    ):
         logger.info("Model load skipped during shutdown for %s — benign.", request.url)
         return JSONResponse(
             status_code=503,

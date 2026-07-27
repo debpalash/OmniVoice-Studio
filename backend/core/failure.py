@@ -296,15 +296,13 @@ def classify(reason: str) -> str:
     if "errno 22" in low:
         return "OS_INVALID_ARGUMENT"
     # An HF cache whose snapshot entries don't resolve (dangling symlinks /
-    # zero-byte stand-ins): transformers reports the weights missing ("does
-    # not appear to have a file named pytorch_model.bin or model.safetensors")
-    # even though the blobs are fully on disk. model_manager self-heals this
-    # (delete broken entries → snapshot_download → retry once); the class here
-    # covers both the raw transformers wording (any load surface can leak it)
-    # and OmniVoice's own repair messages, so the user-facing error and the
-    # auto bug report name the class and its automatic repair.
-    if ("does not appear to have a file named" in low
-            or "broken file link" in low):
+    # zero-byte stand-ins) or which is simply missing its weight shard.
+    # model_manager self-heals this (delete broken entries → snapshot_download
+    # → retry once); the class here covers the raw transformers wordings (any
+    # load surface can leak them) and OmniVoice's own repair messages, so the
+    # user-facing error and the auto bug report name the class and its
+    # automatic repair.
+    if is_incomplete_cache_message(low) or "broken file link" in low:
         return "MODEL_CACHE_CORRUPT"
     if (
         "could not import module" in low
@@ -531,6 +529,46 @@ def _is_missing_media_tool(low: str) -> bool:
         f"'{tool}'" in low or f'"{tool}"' in low
         for tool in _MEDIA_TOOLS
     )
+
+
+#: transformers' two ways of saying "this snapshot has no weight shard".
+#:
+#: They come from different code paths and share no wording, so matching only
+#: the first — which both the classifier and model_manager's self-heal used to
+#: do — silently missed half the class (#1273):
+#:
+#:   hub load:   "<repo> does not appear to have a file named
+#:                pytorch_model.bin or model.safetensors"
+#:   local dir:  "Error no file named model.safetensors, or pytorch_model.bin,
+#:                found in directory <path>"
+#:
+#: The second is what a load of a *subfolder* inside a cached snapshot raises
+#: (e.g. `audio_tokenizer/`), which is exactly where an interrupted download
+#: leaves a repo half-written. Both mean the same thing and both are repaired
+#: the same way, so both must classify and both must trigger the heal.
+_INCOMPLETE_CACHE_PHRASES = (
+    "does not appear to have a file named",
+    # Matched as two fragments: the file list between them varies with the
+    # transformers version and the requested weight variant.
+    ("error no file named", "found in directory"),
+)
+
+
+def is_incomplete_cache_message(text: str) -> bool:
+    """True when *text* is transformers reporting a snapshot with no weights.
+
+    Takes an already-lowercased string. Shared by :func:`classify` and
+    model_manager's cache self-heal so the healer and the error message can
+    never disagree about what an interrupted download looks like.
+    """
+    low = str(text).lower()
+    for phrase in _INCOMPLETE_CACHE_PHRASES:
+        if isinstance(phrase, tuple):
+            if all(part in low for part in phrase):
+                return True
+        elif phrase in low:
+            return True
+    return False
 
 
 def is_os_write_refusal(reason: Optional[str]) -> bool:

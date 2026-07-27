@@ -1024,14 +1024,23 @@ def should_preload_tts_asr() -> bool:
 
 
 def _is_incomplete_cache_error(exc: BaseException) -> bool:
-    """True when `exc` is the truncated-HF-cache class (#352 / #581).
+    """True when `exc` is the truncated-HF-cache class (#352 / #581 / #1273).
 
-    transformers raises an OSError whose message contains "does not appear to
-    have a file named …" when the on-disk snapshot has config/tokenizer files
-    but no weight shard — the signature of an interrupted download. We match on
-    that phrase (stable across transformers 4.x/5.x) rather than the error type,
-    since the same OSError type covers unrelated I/O failures."""
-    return "does not appear to have a file named" in str(exc)
+    transformers raises an OSError when the on-disk snapshot has config and
+    tokenizer files but no weight shard — the signature of an interrupted
+    download. We match on the message (stable across transformers 4.x/5.x)
+    rather than the error type, since the same OSError type covers unrelated
+    I/O failures.
+
+    There are TWO wordings, and this used to match only the first, so a
+    half-written repo whose *subfolder* failed to load (#1273:
+    "Error no file named model.safetensors, … found in directory
+    …/snapshots/<rev>/audio_tokenizer") got neither the automatic repair nor
+    an actionable message — just a raw 500. `core.failure` owns the phrase
+    list so the heal and the error text can't drift apart."""
+    from core.failure import is_incomplete_cache_message
+
+    return is_incomplete_cache_message(str(exc))
 
 
 def _hf_offline() -> bool:

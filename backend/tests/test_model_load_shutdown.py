@@ -401,3 +401,37 @@ def test_shutdown_request_is_not_written_to_the_crash_log_or_journal(tmp_path, m
 
     assert not crash_log.exists(), crash_log.read_text()
     assert recorded == []
+
+
+def test_shutdown_class_is_matched_across_duplicate_imports():
+    """The handler must recognise the shutdown class even when it arrives from
+    a second copy of the module.
+
+    ``services.model_manager`` gets imported under more than one module name
+    depending on which sys.path root is active (and in the frozen build), so
+    ``ModelLoadInterruptedByShutdown`` can exist as two distinct class objects.
+    A bare ``isinstance`` silently fails there and the user is back to a 500 —
+    which is exactly what happened when both test suites ran in one session.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+
+    # A same-named class from a *different* module object — what a duplicate
+    # import produces.
+    Impostor = type(
+        "ModelLoadInterruptedByShutdown", (RuntimeError,), {"__module__": "other.copy"}
+    )
+    assert not isinstance(Impostor("x"), ModelLoadInterruptedByShutdown)
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise Impostor("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/boom").status_code == 503
