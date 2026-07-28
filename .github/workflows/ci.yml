@@ -298,11 +298,20 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          # The community chocolatey feed 504s intermittently (broke a PR run
-          # on 2026-07-20) — retry with backoff before failing the job.
+          # The community chocolatey feed 50x's intermittently (broke PR runs on
+          # 2026-07-20 and 2026-07-28) — retry with backoff before failing.
+          #
+          # Test the OUTCOME, not choco's exit code. On 2026-07-28 the feed
+          # returned 503, choco reported "Unable to find package 'ffmpeg'" and
+          # "installed 0/0 packages" — and still exited 0. The `&& break` that
+          # was supposed to guard this fired on the first attempt, no retry ran,
+          # and the job died one line later on `ffmpeg: command not found`.
+          # A retry that trusts a lying exit code is not a retry.
           for i in 1 2 3; do
-            choco install ffmpeg -y --no-progress && break
-            echo "choco attempt $i failed — retrying in $((i * 30))s"
+            choco install ffmpeg -y --no-progress || true
+            hash -r 2>/dev/null || true
+            if command -v ffmpeg >/dev/null 2>&1; then break; fi
+            echo "choco attempt $i did not produce ffmpeg — retrying in $((i * 30))s"
             sleep $((i * 30))
           done
           ffmpeg -version
