@@ -37,9 +37,33 @@ let cache = null; // { at: number, promise: Promise }
 function enginesCached() {
   const now = Date.now();
   if (!cache || now - cache.at > TTL_MS) {
-    cache = { at: now, promise: listEngines() };
+    const entry = { at: now, promise: null };
+    // A rejected promise must NOT sit in the cache for the full TTL, or a
+    // single blip while the backend restarts silences the caveat for the next
+    // minute of synths. Drop it — but only if this entry is still the current
+    // one, so a newer fetch that raced past us isn't evicted.
+    entry.promise = listEngines().catch((e) => {
+      if (cache === entry) cache = null;
+      throw e;
+    });
+    cache = entry;
   }
   return cache.promise;
+}
+
+/**
+ * Called after an engine pick. The cached /engines response now describes the
+ * PREVIOUS engine, and with a 60s TTL a user who switches engines and
+ * immediately generates would be warned about the engine they just left — or
+ * not warned about the one they just chose (Greptile P1, #1288).
+ *
+ * `alreadyWarnedFor` is the notice the select toast just showed, if any:
+ * recording it here stops the preflight repeating the same sentence seconds
+ * later. Different engine or different reason still gets through.
+ */
+export function onEngineSelected(engineId, alreadyWarnedFor = null) {
+  cache = null;
+  if (engineId && alreadyWarnedFor) warned.add(`${engineId}|${alreadyWarnedFor}`);
 }
 
 /** Test seam — drop the memoized /engines response and the warned-once set. */

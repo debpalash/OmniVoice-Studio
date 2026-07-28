@@ -25,7 +25,7 @@
  * their ApiError identity (they would fail the classic flow identically, so
  * falling back would only duplicate the failure).
  */
-import { apiFetch } from '../api/client';
+import { generateSpeech } from '../api/generate';
 import { claimTrackedPlayback } from './playback';
 
 /** True when the webview can progressively play PCM chunks (Web Audio). */
@@ -297,7 +297,13 @@ export async function streamGenerateSpeech(
 
   // Pre-stream failures (400/503/transport) throw ApiError here — identical
   // to the classic flow, so they are NOT wrapped for fallback.
-  const response = await apiFetch('/generate', { method: 'POST', body: fd, signal });
+  //
+  // Routed through generateSpeech() rather than apiFetch() directly: this used
+  // to be a second, parallel door onto POST /generate, so everything attached
+  // to the "one chokepoint every synth shares" — the in-flight count and the
+  // under-provisioned-hardware preflight — silently did not apply to streaming
+  // synthesis (Greptile P1, #1288). One door, or it is not a chokepoint.
+  const response = await generateSpeech(fd, { signal });
   onHeaders?.(response);
 
   let player = null;

@@ -12,7 +12,11 @@ vi.mock('i18next', () => ({
   default: { t: (key, vars) => `${key}:${JSON.stringify(vars || {})}` },
 }));
 
-import { warnIfEngineUnderProvisioned, _resetPreflight } from '../utils/generatePreflight';
+import {
+  warnIfEngineUnderProvisioned,
+  onEngineSelected,
+  _resetPreflight,
+} from '../utils/generatePreflight';
 
 const VRAM_CAVEAT =
   'NVIDIA GeForce RTX 2060 has 6.0 GB VRAM; this engine wants about 6 GB. ' +
@@ -130,5 +134,67 @@ describe('warnIfEngineUnderProvisioned (generate-time preflight)', () => {
     await warnIfEngineUnderProvisioned();
 
     expect(listEnginesMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('preflight cache invalidation', () => {
+  beforeEach(() => {
+    toastFn.mockClear();
+    listEnginesMock.mockReset();
+    _resetPreflight();
+  });
+
+  // Greptile P1: with a 60s TTL, switching engines and generating immediately
+  // warned about the engine you just LEFT — or stayed silent about the one you
+  // just chose.
+  it('refetches after an engine change instead of serving the old engine', async () => {
+    listEnginesMock.mockResolvedValueOnce(
+      engines('kittentts', [{ id: 'kittentts', routing_status: 'cpu_only', routing_reason: null }]),
+    );
+    await warnIfEngineUnderProvisioned();
+    expect(toastFn).not.toHaveBeenCalled();
+
+    onEngineSelected('omnivoice', null);
+
+    listEnginesMock.mockResolvedValueOnce(
+      engines('omnivoice', [
+        { id: 'omnivoice', routing_status: 'accelerated', routing_reason: VRAM_CAVEAT },
+      ]),
+    );
+    await warnIfEngineUnderProvisioned();
+
+    expect(listEnginesMock).toHaveBeenCalledTimes(2);
+    expect(toastFn).toHaveBeenCalledTimes(1);
+    expect(toastFn.mock.calls[0][0]).toContain('omnivoice');
+  });
+
+  it('does not repeat a caveat the select toast just showed', async () => {
+    onEngineSelected('omnivoice', VRAM_CAVEAT);
+    listEnginesMock.mockResolvedValue(
+      engines('omnivoice', [
+        { id: 'omnivoice', routing_status: 'accelerated', routing_reason: VRAM_CAVEAT },
+      ]),
+    );
+
+    await warnIfEngineUnderProvisioned();
+    expect(toastFn).not.toHaveBeenCalled();
+  });
+
+  // A rejected promise cached for the full TTL silences the caveat for a
+  // minute after the backend comes back.
+  it('retries after a transient engine-list failure', async () => {
+    listEnginesMock.mockRejectedValueOnce(new Error('backend restarting'));
+    await warnIfEngineUnderProvisioned();
+    expect(toastFn).not.toHaveBeenCalled();
+
+    listEnginesMock.mockResolvedValueOnce(
+      engines('omnivoice', [
+        { id: 'omnivoice', routing_status: 'accelerated', routing_reason: VRAM_CAVEAT },
+      ]),
+    );
+    await warnIfEngineUnderProvisioned();
+
+    expect(listEnginesMock).toHaveBeenCalledTimes(2);
+    expect(toastFn).toHaveBeenCalledTimes(1);
   });
 });
