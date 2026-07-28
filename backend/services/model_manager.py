@@ -1750,46 +1750,32 @@ def _release_idle_tts_memory(stage):
         logger.debug("pre-%s memory reclaim skipped", stage, exc_info=True)
 
 
-def _should_make_room_for_generate(text):
+def _should_make_room_for_generate():
     """Decide whether to free idle GPU memory before a generate (#730/#1190).
-    Resolved at CALL time, not def time, so it is env-tunable and reaches every
-    call site without a module reload.
 
     Modes (OMNIVOICE_FREE_VRAM_BEFORE_GENERATE):
-      auto (default): free when free system RAM is below a headroom. Long text
-        raises the headroom (a heavier generate is more likely to contend), but
-        a genuinely roomy machine still pays nothing, mirroring
-        _make_room_before_tts_load. This is the starvation case behind the
-        #730/#1190 abandon cascade.
-      always: free before every generate (maximum headroom, small per-call cost
-        from gc.collect + cache drop).
-      never: opt out (legacy warm-generate behavior).
+      auto (default): free when free system RAM is below the unified headroom,
+        mirroring _make_room_before_tts_load. A roomy machine pays nothing.
+      always: free before every generate (small per-call cost from gc.collect +
+        cache drop).
+      never: opt out.
     """
     mode = os.environ.get("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", "auto").strip().lower()
     if mode == "never":
         return False
     if mode == "always":
         return True
-    # Long text raises the bar (heavier generate, more likely to contend), but
-    # never bypasses the memory check, so a roomy machine pays nothing. The
-    # threshold + multiplier parse defensively at call time, so a malformed value
-    # falls back (with a warning) instead of disabling the whole auto path.
-    threshold = _UNIFIED_OFFLOAD_HEADROOM_GB
-    if text is not None and len(text) >= _env_float(
-        "OMNIVOICE_FREE_VRAM_LONG_TEXT_CHARS", 800.0
-    ):
-        threshold *= _env_float("OMNIVOICE_FREE_VRAM_LONG_TEXT_HEADROOM_MULT", 2.0)
     try:
         from services.memory_budget import available_memory
         free_gb = (available_memory() or {}).get("ram_available_gb")
-        if free_gb is not None and free_gb < threshold:
+        if free_gb is not None and free_gb < _UNIFIED_OFFLOAD_HEADROOM_GB:
             return True
     except Exception:  # noqa: BLE001 -- a probe failure must never block a generate
-        pass
+        logger.debug("make_room memory probe failed", exc_info=True)
     return False
 
 
-def make_room_before_generate(text=None):
+def make_room_before_generate():
     """Free idle GPU memory before a warm, heavy generate (#730/#1190).
 
     The cold LOAD path already evicts (``_make_room_before_tts_load`` runs inside
@@ -1807,7 +1793,7 @@ def make_room_before_generate(text=None):
     abandoned worker; only a crash-isolated subprocess engine can (see
     services.subprocess_backend).
     """
-    if not _should_make_room_for_generate(text):
+    if not _should_make_room_for_generate():
         return
     _release_idle_tts_memory("generate")
 
@@ -2013,20 +1999,6 @@ def _has_dedicated_vram():
 _UNIFIED_OFFLOAD_HEADROOM_GB = float(
     os.environ.get("OMNIVOICE_UNIFIED_OFFLOAD_HEADROOM_GB", "6.0")
 )
-
-def _env_float(name: str, default: float) -> float:
-    """Parse a float env var at CALL time, falling back to ``default`` (with a
-    warning) on a missing or non-numeric value. Used by the make-room policy so
-    a typo in one knob cannot silently disable the whole auto path (#730/#1190).
-    Resolved at call time so it is live-tunable without a module reload."""
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        logger.warning("%s=%r is not a number; using default %s", name, raw, default)
-        return default
 
 
 def _offload_unified_memory() -> bool:
