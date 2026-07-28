@@ -16,8 +16,24 @@ import types
 
 import pytest
 
-from core import device_caps
-from core.device_caps import arch_unsupported, cuda_build_covers
+def _dc():
+    """Resolve the app module at call time.
+
+    Module-level imports of app modules go stale under sys.modules pollution
+    from other suites (the `tests/**` review contract, and the live cause of
+    #1269's cross-suite failures), so every test binds it fresh.
+    """
+    from core import device_caps
+
+    return device_caps
+
+
+def arch_unsupported(torch):
+    return _dc().arch_unsupported(torch)
+
+
+def cuda_build_covers(arch_list, major, minor):
+    return _dc().cuda_build_covers(arch_list, major, minor)
 
 # Verbatim from the #1285 report.
 CU128_ARCHS = ["sm_61", "sm_70", "sm_75", "sm_80", "sm_86", "sm_90", "sm_100", "sm_120"]
@@ -101,7 +117,7 @@ def test_cpu_fallback_not_triggered_for_ada(monkeypatch):
 
     torch = _cuda_torch((8, 9), CU128_ARCHS)
     monkeypatch.setattr(model_manager, "_lazy_torch", lambda: torch)
-    device_caps.detect_host_caps.cache_clear()
+    _dc().detect_host_caps.cache_clear()
     compatible, warning = model_manager.check_device_compatibility()
     assert compatible is True
     assert warning is None
