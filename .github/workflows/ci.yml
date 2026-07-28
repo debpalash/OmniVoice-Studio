@@ -262,12 +262,24 @@ jobs:
         include:
           - os: macos-14
             label: macOS
+            timeout: 10
           - os: windows-2022
             label: Windows
+            # Windows needs its own budget, and the old shared 10 was a
+            # self-perpetuating failure: the leg times out mid-`uv sync`, so the
+            # post-step never saves the uv cache, so the next run is cold too
+            # and times out again. Measured on run 30385710466 — Linux 65s,
+            # macOS 65s, Windows still installing torch at 10m08s when the job
+            # was killed. Priced for one COLD install to finish and prime the
+            # cache; warm runs land nowhere near this.
+            timeout: 25
           - os: ubuntu-22.04
             label: Linux
+            timeout: 10
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Per-leg, not shared: a genuine hang on Linux/macOS should still fail fast
+    # rather than inherit the allowance Windows needs.
+    timeout-minutes: ${{ matrix.timeout }}
     env:
       # Restricted-network resilience (RESEARCH Pitfall #6) — keeps uv from
       # giving up on the first slow PyPI / python-build-standalone fetch.
