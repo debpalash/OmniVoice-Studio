@@ -134,7 +134,9 @@ def test_harness_actually_hides_ffmpeg(tmp_path):
 def test_retries_when_choco_lies_about_success(tmp_path):
     """The 2026-07-28 regression: exit 0, nothing installed, no retry."""
     proc, attempts = _run(tmp_path, choco_exit=0, succeed_on_attempt=2)
-    assert attempts >= 2, (
+    # Exactly 2, not ">= 2": the loop must also STOP once ffmpeg appears, or a
+    # regression that keeps going would still satisfy a lower bound.
+    assert attempts == 2, (
         "choco exited 0 without installing ffmpeg and the loop moved on — "
         "the retry must test whether ffmpeg exists, not what choco returned"
     )
@@ -143,7 +145,7 @@ def test_retries_when_choco_lies_about_success(tmp_path):
 
 def test_retries_on_a_normal_nonzero_failure(tmp_path):
     proc, attempts = _run(tmp_path, choco_exit=1, succeed_on_attempt=3)
-    assert attempts >= 3
+    assert attempts == 3
     assert proc.returncode == 0, proc.stderr
 
 
@@ -153,6 +155,16 @@ def test_gives_up_loudly_when_ffmpeg_never_arrives(tmp_path):
     proc, attempts = _run(tmp_path, choco_exit=0, succeed_on_attempt=None)
     assert attempts == 3
     assert proc.returncode != 0
+
+
+def test_no_backoff_after_the_final_attempt(tmp_path):
+    """There is no fourth try to wait for; sleeping 90s only delays a job that
+    has already failed."""
+    proc, _ = _run(tmp_path, choco_exit=0, succeed_on_attempt=None)
+    assert "retrying in 90s" not in proc.stdout, (
+        "the loop announced a retry after its last attempt:\n" + proc.stdout
+    )
+    assert proc.stdout.count("retrying in") == 2
 
 
 def test_does_not_retry_when_the_first_attempt_works(tmp_path):

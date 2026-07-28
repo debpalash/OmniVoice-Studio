@@ -323,6 +323,12 @@ jobs:
             choco install ffmpeg -y --no-progress || true
             hash -r 2>/dev/null || true
             if command -v ffmpeg >/dev/null 2>&1; then break; fi
+            # No backoff after the last attempt — there is no fourth try to
+            # wait for, and sleeping 90s only delays an already-doomed job.
+            if [ "$i" -eq 3 ]; then
+              echo "choco failed to produce ffmpeg after 3 attempts"
+              break
+            fi
             echo "choco attempt $i did not produce ffmpeg — retrying in $((i * 30))s"
             sleep $((i * 30))
           done
