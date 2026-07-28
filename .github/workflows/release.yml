@@ -532,8 +532,14 @@ jobs:
       # Delete this arch's updater bundle before uploading the new one. Scoped
       # to the preview path (a `v*` tag makes a fresh release, nothing to
       # collide with) and to this job's own arch, so the parallel aarch64/x64
-      # legs never touch each other's assets. Failure to delete is non-fatal:
-      # if the asset isn't there, there was nothing to collide with anyway.
+      # legs never touch each other's assets.
+      #
+      # ONLY an absent release/asset is benign. Auth, permission, rate-limit and
+      # network failures must not be swallowed: the step would report success
+      # while the stale asset survived, the upload would then die with
+      # `already_exists`, and we would be back to the exact outage this step
+      # exists to prevent — minus the red step that explains why. Since GH_TOKEN
+      # is scoped to this same repo, a 404 really does mean "not there".
       - name: Clear this arch's stale preview updater bundle (macOS)
         if: needs.preview-gate.outputs.is_preview == 'true' && runner.os == 'macOS'
         shell: bash
@@ -545,16 +551,22 @@ jobs:
           case "${{ matrix.arch }}" in
             aarch64-*) SUFFIX=aarch64 ;;
             x86_64-*)  SUFFIX=x64 ;;
-            *) echo "unexpected arch ${{ matrix.arch }}"; exit 0 ;;
+            *) echo "::error::unexpected arch ${{ matrix.arch }}"; exit 1 ;;
           esac
           # Match the STORED name, not the uploaded one: GitHub rewrites spaces
           # to dots, so "OmniVoice Studio_x64.app.tar.gz" is stored as
           # "OmniVoice.Studio_x64.app.tar.gz". Query the release and filter,
           # rather than guessing which spelling to pass.
           if ! gh release view preview --json assets -q '.assets[].name' \
-                 > /tmp/preview-assets.txt 2>/dev/null; then
-            echo "No preview release yet — nothing to clear."
-            exit 0
+                 > /tmp/preview-assets.txt 2> /tmp/gh-view-err.txt; then
+            if grep -qiE 'not found|HTTP 404' /tmp/gh-view-err.txt; then
+              echo "No preview release yet — nothing to clear."
+              exit 0
+            fi
+            echo "::error::Could not read the preview release, so a stale ${SUFFIX} bundle may still be there."
+            echo "Refusing to continue blind — the Tauri upload would fail with already_exists."
+            cat /tmp/gh-view-err.txt
+            exit 1
           fi
           grep -E "[ .]Studio_${SUFFIX}\.app\.tar\.gz(\.sig)?$" /tmp/preview-assets.txt \
             > /tmp/stale.txt || true
@@ -564,8 +576,18 @@ jobs:
           fi
           while IFS= read -r name; do
             echo "Removing stale preview asset: $name"
-            gh release delete-asset preview "$name" --yes \
-              || echo "  (delete failed — upload may still collide)"
+            if ! gh release delete-asset preview "$name" --yes \
+                   2> /tmp/gh-del-err.txt; then
+              # Already gone is fine — a re-run or the sibling leg beat us to
+              # it, and the goal (no asset under this name) is met either way.
+              if grep -qiE 'not found|HTTP 404' /tmp/gh-del-err.txt; then
+                echo "  (already gone — nothing to collide with)"
+                continue
+              fi
+              echo "::error::Failed to delete stale preview asset $name."
+              cat /tmp/gh-del-err.txt
+              exit 1
+            fi
           done < /tmp/stale.txt
 
       - name: Build + release (Tauri)
