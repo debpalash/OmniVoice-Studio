@@ -749,8 +749,8 @@ def check_device_compatibility():
     return False, (
         f"{device_name} ({device_arch}) is not supported by this PyTorch build. "
         f"Supported architectures: {', '.join(arch_list)}. "
-        f"Try: pip install torch --index-url "
-        f"https://download.pytorch.org/whl/nightly/cu128"
+        f"Install a build that covers it: pip install --force-reinstall torch "
+        f"--index-url https://download.pytorch.org/whl/cu128"
     )
 
 
