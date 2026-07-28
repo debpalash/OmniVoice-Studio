@@ -579,7 +579,8 @@
     "routingUnknown": "Không xác định",
     "routingEffectiveChip": "Chạy trên {{device}} trên máy này",
     "routingCaveatTitle": "Đã chọn GPU nhưng: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: đang chạy trên CPU — {{reason}}",
+    "selectWithCaveat": "Đã chuyển sang {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Phím nóng chung chỉ hoạt động trong ứng dụng máy tính để bàn. Giao diện người dùng web sử dụng phím tắt <1>Ctrl+Shift+Space</1> trong trang trong khi cửa sổ đang có tiêu điểm.",

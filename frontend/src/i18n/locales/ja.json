@@ -579,7 +579,8 @@
     "routingUnknown": "不明",
     "routingEffectiveChip": "このマシンの {{device}} で実行されます",
     "routingCaveatTitle": "GPU が選択されましたが: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: CPU で実行中 — {{reason}}",
+    "selectWithCaveat": "{{engine}} に切り替えました — {{reason}}"
   },
   "capture": {
     "desc": "グローバル ホットキーはデスクトップ アプリでのみ機能します。 Web UI は、ウィンドウにフォーカスがある間、ページ内 <1>Ctrl+Shift+Space</1> ショートカットを使用します。",

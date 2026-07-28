@@ -579,7 +579,8 @@
     "routingUnknown": "未知",
     "routingEffectiveChip": "在此機器上的 {{device}} 上執行",
     "routingCaveatTitle": "已選擇 GPU，但是：{{reason}}",
-    "selectWithCaveat": "{{engine}}：{{reason}}"
+    "selectCpuFallback": "{{engine}}：正在 CPU 上執行 — {{reason}}",
+    "selectWithCaveat": "已切換至 {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "全域熱鍵僅適用於桌面應用程式。當視窗具有焦點時，Web UI 使用頁內 <1>Ctrl+Shift+Space</1> 快速鍵。",

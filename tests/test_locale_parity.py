@@ -39,6 +39,15 @@ _PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 # and ar.json's `__الخامس_0__` ("{{n}}" with the V literally translated).
 _CORRUPTED_TOKEN = re.compile(r"_V_\d+__|__\w+_\d+__")
 
+# Keys whose value may legitimately be nothing but placeholders + punctuation.
+# Keep this list tiny: each entry is a string no translator can influence.
+_PLACEHOLDER_ONLY_ALLOWLIST = {
+    # en: "{{family}} → {{engine}}" — the engine-switch success toast is a bare
+    # "TTS → omnivoice" confirmation by design. There is no sentence here to
+    # translate, and inventing one would make a quiet confirmation shouty.
+    "settings.engine_switched",
+}
+
 # Keys whose translations may deliberately omit en's placeholders.
 _PLACEHOLDER_ALLOWLIST = {
     # en: "Switch to {{lang}}?" — each locale bakes its own language name into
@@ -53,10 +62,10 @@ _PLACEHOLDER_ALLOWLIST = {
 # Never raise one: if this fails after adding en.json keys, add the keys to
 # every locale (translated) in the same change instead.
 _MISSING_BASELINE = {
-    "ar": 518, "de": 518, "es": 518, "fr": 518, "hi": 518, "id": 518,
-    "it": 518, "ja": 518, "ko": 518, "nl": 518, "pl": 518, "pt": 518,
-    "ru": 518, "sv": 518, "th": 518, "tr": 518, "uk": 518, "vi": 518,
-    "zh-CN": 511, "zh-TW": 518,
+    "ar": 517, "de": 517, "es": 517, "fr": 517, "hi": 517, "id": 517,
+    "it": 517, "ja": 517, "ko": 517, "nl": 517, "pl": 517, "pt": 517,
+    "ru": 517, "sv": 517, "th": 517, "tr": 517, "uk": 517, "vi": 517,
+    "zh-CN": 510, "zh-TW": 517,
 }
 
 
@@ -175,6 +184,39 @@ def test_placeholders_match_en(locale):
     assert not problems, (
         f"{locale}.json placeholder drift against en.json "
         f"({len(problems)} key(s)):\n" + "\n".join(problems[:25])
+    )
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+def test_no_placeholder_only_values(locale):
+    """A value made of nothing but {{placeholders}} and punctuation is not a
+    translation — it is a missing string.
+
+    #1280 shipped ``engines.selectWithCaveat`` as ``"{{engine}}: {{reason}}"``
+    in all 21 files. The review read that as 20 untranslated locales, but
+    en.json said the same thing: the English string had never been written, so
+    every "translation" faithfully copied a non-sentence. Users in all 21
+    languages would have seen a bare ``omnivoice: <English backend text>``.
+
+    Parity tests cannot catch this — the key is present everywhere and the
+    placeholders match perfectly. Only the absence of prose gives it away, and
+    en.json is checked too because that is where this one started.
+    """
+    bad = []
+    for key, value in sorted(_flatten(_load(locale)).items()):
+        if not isinstance(value, str) or key in _PLACEHOLDER_ONLY_ALLOWLIST:
+            continue
+        if not _PLACEHOLDER.search(value):
+            continue
+        # \w is unicode-aware: CJK, Thai, Devanagari and Arabic all count as
+        # prose, so a real translation never trips this.
+        if not re.search(r"\w", _PLACEHOLDER.sub("", value)):
+            bad.append(f"  {key}: {value!r}")
+    assert not bad, (
+        f"{locale}.json has {len(bad)} placeholder-only value(s) — write the "
+        f"sentence around the placeholders (in en.json first, then translate "
+        f"it), or allowlist the key in _PLACEHOLDER_ONLY_ALLOWLIST with a "
+        f"reason:\n" + "\n".join(bad[:25])
     )
 
 

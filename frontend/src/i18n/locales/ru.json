@@ -579,7 +579,8 @@
     "routingUnknown": "Неизвестный",
     "routingEffectiveChip": "Работает на {{device}} на этом компьютере",
     "routingCaveatTitle": "Графический процессор выбран, но: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: работает на CPU — {{reason}}",
+    "selectWithCaveat": "Переключено на {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Глобальные горячие клавиши работают только в настольном приложении. Веб-интерфейс использует внутристраничный ярлык <1>Ctrl+Shift+Space</1>, пока окно находится в фокусе.",

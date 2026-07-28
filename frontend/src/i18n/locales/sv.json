@@ -579,7 +579,8 @@
     "routingUnknown": "Okänd",
     "routingEffectiveChip": "Körs på {{device}} på den här maskinen",
     "routingCaveatTitle": "GPU vald, men: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: körs på CPU — {{reason}}",
+    "selectWithCaveat": "Bytte till {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",
