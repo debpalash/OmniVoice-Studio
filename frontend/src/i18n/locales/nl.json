@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Draait op {{device}} op deze machine",
     "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}",
     "selectCpuFallback": "{{engine}}: draait op de CPU — {{reason}}",
-    "selectWithCaveat": "Overgeschakeld naar {{engine}} — {{reason}}"
+    "selectWithCaveat": "Overgeschakeld naar {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} kan traag zijn op deze machine — {{reason}}"
   },
   "capture": {
     "desc": "Globale sneltoetsen werken alleen in de desktop-app. De webinterface gebruikt een sneltoets <1>Ctrl+Shift+Spatie</1> op de pagina terwijl het venster focus heeft.",

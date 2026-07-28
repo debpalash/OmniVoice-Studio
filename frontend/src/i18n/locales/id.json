@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Berjalan pada {{device}} di mesin ini",
     "routingCaveatTitle": "GPU dipilih, tetapi: {{reason}}",
     "selectCpuFallback": "{{engine}}: berjalan di CPU — {{reason}}",
-    "selectWithCaveat": "Beralih ke {{engine}} — {{reason}}"
+    "selectWithCaveat": "Beralih ke {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} mungkin lambat di komputer ini — {{reason}}"
   },
   "capture": {
     "desc": "Tombol pintas global hanya berfungsi di aplikasi desktop. UI web menggunakan pintasan <1>Ctrl+Shift+Space</1> dalam halaman saat jendela memiliki fokus.",

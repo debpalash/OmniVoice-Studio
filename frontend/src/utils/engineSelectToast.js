@@ -29,35 +29,28 @@
  * consume the echo identically.
  */
 import { toast } from 'react-hot-toast';
+import { routingNotice } from './routingNotice';
 
 export function notifyEngineSelected(r, t, family = 'tts') {
-  if (r?.routing_status === 'cpu_fallback') {
-    toast(
-      t('engines.selectCpuFallback', {
-        engine: r.active,
-        reason: r.routing_reason || '',
-      }),
-      { icon: '⚠️' },
-    );
+  // routingNotice() is the shared mirror of the backend's routing_notice():
+  // cpu_fallback always, accelerated only when it carries a caveat. Everything
+  // else — benign cpu_only (a DirectML host explains itself on a normal pick)
+  // and unavailable — is information, not a warning.
+  const notice = routingNotice(r);
+  if (notice?.status === 'cpu_fallback') {
+    toast(t('engines.selectCpuFallback', { engine: r.active, reason: notice.reason }), {
+      icon: '⚠️',
+    });
     return;
   }
   // Accelerated, but routing attached a caveat worth hearing before the first
   // generate rather than after it times out. Longer duration than a success
   // toast: it names the hardware limit and the ways around it.
-  //
-  // Mirrors routing_notice() in backend/services/engine_routing.py: ONLY
-  // `accelerated` + reason warrants a warning. A bare `routing_reason` test
-  // also catches benign `cpu_only` — a Windows DirectML host carries an
-  // explanatory reason on a perfectly normal pick (routing rule 5) — and
-  // `unavailable`, turning neutral information into a 10s hardware warning.
-  if (r?.routing_status === 'accelerated' && r?.routing_reason) {
-    toast(
-      t('engines.selectWithCaveat', {
-        engine: r.active,
-        reason: r.routing_reason,
-      }),
-      { icon: '⚠️', duration: 10000 },
-    );
+  if (notice) {
+    toast(t('engines.selectWithCaveat', { engine: r.active, reason: notice.reason }), {
+      icon: '⚠️',
+      duration: 10000,
+    });
     return;
   }
   toast.success(

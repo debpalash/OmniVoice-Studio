@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Funziona su {{device}} su questa macchina",
     "routingCaveatTitle": "GPU selezionata, ma: {{reason}}",
     "selectCpuFallback": "{{engine}}: in esecuzione sulla CPU — {{reason}}",
-    "selectWithCaveat": "Passato a {{engine}} — {{reason}}"
+    "selectWithCaveat": "Passato a {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} potrebbe essere lento su questo computer — {{reason}}"
   },
   "capture": {
     "desc": "I tasti di scelta rapida globali funzionano solo nell'app desktop. L'interfaccia utente Web utilizza una scorciatoia <1>Ctrl+Shift+Spazio</1> nella pagina mentre la finestra è attiva.",

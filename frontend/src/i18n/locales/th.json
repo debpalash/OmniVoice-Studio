@@ -580,7 +580,8 @@
     "routingEffectiveChip": "ทำงานบน {{device}} บนเครื่องนี้",
     "routingCaveatTitle": "เลือก GPU แล้ว แต่: {{reason}}",
     "selectCpuFallback": "{{engine}}: กำลังทำงานบน CPU — {{reason}}",
-    "selectWithCaveat": "สลับไปที่ {{engine}} — {{reason}}"
+    "selectWithCaveat": "สลับไปที่ {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} อาจทำงานช้าบนเครื่องนี้ — {{reason}}"
   },
   "capture": {
     "desc": "ปุ่มลัดส่วนกลางใช้งานได้ในแอปเดสก์ท็อปเท่านั้น UI ของเว็บใช้ทางลัด <1>Ctrl+Shift+Space</1> ในเพจในขณะที่หน้าต่างมีโฟกัส",
