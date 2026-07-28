@@ -103,6 +103,41 @@ describe('notifyEngineSelected (routing echo → toast)', () => {
     expect(toastFn).toHaveBeenCalledTimes(1);
   });
 
+  // Greptile P1: a bare `routing_reason` test also fires on benign verdicts.
+  // Routing rule 5 gives a Windows DirectML host a cpu_only + reason on a
+  // perfectly normal pick, and rule 6 attaches one to `unavailable` — neither
+  // is a hardware warning. routing_notice() in engine_routing.py is the
+  // canonical predicate: cpu_fallback always, accelerated only with a reason.
+  it('stays silent for a benign cpu_only pick that carries a reason', () => {
+    notifyEngineSelected(
+      {
+        active: 'kittentts',
+        routing_status: 'cpu_only',
+        routing_reason:
+          'DirectML GPU present; engine routes via torch CPU path '
+          + '(DirectML acceleration not wired into routing)',
+      },
+      t,
+      'tts',
+    );
+    expect(toastFn).not.toHaveBeenCalled();
+    expect(toastFn.success).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warn on an unavailable verdict either', () => {
+    notifyEngineSelected(
+      {
+        active: 'gpt-sovits',
+        routing_status: 'unavailable',
+        routing_reason: 'requires cuda; this host has cpu',
+      },
+      t,
+      'tts',
+    );
+    expect(toastFn).not.toHaveBeenCalled();
+    expect(toastFn.success).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a plain success toast for a legacy response with no routing_status', () => {
     notifyEngineSelected({ active: 'legacy' }, t, 'asr');
     expect(toastFn).not.toHaveBeenCalled();

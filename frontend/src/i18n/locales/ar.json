@@ -104,7 +104,7 @@
     "update_check_failed": "فشل التحقق من التحديث: {{message}}",
     "save_failed": "فشل الحفظ: {{message}}",
     "clear_failed": "فشل المسح: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "تم تبديل {{family}} إلى {{engine}}",
     "channel_set_failed": "فشل تعيين القناة: {{message}}",
     "updater_downloading": "جارٍ التنزيل {{version}}…",
     "updater_installed": "تم التثبيت - إعادة التشغيل.",

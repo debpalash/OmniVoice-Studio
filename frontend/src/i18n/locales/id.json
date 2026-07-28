@@ -104,7 +104,7 @@
     "update_check_failed": "Pemeriksaan pembaruan gagal: {{message}}",
     "save_failed": "Gagal menyimpan: {{message}}",
     "clear_failed": "Hapus gagal: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} dialihkan ke {{engine}}",
     "channel_set_failed": "Gagal menyetel saluran: {{message}}",
     "updater_downloading": "Mengunduh {{version}}…",
     "updater_installed": "Dipasang — diluncurkan kembali.",

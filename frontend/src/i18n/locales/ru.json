@@ -104,7 +104,7 @@
     "update_check_failed": "Проверка обновлений не удалась: {{message}}",
     "save_failed": "Не удалось сохранить: {{message}}",
     "clear_failed": "Очистить не удалось: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} переключён на {{engine}}",
     "channel_set_failed": "Не удалось установить канал: {{message}}.",
     "updater_downloading": "Загрузка {{version}}…",
     "updater_installed": "Установил — перезапускаю.",

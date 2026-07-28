@@ -104,7 +104,7 @@
     "update_check_failed": "Update-Prüfung fehlgeschlagen: {{message}}",
     "save_failed": "Speichern fehlgeschlagen: {{message}}",
     "clear_failed": "Löschen fehlgeschlagen: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} auf {{engine}} umgestellt",
     "channel_set_failed": "Kanal konnte nicht festgelegt werden: {{message}}",
     "updater_downloading": "{{version}} wird heruntergeladen…",
     "updater_installed": "Installiert – Neustart.",

@@ -104,7 +104,7 @@
     "update_check_failed": "Updatecontrole mislukt: {{message}}",
     "save_failed": "Opslaan mislukt: {{message}}",
     "clear_failed": "Wissen mislukt: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} overgeschakeld naar {{engine}}",
     "channel_set_failed": "Kan kanaal niet instellen: {{message}}",
     "updater_downloading": "{{version}} downloaden…",
     "updater_installed": "Geïnstalleerd - opnieuw gestart.",

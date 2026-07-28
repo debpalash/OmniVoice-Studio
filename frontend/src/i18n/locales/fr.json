@@ -104,7 +104,7 @@
     "update_check_failed": "Échec de la vérification de la mise à jour : {{message}}",
     "save_failed": "Échec de l'enregistrement : {{message}}",
     "clear_failed": "Échec de la suppression : {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} basculé vers {{engine}}",
     "channel_set_failed": "Échec de la définition du canal : {{message}}",
     "updater_downloading": "Téléchargement de {{version}}…",
     "updater_installed": "Installé — relance.",

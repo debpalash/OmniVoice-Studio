@@ -104,7 +104,7 @@
     "update_check_failed": "Falha na verificação de atualização: {{message}}",
     "save_failed": "Falha ao salvar: {{message}}",
     "clear_failed": "Falha na limpeza: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} alterado para {{engine}}",
     "channel_set_failed": "Falha ao definir canal: {{message}}",
     "updater_downloading": "Baixando {{version}}…",
     "updater_installed": "Instalado – relançando.",

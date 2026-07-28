@@ -104,7 +104,7 @@
     "update_check_failed": "更新檢查失敗：{{message}}",
     "save_failed": "儲存失敗：{{message}}",
     "clear_failed": "清除失敗：{{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "已將 {{family}} 切換至 {{engine}}",
     "channel_set_failed": "無法設定頻道：{{message}}",
     "updater_downloading": "正在下載 {{version}}...",
     "updater_installed": "已安裝 - 重新啟動。",

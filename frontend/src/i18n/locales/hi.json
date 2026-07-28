@@ -104,7 +104,7 @@
     "update_check_failed": "अद्यतन जाँच विफल: {{message}}",
     "save_failed": "सहेजना विफल: {{message}}",
     "clear_failed": "साफ़ विफल: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} को {{engine}} में बदला गया",
     "channel_set_failed": "चैनल सेट करने में विफल: {{message}}",
     "updater_downloading": "डाउनलोड हो रहा है {{version}}…",
     "updater_installed": "इंस्टॉल किया गया - पुनः लॉन्च किया जा रहा है।",

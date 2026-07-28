@@ -40,13 +40,12 @@ _PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 _CORRUPTED_TOKEN = re.compile(r"_V_\d+__|__\w+_\d+__")
 
 # Keys whose value may legitimately be nothing but placeholders + punctuation.
-# Keep this list tiny: each entry is a string no translator can influence.
-_PLACEHOLDER_ONLY_ALLOWLIST = {
-    # en: "{{family}} → {{engine}}" — the engine-switch success toast is a bare
-    # "TTS → omnivoice" confirmation by design. There is no sentence here to
-    # translate, and inventing one would make a quiet confirmation shouty.
-    "settings.engine_switched",
-}
+# EMPTY, and worth keeping that way: the one candidate (settings.engine_switched,
+# "{{family}} → {{engine}}") turned out to be shipping the same untranslated
+# arrow in all 21 files, which is the bug this test exists to catch rather than
+# an exception to it (CodeRabbit, #1280). Add an entry only for a string no
+# translator could influence, with the reason inline.
+_PLACEHOLDER_ONLY_ALLOWLIST: set[str] = set()
 
 # Keys whose translations may deliberately omit en's placeholders.
 _PLACEHOLDER_ALLOWLIST = {

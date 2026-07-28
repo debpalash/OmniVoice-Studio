@@ -104,7 +104,7 @@
     "update_check_failed": "Sprawdzanie aktualizacji nie powiodło się: {{message}}",
     "save_failed": "Zapis nie powiódł się: {{message}}",
     "clear_failed": "Wyczyszczenie nie powiodło się: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Przełączono {{family}} na {{engine}}",
     "channel_set_failed": "Nie udało się ustawić kanału: {{message}}",
     "updater_downloading": "Pobieranie {{version}}…",
     "updater_installed": "Zainstalowano — uruchamiam ponownie.",

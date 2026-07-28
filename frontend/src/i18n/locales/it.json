@@ -104,7 +104,7 @@
     "update_check_failed": "Controllo aggiornamento non riuscito: {{message}}",
     "save_failed": "Salvataggio non riuscito: {{message}}",
     "clear_failed": "Cancellazione non riuscita: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} passato a {{engine}}",
     "channel_set_failed": "Impossibile impostare il canale: {{message}}",
     "updater_downloading": "Download in corso di {{version}}...",
     "updater_installed": "Installato: riavvio.",

@@ -325,7 +325,7 @@
     "update_check_failed": "更新检查失败：{{message}}",
     "save_failed": "保存失败：{{message}}",
     "clear_failed": "清除失败：{{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "已将 {{family}} 切换到 {{engine}}",
     "channel_set_failed": "无法设置频道：{{message}}",
     "updater_downloading": "正在下载 {{version}}...",
     "updater_installed": "已安装 - 重新启动。",

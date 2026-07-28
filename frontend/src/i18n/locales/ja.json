@@ -104,7 +104,7 @@
     "update_check_failed": "更新チェックに失敗しました: {{message}}",
     "save_failed": "保存に失敗しました: {{message}}",
     "clear_failed": "クリアに失敗しました: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} を {{engine}} に切り替えました",
     "channel_set_failed": "チャネルの設定に失敗しました: {{message}}",
     "updater_downloading": "{{version}} をダウンロード中…",
     "updater_installed": "インストール済み — 再起動中。",
