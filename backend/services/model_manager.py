@@ -1718,18 +1718,91 @@ def _make_room_before_tts_load() -> None:
         if free_gb is None or free_gb >= _UNIFIED_OFFLOAD_HEADROOM_GB:
             return
         logger.info(
-            "Memory tight before TTS load (%.1f GB free) — releasing idle "
+            "Memory tight before TTS load (%.1f GB free), releasing idle "
             "models first.", free_gb,
         )
+        _release_idle_tts_memory("load")
+    except Exception:  # noqa: BLE001 -- making room must never break loading
+        logger.debug("pre-load memory reclaim skipped", exc_info=True)
+
+
+def _release_idle_tts_memory(stage):
+    """Drop capture-ASR, TTS side caches, and allocator caches. Best-effort;
+    never raises (a cleanup failure must not break the load/generate that called
+    it). Shared by the cold-load and warm-generate make-room paths so the
+    eviction recipe cannot drift between them (#730/#1190)."""
+    try:
         try:
             from services.asr_backend import release_idle_capture_backend
             release_idle_capture_backend(0.0)  # 0s idle = release if unleased
-        except Exception:  # noqa: BLE001 — best-effort, never block the load
-            logger.debug("capture-ASR pre-load release failed", exc_info=True)
+        except Exception:  # noqa: BLE001 -- best-effort, never blocks the caller
+            logger.debug("capture-ASR pre-%s release failed", stage, exc_info=True)
         release_tts_side_caches()
         free_vram()
-    except Exception:  # noqa: BLE001 — making room must never break loading
-        logger.debug("pre-load memory reclaim skipped", exc_info=True)
+    except Exception:  # noqa: BLE001 -- a cleanup failure must never break the caller
+        logger.debug("pre-%s memory reclaim skipped", stage, exc_info=True)
+
+
+def _should_make_room_for_generate(text):
+    """Decide whether to free idle GPU memory before a generate (#730/#1190).
+    Resolved at CALL time, not def time, so it is env-tunable and reaches every
+    call site without a module reload.
+
+    Modes (OMNIVOICE_FREE_VRAM_BEFORE_GENERATE):
+      auto (default): free when free system RAM is below a headroom. Long text
+        raises the headroom (a heavier generate is more likely to contend), but
+        a genuinely roomy machine still pays nothing, mirroring
+        _make_room_before_tts_load. This is the starvation case behind the
+        #730/#1190 abandon cascade.
+      always: free before every generate (maximum headroom, small per-call cost
+        from gc.collect + cache drop).
+      never: opt out (legacy warm-generate behavior).
+    """
+    mode = os.environ.get("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", "auto").strip().lower()
+    if mode == "never":
+        return False
+    if mode == "always":
+        return True
+    # Long text raises the bar (heavier generate, more likely to contend), but
+    # never bypasses the memory check, so a roomy machine pays nothing. The
+    # threshold + multiplier parse defensively at call time, so a malformed value
+    # falls back (with a warning) instead of disabling the whole auto path.
+    threshold = _UNIFIED_OFFLOAD_HEADROOM_GB
+    if text is not None and len(text) >= _env_float(
+        "OMNIVOICE_FREE_VRAM_LONG_TEXT_CHARS", 800.0
+    ):
+        threshold *= _env_float("OMNIVOICE_FREE_VRAM_LONG_TEXT_HEADROOM_MULT", 2.0)
+    try:
+        from services.memory_budget import available_memory
+        free_gb = (available_memory() or {}).get("ram_available_gb")
+        if free_gb is not None and free_gb < threshold:
+            return True
+    except Exception:  # noqa: BLE001 -- a probe failure must never block a generate
+        pass
+    return False
+
+
+def make_room_before_generate(text=None):
+    """Free idle GPU memory before a warm, heavy generate (#730/#1190).
+
+    The cold LOAD path already evicts (``_make_room_before_tts_load`` runs inside
+    ``_load_model_with_timeout``), but the warm path (model already resident,
+    ``get_model`` returns early at the cache check) skipped it. A long generate
+    on a VRAM-tight MPS box then contended with capture-ASR and the clone-prompt
+    side cache until it exceeded the execution budget and was abandoned, which is
+    exactly how one slow synth cascaded into a stuck, device-holding backend.
+    This runs the same fail-safe eviction the load path uses, just before a
+    generate the policy says is likely to starve.
+
+    Deliberately NOT admission control and NOT a device reclaim. It only drops
+    things the app already releases on idle, just now instead of later, so a
+    roomy machine or a short synth pays nothing. It cannot kill an already
+    abandoned worker; only a crash-isolated subprocess engine can (see
+    services.subprocess_backend).
+    """
+    if not _should_make_room_for_generate(text):
+        return
+    _release_idle_tts_memory("generate")
 
 
 def _checkpoint_in_local_cache(checkpoint: str) -> bool:
@@ -1933,6 +2006,20 @@ def _has_dedicated_vram():
 _UNIFIED_OFFLOAD_HEADROOM_GB = float(
     os.environ.get("OMNIVOICE_UNIFIED_OFFLOAD_HEADROOM_GB", "6.0")
 )
+
+def _env_float(name: str, default: float) -> float:
+    """Parse a float env var at CALL time, falling back to ``default`` (with a
+    warning) on a missing or non-numeric value. Used by the make-room policy so
+    a typo in one knob cannot silently disable the whole auto path (#730/#1190).
+    Resolved at call time so it is live-tunable without a module reload."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        logger.warning("%s=%r is not a number; using default %s", name, raw, default)
+        return default
 
 
 def _offload_unified_memory() -> bool:
