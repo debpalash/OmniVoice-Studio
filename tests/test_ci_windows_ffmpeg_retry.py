@@ -42,6 +42,9 @@ def _step_script():
     raise AssertionError(f"step {_STEP!r} not found in ci.yml")
 
 
+_BASH = shutil.which("bash") or "/bin/bash"
+
+
 def _run(tmp_path, *, choco_exit, succeed_on_attempt=None):
     """Run the step with stub `choco`/`ffmpeg`/`sleep` on PATH.
 
@@ -53,44 +56,79 @@ def _run(tmp_path, *, choco_exit, succeed_on_attempt=None):
     counter = tmp_path / "attempts"
     ffmpeg_path = bin_dir / "ffmpeg"
 
-    # ffmpeg must be genuinely ABSENT from PATH until a "successful" install
-    # creates it — `command -v` tests existence, so a stub that merely exits
-    # 127 would look installed and the retry would never be exercised.
+    # The binary a "successful" install drops onto PATH. Staged outside bin_dir
+    # and already executable, so the choco stub only has to copy it — building
+    # a shell script from inside another shell script is how the quoting in
+    # this harness went wrong the first time.
+    staged = tmp_path / "ffmpeg-staged"
+    staged.write_text(f"#!{_BASH}\necho 'ffmpeg version 8.1.2'\n")
+    staged.chmod(staged.stat().st_mode | stat.S_IEXEC)
+
+    # ffmpeg must be genuinely ABSENT from PATH until that copy happens —
+    # `command -v` tests existence, so a stub that merely exits 127 would look
+    # installed and the retry would never be exercised.
+    install_line = (
+        f'if [ "$n" -ge {succeed_on_attempt} ]; then '
+        f"cp {str(staged)!r} {str(ffmpeg_path)!r}; fi\n"
+        if succeed_on_attempt
+        else ""
+    )
     (bin_dir / "choco").write_text(
-        "#!/usr/bin/env bash\n"
+        f"#!{_BASH}\n"
         f"n=$(cat {str(counter)!r} 2>/dev/null || echo 0); n=$((n+1));"
         f" echo $n > {str(counter)!r}\n"
-        + (
-            f'if [ "$n" -ge {succeed_on_attempt} ]; then\n'
-            f"  printf '%s\\n' '#!/usr/bin/env bash'"
-            f" \"echo 'ffmpeg version 8.1.2'\" > {str(ffmpeg_path)!r}\n"
-            f"  chmod +x {str(ffmpeg_path)!r}\n"
-            f"fi\n"
-            if succeed_on_attempt
-            else ""
-        )
+        + install_line
         + 'echo "Chocolatey installed 0/0 packages."\n'
         f"exit {choco_exit}\n"
     )
     # Keep the backoff from actually sleeping 90s in the test.
-    (bin_dir / "sleep").write_text("#!/usr/bin/env bash\nexit 0\n")
+    (bin_dir / "sleep").write_text(f"#!{_BASH}\nexit 0\n")
     for name in ("choco", "sleep"):
         p = bin_dir / name
         p.chmod(p.stat().st_mode | stat.S_IEXEC)
 
+    # PATH is ONLY this directory (see below), so the few real tools the stubs
+    # shell out to have to be reachable from inside it.
+    for tool in ("cat", "cp"):
+        real = shutil.which(tool)
+        if real:
+            (bin_dir / tool).symlink_to(real)
+
     script = tmp_path / "step.sh"
     script.write_text(_step_script())
-    # A minimal PATH on purpose: inheriting the dev machine's would let a real
-    # /opt/homebrew/bin/ffmpeg satisfy `command -v` and silently neuter every
-    # assertion here. The stub dir plus the base system dirs is all the step
-    # needs (`cat`, and bash builtins for the rest).
-    env = dict(os.environ, PATH=f"{bin_dir}:/usr/bin:/bin")
+    # PATH is the stub dir and NOTHING else. Any system directory on it can
+    # carry a real ffmpeg that satisfies `command -v`, which silently neuters
+    # every assertion below — that false-green happened twice while writing
+    # this: /opt/homebrew/bin locally, then /usr/bin on the Linux runner.
+    env = dict(os.environ, PATH=str(bin_dir))
     proc = subprocess.run(
         [shutil.which("bash") or "/bin/bash", str(script)],
         capture_output=True, text=True, env=env, timeout=120,
     )
     attempts = int(counter.read_text().strip()) if counter.exists() else 0
     return proc, attempts
+
+
+def test_harness_actually_hides_ffmpeg(tmp_path):
+    """Guard the guard.
+
+    Every assertion here depends on ffmpeg being genuinely absent until a stub
+    install creates it. If a real ffmpeg leaks onto PATH, the loop exits on the
+    first attempt and all four tests below pass against a broken workflow —
+    which is exactly what happened twice: /opt/homebrew/bin locally, /usr/bin
+    on the Linux runner. So assert the sandbox is a sandbox.
+    """
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    probe = subprocess.run(
+        [shutil.which("bash") or "/bin/bash", "-c", "command -v ffmpeg"],
+        capture_output=True, text=True,
+        env=dict(os.environ, PATH=str(bin_dir)),
+    )
+    assert probe.returncode != 0, (
+        f"ffmpeg is visible at {probe.stdout.strip()!r} with PATH pinned to the "
+        f"stub dir — the retry tests would pass against a broken loop"
+    )
 
 
 def test_retries_when_choco_lies_about_success(tmp_path):
