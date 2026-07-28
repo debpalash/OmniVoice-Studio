@@ -104,7 +104,7 @@
     "update_check_failed": "Uppdateringskontrollen misslyckades: {{message}}",
     "save_failed": "Det gick inte att spara: {{message}}",
     "clear_failed": "Rensa misslyckades: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} bytt till {{engine}}",
     "channel_set_failed": "Det gick inte att ställa in kanal: {{message}}",
     "updater_downloading": "Laddar ner {{version}}...",
     "updater_installed": "Installerad — omstart.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Okänd",
     "routingEffectiveChip": "Körs på {{device}} på den här maskinen",
     "routingCaveatTitle": "GPU vald, men: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: körs på CPU — {{reason}}",
+    "selectWithCaveat": "Bytte till {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",

@@ -104,7 +104,7 @@
     "update_check_failed": "Falha na verificação de atualização: {{message}}",
     "save_failed": "Falha ao salvar: {{message}}",
     "clear_failed": "Falha na limpeza: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} alterado para {{engine}}",
     "channel_set_failed": "Falha ao definir canal: {{message}}",
     "updater_downloading": "Baixando {{version}}…",
     "updater_installed": "Instalado – relançando.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Desconhecido",
     "routingEffectiveChip": "Funciona em {{device}} nesta máquina",
     "routingCaveatTitle": "GPU selecionada, mas: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: em execução na CPU — {{reason}}",
+    "selectWithCaveat": "Alterado para {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "As teclas de atalho globais funcionam apenas no aplicativo de desktop. A IU da web usa um atalho <1>Ctrl+Shift+Space</1> na página enquanto a janela está em foco.",

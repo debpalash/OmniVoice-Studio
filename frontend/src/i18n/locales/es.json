@@ -104,7 +104,7 @@
     "update_check_failed": "Error en la verificación de actualización: {{message}}",
     "save_failed": "Error al guardar: {{message}}",
     "clear_failed": "Borrado fallido: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} cambiado a {{engine}}",
     "channel_set_failed": "No se pudo configurar el canal: {{message}}",
     "updater_downloading": "Descargando {{version}}…",
     "updater_installed": "Instalado - relanzando.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Desconocido",
     "routingEffectiveChip": "Se ejecuta en {{device}} en esta máquina",
     "routingCaveatTitle": "GPU seleccionada, pero: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: ejecutándose en la CPU — {{reason}}",
+    "selectWithCaveat": "Se cambió a {{engine}}: {{reason}}"
   },
   "capture": {
     "desc": "Las teclas de acceso rápido globales solo funcionan en la aplicación de escritorio. La interfaz de usuario web utiliza un acceso directo <1>Ctrl+Shift+Espacio</1> en la página mientras la ventana tiene el foco.",

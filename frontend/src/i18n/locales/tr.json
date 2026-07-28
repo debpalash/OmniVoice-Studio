@@ -104,7 +104,7 @@
     "update_check_failed": "Güncelleme kontrolü başarısız oldu: {{message}}",
     "save_failed": "Kaydetme başarısız oldu: {{message}}",
     "clear_failed": "Temizleme başarısız oldu: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} motoru {{engine}} olarak değiştirildi",
     "channel_set_failed": "Kanal ayarlanamadı: {{message}}",
     "updater_downloading": "{{version}} indiriliyor…",
     "updater_installed": "Yüklendi - yeniden başlatılıyor.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Bilinmiyor",
     "routingEffectiveChip": "Bu makinede {{device}} tarihinde çalışıyor",
     "routingCaveatTitle": "GPU seçildi, ancak: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: CPU üzerinde çalışıyor — {{reason}}",
+    "selectWithCaveat": "{{engine}} motoruna geçildi — {{reason}}"
   },
   "capture": {
     "desc": "Genel kısayol tuşları yalnızca masaüstü uygulamasında çalışır. Web kullanıcı arayüzü, pencere odaktayken sayfa içi <1>Ctrl+Shift+Space</1> kısayolunu kullanır.",

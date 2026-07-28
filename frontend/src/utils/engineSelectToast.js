@@ -44,7 +44,13 @@ export function notifyEngineSelected(r, t, family = 'tts') {
   // Accelerated, but routing attached a caveat worth hearing before the first
   // generate rather than after it times out. Longer duration than a success
   // toast: it names the hardware limit and the ways around it.
-  if (r?.routing_reason) {
+  //
+  // Mirrors routing_notice() in backend/services/engine_routing.py: ONLY
+  // `accelerated` + reason warrants a warning. A bare `routing_reason` test
+  // also catches benign `cpu_only` — a Windows DirectML host carries an
+  // explanatory reason on a perfectly normal pick (routing rule 5) — and
+  // `unavailable`, turning neutral information into a 10s hardware warning.
+  if (r?.routing_status === 'accelerated' && r?.routing_reason) {
     toast(
       t('engines.selectWithCaveat', {
         engine: r.active,

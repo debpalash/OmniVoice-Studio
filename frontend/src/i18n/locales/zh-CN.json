@@ -325,7 +325,7 @@
     "update_check_failed": "更新检查失败：{{message}}",
     "save_failed": "保存失败：{{message}}",
     "clear_failed": "清除失败：{{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "已将 {{family}} 切换到 {{engine}}",
     "channel_set_failed": "无法设置频道：{{message}}",
     "updater_downloading": "正在下载 {{version}}...",
     "updater_installed": "已安装 - 重新启动。",
@@ -538,7 +538,8 @@
     "routingCaveatTitle": "已选择 GPU，但是：{{reason}}",
     "curatedModelLabel": "模型",
     "curatedModelAria": "{{engine}} 的模型",
-    "selectWithCaveat": "{{engine}}：{{reason}}"
+    "selectCpuFallback": "{{engine}}：正在 CPU 上运行 — {{reason}}",
+    "selectWithCaveat": "已切换到 {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "全局热键仅在桌面应用中有效。网页界面使用页面内快捷键 <1>Ctrl+Shift+Space</1>（窗口聚焦时可用）。",

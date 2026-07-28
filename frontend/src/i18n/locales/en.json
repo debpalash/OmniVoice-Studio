@@ -523,7 +523,7 @@
     "update_check_failed": "Update check failed: {{message}}",
     "save_failed": "Save failed: {{message}}",
     "clear_failed": "Clear failed: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Switched {{family}} to {{engine}}",
     "channel_set_failed": "Failed to set channel: {{message}}",
     "updater_downloading": "Downloading {{version}}…",
     "updater_installed": "Installed — relaunching.",
@@ -1906,7 +1906,7 @@
     "installStep_fetch_weights": "Downloading model weights",
     "installStep_persist": "Saving configuration",
     "installAria": "Install {{engine}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectWithCaveat": "Switched to {{engine}} — {{reason}}"
   },
   "errors": {
     "title": "This tab hit a snag.",

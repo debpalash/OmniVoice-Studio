@@ -104,7 +104,7 @@
     "update_check_failed": "Controllo aggiornamento non riuscito: {{message}}",
     "save_failed": "Salvataggio non riuscito: {{message}}",
     "clear_failed": "Cancellazione non riuscita: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} passato a {{engine}}",
     "channel_set_failed": "Impossibile impostare il canale: {{message}}",
     "updater_downloading": "Download in corso di {{version}}...",
     "updater_installed": "Installato: riavvio.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Sconosciuto",
     "routingEffectiveChip": "Funziona su {{device}} su questa macchina",
     "routingCaveatTitle": "GPU selezionata, ma: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: in esecuzione sulla CPU — {{reason}}",
+    "selectWithCaveat": "Passato a {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "I tasti di scelta rapida globali funzionano solo nell'app desktop. L'interfaccia utente Web utilizza una scorciatoia <1>Ctrl+Shift+Spazio</1> nella pagina mentre la finestra è attiva.",

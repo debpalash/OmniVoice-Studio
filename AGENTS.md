@@ -2,7 +2,8 @@
 
 Binding for every AI agent (Claude, Codex, Cursor, review bots, …). CLAUDE.md is the full constitution; this is the operating contract. When they conflict, CLAUDE.md wins.
 
-## Token economy (owner directive, 2026-07-20)
+## Token economy (owner directive, 2026-07-20; tightened 2026-07-28)
+- **Default to the shortest response that fully answers.** Outlines and tables over prose; no preamble, no recap of what you just did, no re-explaining a fix the diff already shows. Applies to every response, not just status updates.
 - Lead with the outcome. No narration, no restating diffs, no filler praise, no plans you're about to execute anyway.
 - Status updates: one line. Final reports: only what changes the reader's next action.
 - Don't re-derive what CI, linters, or review bots already computed — read their output first (`gh pr checks`, bot comments via `gh api .../pulls/N/comments`).

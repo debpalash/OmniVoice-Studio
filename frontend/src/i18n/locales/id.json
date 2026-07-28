@@ -104,7 +104,7 @@
     "update_check_failed": "Pemeriksaan pembaruan gagal: {{message}}",
     "save_failed": "Gagal menyimpan: {{message}}",
     "clear_failed": "Hapus gagal: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} dialihkan ke {{engine}}",
     "channel_set_failed": "Gagal menyetel saluran: {{message}}",
     "updater_downloading": "Mengunduh {{version}}…",
     "updater_installed": "Dipasang — diluncurkan kembali.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Tidak diketahui",
     "routingEffectiveChip": "Berjalan pada {{device}} di mesin ini",
     "routingCaveatTitle": "GPU dipilih, tetapi: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: berjalan di CPU — {{reason}}",
+    "selectWithCaveat": "Beralih ke {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Tombol pintas global hanya berfungsi di aplikasi desktop. UI web menggunakan pintasan <1>Ctrl+Shift+Space</1> dalam halaman saat jendela memiliki fokus.",

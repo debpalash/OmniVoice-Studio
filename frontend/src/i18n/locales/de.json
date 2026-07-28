@@ -104,7 +104,7 @@
     "update_check_failed": "Update-Prüfung fehlgeschlagen: {{message}}",
     "save_failed": "Speichern fehlgeschlagen: {{message}}",
     "clear_failed": "Löschen fehlgeschlagen: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} auf {{engine}} umgestellt",
     "channel_set_failed": "Kanal konnte nicht festgelegt werden: {{message}}",
     "updater_downloading": "{{version}} wird heruntergeladen…",
     "updater_installed": "Installiert – Neustart.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Unbekannt",
     "routingEffectiveChip": "Läuft unter {{device}} auf diesem Computer",
     "routingCaveatTitle": "GPU ausgewählt, aber: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: läuft auf der CPU — {{reason}}",
+    "selectWithCaveat": "Zu {{engine}} gewechselt — {{reason}}"
   },
   "capture": {
     "desc": "Globale Hotkeys funktionieren nur in der Desktop-App. Die Web-Benutzeroberfläche verwendet eine In-Page-Verknüpfung <1>Strg+Umschalt+Leertaste</1>, während das Fenster den Fokus hat.",

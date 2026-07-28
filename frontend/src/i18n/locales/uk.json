@@ -104,7 +104,7 @@
     "update_check_failed": "Не вдалося перевірити оновлення: {{message}}",
     "save_failed": "Не вдалося зберегти: {{message}}",
     "clear_failed": "Помилка очищення: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} перемкнено на {{engine}}",
     "channel_set_failed": "Не вдалося встановити канал: {{message}}",
     "updater_downloading": "Завантаження {{version}}…",
     "updater_installed": "Встановлено — перезапуск.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Невідомий",
     "routingEffectiveChip": "Працює на {{device}} на цій машині",
     "routingCaveatTitle": "Графічний процесор вибрано, але: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: працює на CPU — {{reason}}",
+    "selectWithCaveat": "Перемкнено на {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Глобальні гарячі клавіші працюють лише в настільній програмі. Веб-інтерфейс використовує ярлик <1>Ctrl+Shift+Пробіл</1> на сторінці, коли вікно має фокус.",

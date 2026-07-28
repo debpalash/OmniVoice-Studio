@@ -104,7 +104,7 @@
     "update_check_failed": "Sprawdzanie aktualizacji nie powiodło się: {{message}}",
     "save_failed": "Zapis nie powiódł się: {{message}}",
     "clear_failed": "Wyczyszczenie nie powiodło się: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Przełączono {{family}} na {{engine}}",
     "channel_set_failed": "Nie udało się ustawić kanału: {{message}}",
     "updater_downloading": "Pobieranie {{version}}…",
     "updater_installed": "Zainstalowano — uruchamiam ponownie.",
@@ -579,7 +579,8 @@
     "routingUnknown": "Nieznany",
     "routingEffectiveChip": "Działa na {{device}} na tym komputerze",
     "routingCaveatTitle": "Wybrano procesor graficzny, ale: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: działa na CPU — {{reason}}",
+    "selectWithCaveat": "Przełączono na {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "Globalne skróty klawiszowe działają tylko w aplikacji komputerowej. Interfejs WWW korzysta ze skrótu <1>Ctrl+Shift+Spacja</1> znajdującego się na stronie, gdy okno jest aktywne.",

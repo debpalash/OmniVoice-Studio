@@ -104,7 +104,7 @@
     "update_check_failed": "การตรวจสอบการอัปเดตล้มเหลว: {{message}}",
     "save_failed": "บันทึกล้มเหลว: {{message}}",
     "clear_failed": "การเคลียร์ล้มเหลว: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "สลับ {{family}} ไปที่ {{engine}}",
     "channel_set_failed": "ไม่สามารถตั้งค่าช่อง: {{message}}",
     "updater_downloading": "กำลังดาวน์โหลด {{version}}…",
     "updater_installed": "ติดตั้งแล้ว — เปิดตัวใหม่",
@@ -579,7 +579,8 @@
     "routingUnknown": "ไม่ทราบ",
     "routingEffectiveChip": "ทำงานบน {{device}} บนเครื่องนี้",
     "routingCaveatTitle": "เลือก GPU แล้ว แต่: {{reason}}",
-    "selectWithCaveat": "{{engine}}: {{reason}}"
+    "selectCpuFallback": "{{engine}}: กำลังทำงานบน CPU — {{reason}}",
+    "selectWithCaveat": "สลับไปที่ {{engine}} — {{reason}}"
   },
   "capture": {
     "desc": "ปุ่มลัดส่วนกลางใช้งานได้ในแอปเดสก์ท็อปเท่านั้น UI ของเว็บใช้ทางลัด <1>Ctrl+Shift+Space</1> ในเพจในขณะที่หน้าต่างมีโฟกัส",
