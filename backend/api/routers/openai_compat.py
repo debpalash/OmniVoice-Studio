@@ -385,11 +385,8 @@ async def create_speech(req: SpeechRequest):
     from services.text_normalization import normalize_for_tts
     text = normalize_for_tts(req.input, req.language)
 
-    # Free idle GPU before a warm, heavy generate (#730/#1190); no-op on a roomy
-    # machine or a short synth. Run off the event loop (gc.collect + cache drop).
-    from services.model_manager import make_room_before_generate
-    await asyncio.get_running_loop().run_in_executor(
-        None, make_room_before_generate, text)
+    # VRAM eviction runs in get_model()'s warm-return path now, covering every
+    # native TTS generate (this route, WS TTS, dub, batch, audiobook).
 
     # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
     # generate clock starts. The T4 verification (#1014) measured a fresh

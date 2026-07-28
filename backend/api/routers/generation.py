@@ -931,13 +931,8 @@ async def generate_speech(
     except Exception:
         pass
 
-    # Free idle GPU before a warm, heavy generate (#730/#1190); no-op on a roomy
-    # machine or a short synth. Covers MCP generate_speech, which POSTs here.
-    # Run off the event loop: the eviction does gc.collect + cache drop + ASR
-    # teardown that can block for hundreds of ms when it trips.
-    from services.model_manager import make_room_before_generate
-    await asyncio.get_running_loop().run_in_executor(
-        None, make_room_before_generate, text)
+    # VRAM eviction runs in get_model()'s warm-return path now, so every native
+    # TTS generate (this route, WS TTS, dub, batch, audiobook) is covered.
 
     _model = None
     _backend = None

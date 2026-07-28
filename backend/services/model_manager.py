@@ -1684,6 +1684,13 @@ async def get_model():
         # contract unnecessary: a future unbalanced offload can no longer
         # strand the model, because the next generation moves it back.
         await _heal_tts_placement()
+        # Free idle GPU memory before this warm generate reuses the resident
+        # model. The cold-load path already evicts (_make_room_before_tts_load);
+        # this closes the WARM path for every native TTS generate (/generate, WS
+        # TTS, dub, batch, audiobook), not just a couple of routes. No-op on a
+        # roomy machine. Off the event loop because the eviction does gc.collect
+        # + cache drop + ASR teardown that can block for hundreds of ms.
+        await asyncio.get_running_loop().run_in_executor(None, make_room_before_generate)
         return model
 
     async with _model_lock:
