@@ -114,8 +114,8 @@ describe('notifyEngineSelected (routing echo → toast)', () => {
         active: 'kittentts',
         routing_status: 'cpu_only',
         routing_reason:
-          'DirectML GPU present; engine routes via torch CPU path '
-          + '(DirectML acceleration not wired into routing)',
+          'DirectML GPU present; engine routes via torch CPU path ' +
+          '(DirectML acceleration not wired into routing)',
       },
       t,
       'tts',
