@@ -98,6 +98,46 @@ def _cuda_arch_supported_for_compile() -> "tuple[bool, str]":
         return True, ""
 
 
+def _torch_lib_path_is_linkable() -> tuple[bool, str]:
+    """``(ok, reason)`` — False when inductor's C++ link step is guaranteed to
+    fail because the torch library path contains whitespace (#1266).
+
+    Inductor passes the torch lib directory to ``clang++``/``g++`` as an
+    unquoted ``-L`` flag. A path with a space splits into two arguments and the
+    compile dies with ``no such file or directory: 'Support/...'``. The bug is
+    inside PyTorch, so we cannot fix the quoting — but a path we already know
+    cannot compile is one we should not spend a compile attempt on.
+
+    It is not hypothetical on any platform: the macOS data dir lives under
+    ``~/Library/Application Support/``, and a Windows user profile is routinely
+    ``C:/Users/First Last``.
+
+    Never raises — an unreadable torch path means "no reason to skip".
+    """
+    try:
+        import torch
+
+        lib_dir = os.path.join(os.path.dirname(torch.__file__), "lib")
+    except Exception:
+        return True, ""
+    if any(ch.isspace() for ch in lib_dir):
+        # The path is genuinely useful for diagnosis, but it contains the user's
+        # home directory and this string is logged and lands in pasted bug
+        # reports — so it goes through the same redaction every other
+        # user-facing failure text uses (home → ~, secrets stripped).
+        try:
+            from core.failure import sanitize
+
+            shown = sanitize(lib_dir)
+        except Exception:
+            shown = os.path.basename(lib_dir.rstrip(os.sep)) or "<torch lib>"
+        return False, (
+            f"the torch library path contains whitespace ({shown!r}); inductor "
+            f"passes it to the C++ linker unquoted, so every compile attempt fails"
+        )
+    return True, ""
+
+
 def should_torch_compile(device: str) -> bool:
     """Decide whether to apply ``torch.compile`` to an in-process model.
 
@@ -133,6 +173,19 @@ def should_torch_compile(device: str) -> bool:
         logger.info(
             "torch.compile skipped: failed earlier this session (%s) — using eager mode.",
             _compile_runtime_failure,
+        )
+        return False
+    linkable, path_reason = _torch_lib_path_is_linkable()
+    if not linkable:
+        if _force_compile_requested():
+            logger.warning(
+                "torch.compile forced via %s=1 despite: %s", _FORCE_COMPILE_ENV, path_reason,
+            )
+            return True
+        logger.info(
+            "torch.compile skipped: %s — using eager mode. "
+            "(Set %s=1 to attempt compile anyway.)",
+            path_reason, _FORCE_COMPILE_ENV,
         )
         return False
     supported, reason = _cuda_arch_supported_for_compile()

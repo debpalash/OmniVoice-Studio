@@ -101,6 +101,35 @@ torch.compile" (shown on Windows), for the rare setup where a partial Triton
 install makes the probe pass but the compile attempt itself crash — see
 [Windows install notes](install/windows.md).
 
+## Warnings before a slow generation
+
+The 300 s budget used to be discovered the hard way: you pressed Generate,
+waited out the whole budget, and were then told the job was too heavy. Two
+checks now run **before** the request leaves the app, at the one call every
+synthesis path shares (Generate, voice previews, the compare modal, the stories
+editor, profile previews, and streaming).
+
+| Situation | What you see |
+| --- | --- |
+| The engine declares a VRAM floor above what this GPU has, or routing fell back to CPU | The routing caveat, naming your card, the engine's floor, and the ways around it |
+| The host synthesizes on the CPU **and** the text is over 1200 characters | A heads-up that this generation may exceed the time budget |
+
+**Why 1200 characters:** it is the same figure the budget itself uses. The first
+1200 characters get the flat `OMNIVOICE_GENERATE_TIMEOUT_S`, and only past that
+does the budget start growing (+1 s per 40 characters). Below the threshold you
+are inside a budget the backend already considers generous, so ordinary
+sentences on a CPU laptop stay quiet.
+
+Both warnings are **advisory** — nothing is blocked. A driver can page to system
+RAM, and a short input fits where a long one does not, so the engine still runs
+if you want it to. Each fires **once per engine per session**, keyed on the
+reason, so a genuinely different problem still gets through but the same
+sentence is not repeated on every synthesis. Switching engines re-arms it.
+
+If you are already on a CPU-tuned engine (OmniVoice GGUF, Supertonic-3) the
+warning drops the "try a CPU-tuned engine" suggestion — it would be advice to
+switch to what you are already using.
+
 ## Flush caches / Unload resident model
 
 This is the feature the VRAM-starved timeout error ("TTS generate ran for more

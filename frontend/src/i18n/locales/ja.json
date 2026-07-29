@@ -104,7 +104,7 @@
     "update_check_failed": "更新チェックに失敗しました: {{message}}",
     "save_failed": "保存に失敗しました: {{message}}",
     "clear_failed": "クリアに失敗しました: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} を {{engine}} に切り替えました",
     "channel_set_failed": "チャネルの設定に失敗しました: {{message}}",
     "updater_downloading": "{{version}} をダウンロード中…",
     "updater_installed": "インストール済み — 再起動中。",
@@ -308,8 +308,8 @@
     "frontend": "フロントエンド",
     "tauri": "タウリ",
     "cancelOp": "操作をキャンセルする",
-    "dismiss": "解雇する",
-    "dismissStatus": "ステータスを却下",
+    "dismiss": "閉じる",
+    "dismissStatus": "ステータスを閉じる",
     "search": "検索…",
     "no_matches": "一致しません",
     "recent_and_popular": "最近の人気の",
@@ -492,7 +492,12 @@
     "local_sqlite": "ローカルSQLite",
     "translator_online": "翻訳者はオンラインです: {{provider}}",
     "translator_offline": "オフライン翻訳者",
-    "no_tracking": "なし — 追跡なし"
+    "no_tracking": "なし — 追跡なし",
+    "watermark_title": "不可視の透かし",
+    "watermark_subtitle": "既定で有効。生成した音声を AI 生成として印付けし、後から識別できるようにします。今後生成する音声にのみ適用されます。",
+    "watermark_on_toast": "新しい音声に不可視の透かしを有効にしました。",
+    "watermark_off_toast": "新しい音声の不可視の透かしを無効にしました。",
+    "watermark_failed": "透かしの設定を変更できませんでした。"
   },
   "consent": {
     "title": "OmniVoice の改善に協力しますか？",
@@ -578,7 +583,12 @@
     "routingRemote": "リモート",
     "routingUnknown": "不明",
     "routingEffectiveChip": "このマシンの {{device}} で実行されます",
-    "routingCaveatTitle": "GPU が選択されましたが: {{reason}}"
+    "routingCaveatTitle": "GPU が選択されましたが: {{reason}}",
+    "selectCpuFallback": "{{engine}}: CPU で実行中 — {{reason}}",
+    "selectWithCaveat": "{{engine}} に切り替えました — {{reason}}",
+    "generateCaveat": "このマシンでは {{engine}} の生成が遅くなる可能性があります — {{reason}}",
+    "cpuLongText": "ここでは {{engine}} が CPU で実行され、このテキストは長いため、生成が時間制限を超える可能性があります。短いテキスト、または CPU 向けエンジン（OmniVoice GGUF、Supertonic-3）のほうが大幅に高速です。",
+    "cpuLongTextTuned": "ここでは {{engine}} が CPU で実行され、このテキストは長いため、生成が時間制限を超える可能性があります。テキストを短くするか、数回に分けたほうが大幅に高速です。"
   },
   "capture": {
     "desc": "グローバル ホットキーはデスクトップ アプリでのみ機能します。 Web UI は、ウィンドウにフォーカスがある間、ページ内 <1>Ctrl+Shift+Space</1> ショートカットを使用します。",
@@ -1276,7 +1286,7 @@
       "later": "たぶん後で",
       "star": "GitHub でスターを付ける",
       "opt_out": "二度と聞かないでください",
-      "dismiss_aria": "解雇する"
+      "dismiss_aria": "閉じる"
     }
   },
   "enterprise": {
@@ -1435,10 +1445,14 @@
     "desc": "心配しないでください。アプリの残りの部分は引き続き動作します。タブを切り替えるか、以下でもう一度お試しください。",
     "tryAgain": "もう一度試してください",
     "openDocs": "このエラーのドキュメントを開く",
+    "crash_port_in_use": "ポート 3900 がすでに使用されているため、バックエンドを起動できませんでした。別の OmniVoice（またはそのポートを取得したアプリ）が保持しています。もう一方を終了して再起動してください。見えている実行中のものがない場合は、前のセッションの取り残されたバックエンドがポートを保持しています。",
+    "crash_oom_kill": "強制終了されました（シグナル 9）。通常はオペレーティングシステムのメモリ（RAM）が不足して停止したことを意味します。メモリを多く使うアプリを閉じ、設定 → モデルでより小さい ASR モデルを選ぶか、文字起こしの前に TTS モデルをアンロードしてください。",
+    "crash_native_fault": "メモリ不足ではなく、計算スタックの内部でクラッシュしました。同梱の CUDA ランタイムと一致しない GPU ドライバー、またはダウンロードが不完全なモデルファイルが原因と考えられます。GPU ドライバーを更新し、設定 → モデルからモデルを再ダウンロードしてください（不完全なダウンロードはその場で修復されます）。繰り返す場合は、設定 → エンジンでクラッシュ分離エンジンに切り替えてください — 音声合成には「OmniVoice (subprocess)」、文字起こしには「Faster-Whisper (crash-isolated subprocess)」。これらはモデルを別プロセスで実行するため、このようなクラッシュはバックエンド全体ではなくそのプロセスだけを停止させます。",
     "report": "このバグを報告",
     "report_failed": "バグレポートを開けませんでした。もう一度お試しいただくか、上記の内容を新しい Issue にコピーしてください。",
     "searchIssues": "類似の問題を検索",
-    "unexpected": "予期しないエラー: {{message}}"
+    "unexpected": "予期しないエラー: {{message}}",
+    "backend_shutting_down": "OmniVoice を終了しています。アプリを開き直してからもう一度お試しください。"
   },
   "keyboard": {
     "title": "キーボードショートカット",
@@ -1749,7 +1763,7 @@
     "q_try_before": "コミットする前に試してみることはできますか?",
     "a_try_before": "はい。アプリ全体を AGPL-3.0 の下で無料でダウンロード・実行・セルフホストでき、契約は不要です。商用（プロプライエタリ利用）ライセンスについて相談する準備ができましたら、メールでご連絡ください。詳細を一緒に詰めていきましょう。",
     "q_watermark": "透かしについてはどうですか？",
-    "a_watermark": "目に見えない AudioSeal ウォーターマークは、デフォルトで全員に埋め込まれます。商用ライセンシーは「設定」→「プライバシー」で無効にできます。"
+    "a_watermark": "不可視の AudioSeal 透かしは、既定ですべてのユーザーに埋め込まれます。設定 → プライバシーで無効にできます。変更後に生成された音声にのみ適用されます。"
   },
   "gallery_extra": {
     "save_prompt": "この音声プロファイルの名前を入力してください:",
@@ -1891,11 +1905,15 @@
     "install_hint": "アップデートをダウンロードして新しいバージョンで再起動します",
     "downloading": "更新中… {{pct}}%",
     "restart": "再起動してアップデート",
-    "busy": "先に吹き替えを完了してから、アップデートをインストールしてください。",
+    "busy": "実行中の処理が終わってから、アップデートをインストールしてください。",
     "whats_new": "新機能",
     "failed": "アップデートに失敗しました",
     "retry": "再試行",
-    "dismiss": "解雇する"
+    "dismiss": "閉じる",
+    "toast_available": "OmniVoice Studio {{version}} が利用可能です",
+    "toast_install": "インストールして再起動",
+    "toast_whats_new": "新機能",
+    "toast_later": "後で"
   },
   "archetypes": {
     "featured": "注目の",
@@ -2249,7 +2267,10 @@
     "email": "電子メール",
     "email_desc": "ライセンス、パートナーシップ、その他プライベートなもの。",
     "website": "ウェブサイト",
-    "website_desc": "プロジェクトとメーカーについて詳しく説明します。"
+    "website_desc": "プロジェクトとメーカーについて詳しく説明します。",
+    "follow_title": "X でフォローする",
+    "follow_desc": "リリースノート、新しいエンジン、そして次に作っているものの様子をときどき。チャットサーバーに常駐したくない方に便利です。",
+    "follow_cta": "X でフォロー"
   },
   "permissions": {
     "title": "権限",

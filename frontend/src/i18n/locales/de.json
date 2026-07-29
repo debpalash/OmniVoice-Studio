@@ -104,7 +104,7 @@
     "update_check_failed": "Update-Prüfung fehlgeschlagen: {{message}}",
     "save_failed": "Speichern fehlgeschlagen: {{message}}",
     "clear_failed": "Löschen fehlgeschlagen: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} auf {{engine}} umgestellt",
     "channel_set_failed": "Kanal konnte nicht festgelegt werden: {{message}}",
     "updater_downloading": "{{version}} wird heruntergeladen…",
     "updater_installed": "Installiert – Neustart.",
@@ -308,8 +308,8 @@
     "frontend": "Frontend",
     "tauri": "Tauri",
     "cancelOp": "Vorgang abbrechen",
-    "dismiss": "Entlassen",
-    "dismissStatus": "Status entlassen",
+    "dismiss": "Schließen",
+    "dismissStatus": "Status schließen",
     "search": "Suchen…",
     "no_matches": "Keine Übereinstimmungen",
     "recent_and_popular": "Neu und beliebt",
@@ -492,7 +492,12 @@
     "local_sqlite": "Lokales SQLite",
     "translator_online": "Übersetzer ist online: {{provider}}",
     "translator_offline": "Offline-Übersetzer",
-    "no_tracking": "Keine – keine Nachverfolgung"
+    "no_tracking": "Keine – keine Nachverfolgung",
+    "watermark_title": "Unsichtbares Wasserzeichen",
+    "watermark_subtitle": "Standardmäßig aktiv. Kennzeichnet erzeugtes Audio als KI-generiert, damit es später erkannt werden kann. Gilt nur für ab jetzt erzeugtes Audio.",
+    "watermark_on_toast": "Unsichtbares Wasserzeichen für neues Audio aktiviert.",
+    "watermark_off_toast": "Unsichtbares Wasserzeichen für neues Audio deaktiviert.",
+    "watermark_failed": "Die Wasserzeichen-Einstellung konnte nicht geändert werden."
   },
   "consent": {
     "title": "OmniVoice verbessern helfen?",
@@ -578,7 +583,12 @@
     "routingRemote": "Fernbedienung",
     "routingUnknown": "Unbekannt",
     "routingEffectiveChip": "Läuft unter {{device}} auf diesem Computer",
-    "routingCaveatTitle": "GPU ausgewählt, aber: {{reason}}"
+    "routingCaveatTitle": "GPU ausgewählt, aber: {{reason}}",
+    "selectCpuFallback": "{{engine}}: läuft auf der CPU — {{reason}}",
+    "selectWithCaveat": "Zu {{engine}} gewechselt — {{reason}}",
+    "generateCaveat": "{{engine}} ist auf diesem Rechner möglicherweise langsam — {{reason}}",
+    "cpuLongText": "{{engine}} läuft hier auf der CPU und dieser Text ist lang — die Generierung überschreitet möglicherweise das Zeitbudget. Kürzerer Text oder eine CPU-optimierte Engine (OmniVoice GGUF, Supertonic-3) ist deutlich schneller.",
+    "cpuLongTextTuned": "{{engine}} läuft hier auf der CPU und dieser Text ist lang — die Generierung überschreitet möglicherweise das Zeitbudget. Kürzerer Text oder eine Aufteilung in mehrere Takes ist deutlich schneller."
   },
   "capture": {
     "desc": "Globale Hotkeys funktionieren nur in der Desktop-App. Die Web-Benutzeroberfläche verwendet eine In-Page-Verknüpfung <1>Strg+Umschalt+Leertaste</1>, während das Fenster den Fokus hat.",
@@ -1276,7 +1286,7 @@
       "later": "Vielleicht später",
       "star": "Stern auf GitHub",
       "opt_out": "Fragen Sie nicht noch einmal",
-      "dismiss_aria": "Entlassen"
+      "dismiss_aria": "Schließen"
     }
   },
   "enterprise": {
@@ -1435,10 +1445,14 @@
     "desc": "Keine Sorge – der Rest der App funktioniert weiterhin. Sie können die Registerkarten wechseln oder es unten noch einmal versuchen.",
     "tryAgain": "Versuchen Sie es erneut",
     "openDocs": "Öffnen Sie die Dokumentation zu diesem Fehler",
+    "crash_port_in_use": "Der Backend-Dienst konnte nicht starten, weil Port 3900 bereits belegt ist — eine andere OmniVoice-Instanz (oder eine App, die den Port beansprucht hat) hält ihn. Beenden Sie die andere Instanz und starten Sie neu; wenn nichts sichtbar läuft, hält ein verwaistes Backend aus einer früheren Sitzung den Port.",
+    "crash_oom_kill": "Er wurde zwangsbeendet (Signal 9), was in der Regel bedeutet, dass dem Betriebssystem der Arbeitsspeicher (RAM) ausging. Schließen Sie speicherintensive Apps, wählen Sie unter Einstellungen → Modelle ein kleineres ASR-Modell, oder entladen Sie das TTS-Modell vor der Transkription.",
+    "crash_native_fault": "Der Absturz erfolgte innerhalb des Compute-Stacks und nicht wegen Speichermangels — das deutet auf einen GPU-Treiber hin, der nicht zur mitgelieferten CUDA-Laufzeit passt, oder auf eine unvollständig heruntergeladene Modelldatei. Aktualisieren Sie den GPU-Treiber und laden Sie das Modell unter Einstellungen → Modelle erneut (ein unvollständiger Download wird dabei repariert). Wenn es weiterhin auftritt, wechseln Sie unter Einstellungen → Engines zu einer absturzisolierten Engine — „OmniVoice (subprocess)“ für die Synthese, „Faster-Whisper (crash-isolated subprocess)“ für die Transkription. Diese führen das Modell in einem eigenen Prozess aus, sodass ein solcher Absturz nur diesen Prozess beendet statt des gesamten Backends.",
     "report": "Diesen Fehler melden",
     "report_failed": "Der Fehlerbericht konnte nicht geöffnet werden. Versuche es erneut oder kopiere die obigen Details in ein neues Issue.",
     "searchIssues": "Ähnliche Probleme suchen",
-    "unexpected": "Unerwarteter Fehler: {{message}}"
+    "unexpected": "Unerwarteter Fehler: {{message}}",
+    "backend_shutting_down": "OmniVoice wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal."
   },
   "keyboard": {
     "title": "Tastaturkürzel",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Kann ich es versuchen, bevor ich mich verpflichte?",
     "a_try_before": "Ja. Die vollständige App lässt sich unter der AGPL-3.0 kostenlos herunterladen, ausführen und selbst hosten — ganz ohne Vertrag. Wenn Sie über eine kommerzielle Lizenz (für proprietäre Nutzung) sprechen möchten, schreiben Sie uns eine E-Mail und wir klären die Details gemeinsam.",
     "q_watermark": "Was ist mit dem Wasserzeichen?",
-    "a_watermark": "Das unsichtbare AudioSeal-Wasserzeichen ist standardmäßig für alle eingebettet. Kommerzielle Lizenznehmer können es unter Einstellungen → Datenschutz deaktivieren."
+    "a_watermark": "Das unsichtbare AudioSeal-Wasserzeichen wird standardmäßig für alle eingebettet. Sie können es unter Einstellungen → Datenschutz abschalten; es betrifft nur Audio, das nach der Änderung erzeugt wird."
   },
   "gallery_extra": {
     "save_prompt": "Geben Sie einen Namen für dieses Sprachprofil ein:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Update herunterladen und in die neue Version neu starten",
     "downloading": "Wird aktualisiert… {{pct}} %",
     "restart": "Zum Aktualisieren neu starten",
-    "busy": "Beende zuerst deine Synchronisation – dann installiere das Update.",
+    "busy": "Warten Sie, bis die laufende Arbeit fertig ist – dann installieren Sie das Update.",
     "whats_new": "Was ist neu?",
     "failed": "Update fehlgeschlagen",
     "retry": "Versuchen Sie es noch einmal",
-    "dismiss": "Entlassen"
+    "dismiss": "Schließen",
+    "toast_available": "OmniVoice Studio {{version}} ist verfügbar",
+    "toast_install": "Installieren und neu starten",
+    "toast_whats_new": "Neuerungen",
+    "toast_later": "Später"
   },
   "archetypes": {
     "featured": "Hervorgehoben",
@@ -2249,7 +2267,10 @@
     "email": "E-Mail",
     "email_desc": "Lizenzen, Partnerschaften oder irgendetwas Privates.",
     "website": "Website",
-    "website_desc": "Mehr über das Projekt und den Macher."
+    "website_desc": "Mehr über das Projekt und den Macher.",
+    "follow_title": "Auf X folgen",
+    "follow_desc": "Release-Notes, neue Engines und gelegentliche Einblicke in das, was als Nächstes entsteht. Praktisch, wenn Sie nicht in einem Chat-Server sitzen möchten.",
+    "follow_cta": "Auf X folgen"
   },
   "permissions": {
     "title": "Berechtigungen",

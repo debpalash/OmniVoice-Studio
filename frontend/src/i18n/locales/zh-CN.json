@@ -96,8 +96,8 @@
     "frontend": "前端",
     "tauri": "Tauri",
     "cancelOp": "取消操作",
-    "dismiss": "解雇",
-    "dismissStatus": "解除状态",
+    "dismiss": "关闭",
+    "dismissStatus": "关闭状态",
     "search": "搜索...",
     "no_matches": "没有匹配项",
     "recent_and_popular": "最近和热门",
@@ -325,7 +325,7 @@
     "update_check_failed": "更新检查失败：{{message}}",
     "save_failed": "保存失败：{{message}}",
     "clear_failed": "清除失败：{{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "已将 {{family}} 切换到 {{engine}}",
     "channel_set_failed": "无法设置频道：{{message}}",
     "updater_downloading": "正在下载 {{version}}...",
     "updater_installed": "已安装 - 重新启动。",
@@ -449,7 +449,12 @@
     "local_sqlite": "本地 SQLite",
     "translator_online": "翻译引擎在线：{{provider}}",
     "translator_offline": "离线翻译",
-    "no_tracking": "无 — 不追踪"
+    "no_tracking": "无 — 不追踪",
+    "watermark_title": "不可见水印",
+    "watermark_subtitle": "默认开启。将生成的音频标记为 AI 制作，以便日后识别。仅影响从现在起生成的音频。",
+    "watermark_on_toast": "已为新音频启用不可见水印。",
+    "watermark_off_toast": "已为新音频停用不可见水印。",
+    "watermark_failed": "无法更改水印设置。"
   },
   "consent": {
     "title": "帮助改进 OmniVoice？",
@@ -537,7 +542,12 @@
     "routingEffectiveChip": "在此机器上的 {{device}} 上运行",
     "routingCaveatTitle": "已选择 GPU，但是：{{reason}}",
     "curatedModelLabel": "模型",
-    "curatedModelAria": "{{engine}} 的模型"
+    "curatedModelAria": "{{engine}} 的模型",
+    "selectCpuFallback": "{{engine}}：正在 CPU 上运行 — {{reason}}",
+    "selectWithCaveat": "已切换到 {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} 在这台机器上可能较慢 — {{reason}}",
+    "cpuLongText": "{{engine}} 在此机器上使用 CPU 运行，而这段文本较长 — 生成可能超出时间预算。缩短文本或改用面向 CPU 优化的引擎（OmniVoice GGUF、Supertonic-3）会快得多。",
+    "cpuLongTextTuned": "{{engine}} 在此机器上使用 CPU 运行，而这段文本较长 — 生成可能超出时间预算。缩短文本或分成几次生成会快得多。"
   },
   "capture": {
     "desc": "全局热键仅在桌面应用中有效。网页界面使用页面内快捷键 <1>Ctrl+Shift+Space</1>（窗口聚焦时可用）。",
@@ -1239,7 +1249,7 @@
       "later": "也许稍后",
       "star": "在 GitHub 上加星标",
       "opt_out": "不要再问",
-      "dismiss_aria": "解雇"
+      "dismiss_aria": "关闭"
     }
   },
   "enterprise": {
@@ -1441,10 +1451,14 @@
     "desc": "别担心——应用程序的其余部分仍然有效。您可以切换选项卡，或在下面重试。",
     "tryAgain": "再试一次",
     "openDocs": "打开此错误的文档",
+    "crash_port_in_use": "后端无法启动，因为端口 3900 已被占用 — 另一个 OmniVoice 实例（或占用该端口的应用）正持有它。请退出另一个实例后重新启动；如果看不到任何正在运行的程序，则是上一次会话遗留的后端仍占用该端口。",
+    "crash_oom_kill": "进程被强制终止（信号 9），通常表示操作系统内存（RAM）不足而将其停止。请关闭占用内存较大的应用，在设置 → 模型中选择更小的 ASR 模型，或在转写前卸载 TTS 模型。",
+    "crash_native_fault": "它是在计算栈内部崩溃的，而不是内存耗尽 — 这通常指向与内置 CUDA 运行时不匹配的 GPU 驱动，或未完整下载的模型文件。请更新 GPU 驱动，然后在设置 → 模型中重新下载该模型（可就地修复未完成的下载）。如果反复出现，请在设置 → 引擎中切换到崩溃隔离引擎 — 合成用「OmniVoice (subprocess)」，转写用「Faster-Whisper (crash-isolated subprocess)」。它们在独立进程中运行模型，因此这类崩溃只会终止该进程，而不是整个后端。",
     "report": "报告此错误",
     "report_failed": "无法打开错误报告。请重试，或将上面的详细信息复制到新的 issue 中。",
     "searchIssues": "搜索类似问题",
-    "unexpected": "意外错误：{{message}}"
+    "unexpected": "意外错误：{{message}}",
+    "backend_shutting_down": "OmniVoice 正在关闭。请重新打开应用后再试。"
   },
   "keyboard": {
     "title": "键盘快捷键",
@@ -1756,7 +1770,7 @@
     "q_try_before": "我可以在提交之前尝试一下吗？",
     "a_try_before": "可以。完整应用可在 AGPL-3.0 下免费下载、运行和自托管——无需任何协议。当您准备讨论商业（专有用途）许可证时，请发邮件联系我们，我们将一起敲定细节。",
     "q_watermark": "水印呢？",
-    "a_watermark": "默认情况下为所有人嵌入不可见的 AudioSeal 水印。商业许可持有者可以在“设置”→“隐私”中禁用它。"
+    "a_watermark": "不可见的 AudioSeal 水印默认为所有人嵌入。你可以在设置 → 隐私中关闭它；该设置仅影响更改之后生成的音频。"
   },
   "gallery_extra": {
     "save_prompt": "输入此语音配置文件的名称：",
@@ -1898,11 +1912,15 @@
     "install_hint": "下载更新并重启到新版本",
     "downloading": "更新中… {{pct}}%",
     "restart": "重启以更新",
-    "busy": "请先完成配音，再安装更新。",
+    "busy": "请等待正在进行的任务完成，再安装更新。",
     "whats_new": "更新内容",
     "failed": "更新失败",
     "retry": "重试",
-    "dismiss": "解雇"
+    "dismiss": "关闭",
+    "toast_available": "OmniVoice Studio {{version}} 可用",
+    "toast_install": "安装并重启",
+    "toast_whats_new": "新增内容",
+    "toast_later": "稍后"
   },
   "archetypes": {
     "featured": "精选",
@@ -2256,7 +2274,10 @@
     "email": "电子邮件",
     "email_desc": "许可、合作伙伴关系或任何私人的东西。",
     "website": "网站",
-    "website_desc": "有关该项目和制造商的更多信息。"
+    "website_desc": "有关该项目和制造商的更多信息。",
+    "follow_title": "在 X 上关注",
+    "follow_desc": "版本说明、新引擎，以及偶尔透露接下来在做什么。如果你不想常驻聊天服务器，这里更方便。",
+    "follow_cta": "在 X 上关注"
   },
   "permissions": {
     "title": "权限",

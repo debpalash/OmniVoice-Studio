@@ -10,6 +10,40 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 **Highlights**
 
+- Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
+
+### Fixed
+
+- Linux AppImage: a permanently blank window on Mesa 26.1+ hosts (Arch/CachyOS and other rolling distros) — the bundled WebKit ran against a newer system Mesa than it was built for, and no environment variable could help because the failure precedes every rendering flag; the launcher now lets a newer system WebKitGTK take precedence — thanks @rvasilev and @HannaLovvold! (#1258, #1244)
+- Linux AppImage: `OMNIVOICE_PREFER_SYSTEM_WEBKIT=1` forces your own WebKitGTK for hosts where its version can't be read automatically (no `pkg-config`), and `=0` forces the bundled one (#1258)
+
+## [0.4.2] — 2026-07-28
+
+**Highlights**
+
+- The update prompt is a small toast with buttons, not a screenful of release notes
+- Installing an update no longer throws away work that is still running
+- Quitting the app mid-generate stops reporting itself as a crash
+- A half-downloaded model repairs itself instead of dead-ending
+- "Dismiss" no longer reads as "terminate an employee" in five languages
+
+### Changed
+
+- An available update now announces itself as a toast with **Install and restart**, **What's new** and **Later**, instead of only a dot beside the version number. The release notes stay in Settings → Updates, where there is room for them — a version's notes are the whole changelog section, and rendering them inline is what made the old prompt fill the screen (#1272)
+
+### Fixed
+
+- Installing an update no longer relaunches the app while work is running. The check only knew about dub synthesis, so a restart could silently discard an upload, a transcription, a translation, an export or a standalone synth — and two overlapping synths used to cancel each other's protection. Install is now greyed out while anything is in flight (#1272)
+- A half-downloaded model now repairs itself instead of failing with a raw 500. The automatic repair recognised only one of the two ways the loader reports missing weights, so an interrupted download whose subfolder failed to load got neither the repair nor a hint about what to do (#1273)
+- Quitting the app with a generate queued reported "500 Internal Server Error: model load skipped: backend shutting down" and offered to file a bug for it. A shutdown is not a fault: the backend now answers 503 with what to do, and no bug report is offered for it (#1276)
+- Dub history: clearing a large history while a render was running could still resurrect the deleted job — which markers survived depended on the process hash seed, and an oversized purge could discard a live one (#1252)
+- German, Japanese, Russian and both Chinese locales rendered "Dismiss" as the employment sense — "terminate an employee" — on close buttons (#1272)
+- The "wait for the current job to finish" message named dubbing specifically, though it now covers uploads, transcription, translation, exports and synthesis; reworded across all 21 languages (#1272)
+
+## [0.4.1] — 2026-07-27
+
+**Highlights**
+
 - AMD GPUs are used again — every ROCm host was silently running on the CPU
 - Two synth failures that used to say "an error OmniVoice doesn't recognize" now say what actually went wrong
 - A dub URL ingest that fails on a disk problem now says which folder and why
@@ -18,11 +52,19 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A port conflict now says so, instead of "Backend died (exit code 1)"
 - A model download that dies at 90% now resumes instead of failing the install
 - First run: Continue and the Hugging Face token box no longer sit under the status bar
-- Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
+- macOS 12 (Monterey): the app launches again instead of dying on startup
+- Exporting a voice or a dub no longer fails when the name isn't spelled in Latin letters
+- Two more failures that used to arrive as raw OS text now say what to do about them
+- Unload works on every model the panel offers it for, and a language the active engine can't speak says so
+- Deleting a dub no longer un-deletes itself when the job it belonged to finishes
 
 ### Changed
 
 - First run: the status bar (Logs, version, Sponsors) appears once you reach the studio, instead of overlaying the setup steps (#1241)
+
+### Added
+
+- `OMNIVOICE_MCP_ALLOWED_HOSTS` — comma-separated host patterns (e.g. `host.containers.internal:*,192.168.1.5:*`) that extend the MCP SDK's DNS-rebinding allowlist, so AI agents running in Docker containers or on other machines can reach the `/mcp` endpoint. The SDK default is localhost-only; this env var is opt-in (#1249)
 
 ### Docs
 
@@ -31,8 +73,14 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
-- Linux AppImage: a permanently blank window on Mesa 26.1+ hosts (Arch/CachyOS and other rolling distros) — the bundled WebKit ran against a newer system Mesa than it was built for, and no environment variable could help because the failure precedes every rendering flag; the launcher now lets a newer system WebKitGTK take precedence — thanks @rvasilev and @HannaLovvold! (#1258, #1244)
-- Linux AppImage: `OMNIVOICE_PREFER_SYSTEM_WEBKIT=1` forces your own WebKitGTK for hosts where its version can't be read automatically (no `pkg-config`), and `=0` forces the bundled one (#1258)
+- Deleting a dub while it was still importing crashed the import with the toast `ingest: 'mgw39lx3'` — a dict key and nothing else — and the delete could then be undone by the job's own pending write, in history or mid-render; both are fixed, and no failure can present itself as a bare value again — thanks @dustmaker124-ui! (#1252, #1253)
+- macOS 12 (Monterey): the app threw on startup and never started the backend — it called a Safari 16 method on the WebView that macOS ships. It launches and works now; some styling still needs a newer WebView (tracked in #1268) — thanks @singhrahat! (#1245)
+- Settings → Engines: Unload failed with `400 Unknown model id: engine:kittentts` on any in-process engine — the panel offered the button for ids the backend never accepted; the warm dictation model had the same gap — thanks @JavaxmI! (#1247)
+- Picking a language the active engine can't speak recited 23 codes without saying which engine refused or that switching engine was the fix — thanks @pulananave! (#1257)
+- A YouTube import that failed as "DRM protected" and then worked on a manual retry now escalates the player client automatically, and a genuinely undownloadable video says so — thanks @gysahlgreene! (#1254)
+- Exporting a voice profile, persona, dub, subtitle or stem whose name is Chinese, Japanese, Korean, Cyrillic, Greek, Hebrew or emoji failed with a `'latin-1' codec` 500 — every download endpoint now sends the name correctly, and browsers get the real one back — thanks @zvxzdx! (#1262)
+- A synth that failed because ffmpeg/ffprobe wasn't on the system path said "an error OmniVoice doesn't recognize"; it now names the media engine and points at Settings → Audio tools, and the app's own copy is published on PATH so dependencies find it in the first place — thanks @Heuvelsma! (#1256)
+- Windows "The paging file is too small" arrived as a bare 500; it now explains that this is a virtual-memory setting, not full RAM, and gives the steps to raise it — thanks @trankeny545-sudo! (#1251)
 - AMD/ROCm: every ROCm host was silently force-routed to the CPU — the compatibility gate compared a CUDA `sm_` tag against a ROCm build's `gfx` list, which can never match — thanks @simmessa! (#1228)
 - AMD/ROCm: `torch.compile` was disabled on all AMD hosts by the same mismatched comparison (#1228)
 - AMD/ROCm: `HSA_OVERRIDE_GFX_VERSION` is auto-set only when your card genuinely needs it and the remap target exists in your build; gfx1150/gfx1151 (Strix Point/Halo) added to the map (#1228)

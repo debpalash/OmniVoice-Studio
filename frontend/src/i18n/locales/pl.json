@@ -104,7 +104,7 @@
     "update_check_failed": "Sprawdzanie aktualizacji nie powiodło się: {{message}}",
     "save_failed": "Zapis nie powiódł się: {{message}}",
     "clear_failed": "Wyczyszczenie nie powiodło się: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Przełączono {{family}} na {{engine}}",
     "channel_set_failed": "Nie udało się ustawić kanału: {{message}}",
     "updater_downloading": "Pobieranie {{version}}…",
     "updater_installed": "Zainstalowano — uruchamiam ponownie.",
@@ -492,7 +492,12 @@
     "local_sqlite": "Lokalny SQLite",
     "translator_online": "Tłumacz jest online: {{provider}}",
     "translator_offline": "Tłumacz offline",
-    "no_tracking": "Brak — brak śledzenia"
+    "no_tracking": "Brak — brak śledzenia",
+    "watermark_title": "Niewidoczny znak wodny",
+    "watermark_subtitle": "Domyślnie włączony. Oznacza wygenerowany dźwięk jako utworzony przez AI, aby można go było później rozpoznać. Dotyczy tylko dźwięku wygenerowanego od teraz.",
+    "watermark_on_toast": "Niewidoczny znak wodny włączony dla nowego dźwięku.",
+    "watermark_off_toast": "Niewidoczny znak wodny wyłączony dla nowego dźwięku.",
+    "watermark_failed": "Nie udało się zmienić ustawienia znaku wodnego."
   },
   "consent": {
     "title": "Pomóc ulepszyć OmniVoice?",
@@ -578,7 +583,12 @@
     "routingRemote": "Zdalny",
     "routingUnknown": "Nieznany",
     "routingEffectiveChip": "Działa na {{device}} na tym komputerze",
-    "routingCaveatTitle": "Wybrano procesor graficzny, ale: {{reason}}"
+    "routingCaveatTitle": "Wybrano procesor graficzny, ale: {{reason}}",
+    "selectCpuFallback": "{{engine}}: działa na CPU — {{reason}}",
+    "selectWithCaveat": "Przełączono na {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} może działać wolno na tym komputerze — {{reason}}",
+    "cpuLongText": "{{engine}} działa tutaj na CPU, a ten tekst jest długi — generowanie może przekroczyć limit czasu. Krótszy tekst lub silnik zoptymalizowany pod CPU (OmniVoice GGUF, Supertonic-3) będzie znacznie szybszy.",
+    "cpuLongTextTuned": "{{engine}} działa tutaj na CPU, a ten tekst jest długi — generowanie może przekroczyć limit czasu. Krótszy tekst lub podzielenie go na kilka części będzie znacznie szybsze."
   },
   "capture": {
     "desc": "Globalne skróty klawiszowe działają tylko w aplikacji komputerowej. Interfejs WWW korzysta ze skrótu <1>Ctrl+Shift+Spacja</1> znajdującego się na stronie, gdy okno jest aktywne.",
@@ -1435,10 +1445,14 @@
     "desc": "Nie martw się — reszta aplikacji nadal działa. Możesz przełączyć karty lub spróbować ponownie poniżej.",
     "tryAgain": "Spróbuj ponownie",
     "openDocs": "Otwórz dokumenty dotyczące tego błędu",
+    "crash_port_in_use": "Nie udało się uruchomić backendu, ponieważ port 3900 jest już zajęty — trzyma go inna kopia OmniVoice (lub aplikacja, która przejęła ten port). Zamknij drugą instancję i uruchom ponownie; jeśli nic widocznie nie działa, port nadal blokuje osierocony backend z poprzedniej sesji.",
+    "crash_oom_kill": "Proces został zabity (sygnał 9), co zwykle oznacza, że systemowi zabrakło pamięci (RAM). Zamknij aplikacje zużywające dużo pamięci, wybierz mniejszy model ASR w Ustawieniach → Modele albo zwolnij model TTS przed transkrypcją.",
+    "crash_native_fault": "Awaria nastąpiła wewnątrz stosu obliczeniowego, a nie z powodu braku pamięci — wskazuje to na sterownik GPU niezgodny z dołączonym środowiskiem CUDA albo na niekompletnie pobrany plik modelu. Zaktualizuj sterownik GPU, a następnie pobierz model ponownie w Ustawieniach → Modele (naprawia częściowe pobranie w miejscu). Jeśli problem się powtarza, przełącz się na silnik izolowany w Ustawieniach → Silniki — „OmniVoice (subprocess)” do syntezy, „Faster-Whisper (crash-isolated subprocess)” do transkrypcji. Uruchamiają one model w osobnym procesie, więc taka awaria kończy ten proces zamiast całego backendu.",
     "report": "Zgłoś ten błąd",
     "report_failed": "Nie udało się otworzyć zgłoszenia błędu. Spróbuj ponownie lub skopiuj powyższe szczegóły do nowego zgłoszenia.",
     "searchIssues": "Szukaj podobnych problemów",
-    "unexpected": "Nieoczekiwany błąd: {{message}}"
+    "unexpected": "Nieoczekiwany błąd: {{message}}",
+    "backend_shutting_down": "OmniVoice się zamyka. Otwórz aplikację ponownie i spróbuj jeszcze raz."
   },
   "keyboard": {
     "title": "Skróty klawiaturowe",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Czy mogę spróbować przed zatwierdzeniem?",
     "a_try_before": "Tak. Pełną aplikację można bezpłatnie pobrać, uruchomić i hostować samodzielnie na licencji AGPL-3.0 — bez żadnej umowy. Gdy zechcesz porozmawiać o licencji komercyjnej (użycie własnościowe), napisz do nas, a wspólnie ustalimy szczegóły.",
     "q_watermark": "A co ze znakiem wodnym?",
-    "a_watermark": "Niewidoczny znak wodny AudioSeal jest domyślnie osadzany dla wszystkich. Licencjobiorcy komercyjni mogą go wyłączyć w Ustawieniach → Prywatność."
+    "a_watermark": "Niewidoczny znak wodny AudioSeal jest domyślnie osadzany u wszystkich. Możesz go wyłączyć w Ustawieniach → Prywatność; dotyczy tylko dźwięku wygenerowanego po zmianie."
   },
   "gallery_extra": {
     "save_prompt": "Wprowadź nazwę tego profilu głosowego:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Pobierz aktualizację i uruchom ponownie w nowej wersji",
     "downloading": "Aktualizowanie… {{pct}}%",
     "restart": "Uruchom ponownie, aby zaktualizować",
-    "busy": "Najpierw dokończ dubbing — potem zainstaluj aktualizację.",
+    "busy": "Poczekaj na zakończenie trwającej pracy — potem zainstaluj aktualizację.",
     "whats_new": "Co nowego?",
     "failed": "Aktualizacja nie powiodła się",
     "retry": "Spróbuj ponownie",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "toast_available": "OmniVoice Studio {{version}} jest dostępna",
+    "toast_install": "Zainstaluj i uruchom ponownie",
+    "toast_whats_new": "Co nowego",
+    "toast_later": "Później"
   },
   "archetypes": {
     "featured": "Polecane",
@@ -2249,7 +2267,10 @@
     "email": "E-mail",
     "email_desc": "Licencje, partnerstwa lub cokolwiek prywatnego.",
     "website": "Strona internetowa",
-    "website_desc": "Więcej o projekcie i twórcy."
+    "website_desc": "Więcej o projekcie i twórcy.",
+    "follow_title": "Obserwuj na X",
+    "follow_desc": "Informacje o wydaniach, nowe silniki i od czasu do czasu zapowiedzi tego, co powstaje. Wygodne, jeśli wolisz nie siedzieć na serwerze czatu.",
+    "follow_cta": "Obserwuj na X"
   },
   "permissions": {
     "title": "Uprawnienia",

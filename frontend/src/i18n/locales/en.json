@@ -43,11 +43,15 @@
     "install_hint": "Download the update and restart into the new version",
     "downloading": "Updating… {{pct}}%",
     "restart": "Restart to update",
-    "busy": "Finish your dub first — then install the update.",
+    "busy": "Wait for the work in progress to finish — then install the update.",
     "whats_new": "What's new",
     "failed": "Update failed",
     "retry": "Retry",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "toast_available": "OmniVoice Studio {{version}} is available",
+    "toast_install": "Install and restart",
+    "toast_whats_new": "What's new",
+    "toast_later": "Later"
   },
   "updates": {
     "tab": "Updates",
@@ -519,7 +523,7 @@
     "update_check_failed": "Update check failed: {{message}}",
     "save_failed": "Save failed: {{message}}",
     "clear_failed": "Clear failed: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Switched {{family}} to {{engine}}",
     "channel_set_failed": "Failed to set channel: {{message}}",
     "updater_downloading": "Downloading {{version}}…",
     "updater_installed": "Installed — relaunching.",
@@ -805,7 +809,12 @@
     "analytics_never": "Never sent: the text you type, your audio, your file names, your voice names, or anything identifying you. Not your name, not your email, not your IP.",
     "analytics_off_anytime": "You can turn this off again at any time, and nothing further is sent.",
     "analytics_on": "Thanks — anonymous usage stats are on.",
-    "analytics_off": "Analytics off. Nothing is sent."
+    "analytics_off": "Analytics off. Nothing is sent.",
+    "watermark_title": "Invisible watermark",
+    "watermark_subtitle": "On by default. Marks generated audio as AI-made so it can be identified later. Only affects audio generated from now on.",
+    "watermark_on_toast": "Invisible watermark enabled for new audio.",
+    "watermark_off_toast": "Invisible watermark disabled for new audio.",
+    "watermark_failed": "Could not change the watermark setting."
   },
   "consent": {
     "title": "Help improve OmniVoice?",
@@ -1901,17 +1910,25 @@
     "installStep_verify": "Verifying the environment",
     "installStep_fetch_weights": "Downloading model weights",
     "installStep_persist": "Saving configuration",
-    "installAria": "Install {{engine}}"
+    "installAria": "Install {{engine}}",
+    "selectWithCaveat": "Switched to {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} may be slow on this machine — {{reason}}",
+    "cpuLongText": "{{engine}} runs on the CPU here, and this text is long — the generation may exceed the time budget. Shorter text, or a CPU-tuned engine (OmniVoice GGUF, Supertonic-3), will be much faster.",
+    "cpuLongTextTuned": "{{engine}} runs on the CPU here, and this text is long — the generation may exceed the time budget. Shorter text, or splitting it into a few takes, will be much faster."
   },
   "errors": {
     "title": "This tab hit a snag.",
     "desc": "Don't worry — the rest of the app still works. You can switch tabs, or try again below.",
     "tryAgain": "Try again",
     "openDocs": "Open docs for this error",
+    "crash_port_in_use": "The backend could not start because port 3900 is already in use — another copy of OmniVoice (or an app that claimed that port) is holding it. Quit the other instance and relaunch; if nothing is visibly running, an orphaned backend from a previous session is still holding the port.",
+    "crash_oom_kill": "It was force-killed (signal 9), which usually means the operating system ran out of memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in Settings → Models, or flush the TTS model before transcribing.",
+    "crash_native_fault": "It crashed inside the compute stack rather than running out of memory — that points at a GPU driver that does not match the bundled CUDA runtime, or a model file that downloaded incompletely. Update your GPU driver, then re-download the model from Settings → Models (it repairs a partial download in place). If it keeps happening, switch to a crash-isolated engine in Settings → Engines — \"OmniVoice (subprocess)\" for synthesis, \"Faster-Whisper (crash-isolated subprocess)\" for transcription. Those run the model in a separate process, so a crash like this takes down that process instead of the whole backend.",
     "report": "Report this bug",
     "report_failed": "Couldn't open the bug report. Please try again, or copy the details above into a new issue.",
     "searchIssues": "Search similar issues",
-    "unexpected": "Unexpected error: {{message}}"
+    "unexpected": "Unexpected error: {{message}}",
+    "backend_shutting_down": "OmniVoice is shutting down. Reopen the app and try again."
   },
   "crash": {
     "notice": "The voice backend crashed ({{exit}}) {{ago}} ago and is being restarted automatically.",
@@ -2425,7 +2442,7 @@
     "q_try_before": "Can I try before committing?",
     "a_try_before": "Yes. The full app is free to download, run, and self-host under the AGPL-3.0 — no agreement required. When you're ready to discuss a commercial (proprietary-use) license, email us and we'll work through the details together.",
     "q_watermark": "What about the watermark?",
-    "a_watermark": "The invisible AudioSeal watermark is embedded by default for everyone. Commercial licensees can disable it in Settings → Privacy."
+    "a_watermark": "The invisible AudioSeal watermark is embedded by default for everyone. You can turn it off in Settings → Privacy; it only affects audio generated after the change."
   },
   "gallery_extra": {
     "save_prompt": "Enter a name for this voice profile:",
@@ -2662,7 +2679,10 @@
     "email": "Email",
     "email_desc": "Email — licensing, partnerships, or anything private",
     "website": "Website",
-    "website_desc": "Website — more about the project and the maker"
+    "website_desc": "Website — more about the project and the maker",
+    "follow_title": "Follow along on X",
+    "follow_desc": "Release notes, new engines, and the occasional look at what is being built next. Handy if you would rather not sit in a chat server.",
+    "follow_cta": "Follow on X"
   },
   "firstrun": {
     "loading": "Preparing setup…",

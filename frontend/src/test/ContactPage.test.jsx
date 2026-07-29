@@ -46,6 +46,7 @@ describe('ContactPage', () => {
     const href = (name) => screen.getByRole('link', { name }).getAttribute('href');
     expect(href('Open GitHub Issues')).toBe(`${REPO}/issues`);
     expect(href('Join the Discord')).toBe('https://discord.gg/bzQavDfVV9');
+    expect(href('Follow on X')).toBe('https://x.com/idebpalash');
     expect(href('Report privately')).toBe(`${REPO}/security/advisories/new`);
     expect(href(/licensing/i)).toBe(`mailto:OmniVoice@palash.dev`);
     expect(href(/more about the project/i)).toBe('https://palash.dev');

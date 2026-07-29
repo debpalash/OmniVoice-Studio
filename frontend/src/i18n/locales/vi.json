@@ -104,7 +104,7 @@
     "update_check_failed": "Kiểm tra cập nhật không thành công: {{message}}",
     "save_failed": "Lưu không thành công: {{message}}",
     "clear_failed": "Xóa không thành công: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "Đã chuyển {{family}} sang {{engine}}",
     "channel_set_failed": "Không đặt được kênh: {{message}}",
     "updater_downloading": "Đang tải xuống {{version}}…",
     "updater_installed": "Đã cài đặt - khởi chạy lại.",
@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite cục bộ",
     "translator_online": "Người dịch đang trực tuyến: {{provider}}",
     "translator_offline": "Trình dịch ngoại tuyến",
-    "no_tracking": "Không có - không theo dõi"
+    "no_tracking": "Không có - không theo dõi",
+    "watermark_title": "Hình mờ vô hình",
+    "watermark_subtitle": "Bật theo mặc định. Đánh dấu âm thanh được tạo là do AI tạo ra để có thể nhận biết về sau. Chỉ ảnh hưởng đến âm thanh được tạo từ giờ trở đi.",
+    "watermark_on_toast": "Đã bật hình mờ vô hình cho âm thanh mới.",
+    "watermark_off_toast": "Đã tắt hình mờ vô hình cho âm thanh mới.",
+    "watermark_failed": "Không thể thay đổi cài đặt hình mờ."
   },
   "consent": {
     "title": "Giúp cải thiện OmniVoice?",
@@ -578,7 +583,12 @@
     "routingRemote": "Từ xa",
     "routingUnknown": "Không xác định",
     "routingEffectiveChip": "Chạy trên {{device}} trên máy này",
-    "routingCaveatTitle": "Đã chọn GPU nhưng: {{reason}}"
+    "routingCaveatTitle": "Đã chọn GPU nhưng: {{reason}}",
+    "selectCpuFallback": "{{engine}}: đang chạy trên CPU — {{reason}}",
+    "selectWithCaveat": "Đã chuyển sang {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} có thể chạy chậm trên máy này — {{reason}}",
+    "cpuLongText": "{{engine}} chạy trên CPU ở đây và văn bản này dài — quá trình tạo có thể vượt quá giới hạn thời gian. Văn bản ngắn hơn hoặc một engine tối ưu cho CPU (OmniVoice GGUF, Supertonic-3) sẽ nhanh hơn nhiều.",
+    "cpuLongTextTuned": "{{engine}} chạy trên CPU ở đây và văn bản này dài — quá trình tạo có thể vượt quá giới hạn thời gian. Văn bản ngắn hơn, hoặc chia thành vài phần, sẽ nhanh hơn nhiều."
   },
   "capture": {
     "desc": "Phím nóng chung chỉ hoạt động trong ứng dụng máy tính để bàn. Giao diện người dùng web sử dụng phím tắt <1>Ctrl+Shift+Space</1> trong trang trong khi cửa sổ đang có tiêu điểm.",
@@ -1435,10 +1445,14 @@
     "desc": "Đừng lo lắng — phần còn lại của ứng dụng vẫn hoạt động. Bạn có thể chuyển đổi tab hoặc thử lại bên dưới.",
     "tryAgain": "Thử lại",
     "openDocs": "Mở tài liệu cho lỗi này",
+    "crash_port_in_use": "Không thể khởi động backend vì cổng 3900 đã được sử dụng — một bản OmniVoice khác (hoặc ứng dụng đã chiếm cổng đó) đang giữ nó. Hãy thoát bản kia rồi khởi chạy lại; nếu không thấy gì đang chạy, một backend còn sót từ phiên trước vẫn đang giữ cổng.",
+    "crash_oom_kill": "Tiến trình bị buộc dừng (tín hiệu 9), thường có nghĩa là hệ điều hành đã hết bộ nhớ (RAM). Hãy đóng các ứng dụng ngốn bộ nhớ, chọn mô hình ASR nhỏ hơn trong Cài đặt → Mô hình, hoặc giải phóng mô hình TTS trước khi chuyển lời nói thành văn bản.",
+    "crash_native_fault": "Nó sập bên trong tầng tính toán chứ không phải do hết bộ nhớ — điều này cho thấy trình điều khiển GPU không khớp với CUDA runtime đi kèm, hoặc tệp mô hình tải xuống không trọn vẹn. Hãy cập nhật trình điều khiển GPU, rồi tải lại mô hình trong Cài đặt → Mô hình (nó sửa bản tải dở ngay tại chỗ). Nếu vẫn tiếp diễn, hãy chuyển sang engine cách ly sự cố trong Cài đặt → Engine — \"OmniVoice (subprocess)\" cho tổng hợp giọng nói, \"Faster-Whisper (crash-isolated subprocess)\" cho chuyển lời nói thành văn bản. Chúng chạy mô hình trong tiến trình riêng, nên sự cố như thế chỉ hạ tiến trình đó thay vì toàn bộ backend.",
     "report": "Báo cáo lỗi này",
     "report_failed": "Không mở được báo cáo lỗi. Vui lòng thử lại, hoặc sao chép chi tiết ở trên vào một issue mới.",
     "searchIssues": "Tìm các vấn đề tương tự",
-    "unexpected": "Lỗi không mong muốn: {{message}}"
+    "unexpected": "Lỗi không mong muốn: {{message}}",
+    "backend_shutting_down": "OmniVoice đang tắt. Mở lại ứng dụng rồi thử lại."
   },
   "keyboard": {
     "title": "Phím tắt",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Tôi có thể thử trước khi cam kết không?",
     "a_try_before": "Có. Toàn bộ ứng dụng có thể tải xuống, chạy và tự lưu trữ miễn phí theo AGPL-3.0 — không cần bất kỳ thỏa thuận nào. Khi bạn sẵn sàng trao đổi về giấy phép thương mại (sử dụng độc quyền), hãy gửi email cho chúng tôi và chúng ta sẽ cùng thống nhất chi tiết.",
     "q_watermark": "Còn hình mờ thì sao?",
-    "a_watermark": "Hình mờ AudioSeal vô hình được nhúng theo mặc định cho tất cả mọi người. Người được cấp phép thương mại có thể tắt nó trong Cài đặt → Quyền riêng tư."
+    "a_watermark": "Hình mờ vô hình AudioSeal được nhúng theo mặc định cho mọi người. Bạn có thể tắt trong Cài đặt → Quyền riêng tư; nó chỉ ảnh hưởng đến âm thanh được tạo sau khi thay đổi."
   },
   "gallery_extra": {
     "save_prompt": "Nhập tên cho cấu hình giọng nói này:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Tải bản cập nhật và khởi động lại vào phiên bản mới",
     "downloading": "Đang cập nhật… {{pct}}%",
     "restart": "Khởi động lại để cập nhật",
-    "busy": "Hoàn tất lồng tiếng của bạn trước — rồi cài đặt bản cập nhật.",
+    "busy": "Chờ công việc đang chạy hoàn tất — rồi cài đặt bản cập nhật.",
     "whats_new": "Có gì mới",
     "failed": "Cập nhật không thành công",
     "retry": "Thử lại",
-    "dismiss": "Loại bỏ"
+    "dismiss": "Loại bỏ",
+    "toast_available": "OmniVoice Studio {{version}} đã có",
+    "toast_install": "Cài đặt và khởi động lại",
+    "toast_whats_new": "Có gì mới",
+    "toast_later": "Để sau"
   },
   "archetypes": {
     "featured": "Nổi bật",
@@ -2249,7 +2267,10 @@
     "email": "Email",
     "email_desc": "Cấp phép, hợp tác hoặc bất cứ điều gì riêng tư.",
     "website": "Trang web",
-    "website_desc": "Thông tin thêm về dự án và nhà sản xuất."
+    "website_desc": "Thông tin thêm về dự án và nhà sản xuất.",
+    "follow_title": "Theo dõi trên X",
+    "follow_desc": "Ghi chú phát hành, engine mới, và đôi khi là hé lộ những gì đang được xây dựng. Tiện nếu bạn không muốn ở trong một máy chủ chat.",
+    "follow_cta": "Theo dõi trên X"
   },
   "permissions": {
     "title": "Quyền truy cập",

@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Mail,
   Globe,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { Card } from '@/components/ui/card';
@@ -31,6 +32,7 @@ const DISCORD_URL = 'https://discord.gg/bzQavDfVV9';
 const SECURITY_URL = `${REPO_URL}/security/advisories/new`;
 const EMAIL = 'OmniVoice@palash.dev';
 const WEBSITE_URL = 'https://palash.dev';
+const X_URL = 'https://x.com/idebpalash';
 
 // Guidance sections — each is a card with an icon, a heading, and a
 // "use this when…" sentence so a user lands on the RIGHT channel instead of a
@@ -79,6 +81,20 @@ const SECTIONS = [
       'The fastest place for setup help and troubleshooting, and a friendly spot to share the dubs and voices you make. Come say hi and see what everyone is building.',
     ctaKey: 'contact.community_cta',
     ctaDefault: 'Join the Discord',
+  },
+  {
+    id: 'follow',
+    icon: Megaphone,
+    hue: '#1d9bf0',
+    kind: 'external',
+    url: X_URL,
+    titleKey: 'contact.follow_title',
+    titleDefault: 'Follow along on X',
+    descKey: 'contact.follow_desc',
+    descDefault:
+      'Release notes, new engines, and the occasional look at what is being built next. Handy if you would rather not sit in a chat server.',
+    ctaKey: 'contact.follow_cta',
+    ctaDefault: 'Follow on X',
   },
   {
     id: 'support',

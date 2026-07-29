@@ -45,6 +45,22 @@ export interface GenerateSlice {
   designSeed: number | null;
   keepSeed: boolean;
 
+  /**
+   * How many synth requests are in flight right now.
+   *
+   * A COUNT, not a flag. Syntheses overlap — the Generate tab, voice previews,
+   * the compare modal, the stories editor and profile previews can all be
+   * running at once, and a boolean would be cleared by whichever finished
+   * first while the others were still going, letting the updater relaunch and
+   * discard them.
+   *
+   * Maintained by `api/generate.ts` around the single `/generate` call every
+   * one of those paths goes through, so a new caller is covered without having
+   * to remember this exists. Read via `utils/appBusy`. Transient: never
+   * persisted, since a synth cannot survive a reload.
+   */
+  ttsInflight: number;
+
   setText: (v: string) => void;
   setRefText: (v: string) => void;
   setInstruct: (v: string) => void;
@@ -65,6 +81,8 @@ export interface GenerateSlice {
 
   setDesignSeed: (v: number | null) => void;
   setKeepSeed: (v: boolean) => void;
+  /** +1 on synth start, -1 on settle. Floors at 0; never goes negative. */
+  addTtsInflight: (delta: number) => void;
 }
 
 const INITIAL_VD: VDStates = {
@@ -97,6 +115,7 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
 
   designSeed: null,
   keepSeed: false,
+  ttsInflight: 0,
 
   setText: (v) => set({ text: v }),
   setRefText: (v) => set({ refText: v }),
@@ -121,4 +140,5 @@ export const createGenerateSlice: StateCreator<GenerateSlice, [], [], GenerateSl
 
   setDesignSeed: (v) => set({ designSeed: v }),
   setKeepSeed: (v) => set({ keepSeed: v }),
+  addTtsInflight: (delta) => set((st) => ({ ttsInflight: Math.max(0, st.ttsInflight + delta) })),
 });

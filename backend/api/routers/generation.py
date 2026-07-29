@@ -634,9 +634,64 @@ def _run_backend_inference(
 
     except ValueError as e:
         # Don't wrap validation errors in OOM message
-        raise e
+        raise _language_rejection_or(e, backend, language)
     except Exception as e:
+        rewritten = _language_rejection_or(e, backend, language)
+        if rewritten is not e:
+            raise rewritten from e
         _oom_friendly_reraise(e)
+
+
+# #1257: the language picker offers all 646 languages regardless of engine,
+# because MLXAudioBackend.supported_languages() returns ["multi"] on the stated
+# assumption that "each engine silently ignores languages it doesn't know".
+# That assumption is false — the underlying library raises, and the reporter got
+# a bare 400 that recited 23 language codes without saying which engine was
+# refusing, or that switching engines was the fix.
+# Each signature must be about the LANGUAGE itself. "Unsupported language" as a
+# bare prefix also matches "Unsupported language model configuration" — a model
+# problem handed engine-switch advice it has no use for (#1257 review) — so the
+# looser wordings require the rejected thing to end there or be a code/name.
+_LANGUAGE_REJECTION_SIGNATURES = (
+    "invalid language code",
+    "language not supported",
+    "language is not supported",
+    "unsupported language code",
+)
+
+#: `unsupported language: xx` / `unsupported language 'xx'` — but not
+#: `unsupported language model ...`.
+_LANGUAGE_REJECTION_RE = re.compile(
+    r"unsupported language\s*[:=]|unsupported language\s*['\"]|"
+    r"unsupported language\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _language_rejection_or(e: BaseException, backend, language):
+    """``e`` rewritten with engine context when it's a language rejection.
+
+    Returns ``e`` unchanged otherwise, so this is safe to wrap any failure in.
+    Matched on the message, not the type: the engines multiplex third-party
+    libraries that each raise their own class.
+    """
+    text = str(e)
+    low = text.lower()
+    if not any(sig in low for sig in _LANGUAGE_REJECTION_SIGNATURES) and not (
+        _LANGUAGE_REJECTION_RE.search(text)
+    ):
+        return e
+    engine = getattr(backend, "display_name", None) or getattr(
+        type(backend), "id", type(backend).__name__
+    )
+    requested = f" '{language}'" if language else ""
+    return ValueError(
+        f"The {engine} engine can't speak{requested}. OmniVoice offers every "
+        f"language its default engine supports, but each engine covers a "
+        f"different set — pick one this engine supports, or switch engine in "
+        f"Settings → Engines (the OmniVoice engine has the widest coverage) "
+        f"and generate again. Engine's own message: {e}"
+    )
 
 
 def _persist_profile_ref_text(profile_id: str, ref_text: str) -> None:
@@ -875,6 +930,9 @@ async def generate_speech(
         log_if_low(f"TTS load ({engine_id})")
     except Exception:
         pass
+
+    # VRAM eviction runs in get_model()'s warm-return path now, so every native
+    # TTS generate (this route, WS TTS, dub, batch, audiobook) is covered.
 
     _model = None
     _backend = None

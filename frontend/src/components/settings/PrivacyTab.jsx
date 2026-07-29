@@ -6,6 +6,7 @@ import { useAppStore } from '../../store';
 import { SettingsSection } from './primitives';
 import Row from './Row';
 import AnalyticsOptIn from './AnalyticsOptIn';
+import WatermarkControl from './WatermarkControl';
 
 // Providers that send dialogue text to a third-party service vs. the ones that
 // run fully on-device (backend/api/routers/dub_translate.py). Anything else —
@@ -79,6 +80,10 @@ export default function PrivacyTab({ info }) {
       {/* Opt-in product analytics. Renders nothing when the build ships no
           destination, and is OFF until the user turns it on — so the
           "no tracking" default above stays true for everyone who doesn't. */}
+      {/* The provenance mark. ON by default (the opposite of analytics
+          below), and now actually controllable — errors.a_watermark has told
+          users it lives here since watermarking shipped. */}
+      <WatermarkControl />
       <AnalyticsOptIn />
     </SettingsSection>
   );

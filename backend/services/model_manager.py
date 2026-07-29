@@ -107,9 +107,28 @@ def _pick_gpu_workers() -> int:
     return 1
 
 
+# thread_name_prefix for the GPU pool, centralised so the "am I on a gpu-pool
+# worker?" predicates (running_on_gpu_pool below; SubprocessBackend.generate's
+# on-pool skip) cannot drift from the pool's actual prefix. A drift would
+# silently re-introduce the 1-worker self-deadlock this couples against.
+_GPU_POOL_THREAD_PREFIX = "gpu-pool"
+
+
 def _build_gpu_pool() -> ThreadPoolExecutor:
     workers = _pick_gpu_workers()
-    return ThreadPoolExecutor(max_workers=workers, thread_name_prefix="gpu-pool")
+    return ThreadPoolExecutor(
+        max_workers=workers, thread_name_prefix=_GPU_POOL_THREAD_PREFIX)
+
+
+def running_on_gpu_pool() -> bool:
+    """True iff the calling thread is a gpu-pool worker (already holds a slot).
+
+    Routes that dispatch backend work via run_on_gpu_pool_guarded are already on
+    a pool worker; re-acquiring a slot there would self-deadlock on a 1-worker
+    pool (MPS). Used by SubprocessBackend.generate()'s on-pool skip and by
+    _heal_tts_placement.
+    """
+    return threading.current_thread().name.startswith(_GPU_POOL_THREAD_PREFIX)
 
 
 class _ResilientGpuPool(Executor):
@@ -749,8 +768,8 @@ def check_device_compatibility():
     return False, (
         f"{device_name} ({device_arch}) is not supported by this PyTorch build. "
         f"Supported architectures: {', '.join(arch_list)}. "
-        f"Try: pip install torch --index-url "
-        f"https://download.pytorch.org/whl/nightly/cu128"
+        f"Install a build that covers it: pip install --force-reinstall torch "
+        f"--index-url https://download.pytorch.org/whl/cu128"
     )
 
 
@@ -1024,14 +1043,23 @@ def should_preload_tts_asr() -> bool:
 
 
 def _is_incomplete_cache_error(exc: BaseException) -> bool:
-    """True when `exc` is the truncated-HF-cache class (#352 / #581).
+    """True when `exc` is the truncated-HF-cache class (#352 / #581 / #1273).
 
-    transformers raises an OSError whose message contains "does not appear to
-    have a file named …" when the on-disk snapshot has config/tokenizer files
-    but no weight shard — the signature of an interrupted download. We match on
-    that phrase (stable across transformers 4.x/5.x) rather than the error type,
-    since the same OSError type covers unrelated I/O failures."""
-    return "does not appear to have a file named" in str(exc)
+    transformers raises an OSError when the on-disk snapshot has config and
+    tokenizer files but no weight shard — the signature of an interrupted
+    download. We match on the message (stable across transformers 4.x/5.x)
+    rather than the error type, since the same OSError type covers unrelated
+    I/O failures.
+
+    There are TWO wordings, and this used to match only the first, so a
+    half-written repo whose *subfolder* failed to load (#1273:
+    "Error no file named model.safetensors, … found in directory
+    …/snapshots/<rev>/audio_tokenizer") got neither the automatic repair nor
+    an actionable message — just a raw 500. `core.failure` owns the phrase
+    list so the heal and the error text can't drift apart."""
+    from core.failure import is_incomplete_cache_message
+
+    return is_incomplete_cache_message(str(exc))
 
 
 def _hf_offline() -> bool:
@@ -1675,6 +1703,13 @@ async def get_model():
         # contract unnecessary: a future unbalanced offload can no longer
         # strand the model, because the next generation moves it back.
         await _heal_tts_placement()
+        # Free idle GPU memory before this warm generate reuses the resident
+        # model. The cold-load path already evicts (_make_room_before_tts_load);
+        # this closes the WARM path for every native TTS generate (/generate, WS
+        # TTS, dub, batch, audiobook), not just a couple of routes. No-op on a
+        # roomy machine. Off the event loop because the eviction does gc.collect
+        # + cache drop + ASR teardown that can block for hundreds of ms.
+        await asyncio.get_running_loop().run_in_executor(None, make_room_before_generate)
         return model
 
     async with _model_lock:
@@ -1709,18 +1744,77 @@ def _make_room_before_tts_load() -> None:
         if free_gb is None or free_gb >= _UNIFIED_OFFLOAD_HEADROOM_GB:
             return
         logger.info(
-            "Memory tight before TTS load (%.1f GB free) — releasing idle "
+            "Memory tight before TTS load (%.1f GB free), releasing idle "
             "models first.", free_gb,
         )
+        _release_idle_tts_memory("load")
+    except Exception:  # noqa: BLE001 -- making room must never break loading
+        logger.debug("pre-load memory reclaim skipped", exc_info=True)
+
+
+def _release_idle_tts_memory(stage):
+    """Drop capture-ASR, TTS side caches, and allocator caches. Best-effort;
+    never raises (a cleanup failure must not break the load/generate that called
+    it). Shared by the cold-load and warm-generate make-room paths so the
+    eviction recipe cannot drift between them (#730/#1190)."""
+    try:
         try:
             from services.asr_backend import release_idle_capture_backend
             release_idle_capture_backend(0.0)  # 0s idle = release if unleased
-        except Exception:  # noqa: BLE001 — best-effort, never block the load
-            logger.debug("capture-ASR pre-load release failed", exc_info=True)
+        except Exception:  # noqa: BLE001 -- best-effort, never blocks the caller
+            logger.debug("capture-ASR pre-%s release failed", stage, exc_info=True)
         release_tts_side_caches()
         free_vram()
-    except Exception:  # noqa: BLE001 — making room must never break loading
-        logger.debug("pre-load memory reclaim skipped", exc_info=True)
+    except Exception:  # noqa: BLE001 -- a cleanup failure must never break the caller
+        logger.debug("pre-%s memory reclaim skipped", stage, exc_info=True)
+
+
+def _should_make_room_for_generate():
+    """Decide whether to free idle GPU memory before a generate (#730/#1190).
+
+    Modes (OMNIVOICE_FREE_VRAM_BEFORE_GENERATE):
+      auto (default): free when free system RAM is below the unified headroom,
+        mirroring _make_room_before_tts_load. A roomy machine pays nothing.
+      always: free before every generate (small per-call cost from gc.collect +
+        cache drop).
+      never: opt out.
+    """
+    mode = os.environ.get("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", "auto").strip().lower()
+    if mode == "never":
+        return False
+    if mode == "always":
+        return True
+    try:
+        from services.memory_budget import available_memory
+        free_gb = (available_memory() or {}).get("ram_available_gb")
+        if free_gb is not None and free_gb < _UNIFIED_OFFLOAD_HEADROOM_GB:
+            return True
+    except Exception:  # noqa: BLE001 -- a probe failure must never block a generate
+        logger.debug("make_room memory probe failed", exc_info=True)
+    return False
+
+
+def make_room_before_generate():
+    """Free idle GPU memory before a warm, heavy generate (#730/#1190).
+
+    The cold LOAD path already evicts (``_make_room_before_tts_load`` runs inside
+    ``_load_model_with_timeout``), but the warm path (model already resident,
+    ``get_model`` returns early at the cache check) skipped it. A long generate
+    on a VRAM-tight MPS box then contended with capture-ASR and the clone-prompt
+    side cache until it exceeded the execution budget and was abandoned, which is
+    exactly how one slow synth cascaded into a stuck, device-holding backend.
+    This runs the same fail-safe eviction the load path uses, just before a
+    generate the policy says is likely to starve.
+
+    Deliberately NOT admission control and NOT a device reclaim. It only drops
+    things the app already releases on idle, just now instead of later, so a
+    roomy machine or a short synth pays nothing. It cannot kill an already
+    abandoned worker; only a crash-isolated subprocess engine can (see
+    services.subprocess_backend).
+    """
+    if not _should_make_room_for_generate():
+        return
+    _release_idle_tts_memory("generate")
 
 
 def _checkpoint_in_local_cache(checkpoint: str) -> bool:
@@ -2105,7 +2199,7 @@ async def _heal_tts_placement() -> None:
     """
     if _stranded_tts_target() is None:
         return
-    if threading.current_thread().name.startswith("gpu-pool"):
+    if running_on_gpu_pool():
         # Reached from a GPU-pool thread — OmniVoiceBackend._ensure_loaded()
         # bootstraps a fresh loop with asyncio.run(get_model()) from inside
         # generate(). We already hold the GPU slot, so we already have the

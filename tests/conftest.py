@@ -454,3 +454,95 @@ def mock_settings_store(monkeypatch):
     monkeypatch.setattr(_ss, "get_license_accepted", fake_get)
     monkeypatch.setattr(_ss, "set_license_accepted", fake_set)
     return state
+
+
+# ── #1269: config drift from importlib.reload leaks across suites ────────────
+#
+# Ten test modules share a fixture shape: monkeypatch OMNIVOICE_DATA_DIR to a
+# tmp_path, then importlib.reload(core.config) (plus core.db, a router, main)
+# so the app rebinds its paths under the temp dir. monkeypatch faithfully
+# restores the ENV VAR at teardown — and nothing reloads the modules back, so
+# every path constant keeps pointing at that test's tmp_path for the rest of
+# the session.
+#
+# The damage lands on whoever runs next. In a combined `pytest tests/
+# backend/tests/` run this produced three different answers to "where is the
+# voices directory":
+#
+#   OMNIVOICE_DATA_DIR      .../omnivoice-test-data-vna0ywre        (correct)
+#   core.config.VOICES_DIR  .../test_fitted_srt_last_cue_withi0/…   (leaked)
+#   profiles.VOICES_DIR     .../test_clone_profile_save_saniti0/…   (leaked)
+#
+# — which is why the personas import tests wrote a file to one directory and
+# then asserted it existed in another (4 failures, #1269).
+#
+# Restoring by re-reloading would re-register FastAPI routes and rebuild
+# module state as a side effect. Snapshot/restore of the constants themselves
+# is inert: a plain setattr, only for values a test actually changed, and it
+# fixes all ten modules without editing any of them. New reload fixtures are
+# covered automatically.
+_CONFIG_PATH_CONSTANTS = (
+    "DATA_DIR", "VOICES_DIR", "OUTPUTS_DIR", "DUB_DIR", "DB_PATH",
+    "PREVIEW_DIR", "CRASH_LOG_PATH", "LOG_PATH",
+)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _restore_config_paths_after_reload():
+    """Undo cross-MODULE leakage of core.config's path constants.
+
+    Module scope, not function scope, and that boundary is the whole design.
+
+    Deliberate re-pointing is normal and must survive: tests/smoke/
+    test_boot_smoke.py has a module-scoped fixture that aims core.config at a
+    frozen fixture directory for the length of that file. A per-test restore
+    reset it between that module's own tests and broke it — the fixture cannot
+    tell a deliberate setup from a leak *within* a module.
+
+    Across modules there is no such ambiguity: whatever a module pointed
+    core.config at is that module's business, and the next one is entitled to
+    the paths it started with. Restoring at module teardown lets each file keep
+    its own arrangement and hands the next file a clean slate.
+    """
+    import sys
+
+    def _snapshot():
+        # IMPORT rather than only reading sys.modules. If this module is the
+        # first to import core.config, a sys.modules-only probe returns {} —
+        # and then the empty-snapshot guard below skips restoration entirely,
+        # so the very module most likely to reload config is the one least
+        # protected (Greptile P1). Importing is cheap and idempotent, and
+        # tests/conftest.py has already pointed OMNIVOICE_DATA_DIR at a
+        # throwaway dir by the time any fixture runs, so the values are right.
+        try:
+            import core.config as cfg  # noqa: PLC0415
+        except Exception:
+            return {}
+        return {
+            c: getattr(cfg, c)
+            for c in _CONFIG_PATH_CONSTANTS
+            if isinstance(getattr(cfg, c, None), str)
+        }
+
+    before = _snapshot()
+    try:
+        yield
+    finally:
+        cfg = sys.modules.get("core.config")
+        if cfg is None or not before:
+            return
+        # 1. core.config itself back to what this module inherited.
+        for const, value in before.items():
+            if getattr(cfg, const, None) != value:
+                setattr(cfg, const, value)
+        # 2. Re-sync every module that copied a value out of it. A reload
+        #    fixture typically imports the router under test for the first
+        #    time, so it has no earlier value to restore — which is how
+        #    api.routers.profiles kept a tmp_path VOICES_DIR while core.config
+        #    was already correct.
+        for name, mod in list(sys.modules.items()):
+            if mod is None or not name.startswith(("api.routers.", "services.", "core.")):
+                continue
+            for const, value in before.items():
+                if isinstance(getattr(mod, const, None), str) and getattr(mod, const) != value:
+                    setattr(mod, const, value)

@@ -104,7 +104,7 @@
     "update_check_failed": "Falha na verificação de atualização: {{message}}",
     "save_failed": "Falha ao salvar: {{message}}",
     "clear_failed": "Falha na limpeza: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} alterado para {{engine}}",
     "channel_set_failed": "Falha ao definir canal: {{message}}",
     "updater_downloading": "Baixando {{version}}…",
     "updater_installed": "Instalado – relançando.",
@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite local",
     "translator_online": "O tradutor está online: {{provider}}",
     "translator_offline": "Tradutor off-line",
-    "no_tracking": "Nenhum – sem rastreamento"
+    "no_tracking": "Nenhum – sem rastreamento",
+    "watermark_title": "Marca de água invisível",
+    "watermark_subtitle": "Ativada por predefinição. Marca o áudio gerado como criado por IA para poder ser identificado mais tarde. Afeta apenas o áudio gerado a partir de agora.",
+    "watermark_on_toast": "Marca de água invisível ativada para novo áudio.",
+    "watermark_off_toast": "Marca de água invisível desativada para novo áudio.",
+    "watermark_failed": "Não foi possível alterar a definição da marca de água."
   },
   "consent": {
     "title": "Ajudar a melhorar o OmniVoice?",
@@ -578,7 +583,12 @@
     "routingRemote": "Remoto",
     "routingUnknown": "Desconhecido",
     "routingEffectiveChip": "Funciona em {{device}} nesta máquina",
-    "routingCaveatTitle": "GPU selecionada, mas: {{reason}}"
+    "routingCaveatTitle": "GPU selecionada, mas: {{reason}}",
+    "selectCpuFallback": "{{engine}}: em execução na CPU — {{reason}}",
+    "selectWithCaveat": "Alterado para {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} pode ficar lento nesta máquina — {{reason}}",
+    "cpuLongText": "{{engine}} é executado na CPU aqui e este texto é longo — a geração pode ultrapassar o limite de tempo. Um texto mais curto ou um motor otimizado para CPU (OmniVoice GGUF, Supertonic-3) será bem mais rápido.",
+    "cpuLongTextTuned": "{{engine}} é executado na CPU aqui e este texto é longo — a geração pode ultrapassar o limite de tempo. Um texto mais curto, ou dividido em algumas partes, será bem mais rápido."
   },
   "capture": {
     "desc": "As teclas de atalho globais funcionam apenas no aplicativo de desktop. A IU da web usa um atalho <1>Ctrl+Shift+Space</1> na página enquanto a janela está em foco.",
@@ -1435,10 +1445,14 @@
     "desc": "Não se preocupe – o resto do aplicativo ainda funciona. Você pode alternar as guias ou tentar novamente abaixo.",
     "tryAgain": "Tente novamente",
     "openDocs": "Abra documentos para este erro",
+    "crash_port_in_use": "O backend não conseguiu iniciar porque a porta 3900 já está em uso — outra cópia do OmniVoice (ou um app que reivindicou essa porta) está a ocupá-la. Feche a outra instância e reinicie; se nada estiver visivelmente em execução, um backend órfão de uma sessão anterior ainda ocupa a porta.",
+    "crash_oom_kill": "Foi terminado à força (sinal 9), o que normalmente significa que o sistema operativo ficou sem memória (RAM). Feche aplicações que consomem muita memória, escolha um modelo ASR mais pequeno em Definições → Modelos, ou descarregue o modelo TTS antes de transcrever.",
+    "crash_native_fault": "Falhou dentro da pilha de computação em vez de ficar sem memória — isso aponta para um controlador de GPU que não corresponde ao runtime CUDA incluído, ou para um ficheiro de modelo descarregado de forma incompleta. Atualize o controlador da GPU e volte a descarregar o modelo em Definições → Modelos (repara um download parcial no local). Se continuar a acontecer, mude para um motor isolado em Definições → Motores: «OmniVoice (subprocess)» para síntese e «Faster-Whisper (crash-isolated subprocess)» para transcrição. Estes executam o modelo num processo separado, pelo que uma falha destas derruba esse processo em vez de todo o backend.",
     "report": "Relatar este bug",
     "report_failed": "Não foi possível abrir o relatório de bug. Tente novamente ou copie os detalhes acima para uma nova issue.",
     "searchIssues": "Pesquisar problemas semelhantes",
-    "unexpected": "Erro inesperado: {{message}}"
+    "unexpected": "Erro inesperado: {{message}}",
+    "backend_shutting_down": "O OmniVoice está sendo encerrado. Reabra o aplicativo e tente novamente."
   },
   "keyboard": {
     "title": "Atalhos de teclado",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Posso tentar antes de me comprometer?",
     "a_try_before": "Sim. O aplicativo completo é gratuito para baixar, executar e auto-hospedar sob a AGPL-3.0 — nenhum acordo necessário. Quando quiser discutir uma licença comercial (uso proprietário), envie um e-mail e resolveremos os detalhes juntos.",
     "q_watermark": "E a marca d’água?",
-    "a_watermark": "A marca d'água invisível AudioSeal é incorporada por padrão para todos. Licenciados comerciais podem desativá-la em Configurações → Privacidade."
+    "a_watermark": "A marca de água invisível AudioSeal é incorporada por predefinição para todos. Pode desativá-la em Definições → Privacidade; afeta apenas o áudio gerado após a alteração."
   },
   "gallery_extra": {
     "save_prompt": "Digite um nome para este perfil de voz:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Baixe a atualização e reinicie na nova versão",
     "downloading": "Atualizando… {{pct}}%",
     "restart": "Reiniciar para atualizar",
-    "busy": "Termine sua dublagem primeiro — depois instale a atualização.",
+    "busy": "Aguarde o trabalho em andamento terminar — depois instale a atualização.",
     "whats_new": "O que há de novo",
     "failed": "Falha na atualização",
     "retry": "Tentar novamente",
-    "dismiss": "Dispensar"
+    "dismiss": "Dispensar",
+    "toast_available": "OmniVoice Studio {{version}} está disponível",
+    "toast_install": "Instalar e reiniciar",
+    "toast_whats_new": "Novidades",
+    "toast_later": "Mais tarde"
   },
   "archetypes": {
     "featured": "Destaque",
@@ -2249,7 +2267,10 @@
     "email": "E-mail",
     "email_desc": "Licenciamento, parcerias ou qualquer coisa privada.",
     "website": "Site",
-    "website_desc": "Mais sobre o projeto e o criador."
+    "website_desc": "Mais sobre o projeto e o criador.",
+    "follow_title": "Siga no X",
+    "follow_desc": "Notas de versão, novos motores e, de vez em quando, uma espreitadela ao que vem a seguir. Prático se preferir não estar num servidor de chat.",
+    "follow_cta": "Seguir no X"
   },
   "permissions": {
     "title": "Permissões",

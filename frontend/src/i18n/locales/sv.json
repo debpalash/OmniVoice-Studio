@@ -104,7 +104,7 @@
     "update_check_failed": "Uppdateringskontrollen misslyckades: {{message}}",
     "save_failed": "Det gick inte att spara: {{message}}",
     "clear_failed": "Rensa misslyckades: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} bytt till {{engine}}",
     "channel_set_failed": "Det gick inte att ställa in kanal: {{message}}",
     "updater_downloading": "Laddar ner {{version}}...",
     "updater_installed": "Installerad — omstart.",
@@ -492,7 +492,12 @@
     "local_sqlite": "Lokal SQLite",
     "translator_online": "Översättaren är online: {{provider}}",
     "translator_offline": "Offlineöversättare",
-    "no_tracking": "Ingen – ingen spårning"
+    "no_tracking": "Ingen – ingen spårning",
+    "watermark_title": "Osynlig vattenstämpel",
+    "watermark_subtitle": "På som standard. Märker genererat ljud som AI-skapat så att det kan identifieras senare. Gäller bara ljud som genereras från och med nu.",
+    "watermark_on_toast": "Osynlig vattenstämpel aktiverad för nytt ljud.",
+    "watermark_off_toast": "Osynlig vattenstämpel avstängd för nytt ljud.",
+    "watermark_failed": "Kunde inte ändra inställningen för vattenstämpeln."
   },
   "consent": {
     "title": "Hjälpa till att förbättra OmniVoice?",
@@ -578,7 +583,12 @@
     "routingRemote": "Fjärrkontroll",
     "routingUnknown": "Okänd",
     "routingEffectiveChip": "Körs på {{device}} på den här maskinen",
-    "routingCaveatTitle": "GPU vald, men: {{reason}}"
+    "routingCaveatTitle": "GPU vald, men: {{reason}}",
+    "selectCpuFallback": "{{engine}}: körs på CPU — {{reason}}",
+    "selectWithCaveat": "Bytte till {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} kan vara långsam på den här datorn — {{reason}}",
+    "cpuLongText": "{{engine}} körs på CPU här och den här texten är lång — genereringen kan överskrida tidsbudgeten. Kortare text eller en CPU-optimerad motor (OmniVoice GGUF, Supertonic-3) går betydligt snabbare.",
+    "cpuLongTextTuned": "{{engine}} körs på CPU här och den här texten är lång — genereringen kan överskrida tidsbudgeten. Kortare text, eller uppdelad i flera tagningar, går betydligt snabbare."
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",
@@ -1435,10 +1445,14 @@
     "desc": "Oroa dig inte – resten av appen fungerar fortfarande. Du kan byta flik eller försöka igen nedan.",
     "tryAgain": "Försök igen",
     "openDocs": "Öppna dokument för detta fel",
+    "crash_port_in_use": "Backend kunde inte starta eftersom port 3900 redan används — en annan kopia av OmniVoice (eller en app som tagit porten) håller den. Avsluta den andra instansen och starta om; om inget syns köra håller en föräldralös backend från en tidigare session fortfarande porten.",
+    "crash_oom_kill": "Processen tvångsavslutades (signal 9), vilket vanligtvis betyder att operativsystemet fick slut på minne (RAM). Stäng minneskrävande appar, välj en mindre ASR-modell under Inställningar → Modeller, eller ladda ur TTS-modellen före transkribering.",
+    "crash_native_fault": "Kraschen skedde inne i beräkningsstacken snarare än på grund av slut på minne — det pekar på en GPU-drivrutin som inte matchar den medföljande CUDA-körtiden, eller en modellfil som laddats ner ofullständigt. Uppdatera GPU-drivrutinen och ladda sedan ner modellen på nytt under Inställningar → Modeller (en ofullständig nedladdning repareras på plats). Om det fortsätter, byt till en kraschisolerad motor under Inställningar → Motorer — ”OmniVoice (subprocess)” för syntes, ”Faster-Whisper (crash-isolated subprocess)” för transkribering. De kör modellen i en separat process, så en sådan krasch fäller den processen i stället för hela backend.",
     "report": "Rapportera den här buggen",
     "report_failed": "Det gick inte att öppna felrapporten. Försök igen, eller kopiera detaljerna ovan till ett nytt ärende.",
     "searchIssues": "Sök liknande problem",
-    "unexpected": "Oväntat fel: {{message}}"
+    "unexpected": "Oväntat fel: {{message}}",
+    "backend_shutting_down": "OmniVoice stängs av. Öppna appen igen och försök på nytt."
   },
   "keyboard": {
     "title": "Kortkommandon",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Kan jag prova innan jag binder mig?",
     "a_try_before": "Ja. Hela appen är gratis att ladda ner, köra och självhosta under AGPL-3.0 — inget avtal krävs. När du vill diskutera en kommersiell licens (proprietär användning), mejla oss så går vi igenom detaljerna tillsammans.",
     "q_watermark": "Hur är det med vattenstämpeln?",
-    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln är inbäddad som standard för alla. Kommersiella licenstagare kan inaktivera den i Inställningar → Sekretess."
+    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln bäddas in som standard för alla. Du kan stänga av den under Inställningar → Integritet; den påverkar bara ljud som genereras efter ändringen."
   },
   "gallery_extra": {
     "save_prompt": "Ange ett namn för denna röstprofil:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Ladda ner uppdateringen och starta om i den nya versionen",
     "downloading": "Uppdaterar… {{pct}} %",
     "restart": "Starta om för att uppdatera",
-    "busy": "Slutför din dubbning först – installera sedan uppdateringen.",
+    "busy": "Vänta tills det pågående arbetet är klart – installera sedan uppdateringen.",
     "whats_new": "Vad är nytt",
     "failed": "Uppdateringen misslyckades",
     "retry": "Försök igen",
-    "dismiss": "Avvisa"
+    "dismiss": "Avvisa",
+    "toast_available": "OmniVoice Studio {{version}} är tillgänglig",
+    "toast_install": "Installera och starta om",
+    "toast_whats_new": "Nyheter",
+    "toast_later": "Senare"
   },
   "archetypes": {
     "featured": "Utvalda",
@@ -2249,7 +2267,10 @@
     "email": "E-post",
     "email_desc": "Licensiering, partnerskap eller något privat.",
     "website": "Webbplats",
-    "website_desc": "Mer om projektet och skaparen."
+    "website_desc": "Mer om projektet och skaparen.",
+    "follow_title": "Följ på X",
+    "follow_desc": "Release-noteringar, nya motorer och ibland en titt på vad som byggs härnäst. Praktiskt om du hellre slipper sitta i en chattserver.",
+    "follow_cta": "Följ på X"
   },
   "permissions": {
     "title": "Behörigheter",

@@ -331,3 +331,112 @@ def test_lifespan_shutdown_mid_load_is_clean_and_clears_sentinel(
     finally:
         release.set()
         run_sentinel._reset_for_tests()
+
+
+def test_request_during_shutdown_gets_503_not_a_crash_shaped_500():
+    """A user-initiated request that triggers a load while the backend is
+    shutting down must answer 503, not 500 (#1276).
+
+    #1174 made this benign for the background preload, but a request took the
+    generic unhandled-exception path: crash log, ERROR traceback, and an
+    error-journal entry that feeds the bug-report pipeline. Quitting the app
+    with a generate queued therefore surfaced "500 Internal Server Error:
+    model load skipped: backend shutting down" and offered to file a bug for
+    a normal teardown.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise ModelLoadInterruptedByShutdown("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        resp = client.get("/boom")
+
+    assert resp.status_code == 503, resp.status_code
+    # Answer a shutting-down server owes a client, so the UI can retry rather
+    # than treat it as a fault.
+    assert resp.headers.get("Retry-After") == "5"
+    detail = resp.json()["detail"]
+    # Cross-layer contract: the UI keys off this marker to drop the "Report"
+    # action (utils/errorToast.jsx). It must NOT key off the 503 status alone —
+    # a real engine-load timeout and an unavailable engine are 503 too, and
+    # those are reportable bugs. Renaming this marker breaks that; keep in sync.
+    assert "[shutting_down]" in detail
+    # Actionable, and free of the internal phrasing that read as a crash.
+    assert "shutting down" in detail
+    assert "Reopen the app" in detail
+    assert "Internal Server Error" not in detail
+
+
+def test_shutdown_request_is_not_written_to_the_crash_log_or_journal(tmp_path, monkeypatch):
+    """The same teardown must leave no crash-log entry and no journal record —
+    those are what the auto bug reporter reads (#1276)."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+    from core import error_journal
+
+    crash_log = tmp_path / "crash.log"
+    monkeypatch.setattr(main_mod, "CRASH_LOG_PATH", str(crash_log))
+
+    recorded = []
+    monkeypatch.setattr(
+        error_journal, "record", lambda *a, **k: recorded.append(a) or {}
+    )
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise ModelLoadInterruptedByShutdown("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/boom").status_code == 503
+
+    assert not crash_log.exists(), crash_log.read_text()
+    assert recorded == []
+
+
+def test_shutdown_class_is_matched_across_duplicate_imports():
+    """The handler must recognise the shutdown class even when it arrives from
+    a second copy of the module.
+
+    ``services.model_manager`` gets imported under more than one module name
+    depending on which sys.path root is active (and in the frozen build), so
+    ``ModelLoadInterruptedByShutdown`` can exist as two distinct class objects.
+    A bare ``isinstance`` silently fails there and the user is back to a 500 —
+    which is exactly what happened when both test suites ran in one session.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import main as main_mod
+
+    # A same-named class from a *different* module object — what a duplicate
+    # import produces.
+    Impostor = type(
+        "ModelLoadInterruptedByShutdown", (RuntimeError,), {"__module__": "other.copy"}
+    )
+    assert not isinstance(Impostor("x"), ModelLoadInterruptedByShutdown)
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    async def _boom():
+        raise Impostor("model load skipped: backend shutting down")
+
+    app.add_exception_handler(Exception, main_mod.global_exception_handler)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/boom").status_code == 503

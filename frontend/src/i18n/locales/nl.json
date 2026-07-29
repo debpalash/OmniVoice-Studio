@@ -104,7 +104,7 @@
     "update_check_failed": "Updatecontrole mislukt: {{message}}",
     "save_failed": "Opslaan mislukt: {{message}}",
     "clear_failed": "Wissen mislukt: {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} overgeschakeld naar {{engine}}",
     "channel_set_failed": "Kan kanaal niet instellen: {{message}}",
     "updater_downloading": "{{version}} downloaden…",
     "updater_installed": "Geïnstalleerd - opnieuw gestart.",
@@ -492,7 +492,12 @@
     "local_sqlite": "Lokale SQLite",
     "translator_online": "Vertaler is online: {{provider}}",
     "translator_offline": "Offline vertaler",
-    "no_tracking": "Geen — geen tracking"
+    "no_tracking": "Geen — geen tracking",
+    "watermark_title": "Onzichtbaar watermerk",
+    "watermark_subtitle": "Standaard aan. Markeert gegenereerde audio als AI-gemaakt zodat het later herkend kan worden. Geldt alleen voor audio die vanaf nu wordt gegenereerd.",
+    "watermark_on_toast": "Onzichtbaar watermerk aan voor nieuwe audio.",
+    "watermark_off_toast": "Onzichtbaar watermerk uit voor nieuwe audio.",
+    "watermark_failed": "Kon de watermerkinstelling niet wijzigen."
   },
   "consent": {
     "title": "Helpen OmniVoice te verbeteren?",
@@ -578,7 +583,12 @@
     "routingRemote": "Op afstand",
     "routingUnknown": "Onbekend",
     "routingEffectiveChip": "Draait op {{device}} op deze machine",
-    "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}"
+    "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}",
+    "selectCpuFallback": "{{engine}}: draait op de CPU — {{reason}}",
+    "selectWithCaveat": "Overgeschakeld naar {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} kan traag zijn op deze machine — {{reason}}",
+    "cpuLongText": "{{engine}} draait hier op de CPU en deze tekst is lang — de generatie overschrijdt mogelijk het tijdsbudget. Kortere tekst of een CPU-geoptimaliseerde engine (OmniVoice GGUF, Supertonic-3) is veel sneller.",
+    "cpuLongTextTuned": "{{engine}} draait hier op de CPU en deze tekst is lang — de generatie overschrijdt mogelijk het tijdsbudget. Kortere tekst, of opsplitsen in meerdere takes, is veel sneller."
   },
   "capture": {
     "desc": "Globale sneltoetsen werken alleen in de desktop-app. De webinterface gebruikt een sneltoets <1>Ctrl+Shift+Spatie</1> op de pagina terwijl het venster focus heeft.",
@@ -1435,10 +1445,14 @@
     "desc": "Maak je geen zorgen: de rest van de app werkt nog steeds. U kunt van tabblad wisselen of het hieronder opnieuw proberen.",
     "tryAgain": "Probeer het opnieuw",
     "openDocs": "Open documenten voor deze fout",
+    "crash_port_in_use": "De backend kon niet starten omdat poort 3900 al in gebruik is — een andere kopie van OmniVoice (of een app die die poort claimde) houdt hem bezet. Sluit de andere instantie en start opnieuw; als er niets zichtbaar draait, houdt een verweesde backend uit een eerdere sessie de poort nog vast.",
+    "crash_oom_kill": "Het proces werd geforceerd afgesloten (signaal 9), wat meestal betekent dat het besturingssysteem geen geheugen (RAM) meer had. Sluit geheugenintensieve apps, kies een kleiner ASR-model bij Instellingen → Modellen, of ontlaad het TTS-model vóór het transcriberen.",
+    "crash_native_fault": "Het crashte binnen de compute-stack in plaats van door geheugengebrek — dat wijst op een GPU-stuurprogramma dat niet overeenkomt met de meegeleverde CUDA-runtime, of op een modelbestand dat onvolledig is gedownload. Werk uw GPU-stuurprogramma bij en download het model opnieuw via Instellingen → Modellen (een gedeeltelijke download wordt ter plekke hersteld). Blijft het gebeuren, schakel dan in Instellingen → Engines over op een crash-geïsoleerde engine — \"OmniVoice (subprocess)\" voor synthese, \"Faster-Whisper (crash-isolated subprocess)\" voor transcriptie. Die draaien het model in een apart proces, zodat zo'n crash dat proces neerhaalt in plaats van de hele backend.",
     "report": "Deze bug melden",
     "report_failed": "Kon het bugrapport niet openen. Probeer het opnieuw of kopieer de details hierboven naar een nieuwe issue.",
     "searchIssues": "Vergelijkbare problemen zoeken",
-    "unexpected": "Onverwachte fout: {{message}}"
+    "unexpected": "Onverwachte fout: {{message}}",
+    "backend_shutting_down": "OmniVoice wordt afgesloten. Open de app opnieuw en probeer het nog eens."
   },
   "keyboard": {
     "title": "Sneltoetsen",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Kan ik het proberen voordat ik me vastleg?",
     "a_try_before": "Ja. De volledige app is gratis te downloaden, draaien en zelf te hosten onder de AGPL-3.0 — geen overeenkomst nodig. Wil je een commerciële licentie (propriëtair gebruik) bespreken, mail ons dan en we werken de details samen uit.",
     "q_watermark": "Hoe zit het met het watermerk?",
-    "a_watermark": "Het onzichtbare AudioSeal-watermerk is standaard voor iedereen ingesloten. Commerciële licentiehouders kunnen dit uitschakelen via Instellingen → Privacy."
+    "a_watermark": "Het onzichtbare AudioSeal-watermerk wordt standaard voor iedereen ingesloten. U kunt het uitschakelen bij Instellingen → Privacy; het geldt alleen voor audio die na de wijziging wordt gegenereerd."
   },
   "gallery_extra": {
     "save_prompt": "Voer een naam in voor dit stemprofiel:",
@@ -1891,11 +1905,15 @@
     "install_hint": "Download de update en start opnieuw op in de nieuwe versie",
     "downloading": "Bijwerken… {{pct}}%",
     "restart": "Opnieuw opstarten om bij te werken",
-    "busy": "Voltooi eerst je nasynchronisatie — installeer daarna de update.",
+    "busy": "Wacht tot het lopende werk klaar is — installeer daarna de update.",
     "whats_new": "Wat is er nieuw",
     "failed": "Update mislukt",
     "retry": "Opnieuw proberen",
-    "dismiss": "Negeren"
+    "dismiss": "Negeren",
+    "toast_available": "OmniVoice Studio {{version}} is beschikbaar",
+    "toast_install": "Installeren en herstarten",
+    "toast_whats_new": "Wat is er nieuw",
+    "toast_later": "Later"
   },
   "archetypes": {
     "featured": "Uitgelicht",
@@ -2249,7 +2267,10 @@
     "email": "E-mail",
     "email_desc": "Licenties, partnerschappen of iets privés.",
     "website": "Website",
-    "website_desc": "Meer over het project en de maker."
+    "website_desc": "Meer over het project en de maker.",
+    "follow_title": "Volg ons op X",
+    "follow_desc": "Release-notities, nieuwe engines en af en toe een blik op wat er volgt. Handig als u liever niet in een chatserver zit.",
+    "follow_cta": "Volgen op X"
   },
   "permissions": {
     "title": "Machtigingen",

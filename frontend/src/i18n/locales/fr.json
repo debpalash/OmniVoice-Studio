@@ -104,7 +104,7 @@
     "update_check_failed": "Échec de la vérification de la mise à jour : {{message}}",
     "save_failed": "Échec de l'enregistrement : {{message}}",
     "clear_failed": "Échec de la suppression : {{message}}",
-    "engine_switched": "{{family}} → {{engine}}",
+    "engine_switched": "{{family}} basculé vers {{engine}}",
     "channel_set_failed": "Échec de la définition du canal : {{message}}",
     "updater_downloading": "Téléchargement de {{version}}…",
     "updater_installed": "Installé — relance.",
@@ -309,7 +309,7 @@
     "tauri": "Taureau",
     "cancelOp": "Annuler l'opération",
     "dismiss": "Rejeter",
-    "dismissStatus": "Statut de rejet",
+    "dismissStatus": "Ignorer le statut",
     "search": "Rechercher…",
     "no_matches": "Aucune correspondance",
     "recent_and_popular": "Récents et populaires",
@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite local",
     "translator_online": "Le traducteur est en ligne : {{provider}}",
     "translator_offline": "Traducteur hors ligne",
-    "no_tracking": "Aucun — pas de suivi"
+    "no_tracking": "Aucun — pas de suivi",
+    "watermark_title": "Filigrane invisible",
+    "watermark_subtitle": "Activé par défaut. Marque l'audio généré comme créé par IA afin qu'il puisse être identifié plus tard. N'affecte que l'audio généré à partir de maintenant.",
+    "watermark_on_toast": "Filigrane invisible activé pour les nouveaux audios.",
+    "watermark_off_toast": "Filigrane invisible désactivé pour les nouveaux audios.",
+    "watermark_failed": "Impossible de modifier le réglage du filigrane."
   },
   "consent": {
     "title": "Aider à améliorer OmniVoice ?",
@@ -578,7 +583,12 @@
     "routingRemote": "À distance",
     "routingUnknown": "Inconnu",
     "routingEffectiveChip": "Fonctionne le {{device}} sur cette machine",
-    "routingCaveatTitle": "GPU sélectionné, mais : {{reason}}"
+    "routingCaveatTitle": "GPU sélectionné, mais : {{reason}}",
+    "selectCpuFallback": "{{engine}} : fonctionne sur le processeur — {{reason}}",
+    "selectWithCaveat": "Basculé vers {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} risque d'être lent sur cette machine — {{reason}}",
+    "cpuLongText": "{{engine}} fonctionne ici sur le processeur et ce texte est long — la génération risque de dépasser le budget de temps. Un texte plus court ou un moteur optimisé CPU (OmniVoice GGUF, Supertonic-3) sera bien plus rapide.",
+    "cpuLongTextTuned": "{{engine}} fonctionne ici sur le processeur et ce texte est long — la génération risque de dépasser le budget de temps. Un texte plus court, ou découpé en plusieurs prises, sera bien plus rapide."
   },
   "capture": {
     "desc": "Les raccourcis clavier globaux ne fonctionnent que dans l'application de bureau. L'interface utilisateur Web utilise un raccourci <1>Ctrl+Shift+Espace</1> sur la page lorsque la fenêtre a le focus.",
@@ -1435,10 +1445,14 @@
     "desc": "Ne vous inquiétez pas, le reste de l'application fonctionne toujours. Vous pouvez changer d'onglet ou réessayer ci-dessous.",
     "tryAgain": "Réessayez",
     "openDocs": "Ouvrir la documentation pour cette erreur",
+    "crash_port_in_use": "Le backend n'a pas pu démarrer car le port 3900 est déjà utilisé — une autre copie d'OmniVoice (ou une application ayant réclamé ce port) l'occupe. Quittez l'autre instance et relancez ; si rien ne tourne visiblement, un backend orphelin d'une session précédente occupe encore le port.",
+    "crash_oom_kill": "Il a été arrêté de force (signal 9), ce qui signifie généralement que le système d'exploitation a manqué de mémoire (RAM). Fermez les applications gourmandes en mémoire, choisissez un modèle ASR plus petit dans Réglages → Modèles, ou déchargez le modèle TTS avant de transcrire.",
+    "crash_native_fault": "Le plantage s'est produit dans la pile de calcul et non par manque de mémoire — cela indique un pilote GPU qui ne correspond pas au runtime CUDA fourni, ou un fichier de modèle téléchargé de façon incomplète. Mettez à jour votre pilote GPU, puis retéléchargez le modèle depuis Réglages → Modèles (un téléchargement partiel est réparé sur place). Si cela persiste, passez à un moteur isolé dans Réglages → Moteurs : « OmniVoice (subprocess) » pour la synthèse, « Faster-Whisper (crash-isolated subprocess) » pour la transcription. Ils exécutent le modèle dans un processus séparé, si bien qu'un tel plantage n'emporte que ce processus et non tout le backend.",
     "report": "Signaler ce bogue",
     "report_failed": "Impossible d'ouvrir le rapport de bug. Réessayez, ou copiez les détails ci-dessus dans un nouveau ticket.",
     "searchIssues": "Rechercher des problèmes similaires",
-    "unexpected": "Erreur inattendue : {{message}}"
+    "unexpected": "Erreur inattendue : {{message}}",
+    "backend_shutting_down": "OmniVoice est en cours de fermeture. Rouvrez l’application et réessayez."
   },
   "keyboard": {
     "title": "Raccourcis clavier",
@@ -1749,7 +1763,7 @@
     "q_try_before": "Puis-je essayer avant de m'engager ?",
     "a_try_before": "Oui. L'application complète est gratuite à télécharger, exécuter et auto-héberger sous AGPL-3.0 — aucun accord requis. Quand vous serez prêt à discuter d'une licence commerciale (usage propriétaire), écrivez-nous et nous verrons les détails ensemble.",
     "q_watermark": "Et le filigrane ?",
-    "a_watermark": "Le filigrane invisible AudioSeal est intégré par défaut pour tout le monde. Les titulaires de licence commerciale peuvent le désactiver dans Paramètres → Confidentialité."
+    "a_watermark": "Le filigrane invisible AudioSeal est intégré par défaut pour tout le monde. Vous pouvez le désactiver dans Réglages → Confidentialité ; il n'affecte que l'audio généré après la modification."
   },
   "gallery_extra": {
     "save_prompt": "Saisissez un nom pour ce profil vocal :",
@@ -1891,11 +1905,15 @@
     "install_hint": "Télécharger la mise à jour et redémarrer dans la nouvelle version",
     "downloading": "Mise à jour… {{pct}} %",
     "restart": "Redémarrer pour mettre à jour",
-    "busy": "Terminez d'abord votre doublage, puis installez la mise à jour.",
+    "busy": "Attendez la fin du travail en cours, puis installez la mise à jour.",
     "whats_new": "Quoi de neuf",
     "failed": "La mise à jour a échoué",
     "retry": "Réessayer",
-    "dismiss": "Rejeter"
+    "dismiss": "Rejeter",
+    "toast_available": "OmniVoice Studio {{version}} est disponible",
+    "toast_install": "Installer et redémarrer",
+    "toast_whats_new": "Nouveautés",
+    "toast_later": "Plus tard"
   },
   "archetypes": {
     "featured": "En vedette",
@@ -2249,7 +2267,10 @@
     "email": "Courriel",
     "email_desc": "Licences, partenariats ou tout ce qui est privé.",
     "website": "Site Web",
-    "website_desc": "En savoir plus sur le projet et le créateur."
+    "website_desc": "En savoir plus sur le projet et le créateur.",
+    "follow_title": "Suivez-nous sur X",
+    "follow_desc": "Notes de version, nouveaux moteurs et un aperçu occasionnel de ce qui arrive. Pratique si vous préférez ne pas rester dans un serveur de discussion.",
+    "follow_cta": "Suivre sur X"
   },
   "permissions": {
     "title": "Autorisations",

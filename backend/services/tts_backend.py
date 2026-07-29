@@ -1848,6 +1848,12 @@ _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     # IndexTTS2. Lazy for the same import-cycle reason as the entries above.
     "moss-tts-v15": ("engines.moss_tts_v15", "MossTTSV15Backend"),
     "dots-tts": ("engines.dots_tts", "DotsTTSBackend"),
+    # The resident OmniVoice model in a crash-isolated sidecar (#730/#1190):
+    # same model and quality as the in-process "omnivoice" engine, but a wedged
+    # generate can be hard-killed to reclaim VRAM/device. Opt-in (the in-process
+    # engine stays the default). Unlike the entries above it runs under the
+    # parent interpreter (crash isolation, not dependency isolation).
+    "omnivoice-subprocess": ("engines.omnivoice_subprocess", "OmniVoiceSubprocessBackend"),
     # Issue #590: Confucius4-TTS (netease-youdao) — LLM-based, 14-language
     # cross-lingual zero-shot cloning, Apache-2.0. Opt-in + subprocess-isolated
     # (own Python 3.10 venv) like the entries above. Validated end-to-end
@@ -1943,6 +1949,7 @@ _LAST_ERRORS: dict[str, str] = {}
 # Helps users understand what pip package to install and where.
 _INSTALL_HINTS: dict[str, str] = {
     "omnivoice":     "pip install omnivoice  (bundled — no extra install needed)",
+    "omnivoice-subprocess": "No extra install; uses the host OmniVoice install. Opt in with OMNIVOICE_TTS_BACKEND=omnivoice-subprocess (same model in a killable sidecar, for unattended reliability).",
     "cosyvoice":     "git clone --recursive FunAudioLLM/CosyVoice + pip install -r requirements.txt + SoX",
     "kittentts":     "pip install kittentts  (ONNX, CPU-only, ~80 MB)",
     "mlx-audio":     "pip install mlx-audio  (Apple Silicon only)",

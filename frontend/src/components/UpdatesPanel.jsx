@@ -21,6 +21,7 @@ import { prepareReleases } from '../utils/updatePresentation';
 import { setChannel } from '../utils/channelControl';
 import { fetchChangelog, fetchBackupState } from '../utils/updatesApi';
 import { APP_VERSION } from '../utils/appVersion';
+import { isAppBusy } from '../utils/appBusy';
 import MarkdownLite from './MarkdownLite';
 import ChangelogViewer from './ChangelogViewer';
 
@@ -37,7 +38,11 @@ export default function UpdatesPanel() {
   const releasesStatus = useAppStore((s) => s.releasesStatus);
   const loadReleases = useAppStore((s) => s.loadReleases);
   const dismissUpdate = useAppStore((s) => s.dismissUpdate);
+  // Subscribed, not read via getState() — `busy` disables the install button,
+  // so it has to re-render when the work starts or finishes.
   const dubStep = useAppStore((s) => s.dubStep);
+  const pillStage = useAppStore((s) => s.stage);
+  const ttsInflight = useAppStore((s) => s.ttsInflight);
 
   const [changelog, setChangelog] = useState([]);
   const [backup, setBackup] = useState(null);
@@ -66,9 +71,18 @@ export default function UpdatesPanel() {
     if (v) useAppStore.getState().setWhatsNewSeenVersion?.(v);
   }, [appVersion]);
 
-  const busy = dubStep === 'generating';
+  // Installing relaunches the process. `dubStep === 'generating'` used to be
+  // the whole check, which let a relaunch through during an upload, a
+  // transcription, a translation, an export or a standalone synth.
+  //
+  // Subscribed (not getState()) so this re-renders when work starts or stops:
+  // it greys the button out and says why, rather than letting the user click
+  // and get a toast back.
+  const busy = isAppBusy({ dubStep, stage: pillStage, ttsInflight });
   const onInstall = () => {
-    if (busy) {
+    // The click-time read is the authority — work can start between the last
+    // render and the click, so `busy` above cannot be the safety check.
+    if (isAppBusy(useAppStore.getState())) {
       toast(t('update.busy'), { icon: '⏳' });
       return;
     }
@@ -81,7 +95,12 @@ export default function UpdatesPanel() {
     <div className="updates-panel">
       <div className="updates-panel__live">
         {status === 'available' && (
-          <button className="updates-panel__cta" onClick={onInstall}>
+          <button
+            className="updates-panel__cta"
+            onClick={onInstall}
+            disabled={busy}
+            title={busy ? t('update.busy') : undefined}
+          >
             <Download size={13} /> {t('update.available', { version: version || '' })} ·{' '}
             {t('update.install')}
           </button>
@@ -95,7 +114,12 @@ export default function UpdatesPanel() {
           </span>
         )}
         {status === 'ready' && (
-          <button className="updates-panel__cta" onClick={onInstall}>
+          <button
+            className="updates-panel__cta"
+            onClick={onInstall}
+            disabled={busy}
+            title={busy ? t('update.busy') : undefined}
+          >
             <RotateCw size={13} /> {t('update.restart')}
           </button>
         )}
