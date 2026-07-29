@@ -203,3 +203,22 @@ def test_wedged_sidecar_is_hard_killed_and_recovers(stub_sidecar, monkeypatch):
         assert tensor.shape[1] == 24000
     finally:
         b.shutdown()
+
+
+def test_generate_does_not_deadlock_when_called_on_gpu_pool_worker(stub_sidecar, monkeypatch):
+    # Regression: /v1/audio/speech and /generate dispatch backend.generate() via
+    # run_on_gpu_pool_guarded, i.e. ON a gpu-pool worker. generate() must NOT
+    # acquire a second slot from the same 1-worker pool (self-deadlock on MPS):
+    # before the fix, the inner pool.submit queued behind this very job and
+    # slot_future.result(timeout=10) raised before the sidecar ever spawned.
+    _use_stub(monkeypatch, stub_sidecar)
+    from services.model_manager import _get_gpu_pool
+    b = OmniVoiceSubprocessBackend()
+    pool = _get_gpu_pool()
+    try:
+        # Mirror run_on_gpu_pool_guarded: run generate() on a pool worker thread.
+        fut = pool.submit(lambda: b.generate("on-pool"))
+        tensor = fut.result(timeout=30)  # pre-fix: raised ~10s slot timeout
+        assert tensor.shape[1] == 24000
+    finally:
+        b.shutdown()

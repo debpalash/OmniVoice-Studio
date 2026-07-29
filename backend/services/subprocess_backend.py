@@ -531,16 +531,22 @@ class SubprocessBackend(TTSBackend):
         # the entire model_manager + torch ecosystem at registry-listing time.
         from services.model_manager import _get_gpu_pool
 
-        # Acquire a GPU pool worker for the duration of this generate. The
-        # try/finally guarantees the slot is released even if the sidecar
-        # dies mid-frame (T-02-02 / Pitfall 7).
+        # Acquire a GPU pool worker for the duration of this generate, UNLESS we
+        # are already running on one: the /v1/audio/speech and /generate routes
+        # dispatch backend.generate() via run_on_gpu_pool_guarded, so this call
+        # already holds a slot. On a 1-worker pool (MPS) a second submit would
+        # queue behind this very job and self-deadlock (.result(timeout=10)
+        # fires, no sidecar ever spawns). The outer guard accounts for the slot.
         pool = _get_gpu_pool()
-        slot_future = pool.submit(lambda: None)
-        try:
-            slot_future.result(timeout=10)  # wait for our turn
-        except Exception:
-            slot_future.cancel()
-            raise
+        if threading.current_thread().name.startswith("gpu-pool"):
+            slot_future = None  # already on a pool worker
+        else:
+            slot_future = pool.submit(lambda: None)
+            try:
+                slot_future.result(timeout=10)  # wait for our turn
+            except Exception:
+                slot_future.cancel()
+                raise
 
         try:
             with self._lock:
