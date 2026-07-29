@@ -582,7 +582,8 @@
     "selectCpuFallback": "{{engine}}: działa na CPU — {{reason}}",
     "selectWithCaveat": "Przełączono na {{engine}} — {{reason}}",
     "generateCaveat": "{{engine}} może działać wolno na tym komputerze — {{reason}}",
-    "cpuLongText": "{{engine}} działa tutaj na CPU, a ten tekst jest długi — generowanie może przekroczyć limit czasu. Krótszy tekst lub silnik zoptymalizowany pod CPU (OmniVoice GGUF, Supertonic-3) będzie znacznie szybszy."
+    "cpuLongText": "{{engine}} działa tutaj na CPU, a ten tekst jest długi — generowanie może przekroczyć limit czasu. Krótszy tekst lub silnik zoptymalizowany pod CPU (OmniVoice GGUF, Supertonic-3) będzie znacznie szybszy.",
+    "cpuLongTextTuned": "{{engine}} działa tutaj na CPU, a ten tekst jest długi — generowanie może przekroczyć limit czasu. Krótszy tekst lub podzielenie go na kilka części będzie znacznie szybsze."
   },
   "capture": {
     "desc": "Globalne skróty klawiszowe działają tylko w aplikacji komputerowej. Interfejs WWW korzysta ze skrótu <1>Ctrl+Shift+Spacja</1> znajdującego się na stronie, gdy okno jest aktywne.",

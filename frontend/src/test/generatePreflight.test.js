@@ -266,3 +266,38 @@ describe('CPU-only host with long text', () => {
     expect(toastFn.mock.calls[0][0]).not.toContain('cpuLongText');
   });
 });
+
+describe('CPU-tuned engines do not recommend themselves', () => {
+  beforeEach(() => {
+    toastFn.mockClear();
+    listEnginesMock.mockReset();
+    _resetPreflight();
+  });
+
+  const LONG = 'a'.repeat(1500);
+  const onCpu = (id) => engines(id, [{ id, routing_status: 'cpu_only', routing_reason: null }]);
+
+  // Greptile P1: the generic advice is "try a CPU-tuned engine (OmniVoice
+  // GGUF, Supertonic-3)". Showing that to someone already running one of them
+  // is advice to switch to what they are using.
+  it.each(['omnivoice-gguf', 'supertonic3'])(
+    'drops the self-referential suggestion on %s',
+    async (id) => {
+      listEnginesMock.mockResolvedValue(onCpu(id));
+      await warnIfEngineUnderProvisioned(LONG);
+
+      expect(toastFn).toHaveBeenCalledTimes(1);
+      const msg = toastFn.mock.calls[0][0];
+      expect(msg).toContain('engines.cpuLongTextTuned');
+      expect(msg).not.toContain('engines.cpuLongText:');
+    },
+  );
+
+  it('still suggests a CPU-tuned engine to everyone else', async () => {
+    listEnginesMock.mockResolvedValue(onCpu('omnivoice'));
+    await warnIfEngineUnderProvisioned(LONG);
+
+    expect(toastFn).toHaveBeenCalledTimes(1);
+    expect(toastFn.mock.calls[0][0]).toContain('engines.cpuLongText');
+  });
+});

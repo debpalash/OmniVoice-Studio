@@ -79,6 +79,13 @@ export function _resetPreflight() {
 // shape that times out. Keep the two in sync.
 const LONG_TEXT_CHARS = 1200;
 
+// The engines the backend's own timeout message names as CPU-tuned
+// (model_manager.py: "OmniVoice GGUF and Supertonic-3 are CPU-tuned"). Telling
+// someone already running one of these to "try a CPU-tuned engine" is advice
+// to switch to what they are using (Greptile P1) — they get the same warning
+// without the self-referential suggestion.
+const CPU_TUNED_ENGINES = new Set(['omnivoice-gguf', 'supertonic3']);
+
 /**
  * A CPU-only host is a BENIGN routing verdict — nothing is misconfigured, so
  * routingNotice() correctly stays silent. But "nothing is wrong" and "this will
@@ -97,7 +104,10 @@ function warnIfLongTextOnCpu(active, entry, text) {
   if (warned.has(key)) return;
   warned.add(key);
 
-  toast(i18next.t('engines.cpuLongText', { engine: active }), {
+  const i18nKey = CPU_TUNED_ENGINES.has(active)
+    ? 'engines.cpuLongTextTuned'
+    : 'engines.cpuLongText';
+  toast(i18next.t(i18nKey, { engine: active }), {
     id: `cpu-long-text-${active}`,
     icon: '⏳',
     duration: 12000,

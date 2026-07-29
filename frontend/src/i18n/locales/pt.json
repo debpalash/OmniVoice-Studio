@@ -582,7 +582,8 @@
     "selectCpuFallback": "{{engine}}: em execução na CPU — {{reason}}",
     "selectWithCaveat": "Alterado para {{engine}} — {{reason}}",
     "generateCaveat": "{{engine}} pode ficar lento nesta máquina — {{reason}}",
-    "cpuLongText": "{{engine}} é executado na CPU aqui e este texto é longo — a geração pode ultrapassar o limite de tempo. Um texto mais curto ou um motor otimizado para CPU (OmniVoice GGUF, Supertonic-3) será bem mais rápido."
+    "cpuLongText": "{{engine}} é executado na CPU aqui e este texto é longo — a geração pode ultrapassar o limite de tempo. Um texto mais curto ou um motor otimizado para CPU (OmniVoice GGUF, Supertonic-3) será bem mais rápido.",
+    "cpuLongTextTuned": "{{engine}} é executado na CPU aqui e este texto é longo — a geração pode ultrapassar o limite de tempo. Um texto mais curto, ou dividido em algumas partes, será bem mais rápido."
   },
   "capture": {
     "desc": "As teclas de atalho globais funcionam apenas no aplicativo de desktop. A IU da web usa um atalho <1>Ctrl+Shift+Space</1> na página enquanto a janela está em foco.",

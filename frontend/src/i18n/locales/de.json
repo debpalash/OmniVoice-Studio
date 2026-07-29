@@ -582,7 +582,8 @@
     "selectCpuFallback": "{{engine}}: läuft auf der CPU — {{reason}}",
     "selectWithCaveat": "Zu {{engine}} gewechselt — {{reason}}",
     "generateCaveat": "{{engine}} ist auf diesem Rechner möglicherweise langsam — {{reason}}",
-    "cpuLongText": "{{engine}} läuft hier auf der CPU und dieser Text ist lang — die Generierung überschreitet möglicherweise das Zeitbudget. Kürzerer Text oder eine CPU-optimierte Engine (OmniVoice GGUF, Supertonic-3) ist deutlich schneller."
+    "cpuLongText": "{{engine}} läuft hier auf der CPU und dieser Text ist lang — die Generierung überschreitet möglicherweise das Zeitbudget. Kürzerer Text oder eine CPU-optimierte Engine (OmniVoice GGUF, Supertonic-3) ist deutlich schneller.",
+    "cpuLongTextTuned": "{{engine}} läuft hier auf der CPU und dieser Text ist lang — die Generierung überschreitet möglicherweise das Zeitbudget. Kürzerer Text oder eine Aufteilung in mehrere Takes ist deutlich schneller."
   },
   "capture": {
     "desc": "Globale Hotkeys funktionieren nur in der Desktop-App. Die Web-Benutzeroberfläche verwendet eine In-Page-Verknüpfung <1>Strg+Umschalt+Leertaste</1>, während das Fenster den Fokus hat.",

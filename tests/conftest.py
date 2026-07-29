@@ -454,3 +454,82 @@ def mock_settings_store(monkeypatch):
     monkeypatch.setattr(_ss, "get_license_accepted", fake_get)
     monkeypatch.setattr(_ss, "set_license_accepted", fake_set)
     return state
+
+
+# ── #1269: config drift from importlib.reload leaks across suites ────────────
+#
+# Ten test modules share a fixture shape: monkeypatch OMNIVOICE_DATA_DIR to a
+# tmp_path, then importlib.reload(core.config) (plus core.db, a router, main)
+# so the app rebinds its paths under the temp dir. monkeypatch faithfully
+# restores the ENV VAR at teardown — and nothing reloads the modules back, so
+# every path constant keeps pointing at that test's tmp_path for the rest of
+# the session.
+#
+# The damage lands on whoever runs next. In a combined `pytest tests/
+# backend/tests/` run this produced three different answers to "where is the
+# voices directory":
+#
+#   OMNIVOICE_DATA_DIR      .../omnivoice-test-data-vna0ywre        (correct)
+#   core.config.VOICES_DIR  .../test_fitted_srt_last_cue_withi0/…   (leaked)
+#   profiles.VOICES_DIR     .../test_clone_profile_save_saniti0/…   (leaked)
+#
+# — which is why the personas import tests wrote a file to one directory and
+# then asserted it existed in another (4 failures, #1269).
+#
+# Restoring by re-reloading would re-register FastAPI routes and rebuild
+# module state as a side effect. Snapshot/restore of the constants themselves
+# is inert: a plain setattr, only for values a test actually changed, and it
+# fixes all ten modules without editing any of them. New reload fixtures are
+# covered automatically.
+_CONFIG_PATH_CONSTANTS = (
+    "DATA_DIR", "VOICES_DIR", "OUTPUTS_DIR", "DUB_DIR", "DB_PATH",
+    "PREVIEW_DIR", "CRASH_LOG_PATH", "LOG_PATH",
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _config_baseline():
+    """Pristine core.config paths, captured once before any test runs.
+
+    Must be session-scoped. A per-test snapshot cannot work: several of these
+    reload fixtures are module- or session-scoped themselves, so by the time
+    the second test in that module is set up the pollution is already in place
+    and a per-test snapshot faithfully restores it. (Observed: every module
+    agreed on `unified-profiles-data0/voices` — consistent, and wrong.)
+    """
+    import sys
+
+    cfg = sys.modules.get("core.config")
+    if cfg is None:
+        import core.config as cfg  # noqa: PLC0415
+    return {c: getattr(cfg, c) for c in _CONFIG_PATH_CONSTANTS if isinstance(getattr(cfg, c, None), str)}
+
+
+@pytest.fixture(autouse=True)
+def _restore_config_paths_after_reload(_config_baseline):
+    """Undo cross-test leakage of core.config's path constants."""
+    import sys
+
+    try:
+        yield
+    finally:
+        cfg = sys.modules.get("core.config")
+        if cfg is None:
+            return
+        # 1. Put core.config itself back to the session baseline.
+        for const, value in _config_baseline.items():
+            if getattr(cfg, const, None) != value:
+                setattr(cfg, const, value)
+        # 2. Re-sync every module that copied a value out of it. A reload
+        #    fixture typically imports the router under test for the first
+        #    time, so it has no earlier value to restore — which is how
+        #    api.routers.profiles kept a tmp_path VOICES_DIR while core.config
+        #    was already correct. Runs after monkeypatch teardown (autouse =>
+        #    set up first, torn down last), so it reconciles against real
+        #    values rather than a patch that is about to vanish.
+        for name, mod in list(sys.modules.items()):
+            if mod is None or not name.startswith(("api.routers.", "services.", "core.")):
+                continue
+            for const, value in _config_baseline.items():
+                if isinstance(getattr(mod, const, None), str) and getattr(mod, const) != value:
+                    setattr(mod, const, value)

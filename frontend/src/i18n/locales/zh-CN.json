@@ -541,7 +541,8 @@
     "selectCpuFallback": "{{engine}}：正在 CPU 上运行 — {{reason}}",
     "selectWithCaveat": "已切换到 {{engine}} — {{reason}}",
     "generateCaveat": "{{engine}} 在这台机器上可能较慢 — {{reason}}",
-    "cpuLongText": "{{engine}} 在此机器上使用 CPU 运行，而这段文本较长 — 生成可能超出时间预算。缩短文本或改用面向 CPU 优化的引擎（OmniVoice GGUF、Supertonic-3）会快得多。"
+    "cpuLongText": "{{engine}} 在此机器上使用 CPU 运行，而这段文本较长 — 生成可能超出时间预算。缩短文本或改用面向 CPU 优化的引擎（OmniVoice GGUF、Supertonic-3）会快得多。",
+    "cpuLongTextTuned": "{{engine}} 在此机器上使用 CPU 运行，而这段文本较长 — 生成可能超出时间预算。缩短文本或分成几次生成会快得多。"
   },
   "capture": {
     "desc": "全局热键仅在桌面应用中有效。网页界面使用页面内快捷键 <1>Ctrl+Shift+Space</1>（窗口聚焦时可用）。",

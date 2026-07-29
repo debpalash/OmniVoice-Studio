@@ -582,7 +582,8 @@
     "selectCpuFallback": "{{engine}}: berjalan di CPU — {{reason}}",
     "selectWithCaveat": "Beralih ke {{engine}} — {{reason}}",
     "generateCaveat": "{{engine}} mungkin lambat di komputer ini — {{reason}}",
-    "cpuLongText": "{{engine}} berjalan di CPU di sini dan teks ini panjang — proses mungkin melampaui batas waktu. Teks lebih pendek atau mesin yang dioptimalkan untuk CPU (OmniVoice GGUF, Supertonic-3) akan jauh lebih cepat."
+    "cpuLongText": "{{engine}} berjalan di CPU di sini dan teks ini panjang — proses mungkin melampaui batas waktu. Teks lebih pendek atau mesin yang dioptimalkan untuk CPU (OmniVoice GGUF, Supertonic-3) akan jauh lebih cepat.",
+    "cpuLongTextTuned": "{{engine}} berjalan di CPU di sini dan teks ini panjang — proses mungkin melampaui batas waktu. Teks lebih pendek, atau membaginya menjadi beberapa bagian, akan jauh lebih cepat."
   },
   "capture": {
     "desc": "Tombol pintas global hanya berfungsi di aplikasi desktop. UI web menggunakan pintasan <1>Ctrl+Shift+Space</1> dalam halaman saat jendela memiliki fokus.",

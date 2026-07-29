@@ -582,7 +582,8 @@
     "selectCpuFallback": "{{engine}}: CPU üzerinde çalışıyor — {{reason}}",
     "selectWithCaveat": "{{engine}} motoruna geçildi — {{reason}}",
     "generateCaveat": "{{engine}} bu bilgisayarda yavaş çalışabilir — {{reason}}",
-    "cpuLongText": "{{engine}} burada CPU üzerinde çalışıyor ve bu metin uzun — üretim süre bütçesini aşabilir. Daha kısa bir metin ya da CPU için ayarlanmış bir motor (OmniVoice GGUF, Supertonic-3) çok daha hızlı olacaktır."
+    "cpuLongText": "{{engine}} burada CPU üzerinde çalışıyor ve bu metin uzun — üretim süre bütçesini aşabilir. Daha kısa bir metin ya da CPU için ayarlanmış bir motor (OmniVoice GGUF, Supertonic-3) çok daha hızlı olacaktır.",
+    "cpuLongTextTuned": "{{engine}} burada CPU üzerinde çalışıyor ve bu metin uzun — üretim süre bütçesini aşabilir. Daha kısa bir metin ya da birkaç parçaya bölmek çok daha hızlı olacaktır."
   },
   "capture": {
     "desc": "Genel kısayol tuşları yalnızca masaüstü uygulamasında çalışır. Web kullanıcı arayüzü, pencere odaktayken sayfa içi <1>Ctrl+Shift+Space</1> kısayolunu kullanır.",
