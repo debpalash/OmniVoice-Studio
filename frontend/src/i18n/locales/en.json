@@ -2674,7 +2674,10 @@
     "email": "Email",
     "email_desc": "Email — licensing, partnerships, or anything private",
     "website": "Website",
-    "website_desc": "Website — more about the project and the maker"
+    "website_desc": "Website — more about the project and the maker",
+    "follow_title": "Follow along on X",
+    "follow_desc": "Release notes, new engines, and the occasional look at what is being built next. Handy if you would rather not sit in a chat server.",
+    "follow_cta": "Follow on X"
   },
   "firstrun": {
     "loading": "Preparing setup…",

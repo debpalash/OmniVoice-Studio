@@ -2262,7 +2262,10 @@
     "email": "Surel",
     "email_desc": "Perizinan, kemitraan, atau apa pun yang bersifat pribadi.",
     "website": "Situs web",
-    "website_desc": "Lebih lanjut tentang proyek dan pembuatnya."
+    "website_desc": "Lebih lanjut tentang proyek dan pembuatnya.",
+    "follow_title": "Ikuti di X",
+    "follow_desc": "Catatan rilis, mesin baru, dan sesekali intip apa yang sedang dibangun. Praktis jika Anda tidak ingin berada di server obrolan.",
+    "follow_cta": "Ikuti di X"
   },
   "permissions": {
     "title": "Izin",

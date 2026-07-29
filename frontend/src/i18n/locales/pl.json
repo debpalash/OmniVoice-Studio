@@ -2262,7 +2262,10 @@
     "email": "E-mail",
     "email_desc": "Licencje, partnerstwa lub cokolwiek prywatnego.",
     "website": "Strona internetowa",
-    "website_desc": "Więcej o projekcie i twórcy."
+    "website_desc": "Więcej o projekcie i twórcy.",
+    "follow_title": "Obserwuj na X",
+    "follow_desc": "Informacje o wydaniach, nowe silniki i od czasu do czasu zapowiedzi tego, co powstaje. Wygodne, jeśli wolisz nie siedzieć na serwerze czatu.",
+    "follow_cta": "Obserwuj na X"
   },
   "permissions": {
     "title": "Uprawnienia",

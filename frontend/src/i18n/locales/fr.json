@@ -2262,7 +2262,10 @@
     "email": "Courriel",
     "email_desc": "Licences, partenariats ou tout ce qui est privé.",
     "website": "Site Web",
-    "website_desc": "En savoir plus sur le projet et le créateur."
+    "website_desc": "En savoir plus sur le projet et le créateur.",
+    "follow_title": "Suivez-nous sur X",
+    "follow_desc": "Notes de version, nouveaux moteurs et un aperçu occasionnel de ce qui arrive. Pratique si vous préférez ne pas rester dans un serveur de discussion.",
+    "follow_cta": "Suivre sur X"
   },
   "permissions": {
     "title": "Autorisations",

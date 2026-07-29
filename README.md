@@ -13,6 +13,7 @@
     <a href="#sponsor--donate">Donate</a> ·
     <a href="#contributing">Contributing</a> ·
     <a href="https://discord.gg/bzQavDfVV9">Discord</a> ·
+    <a href="https://x.com/fs01c137y">X</a> ·
     <a href="README_CN.md"><strong>简体中文</strong></a>
   </p>
 
@@ -23,6 +24,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License" /></a>
     <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
+    <a href="https://x.com/fs01c137y"><img src="https://img.shields.io/badge/X-Follow_for_updates-000000?style=flat-square&logo=x&logoColor=white" alt="Follow on X" /></a>
     <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_Us-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
     <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=flat-square&logo=paypal&logoColor=white" alt="PayPal" /></a>
   </p>
@@ -484,6 +486,7 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 
 <div align="center">
   <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/💬_Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join Discord" /></a>
+  <a href="https://x.com/fs01c137y"><img src="https://img.shields.io/badge/𝕏_Follow-for_updates-000000?style=for-the-badge&logo=x&logoColor=white" alt="Follow on X" /></a>
   <br/>
   <sub>We respond to setup questions within hours, not days.</sub>
 </div>
@@ -515,6 +518,7 @@ Yes please — bug fixes, new TTS engine adapters, UI improvements, docs, transl
 - 📖 Read the **[Contributing Guide](.github/CONTRIBUTING.md)** for setup, code style, and PR workflow
 - 🐛 Browse [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
 - 💬 Join our [Discord](https://discord.gg/bzQavDfVV9) to discuss ideas or ask for help
+- 𝕏 Follow [@fs01c137y](https://x.com/fs01c137y) for updates and what's being built next
 
 ---
 

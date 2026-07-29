@@ -2262,7 +2262,10 @@
     "email": "E-post",
     "email_desc": "Licensiering, partnerskap eller något privat.",
     "website": "Webbplats",
-    "website_desc": "Mer om projektet och skaparen."
+    "website_desc": "Mer om projektet och skaparen.",
+    "follow_title": "Följ på X",
+    "follow_desc": "Release-noteringar, nya motorer och ibland en titt på vad som byggs härnäst. Praktiskt om du hellre slipper sitta i en chattserver.",
+    "follow_cta": "Följ på X"
   },
   "permissions": {
     "title": "Behörigheter",

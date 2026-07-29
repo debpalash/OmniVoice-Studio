@@ -2262,7 +2262,10 @@
     "email": "E-mail",
     "email_desc": "Licenciamento, parcerias ou qualquer coisa privada.",
     "website": "Site",
-    "website_desc": "Mais sobre o projeto e o criador."
+    "website_desc": "Mais sobre o projeto e o criador.",
+    "follow_title": "Siga no X",
+    "follow_desc": "Notas de versão, novos motores e, de vez em quando, uma espreitadela ao que vem a seguir. Prático se preferir não estar num servidor de chat.",
+    "follow_cta": "Seguir no X"
   },
   "permissions": {
     "title": "Permissões",

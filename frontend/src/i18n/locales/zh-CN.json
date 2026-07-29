@@ -2269,7 +2269,10 @@
     "email": "电子邮件",
     "email_desc": "许可、合作伙伴关系或任何私人的东西。",
     "website": "网站",
-    "website_desc": "有关该项目和制造商的更多信息。"
+    "website_desc": "有关该项目和制造商的更多信息。",
+    "follow_title": "在 X 上关注",
+    "follow_desc": "版本说明、新引擎，以及偶尔透露接下来在做什么。如果你不想常驻聊天服务器，这里更方便。",
+    "follow_cta": "在 X 上关注"
   },
   "permissions": {
     "title": "权限",

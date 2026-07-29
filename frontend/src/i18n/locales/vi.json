@@ -2262,7 +2262,10 @@
     "email": "Email",
     "email_desc": "Cấp phép, hợp tác hoặc bất cứ điều gì riêng tư.",
     "website": "Trang web",
-    "website_desc": "Thông tin thêm về dự án và nhà sản xuất."
+    "website_desc": "Thông tin thêm về dự án và nhà sản xuất.",
+    "follow_title": "Theo dõi trên X",
+    "follow_desc": "Ghi chú phát hành, engine mới, và đôi khi là hé lộ những gì đang được xây dựng. Tiện nếu bạn không muốn ở trong một máy chủ chat.",
+    "follow_cta": "Theo dõi trên X"
   },
   "permissions": {
     "title": "Quyền truy cập",

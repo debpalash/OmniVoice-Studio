@@ -2262,7 +2262,10 @@
     "email": "E-posta",
     "email_desc": "Lisanslama, ortaklıklar veya özel herhangi bir şey.",
     "website": "Web sitesi",
-    "website_desc": "Proje ve yapımcı hakkında daha fazla bilgi."
+    "website_desc": "Proje ve yapımcı hakkında daha fazla bilgi.",
+    "follow_title": "X'te takip edin",
+    "follow_desc": "Sürüm notları, yeni motorlar ve sırada ne olduğuna dair ara ara bakışlar. Bir sohbet sunucusunda durmak istemiyorsanız pratik.",
+    "follow_cta": "X'te takip et"
   },
   "permissions": {
     "title": "İzinler",

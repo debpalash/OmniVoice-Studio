@@ -2262,7 +2262,10 @@
     "email": "E-mail",
     "email_desc": "Licenties, partnerschappen of iets privés.",
     "website": "Website",
-    "website_desc": "Meer over het project en de maker."
+    "website_desc": "Meer over het project en de maker.",
+    "follow_title": "Volg ons op X",
+    "follow_desc": "Release-notities, nieuwe engines en af en toe een blik op wat er volgt. Handig als u liever niet in een chatserver zit.",
+    "follow_cta": "Volgen op X"
   },
   "permissions": {
     "title": "Machtigingen",

@@ -2262,7 +2262,10 @@
     "email": "電子郵件",
     "email_desc": "許可、合作夥伴關係或任何私人的東西。",
     "website": "網站",
-    "website_desc": "有關該項目和製造商的更多資訊。"
+    "website_desc": "有關該項目和製造商的更多資訊。",
+    "follow_title": "在 X 上追蹤",
+    "follow_desc": "版本說明、新引擎，以及偶爾透露接下來在做什麼。如果你不想常駐聊天伺服器，這裡更方便。",
+    "follow_cta": "在 X 上追蹤"
   },
   "permissions": {
     "title": "權限",
