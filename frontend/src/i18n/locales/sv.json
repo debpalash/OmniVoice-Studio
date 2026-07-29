@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU vald, men: {{reason}}",
     "selectCpuFallback": "{{engine}}: körs på CPU — {{reason}}",
     "selectWithCaveat": "Bytte till {{engine}} — {{reason}}",
-    "generateCaveat": "{{engine}} kan vara långsam på den här datorn — {{reason}}"
+    "generateCaveat": "{{engine}} kan vara långsam på den här datorn — {{reason}}",
+    "cpuLongText": "{{engine}} körs på CPU här och den här texten är lång — genereringen kan överskrida tidsbudgeten. Kortare text eller en CPU-optimerad motor (OmniVoice GGUF, Supertonic-3) går betydligt snabbare."
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",

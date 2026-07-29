@@ -581,7 +581,8 @@
     "routingCaveatTitle": "已選擇 GPU，但是：{{reason}}",
     "selectCpuFallback": "{{engine}}：正在 CPU 上執行 — {{reason}}",
     "selectWithCaveat": "已切換至 {{engine}} — {{reason}}",
-    "generateCaveat": "{{engine}} 在這台機器上可能較慢 — {{reason}}"
+    "generateCaveat": "{{engine}} 在這台機器上可能較慢 — {{reason}}",
+    "cpuLongText": "{{engine}} 在此機器上使用 CPU 執行，而這段文字較長 — 生成可能超出時間預算。縮短文字或改用針對 CPU 最佳化的引擎（OmniVoice GGUF、Supertonic-3）會快得多。"
   },
   "capture": {
     "desc": "全域熱鍵僅適用於桌面應用程式。當視窗具有焦點時，Web UI 使用頁內 <1>Ctrl+Shift+Space</1> 快速鍵。",

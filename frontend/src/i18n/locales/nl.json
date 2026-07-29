@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU geselecteerd, maar: {{reason}}",
     "selectCpuFallback": "{{engine}}: draait op de CPU — {{reason}}",
     "selectWithCaveat": "Overgeschakeld naar {{engine}} — {{reason}}",
-    "generateCaveat": "{{engine}} kan traag zijn op deze machine — {{reason}}"
+    "generateCaveat": "{{engine}} kan traag zijn op deze machine — {{reason}}",
+    "cpuLongText": "{{engine}} draait hier op de CPU en deze tekst is lang — de generatie overschrijdt mogelijk het tijdsbudget. Kortere tekst of een CPU-geoptimaliseerde engine (OmniVoice GGUF, Supertonic-3) is veel sneller."
   },
   "capture": {
     "desc": "Globale sneltoetsen werken alleen in de desktop-app. De webinterface gebruikt een sneltoets <1>Ctrl+Shift+Spatie</1> op de pagina terwijl het venster focus heeft.",

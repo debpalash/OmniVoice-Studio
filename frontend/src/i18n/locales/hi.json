@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU चयनित, लेकिन: {{reason}}",
     "selectCpuFallback": "{{engine}}: CPU पर चल रहा है — {{reason}}",
     "selectWithCaveat": "{{engine}} पर स्विच किया गया — {{reason}}",
-    "generateCaveat": "इस मशीन पर {{engine}} धीमा हो सकता है — {{reason}}"
+    "generateCaveat": "इस मशीन पर {{engine}} धीमा हो सकता है — {{reason}}",
+    "cpuLongText": "यहाँ {{engine}} CPU पर चलता है और यह टेक्स्ट लंबा है — जनरेशन समय सीमा पार कर सकता है। छोटा टेक्स्ट या CPU के लिए अनुकूलित इंजन (OmniVoice GGUF, Supertonic-3) कहीं तेज़ रहेगा।"
   },
   "capture": {
     "desc": "ग्लोबल हॉटकीज़ केवल डेस्कटॉप ऐप में काम करती हैं। वेब यूआई इन-पेज <1>Ctrl+Shift+Space</1> शॉर्टकट का उपयोग करता है जबकि विंडो पर फोकस होता है।",

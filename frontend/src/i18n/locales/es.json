@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU seleccionada, pero: {{reason}}",
     "selectCpuFallback": "{{engine}}: ejecutándose en la CPU — {{reason}}",
     "selectWithCaveat": "Se cambió a {{engine}}: {{reason}}",
-    "generateCaveat": "{{engine}} puede ir lento en este equipo: {{reason}}"
+    "generateCaveat": "{{engine}} puede ir lento en este equipo: {{reason}}",
+    "cpuLongText": "{{engine}} se ejecuta en la CPU aquí y este texto es largo: la generación puede superar el límite de tiempo. Un texto más corto o un motor optimizado para CPU (OmniVoice GGUF, Supertonic-3) será mucho más rápido."
   },
   "capture": {
     "desc": "Las teclas de acceso rápido globales solo funcionan en la aplicación de escritorio. La interfaz de usuario web utiliza un acceso directo <1>Ctrl+Shift+Espacio</1> en la página mientras la ventana tiene el foco.",

@@ -1907,7 +1907,8 @@
     "installStep_persist": "Saving configuration",
     "installAria": "Install {{engine}}",
     "selectWithCaveat": "Switched to {{engine}} — {{reason}}",
-    "generateCaveat": "{{engine}} may be slow on this machine — {{reason}}"
+    "generateCaveat": "{{engine}} may be slow on this machine — {{reason}}",
+    "cpuLongText": "{{engine}} runs on the CPU here, and this text is long — the generation may exceed the time budget. Shorter text, or a CPU-tuned engine (OmniVoice GGUF, Supertonic-3), will be much faster."
   },
   "errors": {
     "title": "This tab hit a snag.",

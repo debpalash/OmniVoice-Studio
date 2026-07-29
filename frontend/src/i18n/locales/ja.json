@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU が選択されましたが: {{reason}}",
     "selectCpuFallback": "{{engine}}: CPU で実行中 — {{reason}}",
     "selectWithCaveat": "{{engine}} に切り替えました — {{reason}}",
-    "generateCaveat": "このマシンでは {{engine}} の生成が遅くなる可能性があります — {{reason}}"
+    "generateCaveat": "このマシンでは {{engine}} の生成が遅くなる可能性があります — {{reason}}",
+    "cpuLongText": "ここでは {{engine}} が CPU で実行され、このテキストは長いため、生成が時間制限を超える可能性があります。短いテキスト、または CPU 向けエンジン（OmniVoice GGUF、Supertonic-3）のほうが大幅に高速です。"
   },
   "capture": {
     "desc": "グローバル ホットキーはデスクトップ アプリでのみ機能します。 Web UI は、ウィンドウにフォーカスがある間、ページ内 <1>Ctrl+Shift+Space</1> ショートカットを使用します。",

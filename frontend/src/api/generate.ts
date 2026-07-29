@@ -41,7 +41,12 @@ export async function generateSpeech(
   // /generate through here, so the under-provisioned-hardware warning fires
   // whether or not the user ever re-picked an engine. Intentionally not
   // awaited — the toast must not delay the request it is warning about.
-  void warnIfEngineUnderProvisioned();
+  // The text comes along so the preflight can also catch the CPU-host case:
+  // a benign routing verdict plus a long input is the shape that quietly eats
+  // the whole compute budget (#1299, #1260).
+  void warnIfEngineUnderProvisioned(
+    typeof formData?.get === 'function' ? String(formData.get('text') ?? '') : '',
+  );
   try {
     // Returns the full Response so callers can stream the WAV blob + read headers.
     return await apiFetch('/generate', { method: 'POST', body: formData, signal });

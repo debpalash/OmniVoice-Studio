@@ -581,7 +581,8 @@
     "routingCaveatTitle": "GPU selezionata, ma: {{reason}}",
     "selectCpuFallback": "{{engine}}: in esecuzione sulla CPU — {{reason}}",
     "selectWithCaveat": "Passato a {{engine}} — {{reason}}",
-    "generateCaveat": "{{engine}} potrebbe essere lento su questo computer — {{reason}}"
+    "generateCaveat": "{{engine}} potrebbe essere lento su questo computer — {{reason}}",
+    "cpuLongText": "{{engine}} qui viene eseguito sulla CPU e questo testo è lungo: la generazione potrebbe superare il limite di tempo. Un testo più breve o un motore ottimizzato per CPU (OmniVoice GGUF, Supertonic-3) sarà molto più veloce."
   },
   "capture": {
     "desc": "I tasti di scelta rapida globali funzionano solo nell'app desktop. L'interfaccia utente Web utilizza una scorciatoia <1>Ctrl+Shift+Spazio</1> nella pagina mentre la finestra è attiva.",
