@@ -529,18 +529,16 @@ class SubprocessBackend(TTSBackend):
         """
         # Lazy-import the GPU pool so importing this module doesn't pull in
         # the entire model_manager + torch ecosystem at registry-listing time.
-        from services.model_manager import _get_gpu_pool
-
-        # Acquire a GPU pool worker for the duration of this generate, UNLESS we
-        # are already running on one: the /v1/audio/speech and /generate routes
-        # dispatch backend.generate() via run_on_gpu_pool_guarded, so this call
-        # already holds a slot. On a 1-worker pool (MPS) a second submit would
-        # queue behind this very job and self-deadlock (.result(timeout=10)
-        # fires, no sidecar ever spawns). The outer guard accounts for the slot.
-        pool = _get_gpu_pool()
-        if threading.current_thread().name.startswith("gpu-pool"):
-            slot_future = None  # already on a pool worker
-        else:
+        # The HTTP routes, audiobook, dub, and batch all dispatch generate() via
+        # run_on_gpu_pool_guarded, i.e. already on a gpu-pool worker. On a
+        # 1-worker pool (MPS) a second slot submit would queue behind this very
+        # job and self-deadlock (.result(timeout=10) fires, no sidecar spawns),
+        # so skip the slot when already on the pool. The off-pool callers (the
+        # engine self-test and the diagnostic probe) still take a slot as a
+        # queue wait, so they yield to an in-flight pool job instead of racing.
+        if not threading.current_thread().name.startswith("gpu-pool"):
+            from services.model_manager import _get_gpu_pool
+            pool = _get_gpu_pool()
             slot_future = pool.submit(lambda: None)
             try:
                 slot_future.result(timeout=10)  # wait for our turn
