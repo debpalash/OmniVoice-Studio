@@ -487,49 +487,54 @@ _CONFIG_PATH_CONSTANTS = (
 )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _config_baseline():
-    """Pristine core.config paths, captured once before any test runs.
+@pytest.fixture(scope="module", autouse=True)
+def _restore_config_paths_after_reload():
+    """Undo cross-MODULE leakage of core.config's path constants.
 
-    Must be session-scoped. A per-test snapshot cannot work: several of these
-    reload fixtures are module- or session-scoped themselves, so by the time
-    the second test in that module is set up the pollution is already in place
-    and a per-test snapshot faithfully restores it. (Observed: every module
-    agreed on `unified-profiles-data0/voices` — consistent, and wrong.)
+    Module scope, not function scope, and that boundary is the whole design.
+
+    Deliberate re-pointing is normal and must survive: tests/smoke/
+    test_boot_smoke.py has a module-scoped fixture that aims core.config at a
+    frozen fixture directory for the length of that file. A per-test restore
+    reset it between that module's own tests and broke it — the fixture cannot
+    tell a deliberate setup from a leak *within* a module.
+
+    Across modules there is no such ambiguity: whatever a module pointed
+    core.config at is that module's business, and the next one is entitled to
+    the paths it started with. Restoring at module teardown lets each file keep
+    its own arrangement and hands the next file a clean slate.
     """
     import sys
 
-    cfg = sys.modules.get("core.config")
-    if cfg is None:
-        import core.config as cfg  # noqa: PLC0415
-    return {c: getattr(cfg, c) for c in _CONFIG_PATH_CONSTANTS if isinstance(getattr(cfg, c, None), str)}
+    def _snapshot():
+        cfg = sys.modules.get("core.config")
+        if cfg is None:
+            return {}
+        return {
+            c: getattr(cfg, c)
+            for c in _CONFIG_PATH_CONSTANTS
+            if isinstance(getattr(cfg, c, None), str)
+        }
 
-
-@pytest.fixture(autouse=True)
-def _restore_config_paths_after_reload(_config_baseline):
-    """Undo cross-test leakage of core.config's path constants."""
-    import sys
-
+    before = _snapshot()
     try:
         yield
     finally:
         cfg = sys.modules.get("core.config")
-        if cfg is None:
+        if cfg is None or not before:
             return
-        # 1. Put core.config itself back to the session baseline.
-        for const, value in _config_baseline.items():
+        # 1. core.config itself back to what this module inherited.
+        for const, value in before.items():
             if getattr(cfg, const, None) != value:
                 setattr(cfg, const, value)
         # 2. Re-sync every module that copied a value out of it. A reload
         #    fixture typically imports the router under test for the first
         #    time, so it has no earlier value to restore — which is how
         #    api.routers.profiles kept a tmp_path VOICES_DIR while core.config
-        #    was already correct. Runs after monkeypatch teardown (autouse =>
-        #    set up first, torn down last), so it reconciles against real
-        #    values rather than a patch that is about to vanish.
+        #    was already correct.
         for name, mod in list(sys.modules.items()):
             if mod is None or not name.startswith(("api.routers.", "services.", "core.")):
                 continue
-            for const, value in _config_baseline.items():
+            for const, value in before.items():
                 if isinstance(getattr(mod, const, None), str) and getattr(mod, const) != value:
                     setattr(mod, const, value)
