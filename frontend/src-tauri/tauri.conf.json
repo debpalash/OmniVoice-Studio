@@ -84,7 +84,7 @@
       "binaries/ffprobe"
     ],
     "macOS": {
-      "minimumSystemVersion": "12.0",
+      "minimumSystemVersion": "13.3",
       "signingIdentity": "-",
       "entitlements": "entitlements.plist"
     }

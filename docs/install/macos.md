@@ -19,7 +19,7 @@ working OmniVoice Studio install on macOS (Apple Silicon).
 
 ### Using the DMG
 
-- **macOS 12 (Monterey) or newer** — Apple Silicon (Intel: UI only, see the
+- **macOS 13.3 (Ventura) or newer** — Apple Silicon (Intel: UI only, see the
   note above).
 - **~10 GB free disk** for the app, its Python environment, and model weights.
 

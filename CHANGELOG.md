@@ -6,6 +6,40 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
 The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
+## [Unreleased]
+
+**Highlights**
+
+- RTX 40-series GPUs are used again instead of being sent to the CPU
+- A warning before a slow generation, rather than after a five-minute wait
+- The watermark can be turned off in Settings, as the docs always said
+- macOS support now matches what the app actually delivers
+
+### Changed
+
+- macOS floor raised to 13.3 (Ventura). The app declared macOS 12 while the frontend needed Safari 16.4 in three independent places, so Monterey rendered incorrectly and the OpenAPI panel could not load at all — 12 was a promise, not a platform. macOS 12 stopped receiving security updates in late 2024. (#1268)
+
+### Added
+
+- Settings → Privacy now has an **Invisible watermark** toggle. On by default, available to everyone, and it only affects audio generated after the change. (#1308)
+- A new opt-in crash-isolated TTS engine, so a native crash takes down the sidecar instead of the whole backend — thanks @paoloantinori! (#1292, #1298, #1304)
+
+### Fixed
+
+- Every RTX 40-series card (4060–4090) was declared unsupported and silently run on the CPU. The compatibility gate demanded an exact `sm_89` match, but PyTorch ships `sm_86` kernels that already cover Ada. (#1285)
+- Under-provisioned hardware is now flagged **before** a synthesis starts instead of after the full compute budget expires. (#1240, #1246, #1248, #1277, #1283, #1284)
+- Long text on a CPU-only machine gets the same warning up front. (#1260, #1299)
+- A crash inside the compute stack no longer blames VRAM: a segfault or Windows access violation now points at the GPU driver or an incomplete model download. (#1275, #1293)
+- ffmpeg failures report the failure instead of ffmpeg's build configuration. (#1309)
+- A cut TLS connection is explained in words rather than as `_ssl.c:1016`. (#1301)
+- `torch.compile` is skipped when the torch library path contains a space, instead of failing in the linker on every load. (#1266)
+- macOS Preview updates work again — the updater bundle had been colliding with itself since early July. (#1281)
+
+### CI
+
+- Windows smoke tests stopped silently passing a broken ffmpeg install, and every smoke leg is now budgeted for a cold dependency install. (#1290)
+- Test suites no longer leak config paths into one another, which had been failing unrelated pull requests. (#1269)
+
 ## [0.4.2] — 2026-07-28
 
 **Highlights**

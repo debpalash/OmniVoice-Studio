@@ -164,14 +164,17 @@ describe('no app code depends on an API newer than the macOS floor', () => {
       fs.readFileSync(path.resolve(SRC, '..', 'src-tauri', 'tauri.conf.json'), 'utf8'),
     );
     // The list above is derived from the WebView that ships with this macOS
-    // version (12.0 → WKWebView 15.6). If the floor moves, re-derive it — the
-    // test is only as correct as the version it is written against.
+    // version (13.3 → Safari/WKWebView 16.4). If the floor moves, re-derive it
+    // — the test is only as correct as the version it is written against.
     //
-    // Note this asserts what we DECLARE, not what we deliver: the CSS layer
-    // (Tailwind v4, color-mix) needs Safari 16.4, so 12.0 is currently a
-    // promise the frontend stack does not keep. Tracked in #1268; asserted
-    // here so raising the floor forces this list to be revisited.
-    expect(conf.bundle?.macOS?.minimumSystemVersion).toBe('12.0');
+    // #1268 closed the gap this assertion used to document. The floor was 12.0
+    // while the frontend stack required Safari 16.4 in three independent
+    // places: Vite's default build target (`baseline-widely-available` =
+    // safari16.4), Tailwind v4's own documented floor, and `@property` in its
+    // generated utilities — plus a RegExp lookbehind in a bundled dependency
+    // that is a PARSE-time SyntaxError no polyfill can reach. We declare 13.3
+    // now because that is what we actually deliver.
+    expect(conf.bundle?.macOS?.minimumSystemVersion).toBe('13.3');
   });
 
   it('uses no unfilled post-Safari-15.6 API', () => {
