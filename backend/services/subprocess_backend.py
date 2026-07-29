@@ -527,6 +527,11 @@ class SubprocessBackend(TTSBackend):
         # pool jobs instead of over-subscribing the GPU.
         from services.model_manager import running_on_gpu_pool
         _held = None
+        # Bound before the branch: only the off-pool path assigns a real
+        # future, and `_held is not None` already implies that — but CodeQL
+        # (py/uninitialized-local-variable) reads the two as independent, and
+        # so would anyone adding a third exit path later.
+        slot_future = None
         if not running_on_gpu_pool():
             # Lazy-import the GPU pool so importing this module doesn't pull in
             # the entire model_manager + torch ecosystem at registry-listing time.
@@ -543,7 +548,8 @@ class SubprocessBackend(TTSBackend):
 
         try:
             if _held is not None and not _acquired.wait(timeout=10):
-                slot_future.cancel()
+                if slot_future is not None:
+                    slot_future.cancel()
                 raise TimeoutError("timed out waiting for a free GPU worker")
             with self._lock:
                 self._spawn()
