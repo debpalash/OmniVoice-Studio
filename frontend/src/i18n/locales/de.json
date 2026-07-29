@@ -492,7 +492,12 @@
     "local_sqlite": "Lokales SQLite",
     "translator_online": "Übersetzer ist online: {{provider}}",
     "translator_offline": "Offline-Übersetzer",
-    "no_tracking": "Keine – keine Nachverfolgung"
+    "no_tracking": "Keine – keine Nachverfolgung",
+    "watermark_title": "Unsichtbares Wasserzeichen",
+    "watermark_subtitle": "Standardmäßig aktiv. Kennzeichnet erzeugtes Audio als KI-generiert, damit es später erkannt werden kann. Gilt nur für ab jetzt erzeugtes Audio.",
+    "watermark_on_toast": "Unsichtbares Wasserzeichen für neues Audio aktiviert.",
+    "watermark_off_toast": "Unsichtbares Wasserzeichen für neues Audio deaktiviert.",
+    "watermark_failed": "Die Wasserzeichen-Einstellung konnte nicht geändert werden."
   },
   "consent": {
     "title": "OmniVoice verbessern helfen?",

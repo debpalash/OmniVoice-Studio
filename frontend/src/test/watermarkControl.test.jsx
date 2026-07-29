@@ -69,18 +69,41 @@ describe('WatermarkControl', () => {
 
   // An inert switch over a mark that cannot be embedded is the same lie in the
   // other direction.
+  // Waits for the request to SETTLE, not merely to start: the initial render is
+  // already empty, so asserting emptiness right after the call would pass even
+  // if the control later appeared (CodeRabbit).
   it('renders nothing when AudioSeal is unavailable', async () => {
-    getStatus.mockResolvedValue({ ...AVAILABLE, audioseal_available: false });
+    let resolve;
+    getStatus.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
     const { container } = render(<WatermarkControl />);
+    resolve({ ...AVAILABLE, audioseal_available: false });
     await waitFor(() => expect(getStatus).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
     expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId('watermark-toggle')).toBeNull();
   });
 
   it('renders nothing when the backend cannot be reached', async () => {
     getStatus.mockRejectedValue(new Error('offline'));
     const { container } = render(<WatermarkControl />);
-    await waitFor(() => expect(getStatus).toHaveBeenCalled());
+    // Two attempts: the retry has to fail as well before we give up.
+    await waitFor(() => expect(getStatus).toHaveBeenCalledTimes(2), { timeout: 4000 });
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // Greptile P1: a single shot meant opening Privacy during a restart hid the
+  // control for the rest of the session — and being findable is its whole job.
+  it('recovers when the first status fetch fails', async () => {
+    getStatus
+      .mockRejectedValueOnce(new Error('backend restarting'))
+      .mockResolvedValueOnce(AVAILABLE);
+    render(<WatermarkControl />);
+    const toggle = await screen.findByTestId('watermark-toggle', {}, { timeout: 4000 });
+    expect(toggle).toBeChecked();
   });
 
   it('keeps the previous state when the update fails', async () => {

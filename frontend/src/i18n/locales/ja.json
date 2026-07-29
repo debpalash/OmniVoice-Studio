@@ -492,7 +492,12 @@
     "local_sqlite": "ローカルSQLite",
     "translator_online": "翻訳者はオンラインです: {{provider}}",
     "translator_offline": "オフライン翻訳者",
-    "no_tracking": "なし — 追跡なし"
+    "no_tracking": "なし — 追跡なし",
+    "watermark_title": "不可視の透かし",
+    "watermark_subtitle": "既定で有効。生成した音声を AI 生成として印付けし、後から識別できるようにします。今後生成する音声にのみ適用されます。",
+    "watermark_on_toast": "新しい音声に不可視の透かしを有効にしました。",
+    "watermark_off_toast": "新しい音声の不可視の透かしを無効にしました。",
+    "watermark_failed": "透かしの設定を変更できませんでした。"
   },
   "consent": {
     "title": "OmniVoice の改善に協力しますか？",

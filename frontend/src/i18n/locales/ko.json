@@ -492,7 +492,12 @@
     "local_sqlite": "로컬 SQLite",
     "translator_online": "번역가가 온라인 상태입니다: {{provider}}",
     "translator_offline": "오프라인 번역기",
-    "no_tracking": "없음 — 추적 없음"
+    "no_tracking": "없음 — 추적 없음",
+    "watermark_title": "보이지 않는 워터마크",
+    "watermark_subtitle": "기본으로 켜져 있습니다. 생성된 오디오를 AI 제작물로 표시해 나중에 식별할 수 있게 합니다. 지금부터 생성되는 오디오에만 적용됩니다.",
+    "watermark_on_toast": "새 오디오에 보이지 않는 워터마크를 켰습니다.",
+    "watermark_off_toast": "새 오디오의 보이지 않는 워터마크를 껐습니다.",
+    "watermark_failed": "워터마크 설정을 변경할 수 없습니다."
   },
   "consent": {
     "title": "OmniVoice 개선에 참여하시겠어요?",

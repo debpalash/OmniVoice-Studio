@@ -449,7 +449,12 @@
     "local_sqlite": "本地 SQLite",
     "translator_online": "翻译引擎在线：{{provider}}",
     "translator_offline": "离线翻译",
-    "no_tracking": "无 — 不追踪"
+    "no_tracking": "无 — 不追踪",
+    "watermark_title": "不可见水印",
+    "watermark_subtitle": "默认开启。将生成的音频标记为 AI 制作，以便日后识别。仅影响从现在起生成的音频。",
+    "watermark_on_toast": "已为新音频启用不可见水印。",
+    "watermark_off_toast": "已为新音频停用不可见水印。",
+    "watermark_failed": "无法更改水印设置。"
   },
   "consent": {
     "title": "帮助改进 OmniVoice？",

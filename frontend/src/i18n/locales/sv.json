@@ -492,7 +492,12 @@
     "local_sqlite": "Lokal SQLite",
     "translator_online": "Översättaren är online: {{provider}}",
     "translator_offline": "Offlineöversättare",
-    "no_tracking": "Ingen – ingen spårning"
+    "no_tracking": "Ingen – ingen spårning",
+    "watermark_title": "Osynlig vattenstämpel",
+    "watermark_subtitle": "På som standard. Märker genererat ljud som AI-skapat så att det kan identifieras senare. Gäller bara ljud som genereras från och med nu.",
+    "watermark_on_toast": "Osynlig vattenstämpel aktiverad för nytt ljud.",
+    "watermark_off_toast": "Osynlig vattenstämpel avstängd för nytt ljud.",
+    "watermark_failed": "Kunde inte ändra inställningen för vattenstämpeln."
   },
   "consent": {
     "title": "Hjälpa till att förbättra OmniVoice?",

@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite lokal",
     "translator_online": "Penerjemah sedang online: {{provider}}",
     "translator_offline": "Penerjemah luring",
-    "no_tracking": "Tidak ada — tidak ada pelacakan"
+    "no_tracking": "Tidak ada — tidak ada pelacakan",
+    "watermark_title": "Tanda air tak terlihat",
+    "watermark_subtitle": "Aktif secara bawaan. Menandai audio hasil buatan sebagai dibuat AI agar dapat dikenali nanti. Hanya memengaruhi audio yang dibuat mulai sekarang.",
+    "watermark_on_toast": "Tanda air tak terlihat diaktifkan untuk audio baru.",
+    "watermark_off_toast": "Tanda air tak terlihat dimatikan untuk audio baru.",
+    "watermark_failed": "Tidak dapat mengubah pengaturan tanda air."
   },
   "consent": {
     "title": "Bantu meningkatkan OmniVoice?",

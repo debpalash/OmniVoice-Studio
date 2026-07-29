@@ -492,7 +492,12 @@
     "local_sqlite": "本地SQLite",
     "translator_online": "譯者在線：{{provider}}",
     "translator_offline": "離線翻譯器",
-    "no_tracking": "無 — 不跟蹤"
+    "no_tracking": "無 — 不跟蹤",
+    "watermark_title": "不可見浮水印",
+    "watermark_subtitle": "預設開啟。將產生的音訊標記為 AI 製作，以便日後識別。僅影響從現在起產生的音訊。",
+    "watermark_on_toast": "已為新音訊啟用不可見浮水印。",
+    "watermark_off_toast": "已為新音訊停用不可見浮水印。",
+    "watermark_failed": "無法變更浮水印設定。"
   },
   "consent": {
     "title": "協助改進 OmniVoice？",

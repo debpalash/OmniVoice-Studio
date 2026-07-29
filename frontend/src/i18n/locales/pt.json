@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite local",
     "translator_online": "O tradutor está online: {{provider}}",
     "translator_offline": "Tradutor off-line",
-    "no_tracking": "Nenhum – sem rastreamento"
+    "no_tracking": "Nenhum – sem rastreamento",
+    "watermark_title": "Marca de água invisível",
+    "watermark_subtitle": "Ativada por predefinição. Marca o áudio gerado como criado por IA para poder ser identificado mais tarde. Afeta apenas o áudio gerado a partir de agora.",
+    "watermark_on_toast": "Marca de água invisível ativada para novo áudio.",
+    "watermark_off_toast": "Marca de água invisível desativada para novo áudio.",
+    "watermark_failed": "Não foi possível alterar a definição da marca de água."
   },
   "consent": {
     "title": "Ajudar a melhorar o OmniVoice?",

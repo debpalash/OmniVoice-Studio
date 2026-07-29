@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite cục bộ",
     "translator_online": "Người dịch đang trực tuyến: {{provider}}",
     "translator_offline": "Trình dịch ngoại tuyến",
-    "no_tracking": "Không có - không theo dõi"
+    "no_tracking": "Không có - không theo dõi",
+    "watermark_title": "Hình mờ vô hình",
+    "watermark_subtitle": "Bật theo mặc định. Đánh dấu âm thanh được tạo là do AI tạo ra để có thể nhận biết về sau. Chỉ ảnh hưởng đến âm thanh được tạo từ giờ trở đi.",
+    "watermark_on_toast": "Đã bật hình mờ vô hình cho âm thanh mới.",
+    "watermark_off_toast": "Đã tắt hình mờ vô hình cho âm thanh mới.",
+    "watermark_failed": "Không thể thay đổi cài đặt hình mờ."
   },
   "consent": {
     "title": "Giúp cải thiện OmniVoice?",

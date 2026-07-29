@@ -17,7 +17,7 @@
  * inert switch claiming to control a mark that cannot be embedded would be the
  * same lie in the other direction.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { getWatermarkStatus, setWatermarkSettings } from '../../api/watermark';
@@ -27,19 +27,39 @@ export default function WatermarkControl() {
   const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
+  // A toggle that resolves after the tab closes must not set state or toast at
+  // whatever screen the user moved on to (CodeRabbit).
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
 
+  // One retry after a short delay. A single shot meant that opening Privacy
+  // while the backend was restarting hid the control for the rest of the
+  // session — and the control's whole purpose is being findable, since the FAQ
+  // tells people it is here (Greptile P1).
   useEffect(() => {
     let cancelled = false;
-    getWatermarkStatus()
-      .then((s) => {
-        if (!cancelled) setStatus(s);
-      })
-      .catch(() => {
-        // Backend down or endpoint missing — render nothing rather than an
-        // inert control.
-      });
+    let timer = null;
+
+    const load = (attempt = 0) => {
+      getWatermarkStatus()
+        .then((s) => {
+          if (!cancelled) setStatus(s);
+        })
+        .catch(() => {
+          if (!cancelled && attempt === 0) timer = setTimeout(() => load(1), 2000);
+          // Second failure: render nothing rather than an inert control.
+        });
+    };
+
+    load();
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
@@ -50,6 +70,7 @@ export default function WatermarkControl() {
     setBusy(true);
     try {
       const updated = await setWatermarkSettings({ invisible_enabled: next });
+      if (!alive.current) return;
       setStatus((prev) => ({ ...prev, ...updated }));
       toast.success(
         next
@@ -61,13 +82,14 @@ export default function WatermarkControl() {
             }),
       );
     } catch {
+      if (!alive.current) return;
       toast.error(
         t('privacy.watermark_failed', {
           defaultValue: 'Could not change the watermark setting.',
         }),
       );
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   };
 

@@ -492,7 +492,12 @@
     "local_sqlite": "SQLite local",
     "translator_online": "Le traducteur est en ligne : {{provider}}",
     "translator_offline": "Traducteur hors ligne",
-    "no_tracking": "Aucun — pas de suivi"
+    "no_tracking": "Aucun — pas de suivi",
+    "watermark_title": "Filigrane invisible",
+    "watermark_subtitle": "Activé par défaut. Marque l'audio généré comme créé par IA afin qu'il puisse être identifié plus tard. N'affecte que l'audio généré à partir de maintenant.",
+    "watermark_on_toast": "Filigrane invisible activé pour les nouveaux audios.",
+    "watermark_off_toast": "Filigrane invisible désactivé pour les nouveaux audios.",
+    "watermark_failed": "Impossible de modifier le réglage du filigrane."
   },
   "consent": {
     "title": "Aider à améliorer OmniVoice ?",

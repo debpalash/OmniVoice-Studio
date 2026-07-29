@@ -492,7 +492,12 @@
     "local_sqlite": "Lokale SQLite",
     "translator_online": "Vertaler is online: {{provider}}",
     "translator_offline": "Offline vertaler",
-    "no_tracking": "Geen — geen tracking"
+    "no_tracking": "Geen — geen tracking",
+    "watermark_title": "Onzichtbaar watermerk",
+    "watermark_subtitle": "Standaard aan. Markeert gegenereerde audio als AI-gemaakt zodat het later herkend kan worden. Geldt alleen voor audio die vanaf nu wordt gegenereerd.",
+    "watermark_on_toast": "Onzichtbaar watermerk aan voor nieuwe audio.",
+    "watermark_off_toast": "Onzichtbaar watermerk uit voor nieuwe audio.",
+    "watermark_failed": "Kon de watermerkinstelling niet wijzigen."
   },
   "consent": {
     "title": "Helpen OmniVoice te verbeteren?",

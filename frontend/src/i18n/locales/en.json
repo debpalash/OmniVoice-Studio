@@ -809,7 +809,12 @@
     "analytics_never": "Never sent: the text you type, your audio, your file names, your voice names, or anything identifying you. Not your name, not your email, not your IP.",
     "analytics_off_anytime": "You can turn this off again at any time, and nothing further is sent.",
     "analytics_on": "Thanks — anonymous usage stats are on.",
-    "analytics_off": "Analytics off. Nothing is sent."
+    "analytics_off": "Analytics off. Nothing is sent.",
+    "watermark_title": "Invisible watermark",
+    "watermark_subtitle": "On by default. Marks generated audio as AI-made so it can be identified later. Only affects audio generated from now on.",
+    "watermark_on_toast": "Invisible watermark enabled for new audio.",
+    "watermark_off_toast": "Invisible watermark disabled for new audio.",
+    "watermark_failed": "Could not change the watermark setting."
   },
   "consent": {
     "title": "Help improve OmniVoice?",

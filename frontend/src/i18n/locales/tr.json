@@ -492,7 +492,12 @@
     "local_sqlite": "Yerel SQLite",
     "translator_online": "Çevirmen çevrimiçi: {{provider}}",
     "translator_offline": "Çevrimdışı çevirmen",
-    "no_tracking": "Yok — izleme yok"
+    "no_tracking": "Yok — izleme yok",
+    "watermark_title": "Görünmez filigran",
+    "watermark_subtitle": "Varsayılan olarak açık. Üretilen sesi, sonradan tanınabilmesi için yapay zekâ üretimi olarak işaretler. Yalnızca bundan sonra üretilen sesi etkiler.",
+    "watermark_on_toast": "Yeni sesler için görünmez filigran etkinleştirildi.",
+    "watermark_off_toast": "Yeni sesler için görünmez filigran devre dışı bırakıldı.",
+    "watermark_failed": "Filigran ayarı değiştirilemedi."
   },
   "consent": {
     "title": "OmniVoice'un gelişmesine yardım eder misiniz?",
