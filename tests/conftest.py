@@ -507,8 +507,16 @@ def _restore_config_paths_after_reload():
     import sys
 
     def _snapshot():
-        cfg = sys.modules.get("core.config")
-        if cfg is None:
+        # IMPORT rather than only reading sys.modules. If this module is the
+        # first to import core.config, a sys.modules-only probe returns {} —
+        # and then the empty-snapshot guard below skips restoration entirely,
+        # so the very module most likely to reload config is the one least
+        # protected (Greptile P1). Importing is cheap and idempotent, and
+        # tests/conftest.py has already pointed OMNIVOICE_DATA_DIR at a
+        # throwaway dir by the time any fixture runs, so the values are right.
+        try:
+            import core.config as cfg  # noqa: PLC0415
+        except Exception:
             return {}
         return {
             c: getattr(cfg, c)
