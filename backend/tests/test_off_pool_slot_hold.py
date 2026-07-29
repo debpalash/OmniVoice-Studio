@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
 
 import pytest
@@ -99,6 +100,29 @@ def test_off_pool_generate_holds_slot_for_synthesis(tmp_path, monkeypatch):
 
     import services.model_manager as mm
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gpu-pool")
+
+    # Signalled the moment the slot-holding task actually STARTS on the worker.
+    # A sleep here is not synchronization: too short and the marker is enqueued
+    # before the generator has reserved anything (the assertion then passes for
+    # the wrong reason on a slow runner), too long and the test just idles.
+    occupying = threading.Event()
+    _real_submit = pool.submit
+    _wrapped = {"done": False}
+
+    def _tracking_submit(fn, *a, **k):
+        # Only the FIRST submit is the generator's slot claim; the marker below
+        # must go through untouched.
+        if _wrapped["done"]:
+            return _real_submit(fn, *a, **k)
+        _wrapped["done"] = True
+
+        def _seen(*aa, **kk):
+            occupying.set()
+            return fn(*aa, **kk)
+
+        return _real_submit(_seen, *a, **k)
+
+    monkeypatch.setattr(pool, "submit", _tracking_submit)
     monkeypatch.setattr(mm, "_get_gpu_pool", lambda: pool)
 
     b = _StubBackend()
@@ -111,19 +135,22 @@ def test_off_pool_generate_holds_slot_for_synthesis(tmp_path, monkeypatch):
             box["error"] = exc
 
     gen_thread = threading.Thread(target=_gen, name="off-pool-caller", daemon=True)
-    gen_thread.start()
-    time.sleep(0.8)  # let it acquire the slot and reach the stub's sleep
+    try:
+        gen_thread.start()
+        assert occupying.wait(timeout=30), "off-pool generate never claimed a slot"
 
-    # A second pool job must NOT run while the off-pool generate holds the
-    # 1-worker pool's slot. Pre-fix (bare no-op), the worker was already free
-    # and this would complete immediately.
-    marker = pool.submit(lambda: "ran")
-    time.sleep(0.5)
-    assert not marker.done(), "pool job ran during the off-pool synth (slot was not held)"
+        # A second pool job must NOT run while the off-pool generate holds the
+        # 1-worker pool's slot. Pre-fix (bare no-op), the worker was already
+        # free and this would complete immediately.
+        marker = pool.submit(lambda: "ran")
+        with pytest.raises(FuturesTimeoutError):
+            marker.result(timeout=1.0)
 
-    gen_thread.join(timeout=30)
-    assert "error" not in box, f"generate failed: {box.get('error')}"
-    assert marker.result(timeout=5) == "ran"  # ran once the slot was released
-
-    b.shutdown()
-    pool.shutdown(wait=False)
+        gen_thread.join(timeout=30)
+        assert "error" not in box, f"generate failed: {box.get('error')}"
+        assert marker.result(timeout=10) == "ran"  # ran once the slot released
+    finally:
+        # Runs even when an assertion above fails — otherwise a red test leaks
+        # a sidecar process and a pool thread into the rest of the session.
+        b.shutdown()
+        pool.shutdown(wait=False)
