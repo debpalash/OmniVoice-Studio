@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-from services.model_manager import _get_gpu_pool
 from services.subprocess_backend import SubprocessBackend
 
 # Model-free stub sidecar: speaks the length-prefixed-JSON protocol and returns
@@ -92,18 +91,26 @@ class _StubSubprocessBackend(SubprocessBackend):
 
 def test_generate_on_pool_worker_does_not_deadlock(tmp_path, monkeypatch):
     # Mirror /v1/audio/speech + /generate: dispatch generate() ON a gpu-pool
-    # worker. Pre-fix: the inner pool.submit queued behind this job and
-    # slot_future.result(timeout=10) raised at ~10s, before the sidecar spawned.
+    # worker. Force a 1-worker pool so the self-deadlock reproduces
+    # deterministically regardless of host (the ambient pool may have >1
+    # worker): pre-fix, generate()'s inner slot-submit queued behind this very
+    # job and slot_future.result(timeout=10) raised at ~10s, before the sidecar
+    # spawned.
     stub = tmp_path / "stub_sidecar.py"
     stub.write_text(STUB_SIDECAR)
     monkeypatch.setattr(_StubSubprocessBackend, "sidecar_script",
                         classmethod(lambda cls: stub))
 
+    from concurrent.futures import ThreadPoolExecutor
+    import services.model_manager as mm
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gpu-pool")
+    monkeypatch.setattr(mm, "_get_gpu_pool", lambda: pool)
+
     b = _StubSubprocessBackend()
-    pool = _get_gpu_pool()
     try:
         fut = pool.submit(lambda: b.generate("on-pool"))
         tensor = fut.result(timeout=30)  # pre-fix: raised ~10s slot timeout
         assert tensor.shape[1] == 24000
     finally:
         b.shutdown()
+        pool.shutdown(wait=False)
