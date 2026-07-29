@@ -262,24 +262,27 @@ jobs:
         include:
           - os: macos-14
             label: macOS
-            timeout: 10
           - os: windows-2022
             label: Windows
-            # Windows needs its own budget, and the old shared 10 was a
-            # self-perpetuating failure: the leg times out mid-`uv sync`, so the
-            # post-step never saves the uv cache, so the next run is cold too
-            # and times out again. Measured on run 30385710466 — Linux 65s,
-            # macOS 65s, Windows still installing torch at 10m08s when the job
-            # was killed. Priced for one COLD install to finish and prime the
-            # cache; warm runs land nowhere near this.
-            timeout: 25
           - os: ubuntu-22.04
             label: Linux
-            timeout: 10
     runs-on: ${{ matrix.os }}
-    # Per-leg, not shared: a genuine hang on Linux/macOS should still fail fast
-    # rather than inherit the allowance Windows needs.
-    timeout-minutes: ${{ matrix.timeout }}
+    # Priced for a COLD `uv sync`, on every platform.
+    #
+    # The previous split (Windows 25, Linux/macOS 10) came from a warm-cache
+    # measurement — Linux and macOS finish in ~65 s when setup-uv restores its
+    # cache, so 10 looked generous. Then run 30439640107 hit
+    # "Failed to restore: Cache service responded with 400", Linux installed
+    # torch from scratch, and the leg was killed at 10m17s. The 65 s was the
+    # cache, not the platform.
+    #
+    # A cache miss is not rare enough to treat as an outage (GitHub's cache
+    # service 400s, a lockfile change invalidates the key, a new runner image
+    # starts empty), and a timeout here is self-perpetuating: the leg dies
+    # before the post-step saves the cache, so the next run is cold too.
+    # 25 everywhere is still bounded — a genuinely wedged job is caught in
+    # minutes, not hours — and warm runs land nowhere near it.
+    timeout-minutes: 25
     env:
       # Restricted-network resilience (RESEARCH Pitfall #6) — keeps uv from
       # giving up on the first slow PyPI / python-build-standalone fetch.

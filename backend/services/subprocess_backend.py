@@ -527,26 +527,39 @@ class SubprocessBackend(TTSBackend):
         sample rate. Decodes the int16 PCM the sidecar returns into float32
         in [-1, 1].
         """
-        # Lazy-import the GPU pool so importing this module doesn't pull in
-        # the entire model_manager + torch ecosystem at registry-listing time.
-        # The HTTP routes, audiobook, dub, and batch all dispatch generate() via
-        # run_on_gpu_pool_guarded, i.e. already on a gpu-pool worker. On a
-        # 1-worker pool (MPS) a second slot submit would queue behind this very
-        # job and self-deadlock (.result(timeout=10) fires, no sidecar spawns),
-        # so skip the slot when already on the pool. The off-pool callers (the
-        # engine self-test and the diagnostic probe) still take a slot as a
-        # queue wait, so they yield to an in-flight pool job instead of racing.
-        if not threading.current_thread().name.startswith("gpu-pool"):
+        # On-pool callers (every HTTP/dub/batch generate, dispatched via
+        # run_on_gpu_pool_guarded) already own a pool slot; re-acquiring would
+        # self-deadlock on a 1-worker (MPS) pool, so skip it. Off-pool callers
+        # (the deep-synth diagnostic probe in diagnose.py; the Settings
+        # self-test rejects subprocess-isolated engines with a 400) hold a real
+        # slot for the whole synthesis via _occupy so they serialize against
+        # pool jobs instead of over-subscribing the GPU.
+        from services.model_manager import running_on_gpu_pool
+        _held = None
+        # Bound before the branch: only the off-pool path assigns a real
+        # future, and `_held is not None` already implies that — but CodeQL
+        # (py/uninitialized-local-variable) reads the two as independent, and
+        # so would anyone adding a third exit path later.
+        slot_future = None
+        if not running_on_gpu_pool():
+            # Lazy-import the GPU pool so importing this module doesn't pull in
+            # the entire model_manager + torch ecosystem at registry-listing time.
             from services.model_manager import _get_gpu_pool
             pool = _get_gpu_pool()
-            slot_future = pool.submit(lambda: None)
-            try:
-                slot_future.result(timeout=10)  # wait for our turn
-            except Exception:
-                slot_future.cancel()
-                raise
+            _held = threading.Event()
+            _acquired = threading.Event()
+
+            def _occupy():
+                _acquired.set()
+                _held.wait()
+
+            slot_future = pool.submit(_occupy)
 
         try:
+            if _held is not None and not _acquired.wait(timeout=10):
+                if slot_future is not None:
+                    slot_future.cancel()
+                raise TimeoutError("timed out waiting for a free GPU worker")
             with self._lock:
                 self._spawn()
                 msg = {"op": "synthesize", "text": text}
@@ -580,12 +593,11 @@ class SubprocessBackend(TTSBackend):
             tensor = torch.from_numpy(arr.copy()).unsqueeze(0)
             return tensor
         finally:
-            # Slot is released the instant this thread leaves the pool's
-            # task — by holding slot_future we kept one worker busy; nothing
-            # further to do. (ThreadPoolExecutor doesn't expose a manual
-            # release; the slot returns to the pool when our submitted no-op
-            # finishes, which happens immediately after .result() above.)
-            pass
+            # Release the held GPU-pool worker (off-pool path only). _occupy
+            # blocks the worker until this fires, so the slot is held for the
+            # whole synthesis even though this thread isn't the pool worker.
+            if _held is not None:
+                _held.set()
 
     # ── wire protocol ──────────────────────────────────────────────────────
 
