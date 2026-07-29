@@ -2,7 +2,7 @@
   "backendUnreachable": {
     "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",
     "contact_never": "Bu oturumda hiç yanıt vermedi — hiç başlamamış olabilir.",
-    "dev": "Yerel OmniVoice arka ucuna ulaşılamıyor. {{contact}} `bun run dev` çalıştıran terminalde bir Python traceback'i veya çıkış afişi olup olmadığını kontrol edin; arka ucun son kaydı için OmniVoice veri klasörünüzdeki omnivoice.log dosyasına bakın.",
+    "dev": "Yerel OmniVoice arka ucuna ulaşılamıyor. {{contact}} `bun run dev` ile arka uç otomatik yeniden yükleme ile çalışır: herhangi bir dosya değişikliği — bir istek sürerken kaydetmek dâhil — onu yeniden başlatır ve bağlantıyı koparır. Önce işlemi yeniden deneyin; yeniden yükleme olduysa çalışacaktır. Hata sürerse `bun run dev` çalıştıran terminalde bir Python izini veya çıkış mesajını ve OmniVoice veri klasörünüzdeki omnivoice.log dosyasını kontrol edin.",
     "server": "OmniVoice arka uç sunucusuna ulaşılamıyor. {{contact}} Nedenini görmek için sunucu günlüklerini kontrol edin (ör. `docker logs <container>` veya `journalctl`) — ve bu sayfayı Docker sunuyorsa sayfanın kendisinin de arka uçla birlikte kapanabileceğini unutmayın."
   },
   "nav": {
