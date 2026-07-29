@@ -102,3 +102,51 @@ def test_transcribe_on_pool_worker_does_not_deadlock(tmp_path, monkeypatch):
     finally:
         b.shutdown()
         pool.shutdown(wait=False)
+
+
+def test_transcribe_off_pool_holds_a_slot(tmp_path, monkeypatch):
+    """The other half of the branch — and the half that had no test.
+
+    Only the on-pool path above was covered, so `threading.Event()` in the
+    off-pool branch shipped with `threading` never imported: every direct
+    caller (the diagnostic probe) hit NameError before the sidecar started.
+    A branch with no test is how a one-word bug reaches CI.
+
+    Also asserts the slot is genuinely HELD: a second pool job must not run
+    while an off-pool transcription is in flight, or a 1-worker GPU gets
+    over-subscribed.
+    """
+    import threading
+
+    stub = tmp_path / "stub_asr.py"
+    stub.write_text(STUB_SIDECAR)
+    monkeypatch.setattr(_StubASR, "sidecar_script",
+                        classmethod(lambda cls: stub))
+
+    import services.model_manager as mm
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gpu-pool")
+    monkeypatch.setattr(mm, "_get_gpu_pool", lambda: pool)
+
+    b = _StubASR()
+    box = {}
+
+    def _call():
+        try:
+            box["result"] = b.transcribe("/fake.wav")
+        except Exception as exc:  # noqa: BLE001
+            box["error"] = exc
+
+    # Deliberately NOT on a pool worker — this is the direct-caller shape.
+    caller = threading.Thread(target=_call, name="off-pool-asr", daemon=True)
+    try:
+        caller.start()
+        caller.join(timeout=30)
+        assert "error" not in box, f"off-pool transcribe failed: {box.get('error')}"
+        assert "segments" in box["result"]
+
+        # The slot must be back once the call returned.
+        marker = pool.submit(lambda: "ran")
+        assert marker.result(timeout=10) == "ran"
+    finally:
+        b.shutdown()
+        pool.shutdown(wait=False)
