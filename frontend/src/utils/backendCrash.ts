@@ -18,6 +18,8 @@
  * the bug-report prefill light up in every deployment, not just desktop.
  */
 
+import i18next from 'i18next';
+
 export interface BackendCrashMarker {
   /** Unix seconds when the death was detected. */
   ts: number;
@@ -235,19 +237,21 @@ export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 's
   // sent a user whose real problem was a leftover process off to shrink their
   // ASR model. Keep in sync with _EXIT_PORT_IN_USE in backend/main.py.
   if (marker.exit_code === 78) {
-    return (
-      'The backend could not start because port 3900 is already in use — another copy of ' +
-      'OmniVoice (or an app that claimed that port) is holding it. Quit the other instance and ' +
-      'relaunch; if nothing is visibly running, an orphaned backend from a previous session is ' +
-      'still holding the port.'
-    );
+    return i18next.t('errors.crash_port_in_use', {
+      defaultValue:
+        'The backend could not start because port 3900 is already in use — another copy of ' +
+        'OmniVoice (or an app that claimed that port) is holding it. Quit the other instance ' +
+        'and relaunch; if nothing is visibly running, an orphaned backend from a previous ' +
+        'session is still holding the port.',
+    });
   }
   if (marker.signal === 9) {
-    return (
-      'It was force-killed (signal 9), which usually means the operating system ran out of ' +
-      'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
-      'Settings → Models, or flush the TTS model before transcribing.'
-    );
+    return i18next.t('errors.crash_oom_kill', {
+      defaultValue:
+        'It was force-killed (signal 9), which usually means the operating system ran out of ' +
+        'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
+        'Settings → Models, or flush the TTS model before transcribing.',
+    });
   }
   // A native crash inside the compute stack — the process was executing bad
   // machine code, not slowly exhausting memory. #1275 (Windows 0xC0000005 on an
@@ -256,20 +260,29 @@ export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 's
   // The real causes are a GPU driver that disagrees with the bundled CUDA
   // runtime, or a truncated/corrupt weight file being memory-mapped.
   if (isNativeFault(marker)) {
-    return (
-      'It crashed inside the compute stack rather than running out of memory — that points at ' +
-      'a GPU driver that does not match the bundled CUDA runtime, or a model file that ' +
-      'downloaded incompletely. Update your GPU driver, then re-download the model from ' +
-      'Settings → Models (it repairs a partial download in place). If it keeps happening, ' +
-      'switch the TTS engine to "OmniVoice (subprocess)" in Settings → Engines: it runs the ' +
-      'model in a separate process, so a crash like this takes down that process instead of ' +
-      'the whole backend.'
-    );
+    // The crash marker records HOW the process died, not which subsystem was
+    // running — a segfault during transcription looks identical to one during
+    // synthesis. Naming only the TTS escape hatch sent ASR crashes to a fix
+    // that leaves the crashing path untouched (Greptile P1), so both isolated
+    // engines are offered and the user picks the one they were using.
+    return i18next.t('errors.crash_native_fault', {
+      defaultValue:
+        'It crashed inside the compute stack rather than running out of memory — that points ' +
+        'at a GPU driver that does not match the bundled CUDA runtime, or a model file that ' +
+        'downloaded incompletely. Update your GPU driver, then re-download the model from ' +
+        'Settings → Models (it repairs a partial download in place). If it keeps happening, ' +
+        'switch to a crash-isolated engine in Settings → Engines — "OmniVoice (subprocess)" ' +
+        'for synthesis, "Faster-Whisper (crash-isolated subprocess)" for transcription. Those ' +
+        'run the model in a separate process, so a crash like this takes down that process ' +
+        'instead of the whole backend.',
+    });
   }
-  return (
-    'On smaller GPUs the usual cause is running out of VRAM while loading the ASR model on top ' +
-    'of the TTS model: flush the TTS model first, or pick a smaller ASR model in Settings → Models.'
-  );
+  return i18next.t('errors.crash_vram_default', {
+    defaultValue:
+      'On smaller GPUs the usual cause is running out of VRAM while loading the ASR model on ' +
+      'top of the TTS model: flush the TTS model first, or pick a smaller ASR model in ' +
+      'Settings → Models.',
+  });
 }
 
 /** Coarse "12 s" / "3 min" / "2 h" age of a marker, for the honest message. */

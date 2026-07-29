@@ -143,9 +143,15 @@ describe('crashCauseHint', () => {
     expect(hint).not.toMatch(/VRAM/);
   });
 
-  it('points repeat native faults at the crash-isolated engine', async () => {
+  // Names BOTH isolated engines: the crash marker records how the process
+  // died, not which subsystem was running, so a segfault during transcription
+  // looks identical to one during synthesis. Offering only the TTS engine sent
+  // ASR crashes to a fix that leaves the crashing path untouched (Greptile P1).
+  it('offers the isolated engine for synthesis AND for transcription', async () => {
     const { crashCauseHint } = await import('../utils/backendCrash');
-    expect(crashCauseHint({ exit_code: null, signal: 11 })).toMatch(/subprocess/i);
+    const hint = crashCauseHint({ exit_code: null, signal: 11 });
+    expect(hint).toMatch(/OmniVoice \(subprocess\)/);
+    expect(hint).toMatch(/Faster-Whisper/);
   });
 
   it('still treats SIGKILL as memory pressure, not a native fault', async () => {
