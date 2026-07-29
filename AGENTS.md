@@ -11,6 +11,11 @@ Binding for every AI agent (Claude, Codex, Cursor, review bots, …). CLAUDE.md 
 - Run targeted tests while iterating; full suites only before landing.
 - Tests and CI simulate CI honestly: `HF_HUB_OFFLINE=1` + empty `HF_HUB_CACHE` — a populated dev cache masks real failures.
 
+## Cross-platform parity: behaviour, not performance
+- The parity rule covers user-visible BEHAVIOUR. Hardware acceleration varies by host by design (CUDA/MPS/DirectML, Triton availability, `torch.compile`); skipping an optimization where it physically cannot work is not a parity violation.
+- Do not "fix" a parity finding by disabling a working optimization everywhere. That trades a real regression for a semantic one.
+- A feature the user can see and use on one OS but not another IS a violation. Judge by what the user can do, not by how fast it runs.
+
 ## Merge protocol (hard rules)
 1. Never merge without review. Harvest CodeRabbit + Greptile comments first; never merge with an unread Critical/P1.
 2. Never accept a PR as-is: fix findings ON the PR branch pre-merge (maintainer commits fine; credit contributors in CHANGELOG). No merge-then-fix, no comment-and-walk-away.
