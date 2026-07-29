@@ -51,6 +51,12 @@ _HINTS: dict[str, str] = {
     "SSL_HANDSHAKE_FAILURE": "A corporate or antivirus proxy is intercepting HTTPS traffic and re-signing certificates with its own CA — your OS trusts that CA, but Python's bundled certifi CA list doesn't, so the TLS handshake fails even though the connection reached the server. Newer OmniVoice builds trust the OS certificate store at startup (the truststore package), which should already fix this — update the app and retry. If you still see this, add an HTTPS-scanning exclusion for OmniVoice/Python in your antivirus, or ask IT for the proxy's CA bundle and set SSL_CERT_FILE to it, then restart.",
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
     "VIDEO_DRM_PROTECTED": "The video host only offered OmniVoice a DRM-protected copy, which can't be downloaded. This is often not a property of the video itself — the host serves a different format set to different clients, and OmniVoice already retried through every client it has. Try the link again in a minute, or download the video with a browser extension / the host's own download button and drop the file into Dubbing directly.",
+    # #1301: distinct from SSL_HANDSHAKE_FAILURE. The handshake did not fail on
+    # trust — the connection was CUT while TLS was in progress, so the certifi /
+    # proxy-CA advice above would send the user to fix something that isn't
+    # broken. Raw form is "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in
+    # violation of protocol (_ssl.c:1016)", which means nothing to anyone.
+    "TLS_CONNECTION_DROPPED": "The secure connection was cut off mid-transfer — the other end (or something between you and it) closed the socket during the TLS exchange. This is almost always transient: flaky Wi-Fi, a VPN reconnecting, a captive portal, or a download server dropping a long transfer. Retry; OmniVoice resumes partial downloads rather than starting over. If it repeats every time, a VPN or an HTTPS-inspecting proxy is terminating long-lived connections — try without the VPN, or on another network.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
     "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). OmniVoice repairs this automatically and retries the load once. If the error persists, quit OmniVoice, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
@@ -216,6 +222,9 @@ def append_hf_mirror_hint(text: str) -> str:
 _CONTEXT_FREE_HINT_CLASSES = frozenset({
     "SOCKS_PROXY_SUPPORT_MISSING",
     "SSL_HANDSHAKE_FAILURE",
+    # Its trigger is an exact OpenSSL string, so it cannot be confused with
+    # another failure the way a bare "timed out" could.
+    "TLS_CONNECTION_DROPPED",
 })
 
 
@@ -338,6 +347,11 @@ def classify(reason: str) -> str:
     # certifi list doesn't (a different failure mode from #984's TCP-level
     # "can't reach the host at all"). Requires "ssl" plus a handshake/cert-
     # verify marker so a generic connection error isn't mislabelled.
+    # Check the dropped-connection shape FIRST: its text also contains "ssl",
+    # and the handshake branch below would otherwise claim it and hand out
+    # proxy/certifi advice for a socket that was simply cut (#1301).
+    if "unexpected_eof_while_reading" in low or "eof occurred in violation of protocol" in low:
+        return "TLS_CONNECTION_DROPPED"
     if "ssl" in low and (
         "handshake" in low
         or "certificate verify failed" in low
