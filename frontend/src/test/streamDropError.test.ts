@@ -125,4 +125,44 @@ describe('crashCauseHint', () => {
     const { crashCauseHint } = await import('../utils/backendCrash');
     expect(crashCauseHint({ exit_code: 1, signal: null })).toMatch(/VRAM/);
   });
+
+  // #1275 (Windows 0xC0000005 on an RTX 2080 SUPER) and #1293 (SIGSEGV on
+  // Linux) both fell through to the VRAM advice, which sent the user off to
+  // flush a model that had nothing to do with a native fault.
+  it('does not blame VRAM for a Windows access violation', async () => {
+    const { crashCauseHint } = await import('../utils/backendCrash');
+    const hint = crashCauseHint({ exit_code: -1073741819, signal: null });
+    expect(hint).toMatch(/driver|downloaded incompletely/);
+    expect(hint).not.toMatch(/VRAM/);
+  });
+
+  it('does not blame VRAM for a segfault', async () => {
+    const { crashCauseHint } = await import('../utils/backendCrash');
+    const hint = crashCauseHint({ exit_code: null, signal: 11 });
+    expect(hint).toMatch(/driver|downloaded incompletely/);
+    expect(hint).not.toMatch(/VRAM/);
+  });
+
+  it('points repeat native faults at the crash-isolated engine', async () => {
+    const { crashCauseHint } = await import('../utils/backendCrash');
+    expect(crashCauseHint({ exit_code: null, signal: 11 })).toMatch(/subprocess/i);
+  });
+
+  it('still treats SIGKILL as memory pressure, not a native fault', async () => {
+    const { crashCauseHint, isNativeFault } = await import('../utils/backendCrash');
+    expect(isNativeFault({ exit_code: null, signal: 9 })).toBe(false);
+    expect(crashCauseHint({ exit_code: null, signal: 9 })).toMatch(/memory \(RAM\)/);
+  });
+
+  it('leaves SIGABRT on the VRAM path — that is how a fatal CUDA error exits', async () => {
+    const { crashCauseHint, isNativeFault } = await import('../utils/backendCrash');
+    expect(isNativeFault({ exit_code: null, signal: 6 })).toBe(false);
+    expect(crashCauseHint({ exit_code: null, signal: 6 })).toMatch(/VRAM/);
+  });
+
+  it('leaves the port-in-use exit alone', async () => {
+    const { crashCauseHint, isNativeFault } = await import('../utils/backendCrash');
+    expect(isNativeFault({ exit_code: 78, signal: null })).toBe(false);
+    expect(crashCauseHint({ exit_code: 78, signal: null })).toMatch(/port 3900/);
+  });
 });

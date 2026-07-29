@@ -195,6 +195,40 @@ export function describeCrashExit(
  * misattributed). Everything else keeps the small-GPU VRAM guidance, which is
  * the dominant cause for real GPU aborts.
  */
+/**
+ * True when the process died of a NATIVE fault — a segfault/illegal
+ * instruction/abort — rather than memory pressure or an orderly exit.
+ *
+ * POSIX reports these as signals. Windows has no signals here: the shell sees
+ * the raw NTSTATUS as a (negative, when read as i32) exit code, so the codes
+ * have to be matched explicitly. 0xC0000005 is the access violation behind
+ * #1275; the others are the same family and would otherwise be read as an
+ * ordinary non-zero exit.
+ */
+const NT_FAULT_EXIT_CODES = new Set([
+  -1073741819, // 0xC0000005 STATUS_ACCESS_VIOLATION
+  -1073741795, // 0xC000001D STATUS_ILLEGAL_INSTRUCTION
+  -1073741674, // 0xC0000096 STATUS_PRIVILEGED_INSTRUCTION
+  -1073740791, // 0xC0000409 STATUS_STACK_BUFFER_OVERRUN
+  -1073741571, // 0xC00000FD STATUS_STACK_OVERFLOW
+]);
+
+// Deliberately only SIGILL (4) and SIGSEGV (11) — the two whose numbers are
+// identical on every POSIX platform and whose meaning is unambiguous.
+//
+// SIGABRT (6) is NOT here on purpose: abort() is how a fatal CUDA error exits,
+// including "CUDA error: out of memory" raised asynchronously, so it keeps the
+// VRAM guidance. SIGBUS is excluded because its number is platform-dependent
+// (7 on Linux, 10 on macOS, where 10 is SIGUSR1 on Linux) and guessing wrong
+// would misfile an ordinary signal as a hardware fault.
+// SIGKILL (9) is handled above — that is the OS memory killer, not a fault.
+const NATIVE_FAULT_SIGNALS = new Set([4, 11]);
+
+export function isNativeFault(marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'>): boolean {
+  if (marker.signal != null && NATIVE_FAULT_SIGNALS.has(marker.signal)) return true;
+  return marker.exit_code != null && NT_FAULT_EXIT_CODES.has(marker.exit_code);
+}
+
 export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'>): string {
   // #1223: the backend exits 78 (EX_CONFIG) when it could not bind its port.
   // That is not a crash and has nothing to do with memory — the old message
@@ -213,6 +247,23 @@ export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 's
       'It was force-killed (signal 9), which usually means the operating system ran out of ' +
       'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
       'Settings → Models, or flush the TTS model before transcribing.'
+    );
+  }
+  // A native crash inside the compute stack — the process was executing bad
+  // machine code, not slowly exhausting memory. #1275 (Windows 0xC0000005 on an
+  // RTX 2080 SUPER) and #1293 (SIGSEGV on Linux) both landed on the VRAM advice
+  // below, which sends the user to flush a model that had nothing to do with it.
+  // The real causes are a GPU driver that disagrees with the bundled CUDA
+  // runtime, or a truncated/corrupt weight file being memory-mapped.
+  if (isNativeFault(marker)) {
+    return (
+      'It crashed inside the compute stack rather than running out of memory — that points at ' +
+      'a GPU driver that does not match the bundled CUDA runtime, or a model file that ' +
+      'downloaded incompletely. Update your GPU driver, then re-download the model from ' +
+      'Settings → Models (it repairs a partial download in place). If it keeps happening, ' +
+      'switch the TTS engine to "OmniVoice (subprocess)" in Settings → Engines: it runs the ' +
+      'model in a separate process, so a crash like this takes down that process instead of ' +
+      'the whole backend.'
     );
   }
   return (
