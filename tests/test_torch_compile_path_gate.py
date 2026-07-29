@@ -29,6 +29,16 @@ def _env(monkeypatch, *, torch_file, triton=True):
         lambda name: object() if (triton and name == "triton") else None,
     )
     monkeypatch.setattr(engine_env, "_compile_runtime_failure", None, raising=False)
+    # Isolate the Settings gate: should_torch_compile() otherwise reads the real
+    # settings_store, so a persisted perf.torch_compile_disabled=1 (or a missing
+    # settings table) would decide these tests instead of the path logic.
+    monkeypatch.setattr(
+        engine_env, "settings_store", None, raising=False
+    )
+    import sys as _sys, types as _types
+    _sys.modules["services.settings_store"] = _types.SimpleNamespace(
+        get_text=lambda *a, **k: "0"
+    )
     monkeypatch.setattr(
         engine_env, "_cuda_arch_supported_for_compile", lambda: (True, "")
     )
@@ -58,11 +68,35 @@ def test_compile_skipped_when_the_torch_path_has_a_space(monkeypatch, caplog):
 
 
 def test_force_env_still_overrides(monkeypatch, caplog):
-    """Consistent with the arch gate: the user can insist."""
+    """Consistent with the arch gate: the user can insist — and is told."""
     ee = _env(monkeypatch, torch_file=SPACED)
     monkeypatch.setenv(ee._FORCE_COMPILE_ENV, "1")
     with caplog.at_level("WARNING", logger="omnivoice.engine_env"):
         assert ee.should_torch_compile("cuda") is True
+    assert any(
+        "forced" in r.getMessage().lower() for r in caplog.records
+    ), "forcing past a known-broken path must be recorded, not silent"
+
+
+def test_skip_message_names_the_escape_hatch(monkeypatch, caplog):
+    """A skip the user cannot override is a dead end; the hint must be there."""
+    ee = _env(monkeypatch, torch_file=SPACED)
+    with caplog.at_level("INFO", logger="omnivoice.engine_env"):
+        assert ee.should_torch_compile("cuda") is False
+    assert any(ee._FORCE_COMPILE_ENV in r.getMessage() for r in caplog.records)
+
+
+def test_home_directory_is_not_logged_verbatim(monkeypatch, caplog):
+    """The reason string is logged and lands in pasted bug reports, so the path
+    goes through the same redaction as every other user-facing failure text."""
+    import pathlib as _pl
+
+    home = str(_pl.Path.home())
+    ee = _env(monkeypatch, torch_file=f"{home}/Library/Application Support/x/torch/__init__.py")
+    with caplog.at_level("INFO", logger="omnivoice.engine_env"):
+        ee.should_torch_compile("cuda")
+    joined = " ".join(r.getMessage() for r in caplog.records)
+    assert home not in joined, f"home directory leaked into the log: {joined}"
 
 
 def test_unreadable_torch_path_is_not_a_reason_to_skip(monkeypatch):

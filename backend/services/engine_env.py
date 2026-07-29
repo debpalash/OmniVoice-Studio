@@ -121,8 +121,18 @@ def _torch_lib_path_is_linkable() -> tuple[bool, str]:
     except Exception:
         return True, ""
     if any(ch.isspace() for ch in lib_dir):
+        # The path is genuinely useful for diagnosis, but it contains the user's
+        # home directory and this string is logged and lands in pasted bug
+        # reports — so it goes through the same redaction every other
+        # user-facing failure text uses (home → ~, secrets stripped).
+        try:
+            from core.failure import sanitize
+
+            shown = sanitize(lib_dir)
+        except Exception:
+            shown = os.path.basename(lib_dir.rstrip(os.sep)) or "<torch lib>"
         return False, (
-            f"the torch library path contains whitespace ({lib_dir!r}); inductor "
+            f"the torch library path contains whitespace ({shown!r}); inductor "
             f"passes it to the C++ linker unquoted, so every compile attempt fails"
         )
     return True, ""
