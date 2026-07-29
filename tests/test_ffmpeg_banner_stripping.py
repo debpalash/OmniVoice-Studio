@@ -76,10 +76,22 @@ def test_build_failure_reports_the_error_not_the_build_flags():
 
 def test_classification_sees_the_error_not_the_banner():
     """classify() runs on the same text; matching against a build string is how
-    a real topic gets missed."""
+    a real topic gets missed.
+
+    Asserts the BANNER IS GONE, not merely that the error is present. The first
+    version of this test only checked that the post-banner text appeared in
+    `reason` — which was true before the fix too, since the banner was simply
+    prepended to it. A test that passes against the code it is meant to catch
+    is worse than no test (CodeRabbit).
+    """
     from core.failure import build_failure
 
     fields = build_failure(
         RuntimeError(BANNER + "No space left on device"), stage="extract"
     )
     assert "No space left on device" in fields["reason"]
+    assert "ffmpeg version" not in fields["reason"]
+    assert "libavcodec" not in fields["reason"]
+    # And the reason should START with the real error, not bury it after 300
+    # characters of build flags — that ordering is the whole user complaint.
+    assert fields["reason"].strip().startswith("No space left on device")
