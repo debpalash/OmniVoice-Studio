@@ -518,20 +518,24 @@ class SubprocessBackend(TTSBackend):
         sample rate. Decodes the int16 PCM the sidecar returns into float32
         in [-1, 1].
         """
-        # Lazy-import the GPU pool so importing this module doesn't pull in
-        # the entire model_manager + torch ecosystem at registry-listing time.
-        from services.model_manager import _get_gpu_pool
-
-        # Acquire a GPU pool worker for the duration of this generate. The
-        # try/finally guarantees the slot is released even if the sidecar
-        # dies mid-frame (T-02-02 / Pitfall 7).
-        pool = _get_gpu_pool()
-        slot_future = pool.submit(lambda: None)
-        try:
-            slot_future.result(timeout=10)  # wait for our turn
-        except Exception:
-            slot_future.cancel()
-            raise
+        # The HTTP routes, audiobook, dub, and batch all dispatch generate() via
+        # run_on_gpu_pool_guarded, i.e. already on a gpu-pool worker. On a
+        # 1-worker pool (MPS) a second slot submit would queue behind this very
+        # job and self-deadlock (.result(timeout=10) fires, no sidecar spawns),
+        # so skip the slot when already on the pool. The off-pool callers (the
+        # engine self-test and the diagnostic probe) still take a slot as a
+        # queue wait, so they yield to an in-flight pool job instead of racing.
+        if not threading.current_thread().name.startswith("gpu-pool"):
+            # Lazy-import the GPU pool so importing this module doesn't pull in
+            # the entire model_manager + torch ecosystem at registry-listing time.
+            from services.model_manager import _get_gpu_pool
+            pool = _get_gpu_pool()
+            slot_future = pool.submit(lambda: None)
+            try:
+                slot_future.result(timeout=10)  # wait for our turn
+            except Exception:
+                slot_future.cancel()
+                raise
 
         try:
             with self._lock:
