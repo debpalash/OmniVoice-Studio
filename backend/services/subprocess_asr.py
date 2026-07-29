@@ -81,17 +81,31 @@ class SubprocessASRBackend(SubprocessBackend):
         broken-pipe) — and the *next* call respawns a fresh sidecar via
         ``_spawn``'s dead-process check. Acquires a GPU-pool slot for the
         duration, released even if the child dies (the base's try/finally)."""
-        from services.model_manager import _get_gpu_pool
+        # On-pool callers (run_transcribe_guarded dispatches via run_in_executor
+        # on the GPU pool) already own a pool slot; re-acquiring would
+        # self-deadlock on a 1-worker (MPS) pool, so skip it. Off-pool callers
+        # hold a real slot for the whole transcription via _occupy. Mirrors
+        # SubprocessBackend.generate()'s path-aware slot block.
+        from services.model_manager import running_on_gpu_pool
+        _held = None
+        slot_future = None
+        if not running_on_gpu_pool():
+            from services.model_manager import _get_gpu_pool
+            pool = _get_gpu_pool()
+            _held = threading.Event()
+            _acquired = threading.Event()
 
-        pool = _get_gpu_pool()
-        slot = pool.submit(lambda: None)
-        try:
-            slot.result(timeout=10)
-        except Exception:
-            slot.cancel()
-            raise
+            def _occupy():
+                _acquired.set()
+                _held.wait()
+
+            slot_future = pool.submit(_occupy)
 
         try:
+            if _held is not None and not _acquired.wait(timeout=10):
+                if slot_future is not None:
+                    slot_future.cancel()
+                raise TimeoutError("timed out waiting for a free GPU worker")
             with self._lock:
                 self._spawn()
                 self._send({
@@ -118,7 +132,8 @@ class SubprocessASRBackend(SubprocessBackend):
                 )
             return reply.get("result") or {"segments": [], "language": "unknown"}
         finally:
-            pass  # slot returns to the pool when the no-op task completes
+            if _held is not None:
+                _held.set()
 
 
 class IsolatedFasterWhisperBackend(SubprocessASRBackend):
