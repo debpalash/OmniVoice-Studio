@@ -35,7 +35,14 @@ def test_dropped_tls_is_classified():
 
 
 def test_not_mistaken_for_a_cert_trust_problem():
-    """The whole point of the separate class."""
+    """The whole point of the separate class — and asserted so it FAILS against
+    the old classifier rather than passing on a technicality.
+
+    Before this change `classify(RAW)` returned "" (no branch matched), which a
+    bare `!= "SSL_HANDSHAKE_FAILURE"` would have accepted. Pinning the exact
+    class is what makes it a regression test.
+    """
+    assert _classify(RAW) == "TLS_CONNECTION_DROPPED"
     assert _classify(RAW) != "SSL_HANDSHAKE_FAILURE"
 
 
@@ -75,3 +82,28 @@ def test_hint_attaches_on_context_free_surfaces():
 def test_unrelated_errors_are_untouched():
     assert _classify("ValueError: bad input") != "TLS_CONNECTION_DROPPED"
     assert _classify("") != "TLS_CONNECTION_DROPPED"
+
+
+def test_eof_without_a_tls_marker_is_not_claimed():
+    """"unexpected EOF" is a phrase a parser or another transport can produce.
+    Without an ssl marker this must not be given VPN/proxy advice."""
+    assert _classify("json decode error: unexpected EOF while reading") != (
+        "TLS_CONNECTION_DROPPED"
+    )
+    assert _classify("archive truncated: EOF occurred in violation of protocol framing") != (
+        "TLS_CONNECTION_DROPPED"
+    )
+
+
+def test_hint_does_not_promise_resuming_arbitrary_downloads():
+    """Greptile P1: the first draft said "OmniVoice resumes partial downloads",
+    unqualified. That is verified for HF model downloads (snapshot_download)
+    and segmented_download, but the hint also reaches media fetches where it is
+    not guaranteed — so the guarantee is scoped to models or it is a promise we
+    cannot keep. Shipping an instruction that is not true is the exact class of
+    bug this session has been removing."""
+    from core.failure import _HINTS
+
+    hint = _HINTS["TLS_CONNECTION_DROPPED"]
+    assert "model" in hint.lower()
+    assert "resumes partial downloads" not in hint.lower()

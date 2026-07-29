@@ -56,7 +56,7 @@ _HINTS: dict[str, str] = {
     # proxy-CA advice above would send the user to fix something that isn't
     # broken. Raw form is "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in
     # violation of protocol (_ssl.c:1016)", which means nothing to anyone.
-    "TLS_CONNECTION_DROPPED": "The secure connection was cut off mid-transfer — the other end (or something between you and it) closed the socket during the TLS exchange. This is almost always transient: flaky Wi-Fi, a VPN reconnecting, a captive portal, or a download server dropping a long transfer. Retry; OmniVoice resumes partial downloads rather than starting over. If it repeats every time, a VPN or an HTTPS-inspecting proxy is terminating long-lived connections — try without the VPN, or on another network.",
+    "TLS_CONNECTION_DROPPED": "The secure connection was cut off mid-transfer — the other end (or something between you and it) closed the socket during the TLS exchange. This is almost always transient: flaky Wi-Fi, a VPN reconnecting, a captive portal, or a download server dropping a long transfer. Retrying is safe: a partly-downloaded MODEL is picked up where it left off rather than started over. If it repeats every time, a VPN or an HTTPS-inspecting proxy is terminating long-lived connections — try without the VPN, or on another network.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
     "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). OmniVoice repairs this automatically and retries the load once. If the error persists, quit OmniVoice, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
@@ -350,7 +350,14 @@ def classify(reason: str) -> str:
     # Check the dropped-connection shape FIRST: its text also contains "ssl",
     # and the handshake branch below would otherwise claim it and hand out
     # proxy/certifi advice for a socket that was simply cut (#1301).
-    if "unexpected_eof_while_reading" in low or "eof occurred in violation of protocol" in low:
+    # Requires an "ssl" marker as well: "unexpected EOF" on its own is a phrase
+    # a parser or an unrelated transport can also produce, and stamping the TLS
+    # taxonomy on those would hand out VPN/proxy advice for something else
+    # entirely. The OpenSSL text always carries the marker.
+    if "ssl" in low and (
+        "unexpected_eof_while_reading" in low
+        or "eof occurred in violation of protocol" in low
+    ):
         return "TLS_CONNECTION_DROPPED"
     if "ssl" in low and (
         "handshake" in low
