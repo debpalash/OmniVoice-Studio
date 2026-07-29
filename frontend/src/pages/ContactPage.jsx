@@ -32,7 +32,7 @@ const DISCORD_URL = 'https://discord.gg/bzQavDfVV9';
 const SECURITY_URL = `${REPO_URL}/security/advisories/new`;
 const EMAIL = 'OmniVoice@palash.dev';
 const WEBSITE_URL = 'https://palash.dev';
-const X_URL = 'https://x.com/fs01c137y';
+const X_URL = 'https://x.com/idebpalash';
 
 // Guidance sections — each is a card with an icon, a heading, and a
 // "use this when…" sentence so a user lands on the RIGHT channel instead of a
