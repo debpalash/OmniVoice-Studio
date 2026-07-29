@@ -84,3 +84,45 @@ describe('streaming synthesis shares the generate chokepoint', () => {
     expect(opts.body.get('stream')).toBe('true');
   });
 });
+
+describe('in-flight count spans the whole stream', () => {
+  beforeEach(() => {
+    apiFetch.mockReset();
+    preflight.mockReset();
+    state.ttsInflight = 0;
+    state.max = 0;
+  });
+
+  // Greptile P1: generateSpeech releases its claim when the Response resolves
+  // (headers), but the audio is generated while the BODY is read. The updater
+  // would see "idle" for the entire synthesis and could relaunch mid-stream.
+  it('is still in flight while the body is being consumed', async () => {
+    const seen = [];
+    apiFetch.mockResolvedValue({
+      headers: new Map(),
+      body: {
+        getReader: () => ({
+          read: async () => {
+            seen.push(state.ttsInflight);
+            return { done: true, value: undefined };
+          },
+        }),
+      },
+    });
+
+    await streamGenerateSpeech(new FormData(), {}).catch(() => {});
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(Math.min(...seen)).toBeGreaterThan(0);
+  });
+
+  it('releases the claim once the stream finishes', async () => {
+    apiFetch.mockResolvedValue({
+      headers: new Map(),
+      body: { getReader: () => ({ read: async () => ({ done: true }) }) },
+    });
+
+    await streamGenerateSpeech(new FormData(), {}).catch(() => {});
+    expect(state.ttsInflight).toBe(0);
+  });
+});

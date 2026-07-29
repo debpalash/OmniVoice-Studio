@@ -25,7 +25,7 @@
  * their ApiError identity (they would fail the classic flow identically, so
  * falling back would only duplicate the failure).
  */
-import { generateSpeech } from '../api/generate';
+import { generateSpeech, withTtsInflight } from '../api/generate';
 import { claimTrackedPlayback } from './playback';
 
 /** True when the webview can progressively play PCM chunks (Web Audio). */
@@ -287,7 +287,18 @@ export const createStreamingChunkPlayer = ({ label, sampleRate, crossfadeMs = 0,
  * @throws {StreamingPreviewError} on any mid-stream failure (fall back to the
  *         classic flow); ApiError/AbortError propagate untouched.
  */
-export async function streamGenerateSpeech(
+export async function streamGenerateSpeech(formData, opts = {}) {
+  // The claim has to span the whole stream, not just the request. Routing this
+  // through generateSpeech() gave streaming an in-flight count for the first
+  // time, but that claim is released when the Response resolves — when the
+  // HEADERS arrive — while the audio is still being generated and read below.
+  // The updater would have seen "idle" for the entire synthesis and been free
+  // to relaunch mid-stream (Greptile P1, #1288). Nesting is fine: the store
+  // counts rather than flags.
+  return withTtsInflight(() => _streamGenerateSpeech(formData, opts));
+}
+
+async function _streamGenerateSpeech(
   formData,
   { signal, label, finalLabel, onHeaders, onProgress } = {},
 ) {
