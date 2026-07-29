@@ -172,3 +172,59 @@ describe('crashCauseHint', () => {
     expect(crashCauseHint({ exit_code: 78, signal: null })).toMatch(/port 3900/);
   });
 });
+
+describe('stream drop with no crash marker (#1242)', () => {
+  const FB = 'fallback message with no cause asserted';
+
+  // The reporter was in `server` mode with the backend having answered 20 s
+  // earlier. No crash marker existed — correctly, since nothing had crashed —
+  // and the caller's fallback then asserted "Likely ASR backend failed to
+  // load" about a model that had loaded fine.
+  it('does not blame the ASR model when the backend is still answering', async () => {
+    const { streamDropError } = await import('../utils/backendCrash');
+    const err = await streamDropError(FB, async () => null, {
+      probeAlive: async () => true,
+      waitMs: 0,
+    });
+    expect(err.message).not.toBe(FB);
+    expect(err.message).toMatch(/still running|did not crash/i);
+    expect(err.message).not.toMatch(/ASR/i);
+  });
+
+  it('names the proxy as the likely cause in a served deployment', async () => {
+    const { streamDropError } = await import('../utils/backendCrash');
+    const err = await streamDropError(FB, async () => null, {
+      probeAlive: async () => true,
+      waitMs: 0,
+    });
+    expect(err.message).toMatch(/proxy|buffering/i);
+  });
+
+  it("keeps the caller's message when the backend is gone too", async () => {
+    const { streamDropError } = await import('../utils/backendCrash');
+    const err = await streamDropError(FB, async () => null, {
+      probeAlive: async () => false,
+      waitMs: 0,
+    });
+    expect(err.message).toBe(FB);
+  });
+
+  it('a real crash marker still wins over the liveness probe', async () => {
+    const { streamDropError } = await import('../utils/backendCrash');
+    const marker = {
+      ts: Math.floor(Date.now() / 1000) - 5,
+      exit_code: null,
+      signal: 9,
+      exit_desc: 'signal: 9',
+      backend_version: '0.4.2',
+      uptime_s: 30,
+      last_stderr: '',
+      acknowledged: false,
+    };
+    const err = await streamDropError(FB, async () => marker, {
+      probeAlive: async () => true,
+      waitMs: 0,
+    });
+    expect(err.message).toMatch(/memory \(RAM\)/);
+  });
+});
