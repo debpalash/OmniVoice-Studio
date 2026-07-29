@@ -1758,7 +1758,7 @@
     "q_try_before": "Kann ich es versuchen, bevor ich mich verpflichte?",
     "a_try_before": "Ja. Die vollständige App lässt sich unter der AGPL-3.0 kostenlos herunterladen, ausführen und selbst hosten — ganz ohne Vertrag. Wenn Sie über eine kommerzielle Lizenz (für proprietäre Nutzung) sprechen möchten, schreiben Sie uns eine E-Mail und wir klären die Details gemeinsam.",
     "q_watermark": "Was ist mit dem Wasserzeichen?",
-    "a_watermark": "Das unsichtbare AudioSeal-Wasserzeichen ist standardmäßig für alle eingebettet. Kommerzielle Lizenznehmer können es unter Einstellungen → Datenschutz deaktivieren."
+    "a_watermark": "Das unsichtbare AudioSeal-Wasserzeichen wird standardmäßig für alle eingebettet. Sie können es unter Einstellungen → Datenschutz abschalten; es betrifft nur Audio, das nach der Änderung erzeugt wird."
   },
   "gallery_extra": {
     "save_prompt": "Geben Sie einen Namen für dieses Sprachprofil ein:",

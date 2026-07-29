@@ -1758,7 +1758,7 @@
     "q_try_before": "¿Puedo intentarlo antes de comprometerme?",
     "a_try_before": "Sí. La aplicación completa se puede descargar, ejecutar y autoalojar gratis bajo la AGPL-3.0, sin ningún acuerdo. Cuando quieras hablar de una licencia comercial (uso propietario), escríbenos y resolveremos los detalles juntos.",
     "q_watermark": "¿Qué pasa con la marca de agua?",
-    "a_watermark": "La marca de agua invisible AudioSeal está incrustada de forma predeterminada para todos. Los licenciatarios comerciales pueden desactivarla en Configuración → Privacidad."
+    "a_watermark": "La marca de agua invisible AudioSeal se incrusta de forma predeterminada para todos. Puede desactivarla en Ajustes → Privacidad; solo afecta al audio generado después del cambio."
   },
   "gallery_extra": {
     "save_prompt": "Ingrese un nombre para este perfil de voz:",

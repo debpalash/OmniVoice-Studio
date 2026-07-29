@@ -2437,7 +2437,7 @@
     "q_try_before": "Can I try before committing?",
     "a_try_before": "Yes. The full app is free to download, run, and self-host under the AGPL-3.0 — no agreement required. When you're ready to discuss a commercial (proprietary-use) license, email us and we'll work through the details together.",
     "q_watermark": "What about the watermark?",
-    "a_watermark": "The invisible AudioSeal watermark is embedded by default for everyone. Commercial licensees can disable it in Settings → Privacy."
+    "a_watermark": "The invisible AudioSeal watermark is embedded by default for everyone. You can turn it off in Settings → Privacy; it only affects audio generated after the change."
   },
   "gallery_extra": {
     "save_prompt": "Enter a name for this voice profile:",

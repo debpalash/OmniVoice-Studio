@@ -1758,7 +1758,7 @@
     "q_try_before": "Tôi có thể thử trước khi cam kết không?",
     "a_try_before": "Có. Toàn bộ ứng dụng có thể tải xuống, chạy và tự lưu trữ miễn phí theo AGPL-3.0 — không cần bất kỳ thỏa thuận nào. Khi bạn sẵn sàng trao đổi về giấy phép thương mại (sử dụng độc quyền), hãy gửi email cho chúng tôi và chúng ta sẽ cùng thống nhất chi tiết.",
     "q_watermark": "Còn hình mờ thì sao?",
-    "a_watermark": "Hình mờ AudioSeal vô hình được nhúng theo mặc định cho tất cả mọi người. Người được cấp phép thương mại có thể tắt nó trong Cài đặt → Quyền riêng tư."
+    "a_watermark": "Hình mờ vô hình AudioSeal được nhúng theo mặc định cho mọi người. Bạn có thể tắt trong Cài đặt → Quyền riêng tư; nó chỉ ảnh hưởng đến âm thanh được tạo sau khi thay đổi."
   },
   "gallery_extra": {
     "save_prompt": "Nhập tên cho cấu hình giọng nói này:",

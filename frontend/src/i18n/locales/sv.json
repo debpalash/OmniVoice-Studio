@@ -1758,7 +1758,7 @@
     "q_try_before": "Kan jag prova innan jag binder mig?",
     "a_try_before": "Ja. Hela appen är gratis att ladda ner, köra och självhosta under AGPL-3.0 — inget avtal krävs. När du vill diskutera en kommersiell licens (proprietär användning), mejla oss så går vi igenom detaljerna tillsammans.",
     "q_watermark": "Hur är det med vattenstämpeln?",
-    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln är inbäddad som standard för alla. Kommersiella licenstagare kan inaktivera den i Inställningar → Sekretess."
+    "a_watermark": "Den osynliga AudioSeal-vattenstämpeln bäddas in som standard för alla. Du kan stänga av den under Inställningar → Integritet; den påverkar bara ljud som genereras efter ändringen."
   },
   "gallery_extra": {
     "save_prompt": "Ange ett namn för denna röstprofil:",

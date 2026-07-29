@@ -1758,7 +1758,7 @@
     "q_try_before": "Bisakah saya mencoba sebelum melakukan?",
     "a_try_before": "Ya. Aplikasi lengkap gratis untuk diunduh, dijalankan, dan di-host sendiri di bawah AGPL-3.0 — tanpa perjanjian apa pun. Saat Anda siap membahas lisensi komersial (penggunaan proprietary), kirim email kepada kami dan kita akan menyelesaikan detailnya bersama.",
     "q_watermark": "Bagaimana dengan tanda airnya?",
-    "a_watermark": "Tanda air AudioSeal yang tidak terlihat tertanam secara default untuk semua orang. Pemegang lisensi komersial dapat menonaktifkannya di Pengaturan → Privasi."
+    "a_watermark": "Tanda air AudioSeal yang tak terlihat disematkan secara bawaan untuk semua orang. Anda dapat mematikannya di Pengaturan → Privasi; ini hanya memengaruhi audio yang dibuat setelah perubahan."
   },
   "gallery_extra": {
     "save_prompt": "Masukkan nama untuk profil suara ini:",

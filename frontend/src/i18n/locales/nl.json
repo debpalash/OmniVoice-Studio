@@ -1758,7 +1758,7 @@
     "q_try_before": "Kan ik het proberen voordat ik me vastleg?",
     "a_try_before": "Ja. De volledige app is gratis te downloaden, draaien en zelf te hosten onder de AGPL-3.0 — geen overeenkomst nodig. Wil je een commerciële licentie (propriëtair gebruik) bespreken, mail ons dan en we werken de details samen uit.",
     "q_watermark": "Hoe zit het met het watermerk?",
-    "a_watermark": "Het onzichtbare AudioSeal-watermerk is standaard voor iedereen ingesloten. Commerciële licentiehouders kunnen dit uitschakelen via Instellingen → Privacy."
+    "a_watermark": "Het onzichtbare AudioSeal-watermerk wordt standaard voor iedereen ingesloten. U kunt het uitschakelen bij Instellingen → Privacy; het geldt alleen voor audio die na de wijziging wordt gegenereerd."
   },
   "gallery_extra": {
     "save_prompt": "Voer een naam in voor dit stemprofiel:",

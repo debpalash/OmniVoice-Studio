@@ -1758,7 +1758,7 @@
     "q_try_before": "Taahhüt etmeden önce deneyebilir miyim?",
     "a_try_before": "Evet. Uygulamanın tamamı AGPL-3.0 kapsamında ücretsiz indirilebilir, çalıştırılabilir ve kendi sunucunuzda barındırılabilir — hiçbir sözleşme gerekmez. Ticari (tescilli kullanım) lisansını görüşmeye hazır olduğunuzda bize e-posta gönderin; ayrıntıları birlikte netleştirelim.",
     "q_watermark": "Filigran ne olacak?",
-    "a_watermark": "Görünmez AudioSeal filigranı varsayılan olarak herkes için gömülüdür. Ticari lisans sahipleri bunu Ayarlar → Gizlilik bölümünden devre dışı bırakabilir."
+    "a_watermark": "Görünmez AudioSeal filigranı varsayılan olarak herkes için gömülür. Ayarlar → Gizlilik bölümünden kapatabilirsiniz; yalnızca değişiklikten sonra üretilen sesi etkiler."
   },
   "gallery_extra": {
     "save_prompt": "Bu ses profili için bir ad girin:",

@@ -1758,7 +1758,7 @@
     "q_try_before": "Puis-je essayer avant de m'engager ?",
     "a_try_before": "Oui. L'application complète est gratuite à télécharger, exécuter et auto-héberger sous AGPL-3.0 — aucun accord requis. Quand vous serez prêt à discuter d'une licence commerciale (usage propriétaire), écrivez-nous et nous verrons les détails ensemble.",
     "q_watermark": "Et le filigrane ?",
-    "a_watermark": "Le filigrane invisible AudioSeal est intégré par défaut pour tout le monde. Les titulaires de licence commerciale peuvent le désactiver dans Paramètres → Confidentialité."
+    "a_watermark": "Le filigrane invisible AudioSeal est intégré par défaut pour tout le monde. Vous pouvez le désactiver dans Réglages → Confidentialité ; il n'affecte que l'audio généré après la modification."
   },
   "gallery_extra": {
     "save_prompt": "Saisissez un nom pour ce profil vocal :",

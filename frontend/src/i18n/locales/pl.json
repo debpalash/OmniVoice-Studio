@@ -1758,7 +1758,7 @@
     "q_try_before": "Czy mogę spróbować przed zatwierdzeniem?",
     "a_try_before": "Tak. Pełną aplikację można bezpłatnie pobrać, uruchomić i hostować samodzielnie na licencji AGPL-3.0 — bez żadnej umowy. Gdy zechcesz porozmawiać o licencji komercyjnej (użycie własnościowe), napisz do nas, a wspólnie ustalimy szczegóły.",
     "q_watermark": "A co ze znakiem wodnym?",
-    "a_watermark": "Niewidoczny znak wodny AudioSeal jest domyślnie osadzany dla wszystkich. Licencjobiorcy komercyjni mogą go wyłączyć w Ustawieniach → Prywatność."
+    "a_watermark": "Niewidoczny znak wodny AudioSeal jest domyślnie osadzany u wszystkich. Możesz go wyłączyć w Ustawieniach → Prywatność; dotyczy tylko dźwięku wygenerowanego po zmianie."
   },
   "gallery_extra": {
     "save_prompt": "Wprowadź nazwę tego profilu głosowego:",
