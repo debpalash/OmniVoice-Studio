@@ -107,9 +107,28 @@ def _pick_gpu_workers() -> int:
     return 1
 
 
+# thread_name_prefix for the GPU pool, centralised so the "am I on a gpu-pool
+# worker?" predicates (running_on_gpu_pool below; SubprocessBackend.generate's
+# on-pool skip) cannot drift from the pool's actual prefix. A drift would
+# silently re-introduce the 1-worker self-deadlock this couples against.
+_GPU_POOL_THREAD_PREFIX = "gpu-pool"
+
+
 def _build_gpu_pool() -> ThreadPoolExecutor:
     workers = _pick_gpu_workers()
-    return ThreadPoolExecutor(max_workers=workers, thread_name_prefix="gpu-pool")
+    return ThreadPoolExecutor(
+        max_workers=workers, thread_name_prefix=_GPU_POOL_THREAD_PREFIX)
+
+
+def running_on_gpu_pool() -> bool:
+    """True iff the calling thread is a gpu-pool worker (already holds a slot).
+
+    Routes that dispatch backend work via run_on_gpu_pool_guarded are already on
+    a pool worker; re-acquiring a slot there would self-deadlock on a 1-worker
+    pool (MPS). Used by SubprocessBackend.generate()'s on-pool skip and by
+    _heal_tts_placement.
+    """
+    return threading.current_thread().name.startswith(_GPU_POOL_THREAD_PREFIX)
 
 
 class _ResilientGpuPool(Executor):
@@ -2114,7 +2133,7 @@ async def _heal_tts_placement() -> None:
     """
     if _stranded_tts_target() is None:
         return
-    if threading.current_thread().name.startswith("gpu-pool"):
+    if running_on_gpu_pool():
         # Reached from a GPU-pool thread — OmniVoiceBackend._ensure_loaded()
         # bootstraps a fresh loop with asyncio.run(get_model()) from inside
         # generate(). We already hold the GPU slot, so we already have the

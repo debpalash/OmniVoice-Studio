@@ -521,11 +521,13 @@ class SubprocessBackend(TTSBackend):
         # On-pool callers (every HTTP/dub/batch generate, dispatched via
         # run_on_gpu_pool_guarded) already own a pool slot; re-acquiring would
         # self-deadlock on a 1-worker (MPS) pool, so skip it. Off-pool callers
-        # (the engine self-test in engines.py, the diagnostic probe in
-        # diagnose.py) hold a real slot for the whole synthesis via _occupy so
-        # they serialize against pool jobs instead of over-subscribing the GPU.
+        # (the deep-synth diagnostic probe in diagnose.py; the Settings
+        # self-test rejects subprocess-isolated engines with a 400) hold a real
+        # slot for the whole synthesis via _occupy so they serialize against
+        # pool jobs instead of over-subscribing the GPU.
+        from services.model_manager import running_on_gpu_pool
         _held = None
-        if not threading.current_thread().name.startswith("gpu-pool"):
+        if not running_on_gpu_pool():
             # Lazy-import the GPU pool so importing this module doesn't pull in
             # the entire model_manager + torch ecosystem at registry-listing time.
             from services.model_manager import _get_gpu_pool
