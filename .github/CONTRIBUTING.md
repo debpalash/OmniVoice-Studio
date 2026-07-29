@@ -13,6 +13,12 @@ Thanks for your interest in improving OmniVoice Studio! This guide covers everyt
 
 ---
 
+## Adding a TTS or ASR engine
+
+New engines are hired for a **named job**, not added to a list — the bar, the current job map,
+and the out-of-tree path are in [docs/engine-acceptance.md](../docs/engine-acceptance.md).
+Read it before opening a proposal; the licence check in particular ends most of them.
+
 ## Development Setup
 
 ### Prerequisites
