@@ -911,6 +911,34 @@ class VoxCPM2Backend(TTSBackend):
 # ── MOSS-TTS-Nano adapter (tiny, CPU-friendly, 20 langs) ────────────────────
 
 
+# ── MOSS-TTS-Nano entry-point resolution (#1287) ────────────────────────────
+# The upstream repo is installed straight from git (`pip install -e .`) with no
+# pinned release, and the class it exports has changed. Rather than hard-import
+# one name and fail at generate time, resolve among the names it has used and
+# report honestly when none is present.
+_MOSS_CLASS_NAMES = ("MossTTSNano", "MOSSTTSNano", "MossTTS", "MossTTSNanoForCausalLM")
+
+
+def _moss_model_class(module):
+    """The first known MOSS model class on ``module``, or None."""
+    for name in _MOSS_CLASS_NAMES:
+        cls = getattr(module, name, None)
+        if cls is not None and hasattr(cls, "from_pretrained"):
+            return cls
+    return None
+
+
+def _moss_candidate_exports(module):
+    """Public names on ``module`` that look like a model class — so the error
+    can say what IS there instead of only what is missing."""
+    return [
+        n
+        for n in dir(module)
+        if not n.startswith("_")
+        and hasattr(getattr(module, n, None), "from_pretrained")
+    ]
+
+
 class MossTTSNanoBackend(TTSBackend):
     """OpenMOSS MOSS-TTS-Nano-100M — the low-resource / broad-language pick.
 
@@ -944,13 +972,27 @@ class MossTTSNanoBackend(TTSBackend):
         try:
             # MOSS ships its own package alongside the HF weights.
             import moss_tts_nano  # noqa: F401
-            return True, "ready"
         except ImportError:
             return False, (
                 "moss_tts_nano package not installed. Install from "
                 "https://github.com/OpenMOSS/MOSS-TTS-Nano "
                 "(`pip install -e .`), then set OMNIVOICE_TTS_BACKEND=moss-tts-nano."
             )
+        # Importing the MODULE is not enough (#1287). The user had the package
+        # installed, so this reported "ready", they switched engine, and the
+        # first generate died with `cannot import name 'MossTTSNano'` — the
+        # upstream repo is unpinned and moves. An availability check that does
+        # not verify the API it will actually call is a check that lies.
+        if _moss_model_class(moss_tts_nano) is None:
+            exported = ", ".join(_moss_candidate_exports(moss_tts_nano)) or "no model class"
+            return False, (
+                "moss_tts_nano is installed but does not expose a usable model "
+                f"class (found: {exported}). MOSS-TTS-Nano is unpinned upstream and "
+                "its entry point has changed before — pull the latest "
+                "github.com/OpenMOSS/MOSS-TTS-Nano and re-run `pip install -e .`, "
+                "or open an issue with the version you have so the name can be added."
+            )
+        return True, "ready"
 
     @property
     def sample_rate(self) -> int:
@@ -969,13 +1011,19 @@ class MossTTSNanoBackend(TTSBackend):
         ok, msg = self.is_available()
         if not ok:
             raise RuntimeError(f"MOSS-TTS-Nano unavailable: {msg}")
-        from moss_tts_nano import MossTTSNano  # type: ignore[import-not-found]
+        import moss_tts_nano  # type: ignore[import-not-found]
+
+        model_cls = _moss_model_class(moss_tts_nano)
+        if model_cls is None:  # pragma: no cover - is_available() gates this
+            raise RuntimeError(
+                "moss_tts_nano exposes no usable model class; see Settings → Engines"
+            )
         checkpoint = os.environ.get(
             "OMNIVOICE_MOSS_TTS_MODEL", "OpenMOSS-Team/MOSS-TTS-Nano"
         )
         logger.info("Loading MOSS-TTS-Nano from %s", checkpoint)
         self._model = _retry_once_with_fresh_hf_client(
-            lambda: MossTTSNano.from_pretrained(checkpoint, trust_remote_code=True),
+            lambda: model_cls.from_pretrained(checkpoint, trust_remote_code=True),
             "MOSS-TTS-Nano",
         )
 
