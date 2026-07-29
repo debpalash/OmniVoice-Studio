@@ -262,12 +262,24 @@ jobs:
         include:
           - os: macos-14
             label: macOS
+            timeout: 10
           - os: windows-2022
             label: Windows
+            # Windows needs its own budget, and the old shared 10 was a
+            # self-perpetuating failure: the leg times out mid-`uv sync`, so the
+            # post-step never saves the uv cache, so the next run is cold too
+            # and times out again. Measured on run 30385710466 — Linux 65s,
+            # macOS 65s, Windows still installing torch at 10m08s when the job
+            # was killed. Priced for one COLD install to finish and prime the
+            # cache; warm runs land nowhere near this.
+            timeout: 25
           - os: ubuntu-22.04
             label: Linux
+            timeout: 10
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Per-leg, not shared: a genuine hang on Linux/macOS should still fail fast
+    # rather than inherit the allowance Windows needs.
+    timeout-minutes: ${{ matrix.timeout }}
     env:
       # Restricted-network resilience (RESEARCH Pitfall #6) — keeps uv from
       # giving up on the first slow PyPI / python-build-standalone fetch.
@@ -298,11 +310,26 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          # The community chocolatey feed 504s intermittently (broke a PR run
-          # on 2026-07-20) — retry with backoff before failing the job.
+          # The community chocolatey feed 50x's intermittently (broke PR runs on
+          # 2026-07-20 and 2026-07-28) — retry with backoff before failing.
+          #
+          # Test the OUTCOME, not choco's exit code. On 2026-07-28 the feed
+          # returned 503, choco reported "Unable to find package 'ffmpeg'" and
+          # "installed 0/0 packages" — and still exited 0. The `&& break` that
+          # was supposed to guard this fired on the first attempt, no retry ran,
+          # and the job died one line later on `ffmpeg: command not found`.
+          # A retry that trusts a lying exit code is not a retry.
           for i in 1 2 3; do
-            choco install ffmpeg -y --no-progress && break
-            echo "choco attempt $i failed — retrying in $((i * 30))s"
+            choco install ffmpeg -y --no-progress || true
+            hash -r 2>/dev/null || true
+            if command -v ffmpeg >/dev/null 2>&1; then break; fi
+            # No backoff after the last attempt — there is no fourth try to
+            # wait for, and sleeping 90s only delays an already-doomed job.
+            if [ "$i" -eq 3 ]; then
+              echo "choco failed to produce ffmpeg after 3 attempts"
+              break
+            fi
+            echo "choco attempt $i did not produce ffmpeg — retrying in $((i * 30))s"
             sleep $((i * 30))
           done
           ffmpeg -version

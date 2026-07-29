@@ -30,6 +30,7 @@
  */
 import { toast } from 'react-hot-toast';
 import { routingNotice } from './routingNotice';
+import { onEngineSelected } from './generatePreflight';
 
 export function notifyEngineSelected(r, t, family = 'tts') {
   // routingNotice() is the shared mirror of the backend's routing_notice():
@@ -37,6 +38,12 @@ export function notifyEngineSelected(r, t, family = 'tts') {
   // else — benign cpu_only (a DirectML host explains itself on a normal pick)
   // and unavailable — is information, not a warning.
   const notice = routingNotice(r);
+  // Every engine pick lands here (Settings → Engines and the first-run
+  // WizardLibrary both call it), which makes it the one place that reliably
+  // knows the active engine just changed: drop the preflight's cached
+  // /engines response, and hand it whatever caveat we are about to show so it
+  // does not repeat the same sentence on the next synth.
+  onEngineSelected(r?.active, notice?.reason ?? null);
   if (notice?.status === 'cpu_fallback') {
     toast(t('engines.selectCpuFallback', { engine: r.active, reason: notice.reason }), {
       icon: '⚠️',

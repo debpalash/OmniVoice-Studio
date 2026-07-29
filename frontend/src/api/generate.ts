@@ -1,6 +1,28 @@
 import { API, apiUrl, apiFetch, apiJson } from './client';
 import { useAppStore } from '../store';
 import { warnIfEngineUnderProvisioned } from '../utils/generatePreflight';
+<<<<<<< HEAD
+=======
+
+/**
+ * Hold the in-flight count for the duration of `fn`.
+ *
+ * Safe to nest, and streaming relies on that: generateSpeech releases its
+ * claim when the Response resolves — i.e. when the HEADERS arrive — but a
+ * streaming synth reads the body for as long as it takes to generate. Wrapping
+ * the whole stream in an outer claim keeps the count above zero throughout;
+ * the inner one just bumps it to 2 and back. This only works because the store
+ * tracks a COUNT, not a boolean (Greptile P1, #1288).
+ */
+export async function withTtsInflight<T>(fn: () => Promise<T>): Promise<T> {
+  useAppStore.getState().addTtsInflight?.(1);
+  try {
+    return await fn();
+  } finally {
+    useAppStore.getState().addTtsInflight?.(-1);
+  }
+}
+>>>>>>> main
 
 export async function generateSpeech(
   formData: FormData,
