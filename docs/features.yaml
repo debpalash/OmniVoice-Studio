@@ -29,6 +29,8 @@ features:
 tts_engines:
   - id: omnivoice
     readme: "**OmniVoice** (default)"
+  - id: omnivoice-subprocess
+    doc: docs/engines/omnivoice-subprocess.md
   - id: cosyvoice
     readme: CosyVoice 3
     doc: docs/engines/cosyvoice.md

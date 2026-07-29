@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Läuft unter {{device}} auf diesem Computer",
     "routingCaveatTitle": "GPU ausgewählt, aber: {{reason}}",
     "selectCpuFallback": "{{engine}}: läuft auf der CPU — {{reason}}",
-    "selectWithCaveat": "Zu {{engine}} gewechselt — {{reason}}"
+    "selectWithCaveat": "Zu {{engine}} gewechselt — {{reason}}",
+    "generateCaveat": "{{engine}} ist auf diesem Rechner möglicherweise langsam — {{reason}}"
   },
   "capture": {
     "desc": "Globale Hotkeys funktionieren nur in der Desktop-App. Die Web-Benutzeroberfläche verwendet eine In-Page-Verknüpfung <1>Strg+Umschalt+Leertaste</1>, während das Fenster den Fokus hat.",

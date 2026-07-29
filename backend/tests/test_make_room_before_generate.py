@@ -1,0 +1,75 @@
+"""A warm generate must free idle GPU memory first when the box is tight
+(#730/#1190).
+
+The cold LOAD path already evicts via _make_room_before_tts_load (inside
+_load_model_with_timeout). The warm path (model already resident, get_model
+returns early at the cache check) skipped it, so a generate on a VRAM-tight
+MPS box contended with capture-ASR and the clone-prompt side cache until it
+exceeded the execution budget and was abandoned (#730/#1190).
+make_room_before_generate, called from get_model()'s warm-return path, closes
+that gap for every native TTS generate; the policy is the one real
+reliability-vs-latency knob.
+"""
+import services.model_manager as mm
+from services.model_manager import make_room_before_generate
+
+
+def _count(monkeypatch):
+    """Patch the three eviction primitives and count how often each runs."""
+    calls = {"free_vram": 0, "side_caches": 0, "capture_asr": 0}
+
+    monkeypatch.setattr(mm, "free_vram", lambda: calls.__setitem__("free_vram", calls["free_vram"] + 1))
+    monkeypatch.setattr(
+        mm, "release_tts_side_caches",
+        lambda: calls.__setitem__("side_caches", calls["side_caches"] + 1),
+    )
+    import services.asr_backend as ab
+    monkeypatch.setattr(
+        ab, "release_idle_capture_backend",
+        lambda _idle_s: calls.__setitem__("capture_asr", calls["capture_asr"] + 1),
+    )
+    return calls
+
+
+def _ram(monkeypatch, gb):
+    import services.memory_budget as mb
+    monkeypatch.setattr(mb, "available_memory", lambda: {"ram_available_gb": gb})
+
+
+def test_never_mode_frees_nothing(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", "never")
+    calls = _count(monkeypatch)
+    make_room_before_generate()
+    assert calls == {"free_vram": 0, "side_caches": 0, "capture_asr": 0}
+
+
+def test_always_mode_frees_all(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", "always")
+    calls = _count(monkeypatch)
+    make_room_before_generate()
+    assert calls["free_vram"] == 1 and calls["side_caches"] == 1 and calls["capture_asr"] == 1
+
+
+def test_auto_skips_on_roomy_machine(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", raising=False)
+    _ram(monkeypatch, 999.0)  # ample RAM -> a roomy machine pays nothing
+    calls = _count(monkeypatch)
+    make_room_before_generate()
+    assert calls == {"free_vram": 0, "side_caches": 0, "capture_asr": 0}
+
+
+def test_auto_frees_on_tight_ram(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", raising=False)
+    _ram(monkeypatch, 0.5)  # below the 6.0 GB unified headroom
+    calls = _count(monkeypatch)
+    make_room_before_generate()
+    assert calls["free_vram"] == 1 and calls["side_caches"] == 1
+
+
+def test_default_mode_is_auto(monkeypatch):
+    # No env set at all must behave as auto (tight RAM triggers).
+    monkeypatch.delenv("OMNIVOICE_FREE_VRAM_BEFORE_GENERATE", raising=False)
+    _ram(monkeypatch, 0.5)
+    calls = _count(monkeypatch)
+    make_room_before_generate()
+    assert calls["free_vram"] == 1

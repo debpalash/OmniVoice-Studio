@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Працює на {{device}} на цій машині",
     "routingCaveatTitle": "Графічний процесор вибрано, але: {{reason}}",
     "selectCpuFallback": "{{engine}}: працює на CPU — {{reason}}",
-    "selectWithCaveat": "Перемкнено на {{engine}} — {{reason}}"
+    "selectWithCaveat": "Перемкнено на {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} може працювати повільно на цьому комп'ютері — {{reason}}"
   },
   "capture": {
     "desc": "Глобальні гарячі клавіші працюють лише в настільній програмі. Веб-інтерфейс використовує ярлик <1>Ctrl+Shift+Пробіл</1> на сторінці, коли вікно має фокус.",

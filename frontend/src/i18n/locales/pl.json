@@ -580,7 +580,8 @@
     "routingEffectiveChip": "Działa na {{device}} na tym komputerze",
     "routingCaveatTitle": "Wybrano procesor graficzny, ale: {{reason}}",
     "selectCpuFallback": "{{engine}}: działa na CPU — {{reason}}",
-    "selectWithCaveat": "Przełączono na {{engine}} — {{reason}}"
+    "selectWithCaveat": "Przełączono na {{engine}} — {{reason}}",
+    "generateCaveat": "{{engine}} może działać wolno na tym komputerze — {{reason}}"
   },
   "capture": {
     "desc": "Globalne skróty klawiszowe działają tylko w aplikacji komputerowej. Interfejs WWW korzysta ze skrótu <1>Ctrl+Shift+Spacja</1> znajdującego się na stronie, gdy okno jest aktywne.",

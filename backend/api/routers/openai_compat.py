@@ -385,6 +385,9 @@ async def create_speech(req: SpeechRequest):
     from services.text_normalization import normalize_for_tts
     text = normalize_for_tts(req.input, req.language)
 
+    # VRAM eviction runs in get_model()'s warm-return path now, covering every
+    # native TTS generate (this route, WS TTS, dub, batch, audiobook).
+
     # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
     # generate clock starts. The T4 verification (#1014) measured a fresh
     # install's first /v1/audio/speech burning its whole 300s generate budget

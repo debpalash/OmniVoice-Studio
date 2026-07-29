@@ -931,6 +931,9 @@ async def generate_speech(
     except Exception:
         pass
 
+    # VRAM eviction runs in get_model()'s warm-return path now, so every native
+    # TTS generate (this route, WS TTS, dub, batch, audiobook) is covered.
+
     _model = None
     _backend = None
     if backend_cls is OmniVoiceBackend:

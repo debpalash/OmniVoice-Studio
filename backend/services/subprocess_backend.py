@@ -280,6 +280,15 @@ class SubprocessBackend(TTSBackend):
     # Default sample rate; subclasses override.
     _DEFAULT_SAMPLE_RATE = 24000
 
+    # Per-engine recv timeout for generate(): how long the parent waits for the
+    # sidecar's audio frame before the watchdog hard-kills the child and reclaims
+    # its VRAM/device. Default is the conservative RECV_TIMEOUT_S (60s). A
+    # subclass whose legitimate generates run longer overrides it (or exposes it
+    # as a property) so a slow-but-valid synth is not falsely killed, while a
+    # genuinely wedged one is still reclaimed. health_check() keeps using
+    # RECV_TIMEOUT_S directly, since a ping must stay fast.
+    recv_timeout_s: float = RECV_TIMEOUT_S
+
     # ── instance state (initialised in __init__) ───────────────────────────
 
     def __init__(self) -> None:
@@ -561,7 +570,13 @@ class SubprocessBackend(TTSBackend):
                     if _is_jsonable(v):
                         msg[k] = v
                 self._send(msg)
-                reply = self._recv_with_timeout(RECV_TIMEOUT_S)
+                reply = self._recv_with_timeout(self.recv_timeout_s)
+                # A cold sidecar may emit non-terminal {"op": "progress"} frames
+                # (during a model load, etc.) before the terminal audio frame.
+                # Each recv re-arms the watchdog, so a long-but-active load
+                # survives while a silent wedge is still killed at the deadline.
+                while reply is not None and reply.get("op") == "progress":
+                    reply = self._recv_with_timeout(self.recv_timeout_s)
             if not reply:
                 raise RuntimeError(f"{self.id} sidecar closed pipe mid-generate")
             if reply.get("op") == "error":

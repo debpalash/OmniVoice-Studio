@@ -30,6 +30,7 @@ from __future__ import annotations
 import functools
 import os
 import platform as _platform
+import re
 import sys
 from dataclasses import dataclass
 from typing import Literal
@@ -111,6 +112,53 @@ def build_arch_list(torch) -> list[str]:
     return []
 
 
+_CUDA_ARCH_TAG = re.compile(r"^(sm|compute)_(\d+)([a-z]?)$")
+
+
+def cuda_build_covers(arch_list, major: int, minor: int) -> bool:
+    """Can a torch build compiled for ``arch_list`` run on CC ``major.minor``?
+
+    NOT an exact-tag match, because NVIDIA's compatibility rules are not exact
+    and PyTorch depends on that (#1285):
+
+    * **SASS (``sm_XY``) is binary-compatible upward within a major version** —
+      a cubin built for 8.6 runs on any 8.x device with minor ≥ 6. This is why
+      the official wheels ship ``sm_80``/``sm_86`` and **no ``sm_89``**: the
+      8.6 kernels already cover Ada. An exact-match gate therefore declared
+      every RTX 40-series card (4060…4090, all sm_89) unsupported and
+      force-routed it to CPU, which is exactly what #1285 reported.
+    * **PTX (``compute_XY``) JIT-compiles forward** to any newer architecture,
+      so embedded PTX at or below the device's capability is a valid path.
+    * **An ``a``/``f`` suffix (``sm_90a``) is architecture-SPECIFIC** — those
+      cubins deliberately do not forward-run, so they only count on an exact
+      capability match.
+
+    Unparseable entries are skipped rather than guessed at.
+    """
+    device_cc = major * 10 + minor
+    for entry in arch_list or ():
+        m = _CUDA_ARCH_TAG.match(str(entry).strip())
+        if not m:
+            continue
+        kind, digits, suffix = m.group(1), m.group(2), m.group(3)
+        try:
+            cc = int(digits)
+        except ValueError:
+            continue
+        e_major, e_minor = divmod(cc, 10)
+        if suffix:
+            # Arch-specific: exact capability only, whatever the kind.
+            if cc == device_cc:
+                return True
+            continue
+        if kind == "sm":
+            if e_major == major and e_minor <= minor:
+                return True
+        elif cc <= device_cc:
+            return True
+    return False
+
+
 def gfx_for_hsa_override(value: str) -> str | None:
     """``"11.0.0"`` → ``"gfx1100"``. The inverse of :func:`hsa_override_for`.
 
@@ -186,7 +234,7 @@ def arch_unsupported(torch) -> tuple[str, tuple[str, ...]] | None:
         # ── CUDA: arch_list holds sm_/compute_ tags ──────────────────────
         major, minor = torch.cuda.get_device_capability(0)
         sm_tag = f"sm_{major}{minor}"
-        if sm_tag in arch_list or f"compute_{major}{minor}" in arch_list:
+        if cuda_build_covers(arch_list, major, minor):
             return None
         return sm_tag, tuple(arch_list)
     except Exception:
