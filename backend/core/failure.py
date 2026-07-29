@@ -409,6 +409,46 @@ def classify(reason: str) -> str:
     return ""
 
 
+# ffmpeg/ffprobe write a version banner to STDERR on every invocation, before
+# doing any work. When a command fails we capture that stderr and it becomes
+# the error message — so the user is shown the build configuration of their
+# ffmpeg instead of what went wrong (#1309: a dub extract failure reported as
+# "extract: ffmpeg version N-125781-gacf6b520c1-20260727 Copyright (c) …").
+#
+# The real diagnosis is always AFTER the banner. Strip the boilerplate so the
+# message starts at the first line that is actually about this run.
+_FFMPEG_BANNER_START = re.compile(r"^\s*(ffmpeg|ffprobe)\s+version\s", re.IGNORECASE)
+_FFMPEG_BANNER_CONT = re.compile(
+    r"^\s+(built with|configuration:|lib[a-z]+\s+\d)", re.IGNORECASE
+)
+
+
+def strip_ffmpeg_banner(text: Optional[str]) -> str:
+    """Drop ffmpeg's version/configuration preamble from a captured stderr.
+
+    Returns the text unchanged when no banner is present, and — importantly —
+    when stripping would leave nothing: a message that is *only* a banner is
+    unhelpful, but an empty one is worse.
+    """
+    if not text:
+        return text or ""
+    lines = str(text).splitlines()
+    kept, in_banner = [], False
+    for line in lines:
+        if _FFMPEG_BANNER_START.match(line):
+            in_banner = True
+            continue
+        if in_banner:
+            # The banner is the version line plus its indented continuation
+            # block; the first line that is not part of that ends it.
+            if not line.strip() or _FFMPEG_BANNER_CONT.match(line):
+                continue
+            in_banner = False
+        kept.append(line)
+    out = "\n".join(kept).strip()
+    return out or str(text).strip()
+
+
 def sanitize(text: Optional[str]) -> str:
     """Redact secrets and strip the home path from a string.
 
@@ -652,6 +692,10 @@ def build_failure(
         error_class = "Error"
         raw = str(exc_or_msg).strip() or "Unknown failure"
 
+    # Strip ffmpeg's stderr banner before anything reads the text — both the
+    # user-facing reason and classify() below, which would otherwise be
+    # matching against a build configuration string (#1309).
+    raw = strip_ffmpeg_banner(raw)
     reason = sanitize(raw) or error_class
     docs_topic = classify(raw)
     # HF_MIRROR_UNREACHABLE's hint is dynamic (it names the configured mirror)
