@@ -1,8 +1,6 @@
 import { API, apiUrl, apiFetch, apiJson } from './client';
 import { useAppStore } from '../store';
 import { warnIfEngineUnderProvisioned } from '../utils/generatePreflight';
-<<<<<<< HEAD
-=======
 
 /**
  * Hold the in-flight count for the duration of `fn`.
@@ -22,7 +20,6 @@ export async function withTtsInflight<T>(fn: () => Promise<T>): Promise<T> {
     useAppStore.getState().addTtsInflight?.(-1);
   }
 }
->>>>>>> main
 
 export async function generateSpeech(
   formData: FormData,

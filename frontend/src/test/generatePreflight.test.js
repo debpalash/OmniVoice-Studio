@@ -12,15 +12,11 @@ vi.mock('i18next', () => ({
   default: { t: (key, vars) => `${key}:${JSON.stringify(vars || {})}` },
 }));
 
-<<<<<<< HEAD
-import { warnIfEngineUnderProvisioned, _resetPreflight } from '../utils/generatePreflight';
-=======
 import {
   warnIfEngineUnderProvisioned,
   onEngineSelected,
   _resetPreflight,
 } from '../utils/generatePreflight';
->>>>>>> main
 
 const VRAM_CAVEAT =
   'NVIDIA GeForce RTX 2060 has 6.0 GB VRAM; this engine wants about 6 GB. ' +
@@ -140,8 +136,6 @@ describe('warnIfEngineUnderProvisioned (generate-time preflight)', () => {
     expect(listEnginesMock).toHaveBeenCalledTimes(1);
   });
 });
-<<<<<<< HEAD
-=======
 
 describe('preflight cache invalidation', () => {
   beforeEach(() => {
@@ -204,4 +198,3 @@ describe('preflight cache invalidation', () => {
     expect(toastFn).toHaveBeenCalledTimes(1);
   });
 });
->>>>>>> main
