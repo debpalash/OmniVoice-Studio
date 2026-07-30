@@ -136,14 +136,14 @@ def _clean_model_manager_shutdown_state():
     import services.model_manager as _mm
 
     def _clean():
-        try:
-            _mm.reset_shutdown_flag()
-        except Exception:
-            pass
-        try:
-            _mm._reset_gpu_pool()
-        except Exception:
-            pass
+        # Deliberately NOT wrapped in try/except. A reset that fails silently
+        # leaves the next test with stale shutdown or executor state, which is
+        # precisely the order-dependent failure this fixture exists to remove —
+        # swallowing the error would defeat the fixture while looking like it
+        # worked (CodeRabbit). If either of these can raise, that is a real
+        # problem in model_manager and it should be loud.
+        _mm.reset_shutdown_flag()
+        _mm._reset_gpu_pool()
 
     _clean()
     yield
