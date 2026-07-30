@@ -49,7 +49,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### CI
 
 - Windows smoke tests stopped silently passing a broken ffmpeg install, and every smoke leg is now budgeted for a cold dependency install. (#1290)
-- Test suites no longer leak config paths into one another, which had been failing unrelated pull requests. (#1269)
+- Test suites no longer leak config paths or model-manager shutdown state into one another, which had been failing unrelated pull requests. (#1269)
 
 ## [0.4.2] — 2026-07-28
 

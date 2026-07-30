@@ -112,7 +112,7 @@ def _clear_asr_installed_memo(request):
 
 
 @pytest.fixture(autouse=True)
-def _clean_model_manager_shutdown_state():
+def _clean_model_manager_shutdown_state(request):
     """Start every test with the model manager NOT in shutdown mode (#1269).
 
     ``model_manager._shutting_down`` is a module-global Event and the GPU pool is
@@ -132,8 +132,36 @@ def _clean_model_manager_shutdown_state():
 
     Reset before AND after: before so an inherited flag cannot decide this test,
     after so a test that legitimately shuts down does not hand the state on.
+
+    Cleans the module in ``sys.modules`` AND any module-typed alias the test
+    module holds (``import services.model_manager as mm`` at module scope) — the
+    same stale-alias class ``asr_model_installed`` above handles. Test modules
+    bind that alias at COLLECTION time; ``tests/backend/**`` purges
+    ``services.*`` from ``sys.modules`` after every test it owns, so in a
+    combined ``pytest tests/ backend/tests/`` run the alias and the live module
+    are two different objects. Cleaning only one of them means a test dirties
+    the alias and the next test reads it still dirty
+    (``test_shutdown_state_isolation.py::test_next_test_starts_clean``).
     """
-    import services.model_manager as _mm
+    import types
+
+    def _targets():
+        # Import rather than probe sys.modules: unchanged from the original
+        # fixture, and it guarantees a live module to reset even in a run where
+        # a sibling suite purged the name.
+        import services.model_manager as mod
+
+        # `import x.y as z` binds the PACKAGE ATTRIBUTE, which can diverge from
+        # the sys.modules entry after module surgery — take both.
+        found = {id(m): m for m in (mod, sys.modules.get("services.model_manager"))
+                 if m is not None}
+        test_module = getattr(request, "module", None)
+        if test_module is not None:
+            for val in vars(test_module).values():
+                if (isinstance(val, types.ModuleType)
+                        and getattr(val, "__name__", "") == "services.model_manager"):
+                    found[id(val)] = val
+        return found.values()
 
     def _clean():
         # Deliberately NOT wrapped in try/except. A reset that fails silently
@@ -142,8 +170,9 @@ def _clean_model_manager_shutdown_state():
         # swallowing the error would defeat the fixture while looking like it
         # worked (CodeRabbit). If either of these can raise, that is a real
         # problem in model_manager and it should be loud.
-        _mm.reset_shutdown_flag()
-        _mm._reset_gpu_pool()
+        for mod in _targets():
+            mod.reset_shutdown_flag()
+            mod._reset_gpu_pool()
 
     _clean()
     yield

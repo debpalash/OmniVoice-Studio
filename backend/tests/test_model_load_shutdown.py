@@ -14,8 +14,10 @@ instead. See model_manager.py and main.py's lifespan wiring
 (``begin_shutdown``/``reset_shutdown_flag``).
 """
 import asyncio
+import contextlib
 import logging
 import os
+import sys
 import threading
 import types
 
@@ -26,6 +28,48 @@ from services.model_manager import (
     ModelLoadInterruptedByShutdown,
     _is_interpreter_shutdown_error,
 )
+
+_PURGED_PREFIXES = ("core.", "api.", "services.")
+_PURGED_NAMES = ("main", "core", "api", "services")
+
+
+@contextlib.contextmanager
+def _reimported_backend_modules():
+    """Run the block against FRESHLY imported ``main``/``core``/``api``/
+    ``services`` modules, then put the originals back.
+
+    The module-level ``import services.model_manager as mm`` above binds at
+    COLLECTION time. ``tests/backend/conftest.py`` purges exactly these names
+    from ``sys.modules`` after every test it owns, so in a combined
+    ``pytest tests/ backend/tests/`` run a later ``import main`` here builds its
+    lifespan on a NEW ``services.model_manager`` object — and the ``mm`` alias
+    is a stale copy whose globals nothing reads. ``monkeypatch.setattr(mm, ...)``
+    then patched nothing: the real ``preload_model`` ran, found no fake loader,
+    and the test failed on ``assert started.is_set()`` while passing alone
+    (#1269 residual).
+
+    Tests that only exercise model_manager stay self-consistent on the alias.
+    Any test that patches model_manager and then drives *main* must resolve the
+    live module — this context manager makes that path deterministic in
+    isolation, so the bug reproduces without needing the sibling suite.
+    """
+    saved = {
+        name: mod for name, mod in sys.modules.items()
+        if name in _PURGED_NAMES or name.startswith(_PURGED_PREFIXES)
+    }
+    def _purge():
+        for name in [n for n in sys.modules
+                     if n in _PURGED_NAMES or n.startswith(_PURGED_PREFIXES)]:
+            sys.modules.pop(name, None)
+    _purge()
+    try:
+        yield
+    finally:
+        # Drop whatever the block imported, then restore the originals — a
+        # half-restored tree (fresh submodule under a stale package) is exactly
+        # the split-import hazard this guards against.
+        _purge()
+        sys.modules.update(saved)
 
 
 @pytest.fixture(autouse=True)
@@ -273,64 +317,74 @@ def test_lifespan_shutdown_mid_load_is_clean_and_clears_sentinel(
     interaction the #1174 fix has to preserve)."""
     from fastapi import FastAPI
 
-    import main as main_mod
-    from core import run_sentinel
+    with _reimported_backend_modules():
+        import main as main_mod
+        from core import run_sentinel
 
-    monkeypatch.setattr(run_sentinel, "SENTINEL_PATH", str(tmp_path / "run_sentinel.json"))
-    monkeypatch.setattr(run_sentinel, "CRASH_RECORD_PATH", str(tmp_path / "last_run_crash.json"))
-    monkeypatch.setattr(run_sentinel, "LOG_PATH", str(tmp_path / "omnivoice.log"))
-    run_sentinel._reset_for_tests()
+        # The module object main's lifespan actually loads through — NOT the
+        # module-level `mm` alias, which a sibling suite's sys.modules purge can
+        # leave stale (see _reimported_backend_modules).
+        live_mm = sys.modules["services.model_manager"]
 
-    fake_torch = types.SimpleNamespace(
-        float16="f16",
-        cuda=types.SimpleNamespace(is_available=lambda: False),
-        backends=types.SimpleNamespace(),
-    )
-    monkeypatch.setattr(mm, "_lazy_torch", lambda: fake_torch)
-    monkeypatch.setattr(mm, "model", None)
-    monkeypatch.setattr(mm, "_model_lock", asyncio.Lock())
-    monkeypatch.setattr(mm, "_checkpoint_in_local_cache", lambda c: True)
-    monkeypatch.setenv("OMNIVOICE_PRELOAD_CAPTURE_ASR", "0")
-
-    started = threading.Event()
-    release = threading.Event()
-
-    def _wedged_load():
-        started.set()
-        release.wait(30)
-        raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-
-    async def _fake_load_with_timeout():
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(mm._get_gpu_pool(), _wedged_load)
-
-    monkeypatch.setattr(mm, "_load_model_with_timeout", _fake_load_with_timeout)
-
-    async def scenario():
-        app = FastAPI()
-        async with main_mod.lifespan(app):
-            # The preload's load really is in flight on a pool thread. Poll
-            # asynchronously — a blocking Event.wait would starve the loop the
-            # preload task needs to reach run_in_executor.
-            for _ in range(200):
-                if started.is_set():
-                    break
-                await asyncio.sleep(0.05)
-            assert started.is_set()
-        # Lifespan shutdown completed while that thread was still wedged.
-
-    try:
-        asyncio.run(scenario())
-        # The clean shutdown retired the sentinel…
-        assert not os.path.exists(run_sentinel.SENTINEL_PATH)
-        # …so the next startup must NOT see a crash.
-        assert run_sentinel.detect_unclean_shutdown() is None
-        # And the model_manager was flipped into shutdown mode first, so the
-        # wedged load classifies executor rejections as benign.
-        assert mm.is_shutting_down() is True
-    finally:
-        release.set()
+        monkeypatch.setattr(run_sentinel, "SENTINEL_PATH", str(tmp_path / "run_sentinel.json"))
+        monkeypatch.setattr(run_sentinel, "CRASH_RECORD_PATH", str(tmp_path / "last_run_crash.json"))
+        monkeypatch.setattr(run_sentinel, "LOG_PATH", str(tmp_path / "omnivoice.log"))
         run_sentinel._reset_for_tests()
+
+        fake_torch = types.SimpleNamespace(
+            float16="f16",
+            cuda=types.SimpleNamespace(is_available=lambda: False),
+            backends=types.SimpleNamespace(),
+        )
+        monkeypatch.setattr(live_mm, "_lazy_torch", lambda: fake_torch)
+        monkeypatch.setattr(live_mm, "model", None)
+        monkeypatch.setattr(live_mm, "_model_lock", asyncio.Lock())
+        monkeypatch.setattr(live_mm, "_checkpoint_in_local_cache", lambda c: True)
+        monkeypatch.setenv("OMNIVOICE_PRELOAD_CAPTURE_ASR", "0")
+        # A fresh import inherits nothing from the previous lifespan, but an
+        # in-place one would: arm loads explicitly so a leaked shutdown flag
+        # can't make the preload bail before it starts.
+        live_mm.reset_shutdown_flag()
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def _wedged_load():
+            started.set()
+            release.wait(30)
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+
+        async def _fake_load_with_timeout():
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(live_mm._get_gpu_pool(), _wedged_load)
+
+        monkeypatch.setattr(live_mm, "_load_model_with_timeout", _fake_load_with_timeout)
+
+        async def scenario():
+            app = FastAPI()
+            async with main_mod.lifespan(app):
+                # The preload's load really is in flight on a pool thread. Poll
+                # asynchronously — a blocking Event.wait would starve the loop the
+                # preload task needs to reach run_in_executor.
+                for _ in range(200):
+                    if started.is_set():
+                        break
+                    await asyncio.sleep(0.05)
+                assert started.is_set()
+            # Lifespan shutdown completed while that thread was still wedged.
+
+        try:
+            asyncio.run(scenario())
+            # The clean shutdown retired the sentinel…
+            assert not os.path.exists(run_sentinel.SENTINEL_PATH)
+            # …so the next startup must NOT see a crash.
+            assert run_sentinel.detect_unclean_shutdown() is None
+            # And the model_manager was flipped into shutdown mode first, so the
+            # wedged load classifies executor rejections as benign.
+            assert live_mm.is_shutting_down() is True
+        finally:
+            release.set()
+            run_sentinel._reset_for_tests()
 
 
 def test_request_during_shutdown_gets_503_not_a_crash_shaped_500():
