@@ -952,6 +952,19 @@ async def _render_longform_sse(
             else:
                 ev = {"type": "error", "error": "all chapters failed to render",
                       "reason": "all chapters failed to render"}
+            # Terminal failure — record it. This branch used to return without
+            # touching job history, so the row stayed `running` forever: the next
+            # startup read it as an interrupted job, and the retained manifest
+            # offered a render that had already failed every chapter as
+            # resumable (Greptile P1 on #1321). The manifest IS kept on purpose —
+            # a failure whose cause the user can now see (a missing voice, an
+            # engine that can't read the script) is worth retrying once fixed,
+            # and the chapter cache is empty here so a retry costs nothing extra.
+            if job_store is not None:
+                try:
+                    job_store.mark_failed(job_id, ev["reason"])
+                except Exception:
+                    pass  # best-effort job history; never block the stream
             yield _emit(ev)
             return
 

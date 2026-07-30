@@ -60,9 +60,18 @@ def _plan(*chapters):
     ])
 
 
-def _collect_events(plan, monkeypatch, outputs_dir, *, fail_on=None, exc=None, **kw):
+def _collect_events(plan, monkeypatch, outputs_dir, *, fail_on=None, exc=None,
+                    timeout=120, **kw):
     """Patch the synth + OUTPUTS_DIR, drive the real generator, return parsed
-    SSE events (list of dicts)."""
+    SSE events (list of dicts).
+
+    Bounded on purpose. One of the failures this file covers — a bare
+    StopIteration from an engine, #1321 — does not raise, it WEDGES: asyncio
+    cannot put StopIteration into a Future, so the awaiting `run_in_executor`
+    never completes. Unbounded, a regression in that guard would stall CI until
+    the job timeout instead of failing the test. The bound is generous (real
+    ffmpeg muxes run under here) — it is a deadlock detector, not a perf budget.
+    """
     from api.routers import audiobook
     monkeypatch.setattr(audiobook, "_build_synth", _stub_build_synth(fail_on=fail_on, exc=exc))
     monkeypatch.setattr("core.config.OUTPUTS_DIR", str(outputs_dir))
@@ -74,7 +83,7 @@ def _collect_events(plan, monkeypatch, outputs_dir, *, fail_on=None, exc=None, *
             out.append(json.loads(frame[len("data:"):].strip()))
         return out
 
-    return asyncio.run(_run())
+    return asyncio.run(asyncio.wait_for(_run(), timeout=timeout))
 
 
 def _ffprobe(path):
@@ -169,6 +178,59 @@ def test_all_chapters_fail_emits_error_and_no_file(tmp_path, monkeypatch):
     assert err["diagnostic"]
     # No output file was produced.
     assert not any(p.suffix in (".m4b", ".mp3") for p in out.iterdir())
+
+
+def test_all_chapters_fail_marks_the_job_failed(tmp_path, monkeypatch):
+    """The all-failed branch used to return without touching job history, so the
+    row stayed `running`: the next startup's orphan sweep read it as an
+    interrupted job, and the retained resume manifest offered an already-hopeless
+    render as resumable (Greptile P1 on #1321).
+
+    Spies on job_store rather than reading the DB — this module never runs the
+    schema migration, so the real calls are swallowed by the renderer's
+    best-effort guard and nothing would be observable."""
+    from core import job_store
+
+    failed_calls = []
+    monkeypatch.setattr(job_store, "create", lambda *a, **k: None)
+    monkeypatch.setattr(job_store, "mark_running", lambda *a, **k: None)
+    monkeypatch.setattr(job_store, "mark_done", lambda *a, **k: None)
+    monkeypatch.setattr(
+        job_store, "mark_failed", lambda jid, err: failed_calls.append((jid, err))
+    )
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(
+        _plan(("A", "x"), ("B", "y")), monkeypatch, out,
+        fmt="m4b", fail_on=lambda t: True,
+    )
+
+    job_id = next(e for e in events if e["type"] == "started")["job_id"]
+    assert len(failed_calls) == 1, failed_calls
+    assert failed_calls[0][0] == job_id
+    # Records WHY, not just that it failed — this is what job history shows.
+    assert "stub synth deliberately failed" in failed_calls[0][1]
+
+
+def test_a_successful_render_is_not_marked_failed(tmp_path, monkeypatch):
+    """Guard the other side of the branch: the new mark_failed must not fire on
+    a render that produced output."""
+    from core import job_store
+
+    failed_calls = []
+    monkeypatch.setattr(job_store, "create", lambda *a, **k: None)
+    monkeypatch.setattr(job_store, "mark_running", lambda *a, **k: None)
+    monkeypatch.setattr(job_store, "mark_done", lambda *a, **k: None)
+    monkeypatch.setattr(
+        job_store, "mark_failed", lambda jid, err: failed_calls.append((jid, err))
+    )
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(_plan(("One", "Hi.")), monkeypatch, out, fmt="m4b")
+    assert events[-1]["type"] == "done"
+    assert failed_calls == []
 
 
 def test_bare_stopiteration_from_an_engine_is_reported_not_hung(tmp_path, monkeypatch):
