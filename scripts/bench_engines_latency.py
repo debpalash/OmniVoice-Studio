@@ -17,7 +17,7 @@ Mirrors scripts/bench_pipeline.py's memory discipline:
   * a small fixed number of warm passes, median reported, no loops to convergence.
 
 Metrics (all on CPU):
-  * cold  = model load + voice setup (paid once, at startup);
+  * cold  = model load + first synthesize (paid once, at startup);
   * warm  = median of N synthesize passes with the model resident;
   * TTFC  = time to first playable audio. Reported ONLY for the streaming engine
             (PocketTTS, via generate_audio_stream). Batch engines (supertonic3,
@@ -213,10 +213,11 @@ def bench_pockettts() -> None:
 
     t0 = time.perf_counter()
     model = TTSModel.load_model()
-    voice_state = model.get_state_for_audio_prompt("alba")
-    record("pockettts", "cold (load_model + voice)", time.perf_counter() - t0, 0.0, "paid once")
-
     sr = model.sample_rate
+    voice_state = model.get_state_for_audio_prompt("alba")
+    cold_audio = model.generate_audio(voice_state, SHORT)  # first synth is part of cold
+    record("pockettts", "cold (load + first synth)", time.perf_counter() - t0, cold_audio.shape[-1] / sr, "paid once")
+
     measure_warm(
         "pockettts",
         lambda t: model.generate_audio(voice_state, t),
@@ -252,15 +253,16 @@ def bench_supertonic3() -> None:
     model_path = snapshot_download(repo_id="Supertone/supertonic-3", revision=PINNED_REVISION_SHA)
     tts = TTS(model="supertonic-3", model_dir=model_path, auto_download=False)
     style = tts.get_voice_style(voice_name="M1")
+    sr = getattr(tts, "sample_rate", 44100)
+    cold_wav, _dur = tts.synthesize(text=SHORT, voice_style=style, total_steps=8, speed=1.0, lang="na")
     record(
         "supertonic3",
-        "cold (download + TTS())",
+        "cold (download + TTS() + first synth)",
         time.perf_counter() - t0,
-        0.0,
+        float(np.asarray(cold_wav).squeeze().shape[-1]) / sr,
         "paid once; ~400MB first run",
     )
 
-    sr = getattr(tts, "sample_rate", 44100)
     measure_warm(
         "supertonic3",
         lambda t: tts.synthesize(
