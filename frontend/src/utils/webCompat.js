@@ -1,21 +1,25 @@
 /**
  * Web-platform gap fills for the OLDEST WebView we claim to support.
  *
- * `tauri.conf.json` declares `minimumSystemVersion: "12.0"` and the install
- * docs promise macOS 12 (Monterey) — which ships Safari/WKWebView **15.6**.
- * Anything newer than that is not present at runtime on a supported machine,
- * and because our entry chunk touches these during the first React render, a
- * single missing method is not a degraded feature: it throws mid-render, the
- * tree unmounts, and the user gets a dead window with no backend ever started
- * (#1245).
+ * `tauri.conf.json` (and the `tauri.macos.conf.json` overlay that actually
+ * ships) declare `minimumSystemVersion: "13.3"`, which is Safari/WKWebView
+ * **16.4** — the floor the frontend stack has really required all along
+ * (#1268). Anything newer than that is not present at runtime on a supported
+ * machine, and because our entry chunk touches these during the first React
+ * render, a single missing method is not a degraded feature: it throws
+ * mid-render, the tree unmounts, and the user gets a dead window with no
+ * backend ever started (#1245).
  *
  * This module must be imported for side effects as the FIRST thing in
  * `main.jsx`, before any app chunk loads. `test/webCompat.test.js` keeps the
- * list honest: it fails CI if app code reaches for a post-15.6 API that is not
+ * list honest: it fails CI if app code reaches for a post-16.4 API that is not
  * filled in here.
  *
- * Windows (evergreen WebView2) and Linux (WebKitGTK ≥ 2.44 on Ubuntu 24.04+)
- * both clear the floor comfortably — macOS 12 is the binding constraint.
+ * The fills below all predate 16.4, so on macOS they are now dead weight — but
+ * they are feature-detected no-ops, and macOS is no longer the only floor that
+ * matters: Linux ships whatever WebKitGTK the host distro has (≥ 2.44 on Ubuntu
+ * 24.04+, older on LTS derivatives), and that is the version we cannot pin.
+ * Windows is evergreen WebView2 and clears everything. Keep them.
  */
 
 /**
