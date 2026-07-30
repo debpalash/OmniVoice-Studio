@@ -175,6 +175,17 @@ describe('no app code depends on an API newer than the macOS floor', () => {
     // that is a PARSE-time SyntaxError no polyfill can reach. We declare 13.3
     // now because that is what we actually deliver.
     expect(conf.bundle?.macOS?.minimumSystemVersion).toBe('13.3');
+
+    // …and in the macOS-specific overlay, which is what actually ships.
+    // Tauri merges tauri.macos.conf.json OVER the base config for a macOS
+    // build, so the base value alone decides nothing: this file carried 12.0
+    // and would have silently kept shipping a Monterey-installable bundle
+    // while the base config and every doc said 13.3 (Greptile P1). A test that
+    // reads only the base config validates the wrong file.
+    const macConf = JSON.parse(
+      fs.readFileSync(path.resolve(SRC, '..', 'src-tauri', 'tauri.macos.conf.json'), 'utf8'),
+    );
+    expect(macConf.bundle?.macOS?.minimumSystemVersion).toBe('13.3');
   });
 
   it('uses no unfilled post-Safari-15.6 API', () => {

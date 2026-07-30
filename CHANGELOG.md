@@ -17,7 +17,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
-- macOS floor raised to 13.3 (Ventura). The app declared macOS 12 while the frontend needed Safari 16.4 in three independent places, so Monterey rendered incorrectly and the OpenAPI panel could not load at all — 12 was a promise, not a platform. macOS 12 stopped receiving security updates in late 2024. (#1268)
+- macOS floor raised to 13.3 (Ventura) — the frontend has required Safari 16.4 for some time, so macOS 12 was a promise the stack could not keep (#1268)
 
 ### Added
 
@@ -34,6 +34,11 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A cut TLS connection is explained in words rather than as `_ssl.c:1016`. (#1301)
 - `torch.compile` is skipped when the torch library path contains a space, instead of failing in the linker on every load. (#1266)
 - macOS Preview updates work again — the updater bundle had been colliding with itself since early July. (#1281)
+
+### Docs
+
+- Engine acceptance: new `docs/engine-acceptance.md` documents the job map, the bar a new engine must clear, and the out-of-tree path (#1306)
+- macOS install notes and the README support table now state the real floor (#1268)
 
 ### CI
 
