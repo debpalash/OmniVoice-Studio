@@ -10,6 +10,16 @@ import { streamDropError } from '../utils/backendCrash';
 
 const FALLBACK = 'Transcribe stream dropped before emitting any segments.';
 
+// `streamDropError`'s no-marker branch asks whether the backend is still
+// answering (#1242): a live process rules the caller's "it crashed" guess out.
+// Its default probe is a REAL `fetch` at the configured API origin, so a test
+// that leaves it unstubbed asserts against whatever happens to be listening on
+// the developer's machine — three of the tests below passed in CI (nothing
+// there) and failed for anyone running the app locally. Every test states which
+// answer it wants.
+const DEAD = async () => false;
+const ALIVE = async () => true;
+
 function marker(overrides = {}) {
   return {
     ts: Math.floor(Date.now() / 1000) - 12,
@@ -47,8 +57,16 @@ describe('streamDropError (#1062)', () => {
   });
 
   it('keeps the caller message when there is no crash marker', async () => {
-    const err = await streamDropError(FALLBACK, async () => null);
+    const err = await streamDropError(FALLBACK, async () => null, { probeAlive: DEAD });
     expect(err.message).toBe(FALLBACK);
+  });
+
+  it('says a live backend was not the crash it looked like (#1242)', async () => {
+    const err = await streamDropError(FALLBACK, async () => null, { probeAlive: ALIVE });
+    // The caller's guess is dropped: the process answered, so it did not die.
+    expect(err.message).not.toContain(FALLBACK);
+    expect(err.message).toMatch(/still running/i);
+    expect(err.message).toMatch(/proxy|buffering/i);
   });
 
   it('never masks the caller message when the forensics lookup itself fails', async () => {
@@ -95,6 +113,7 @@ describe('streamDropError — waits for the shell to notice the death (#1119)', 
         waitMs: 5,
         intervalMs: 1,
         sleep: async () => {},
+        probeAlive: DEAD,
       });
       expect(err.message).toBe(FALLBACK);
     } finally {
@@ -104,10 +123,14 @@ describe('streamDropError — waits for the shell to notice the death (#1119)', 
 
   it('does not stall a browser/Docker user — no shell means no marker, ever', async () => {
     let calls = 0;
-    const err = await streamDropError(FALLBACK, async () => {
-      calls += 1;
-      return null;
-    });
+    const err = await streamDropError(
+      FALLBACK,
+      async () => {
+        calls += 1;
+        return null;
+      },
+      { probeAlive: DEAD },
+    );
     expect(err.message).toBe(FALLBACK);
     expect(calls).toBe(1); // asked once, then stopped — no 8 s wait
   });

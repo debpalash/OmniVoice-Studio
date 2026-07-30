@@ -138,6 +138,10 @@ marketing.md
 .specify/
 .claude/skills/speckit-*/
 .antigravitycli/
+# `backlog` (the CLI task tracker) writes a config + one markdown file per task
+# into the repo root. A contributor running it locally had those three files
+# swept into a PR that was otherwise a single script (#1322 / #1306).
+backlog/
 
 # Locally-installed third-party skill packs (marketingskills, hallmark,
 # mattpocock/skills, …) — ignore every skill dir by default; a skill that
