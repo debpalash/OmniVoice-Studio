@@ -35,9 +35,17 @@ def _env(monkeypatch, *, torch_file, triton=True):
     monkeypatch.setattr(
         engine_env, "settings_store", None, raising=False
     )
-    import sys as _sys, types as _types
-    _sys.modules["services.settings_store"] = _types.SimpleNamespace(
-        get_text=lambda *a, **k: "0"
+    # monkeypatch.setitem, never a raw assignment: a bare object dropped into
+    # sys.modules leaks process-wide out of collection and breaks every later
+    # import of the real module in a mixed run. backend/tests/
+    # test_no_module_stubs.py exists to catch exactly that, and caught this.
+    import sys as _sys
+    import types as _types
+
+    monkeypatch.setitem(
+        _sys.modules,
+        "services.settings_store",
+        _types.SimpleNamespace(get_text=lambda *a, **k: "0"),
     )
     monkeypatch.setattr(
         engine_env, "_cuda_arch_supported_for_compile", lambda: (True, "")
