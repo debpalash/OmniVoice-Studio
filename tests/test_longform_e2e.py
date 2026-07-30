@@ -36,13 +36,15 @@ def _resolve(_voice_id):
     return {"ref_audio": None, "ref_text": None, "instruct": None, "seed": None}
 
 
-def _stub_build_synth(*, fail_on=None):
+def _stub_build_synth(*, fail_on=None, exc=None):
     """Return a drop-in for `audiobook._build_synth` whose `synth` emits 0.1s of
-    silence per span. `fail_on(text)` → raise, to exercise per-chapter faults."""
+    silence per span. `fail_on(text)` → raise, to exercise per-chapter faults;
+    `exc` overrides what is raised (an engine can fail with an exception whose
+    ``str()`` is empty — see the StopIteration case below)."""
     def _factory(default_voice=None, language=None, opts=None, voice_map=None):
         def synth(text, voice_id, speed=None):
             if fail_on is not None and fail_on(text):
-                raise RuntimeError("stub synth deliberately failed")
+                raise exc if exc is not None else RuntimeError("stub synth deliberately failed")
             return torch.zeros(2400)  # 0.1s @ 24k, 1-D float32
         return {"mode": "generic", "resolve": _resolve, "engine_id": "stub",
                 "synth": synth, "sample_rate": 24000}
@@ -58,11 +60,11 @@ def _plan(*chapters):
     ])
 
 
-def _collect_events(plan, monkeypatch, outputs_dir, *, fail_on=None, **kw):
+def _collect_events(plan, monkeypatch, outputs_dir, *, fail_on=None, exc=None, **kw):
     """Patch the synth + OUTPUTS_DIR, drive the real generator, return parsed
     SSE events (list of dicts)."""
     from api.routers import audiobook
-    monkeypatch.setattr(audiobook, "_build_synth", _stub_build_synth(fail_on=fail_on))
+    monkeypatch.setattr(audiobook, "_build_synth", _stub_build_synth(fail_on=fail_on, exc=exc))
     monkeypatch.setattr("core.config.OUTPUTS_DIR", str(outputs_dir))
 
     async def _run():
@@ -133,6 +135,17 @@ def test_partial_failure_isolates_bad_chapter(tmp_path, monkeypatch):
     assert "chapter_error" in types and "done" in types
     err = next(e for e in events if e["type"] == "chapter_error")
     assert err["index"] == 0
+    # #1321: the event has to name the cause. It used to say only "chapter
+    # failed to render", so the reason existed nowhere but the backend log and
+    # a user could not tell a bad voice from an engine that can't read their
+    # script. `error` keeps mirroring `reason` for older frontends.
+    assert "stub synth deliberately failed" in err["reason"]
+    assert err["error"] == err["reason"]
+    assert err["error_class"] == "RuntimeError"
+    assert err["stage"] == "audiobook_chapter"
+    # Per-chapter events carry no env diagnostic — it is identical for every
+    # chapter and a long book emits hundreds of these.
+    assert "diagnostic" not in err
     done = events[-1]
     assert done["chapters"] == 1 and done["failed_chapters"] == [0]
     assert (out / done["output"]).exists()  # the surviving chapter still muxed
@@ -145,9 +158,59 @@ def test_all_chapters_fail_emits_error_and_no_file(tmp_path, monkeypatch):
         _plan(("A", "x"), ("B", "y")), monkeypatch, out,
         fmt="m4b", fail_on=lambda t: True,
     )
-    assert events[-1] == {"type": "error", "error": "all chapters failed to render"}
+    err = events[-1]
+    assert err["type"] == "error"
+    # Summary first, then the cause (#1321) — the old event was the summary
+    # alone, which is the symptom the user already knew.
+    assert err["reason"].startswith("all 2 chapters failed to render — ")
+    assert "stub synth deliberately failed" in err["reason"]
+    assert err["error"] == err["reason"]
+    # Terminal event, so it does carry the env diagnostic the bug reporter reads.
+    assert err["diagnostic"]
     # No output file was produced.
     assert not any(p.suffix in (".m4b", ".mp3") for p in out.iterdir())
+
+
+def test_bare_stopiteration_from_an_engine_is_reported_not_hung(tmp_path, monkeypatch):
+    """#1321: a generator-based engine (VoxCPM's ``next_and_close`` is a bare
+    ``next(gen)``) raises ``StopIteration`` when its generator ends without
+    yielding. asyncio cannot put that into a Future, so before the pool guard
+    this call never returned at all — the render stopped emitting and waited
+    forever. It must come back as an ordinary chapter failure with a reason.
+
+    Without the guard in model_manager this test HANGS rather than fails, which
+    is exactly the user-visible symptom."""
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(
+        _plan(("A", "x")), monkeypatch, out,
+        fmt="m4b", fail_on=lambda t: True, exc=StopIteration(),
+    )
+    chapter_err = next(e for e in events if e["type"] == "chapter_error")
+    assert chapter_err["error_class"] == "WorkerStopIteration"
+    assert "StopIteration" in chapter_err["reason"]
+    assert chapter_err["error"] == chapter_err["reason"]
+    assert events[-1]["reason"].startswith("all 1 chapters failed to render — ")
+
+
+def test_chapter_error_names_an_exception_with_no_message(tmp_path, monkeypatch):
+    """An exception whose ``str()`` is empty must still produce a reason — any
+    emit site that formats ``str(e)`` would tell the user nothing at all. The
+    class name is the floor (#1252/#1253 class, re-asserted here for the
+    longform path)."""
+    class SilentEngineError(Exception):
+        pass
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    events = _collect_events(
+        _plan(("A", "x")), monkeypatch, out,
+        fmt="m4b", fail_on=lambda t: True, exc=SilentEngineError(),
+    )
+    chapter_err = next(e for e in events if e["type"] == "chapter_error")
+    assert chapter_err["reason"] == "SilentEngineError"
+    assert chapter_err["error"] == "SilentEngineError"
+    assert events[-1]["reason"] == "all 1 chapters failed to render — SilentEngineError"
 
 
 # ── degenerate / environment ────────────────────────────────────────────────

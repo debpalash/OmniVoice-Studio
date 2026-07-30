@@ -109,6 +109,10 @@ export default function GenerationProgress({ t, chapters = [], assembling = fals
           <li
             key={i}
             className={`audiobook-progress__row status-${c.status}`}
+            // A failed chapter used to be a red row with no reason anywhere in
+            // the UI (#1321). The row is single-line/ellipsised, so the full
+            // text lives in the native tooltip and the head of it renders inline.
+            title={c.status === 'failed' && c.error ? c.error : undefined}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -124,7 +128,15 @@ export default function GenerationProgress({ t, chapters = [], assembling = fals
               {c.title || t('audiobook.chapter_n', { n: i + 1 })}
             </span>
             {c.status === 'cached' && <span className="muted">· {t('audiobook.cached_tag')}</span>}
-            {c.status === 'failed' && <span className="muted">· {t('audiobook.failed_tag')}</span>}
+            {c.status === 'failed' && (
+              <span
+                className="muted"
+                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                · {t('audiobook.failed_tag')}
+                {c.error ? `: ${c.error}` : ''}
+              </span>
+            )}
           </li>
         ))}
       </ol>

@@ -760,6 +760,7 @@ async def _render_longform_sse(
     convergence point: one renderer, two front doors.
     """
     from core.config import OUTPUTS_DIR
+    from core.failure import build_failure, build_failure_event
     from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
     from services.model_manager import _gpu_pool
 
@@ -849,6 +850,9 @@ async def _render_longform_sse(
         chapters_meta: list[tuple[str, int]] = []
         cached_n = 0
         failed: list[int] = []
+        # Kept so the terminal "all chapters failed" event can name the cause
+        # instead of restating the symptom (#1321).
+        last_chapter_exc: Exception | None = None
         interrupted = False
         yield _emit({"type": "started", "job_id": job_id, "chapters": total})
 
@@ -878,12 +882,28 @@ async def _render_longform_sse(
                     chapter, synth, sr, engine_id, resolve, cache_dir, lexicon,
                     resolved_lang, opts, voice_map,
                 )
-            except Exception:  # isolate a bad chapter — keep going
+            except Exception as e:  # isolate a bad chapter — keep going
                 logger.warning("[%s] chapter %d (%s) failed to render",
                                job_id, i, chapter.title, exc_info=True)
                 failed.append(i)
+                # Carry the real reason (#1321). The old event said only
+                # "chapter failed to render", so a failed chapter was a red row
+                # and nothing else — the cause existed solely in the backend log,
+                # which is why the report for this arrived as a bare traceback.
+                # build_failure guarantees a non-empty reason even for exceptions
+                # whose str() is empty (a generator-based engine that yields
+                # nothing raises a bare StopIteration), sanitizes paths/tokens,
+                # and adds the docs deeplink + hint. `error` stays populated —
+                # build_failure mirrors reason into it — so older frontends and
+                # the Stories exporter keep working.
+                last_chapter_exc = e
                 yield _emit({"type": "chapter_error", "index": i, "total": total,
-                             "title": chapter.title, "error": "chapter failed to render"})
+                             "title": chapter.title,
+                             # No env diagnostic per chapter: a book can fail
+                             # hundreds of times and it is identical every time.
+                             # The terminal error below carries one.
+                             **build_failure(e, stage="audiobook_chapter",
+                                             include_diagnostic=False)})
                 continue
             chapter_files.append(wav_path)
             chapters_meta.append((chapter.title, int(round(dur * 1000))))
@@ -920,7 +940,19 @@ async def _render_longform_sse(
             return
 
         if not chapter_files:
-            yield _emit({"type": "error", "error": "all chapters failed to render"})
+            # Every chapter failed, so the render is over — this is the event the
+            # UI turns into a toast, and it used to carry only the symptom
+            # (#1321). Lead with the summary, then the cause; docs_topic/hint are
+            # classified from the raw exception text, so prefixing the reason
+            # afterwards cannot mis-route the deeplink.
+            if last_chapter_exc is not None:
+                ev = build_failure_event(last_chapter_exc, stage="audiobook_render")
+                ev["reason"] = f"all {total} chapters failed to render — {ev['reason']}"
+                ev["error"] = ev["reason"]
+            else:
+                ev = {"type": "error", "error": "all chapters failed to render",
+                      "reason": "all chapters failed to render"}
+            yield _emit(ev)
             return
 
         yield _emit({"type": "assembling"})

@@ -59,8 +59,52 @@ logger = logging.getLogger("omnivoice.model")
 _GPU_VRAM_PER_JOB_GB = 5.0
 _GPU_WORKER_CAP = 4
 
+class WorkerStopIteration(RuntimeError):
+    """A pool worker raised a bare ``StopIteration``.
+
+    asyncio refuses to put ``StopIteration`` into a Future — ``_copy_future_
+    state`` raises ``TypeError: StopIteration interacts badly with generators
+    and cannot be raised into a Future`` *inside the event loop's callback*, so
+    the ``run_in_executor`` future is never completed and the awaiting caller
+    waits **forever**. Not a theoretical edge: verified on the bundled CPython
+    3.11, and the failure has no error, no event and no timeout — a render just
+    stops, which is indistinguishable to the user from a wedged app.
+
+    Generator-driven engines reach it on ordinary bad input: VoxCPM's
+    ``next_and_close`` is a bare ``next(gen)``, so a generator that ends without
+    yielding (text the model normalises away to nothing, for instance) raises
+    exactly this out of ``backend.generate`` (#1321 class).
+
+    Translating it to a RuntimeError at the pool boundary — the one place every
+    dispatch funnels through — turns a silent hang into a normal failure that
+    the existing per-chapter / per-job error handling reports. Subclasses
+    RuntimeError so every `except Exception` site upstream keeps working.
+    """
+
+
+def _guard_stopiteration(fn):
+    """Wrap `fn` so a bare StopIteration can never escape into a Future."""
+    def _guarded(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except StopIteration as e:
+            raise WorkerStopIteration(
+                "the engine stopped without producing a result (StopIteration) — "
+                "its generator ended before yielding anything, which usually means "
+                "it could not handle this input"
+            ) from e
+    return _guarded
+
+
+class _GuardedCpuPool(ThreadPoolExecutor):
+    """CPU pool with the same StopIteration guard as the GPU pool."""
+
+    def submit(self, fn, /, *args, **kwargs):
+        return super().submit(_guard_stopiteration(fn), *args, **kwargs)
+
+
 _gpu_pool_singleton: "_ResilientGpuPool | None" = None
-_cpu_pool = ThreadPoolExecutor(max_workers=CPU_POOL_WORKERS)
+_cpu_pool = _GuardedCpuPool(max_workers=CPU_POOL_WORKERS)
 
 
 def _workers_for_free_vram(free_gb: float) -> int:
@@ -198,7 +242,9 @@ class _ResilientGpuPool(Executor):
                 self._running += 1
             t0 = time.monotonic()
             try:
-                return fn(*a, **kw)
+                # A bare StopIteration here would never reach the caller — it
+                # hangs the awaiting future instead (see WorkerStopIteration).
+                return _guard_stopiteration(fn)(*a, **kw)
             finally:
                 elapsed = time.monotonic() - t0
                 with self._stats_lock:
