@@ -69,7 +69,7 @@ def test_dirty_a_stale_module_alias():
         # mod` reads it (not sys.modules) for the `as` binding, so leaving it on
         # the duplicate would hand the fixture the very module this test just
         # stranded — the guard would pass for the wrong reason.
-        setattr(sys.modules["services"], "model_manager", live)
+        sys.modules["services"].model_manager = live
     assert stale_mm is not live, "expected a genuinely distinct module object"
     assert importlib.import_module("services.model_manager") is live
 
