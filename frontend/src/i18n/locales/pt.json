@@ -2,7 +2,7 @@
   "backendUnreachable": {
     "contact_recent": "Estava respondendo há {{ago}} e depois parou de responder — muito provavelmente travou ou foi encerrado no meio de uma requisição.",
     "contact_never": "Não respondeu nenhuma vez nesta sessão — pode ser que nunca tenha iniciado.",
-    "dev": "Não foi possível conectar ao backend local do OmniVoice. {{contact}} Verifique o terminal executando `bun run dev` em busca de um traceback do Python ou um aviso de saída, e o arquivo omnivoice.log na sua pasta de dados do OmniVoice para ver o último registro do backend.",
+    "dev": "Não é possível contactar o backend local do OmniVoice. {{contact}} Com `bun run dev` o backend corre com recarga automática: qualquer alteração de ficheiro — incluindo gravar enquanto havia um pedido em curso — reinicia-o e corta a ligação. Tente a ação novamente primeiro; se foi uma recarga, funciona. Se continuar a falhar, verifique o terminal com `bun run dev` para um traceback de Python ou uma mensagem de saída, e omnivoice.log na sua pasta de dados do OmniVoice.",
     "server": "Não foi possível conectar ao servidor backend do OmniVoice. {{contact}} Verifique os logs do servidor para encontrar a causa (ex.: `docker logs <container>` ou `journalctl`) — e note que, se o Docker serve esta página, a própria página pode cair junto com o backend."
   },
   "nav": {

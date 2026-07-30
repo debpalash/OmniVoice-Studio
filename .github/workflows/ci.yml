@@ -83,6 +83,14 @@ jobs:
       - name: Validate install docs against desktop-prod.sh
         run: python scripts/validate-install-docs.py
 
+      # The AppImage launcher decides which WebKitGTK actually runs — the wrong
+      # answer is a permanently blank window on Linux (#56, #961, #1258), and
+      # the only place that logic is exercised is this shell harness. It had
+      # never been wired into CI, so its cases were a regression test nothing
+      # ran. Cheap (pure bash, stubs pkg-config) and it gates the class.
+      - name: AppImage launcher (AppRun) unit tests
+        run: bash frontend/src-tauri/appimage/AppRun.test.sh
+
       # `backend/tests/` mounts routers on bare FastAPI apps (no heavy main
       # import chain) with a hermetic data dir from its conftest.py. It no
       # longer stubs sys.modules, so mixed sessions with tests/ are safe;

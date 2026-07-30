@@ -313,10 +313,36 @@ export function crashAge(marker: Pick<BackendCrashMarker, 'ts'>, nowMs = Date.no
  * `getCrash` is an injectable seam (same idea as services/endpoint_race's
  * injectable probers) so the branch logic is unit-testable without a shell.
  */
+/** Is the backend answering right now? Short timeout — this runs on a failure
+ *  path and must not add a visible stall. Any error means "cannot tell". */
+async function _probeBackendAlive(): Promise<boolean> {
+  try {
+    const { apiUrl } = await import('../api/client.ts');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    try {
+      const res = await fetch(apiUrl('/system/info'), {
+        signal: controller.signal,
+        headers: _fallbackHeaders(),
+      });
+      return res.ok;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return false;
+  }
+}
+
 export async function streamDropError(
   fallbackMessage: string,
   getCrash: () => Promise<BackendCrashMarker | null> = getUnacknowledgedBackendCrash,
-  opts: { waitMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+  opts: {
+    waitMs?: number;
+    intervalMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+    probeAlive?: () => Promise<boolean>;
+  } = {},
 ): Promise<Error> {
   // #1119: the shell learns the backend died from a ~2 s POLL — it must notice
   // the child exit and write the crash marker. Asking for that marker ONCE, at
@@ -346,7 +372,35 @@ export async function streamDropError(
     if (Date.now() >= deadline) break;
     await sleep(intervalMs);
   }
-  if (!crash) return new Error(fallbackMessage);
+  if (!crash) {
+    // No crash marker — but "no marker" is not "the backend died and we missed
+    // it". Outside the Tauri shell there is no death watcher at all, so this
+    // branch is where every browser/Docker user lands, and the caller's
+    // fallback used to assert a cause on their behalf ("Likely ASR backend
+    // failed to load"). #1242 reported exactly that, in `server` mode, with the
+    // backend having answered 20 s earlier — so nothing had crashed and nothing
+    // had failed to load.
+    //
+    // Ask instead of assuming. If the backend is still answering, the process
+    // did not go away, which rules the caller's guess out: in a served
+    // deployment a stream that dies while the server is healthy is
+    // characteristically a reverse proxy or load balancer buffering or timing
+    // out the SSE connection.
+    const probeAlive = opts.probeAlive ?? _probeBackendAlive;
+    if (await probeAlive()) {
+      return new Error(
+        i18next.t('errors.stream_cut_backend_alive', {
+          defaultValue:
+            'The stream ended early, but the backend is still running — so it did not crash. ' +
+            'In a served or containerised setup this is usually a reverse proxy or load balancer ' +
+            'buffering or timing out the connection: disable response buffering for this route ' +
+            '(nginx: proxy_buffering off; X-Accel-Buffering: no) and raise its read timeout. ' +
+            'Running the desktop app directly, or on localhost without a proxy, will confirm it.',
+        }),
+      );
+    }
+    return new Error(fallbackMessage);
+  }
   try {
     window.dispatchEvent(new CustomEvent('ov:backend-crashed', { detail: crash }));
   } catch {

@@ -2,7 +2,7 @@
   "backendUnreachable": {
     "contact_recent": "Backend masih merespons {{ago}} yang lalu lalu berhenti merespons — kemungkinan besar crash atau dihentikan di tengah permintaan.",
     "contact_never": "Backend sama sekali belum merespons pada sesi ini — mungkin tidak pernah berhasil dijalankan.",
-    "dev": "Tidak dapat menghubungi backend OmniVoice lokal. {{contact}} Periksa terminal yang menjalankan `bun run dev` untuk traceback Python atau banner keluar, dan berkas omnivoice.log di folder data OmniVoice Anda untuk catatan terakhir backend.",
+    "dev": "Tidak dapat menghubungi backend OmniVoice lokal. {{contact}} Pada `bun run dev` backend berjalan dengan muat-ulang otomatis: setiap perubahan berkas — termasuk menyimpan saat ada permintaan berjalan — membuatnya dimulai ulang dan memutus koneksi. Coba ulangi tindakan dulu; jika itu muat-ulang, akan langsung berhasil. Jika terus gagal, periksa terminal `bun run dev` untuk traceback Python atau pesan keluar, dan omnivoice.log di folder data OmniVoice Anda.",
     "server": "Tidak dapat menghubungi server backend OmniVoice. {{contact}} Periksa log server untuk penyebabnya (mis. `docker logs <container>` atau `journalctl`) — dan perlu diketahui, jika Docker menyajikan halaman ini, halaman ini sendiri bisa ikut mati bersama backend."
   },
   "nav": {

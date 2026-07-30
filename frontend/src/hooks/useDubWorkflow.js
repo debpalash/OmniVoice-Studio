@@ -269,8 +269,13 @@ export default function useDubWorkflow({
           // forbids — so the backend PROCESS went away (on small GPUs, a VRAM
           // abort while loading ASR is the usual trigger). Ask the shell's crash
           // forensics rather than guessing "ASR failed to load" (#1062).
+          // The fallback no longer names a cause. streamDropError() checks the
+          // crash forensics AND whether the backend is still answering, and
+          // only this message survives when both are inconclusive — asserting
+          // "ASR failed to load" there sent #1242's reporter after a model
+          // that had loaded fine.
           streamDropError(
-            'Transcribe stream dropped before emitting any segments. Likely ASR backend failed to load — check backend log + Settings → Models.',
+            'Transcribe stream ended before any segments arrived, and the backend could not be reached to say why — check the backend log, and Settings → Models if the ASR model was still downloading.',
           ).then(reject, reject);
         });
       }),

@@ -98,7 +98,11 @@ reviews:
         access accordingly; window and webview lifecycle on all three OSes;
         child-process spawn/exit-code/stderr handling; no unwrap/expect on
         user-controlled input; platform cfg blocks keep user-visible defaults
-        identical across macOS/Windows/Linux.
+        identical across macOS/Windows/Linux. The parity rule covers BEHAVIOUR,
+        not PERFORMANCE: hardware acceleration is host-dependent by design
+        (CUDA/MPS/DirectML, Triton availability, torch.compile), so an
+        optimization skipped where it cannot work is NOT a parity violation and
+        must not be reported as one.
     - path: "tests/**/*.py"
       instructions: >-
         Review as a test-infrastructure engineer. Check: the test would fail

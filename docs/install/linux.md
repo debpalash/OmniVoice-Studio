@@ -134,8 +134,51 @@ remains the documented fallback when running from a checked-out source tree.
 WEBKIT_DISABLE_DMABUF_RENDERER=1 LIBGL_ALWAYS_SOFTWARE=1 ./OmniVoice.Studio_*.AppImage
 ```
 
+### If no environment variable helps at all (Mesa 26.1+)
+
+On a host with **Mesa 26.1 or newer** — Arch/CachyOS, and rolling distros
+generally — none of the variables above make any difference, including
+`WEBKIT_DMABUF_RENDERER_FORCE_SHM`, `WEBKIT_SKIA_ENABLE_CPU_RENDERING`,
+`EGL_PLATFORM=surfaceless` and `MESA_LOADER_DRIVER_OVERRIDE=swrast`. That is
+expected: the failure is in EGL **display creation**, which happens before
+WebKit consults any rendering-path flag, so there is nothing left for a flag
+to change.
+
+The cause is a version pairing, not a bug in either half. The AppImage bundles
+a WebKitGTK built on Ubuntu but ships no `libEGL` of its own, so that bundled
+WebKit runs against *your* Mesa. On Mesa ≥ 26.1 it calls
+`eglGetPlatformDisplay()` in a way the newer driver rejects. Your distro's own
+WebKitGTK is fine, because it was compiled against the Mesa you are running —
+which is why building from source works on the same machine.
+
+**From v0.4.1 the AppImage handles this itself:** when your system has a
+WebKitGTK at least as new as the bundled one, the launcher lets your copy take
+precedence, and the bundled libraries fill in only what your system lacks.
+
+That check reads your WebKit version from `pkg-config`, which is only installed
+alongside the **development** package. If you have the runtime but not the dev
+package, the launcher can't compare versions and keeps the bundled copy — so
+tell it explicitly:
+
+```bash
+OMNIVOICE_PREFER_SYSTEM_WEBKIT=1 ./OmniVoice.Studio_*.AppImage
+```
+
+(Set it to `0` to force the bundled copy — useful if your distro's WebKitGTK is
+older than ours and you'd rather keep the newer bundled one.)
+
+If you are on v0.4.0 or older, either update or build from source:
+
+```bash
+git clone https://github.com/debpalash/OmniVoice-Studio.git
+cd OmniVoice-Studio
+bun install
+bun run desktop-prod
+```
+
 Tracking issues: [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
-[#961](https://github.com/debpalash/OmniVoice-Studio/issues/961).
+[#961](https://github.com/debpalash/OmniVoice-Studio/issues/961),
+[#1258](https://github.com/debpalash/OmniVoice-Studio/issues/1258).
 
 ## .deb ffprobe conflict
 

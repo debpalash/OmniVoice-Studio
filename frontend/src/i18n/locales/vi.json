@@ -2,7 +2,7 @@
   "backendUnreachable": {
     "contact_recent": "Nó vẫn phản hồi cách đây {{ago}} rồi ngừng phản hồi — rất có thể nó đã gặp sự cố hoặc bị buộc dừng giữa một yêu cầu.",
     "contact_never": "Nó chưa hề phản hồi trong phiên này — có thể nó chưa bao giờ khởi động.",
-    "dev": "Không thể kết nối tới backend OmniVoice cục bộ. {{contact}} Hãy kiểm tra terminal đang chạy `bun run dev` để tìm traceback Python hoặc thông báo thoát, và xem tệp omnivoice.log trong thư mục dữ liệu OmniVoice để biết log cuối cùng của backend.",
+    "dev": "Không thể kết nối tới backend OmniVoice cục bộ. {{contact}} Với `bun run dev`, backend chạy ở chế độ tự tải lại: bất kỳ thay đổi tệp nào — kể cả lưu khi đang có yêu cầu — sẽ khởi động lại nó và làm mất kết nối. Hãy thử lại thao tác trước; nếu là do tải lại thì sẽ chạy được. Nếu vẫn lỗi, xem terminal đang chạy `bun run dev` để tìm traceback Python hoặc thông báo thoát, và omnivoice.log trong thư mục dữ liệu OmniVoice.",
     "server": "Không thể kết nối tới máy chủ backend OmniVoice. {{contact}} Hãy kiểm tra log máy chủ để tìm nguyên nhân (ví dụ `docker logs <container>` hoặc `journalctl`) — và lưu ý nếu Docker phục vụ trang này thì chính trang này cũng có thể sập cùng backend."
   },
   "nav": {

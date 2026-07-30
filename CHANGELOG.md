@@ -14,6 +14,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A warning before a slow generation, rather than after a five-minute wait
 - The watermark can be turned off in Settings, as the docs always said
 - macOS support now matches what the app actually delivers
+- Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
 
 ### Changed
 
@@ -34,11 +35,16 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A cut TLS connection is explained in words rather than as `_ssl.c:1016`. (#1301)
 - `torch.compile` is skipped when the torch library path contains a space, instead of failing in the linker on every load. (#1266)
 - macOS Preview updates work again — the updater bundle had been colliding with itself since early July. (#1281)
+- A dub whose transcription stream is cut by a reverse proxy now says so, instead of blaming the ASR model. (#1317)
+- The dev backend going quiet under `--reload` is named as auto-reload rather than reported as a crash. (#1261)
+- Linux AppImage: a permanently blank window on Mesa 26.1+ hosts (Arch/CachyOS and other rolling distros) — the bundled WebKit ran against a newer system Mesa than it was built for, and no environment variable could help because the failure precedes every rendering flag; the launcher now lets a newer system WebKitGTK take precedence — thanks @rvasilev and @HannaLovvold! (#1258, #1244)
+- Linux AppImage: `OMNIVOICE_PREFER_SYSTEM_WEBKIT=1` forces your own WebKitGTK for hosts where its version can't be read automatically (no `pkg-config`), and `=0` forces the bundled one (#1258)
 
 ### Docs
 
 - Engine acceptance: new `docs/engine-acceptance.md` documents the job map, the bar a new engine must clear, and the out-of-tree path (#1306)
 - macOS install notes and the README support table now state the real floor (#1268)
+- Contact: the project X account is listed alongside Discord (#1313)
 
 ### CI
 
@@ -96,6 +102,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Docs
 
+- Linux install: a new section for the Mesa 26.1+ blank window, stating plainly that no environment variable works and why (#1258)
 - Docker: ROCm section explains that `torch.cuda.is_available() == True` isn't proof the app is on the GPU, and notes the `--group-add` needed for `/dev/kfd` on rootless hosts (#1228)
 
 ### Fixed
@@ -126,6 +133,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A model download truncated near the end is now retried and resumed instead of aborting the whole install — thanks @Reaksa-Cambodia! (#1224)
 - Engine first-use downloads (VoxCPM2, MOSS-TTS-Nano) retry transient network failures instead of failing the load outright (#1224)
 - A backend killed by the OS mid-stream now leaves a low-memory trail in the crash report (#1224)
+
+### CI
+
+- The AppImage launcher's unit tests now run in CI — they existed but nothing executed them (#1258)
 
 ## [0.4.0] — 2026-07-21
 
