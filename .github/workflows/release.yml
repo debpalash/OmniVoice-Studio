@@ -919,6 +919,87 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Needed by the manifest rebuild + signature check below: the updater
+      # pubkey lives in frontend/src-tauri/tauri.conf.json.
+      - uses: actions/checkout@v4
+
+      # ── Rebuild the preview updater manifest from what is ACTUALLY published ──
+      # Since ~2026-07-13 every matrix leg has logged "Signature not found for
+      # the updater JSON. Skipping upload..." — tauri-action uploads the bundles
+      # + .sig companions but never refreshes latest.json. Meanwhile the macOS
+      # updater bundles (version-less filenames) are deleted + replaced every
+      # night by "Clear this arch's stale preview updater bundle", so the
+      # manifest's darwin signatures stopped matching the published files:
+      # macOS Preview users hit "The signature verification failed" on every
+      # update attempt (latest.json frozen at 2026-07-13, tar.gz replaced
+      # nightly).
+      #
+      # Root fix: after the matrix completes, rebuild latest.json HERE — one
+      # job, no per-leg race — from the release's real assets and their .sig
+      # companions, then clobber-upload. The manifest can no longer drift from
+      # the files it describes, regardless of what tauri-action's own
+      # updater-JSON path does or skips.
+      - name: Rebuild preview updater manifest from published assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release view preview --repo "$REPO" --json assets \
+            -q '[.assets[].name]' > /tmp/assets.json
+          WORK=$(mktemp -d)
+          python3 - "$WORK" <<'PY'
+          import datetime, json, os, re, subprocess, sys
+          work = sys.argv[1]
+          repo = os.environ["REPO"]
+          names = json.load(open("/tmp/assets.json"))
+
+          def sig(name):
+              subprocess.run(["gh", "release", "download", "preview", "--repo", repo,
+                              "-p", name + ".sig", "-D", work], check=True)
+              return open(os.path.join(work, name + ".sig")).read().strip()
+
+          # Versioned artifacts accumulate on the rolling release; the newest
+          # BASE-N (N = run number, monotonically increasing) is current.
+          def newest(pattern):
+              best, best_n = None, -1
+              for n in names:
+                  m = re.fullmatch(pattern, n)
+                  if m and int(m.group("n")) > best_n:
+                      best, best_n = n, int(m.group("n"))
+              return best, best_n
+
+          appimage, n1 = newest(r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_amd64\.AppImage")
+          msi, n2 = newest(r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_x64_en-US\.msi")
+          assert appimage and msi, f"missing versioned updater artifacts (AppImage={appimage}, MSI={msi})"
+          version = re.search(r"_([\d.]+-\d+)_", appimage if n1 >= n2 else msi).group(1)
+          mac_a = "OmniVoice.Studio_aarch64.app.tar.gz"
+          mac_x = "OmniVoice.Studio_x64.app.tar.gz"
+          for required in (mac_a, mac_x, appimage, msi):
+              assert required in names, f"updater artifact missing from release: {required}"
+              assert required + ".sig" in names, f".sig companion missing for: {required}"
+          base = f"https://github.com/{repo}/releases/download/preview/"
+          entries = {
+              "darwin-aarch64": mac_a, "darwin-aarch64-app": mac_a,
+              "darwin-x86_64": mac_x, "darwin-x86_64-app": mac_x,
+              "linux-x86_64": appimage, "linux-x86_64-appimage": appimage,
+              "windows-x86_64": msi, "windows-x86_64-msi": msi,
+          }
+          sigs = {n: sig(n) for n in sorted(set(entries.values()))}
+          manifest = {
+              "version": version,
+              "notes": "Auto-generated rolling preview build from main. See CHANGELOG.md and the commit log for details.",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc)
+                          .isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+              "platforms": {k: {"signature": sigs[v], "url": base + v}
+                            for k, v in entries.items()},
+          }
+          json.dump(manifest, open(os.path.join(work, "latest.json"), "w"), indent=2)
+          print(f"Rebuilt preview latest.json: version={version}")
+          PY
+          gh release upload preview "$WORK/latest.json" --clobber --repo "$REPO"
+          echo "Uploaded rebuilt latest.json to the preview release."
+
       - name: Generate + apply GitHub release notes to the preview release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -952,7 +1033,7 @@ jobs:
           gh release edit preview --repo "$REPO" --prerelease --notes-file /tmp/preview-notes.md
           echo "Applied auto-generated release notes + contributors to the preview release."
 
-      - name: Verify preview updater manifest (prerelease + platform parity)
+      - name: Verify preview updater manifest (prerelease + parity + signatures)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -976,6 +1057,54 @@ jobs:
           missing = sk - pk
           assert not missing, f"preview manifest missing platforms vs stable: {sorted(missing)}"
           print(f"preview manifest OK: {v} platforms={sorted(pk)}")
+          PY
+          # ── Cryptographic check: every signature in latest.json must verify
+          # against the artifact the manifest points at, with the updater pubkey
+          # baked into the app (tauri.conf.json). This is the check that was
+          # missing while the manifest drifted for 2+ weeks: parity and version
+          # format both passed while every darwin entry was unverifiable and
+          # macOS Preview users saw "The signature verification failed".
+          pip install --quiet cryptography
+          python3 - <<'PY'
+          import base64, hashlib, json, os, subprocess, sys, tempfile
+          from urllib.parse import unquote
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+          conf = json.load(open("frontend/src-tauri/tauri.conf.json"))
+          pub_doc = base64.b64decode(conf["plugins"]["updater"]["pubkey"]).decode()
+          pub = base64.b64decode(pub_doc.strip().splitlines()[1])
+          assert pub[:2] == b"Ed", "unexpected pubkey algorithm"
+          pk = Ed25519PublicKey.from_public_bytes(pub[10:42])
+          manifest = json.load(open("/tmp/preview-latest.json"))
+          work = tempfile.mkdtemp()
+          repo = os.environ["REPO"]
+          digests, failures = {}, []
+          for plat, info in sorted(manifest["platforms"].items()):
+              name = unquote(info["url"].rsplit("/", 1)[-1])
+              path = os.path.join(work, name)
+              if name not in digests:
+                  subprocess.run(["gh", "release", "download", "preview",
+                                  "--repo", repo, "-p", name, "-D", work],
+                                 check=True)
+                  h = hashlib.blake2b(digest_size=64)
+                  with open(path, "rb") as f:
+                      for chunk in iter(lambda: f.read(1 << 20), b""):
+                          h.update(chunk)
+                  digests[name] = h.digest()
+              lines = base64.b64decode(info["signature"]).decode().splitlines()
+              sig = base64.b64decode(lines[1])
+              tc = lines[2].split("trusted comment: ", 1)[1]
+              gsig = base64.b64decode(lines[3])
+              try:
+                  pk.verify(sig[10:74], digests[name])
+                  pk.verify(gsig, sig[10:74] + tc.encode())
+                  print(f"OK   {plat}: signature matches {name}")
+              except Exception:
+                  failures.append(plat)
+                  print(f"FAIL {plat}: signature in latest.json does NOT match {name}")
+          if failures:
+              sys.exit("Updater manifest is broken for: " + ", ".join(failures)
+                       + " — clients on Preview would hit 'signature verification failed'.")
+          print("All preview updater manifest signatures verified.")
           PY
 
   # ── Post-release version bump (OWNER-GATED as of 2026-07-01) ──────────────
