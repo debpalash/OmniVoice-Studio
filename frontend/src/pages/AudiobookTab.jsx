@@ -334,7 +334,12 @@ export default function AudiobookTab({ profiles = [] }) {
             setChapters((prev) =>
               prev.map((c, j) =>
                 j === evt.index
-                  ? { ...c, title: evt.title, status: 'failed', error: evt.reason || evt.error || '' }
+                  ? {
+                      ...c,
+                      title: evt.title,
+                      status: 'failed',
+                      error: evt.reason || evt.error || '',
+                    }
                   : j === evt.index + 1 && c.status === 'pending'
                     ? { ...c, status: 'rendering' }
                     : c,

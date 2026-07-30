@@ -24,9 +24,7 @@ const CHAPTERS = [
 describe('GenerationProgress — failed chapter reason (#1321)', () => {
   it('shows the reason next to the failed chapter', () => {
     render(<GenerationProgress t={t} chapters={CHAPTERS} />);
-    expect(
-      screen.getByText(/the engine stopped without producing a result/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/the engine stopped without producing a result/i)).toBeTruthy();
   });
 
   it('puts the full reason in the row tooltip, since the row is ellipsised', () => {
