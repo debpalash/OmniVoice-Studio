@@ -74,3 +74,38 @@ def test_skip_build_does_not_imply_keep_data_in_the_script():
     )
     # And the wipe stays gated on KEEP_DATA alone.
     assert 'if [ "$KEEP_DATA" = false ]; then' in src
+
+
+def test_running_instances_are_killed_regardless_of_data_policy():
+    """Killing the live app must not be gated on the wipe (#1333 review).
+
+    The app registers ``tauri_plugin_single_instance``, and its callback ignores
+    the incoming argv — it just refocuses the window the RUNNING process already
+    owns. Starting a second copy over a live one therefore does nothing visible:
+    ``desktop-prod:run`` would refocus the OLD build instead of the one just
+    compiled, and ``desktop-prod:run:pill`` would leave the user in studio mode
+    with ``--pill`` silently discarded.
+
+    That was previously masked: the kill lived inside the ``KEEP_DATA = false``
+    branch, so every run happened to kill first *because* every run wiped.
+    Adding ``--keep-data`` to the re-launch aliases removed the wipe and would
+    have taken the kill with it.
+    """
+    with open(_SH, encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+
+    call_lines = [
+        i for i, ln in enumerate(lines)
+        if ln.strip() == "kill_running_instances"
+    ]
+    assert call_lines, "kill_running_instances is never called"
+
+    guard = next(
+        i for i, ln in enumerate(lines)
+        if ln.strip() == 'if [ "$KEEP_DATA" = false ]; then'
+    )
+    assert any(i < guard for i in call_lines), (
+        "kill_running_instances is only called inside the KEEP_DATA=false wipe "
+        "branch, so a --keep-data run launches on top of the live app and "
+        "single-instance just refocuses the old window (#1333)"
+    )

@@ -125,10 +125,21 @@ is_app_scoped() {
   esac
 }
 
-# ── Kill-before-wipe: never clean under a live instance ────────────────────
-# A backend that survives the wipe becomes a zombie: /health keeps answering
-# from memory, the next launch attaches to it, and every real route 500s off
-# deleted files + an empty DB. Terminate our own processes first.
+# ── Kill before launch (and before any wipe) ───────────────────────────────
+# Two independent reasons, which is why this is unconditional (#1333 review):
+#
+# 1. Wipe: a backend that survives it becomes a zombie — /health keeps
+#    answering from memory, the next launch attaches to it, and every real
+#    route 500s off deleted files + an empty DB.
+# 2. Launch: the app registers tauri_plugin_single_instance, whose callback
+#    IGNORES the new argv and merely refocuses the window the running process
+#    already has. So starting a second copy over a live one silently does
+#    nothing — `desktop-prod:run` would refocus the OLD build instead of
+#    running the one just compiled, and `desktop-prod:run:pill` would leave
+#    you looking at studio mode with --pill quietly discarded.
+#
+# Reason 2 applies whatever the data policy is, so this must not sit inside
+# the KEEP_DATA branch.
 kill_running_instances() {
   local pids=""
   pids="$(pgrep -f "${APP_NAME}.app|target/debug/omnivoice-studio" 2>/dev/null || true)"
@@ -153,13 +164,14 @@ kill_running_instances() {
   done
   # shellcheck disable=SC2086
   kill -9 $pids 2>/dev/null || true
-  echo "   All stopped — safe to wipe."
+  echo "   All stopped."
   echo ""
 }
 
+kill_running_instances
+
 # ── Wipe app data for fresh-install simulation ─────────────────────────────
 if [ "$KEEP_DATA" = false ]; then
-  kill_running_instances
   echo "🧹 Cleaning all OmniVoice data for fresh prod emulation..."
   echo ""
 
