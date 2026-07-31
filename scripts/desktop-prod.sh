@@ -10,8 +10,14 @@
 #
 # Usage:
 #   bun desktop-prod          # build debug + wipe + launch
-#   bun desktop-prod:run      # re-launch last build (skip compile)
+#   bun desktop-prod:run      # re-launch last build (skip compile, keep data)
 #   bun desktop-prod:upgrade  # rebuild, but keep data (test upgrade)
+#
+# NOTE on the flags (#1333): --skip-build and --keep-data are INDEPENDENT.
+# --skip-build only skips the compile; on its own it still wipes app data,
+# which is why `desktop-prod:run` passes --keep-data too. Wiping is the
+# default because this script exists to emulate a first install; a plain
+# re-launch is not that, and must not cost you your voice profiles.
 #
 # For a stricter NEW-USER emulation on macOS (webview localStorage, prefs,
 # caches wiped too + launch with a dev-tools-hidden environment), see
@@ -88,7 +94,9 @@ for arg in "$@"; do
     -h|--help)
       echo "Usage: $0 [--skip-build] [--keep-data] [--keep-models] [--pill]"
       echo ""
-      echo "  --skip-build   Skip cargo build, use last compiled binary"
+      echo "  --skip-build   Skip cargo build, use last compiled binary."
+      echo "                 Does NOT imply --keep-data: on its own it still"
+      echo "                 wipes app data. Pair the two to just re-launch."
       echo "  --keep-data    Don't wipe app data (test upgrade path)"
       echo "  --keep-models  Wipe app/backend data for a fresh app, but KEEP the"
       echo "                 HF model cache — fresh first-run without re-downloading"
