@@ -32,9 +32,14 @@ def test_sanitize_strips_home_and_secrets():
 
 
 def test_detect_repo_from_origin():
-    # This repo's origin is github.com/debpalash/OmniVoice-Studio.
+    # detect_repo() parses owner/repo from the real git origin. The repo name is
+    # stable across upstream and forks; the owner is not, so assert the shape and
+    # the repo name rather than a hardcoded owner (the test ran only on upstream).
     repo = T.detect_repo()
-    assert repo == ("debpalash", "OmniVoice-Studio")
+    assert repo is not None
+    owner, name = repo
+    assert isinstance(owner, str) and owner
+    assert name == "OmniVoice-Studio"
 
 
 def test_clustering_dedupes_and_excludes_nonblocking():
@@ -53,7 +58,11 @@ def test_build_issue_title_and_table():
     assert "`asr_wer_below`" in body and "| 2 |" in body
 
 
-def test_triage_builds_github_url():
+def test_triage_builds_github_url(monkeypatch):
+    # Pin detect_repo so the URL is deterministic on every fork: this test
+    # exercises URL construction, not the git origin (which is the fork owner on
+    # a contributor's checkout, not the upstream "debpalash").
+    monkeypatch.setattr(T, "detect_repo", lambda cwd=None: ("debpalash", "OmniVoice-Studio"))
     res = T.triage(_failing_report())
     assert res.owner == "debpalash" and res.repo == "OmniVoice-Studio"
     assert res.url and res.url.startswith(
