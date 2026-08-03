@@ -17,7 +17,7 @@ import IdleSkeleton from '../components/dub/IdleSkeleton';
 
 const DROP_HINT = 'Drop video or audio here';
 const URL_PLACEHOLDER = '…or paste YouTube / video URL';
-const TRANSCRIBING = 'Transcribing with Whisper…';
+const TRANSCRIBING = 'Transcribing audio…';
 
 function baseProps(overrides = {}) {
   const noop = vi.fn();
