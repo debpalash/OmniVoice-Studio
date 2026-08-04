@@ -446,12 +446,61 @@ def test_llm_provider(provider_id: str):
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
     except Exception as e:  # noqa: BLE001 — surface a clean, scrubbed error to the UI
+        kind = _classify_llm_error(e)
+        detail = _scrub_llm_detail(e, api_key)
+        # A 404 from a LOCAL server is almost never a wrong URL — the request
+        # reached it — it is a model name the server does not have loaded. The
+        # generic "check the model name and Base URL path" sends the user to
+        # audit a URL that works. Ask what IS loaded and say so (#1332).
+        if kind == "not_found" and p.local:
+            available = _local_models(base_url, api_key)
+            asked = llm_providers.resolve_model(p)
+            if available:
+                detail = (
+                    f"{p.display_name} is running, but has no model named "
+                    f"{asked!r}. Loaded right now: {', '.join(available[:10])}"
+                    + (" …" if len(available) > 10 else "")
+                    + ". Pick one in the Model field above."
+                )
+                # The cached discovery, if any, produced a name this server
+                # rejects — most likely the user swapped the loaded model
+                # inside the local app. Drop it so the next attempt re-asks
+                # rather than repeating the same 404 until the TTL expires.
+                llm_providers.forget_discovered_models(p.id)
+            elif available == []:
+                detail = (
+                    f"{p.display_name} is running, but reports no loaded models, "
+                    f"so {asked!r} cannot be served. Load a model in "
+                    f"{p.display_name} first, then test again."
+                )
+                llm_providers.forget_discovered_models(p.id)
+            # available is None: the model listing itself failed, so nothing
+            # here is established. Keep the generic 404 text rather than
+            # inventing a diagnosis the lookup did not support.
         return {
             "ok": False,
-            "kind": _classify_llm_error(e),
-            "detail": _scrub_llm_detail(e, api_key),
+            "kind": kind,
+            "detail": detail,
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
+
+
+def _local_models(base_url: str, api_key: str):
+    """Model ids a local OpenAI-compatible server currently serves.
+
+    ``None`` when the listing itself failed, ``[]`` when it succeeded and the
+    server has nothing loaded. The distinction is load-bearing: collapsing both
+    to ``[]`` let the caller state "reports no loaded models" on a lookup that
+    never happened, which is a confident wrong diagnosis in place of a vague
+    right one (CodeRabbit). Only used to sharpen an error message, so it must
+    never raise a second error on top of the first.
+    """
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
+        return sorted(m.id for m in client.models.list(timeout=5))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 @router.get("/llm-providers/{provider_id}/models")
