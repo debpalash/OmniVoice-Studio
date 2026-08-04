@@ -446,12 +446,46 @@ def test_llm_provider(provider_id: str):
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
     except Exception as e:  # noqa: BLE001 — surface a clean, scrubbed error to the UI
+        kind = _classify_llm_error(e)
+        detail = _scrub_llm_detail(e, api_key)
+        # A 404 from a LOCAL server is almost never a wrong URL — the request
+        # reached it — it is a model name the server does not have loaded. The
+        # generic "check the model name and Base URL path" sends the user to
+        # audit a URL that works. Ask what IS loaded and say so (#1332).
+        if kind == "not_found" and p.local:
+            available = _local_models(base_url, api_key)
+            asked = llm_providers.resolve_model(p)
+            if available:
+                detail = (
+                    f"{p.display_name} is running, but has no model named "
+                    f"{asked!r}. Loaded right now: {', '.join(available[:10])}"
+                    + (" …" if len(available) > 10 else "")
+                    + ". Pick one in the Model field above."
+                )
+            else:
+                detail = (
+                    f"{p.display_name} is running, but reports no loaded models, "
+                    f"so {asked!r} cannot be served. Load a model in "
+                    f"{p.display_name} first, then test again."
+                )
         return {
             "ok": False,
-            "kind": _classify_llm_error(e),
-            "detail": _scrub_llm_detail(e, api_key),
+            "kind": kind,
+            "detail": detail,
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
+
+
+def _local_models(base_url: str, api_key: str) -> list:
+    """Model ids a local OpenAI-compatible server currently serves; [] on any
+    failure. Only used to make an error message specific, so it must never
+    raise a second error on top of the first one."""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
+        return sorted(m.id for m in client.models.list(timeout=5))
+    except Exception:  # noqa: BLE001
+        return []
 
 
 @router.get("/llm-providers/{provider_id}/models")

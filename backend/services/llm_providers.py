@@ -55,6 +55,10 @@ class Provider:
     # the pre-registry behaviour where a lone TRANSLATE_BASE_URL was usable
     # keyless.
     key_optional: bool = False
+    # True when ``default_model`` is a placeholder rather than a model this
+    # provider will accept. LM Studio serves whatever the user has loaded, so
+    # there is no name we can ship that is right — see resolve_model.
+    model_is_placeholder: bool = False
     needs_account: bool = False   # Cloudflare: base_url needs an account id
     account_env: Optional[str] = None
     signup_url: str = ""
@@ -143,11 +147,16 @@ _PROVIDERS: tuple[Provider, ...] = (
              base_url_env="OLLAMA_BASE_URL", model_env="OLLAMA_MODEL",
              signup_url="https://ollama.com",
              notes="Fully offline. Run `ollama pull llama3.1` first."),
+    # `local-model` is a placeholder, NOT a model id — LM Studio serves
+    # whatever the user has loaded and rejects a name it does not know, which
+    # is why translation failed here while Ollama (whose default `llama3.1` is
+    # a real name people actually pull) worked on the same machine (#1332).
+    # resolve_model asks the server instead of shipping a guess.
     Provider("lmstudio", "LM Studio (local)", "http://localhost:1234/v1",
-             "local-model", local=True,
+             "local-model", local=True, model_is_placeholder=True,
              base_url_env="LMSTUDIO_BASE_URL", model_env="LMSTUDIO_MODEL",
              signup_url="https://lmstudio.ai",
-             notes="Fully offline. Start the LM Studio local server."),
+             notes="Fully offline. Start the LM Studio local server and load a model."),
     Provider("custom", "Custom (OpenAI-compatible)", "", "",
              key_envs=("TRANSLATE_API_KEY",), base_url_env="TRANSLATE_BASE_URL",
              model_env="TRANSLATE_MODEL", key_optional=True,
@@ -205,13 +214,85 @@ def resolve_base_url(p: Provider, *, substitute: bool = True) -> str:
     return val or ""
 
 
+#: Discovered model ids, per provider id. A local server's loaded model does
+#: not change mid-session in practice, and the lookup costs a round-trip, so it
+#: is worth not repeating on every translated segment. Cleared by
+#: :func:`forget_discovered_models` whenever a user edit could invalidate it.
+_DISCOVERED_MODEL: dict[str, str] = {}
+
+
+def forget_discovered_models(pid: Optional[str] = None) -> None:
+    """Drop the discovery cache (all providers, or one).
+
+    Called whenever the user changes a provider's model or base URL: keeping a
+    model discovered from the previous server would silently ignore the edit,
+    which is a worse failure than the one this whole path exists to fix.
+    """
+    if pid is None:
+        _DISCOVERED_MODEL.clear()
+    else:
+        _DISCOVERED_MODEL.pop(pid, None)
+
+
+def discover_model(p: Provider) -> Optional[str]:
+    """Ask an OpenAI-compatible server which model it is actually serving.
+
+    Only used when we would otherwise send a placeholder. Never raises: a
+    server that is down or does not implement ``/v1/models`` leaves the caller
+    with the placeholder, which is exactly where it was before.
+    """
+    cached = _DISCOVERED_MODEL.get(p.id)
+    if cached:
+        return cached
+    base_url = resolve_base_url(p)
+    if not base_url:
+        return None
+    try:
+        from openai import OpenAI
+
+        # max_retries=0 + a short timeout: this runs in the request path, and a
+        # local server that is not running must fail fast rather than add the
+        # SDK's retry ladder to a translation the user is waiting on.
+        client = OpenAI(api_key=resolve_api_key(p) or "local",
+                        base_url=base_url, max_retries=0)
+        ids = [m.id for m in client.models.list(timeout=5)]
+    except Exception as e:  # noqa: BLE001 — discovery is best-effort by design
+        logger.debug("model discovery failed for %s: %s", p.id, e)
+        return None
+    if not ids:
+        return None
+    # Deterministic rather than "whatever the server listed first", so two runs
+    # on the same machine pick the same model and a bug report is reproducible.
+    chosen = sorted(ids)[0]
+    if len(ids) > 1:
+        logger.info(
+            "%s has %d models loaded and no model is set in Settings; using %r. "
+            "Pick one in Settings → LLM Providers to choose deliberately.",
+            p.display_name, len(ids), chosen,
+        )
+    _DISCOVERED_MODEL[p.id] = chosen
+    return chosen
+
+
 def resolve_model(p: Provider) -> str:
+    """Env override → stored override → discovered → default.
+
+    Discovery sits between the user's choice and the built-in default so it can
+    never override an explicit setting, and only runs for providers whose
+    default is a placeholder — everyone else keeps a pure, offline resolution.
+    """
     from services import settings_store
-    return (
+    explicit = (
         (p.model_env and os.environ.get(p.model_env))
         or settings_store.get_text(_MODEL_KEY + p.id)
-        or p.default_model
     )
+    if explicit:
+        return explicit
+    if p.model_is_placeholder:
+        discovered = discover_model(p)
+        if discovered:
+            return discovered
+    return p.default_model
 
 
 def resolve_api_key(p: Provider) -> Optional[str]:
@@ -329,6 +410,10 @@ def save_overrides(pid: str, *, base_url: Optional[str] = None,
         settings_store.set_text(_BASE_URL_KEY + pid, "" if bu == p.default_base_url else bu)
     if model is not None:
         settings_store.set_text(_MODEL_KEY + pid, model.strip())
+    # Any base_url or model edit can invalidate a discovered id — a stale one
+    # would make the user's change look like it did nothing.
+    if base_url is not None or model is not None:
+        forget_discovered_models(pid)
     if account_id is not None:
         settings_store.set_text(f"llm.account.{pid}", account_id.strip())
 
