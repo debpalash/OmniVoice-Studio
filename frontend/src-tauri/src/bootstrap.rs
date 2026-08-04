@@ -915,9 +915,10 @@ const REPAIR_SYNC_ARGS_UNLOCKED: [&str; 3] = ["sync", "--no-dev", "--verbose"];
 /// caller); the detection side (`get_best_device`) already routes ROCm through
 /// `torch.cuda`, so installing the ROCm wheel is all that's needed.
 fn rocm_torch_reinstall_args(rocm_index_url: &str) -> Vec<String> {
+    // Keep in sync with [tool.uv.constraint-dependencies] in pyproject.toml
     vec![
         "pip".into(), "install".into(), "--reinstall".into(),
-        "torch".into(), "torchaudio".into(), "torchvision".into(),
+        "torch==2.8.0".into(), "torchaudio==2.8.0".into(), "torchvision==0.23.0".into(),
         "--index-url".into(), rocm_index_url.into(),
     ]
 }
@@ -2047,9 +2048,9 @@ mod tests {
         assert_eq!(args[0], "pip");
         assert_eq!(args[1], "install");
         assert!(args.iter().any(|a| a == "--reinstall"));
-        assert!(args.iter().any(|a| a == "torch"));
-        assert!(args.iter().any(|a| a == "torchaudio"));
-        assert!(args.iter().any(|a| a == "torchvision"));
+        assert!(args.iter().any(|a| a == "torch==2.8.0"));
+        assert!(args.iter().any(|a| a == "torchaudio==2.8.0"));
+        assert!(args.iter().any(|a| a == "torchvision==0.23.0"));
         let i = args.iter().position(|a| a == "--index-url").expect("has --index-url");
         // rocm6.4, not rocm6.2: rocm6.2's index tops out at torch 2.5.1 and
         // can't satisfy the app's torch==2.8.0 pin (#972) — a regression to
