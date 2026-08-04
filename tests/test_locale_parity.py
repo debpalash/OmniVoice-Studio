@@ -65,17 +65,33 @@ _PLACEHOLDER_ALLOWLIST = {
 # common case (translators keeping the brand verbatim, as de/es/fr/nl/pt/ru all
 # did) still fails loudly, and en.json — where every one of these enters the
 # codebase first — is covered outright.
+#
+# ASCII-letter boundaries rather than ``\b``: Python's ``\b`` is unicode-aware,
+# so ``\bwhisper\b`` does NOT match "Whisperで文字起こし中" — a CJK translation
+# that keeps the Latin brand glued to the following character would slip
+# straight through (CodeRabbit). Excluding only A-Z either side still rejects
+# "whispered" and "barks", which is the point of having a boundary at all.
 _ENGINE_BRANDS = re.compile(
-    r"\b(whisper|parakeet|demucs|cosyvoice|indextts|supertonic|kokoro|piper|"
-    r"xtts|bark|vall-?e|seed-?vc|pocket-?tts)\b",
+    r"(?<![A-Za-z])(whisper|parakeet|demucs|cosyvoice|indextts|supertonic|"
+    r"kokoro|piper|xtts|bark|vall-?e|seed-?vc|pocket-?tts)(?![A-Za-z])",
     re.IGNORECASE,
 )
 
 # Status/progress strings that describe a pipeline STAGE, not a specific
 # implementation of it. Naming an engine here is a correctness bug, not a style
 # one: the label is shown while some other engine is running.
+#
+# Every transcription-stage label, not just the one #1352 reported: they are
+# the same string in four places (dub overlay, dub workflow, batch, capture),
+# so whatever put an engine name in one would have put it in the others.
 _ENGINE_AGNOSTIC_KEYS = (
     "dub.transcribing",
+    "dub_workflow.transcribing_audio",
+    "dub_workflow.transcription_failed",
+    "batch.stage_transcribe",
+    "capture.transcribing_label",
+    "capture.transcription_failed",
+    "demo.dictation_transcribing",
 )
 
 # Missing-key ratchet: highest allowed number of en.json keys absent from each
@@ -287,3 +303,43 @@ def test_engine_agnostic_labels_name_no_engine(locale):
         f"engines also run — describe the STAGE, not the implementation "
         f"(en: 'Transcribing audio…'):\n" + "\n".join(bad)
     )
+
+
+def test_engine_brand_matcher_catches_the_forms_that_actually_ship():
+    """The matcher itself, not the current locale contents.
+
+    Every assertion here is a string a translator could plausibly write, and the
+    check is only worth having if it survives them. The CJK case is the one that
+    motivated the ASCII-letter boundaries: Python's ``\\b`` is unicode-aware, so
+    ``\\bwhisper\\b`` does not match a brand name glued to a following kana
+    (CodeRabbit).
+    """
+    caught = (
+        "Transcribing with Whisper\u2026",      # the #1352 string
+        "Whisper\u3067\u6587\u5b57\u8d77\u3053\u3057\u4e2d",  # Latin brand + kana, no ASCII boundary
+        "Transkrypcja (whisper)",                # punctuation either side
+        "\u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0446\u0438\u044f Whisper",  # Cyrillic + Latin brand
+        "Bark, then transcribe",                 # short brand, still a brand
+    )
+    for value in caught:
+        assert _ENGINE_BRANDS.search(value), f"matcher missed an engine name in {value!r}"
+
+    not_caught = (
+        "whispered instructions",   # substring of an ordinary word
+        "The dog barks",            # ditto, and 'bark' is the risky short one
+        "Transcribing audio\u2026",     # the corrected en string
+    )
+    for value in not_caught:
+        assert not _ENGINE_BRANDS.search(value), f"matcher false-positived on {value!r}"
+
+
+def test_transliterated_brands_are_a_known_gap():
+    """Documented limit, asserted so it cannot be mistaken for coverage.
+
+    Several locales transliterate rather than keep the Latin spelling
+    (\u30a6\u30a3\u30b9\u30d1\u30fc, Bisikan, \u0627\u0644\u0647\u0645\u0633), and no practical pattern catches those
+    without a per-language brand table that would rot. Those five were fixed by
+    hand in #1352; if this ever starts passing because such a table was added,
+    delete this test rather than weakening the one above.
+    """
+    assert not _ENGINE_BRANDS.search("\u30a6\u30a3\u30b9\u30d1\u30fc\u3067\u6587\u5b57\u8d77\u3053\u3057\u4e2d")
