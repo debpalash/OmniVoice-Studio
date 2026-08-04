@@ -921,7 +921,13 @@ jobs:
     steps:
       # Needed by the manifest rebuild + signature check below: the updater
       # pubkey lives in frontend/src-tauri/tauri.conf.json.
+      #
+      # persist-credentials: false — nothing in this job pushes to git, and the
+      # steps that follow shell out to `gh` and install from PyPI, so leaving a
+      # token in .git/config only widens the blast radius (CodeRabbit).
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # ── Rebuild the preview updater manifest from what is ACTUALLY published ──
       # Since ~2026-07-13 every matrix leg has logged "Signature not found for
@@ -972,7 +978,24 @@ jobs:
           appimage, n1 = newest(r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_amd64\.AppImage")
           msi, n2 = newest(r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_x64_en-US\.msi")
           assert appimage and msi, f"missing versioned updater artifacts (AppImage={appimage}, MSI={msi})"
-          version = re.search(r"_([\d.]+-\d+)_", appimage if n1 >= n2 else msi).group(1)
+          # Both legs must come from the SAME run. Picking each independently and
+          # then taking whichever N is larger publishes a manifest that advertises
+          # X.Y.Z-5 while handing Windows users the -4 MSI — the exact class of
+          # manifest/artifact drift this whole job exists to end (CodeRabbit).
+          # Failing loudly leaves the previous manifest in place, which is a
+          # visible, already-understood state; shipping a mismatched one is not.
+          assert n1 == n2, (
+              f"preview updater artifacts are from different runs — AppImage is "
+              f"run {n1} ({appimage}) but MSI is run {n2} ({msi}). One leg failed "
+              f"or was re-run; refusing to publish a manifest whose version "
+              f"describes only some of the files it points at. Re-run the failed "
+              f"leg so both artifacts come from one run."
+          )
+          version = re.search(r"_([\d.]+-\d+)_", appimage).group(1)
+          # The darwin tarballs carry no run number in their names (they are
+          # clobbered every run), so they cannot be checked this way — the
+          # signature verification in the later step is what pins them to the
+          # bytes actually published.
           mac_a = "OmniVoice.Studio_aarch64.app.tar.gz"
           mac_x = "OmniVoice.Studio_x64.app.tar.gz"
           for required in (mac_a, mac_x, appimage, msi):
@@ -1064,7 +1087,11 @@ jobs:
           # missing while the manifest drifted for 2+ weeks: parity and version
           # format both passed while every darwin entry was unverifiable and
           # macOS Preview users saw "The signature verification failed".
-          pip install --quiet cryptography
+          # Floor-pinned, matching docs-drift.yml's `pyyaml>=6`: this step is the
+          # gate that decides whether a signed release manifest is trustworthy,
+          # so an unbounded install is the one dependency worth naming a version
+          # for. Only Ed25519 verify is used, stable since 2.6.
+          pip install --quiet "cryptography>=42"
           python3 - <<'PY'
           import base64, hashlib, json, os, subprocess, sys, tempfile
           from urllib.parse import unquote
