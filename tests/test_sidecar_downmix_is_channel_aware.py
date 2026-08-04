@@ -49,10 +49,12 @@ def _convert(rel: str, fn_name: str):
     assert path.is_file(), f"sidecar moved or was renamed: {rel}"
     spec = importlib.util.spec_from_file_location(f"sc_{rel.replace('/', '_')}", path)
     mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-    except Exception as e:  # pragma: no cover - engine venv not present
-        pytest.skip(f"{rel} is not importable here: {e}")
+    # Deliberately unguarded. Every sidecar is stdlib-only at import time (torch
+    # and the model load lazily on the first synthesize), so an import error
+    # here is a real regression in a shipping engine, not a missing optional
+    # dependency. Skipping on it would let a syntax error in any of these five
+    # pass CI as a green, silently-empty suite (CodeRabbit).
+    spec.loader.exec_module(mod)
     fn = getattr(mod, fn_name, None)
     assert fn is not None, f"{rel} no longer defines {fn_name}"
     return fn
