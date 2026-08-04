@@ -84,9 +84,23 @@ def test_base_ensure_ready_dispatches_to_lazy_loader():
 def test_speech_survives_a_load_slower_than_the_generate_budget(client, monkeypatch):
     """The #1033/#1037 class, end to end: load (0.8s) > generate budget
     (0.2s) but < load budget — must succeed. Before the fix the generate
-    guard killed the request mid-'download' with the misleading 503."""
+    guard killed the request mid-'download' with the misleading 503.
+
+    Watermarking is disabled for the duration. It runs INSIDE the generate
+    budget, and its first call in a process loads the AudioSeal model — which
+    on a cold run takes longer than the 0.2s budget this test deliberately
+    sets, so the request 503'd on the watermark rather than on anything to do
+    with the load/generate split. That made the file pass in a full session
+    (AudioSeal already warm from an earlier test) and fail when run alone,
+    which is the wrong way round for a regression test: the isolated run is
+    the honest one. The budget asymmetry is what is under test; the watermark
+    is an unrelated cold start riding in the same window.
+    """
     import services.model_manager as mm
     import api.routers.openai_compat as oc
+    import services.watermark as wm
+
+    monkeypatch.setattr(wm, "is_enabled", lambda: False)
 
     fake_cls = _make_slow_loading_engine("slow-load-engine", 0.8)
     monkeypatch.setitem(_tts_mod()._REGISTRY, "slow-load-engine", fake_cls)
