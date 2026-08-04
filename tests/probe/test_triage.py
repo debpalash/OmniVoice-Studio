@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import urllib.parse
 
+import pytest
+
 from . import triage as T
 from .report import Report, SpecOutcome
 from .spec import JudgeResult
@@ -35,8 +37,15 @@ def test_detect_repo_from_origin():
     # detect_repo() parses owner/repo from the real git origin. The repo name is
     # stable across upstream and forks; the owner is not, so assert the shape and
     # the repo name rather than a hardcoded owner (the test ran only on upstream).
+    #
+    # It also documents its own None case — "the harness works without a GitHub
+    # remote, the report just omits the link" — which is a real checkout shape,
+    # not a broken one: a source tarball, a `git archive`, and the Docker build
+    # context all have no origin. Asserting non-None there would swap one
+    # environment assumption for another, so skip instead of fail.
     repo = T.detect_repo()
-    assert repo is not None
+    if repo is None:
+        pytest.skip("no GitHub origin remote here (tarball/archive checkout)")
     owner, name = repo
     assert isinstance(owner, str) and owner
     assert name == "OmniVoice-Studio"
