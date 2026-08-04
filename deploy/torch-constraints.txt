@@ -1,0 +1,36 @@
+# Torch stack pins for the `uv pip install --system` install paths.
+#
+# Why this file exists (#1357):
+#
+# pyproject declares the three independently -- `torch>=2.4`, `torchaudio>=2.4`,
+# `torchvision>=0.19` -- because no PEP 508 syntax can express "these three must
+# move together". The coupling lives in `[tool.uv] constraint-dependencies`
+# instead, which works for `uv sync` / `uv lock` / `uv run`.
+#
+# It does NOT work for `uv pip install`. That is a pip-compatible interface and
+# ignores project-level uv settings, so both install paths that use it -- the
+# Colab notebook (cell 2e) and deploy/Dockerfile -- resolved the trio with the
+# bare lower bounds and were free to upgrade one while leaving the others.
+# Upgrade torch past a torchvision built against an older ABI and you get
+#
+#     RuntimeError: operator torchvision::nms does not exist
+#
+# at import, which is what #1357 hit on Colab: torch moved, the preinstalled
+# torchvision in /usr/local/lib/python3.12/dist-packages/ did not.
+#
+# Keep in lockstep with `[tool.uv] constraint-dependencies` in pyproject.toml.
+# tests/test_torch_constraints_are_applied.py fails if they drift, or if either
+# install path stops passing --constraint.
+#
+# The versions carry no local segment on purpose: PEP 440 matches `==2.8.0`
+# against `2.8.0+cu128` and `2.8.0+rocm6.4` alike, so one file serves the CUDA
+# image, the ROCm image, and Colab without clobbering a vendor build.
+#
+# Side effect, deliberate: torch 2.8.0 publishes no cp314 wheels, so on Python
+# 3.14 the install now FAILS with an unsatisfiable-resolution message instead
+# of quietly picking a newer, mismatched trio. Loud beats broken -- but it does
+# mean these pins have to be bumped when the supported Python floor moves.
+# Colab is 3.12 and both Docker bases are pinned, so nothing ships on 3.14 yet.
+torch==2.8.0
+torchaudio==2.8.0
+torchvision==0.23.0

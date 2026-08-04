@@ -66,6 +66,7 @@ RUN python3 -m pip install --no-cache-dir uv
 
 # Copy python packaging specs (README.md required by hatchling metadata)
 COPY pyproject.toml uv.lock README.md ./
+COPY deploy/torch-constraints.txt ./deploy/torch-constraints.txt
 
 # Install the project (non-editable — no need for -e in containers).
 # Uses `uv` for exponentially faster resolution than plain pip.
@@ -75,18 +76,27 @@ COPY pyproject.toml uv.lock README.md ./
 # (2.8.0, satisfying our `torch>=2.4`) survive this step instead of being
 # clobbered by PyPI's CUDA-default wheels. That property is what makes the
 # ROCm variant possible at all — the guard below pins it down.
-RUN uv pip install --system --no-cache .
+#
+# --constraint because `uv pip install` ignores `[tool.uv]
+# constraint-dependencies` (that is a project-API setting), so without it the
+# trio resolves on its bare lower bounds and torch may move while torchvision
+# stays put — an ABI mismatch at import (#1357). The pins carry no local
+# segment, so they match the base image's +cu128 / +rocm6.4 builds rather than
+# replacing them.
+RUN uv pip install --system --no-cache --constraint deploy/torch-constraints.txt .
 
 # Guard (fails the build, not the user at runtime): assert the dependency
 # install did NOT replace the base image's GPU torch. A future dep bump that
 # forces a different torch version would otherwise silently ship a CUDA build
 # in the ROCm image (= CPU-only for AMD users) — catch it here instead.
 ARG GPU_FLAVOR=cuda
-RUN python3 -c "import os, torch, torchaudio; \
+RUN python3 -c "import os, torch, torchaudio, torchvision; \
     flavor = os.environ['GPU_FLAVOR']; \
     accel = torch.version.hip if flavor == 'rocm' else torch.version.cuda; \
-    print(f'torch={torch.__version__} torchaudio={torchaudio.__version__} {flavor}={accel}'); \
-    assert accel, f'base image {flavor} torch was clobbered (now {torch.__version__})'"
+    print(f'torch={torch.__version__} torchaudio={torchaudio.__version__} torchvision={torchvision.__version__} {flavor}={accel}'); \
+    assert accel, f'base image {flavor} torch was clobbered (now {torch.__version__})'; \
+    import torchvision.ops; torchvision.ops.nms; \
+    print('torchvision C++ ops resolve against this torch')"
 
 # Copy application source
 COPY backend/ ./backend/
