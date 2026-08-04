@@ -180,6 +180,62 @@ Tracking issues: [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
 [#961](https://github.com/debpalash/OmniVoice-Studio/issues/961),
 [#1258](https://github.com/debpalash/OmniVoice-Studio/issues/1258).
 
+## AppImage: "No microphone found" while the raw binary records fine
+
+Recording from the AppImage fails with *"No microphone found. Connect or enable
+a microphone and try again."* — but `pactl list short sources` shows your
+microphones, `gst-launch-1.0 pulsesrc … ! fakesink` captures, and running
+`frontend/src-tauri/target/debug/omnivoice-studio` directly records without
+trouble. `GST_DEBUG=2` shows the real message:
+
+```text
+WARN GST_REGISTRY gst_registry_binary_check_magic:
+  Binary registry magic version is different : 1.23.90 != 1.3.0
+GStreamer element appsink not found. Please install it.
+```
+
+Same shape as the blank-window problem above, in a different library. The
+AppImage bundles the GStreamer **core** (WebKitGTK links it) but not its
+**plugins** — those are loaded dynamically at runtime, so the packaging step
+cannot see them to copy. The bundled core then reads *your* plugin directory,
+whose plugins were built against *your* core, the version check rejects them,
+and the scan produces nothing. `appsink` is one of the elements that goes
+missing, and it is the one WebKit needs to hand over a capture stream — so
+`getUserMedia()` reports no device. Your raw binary works because it uses your
+core with your plugins, which agree.
+
+**From v0.4.3 the launcher prefers your system's GStreamer**, which is the only
+core that can match the plugins that will actually load. It does that by
+preloading that one library (`LD_PRELOAD`) rather than by putting your system
+library directory ahead of the bundle — your GStreamer shares that directory
+with most of the system, so hoisting it would quietly replace every *other*
+bundled library too. If your distro's GStreamer is itself broken and you would
+rather fall back to the bundled core:
+
+```bash
+OMNIVOICE_PREFER_SYSTEM_GSTREAMER=0 ./OmniVoice.Studio_*.AppImage
+```
+
+The launcher checks first that your GStreamer can actually load alongside the
+libraries the AppImage bundles — a system core built against newer GLib than we
+ship would fail to load and take the whole app down with it, which is worse than
+a missing microphone. If that check fails it prints a warning, keeps the bundled
+core, and the app still starts (with capture still broken); building from source
+avoids the mismatch entirely.
+
+The AppImage also keeps its plugin-scan cache to itself, at
+`~/.cache/OmniVoice/gstreamer-registry.bin`, rather than in the shared
+`~/.cache/gstreamer-1.0/`. GStreamer names that shared file by architecture
+alone, so two cores of different versions overwrite each other's — which both
+makes this failure depend on whichever application ran last, and lets the
+AppImage corrupt the cache every other GStreamer app on your machine reads.
+
+If you set `XDG_CACHE_HOME`, the path follows it
+(`$XDG_CACHE_HOME/OmniVoice/gstreamer-registry.bin`); `~/.cache` is the default
+when it is unset.
+
+Tracking issue: [#1333](https://github.com/debpalash/OmniVoice-Studio/issues/1333).
+
 ## .deb ffprobe conflict
 
 <a id="deb-ffprobe-conflict"></a>

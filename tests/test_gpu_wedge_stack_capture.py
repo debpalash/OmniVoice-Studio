@@ -95,9 +95,17 @@ def test_capture_ignores_threads_that_are_not_pool_workers(mm):
         other.shutdown(wait=True)
 
 
-def test_capture_is_empty_when_no_pool_worker_exists(mm):
+def test_capture_is_empty_when_no_pool_worker_exists(mm, monkeypatch):
     """Nothing to report is not an error — the timeout path must not depend on
-    this having found anything."""
+    this having found anything.
+
+    The absence is manufactured rather than assumed. Earlier tests in a full
+    session build a real GPU pool whose idle workers outlive them, so asserting
+    on the ambient thread list makes this pass alone and fail in the suite (CI
+    caught exactly that). Pointing the filter at a prefix nothing uses tests the
+    branch instead of the environment.
+    """
+    monkeypatch.setattr(mm, "_GPU_POOL_THREAD_PREFIX", "no-such-thread-prefix-")
     assert mm.log_gpu_pool_worker_stacks("TTS generate", 300.0) == ""
 
 
