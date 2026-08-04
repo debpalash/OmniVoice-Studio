@@ -1446,15 +1446,19 @@ if __name__ == "__main__":
         _fail_port_in_use(_bind_err)
 
     _watcher = _BindErrorWatcher()
-    _uvicorn_log = logging.getLogger("uvicorn.error")
-    # A filter only runs on records the logger actually emits, so a level above
-    # ERROR would drop the bind failure before we ever see it and silently
-    # restore the unexplained exit 1. uvicorn's default is INFO and nothing
-    # here raises it, so this is a no-op today — it keeps the mechanism from
-    # being disarmed at a distance by a future log-level change.
-    if _uvicorn_log.level > logging.ERROR:
-        _uvicorn_log.setLevel(logging.ERROR)
-    _uvicorn_log.addFilter(_watcher)
+    # Attached BEFORE uvicorn.run because uvicorn configures logging during
+    # startup, well after we lose control. Two properties this depends on, both
+    # measured against the installed uvicorn rather than assumed, and both
+    # pinned by tests in tests/test_port_in_use_exit.py:
+    #
+    #  1. uvicorn's `configure_logging()` runs `dictConfig`, which replaces the
+    #     logger's HANDLERS but leaves its FILTERS in place — so this survives.
+    #  2. it does reset the logger's LEVEL to the configured log_level, which
+    #     would overwrite anything we set here. A filter only runs on records
+    #     the logger actually emits, so a `log_level` above ERROR would blind
+    #     this watcher. We therefore pass no log_level to uvicorn.run() at all
+    #     (its default is INFO); the test asserts we never start.
+    logging.getLogger("uvicorn.error").addFilter(_watcher)
     try:
         uvicorn.run(app, host=_bind_host, port=_port)
     except SystemExit:

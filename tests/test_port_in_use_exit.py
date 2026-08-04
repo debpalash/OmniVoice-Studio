@@ -267,3 +267,96 @@ def test_the_watcher_ignores_unrelated_errors(tmp_path):
     )
     proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
     assert proc.stdout.split() == ["CLEAN", "CAUGHT"], (proc.stdout, proc.stderr)
+
+
+# ── the properties the watcher depends on, measured not assumed ───────────
+
+def test_uvicorn_logging_config_preserves_filters(tmp_path):
+    """greptile on #1370 argued uvicorn's logging setup removes the filter,
+    which would make the whole mechanism inert.
+
+    It does not: `dictConfig` replaces a logger's HANDLERS and leaves its
+    FILTERS alone. Measured here against the installed uvicorn so a future
+    version that *does* start clearing filters fails loudly, rather than
+    silently restoring the unexplained exit 1.
+    """
+    script = tmp_path / "filters.py"
+    script.write_text(
+        "import logging\n"
+        "from uvicorn.config import Config\n"
+        "class F(logging.Filter):\n"
+        "    def filter(self, r): return True\n"
+        "log = logging.getLogger('uvicorn.error')\n"
+        "f = F(); log.addFilter(f)\n"
+        "Config(app=None).configure_logging()\n"
+        "print('KEPT' if f in log.filters else 'DROPPED')\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    assert proc.stdout.strip() == "KEPT", (
+        "uvicorn now drops filters when it configures logging — the bind "
+        f"watcher in main.py is inert.\n{proc.stdout}{proc.stderr}"
+    )
+
+
+def test_uvicorn_owns_the_logger_level(tmp_path):
+    """The other half, and the reason main.py must not set `log_level`.
+
+    uvicorn resets `uvicorn.error`'s level from its config during startup —
+    after any level we set. A level above ERROR drops the bind record before
+    filters run, so the watcher would go blind. Documenting the behaviour is
+    what makes the next test's rule non-arbitrary.
+    """
+    script = tmp_path / "level.py"
+    script.write_text(
+        "import logging\n"
+        "from uvicorn.config import Config\n"
+        "log = logging.getLogger('uvicorn.error')\n"
+        "log.setLevel(logging.ERROR)\n"
+        "Config(app=None, log_level='critical').configure_logging()\n"
+        "print('OVERRIDDEN' if log.level > logging.ERROR else 'PRESERVED')\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    assert proc.stdout.strip() == "OVERRIDDEN", (
+        "uvicorn no longer overrides the logger level, so main.py could set it "
+        "defensively again — verify before relying on that"
+    )
+
+
+def test_main_does_not_raise_the_uvicorn_log_level():
+    """Given the two facts above, this is the actual precondition of the fix:
+    `log_level` must stay at uvicorn's INFO default so ERROR records reach the
+    filter. Someone quietening the backend later would otherwise silently
+    disarm the #1364 diagnosis."""
+    src = _read("backend", "main.py")
+    # Scope to the GUARDED serve call. main.py has a second uvicorn.run() on
+    # the --health-check smoke path, which sets log_level="warning" to quieten
+    # the access log; that is below ERROR and irrelevant here.
+    guarded = src[src.index('logging.getLogger("uvicorn.error").addFilter('):]
+    call = re.search(r"uvicorn\.run\((.*?)\)\n", guarded, re.DOTALL)
+    assert call, "the guarded uvicorn.run() call was not found after the watcher"
+
+    level = re.search(r"log_level\s*=\s*[\"'](\w+)[\"']", call.group(1))
+    if level is not None:
+        # A filter only runs on records the logger emits, so anything above
+        # ERROR drops the bind failure before the watcher can see it.
+        assert level.group(1).lower() in ("debug", "info", "warning", "error"), (
+            f"the guarded uvicorn.run() sets log_level={level.group(1)!r}, which "
+            f"suppresses the ERROR record the #1364 watcher reads"
+        )
+
+
+def test_main_actually_wires_the_watcher():
+    """The end-to-end tests above rebuild the guard from extracted source, so
+    they would still pass if main.py stopped installing the filter or stopped
+    consulting it (CodeRabbit). Pin the production wiring itself."""
+    src = _read("backend", "main.py")
+    assert "class _BindErrorWatcher(" in src
+    assert 'logging.getLogger("uvicorn.error").addFilter(' in src, (
+        "the watcher is defined but never attached"
+    )
+    assert "_watcher.bind_error is not None" in src, (
+        "the watcher is attached but never consulted, so a lost race still "
+        "exits 1 with no explanation"
+    )
