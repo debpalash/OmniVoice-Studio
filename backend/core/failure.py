@@ -470,6 +470,39 @@ def strip_ffmpeg_banner(text: Optional[str]) -> str:
     return out or str(text).strip()
 
 
+# Terminal escape sequences from a captured stderr (#1344). Command-line tools
+# colourize their output whenever they think a terminal is attached, and the
+# frozen backend's pipes are enough for several of them to decide that: yt-dlp
+# reported "download: ^[[0;31mERROR:^[[0m [youtube] …" verbatim into the UI,
+# where the escapes render as literal mojibake in the middle of the sentence.
+#
+# Stripping matters for more than looks: this text is also the input to the
+# pattern matching below. ``classify()``'s patterns happen to match past the
+# escape and survive it, but ``strip_ffmpeg_banner`` is anchored to the start
+# of a line — a leading colour code hides "ffmpeg version " from it and
+# quietly reinstates #1309 for any ffmpeg build that colours its output. Hence
+# the strip runs FIRST, at the choke point every failure passes through.
+#
+# CSI (colour, cursor movement) plus OSC (window title / hyperlink), which
+# yt-dlp and ffmpeg both emit and which carries its own terminator.
+_ANSI_ESCAPE = re.compile(
+    r"\x1B(?:\][^\x07\x1B]*(?:\x07|\x1B\\)|[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])"
+)
+
+
+def strip_ansi(text: Optional[str]) -> str:
+    """Remove terminal escape sequences from a captured stderr/stdout.
+
+    Returns the text unchanged when there are none. Never returns empty for
+    non-empty input: a message made only of escapes is not a message, but an
+    empty one is worse, so the original is kept in that (pathological) case.
+    """
+    if not text:
+        return text or ""
+    out = _ANSI_ESCAPE.sub("", str(text))
+    return out if out.strip() else str(text)
+
+
 def sanitize(text: Optional[str]) -> str:
     """Redact secrets and strip the home path from a string.
 
@@ -713,10 +746,13 @@ def build_failure(
         error_class = "Error"
         raw = str(exc_or_msg).strip() or "Unknown failure"
 
-    # Strip ffmpeg's stderr banner before anything reads the text — both the
+    # Normalise the captured text before anything reads it — both the
     # user-facing reason and classify() below, which would otherwise be
-    # matching against a build configuration string (#1309).
-    raw = strip_ffmpeg_banner(raw)
+    # matching against a build configuration string (#1309) or against
+    # terminal colour codes (#1344).
+    # ANSI first: the banner matcher anchors on "ffmpeg version " at the start
+    # of a line, which a leading colour code would push out of reach.
+    raw = strip_ffmpeg_banner(strip_ansi(raw))
     reason = sanitize(raw) or error_class
     docs_topic = classify(raw)
     # HF_MIRROR_UNREACHABLE's hint is dynamic (it names the configured mirror)
