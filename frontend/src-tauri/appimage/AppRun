@@ -147,20 +147,6 @@ if _prefer_system_webkit; then
   _SYS_WK_LIBDIR="$(_system_webkit_libdir || echo "")"
 fi
 
-if [ -n "$_SYS_WK_LIBDIR" ]; then
-  # The host's WebKit resolves first; ours fills only what the host lacks.
-  export LD_LIBRARY_PATH="${_SYS_WK_LIBDIR}:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
-  # The workaround above was chosen for the BUNDLED version; re-decide it
-  # against the copy that will actually run.
-  unset WEBKIT_DISABLE_COMPOSITING_MODE
-  case "$(_system_webkit_version)" in
-    2.44.*|2.46.*|"") export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
-  esac
-else
-  # Standard AppImage env that Tauri's auto-generated AppRun would have set.
-  export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
-fi
-
 # ── GStreamer: the bundle has a core but no plugins (#1333) ────────────────
 # Microphone capture died on Debian 13 with "No microphone found", while the
 # same build's raw binary recorded fine. GST_DEBUG=2 named the cause:
@@ -215,11 +201,37 @@ _prefer_system_gstreamer() {
   return 0
 }
 
+_SYS_GST_LIBDIR=""
 if _prefer_system_gstreamer; then
   _SYS_GST_LIBDIR="$(_system_gstreamer_libdir || echo "")"
-  if [ -n "$_SYS_GST_LIBDIR" ]; then
-    export LD_LIBRARY_PATH="${_SYS_GST_LIBDIR}:${LD_LIBRARY_PATH:-}"
-  fi
+fi
+
+# ── One place that composes LD_LIBRARY_PATH ────────────────────────────────
+# Order is load-bearing and the two decisions above interact, so they are
+# applied together rather than each prepending its own directory:
+#
+#   host WebKit  →  host GStreamer  →  bundle  →  whatever was inherited
+#
+# The host WebKit dir must stay FIRST. Prepending the GStreamer dir separately
+# put it ahead of WebKit's, which is the invariant #1258 turns on — and on a
+# host where the two libraries live in different directories that silently
+# changes which WebKit resolves. Both host dirs still precede the bundle, so
+# neither preference is weakened.
+_LDPATH=""
+[ -n "$_SYS_WK_LIBDIR" ] && _LDPATH="${_SYS_WK_LIBDIR}"
+if [ -n "$_SYS_GST_LIBDIR" ] && [ "$_SYS_GST_LIBDIR" != "$_SYS_WK_LIBDIR" ]; then
+  _LDPATH="${_LDPATH:+${_LDPATH}:}${_SYS_GST_LIBDIR}"
+fi
+_LDPATH="${_LDPATH:+${_LDPATH}:}${HERE}/usr/lib"
+export LD_LIBRARY_PATH="${_LDPATH}:${LD_LIBRARY_PATH:-}"
+
+if [ -n "$_SYS_WK_LIBDIR" ]; then
+  # The workaround chosen earlier was for the BUNDLED version; re-decide it
+  # against the copy that will actually run.
+  unset WEBKIT_DISABLE_COMPOSITING_MODE
+  case "$(_system_webkit_version)" in
+    2.44.*|2.46.*|"") export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
+  esac
 fi
 
 # Private registry cache, unconditionally. GStreamer caches its plugin scan in
