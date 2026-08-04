@@ -45,6 +45,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Linux AppImage: `OMNIVOICE_PREFER_SYSTEM_WEBKIT=1` forces your own WebKitGTK for hosts where its version can't be read automatically (no `pkg-config`), and `=0` forces the bundled one (#1258)
 - Dubbing: the transcription overlay said "Transcribing with Whisper…" whatever ASR engine was actually running — it now names the stage, in all 21 languages — thanks @paoloantinori! (#1352)
 - Error messages no longer arrive with terminal colour codes spliced into the sentence (`download: ^[[0;31mERROR:^[[0m …`) — every surfaced failure is cleaned now, whichever tool produced it. (#1344)
+- A TTS job abandoned for exceeding its compute budget now records where it was actually stuck, so a hang stops being reported as a machine that is merely too slow. (#1338, #1329, #1348)
 
 ### Docs
 

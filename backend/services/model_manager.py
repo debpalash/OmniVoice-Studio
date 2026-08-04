@@ -580,6 +580,10 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         # wait_for already cancelled the asyncio wrapper; the worker thread
         # keeps going regardless. Consume whatever it eventually produces.
         fut.add_done_callback(_swallow_abandoned)
+        # Capture the stacks BEFORE reset(): reset() replaces the executor, and
+        # once the wedged thread is no longer a pool worker we can no longer
+        # tell it apart from any other thread in the process.
+        log_gpu_pool_worker_stacks(what, timeout)
         _reset = getattr(ex, "reset", None)
         if callable(_reset):
             try:
@@ -596,6 +600,66 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         raise GpuJobTimeoutError(
             _timeout_guidance(what, timeout, min_vram_gb)
         ) from timeout_exc
+
+
+#: Frames to keep per wedged worker. Deep enough to cross the engine adapter
+#: into the model's own call stack, shallow enough that a 1-worker and an
+#: 8-worker host both produce a log a human will actually read.
+_WEDGE_STACK_DEPTH = 25
+
+
+def log_gpu_pool_worker_stacks(what: str, timeout: float) -> str:
+    """Log where every GPU-pool worker is currently executing. Never raises.
+
+    The gap this closes (#1338/#1329/#1348): when a job overran its execution
+    budget we logged *that* it had, reset the pool, and returned a message
+    about the machine being too slow — with no record of what the abandoned
+    thread was actually doing. So every report of this class arrived
+    undiagnosable, and the only way forward was to ask the user to reproduce it
+    under a debugger. On an RTX 3060 rendering one sentence, "too heavy for the
+    available compute" is almost certainly the wrong story, and nothing in the
+    log could contradict it.
+
+    ``sys._current_frames()`` reads the frame of every live thread, including
+    one wedged inside a C call — which is exactly the case here, since the
+    worker cannot be cancelled and keeps running after we abandon it. Filtered
+    to gpu-pool workers so the log names the stuck job, not the web server.
+
+    Returns the formatted text (also for tests); empty when nothing matched.
+    """
+    try:
+        import sys as _sys
+        import threading as _threading
+        import traceback as _traceback
+
+        names = {
+            t.ident: t.name for t in _threading.enumerate()
+            if t.ident is not None and t.name.startswith(_GPU_POOL_THREAD_PREFIX)
+        }
+        if not names:
+            return ""
+        frames = _sys._current_frames()
+        blocks = []
+        for ident, name in sorted(names.items(), key=lambda kv: kv[1]):
+            frame = frames.get(ident)
+            if frame is None:
+                continue
+            stack = "".join(_traceback.format_stack(frame, limit=_WEDGE_STACK_DEPTH))
+            blocks.append(f"--- {name} ---\n{stack.rstrip()}")
+        if not blocks:
+            return ""
+        text = "\n".join(blocks)
+        logger.warning(
+            "%s exceeded %.0fs — stack of every GPU-pool worker at the moment "
+            "it was abandoned. The deepest frame is where it is stuck; if that "
+            "is inside the model rather than a data copy, this is a hang and "
+            "not an under-provisioned machine (#1338):\n%s",
+            _log_safe(what), timeout, text,
+        )
+        return text
+    except Exception:  # noqa: BLE001 — diagnostics must never mask the timeout
+        logger.exception("Could not capture GPU-pool worker stacks")
+        return ""
 
 
 def _timeout_guidance(what: str, timeout: float, min_vram_gb: float = 0.0) -> str:
