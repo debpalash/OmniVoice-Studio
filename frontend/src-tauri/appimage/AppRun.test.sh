@@ -331,16 +331,25 @@ run_workaround_with_system "broken host re-arms it"            "2.44.3" "2.46.1"
 #   ldconfig  — runtime-only host (no .pc file), the #1258-review fallback
 #   none      — no host GStreamer at all
 run_gst_case() {
-  local label="$1" optout="$2" discovery="$3" expected="$4"
-  local gstlibdir cachedir actual
+  local label="$1" optout="$2" discovery="$3" expected="$4" loadable="${5:-yes}"
+  local gstlibdir cachedir probe actual
   gstlibdir="$(mktemp -d)"
   cachedir="$(mktemp -d)"
   [ "$discovery" = "none" ] || touch "$gstlibdir/libgstreamer-1.0.so.0"
+  # The load probe: AppRun runs this under the candidate LD_PRELOAD, so its
+  # exit status stands in for the dynamic loader accepting or rejecting the
+  # pairing. (A fixture .so is an empty file; only the real loader could
+  # answer that for real, and that is the OS's job, not this suite's.)
+  probe="$(mktemp)"
+  if [ "$loadable" = "yes" ]; then printf '#!/bin/sh\nexit 0\n' > "$probe"
+  else printf '#!/bin/sh\nexit 1\n' > "$probe"; fi
+  chmod +x "$probe"
 
   actual=$(
     bash -c '
       set +e
       export OMNIVOICE_PREFER_SYSTEM_GSTREAMER="'"$optout"'"
+      export OMNIVOICE_APPRUN_PRELOAD_PROBE="'"$probe"'"
       export XDG_CACHE_HOME="'"$cachedir"'"
       gstlibdir="'"$gstlibdir"'"
       discovery="'"$discovery"'"
@@ -382,7 +391,7 @@ run_gst_case() {
         *)                           printf "+shared-registry" ;;
       esac'
   )
-  rm -rf "$gstlibdir" "$cachedir"
+  rm -rf "$gstlibdir" "$cachedir" "$probe"
 
   if [[ "$actual" == "$expected" ]]; then
     echo "PASS [$label]"
@@ -406,6 +415,11 @@ run_gst_case "host GStreamer wins (ldconfig)"  ""  "ldconfig"  "gst-preloaded+li
 run_gst_case "no host GStreamer is harmless"   ""  "none"      "no-gst+libdir-intact+private-registry"
 # Escape hatch for a host whose own GStreamer is broken.
 run_gst_case "opt-out keeps the bundled core"  "0" "pkgconfig" "no-gst+libdir-intact+private-registry"
+# A host core that needs newer GLib than the bundle ships fails its relocations
+# and the app would not start AT ALL — worse than the broken microphone this
+# fixes (greptile). The load probe catches that, so the preload is skipped and
+# the app still launches on the bundled core.
+run_gst_case "unloadable host core is skipped" ""  "pkgconfig" "no-gst+libdir-intact+private-registry" "no"
 
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"

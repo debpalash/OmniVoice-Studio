@@ -225,6 +225,31 @@ _prefer_system_gstreamer() {
   return 0
 }
 
+#: Can this library actually load in the environment the app will run in?
+#
+# The host's GStreamer links GLib, and the bundle ships GLib too — resolved
+# bundle-first. A host core built against newer GLib than we bundle therefore
+# fails its relocations and the app does not start AT ALL, which is a worse
+# outcome than the broken microphone this is fixing (greptile). Pairing host
+# GStreamer with host GLib is not an option either: GLib is what WebKit is
+# built against, so pulling that from the host reopens #961/#1258.
+#
+# So do not predict the pairing — test it. The dynamic loader processes
+# LD_PRELOAD for *any* binary, so running `true` under the exact environment
+# the app will get is a complete check of "does this library load here":
+# a missing dependency or an unresolved version tag (`version 'GLIB_2.84' not
+# found`) fails it, and nothing else runs. Cheap, and decisive where a version
+# comparison would be guesswork.
+# OMNIVOICE_APPRUN_PRELOAD_PROBE lets the unit tests choose the outcome, the
+# same way OMNIVOICE_APPRUN_WK_MARKER points at a fixture marker — the decision
+# logic is what is testable here; whether a given .so loads is the OS's answer.
+_preload_loads_cleanly() {
+  local probe
+  probe="${OMNIVOICE_APPRUN_PRELOAD_PROBE:-$(command -v true 2>/dev/null || echo /bin/true)}"
+  [ -x "$probe" ] || return 1
+  LD_PRELOAD="$1" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$probe" 2>/dev/null
+}
+
 # LD_PRELOAD, not LD_LIBRARY_PATH. Preloading names exactly one library and
 # leaves the search path — and therefore every other bundled library — alone.
 # Reordering directories cannot be that precise: the host's GStreamer shares a
@@ -234,8 +259,16 @@ _prefer_system_gstreamer() {
 # and the preload is inert. That is the accepted cost of the narrower mechanism.
 if _prefer_system_gstreamer; then
   _SYS_GST_LIB="$(_system_gstreamer_lib || echo "")"
-  if [ -n "$_SYS_GST_LIB" ]; then
+  if [ -n "$_SYS_GST_LIB" ] && _preload_loads_cleanly "$_SYS_GST_LIB"; then
     export LD_PRELOAD="${_SYS_GST_LIB}${LD_PRELOAD:+ $LD_PRELOAD}"
+  elif [ -n "$_SYS_GST_LIB" ]; then
+    # Fail safe, and say so: the app still starts on the bundled core, which
+    # is where the microphone problem lives, so the user needs a thread to
+    # pull rather than a silent half-fix.
+    echo "OmniVoice: your GStreamer (${_SYS_GST_LIB}) cannot load against the" >&2
+    echo "  libraries this AppImage bundles, so it is not being used. Audio" >&2
+    echo "  capture may not find any microphone (see issue #1333). Building" >&2
+    echo "  from source avoids the mismatch entirely." >&2
   fi
 fi
 

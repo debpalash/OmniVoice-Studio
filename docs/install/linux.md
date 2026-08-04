@@ -216,6 +216,13 @@ rather fall back to the bundled core:
 OMNIVOICE_PREFER_SYSTEM_GSTREAMER=0 ./OmniVoice.Studio_*.AppImage
 ```
 
+The launcher checks first that your GStreamer can actually load alongside the
+libraries the AppImage bundles — a system core built against newer GLib than we
+ship would fail to load and take the whole app down with it, which is worse than
+a missing microphone. If that check fails it prints a warning, keeps the bundled
+core, and the app still starts (with capture still broken); building from source
+avoids the mismatch entirely.
+
 The AppImage also keeps its plugin-scan cache to itself, at
 `~/.cache/OmniVoice/gstreamer-registry.bin`, rather than in the shared
 `~/.cache/gstreamer-1.0/`. GStreamer names that shared file by architecture
