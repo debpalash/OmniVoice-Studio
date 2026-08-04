@@ -421,6 +421,109 @@ run_gst_case "opt-out keeps the bundled core"  "0" "pkgconfig" "no-gst+libdir-in
 # the app still launches on the bundled core.
 run_gst_case "unloadable host core is skipped" ""  "pkgconfig" "no-gst+libdir-intact+private-registry" "no"
 
+# ── The load probe must be a REAL binary, and must test the REAL value ──────
+# Both of these silently disabled the feature rather than breaking loudly, which
+# is why they get their own cases (CodeRabbit).
+#
+# 1. `command -v true` answers with the shell BUILTIN — the bare word "true" —
+#    so `[ -x "true" ]` was false on every host and the preload never happened.
+#    A builtin never involves the dynamic loader, so it could not have tested
+#    anything even if it had run.
+# 2. An inherited LD_PRELOAD is restored alongside ours for the app, so probing
+#    our library alone can pass while the environment the app gets fails.
+run_probe_default_case() {
+  local label="$1" expected="$2"
+  local gstlibdir actual
+  gstlibdir="$(mktemp -d)"
+  touch "$gstlibdir/libgstreamer-1.0.so.0"
+
+  actual=$(
+    bash -c '
+      set +e
+      gstlibdir="'"$gstlibdir"'"
+      pkg-config() {
+        [ "$1" = "--variable=libdir" ] && [ "$2" = "gstreamer-1.0" ] \
+          && { echo "$gstlibdir"; return 0; }
+        return 1
+      }
+      export -f pkg-config
+      ldconfig() { return 1; }
+      export -f ldconfig
+      exec() { :; }
+      export -f exec
+
+      unset OMNIVOICE_APPRUN_PRELOAD_PROBE
+      unset LD_LIBRARY_PATH LD_PRELOAD
+      # shellcheck disable=SC1090
+      source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
+      probe="$(_preload_probe_bin || echo "")"
+      case "$probe" in
+        /*) [ -x "$probe" ] && echo "external-binary" || echo "not-executable" ;;
+        "") echo "none" ;;
+        *)  echo "builtin-name" ;;
+      esac'
+  )
+  rm -rf "$gstlibdir"
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS [$label]"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [$label]: expected '$expected' got '$actual'" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+run_probe_default_case "default probe is an external binary" "external-binary"
+
+# The probed value must be what the app will actually get, inherited entries
+# included.
+run_probe_arg_case() {
+  local label="$1" inherited="$2" expected="$3"
+  local gstlibdir probe seen actual
+  gstlibdir="$(mktemp -d)"
+  touch "$gstlibdir/libgstreamer-1.0.so.0"
+  seen="$(mktemp)"
+  probe="$(mktemp)"
+  # Record what LD_PRELOAD the probe was invoked with, then succeed.
+  printf '#!/bin/sh\nprintf %%s "$LD_PRELOAD" > %s\nexit 0\n' "$seen" > "$probe"
+  chmod +x "$probe"
+
+  bash -c '
+    set +e
+    export OMNIVOICE_APPRUN_PRELOAD_PROBE="'"$probe"'"
+    export LD_PRELOAD="'"$inherited"'"
+    gstlibdir="'"$gstlibdir"'"
+    pkg-config() {
+      [ "$1" = "--variable=libdir" ] && [ "$2" = "gstreamer-1.0" ] \
+        && { echo "$gstlibdir"; return 0; }
+      return 1
+    }
+    export -f pkg-config
+    ldconfig() { return 1; }
+    export -f ldconfig
+    exec() { :; }
+    export -f exec
+    unset LD_LIBRARY_PATH
+    # shellcheck disable=SC1090
+    source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true' >/dev/null 2>&1
+
+  actual="$(cat "$seen" 2>/dev/null || echo "")"
+  actual="${actual//$gstlibdir\/libgstreamer-1.0.so.0/GST}"
+  rm -rf "$gstlibdir" "$probe" "$seen"
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS [$label]"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [$label]: expected '$expected' got '$actual'" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+run_probe_arg_case "probe sees our library"            ""              "GST"
+run_probe_arg_case "probe sees inherited entries too"  "/opt/x.so"     "GST /opt/x.so"
+
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"
 if [[ $FAIL_COUNT -ne 0 ]]; then
