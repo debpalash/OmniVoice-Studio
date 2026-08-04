@@ -341,9 +341,14 @@ run_gst_case() {
   # pairing. (A fixture .so is an empty file; only the real loader could
   # answer that for real, and that is the OS's job, not this suite's.)
   probe="$(mktemp)"
-  if [ "$loadable" = "yes" ]; then printf '#!/bin/sh\nexit 0\n' > "$probe"
-  else printf '#!/bin/sh\nexit 1\n' > "$probe"; fi
-  chmod +x "$probe"
+  case "$loadable" in
+    # The real /bin/sh, so the `*/sh) args="-c :"` branch runs for real: with
+    # no argument `sh` would read stdin and hang, so a broken branch here is
+    # not a silent pass.
+    sh) rm -f "$probe"; probe="$(command -v /bin/sh)" ;;
+    yes) printf '#!/bin/sh\nexit 0\n' > "$probe"; chmod +x "$probe" ;;
+    *)   printf '#!/bin/sh\nexit 1\n' > "$probe"; chmod +x "$probe" ;;
+  esac
 
   actual=$(
     bash -c '
@@ -391,7 +396,8 @@ run_gst_case() {
         *)                           printf "+shared-registry" ;;
       esac'
   )
-  rm -rf "$gstlibdir" "$cachedir" "$probe"
+  rm -rf "$gstlibdir" "$cachedir"
+  [ "$loadable" = "sh" ] || rm -f "$probe"
 
   if [[ "$actual" == "$expected" ]]; then
     echo "PASS [$label]"
@@ -523,6 +529,13 @@ run_probe_arg_case() {
 
 run_probe_arg_case "probe sees our library"            ""              "GST"
 run_probe_arg_case "probe sees inherited entries too"  "/opt/x.so"     "GST /opt/x.so"
+
+# The /bin/sh last resort is a real branch — `sh` needs `-c :` where `true`
+# needs no argument, and until now nothing ran it, so a host without
+# /usr/bin/true or /bin/true would have been the first to find out (CodeRabbit
+# flagged the sibling dead branch; this is the coverage that was missing with
+# it). Pointing the probe override at /bin/sh exercises exactly that path.
+run_gst_case "sh last-resort probe works"     ""  "pkgconfig" "gst-preloaded+libdir-intact+private-registry" "sh"
 
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"

@@ -253,14 +253,13 @@ _preload_probe_bin() {
     return 0
   fi
   local candidate
-  # `command -v` with a path argument still tells us about the file, and the
-  # fallbacks cover the usual/merged-/usr layouts plus a PATH lookup for
-  # anything unusual. /bin/sh is the last resort: it is guaranteed present on
-  # any host that can run this script at all, and `sh -c :` is as cheap as true.
-  for candidate in /usr/bin/true /bin/true "$(command -v -- coreutils 2>/dev/null || true)"; do
-    [ -n "$candidate" ] && [ -x "$candidate" ] && { printf '%s' "$candidate"; return 0; }
-  done
-  for candidate in /bin/sh /usr/bin/sh; do
+  # Absolute paths only. A PATH lookup is deliberately absent: `command -v true`
+  # is what caused the original bug, and there is nothing left for it to find
+  # anyway — /bin/sh is guaranteed present on any host that can run this script
+  # at all, so the list already terminates. (An earlier revision searched PATH
+  # for `coreutils`, which is not an executable name and could never resolve —
+  # a branch that looks like a fallback and is not, CodeRabbit.)
+  for candidate in /usr/bin/true /bin/true /bin/sh /usr/bin/sh; do
     [ -x "$candidate" ] && { printf '%s' "$candidate"; return 0; }
   done
   return 1
