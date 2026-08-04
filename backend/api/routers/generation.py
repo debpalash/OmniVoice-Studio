@@ -516,12 +516,12 @@ def _oom_friendly_reraise(e):
         # type name, so it is never empty and the check would never fire.
         _tail = f" Underlying error: {_safe_exc_text(e)}" if str(e).strip() else ""
         raise RuntimeError(
-            f"The engine hit its time limit before finishing, so generation was "
-            f"stopped. Nothing is broken and "
-            f"flushing memory won't help. The usual causes are a first-use model "
-            f"download still in progress (retry once it finishes — it resumes), "
-            f"a very long input, or an engine running on CPU. Shorter text, or "
-            f"raising OMNIVOICE_GENERATE_TIMEOUT_S, will get it through."
+            "The engine hit its time limit before finishing, so generation was "
+            "stopped. Nothing is broken and flushing memory won't help. The "
+            "usual causes are a first-use model download still in progress "
+            "(retry once it finishes — it resumes), a very long input, or an "
+            "engine running on CPU. Shorter text, or raising "
+            "OMNIVOICE_GENERATE_TIMEOUT_S, will get it through."
             + _tail
         ) from e
     if _is_oom_failure(e):
