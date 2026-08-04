@@ -22,15 +22,30 @@ The fix lives in ``build_failure`` — the choke point every surfaced failure
 passes through — so it covers the whole class (yt-dlp, ffmpeg, uv, pip, cargo,
 anything else that colours stderr), not just the reported command.
 """
+import importlib
 import os
 import sys
+
+import pytest
 
 os.environ.setdefault("OMNIVOICE_MODEL", "test")
 os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
-from core import failure  # noqa: E402
+
+@pytest.fixture
+def failure():
+    """Resolve ``core.failure`` at call time, never at import time.
+
+    A module-level ``from core import failure`` binds whichever object exists
+    during collection, and sibling suites reload/purge ``core.*`` between
+    tests — so the alias can outlive the module the app is actually using and
+    this file would then assert against a stale copy while looking green. That
+    is #1269 exactly, and it is a repo-wide rule for ``tests/**`` rather than a
+    quirk of this file (CodeRabbit).
+    """
+    return importlib.import_module("core.failure")
 
 RED = "\x1b[0;31m"
 RESET = "\x1b[0m"
@@ -43,7 +58,7 @@ _YTDLP = (
 )
 
 
-def test_strip_ansi_removes_colour_codes():
+def test_strip_ansi_removes_colour_codes(failure):
     assert failure.strip_ansi(_YTDLP) == (
         "ERROR: [youtube] jsWTu0rJcmE: Video unavailable. This video is "
         "restricted. Please check the Google Workspace administrator and/or "
@@ -51,7 +66,7 @@ def test_strip_ansi_removes_colour_codes():
     )
 
 
-def test_strip_ansi_handles_cursor_and_osc_sequences():
+def test_strip_ansi_handles_cursor_and_osc_sequences(failure):
     """Not only SGR colour: progress output moves the cursor, and OSC sequences
     (window title / hyperlinks) carry their own terminator, so a naive
     ``\\x1b\\[...m`` pattern leaves half of one behind."""
@@ -60,27 +75,37 @@ def test_strip_ansi_handles_cursor_and_osc_sequences():
     assert failure.strip_ansi("x\x1b]8;;https://example.com\x1b\\y") == "xy"
 
 
-def test_strip_ansi_passes_clean_text_through():
+def test_strip_ansi_passes_clean_text_through(failure):
     assert failure.strip_ansi("plain text") == "plain text"
     assert failure.strip_ansi("") == ""
     assert failure.strip_ansi(None) == ""
 
 
-def test_strip_ansi_never_empties_a_nonempty_message():
-    """A message made only of escapes is not a message — but an empty one is
-    worse, and an empty ``reason`` would break build_failure's guarantee that it
-    is always non-empty."""
-    assert failure.strip_ansi(RED + RESET) == RED + RESET
+def test_escape_only_input_becomes_empty(failure):
+    """A message made only of escapes is not a message, so it must not survive
+    into the UI as a run of escape bytes."""
+    assert failure.strip_ansi(RED + RESET) == ""
 
 
-def test_build_failure_reason_is_free_of_escapes():
+def test_escape_only_failure_falls_back_to_the_error_class(failure):
+    """...and ``build_failure`` still honours its non-empty ``reason``
+    guarantee, by naming the exception class instead. A class name is a real
+    answer; escape bytes copied into reason/error/detail are not."""
+    fields = failure.build_failure(ValueError(RED + RESET), stage="download")
+    assert fields["reason"] == "ValueError"
+    assert fields["error"] == "ValueError"
+    for key in ("reason", "error", "detail"):
+        assert "\x1b" not in fields[key], key
+
+
+def test_build_failure_reason_is_free_of_escapes(failure):
     fields = failure.build_failure(_YTDLP, stage="download")
     for key in ("reason", "error", "detail"):
         assert "\x1b" not in fields[key], f"{key} still carries terminal escapes"
     assert fields["reason"].startswith("ERROR: [youtube]")
 
 
-def test_classification_survives_colourized_output():
+def test_classification_survives_colourized_output(failure):
     """Invariance guard, not a repair: today's ``classify`` patterns all match
     on substrings past the escape, so this passes with or without the strip.
     It is here so that stays true — a future pattern anchored at the start of
@@ -99,7 +124,7 @@ def test_classification_survives_colourized_output():
         )
 
 
-def test_ffmpeg_banner_is_still_stripped_when_colourized():
+def test_ffmpeg_banner_is_still_stripped_when_colourized(failure):
     """Order matters: ``strip_ffmpeg_banner`` anchors on 'ffmpeg version ' at
     the start of a line, so a leading colour code would push it out of reach and
     quietly reinstate #1309 for any colour-emitting ffmpeg build."""

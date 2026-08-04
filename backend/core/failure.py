@@ -493,14 +493,15 @@ _ANSI_ESCAPE = re.compile(
 def strip_ansi(text: Optional[str]) -> str:
     """Remove terminal escape sequences from a captured stderr/stdout.
 
-    Returns the text unchanged when there are none. Never returns empty for
-    non-empty input: a message made only of escapes is not a message, but an
-    empty one is worse, so the original is kept in that (pathological) case.
+    Returns the text unchanged when there are none, and empty when the input
+    was nothing BUT escapes. Emptying it is correct rather than lossy:
+    ``build_failure`` already falls back to the exception class name for an
+    empty ``reason``, and a class name is a real answer where a run of escape
+    bytes copied into ``reason``/``error``/``detail`` is not (CodeRabbit).
     """
     if not text:
         return text or ""
-    out = _ANSI_ESCAPE.sub("", str(text))
-    return out if out.strip() else str(text)
+    return _ANSI_ESCAPE.sub("", str(text))
 
 
 def sanitize(text: Optional[str]) -> str:
