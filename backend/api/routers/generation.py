@@ -551,7 +551,8 @@ def _run_inference(
                     if used_seed is not None:
                         torch.manual_seed(used_seed + i)
                     parts.append(_gen(chunk_text, None)[0])
-                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms)
+                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
+                                                     texts=text_chunks)
             else:
                 audio_out = _gen(text, duration)[0]
 
@@ -623,7 +624,8 @@ def _run_backend_inference(
                     if used_seed is not None:
                         torch.manual_seed(used_seed + i)
                     parts.append(backend.generate(chunk_text, duration=None, **gen_kwargs))
-                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms)
+                audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
+                                                     texts=text_chunks)
             else:
                 audio_out = backend.generate(text, duration=duration, **gen_kwargs)
 
@@ -1266,7 +1268,8 @@ async def generate_speech(
             non-streaming multi-chunk loop runs, as one pool job."""
             from services.chunked_tts import concatenate_audio_chunks
             try:
-                audio_out = concatenate_audio_chunks(parts, sr, crossfade_ms)
+                audio_out = concatenate_audio_chunks(parts, sr, crossfade_ms,
+                                                     texts=_text_chunks)
                 skip = (getattr(_backend, "applies_own_mastering", False)
                         if _backend is not None else False)
                 return _apply_effect_chain(audio_out, sr, effect_preset, skip_mastering=skip)

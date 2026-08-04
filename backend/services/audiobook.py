@@ -287,11 +287,19 @@ def synthesize_chapter(
             if audio is None:
                 chunks = split_text_into_chunks(apply_lexicon(span.text, lexicon))
                 rendered = [synth(c, span.voice_id, span.speed) for c in chunks]
-                rendered = [r for r in rendered if r is not None and getattr(r, "numel", lambda: 0)()]
-                if len(rendered) == 1:
-                    audio = rendered[0]
-                elif rendered:
-                    audio = concatenate_audio_chunks(rendered, sample_rate, crossfade_ms=crossfade_ms)
+                # Deliberately NOT pre-filtered (#1330). Dropping the empties
+                # here both hid them — a chapter would come back short with
+                # nothing said about it — and misaligned `rendered` from
+                # `chunks`, so the concat could not name which text was lost.
+                # It reports and skips them; this only needs the count.
+                _nonempty = [r for r in rendered
+                             if r is not None and getattr(r, "numel", lambda: 0)()]
+                if len(_nonempty) == 1:
+                    audio = _nonempty[0]
+                elif _nonempty:
+                    audio = concatenate_audio_chunks(rendered, sample_rate,
+                                                    crossfade_ms=crossfade_ms,
+                                                    texts=chunks)
                 if audio is not None and segment_cache is not None:
                     segment_cache.store(span, audio, nonce=occ)
             if audio is not None:
