@@ -10,8 +10,14 @@
 #
 # Usage:
 #   bun desktop-prod          # build debug + wipe + launch
-#   bun desktop-prod:run      # re-launch last build (skip compile)
+#   bun desktop-prod:run      # re-launch last build (skip compile, keep data)
 #   bun desktop-prod:upgrade  # rebuild, but keep data (test upgrade)
+#
+# NOTE on the flags (#1333): --skip-build and --keep-data are INDEPENDENT.
+# --skip-build only skips the compile; on its own it still wipes app data,
+# which is why `desktop-prod:run` passes --keep-data too. Wiping is the
+# default because this script exists to emulate a first install; a plain
+# re-launch is not that, and must not cost you your voice profiles.
 #
 # For a stricter NEW-USER emulation on macOS (webview localStorage, prefs,
 # caches wiped too + launch with a dev-tools-hidden environment), see
@@ -88,7 +94,9 @@ for arg in "$@"; do
     -h|--help)
       echo "Usage: $0 [--skip-build] [--keep-data] [--keep-models] [--pill]"
       echo ""
-      echo "  --skip-build   Skip cargo build, use last compiled binary"
+      echo "  --skip-build   Skip cargo build, use last compiled binary."
+      echo "                 Does NOT imply --keep-data: on its own it still"
+      echo "                 wipes app data. Pair the two to just re-launch."
       echo "  --keep-data    Don't wipe app data (test upgrade path)"
       echo "  --keep-models  Wipe app/backend data for a fresh app, but KEEP the"
       echo "                 HF model cache — fresh first-run without re-downloading"
@@ -117,13 +125,52 @@ is_app_scoped() {
   esac
 }
 
-# ── Kill-before-wipe: never clean under a live instance ────────────────────
-# A backend that survives the wipe becomes a zombie: /health keeps answering
-# from memory, the next launch attaches to it, and every real route 500s off
-# deleted files + an empty DB. Terminate our own processes first.
+# ── Kill before launch (and before any wipe) ───────────────────────────────
+# Two independent reasons, which is why this is unconditional (#1333 review):
+#
+# 1. Wipe: a backend that survives it becomes a zombie — /health keeps
+#    answering from memory, the next launch attaches to it, and every real
+#    route 500s off deleted files + an empty DB.
+# 2. Launch: the app registers tauri_plugin_single_instance, whose callback
+#    IGNORES the new argv and merely refocuses the window the running process
+#    already has. So starting a second copy over a live one silently does
+#    nothing — `desktop-prod:run` would refocus the OLD build instead of
+#    running the one just compiled, and `desktop-prod:run:pill` would leave
+#    you looking at studio mode with --pill quietly discarded.
+#
+# Reason 2 applies whatever the data policy is, so this must not sit inside
+# the KEEP_DATA branch.
+#
+# The kill is scoped to THIS checkout's build artifacts. A bare `${APP_NAME}.app`
+# pattern also matches an installed /Applications copy, and killing that costs a
+# developer unsaved work in a session this script never started (greptile) —
+# previously masked because the kill only ran on wipe runs, where the developer
+# had already asked for a clean slate. An installed copy still cannot be ignored
+# outright (single-instance would swallow this launch), so it gets a warning.
+warn_installed_instance() {
+  local installed
+  installed="$(pgrep -f "${APP_NAME}.app" 2>/dev/null || true)"
+  # Drop anything already matched as our own dev build.
+  local p keep=""
+  for p in $installed; do
+    case " $pids " in *" $p "*) ;; *) keep="$keep $p" ;; esac
+  done
+  [ -z "${keep// /}" ] && return 0
+  echo "⚠️  An installed ${APP_NAME} is running (pid(s):$keep)."
+  echo "   Not touching it — that is your session, and killing it would cost"
+  echo "   you unsaved work. But single-instance keys on the bundle id, so it"
+  echo "   will swallow this launch: quit it first, or you'll keep looking at"
+  echo "   the installed app instead of this build."
+  echo ""
+}
+
 kill_running_instances() {
   local pids=""
-  pids="$(pgrep -f "${APP_NAME}.app|target/debug/omnivoice-studio" 2>/dev/null || true)"
+  # One pattern covers both launch shapes: the raw binary and the .app bundle
+  # both live under `${TAURI_DIR}/target/debug/`, and `pgrep -f` sees the
+  # absolute path, of which that is a substring.
+  pids="$(pgrep -f "${TAURI_DIR}/target/debug/.*omnivoice-studio" 2>/dev/null || true)"
+  warn_installed_instance
   local port_pid
   for port_pid in $(lsof -nP -iTCP:3900 -sTCP:LISTEN -t 2>/dev/null || true); do
     if ps -p "$port_pid" -o command= 2>/dev/null | grep -qiE 'omnivoice|com\.debpalash'; then
@@ -145,13 +192,14 @@ kill_running_instances() {
   done
   # shellcheck disable=SC2086
   kill -9 $pids 2>/dev/null || true
-  echo "   All stopped — safe to wipe."
+  echo "   All stopped."
   echo ""
 }
 
+kill_running_instances
+
 # ── Wipe app data for fresh-install simulation ─────────────────────────────
 if [ "$KEEP_DATA" = false ]; then
-  kill_running_instances
   echo "🧹 Cleaning all OmniVoice data for fresh prod emulation..."
   echo ""
 

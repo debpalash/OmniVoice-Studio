@@ -1069,7 +1069,7 @@
     "prep_chip_scene": "scene",
     "prep_chip_cached": "cached",
     "prep_demucs_note": "Demucs can take several minutes on long videos. Long audio = longer wait.",
-    "transcribing": "Transcribing with Whisper…",
+    "transcribing": "Transcribing audio…",
     "elapsed": "elapsed",
     "remaining": "s remaining",
     "sidebar_toggle": "Toggle Sidebar",

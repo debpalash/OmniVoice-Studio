@@ -781,7 +781,7 @@
     "prep_chip_scene": "Szene",
     "prep_chip_cached": "zwischengespeichert",
     "prep_demucs_note": "Demucs kann bei langen Videos mehrere Minuten dauern. Langes Audio = längere Wartezeit.",
-    "transcribing": "Transkribieren mit Whisper…",
+    "transcribing": "Audio transkribieren…",
     "elapsed": "verstrichen",
     "remaining": "Es bleibt übrig",
     "sidebar_toggle": "Seitenleiste umschalten",

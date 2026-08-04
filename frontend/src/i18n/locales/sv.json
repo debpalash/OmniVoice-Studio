@@ -781,7 +781,7 @@
     "prep_chip_scene": "scen",
     "prep_chip_cached": "cachad",
     "prep_demucs_note": "Demucs kan ta flera minuter på långa videor. Långt ljud = längre väntan.",
-    "transcribing": "Transkriberar med Whisper...",
+    "transcribing": "Transkriberar ljud...",
     "elapsed": "förflutit",
     "remaining": "s kvar",
     "sidebar_toggle": "Växla sidofält",

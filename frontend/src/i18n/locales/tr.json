@@ -781,7 +781,7 @@
     "prep_chip_scene": "sahne",
     "prep_chip_cached": "önbelleğe alınmış",
     "prep_demucs_note": "Demucs uzun videolarda birkaç dakika sürebilir. Uzun ses = daha uzun bekleme.",
-    "transcribing": "Whisper ile yazıya aktarılıyor…",
+    "transcribing": "Ses yazıya aktarılıyor…",
     "elapsed": "geçti",
     "remaining": "kaldı",
     "sidebar_toggle": "Kenar Çubuğunu Değiştir",

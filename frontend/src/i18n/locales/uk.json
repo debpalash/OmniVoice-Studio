@@ -781,7 +781,7 @@
     "prep_chip_scene": "сцена",
     "prep_chip_cached": "кешується",
     "prep_demucs_note": "Demucs може займати кілька хвилин для довгих відео. Довге аудіо = довше чекати.",
-    "transcribing": "Транскрибування за допомогою Whisper…",
+    "transcribing": "Транскрибування аудіо…",
     "elapsed": "минув",
     "remaining": "s залишилося",
     "sidebar_toggle": "Перемкнути бічну панель",

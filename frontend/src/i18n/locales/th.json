@@ -781,7 +781,7 @@
     "prep_chip_scene": "ฉาก",
     "prep_chip_cached": "แคชไว้",
     "prep_demucs_note": "Demucs อาจใช้เวลาหลายนาทีกับวิดีโอขนาดยาว เสียงยาว = รอนานขึ้น",
-    "transcribing": "กำลังถอดเสียงด้วย Whisper...",
+    "transcribing": "กำลังถอดเสียง...",
     "elapsed": "ผ่านไปแล้ว",
     "remaining": "เหลืออยู่",
     "sidebar_toggle": "สลับแถบด้านข้าง",
