@@ -121,7 +121,7 @@ def test_real_bind_conflict_exits_with_the_dedicated_code(tmp_path):
 
         script = tmp_path / "guarded.py"
         script.write_text(
-            "import socket, sys\n"
+            "import logging, socket, sys\n"
             "import uvicorn\n"
             "from fastapi import FastAPI\n"
             f"_EXIT_PORT_IN_USE = {_EXPECTED_EXIT}\n"
@@ -172,3 +172,98 @@ def test_the_probe_does_not_false_positive_on_a_free_port(tmp_path):
     )
     proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
     assert proc.stdout.strip() == "FREE", proc.stderr
+
+
+def test_a_lost_bind_race_is_explained_even_if_the_port_is_free_again(tmp_path):
+    """#1364: the same crash, still unexplained, when the squatter exits too.
+
+    The #1223 guard handles the race by re-probing after uvicorn dies. That
+    only helps while the other process is still holding the port. The common
+    case is an orphaned backend from the previous session which is *itself*
+    shutting down — it releases the port between uvicorn's failed bind and our
+    re-probe, the probe reports "free", and the user gets a bare `exit code 1`
+    for a crash we had already diagnosed.
+
+    Reported on Windows with the tell-tale ordering: `Application startup
+    complete` (uvicorn's lifespan runs before the bind), then
+    `[Errno 10048] error while attempting to bind`, then a plain exit 1.
+
+    Simulated deterministically by making both probes report the port free
+    while it is genuinely held, which is precisely the state the race leaves
+    us in. Fails before the watcher: exit 1, no message.
+    """
+    holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    port = holder.getsockname()[1]
+    try:
+        guard = _read("backend", "main.py")
+        start = guard.index("    def _port_taken(")
+        end = guard.index("    # #1223: uvicorn does NOT")
+        body = "\n".join(line[4:] for line in guard[start:end].splitlines())
+
+        script = tmp_path / "raced.py"
+        script.write_text(
+            "import logging, socket, sys\n"
+            "import uvicorn\n"
+            "from fastapi import FastAPI\n"
+            f"_EXIT_PORT_IN_USE = {_EXPECTED_EXIT}\n"
+            f"_port = {port}\n"
+            "app = FastAPI()\n"
+            + body
+            + "\n"
+            # Both probes lie: the port looks free, exactly as it does when the
+            # process that held it has since exited.
+            "_port_taken = lambda *a, **k: None\n"
+            "_watcher = _BindErrorWatcher()\n"
+            "logging.getLogger('uvicorn.error').addFilter(_watcher)\n"
+            "try:\n"
+            "    uvicorn.run(app, host='127.0.0.1', port=_port)\n"
+            "except SystemExit:\n"
+            "    if _watcher.bind_error is not None:\n"
+            "        _fail_port_in_use(_watcher.bind_error)\n"
+            "    if _port_taken('127.0.0.1', _port) is not None:\n"
+            "        _fail_port_in_use(None)\n"
+            "    raise\n",
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [sys.executable, str(script)], capture_output=True, text=True
+        )
+        assert proc.returncode == _EXPECTED_EXIT, (
+            f"a lost bind race still exits {proc.returncode} with no explanation; "
+            f"expected {_EXPECTED_EXIT}\n{proc.stderr}"
+        )
+        # Our wording, not uvicorn's. `already in use` is also what macOS/Linux
+        # strerror puts in uvicorn's own log line, so asserting on that would
+        # pass against the unfixed build -- and would be the exact
+        # locale-dependent match #1223 exists to avoid.
+        assert "FATAL: port" in proc.stderr and "orphaned backend" in proc.stderr
+    finally:
+        holder.close()
+
+
+def test_the_watcher_ignores_unrelated_errors(tmp_path):
+    """It must not turn every logged OSError into "port in use" — a permission
+    failure or an unreachable bind host is a different problem with different
+    advice."""
+    guard = _read("backend", "main.py")
+    start = guard.index("    class _BindErrorWatcher(")
+    end = guard.index("    # #1223: uvicorn does NOT")
+    body = "\n".join(line[4:] for line in guard[start:end].splitlines())
+
+    script = tmp_path / "watcher.py"
+    script.write_text(
+        "import errno, logging\n" + body + "\n"
+        "w = _BindErrorWatcher()\n"
+        "log = logging.getLogger('probe'); log.addFilter(w)\n"
+        "log.error(OSError(errno.EACCES, 'permission denied'))\n"
+        "log.error(OSError(errno.ECONNREFUSED, 'refused'))\n"
+        "log.error('a plain string message')\n"
+        "print('CLEAN' if w.bind_error is None else 'FALSE_POSITIVE')\n"
+        "log.error(OSError(98, 'address already in use'))\n"
+        "print('CAUGHT' if w.bind_error is not None else 'MISSED')\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    assert proc.stdout.split() == ["CLEAN", "CAUGHT"], (proc.stdout, proc.stderr)

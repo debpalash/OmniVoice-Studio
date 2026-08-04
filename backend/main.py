@@ -1412,6 +1412,28 @@ if __name__ == "__main__":
         )
         sys.exit(_EXIT_PORT_IN_USE)
 
+    class _BindErrorWatcher(logging.Filter):
+        """Remembers the EADDRINUSE uvicorn logged on its way out (#1364).
+
+        uvicorn's startup does ``logger.error(exc); sys.exit(1)`` with the
+        OSError itself as the record's message, so the errno is available as an
+        object — no locale-dependent string matching. Passing every record
+        through untouched; this only observes.
+        """
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.bind_error: "OSError | None" = None
+
+        def filter(self, record: logging.LogRecord) -> bool:
+            msg = record.msg
+            if isinstance(msg, OSError) and (
+                msg.errno in (48, 98, 10048)
+                or getattr(msg, "winerror", None) == 10048
+            ):
+                self.bind_error = msg
+            return True
+
     # #1223: uvicorn does NOT let a bind failure reach the caller — it logs the
     # raw errno and raises SystemExit(1) from inside its startup, so an
     # `except OSError` around uvicorn.run() never fires (verified, not assumed).
@@ -1422,13 +1444,32 @@ if __name__ == "__main__":
     # Windows) — and exit with a code the shell can recognise.
     if (_bind_err := _port_taken(_bind_host, _port)) is not None:
         _fail_port_in_use(_bind_err)
+
+    _watcher = _BindErrorWatcher()
+    _uvicorn_log = logging.getLogger("uvicorn.error")
+    # A filter only runs on records the logger actually emits, so a level above
+    # ERROR would drop the bind failure before we ever see it and silently
+    # restore the unexplained exit 1. uvicorn's default is INFO and nothing
+    # here raises it, so this is a no-op today — it keeps the mechanism from
+    # being disarmed at a distance by a future log-level change.
+    if _uvicorn_log.level > logging.ERROR:
+        _uvicorn_log.setLevel(logging.ERROR)
+    _uvicorn_log.addFilter(_watcher)
     try:
         uvicorn.run(app, host=_bind_host, port=_port)
     except SystemExit:
         # Lost the race between the probe above and uvicorn's own bind (a
-        # competing process grabbed the port in between). Re-probe: if the port
-        # is taken now, that is what killed us, whatever exit code uvicorn
-        # chose.
+        # competing process grabbed the port in between).
+        #
+        # Re-probing alone is not enough (#1364): if the process that took the
+        # port was itself exiting — an orphaned backend from the previous
+        # session, which is the common case — the port is free again by the
+        # time we look, so the probe says "fine" and the user gets a bare
+        # `exit code 1` with no explanation for a crash we fully understood.
+        # uvicorn already told us the errno on its way out; believe that first
+        # and fall back to the probe.
+        if _watcher.bind_error is not None:
+            _fail_port_in_use(_watcher.bind_error)
         if _port_taken(_bind_host, _port) is not None:
             _fail_port_in_use(None)
         raise
