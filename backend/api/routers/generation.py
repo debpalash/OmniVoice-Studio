@@ -298,6 +298,46 @@ def _is_config_failure(e) -> bool:
     return False
 
 
+# Exception types that mean "the budget ran out", not "something broke".
+# asyncio.TimeoutError is an alias of the builtin on 3.11+, but the engines'
+# own wrappers are separate classes, so match by name across the chain.
+_TIMEOUT_EXC_NAMES = frozenset({
+    "TimeoutError", "GpuJobTimeoutError", "FuturesTimeoutError",
+})
+
+# Same class, stringified into a wrapper (all lowercase).
+_TIMEOUT_MSG_SIGNATURES = (
+    "timed out",
+    "timeout expired",
+    "exceeded its time budget",
+)
+
+
+def _is_timeout_failure(e) -> bool:
+    """True iff the generation ran out of *time* rather than failing (#1368).
+
+    A bare ``TimeoutError`` used to fall through to the unrecognized-error
+    catch-all, so the user was told to "retry once and report it with the full
+    trace" for the one failure mode whose cause is fully known and whose
+    message is usually EMPTY — ``TimeoutError:`` with nothing after the colon
+    tells them nothing at all.
+
+    Deliberately checked before the OOM branch: a job killed at its deadline is
+    not an allocation failure, and Flush is the wrong remedy for it.
+    """
+    for exc in _exception_chain(e):
+        if isinstance(exc, TimeoutError) or type(exc).__name__ in _TIMEOUT_EXC_NAMES:
+            return True
+        low = str(exc).lower()
+        if any(sig in low for sig in _TIMEOUT_MSG_SIGNATURES):
+            # "read timed out" is a download dying, which _is_network_failure
+            # owns and explains better; don't steal it.
+            if "read timed out" in low:
+                continue
+            return True
+    return False
+
+
 def _oom_friendly_reraise(e):
     """Best-effort cache flush + the user-facing OOM hint shared by both
     inference paths."""
@@ -462,6 +502,28 @@ def _oom_friendly_reraise(e):
     # never ran out of. Only claim OOM when something in the chain actually
     # looks like one; everything else surfaces as what it is — unrecognized —
     # with the real error front and center.
+    # #1368: a generate killed at its deadline is not an unrecognized fault.
+    # It arrived as a bare `TimeoutError:` with an EMPTY message, so the
+    # catch-all below asked the user to report a trace that says nothing.
+    # Checked before the OOM branch — a job that ran out of time did not run
+    # out of memory, and Flush is the wrong remedy.
+    if _is_timeout_failure(e):
+        # `TimeoutError` is routinely raised with no message, so the usual
+        # "Underlying error: …" tail rendered as a bare `TimeoutError:` —
+        # a sentence stopping mid-thought. Append it only when it says
+        # something (#1368).
+        # Test the MESSAGE, not _safe_exc_text() — that always prefixes the
+        # type name, so it is never empty and the check would never fire.
+        _tail = f" Underlying error: {_safe_exc_text(e)}" if str(e).strip() else ""
+        raise RuntimeError(
+            f"The engine hit its time limit before finishing, so generation was "
+            f"stopped. Nothing is broken and "
+            f"flushing memory won't help. The usual causes are a first-use model "
+            f"download still in progress (retry once it finishes — it resumes), "
+            f"a very long input, or an engine running on CPU. Shorter text, or "
+            f"raising OMNIVOICE_GENERATE_TIMEOUT_S, will get it through."
+            + _tail
+        ) from e
     if _is_oom_failure(e):
         raise RuntimeError(
             f"TTS engine stopped mid-generation. This usually means it ran out of memory. "
