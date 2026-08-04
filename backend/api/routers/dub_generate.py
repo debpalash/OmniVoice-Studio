@@ -203,6 +203,63 @@ def _speaker_key_for_segment(job: dict, sid) -> str | None:
     return None
 
 
+#: Segment ids already warned about, per job, so a 300-segment dub whose clip
+#: directory was cleaned logs once per segment rather than once per retry.
+_MISSING_REF_WARNED: dict = {}
+
+
+def warn_if_ref_missing(ref_audio, *, job_id: str = "", seg_id="", where: str = "dub"):
+    """Say so when a clone reference points at a file that is gone (#1331).
+
+    Reported as: re-dubbing a single sentence loses the cloned voice, while
+    re-dubbing everything keeps it.
+
+    Clone references are FILE PATHS into the job's extracted-clip directory,
+    and the whole job dict — those paths included — is persisted to
+    ``dub_history.job_data`` so saved projects reopen after a restart. The job
+    therefore outlives its clips. Reopen a saved dub once the clip directory
+    has been cleaned, regenerate one line, and every resolution branch hands
+    the engine a path that is no longer there. An engine given a missing
+    reference renders *uncloned* rather than failing, so the line comes back in
+    a default voice matching nothing else in the dub, with no error anywhere.
+    Re-running the full dub re-extracts the clips — which is exactly why that
+    appears to fix it, and is the workaround the reporter found unaided.
+
+    Deliberately DIAGNOSTIC ONLY: ``ref_audio`` is returned unchanged. Nulling
+    it would not change what the user hears (the engine already falls back),
+    and it would decide on the engine's behalf that a reference it cannot
+    ``stat`` is unusable — untrue for anything resolved inside a sidecar's own
+    namespace. The defect here is the silence, not the fallback.
+    """
+    if not ref_audio:
+        return ref_audio
+    try:
+        if os.path.exists(ref_audio):
+            return ref_audio
+    except OSError:  # unreadable path (permissions, dead mount) — same symptom
+        pass
+    seen = _MISSING_REF_WARNED.setdefault(str(job_id), set())
+    key = str(seg_id)
+    if key not in seen:
+        seen.add(key)
+        logger.warning(
+            "%s: the voice reference for segment %s is gone (%s), so this line "
+            "will most likely render in a DEFAULT voice instead of the cloned "
+            "one, with no error of its own. Clone clips are extracted per job "
+            "and the job outlives them, so a saved dub regenerated after "
+            "cleanup loses them — re-running the full dub re-extracts the "
+            "clips, which is why that appears to fix it (#1331).",
+            where, seg_id, ref_audio,
+        )
+    return ref_audio
+
+
+def forget_missing_ref_warnings(job_id: str) -> None:
+    """Drop the once-per-segment warning memo for a job (a fresh render should
+    warn again if the clips are still gone)."""
+    _MISSING_REF_WARNED.pop(str(job_id), None)
+
+
 def resolve_consistent_ref(job: dict, speaker_key: str, memo: dict | None = None):
     """ONE clone reference for every segment of `speaker_key`.
 
@@ -661,6 +718,12 @@ async def dub_generate(job_id: str, req: DubRequest):
 
                 if used_seed is not None:
                     torch.manual_seed(used_seed)
+
+                # Last gate before the engine: every resolution branch above
+                # produces a PATH, and none of them can know it still exists.
+                ref_audio = warn_if_ref_missing(
+                    ref_audio, job_id=job_id, seg_id=seg_id, where="dub render",
+                )
 
                 try:
                     audio_out = backend.generate(
@@ -1475,6 +1538,9 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
                 if not instruct_str and row["instruct"]:
                     instruct_str = row["instruct"]
 
+        ref_audio = warn_if_ref_missing(
+            ref_audio, job_id=job_id, seg_id="preview", where="dub preview",
+        )
         lang = req.language if req.language != "Auto" else None
         # Same normalization as the full dub render above, so a preview
         # sounds exactly like the final segment. Pref-gated, never raises.
