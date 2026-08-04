@@ -169,8 +169,12 @@ def _tensor_to_pcm_b64(audio, sample_rate: int) -> tuple[str, int, int]:
 
     arr = audio.detach().to("cpu").float().numpy()
     arr = np.asarray(arr, dtype=np.float32).squeeze()
-    if arr.ndim > 1:
-        arr = arr.mean(axis=0)  # defensive downmix to mono
+    while arr.ndim > 1:
+        # Downmix along whichever axis is the channel axis. Hardcoded to axis 0
+        # this averaged across TIME for a channels-last (N, 2) array -- every
+        # output sample became the mean of two neighbouring samples, which is
+        # not a downmix but a destroyed waveform. (#1328)
+        arr = arr.mean(axis=int(np.argmin(arr.shape)))
     arr = np.clip(arr, -1.0, 1.0)
     pcm = (arr * 32767.0).astype(np.int16).tobytes()
     return base64.b64encode(pcm).decode("ascii"), int(sample_rate), int(arr.shape[0])

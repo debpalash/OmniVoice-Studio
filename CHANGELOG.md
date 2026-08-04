@@ -28,6 +28,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Every subprocess TTS engine would have turned a stereo render into noise: the mono downmix always averaged axis 0, which is time rather than channels for channels-last audio. Unreachable today since every engine returns mono, fixed in all five before it isn't. (#1328)
 - Fresh installs failing to import `transformers.HiggsAudioV2TokenizerModel` with "RuntimeError: operator torchvision::nms does not exist" are fixed by pinning `torchvision==0.23.0` to match `torch 2.8.0` — thanks @HanzlahCh! (#1358, #1357)
 - Every RTX 40-series card (4060–4090) was declared unsupported and silently run on the CPU. The compatibility gate demanded an exact `sm_89` match, but PyTorch ships `sm_86` kernels that already cover Ada. (#1285)
 - Under-provisioned hardware is now flagged **before** a synthesis starts instead of after the full compute budget expires. (#1240, #1246, #1248, #1277, #1283, #1284)

@@ -202,10 +202,12 @@ def _wav_float_to_pcm_b64(wav, sample_rate: int) -> tuple[str, int, int]:
     import numpy as np
 
     arr = np.asarray(wav, dtype=np.float32).squeeze()
-    if arr.ndim > 1:
-        # Defensive: downmix to mono in case a future SDK version emits
-        # multi-channel. Mean across the channel dim.
-        arr = arr.mean(axis=0)
+    while arr.ndim > 1:
+        # Downmix along whichever axis is the channel axis. Hardcoded to axis 0
+        # this averaged across TIME for a channels-last (N, 2) array -- every
+        # output sample became the mean of two neighbouring samples, which is
+        # not a downmix but a destroyed waveform. (#1328)
+        arr = arr.mean(axis=int(np.argmin(arr.shape)))
     arr = np.clip(arr, -1.0, 1.0)
     pcm = (arr * 32767.0).astype(np.int16).tobytes()
     return base64.b64encode(pcm).decode("ascii"), int(sample_rate), int(arr.shape[0])
