@@ -583,7 +583,7 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         # Capture the stacks BEFORE reset(): reset() replaces the executor, and
         # once the wedged thread is no longer a pool worker we can no longer
         # tell it apart from any other thread in the process.
-        log_gpu_pool_worker_stacks(what, timeout)
+        log_gpu_pool_worker_stacks(what, timeout, executor=ex)
         _reset = getattr(ex, "reset", None)
         if callable(_reset):
             try:
@@ -608,7 +608,32 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
 _WEDGE_STACK_DEPTH = 25
 
 
-def log_gpu_pool_worker_stacks(what: str, timeout: float) -> str:
+def _live_pool_thread_idents(executor) -> "set | None":
+    """Thread idents belonging to ``executor``'s CURRENT inner pool, or None
+    when they can't be established.
+
+    Needed because a wedged worker survives ``reset()`` — it cannot be
+    cancelled, so it keeps running under the same ``gpu-pool`` name the
+    replacement pool also uses. Without this, the second timeout in a session
+    logs the stale thread alongside the live one with nothing to tell them
+    apart, and the stale stack is the more misleading of the two: it names an
+    operation that is no longer the one that just failed (greptile).
+
+    ``ThreadPoolExecutor._threads`` is private but has been the storage for its
+    worker set since 3.2 and is stable across every version we support; None
+    here is a soft degrade to "label nothing", never an error.
+    """
+    pool = getattr(executor, "_pool", executor)  # unwrap _ResilientGpuPool
+    threads = getattr(pool, "_threads", None)
+    if not threads:
+        return None
+    try:
+        return {t.ident for t in threads if t.ident is not None}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def log_gpu_pool_worker_stacks(what: str, timeout: float, executor=None) -> str:
     """Log where every GPU-pool worker is currently executing. Never raises.
 
     The gap this closes (#1338/#1329/#1348): when a job overran its execution
@@ -638,17 +663,41 @@ def log_gpu_pool_worker_stacks(what: str, timeout: float) -> str:
         }
         if not names:
             return ""
+        live = _live_pool_thread_idents(executor) if executor is not None else None
         frames = _sys._current_frames()
         blocks = []
         for ident, name in sorted(names.items(), key=lambda kv: kv[1]):
             frame = frames.get(ident)
             if frame is None:
                 continue
+            if live is None:
+                label = name
+            elif ident in live:
+                label = f"{name} (current pool)"
+            else:
+                label = (
+                    f"{name} (STALE — a worker abandoned by an earlier timeout, "
+                    f"still running; not the job that just failed)"
+                )
             stack = "".join(_traceback.format_stack(frame, limit=_WEDGE_STACK_DEPTH))
-            blocks.append(f"--- {name} ---\n{stack.rstrip()}")
+            blocks.append(f"--- {label} ---\n{stack.rstrip()}")
         if not blocks:
             return ""
-        text = "\n".join(blocks)
+        # Stack frames carry absolute source paths, and on a user's machine
+        # those start with their home directory — i.e. their account name. This
+        # log lands in backend.log, which goes into diagnostic bundles and
+        # prefilled bug reports, so it must be sanitized like every other
+        # surfaced text (CWE-532; CodeRabbit). core.failure.sanitize also
+        # redacts HF tokens and *TOKEN*/*KEY*/*SECRET* env values, which a
+        # frame's local-variable-free repr should never contain — but "should
+        # never" is not a reason to log it unredacted.
+        try:
+            from core.failure import sanitize as _sanitize
+            text = _sanitize("\n".join(blocks))
+        except Exception:  # noqa: BLE001 — never lose the diagnostic to this
+            logger.exception("Could not sanitize GPU-pool worker stacks; "
+                             "omitting them rather than logging raw paths")
+            return ""
         logger.warning(
             "%s exceeded %.0fs — stack of every GPU-pool worker at the moment "
             "it was abandoned. The deepest frame is where it is stuck; if that "

@@ -147,9 +147,9 @@ def test_timeout_captures_stacks_before_resetting_the_pool(mm):
 
     captured = {}
 
-    def _spy(what, timeout):
+    def _spy(what, timeout, executor=None):
         order.append("capture")
-        captured["text"] = real(what, timeout)
+        captured["text"] = real(what, timeout, executor=executor)
         return captured["text"]
 
     real = mm.log_gpu_pool_worker_stacks
@@ -171,3 +171,129 @@ def test_timeout_captures_stacks_before_resetting_the_pool(mm):
         f"stacks must be captured before reset() replaces the pool: {order}"
     )
     assert "wedged" in captured.get("text", ""), captured
+
+
+def test_home_paths_are_redacted_from_the_captured_stack(mm):
+    """Stack frames carry absolute source paths, which on a user's machine
+    begin with their home directory — their account name.
+
+    This log lands in ``backend.log``, which goes into diagnostic bundles and
+    prefilled bug reports, so an unredacted capture would leak the account name
+    of everyone who ever hits a timeout (CWE-532). The repo already has one
+    answer for that — ``core.failure.sanitize`` — and the point here is that
+    this path uses it rather than inventing a second one.
+    """
+    release = threading.Event()
+    entered = threading.Event()
+
+    def wedged_in_a_home_path():
+        entered.set()
+        release.wait(10)
+
+    ex = ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix=mm._GPU_POOL_THREAD_PREFIX
+    )
+    fut = ex.submit(wedged_in_a_home_path)
+    assert entered.wait(5)
+    try:
+        text = mm.log_gpu_pool_worker_stacks("TTS generate", 300.0)
+        home = os.path.expanduser("~")
+        # This test file lives under the developer's home on any dev machine
+        # and under the runner's home in CI, so the raw frame necessarily
+        # contains it — which is what makes this a real check rather than a
+        # tautology.
+        assert home and home != "~", "cannot verify redaction without a home dir"
+        assert home not in text, (
+            "the captured stack still contains the absolute home path, so the "
+            "log (and every diagnostic bundle built from it) carries the "
+            "user's account name:\n" + text
+        )
+        assert "wedged_in_a_home_path" in text, (
+            "redaction must not cost the diagnostic its content:\n" + text
+        )
+    finally:
+        release.set()
+        fut.result(timeout=5)
+        ex.shutdown(wait=True)
+
+
+def test_stale_workers_are_labelled_apart_from_the_live_pool(mm):
+    """A wedged worker survives ``reset()`` — it cannot be cancelled, so it
+    keeps running under the same ``gpu-pool`` name the replacement pool uses.
+
+    The second timeout in a session would then log both, with nothing to tell
+    them apart, and the stale stack is the more misleading of the two: it names
+    an operation that is not the one that just failed (greptile).
+    """
+    release = threading.Event()
+    stale_entered = threading.Event()
+    live_entered = threading.Event()
+
+    def a_stale_abandoned_job():
+        stale_entered.set()
+        release.wait(10)
+
+    def the_job_that_just_failed():
+        live_entered.set()
+        release.wait(10)
+
+    stale_ex = ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix=mm._GPU_POOL_THREAD_PREFIX
+    )
+    live_ex = ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix=mm._GPU_POOL_THREAD_PREFIX
+    )
+    f1 = stale_ex.submit(a_stale_abandoned_job)
+    f2 = live_ex.submit(the_job_that_just_failed)
+    assert stale_entered.wait(5) and live_entered.wait(5)
+    try:
+        text = mm.log_gpu_pool_worker_stacks("TTS generate", 300.0, executor=live_ex)
+        live_block = text.split("--- ")
+        current = [b for b in live_block if "the_job_that_just_failed" in b]
+        stale = [b for b in live_block if "a_stale_abandoned_job" in b]
+        assert current and "current pool" in current[0], (
+            "the live pool's worker is not marked as current:\n" + text
+        )
+        assert stale and "STALE" in stale[0], (
+            "a worker from an already-abandoned job is presented as though it "
+            "were the current hang:\n" + text
+        )
+    finally:
+        release.set()
+        f1.result(timeout=5)
+        f2.result(timeout=5)
+        stale_ex.shutdown(wait=True)
+        live_ex.shutdown(wait=True)
+
+
+def test_unknown_pool_internals_degrade_to_no_label(mm):
+    """``ThreadPoolExecutor._threads`` is private. If a future Python renames
+    it, the capture must lose the *label* and keep the *stacks* — a diagnostic
+    that disappears because an attribute moved is worse than an unlabelled one.
+    """
+    release = threading.Event()
+    entered = threading.Event()
+
+    def wedged():
+        entered.set()
+        release.wait(10)
+
+    ex = ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix=mm._GPU_POOL_THREAD_PREFIX
+    )
+    fut = ex.submit(wedged)
+    assert entered.wait(5)
+
+    class _Opaque:
+        pass
+
+    try:
+        text = mm.log_gpu_pool_worker_stacks("TTS generate", 300.0, executor=_Opaque())
+        assert "wedged" in text, text
+        assert "current pool" not in text and "STALE" not in text, (
+            "labels were invented without knowing the live thread set:\n" + text
+        )
+    finally:
+        release.set()
+        fut.result(timeout=5)
+        ex.shutdown(wait=True)
