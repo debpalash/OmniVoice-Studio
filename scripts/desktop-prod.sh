@@ -140,9 +140,37 @@ is_app_scoped() {
 #
 # Reason 2 applies whatever the data policy is, so this must not sit inside
 # the KEEP_DATA branch.
+#
+# The kill is scoped to THIS checkout's build artifacts. A bare `${APP_NAME}.app`
+# pattern also matches an installed /Applications copy, and killing that costs a
+# developer unsaved work in a session this script never started (greptile) —
+# previously masked because the kill only ran on wipe runs, where the developer
+# had already asked for a clean slate. An installed copy still cannot be ignored
+# outright (single-instance would swallow this launch), so it gets a warning.
+warn_installed_instance() {
+  local installed
+  installed="$(pgrep -f "${APP_NAME}.app" 2>/dev/null || true)"
+  # Drop anything already matched as our own dev build.
+  local p keep=""
+  for p in $installed; do
+    case " $pids " in *" $p "*) ;; *) keep="$keep $p" ;; esac
+  done
+  [ -z "${keep// /}" ] && return 0
+  echo "⚠️  An installed ${APP_NAME} is running (pid(s):$keep)."
+  echo "   Not touching it — that is your session, and killing it would cost"
+  echo "   you unsaved work. But single-instance keys on the bundle id, so it"
+  echo "   will swallow this launch: quit it first, or you'll keep looking at"
+  echo "   the installed app instead of this build."
+  echo ""
+}
+
 kill_running_instances() {
   local pids=""
-  pids="$(pgrep -f "${APP_NAME}.app|target/debug/omnivoice-studio" 2>/dev/null || true)"
+  # One pattern covers both launch shapes: the raw binary and the .app bundle
+  # both live under `${TAURI_DIR}/target/debug/`, and `pgrep -f` sees the
+  # absolute path, of which that is a substring.
+  pids="$(pgrep -f "${TAURI_DIR}/target/debug/.*omnivoice-studio" 2>/dev/null || true)"
+  warn_installed_instance
   local port_pid
   for port_pid in $(lsof -nP -iTCP:3900 -sTCP:LISTEN -t 2>/dev/null || true); do
     if ps -p "$port_pid" -o command= 2>/dev/null | grep -qiE 'omnivoice|com\.debpalash'; then

@@ -109,3 +109,42 @@ def test_running_instances_are_killed_regardless_of_data_policy():
         "branch, so a --keep-data run launches on top of the live app and "
         "single-instance just refocuses the old window (#1333)"
     )
+
+def test_kill_is_scoped_to_this_checkouts_build():
+    """The kill may not reach an installed /Applications copy (#1333 review).
+
+    Now that ``kill_running_instances`` runs on EVERY invocation rather than
+    only on wipe runs, its pattern matters in a way it did not before. A bare
+    ``"OmniVoice Studio.app"`` matches the installed release app too, so a
+    developer running ``desktop-prod:run`` while using the shipped app would
+    have it killed underneath them — losing unsaved work in a session this
+    script never started. Previously that was masked: the kill only ran when
+    the developer had explicitly asked for a wipe.
+
+    Scoping the pattern to ``${TAURI_DIR}/target/debug/`` keeps it to what this
+    checkout built. ``pgrep -f`` sees the absolute path, of which the
+    repo-relative prefix is a substring, and both launch shapes (raw binary and
+    ``.app`` bundle) live under it.
+    """
+    with open(_SH, encoding="utf-8") as fh:
+        src = fh.read()
+
+    body = src.split("kill_running_instances() {", 1)[1].split("\n}", 1)[0]
+    pgrep = next(
+        ln.strip() for ln in body.splitlines()
+        if "pgrep -f" in ln and not ln.strip().startswith("#")
+    )
+    assert "target/debug/" in pgrep, (
+        "kill_running_instances' pgrep pattern is not scoped to this checkout's "
+        f"build output, so it can match an installed app: {pgrep}"
+    )
+    assert "${APP_NAME}.app" not in pgrep, (
+        "kill_running_instances matches any 'OmniVoice Studio.app', including "
+        f"the installed one in /Applications: {pgrep}"
+    )
+    # The installed copy still has to be surfaced — single-instance keys on the
+    # bundle id, so ignoring it silently swaps one confusing failure for another.
+    assert "warn_installed_instance" in body, (
+        "an installed instance is neither killed nor mentioned; single-instance "
+        "will swallow the launch and the developer gets no explanation"
+    )
