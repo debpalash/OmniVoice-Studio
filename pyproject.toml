@@ -36,6 +36,7 @@ classifiers = [
 dependencies = [
     "torch>=2.4",
     "torchaudio>=2.4",
+    "torchvision>=0.19",
     "transformers>=5.3.0",
     "accelerate",
     "pydub",
@@ -240,6 +241,9 @@ torch = [
 torchaudio = [
   { index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
+torchvision = [
+  { index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
@@ -253,6 +257,7 @@ explicit = true
 constraint-dependencies = [
     "torch==2.8.0",
     "torchaudio==2.8.0",
+    "torchvision==0.23.0",
 ]
 
 [tool.hatch.metadata]

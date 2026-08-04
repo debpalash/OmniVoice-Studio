@@ -917,7 +917,7 @@ const REPAIR_SYNC_ARGS_UNLOCKED: [&str; 3] = ["sync", "--no-dev", "--verbose"];
 fn rocm_torch_reinstall_args(rocm_index_url: &str) -> Vec<String> {
     vec![
         "pip".into(), "install".into(), "--reinstall".into(),
-        "torch".into(), "torchaudio".into(),
+        "torch".into(), "torchaudio".into(), "torchvision".into(),
         "--index-url".into(), rocm_index_url.into(),
     ]
 }
@@ -2049,6 +2049,7 @@ mod tests {
         assert!(args.iter().any(|a| a == "--reinstall"));
         assert!(args.iter().any(|a| a == "torch"));
         assert!(args.iter().any(|a| a == "torchaudio"));
+        assert!(args.iter().any(|a| a == "torchvision"));
         let i = args.iter().position(|a| a == "--index-url").expect("has --index-url");
         // rocm6.4, not rocm6.2: rocm6.2's index tops out at torch 2.5.1 and
         // can't satisfy the app's torch==2.8.0 pin (#972) — a regression to
