@@ -43,6 +43,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Audiobook: an engine that stops without producing audio no longer stalls the render forever with no error and no timeout. (#1321)
 - Linux AppImage: a permanently blank window on Mesa 26.1+ hosts (Arch/CachyOS and other rolling distros) — the bundled WebKit ran against a newer system Mesa than it was built for, and no environment variable could help because the failure precedes every rendering flag; the launcher now lets a newer system WebKitGTK take precedence — thanks @rvasilev and @HannaLovvold! (#1258, #1244)
 - Linux AppImage: `OMNIVOICE_PREFER_SYSTEM_WEBKIT=1` forces your own WebKitGTK for hosts where its version can't be read automatically (no `pkg-config`), and `=0` forces the bundled one (#1258)
+- Dubbing: the transcription overlay said "Transcribing with Whisper…" whatever ASR engine was actually running — it now names the stage, in all 21 languages — thanks @paoloantinori! (#1352)
 - Linux AppImage: recording failed with "No microphone found" on hosts whose GStreamer is newer than the build runner's, even with a verified-healthy audio stack — your own GStreamer now takes precedence, and the plugin cache is app-private so it can neither be confused by nor corrupt the one other apps use — thanks @Kakuzen93! (#1333)
 
 ### Docs

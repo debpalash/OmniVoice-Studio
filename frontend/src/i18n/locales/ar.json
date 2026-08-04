@@ -781,7 +781,7 @@
     "prep_chip_scene": "المشهد",
     "prep_chip_cached": "مخبأة",
     "prep_demucs_note": "يمكن أن يستغرق Demucs عدة دقائق في مقاطع الفيديو الطويلة. الصوت الطويل = انتظار أطول.",
-    "transcribing": "جارٍ النسخ باستخدام الهمس…",
+    "transcribing": "جارٍ نسخ الصوت…",
     "elapsed": "انقضى",
     "remaining": "المتبقية",
     "sidebar_toggle": "تبديل الشريط الجانبي",

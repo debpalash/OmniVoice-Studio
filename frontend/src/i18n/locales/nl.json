@@ -781,7 +781,7 @@
     "prep_chip_scene": "scène",
     "prep_chip_cached": "in de cache opgeslagen",
     "prep_demucs_note": "Demucs kunnen enkele minuten nodig hebben bij lange video's. Lang geluid = langer wachten.",
-    "transcribing": "Transcriberen met Whisper…",
+    "transcribing": "Audio transcriberen…",
     "elapsed": "verstreken",
     "remaining": "er resteert",
     "sidebar_toggle": "Schakel zijbalk in",

@@ -781,7 +781,7 @@
     "prep_chip_scene": "場景",
     "prep_chip_cached": "快取的",
     "prep_demucs_note": "演示長視頻可能需要幾分鐘的時間。長音頻=更長的等待。",
-    "transcribing": "用 Whisper 轉錄...",
+    "transcribing": "正在轉錄音訊...",
     "elapsed": "過去了",
     "remaining": "剩餘 s",
     "sidebar_toggle": "切換側邊欄",

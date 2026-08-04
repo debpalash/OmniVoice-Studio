@@ -781,7 +781,7 @@
     "prep_chip_scene": "scena",
     "prep_chip_cached": "memorizzato nella cache",
     "prep_demucs_note": "I Demuc possono impiegare diversi minuti per i video lunghi. Audio lungo = attesa più lunga.",
-    "transcribing": "Trascrivere con Whisper...",
+    "transcribing": "Trascrizione audio…",
     "elapsed": "trascorso",
     "remaining": "rimane",
     "sidebar_toggle": "Attiva/disattiva la barra laterale",
