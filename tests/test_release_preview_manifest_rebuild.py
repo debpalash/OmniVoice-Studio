@@ -1,174 +1,205 @@
-"""The rebuilt preview updater manifest must never describe files it isn't shipping.
+"""The rebuilt preview manifest must never describe a build it isn't shipping.
 
-`Rebuild preview updater manifest from published assets` (release.yml) exists
-because tauri-action stopped refreshing `latest.json` while the nightly job kept
-replacing the version-less macOS tarballs — so the manifest's darwin signatures
-described bytes that no longer existed and every macOS Preview update failed
-verification (#1327).
+`Rebuild + verify the preview updater manifest, then publish` (release.yml)
+exists because tauri-action stopped refreshing `latest.json` while the nightly
+job kept replacing the version-less macOS tarballs — so the manifest's darwin
+signatures described bytes that no longer existed and every macOS Preview update
+failed verification for two weeks, with CI green throughout (#1327).
 
-Rebuilding from the release's *real* assets closes that. But the rebuild picks
-the AppImage and the MSI independently, by highest run number, and a matrix
-where one leg failed or was re-run leaves those at different numbers. Taking
-whichever is larger as *the* version then publishes a manifest advertising
-`X.Y.Z-5` that hands Windows users the `-4` MSI — the same manifest/artifact
-drift, reintroduced by the fix for it (CodeRabbit).
+Rebuilding from the release's *real* assets closes that. What these tests cover
+is the part that kept being subtly wrong — three separate review findings were
+all about **which artifacts may be described together**:
 
-These tests run the step's real embedded Python (extracted from release.yml, so
-it cannot drift) against synthetic asset lists, with the parts that talk to
-GitHub stubbed out.
+* the AppImage and MSI are picked independently by run number, so a matrix
+  where one leg failed leaves them at different numbers and the manifest would
+  advertise a version that describes only some of its own payload;
+* the darwin tarballs carry no run number at all, and signature verification
+  cannot save them, because a stale tarball and its stale `.sig` match each
+  other perfectly.
+
+The selection rules live in ``scripts/build_preview_manifest.py`` rather than a
+YAML heredoc precisely so they can be called directly here — a heredoc can only
+be tested by extracting it and stubbing a shell, which is how the earlier
+version of this file ended up asserting against `gh` stubs instead of against
+the rules.
 """
-
-import json
+import datetime
 import os
-import shutil
-import stat
-import subprocess
 import sys
 
 import pytest
-import yaml
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="the step is a bash+python heredoc using POSIX /tmp paths",
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+
+from build_preview_manifest import (  # noqa: E402
+    MAC_AARCH64,
+    MAC_X86_64,
+    ManifestRefused,
+    build_manifest,
+    required_assets,
 )
 
-_WORKFLOW = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    ".github", "workflows", "release.yml",
-)
-_STEP = "Rebuild preview updater manifest from published assets"
-
-_MAC = ["OmniVoice.Studio_aarch64.app.tar.gz", "OmniVoice.Studio_x64.app.tar.gz"]
+REPO = "debpalash/OmniVoice-Studio"
+_T0 = datetime.datetime(2026, 8, 4, 12, 0, tzinfo=datetime.timezone.utc)
 
 
-def _assets(appimage_n, msi_n, version="0.4.3"):
-    """A published-asset list, plus the `.sig` companion each entry needs."""
-    names = _MAC + [
-        f"OmniVoice.Studio_{version}-{appimage_n}_amd64.AppImage",
-        f"OmniVoice.Studio_{version}-{msi_n}_x64_en-US.msi",
-    ]
-    return names + [n + ".sig" for n in names]
+def _iso(minutes_after=0):
+    return (_T0 + datetime.timedelta(minutes=minutes_after)).isoformat().replace("+00:00", "Z")
 
 
-def _step_script():
-    with open(_WORKFLOW, encoding="utf-8") as fh:
-        wf = yaml.safe_load(fh)
-    for job in wf["jobs"].values():
-        for step in job.get("steps", []):
-            if step.get("name") == _STEP:
-                return step["run"]
-    raise AssertionError(f"step {_STEP!r} not found in release.yml")
+def _assets(appimage_n=7, msi_n=7, version="0.4.3", mac_offset=0, versioned_offset=0):
+    """A published-asset list, with each artifact's `.sig` companion."""
+    appimage = f"OmniVoice.Studio_{version}-{appimage_n}_amd64.AppImage"
+    msi = f"OmniVoice.Studio_{version}-{msi_n}_x64_en-US.msi"
+    rows = []
+    for name in (appimage, msi):
+        rows.append({"name": name, "updatedAt": _iso(versioned_offset)})
+    for name in (MAC_AARCH64, MAC_X86_64):
+        rows.append({"name": name, "updatedAt": _iso(mac_offset)})
+    rows += [{"name": r["name"] + ".sig", "updatedAt": r["updatedAt"]} for r in list(rows)]
+    return rows
 
 
-def _run(tmp_path, names):
-    """Run the step with `gh` stubbed; return (CompletedProcess, manifest|None).
-
-    The stub answers `release view` from the supplied asset list, writes a
-    placeholder for every `release download`, and records `release upload` by
-    copying the manifest somewhere the test can read it.
-    """
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    uploaded = tmp_path / "uploaded-latest.json"
-    gh = bin_dir / "gh"
-    gh.write_text(
-        "#!/usr/bin/env bash\n"
-        'if [ "$2" = "view" ]; then\n'
-        f"  cat {str(tmp_path / 'assets.json')!r}\n"
-        "  exit 0\n"
-        "fi\n"
-        # `gh release download preview --repo R -p NAME -D DIR`
-        'if [ "$2" = "download" ]; then\n'
-        "  pat=\"\"; dir=\"\"\n"
-        '  while [ $# -gt 0 ]; do\n'
-        '    case "$1" in -p) pat="$2"; shift 2 ;; -D) dir="$2"; shift 2 ;; *) shift ;; esac\n'
-        "  done\n"
-        # A minisign signature file: comment, sig line, trusted comment, global sig.
-        '  printf "untrusted comment: sig\\nUlN%s\\ntrusted comment: t\\nUlN%s\\n" "$pat" "$pat" > "$dir/$pat"\n'
-        "  exit 0\n"
-        "fi\n"
-        'if [ "$2" = "upload" ]; then\n'
-        f'  cp "$4" {str(uploaded)!r}\n'
-        "  exit 0\n"
-        "fi\n"
-        "exit 0\n"
-    )
-    gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
-    (tmp_path / "assets.json").write_text(json.dumps(names))
-
-    script = tmp_path / "step.sh"
-    script.write_text(_step_script())
-    env = dict(
-        os.environ,
-        PATH=f"{bin_dir}:{os.environ['PATH']}",
-        GH_TOKEN="x",
-        REPO="debpalash/OmniVoice-Studio",
-    )
-    proc = subprocess.run(
-        [shutil.which("bash") or "/bin/bash", str(script)],
-        capture_output=True, text=True, env=env, timeout=120,
-    )
-    manifest = json.loads(uploaded.read_text()) if uploaded.exists() else None
-    return proc, manifest
+def _sigs(assets):
+    return {n: f"sig-for-{n}\n" for n in required_assets(assets)}
 
 
-def test_matched_run_numbers_produce_a_manifest(tmp_path):
-    """The happy path: both versioned legs from run 7 → version 0.4.3-7."""
-    proc, manifest = _run(tmp_path, _assets(7, 7))
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert manifest is not None, "step succeeded without uploading a manifest"
+def _build(assets, **kw):
+    return build_manifest(assets, REPO, signatures=_sigs(assets), pub_date=_T0, **kw)
+
+
+def test_a_coherent_release_produces_a_manifest():
+    assets = _assets()
+    manifest = _build(assets)
     assert manifest["version"] == "0.4.3-7"
-    # Every platform stable serves must be present, and each must point at a
-    # file that was actually in the release.
+    # Every platform the stable channel serves must be present, or those users
+    # silently stop getting preview updates.
     assert set(manifest["platforms"]) == {
         "darwin-aarch64", "darwin-aarch64-app",
         "darwin-x86_64", "darwin-x86_64-app",
         "linux-x86_64", "linux-x86_64-appimage",
         "windows-x86_64", "windows-x86_64-msi",
     }
-    published = set(_assets(7, 7))
+    published = {a["name"] for a in assets}
     for plat, info in manifest["platforms"].items():
         assert info["url"].rsplit("/", 1)[-1] in published, plat
         assert info["signature"], plat
 
 
 @pytest.mark.parametrize("appimage_n,msi_n", [(8, 7), (7, 8)])
-def test_mismatched_run_numbers_fail_loudly(tmp_path, appimage_n, msi_n):
-    """One leg failed or was re-run — refuse rather than publish a lie.
+def test_mismatched_run_numbers_are_refused(appimage_n, msi_n):
+    """One leg failed or was re-run. Taking the larger N would advertise a
+    version that describes only one of the two artifacts it points at — the
+    same drift this job exists to end, reintroduced by the fix for it."""
+    with pytest.raises(ManifestRefused, match="different runs"):
+        _build(_assets(appimage_n=appimage_n, msi_n=msi_n))
 
-    Taking the larger N would advertise a version that describes only one of
-    the two artifacts the manifest points at, which is exactly the drift this
-    job exists to end. Leaving the previous manifest in place is the safer
-    outcome: it is a visible, already-understood state.
+
+def test_a_stale_macos_bundle_is_refused():
+    """The darwin case, which no signature check can catch.
+
+    A run whose macOS legs never uploaded leaves the PREVIOUS build's tarball
+    and its matching `.sig` in place — they verify against each other perfectly.
+    The manifest would advertise this version while serving Mac users the old
+    build, and because those clients keep reporting the old version, the updater
+    re-offers the same update forever.
     """
-    proc, manifest = _run(tmp_path, _assets(appimage_n, msi_n))
-    assert proc.returncode != 0, (
-        "step published a manifest from artifacts of two different runs:\n"
-        + proc.stdout
-    )
-    assert manifest is None, "a mismatched manifest was uploaded anyway"
-    assert "different runs" in (proc.stdout + proc.stderr)
+    with pytest.raises(ManifestRefused, match="EARLIER build"):
+        _build(_assets(mac_offset=-90, versioned_offset=0))
 
 
-def test_missing_signature_companion_fails(tmp_path):
-    """A `.sig` that never got uploaded means the artifact is unverifiable —
-    publishing its entry would hand every client a signature check it cannot
-    pass, which is the #1327 outage in a different costume."""
-    names = [n for n in _assets(7, 7)
-             if n != "OmniVoice.Studio_aarch64.app.tar.gz.sig"]
-    proc, manifest = _run(tmp_path, names)
-    assert proc.returncode != 0, proc.stdout
-    assert manifest is None
-    assert "sig companion missing" in (proc.stdout + proc.stderr)
+def test_macos_bundles_uploaded_slightly_earlier_are_accepted():
+    """The matrix legs finish minutes apart; the check must tolerate that or it
+    fails every healthy run."""
+    assert _build(_assets(mac_offset=-1, versioned_offset=0))["version"] == "0.4.3-7"
 
 
-def test_missing_darwin_tarball_fails(tmp_path):
+def test_macos_bundles_uploaded_later_are_fine():
+    """Ordering within a run is not fixed — the macOS legs often finish last."""
+    assert _build(_assets(mac_offset=5))["version"] == "0.4.3-7"
+
+
+def test_unreadable_timestamps_are_refused_not_ignored():
+    """Missing `updatedAt` means the freshness check cannot run. Proceeding
+    would silently drop the only thing tying the darwin bundles to this run."""
+    assets = _assets()
+    for row in assets:
+        if row["name"] == MAC_AARCH64:
+            row["updatedAt"] = None
+    with pytest.raises(ManifestRefused, match="upload times"):
+        _build(assets)
+
+
+def test_a_missing_signature_companion_is_refused():
+    """A `.sig` that never uploaded means the artifact is unverifiable —
+    publishing its entry hands every client a check it cannot pass."""
+    assets = [a for a in _assets() if a["name"] != MAC_AARCH64 + ".sig"]
+    with pytest.raises(ManifestRefused, match="sig companion missing"):
+        _build(assets)
+
+
+def test_a_missing_darwin_tarball_is_refused():
     """Intel Mac silently dropping out of the manifest is how those users stop
     getting preview updates without anyone noticing."""
-    names = [n for n in _assets(7, 7)
-             if not n.startswith("OmniVoice.Studio_x64.app.tar.gz")]
-    proc, manifest = _run(tmp_path, names)
-    assert proc.returncode != 0, proc.stdout
-    assert manifest is None
-    assert "updater artifact missing" in (proc.stdout + proc.stderr)
+    assets = [a for a in _assets() if not a["name"].startswith(MAC_X86_64)]
+    with pytest.raises(ManifestRefused, match="artifact missing"):
+        _build(assets)
+
+
+def test_no_versioned_artifacts_at_all_is_refused():
+    assets = [a for a in _assets() if "amd64.AppImage" not in a["name"]]
+    with pytest.raises(ManifestRefused, match="missing versioned"):
+        _build(assets)
+
+
+def test_empty_signature_content_is_refused():
+    """An empty `.sig` file is present-but-useless; it must not become an empty
+    `signature` field that every client fails on."""
+    assets = _assets()
+    sigs = {n: "" for n in required_assets(assets)}
+    with pytest.raises(ManifestRefused, match="no signature content"):
+        build_manifest(assets, REPO, signatures=sigs, pub_date=_T0)
+
+
+def test_required_assets_matches_what_the_manifest_references():
+    """The caller fetches `.sig` files from this list; if it disagreed with the
+    selection, the build would fail on a signature it was never asked to get."""
+    assets = _assets()
+    manifest = _build(assets)
+    referenced = {i["url"].rsplit("/", 1)[-1] for i in manifest["platforms"].values()}
+    assert referenced == set(required_assets(assets))
+
+
+def _preview_step():
+    import yaml
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, ".github", "workflows", "release.yml"), encoding="utf-8") as fh:
+        wf = yaml.safe_load(fh)
+    for job in wf["jobs"].values():
+        for step in job.get("steps", []):
+            if "build_preview_manifest" in step.get("run", ""):
+                return step
+    return None
+
+
+def test_the_workflow_still_calls_this_module():
+    """The rules are only worth testing where they are used. A workflow that
+    grew its own inline copy would pass every test above and ship the old bug."""
+    assert _preview_step() is not None, (
+        "release.yml no longer imports build_preview_manifest — check it has not "
+        "reinlined the selection rules these tests cover"
+    )
+
+
+def test_the_workflow_verifies_before_it_uploads():
+    """Order is load-bearing (greptile): uploading first and checking afterwards
+    leaves a manifest that failed the check live and served, with the job merely
+    red. Pin that the upload comes last."""
+    body = _preview_step()["run"]
+    upload = body.index("gh release upload preview")
+    verify = body.index("Refusing to publish: manifest is broken")
+    assert verify < upload, (
+        "the signature verification runs after the upload, so a broken manifest "
+        "is published and stays served while the job goes red"
+    )
