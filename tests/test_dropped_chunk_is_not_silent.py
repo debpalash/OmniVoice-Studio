@@ -110,12 +110,28 @@ def test_all_chunks_empty_still_returns_a_tensor(ct, caplog):
     assert "Dropped 2 of 2" in caplog.text
 
 
-def test_reporting_never_breaks_the_join(ct, caplog, monkeypatch):
+def test_reporting_never_breaks_the_join(ct, monkeypatch):
     """The diagnostic runs inside the join. One that throws would turn missing
-    audio into a failed render — strictly worse than the bug."""
-    monkeypatch.setattr(ct, "logger", None)  # any use of it now raises
+    audio into a failed render — strictly worse than the bug.
+
+    Asserts the report was *attempted*, not merely that nothing blew up:
+    without that, this would pass on a build where the reporting does not
+    exist at all (CodeRabbit).
+    """
+    attempted = []
+
+    class _Exploding:
+        def warning(self, *a, **k):
+            attempted.append(a)
+            raise RuntimeError("logging is broken")
+
+        def exception(self, *a, **k):
+            raise RuntimeError("still broken")
+
+    monkeypatch.setattr(ct, "logger", _Exploding())
     out = ct.concatenate_audio_chunks([_tone(), _empty()], 24000, 0)
-    assert out.shape[-1] == 1000
+    assert out.shape[-1] == 1000, "a broken logger cost us the audio"
+    assert attempted, "the drop was never reported, so there was nothing to survive"
 
 
 def test_mismatched_texts_do_not_break_the_report(ct, caplog):
@@ -128,9 +144,15 @@ def test_mismatched_texts_do_not_break_the_report(ct, caplog):
 
 
 def test_chunking_itself_loses_no_text(ct):
-    """Guards the hypothesis this investigation eliminated, so a future change
-    to the splitter cannot quietly reintroduce it. Every non-whitespace
-    character of the input must survive into some chunk."""
+    """Pins an eliminated hypothesis rather than a fixed defect.
+
+    Kept deliberately, and it does NOT fail before this change — the splitter
+    was already correct. The value is that "the chunker drops the tail" was the
+    first and most plausible explanation for #1330, ruling it out took a probe,
+    and without this the next person to read the issue has to redo that work.
+    A future splitter change that did start losing the tail would produce
+    exactly the reported symptom again, and this is what would catch it.
+    """
     import re
 
     cases = [
@@ -148,3 +170,55 @@ def test_chunking_itself_loses_no_text(ct):
         assert joined == re.sub(r"\s+", "", text), (
             f"chunking lost text for input starting {text[:40]!r}"
         )
+
+
+# ── join_rendered_chunks: the decision the audiobook path used to inline ────
+# Both reviewers caught the same hole in the inline version: a span split into
+# several chunks where only ONE renders returned that chunk directly, skipping
+# the join and therefore skipping the reporting the join does. It lives in one
+# testable function now.
+
+def test_one_survivor_of_several_is_reported(ct, caplog):
+    """The branch that shipped broken."""
+    texts = ["kept", "lost one", "lost two"]
+    with caplog.at_level(logging.WARNING, logger="omnivoice.chunked_tts"):
+        out = ct.join_rendered_chunks([_tone(), _empty(), _empty()], 24000, texts=texts)
+    assert out is not None and out.shape[-1] == 1000, "the survivor must still be used"
+    assert "Dropped 2 of 3" in caplog.text, caplog.text
+    assert "lost one" in caplog.text
+
+
+def test_nothing_rendered_returns_none_and_reports(ct, caplog):
+    """None rather than a silence buffer: the caller's dead-render handling
+    owns that case, and handing back silence would hide it from them."""
+    with caplog.at_level(logging.WARNING, logger="omnivoice.chunked_tts"):
+        out = ct.join_rendered_chunks([_empty(), _empty()], 24000, texts=["a", "b"])
+    assert out is None
+    assert "Dropped 2 of 2" in caplog.text
+
+
+def test_a_clean_multi_chunk_join_says_nothing(ct, caplog):
+    with caplog.at_level(logging.WARNING, logger="omnivoice.chunked_tts"):
+        out = ct.join_rendered_chunks([_tone(), _tone()], 24000, crossfade_ms=0)
+    assert out.shape[-1] == 2000
+    assert "Dropped" not in caplog.text
+
+
+def test_a_single_chunk_that_rendered_says_nothing(ct, caplog):
+    with caplog.at_level(logging.WARNING, logger="omnivoice.chunked_tts"):
+        out = ct.join_rendered_chunks([_tone()], 24000)
+    assert out.shape[-1] == 1000
+    assert "Dropped" not in caplog.text
+
+
+def test_audiobook_uses_the_shared_helper(ct):
+    """A second inline copy of this decision is how the hole appeared the first
+    time, so pin that the audiobook path routes through the one function."""
+    import inspect
+
+    ab = importlib.import_module("services.audiobook")
+    src = inspect.getsource(ab)
+    assert "join_rendered_chunks(" in src, (
+        "audiobook no longer uses the shared join — check it has not grown its "
+        "own branch that skips the dropped-chunk reporting again"
+    )

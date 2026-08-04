@@ -211,7 +211,7 @@ def _normalize_chunk_shapes(chunks: list) -> list:
     return chunks
 
 
-def _report_dropped_chunks(dropped: list, total: int, texts=None) -> None:
+def report_dropped_chunks(dropped: list, total: int, texts=None) -> None:
     """Log the sentences that produced no audio. Never raises.
 
     Deliberately WARNING, not debug: this is missing output the user paid
@@ -241,6 +241,38 @@ def _report_dropped_chunks(dropped: list, total: int, texts=None) -> None:
             logger.exception("Could not report dropped audio chunks")
         except Exception:  # noqa: BLE001
             pass
+
+
+def join_rendered_chunks(rendered: list, sample_rate: int, *,
+                         crossfade_ms: int = DEFAULT_CROSSFADE_MS,
+                         texts=None):
+    """Join what a multi-chunk render produced, reporting whatever it lost.
+
+    ``None`` when nothing rendered — the caller's dead-render handling owns
+    that case, and returning a silence buffer instead would hide it.
+
+    This exists because the "obvious" inline version has a hole that shipped:
+    a span that splits into several chunks where only ONE renders was returned
+    directly, skipping the join and therefore skipping the reporting the join
+    does. The chapter came back short and said nothing about it — the same
+    silent-truncation bug (#1330) one branch over. Keeping the decision in one
+    function means there is one place that can be wrong, and it is testable.
+    """
+    dropped = [i for i, r in enumerate(rendered)
+               if r is None or getattr(r, "shape", (0,))[-1] == 0]
+    kept = [r for i, r in enumerate(rendered) if i not in set(dropped)]
+    if not kept:
+        if dropped:
+            report_dropped_chunks(dropped, len(rendered), texts)
+        return None
+    if len(kept) == 1:
+        # concatenate_audio_chunks short-circuits a single chunk without
+        # reporting, so the report has to happen here.
+        if dropped:
+            report_dropped_chunks(dropped, len(rendered), texts)
+        return kept[0]
+    return concatenate_audio_chunks(rendered, sample_rate,
+                                    crossfade_ms=crossfade_ms, texts=texts)
 
 
 def concatenate_audio_chunks(chunks: list, sample_rate: int,
@@ -273,7 +305,7 @@ def concatenate_audio_chunks(chunks: list, sample_rate: int,
         else:
             dropped.append(i)
     if dropped:
-        _report_dropped_chunks(dropped, len(chunks), texts)
+        report_dropped_chunks(dropped, len(chunks), texts)
     chunks = kept
     if not chunks:
         return torch.zeros(1, dtype=torch.float32)

@@ -268,7 +268,9 @@ def synthesize_chapter(
     imported lazily so this module stays import-light for the pure parser path.
     """
     import torch
-    from services.chunked_tts import concatenate_audio_chunks, split_text_into_chunks
+    from services.chunked_tts import (concatenate_audio_chunks,
+                                      join_rendered_chunks,
+                                      split_text_into_chunks)
     from services.pronunciation import apply_lexicon
 
     items: list = []  # ("a", tensor) for audio, ("s", n_samples) for silence
@@ -291,15 +293,9 @@ def synthesize_chapter(
                 # here both hid them — a chapter would come back short with
                 # nothing said about it — and misaligned `rendered` from
                 # `chunks`, so the concat could not name which text was lost.
-                # It reports and skips them; this only needs the count.
-                _nonempty = [r for r in rendered
-                             if r is not None and getattr(r, "numel", lambda: 0)()]
-                if len(_nonempty) == 1:
-                    audio = _nonempty[0]
-                elif _nonempty:
-                    audio = concatenate_audio_chunks(rendered, sample_rate,
-                                                    crossfade_ms=crossfade_ms,
-                                                    texts=chunks)
+                audio = join_rendered_chunks(rendered, sample_rate,
+                                             crossfade_ms=crossfade_ms,
+                                             texts=chunks)
                 if audio is not None and segment_cache is not None:
                     segment_cache.store(span, audio, nonce=occ)
             if audio is not None:
