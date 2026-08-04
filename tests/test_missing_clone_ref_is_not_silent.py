@@ -149,3 +149,38 @@ def test_the_render_path_actually_calls_the_gate(dg):
         "expected the definition plus both call sites; a generate path that "
         "does not verify its reference is the bug this file exists for"
     )
+
+
+def test_distinct_paths_each_warn_even_under_one_segment_key(dg, tmp_path, caplog):
+    """The single-segment preview endpoint has no segment identity to pass — it
+    is a "render this text" call — so every preview shared the key "preview"
+    and only the FIRST missing reference in a job was ever reported. Every
+    later one, with a different path, was silenced (greptile).
+
+    A distinct path is distinct information wherever it comes from.
+    """
+    a = str(tmp_path / "speaker1.wav")
+    b = str(tmp_path / "speaker2.wav")
+    with caplog.at_level(logging.WARNING, logger="omnivoice.dub"):
+        dg.warn_if_ref_missing(a, job_id="job7", seg_id="preview")
+        dg.warn_if_ref_missing(b, job_id="job7", seg_id="preview")
+    assert a in caplog.text and b in caplog.text, (
+        "a second missing reference under the same key was swallowed:\n" + caplog.text
+    )
+
+
+def test_the_same_path_under_one_key_still_warns_once(dg, tmp_path, caplog):
+    """...without giving up the de-duplication it exists for."""
+    same = str(tmp_path / "speaker1.wav")
+    with caplog.at_level(logging.WARNING, logger="omnivoice.dub"):
+        for _ in range(4):
+            dg.warn_if_ref_missing(same, job_id="job7", seg_id="preview")
+    assert caplog.text.count(same) == 1
+
+
+def test_the_preview_request_can_carry_a_segment_id(dg):
+    """Optional and diagnostic-only, so old callers are unaffected — but a
+    caller that supplies it gets the line named instead of a bare "preview"."""
+    req = dg.SegmentPreviewRequest(text="hello")
+    assert req.segment_id is None
+    assert dg.SegmentPreviewRequest(text="hello", segment_id="42").segment_id == "42"

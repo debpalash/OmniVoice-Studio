@@ -203,8 +203,17 @@ def _speaker_key_for_segment(job: dict, sid) -> str | None:
     return None
 
 
-#: Segment ids already warned about, per job, so a 300-segment dub whose clip
-#: directory was cleaned logs once per segment rather than once per retry.
+#: ``job_id -> {(segment, path)}`` already warned about, so a 300-segment dub
+#: whose clip directory was cleaned logs once per segment rather than once per
+#: retry.
+#:
+#: Keyed on the PATH as well as the segment, not the segment alone. The
+#: single-segment preview endpoint has no segment identity to pass — it is a
+#: "render this text" call — so every preview shared one key and only the first
+#: missing reference in a job was ever reported, silencing the rest (greptile).
+#: A distinct path is distinct information wherever it comes from, and on the
+#: render path this also means a segment whose binding was changed to a second
+#: missing clip is not mistaken for the one already reported.
 _MISSING_REF_WARNED: dict = {}
 
 
@@ -239,7 +248,7 @@ def warn_if_ref_missing(ref_audio, *, job_id: str = "", seg_id="", where: str = 
     except OSError:  # unreadable path (permissions, dead mount) — same symptom
         pass
     seen = _MISSING_REF_WARNED.setdefault(str(job_id), set())
-    key = str(seg_id)
+    key = (str(seg_id), str(ref_audio))
     if key not in seen:
         seen.add(key)
         logger.warning(
@@ -1477,6 +1486,11 @@ import io
 
 
 class SegmentPreviewRequest(BaseModel):
+    # Optional, and only used to label diagnostics: a preview is a "render this
+    # text" call, so it has never needed segment identity. Supplying it makes a
+    # missing-clone warning name the line the user was editing instead of a
+    # bare "preview" (greptile).
+    segment_id: Optional[str] = None
     text: str
     language: str = "Auto"
     instruct: Optional[str] = None
@@ -1539,7 +1553,8 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
                     instruct_str = row["instruct"]
 
         ref_audio = warn_if_ref_missing(
-            ref_audio, job_id=job_id, seg_id="preview", where="dub preview",
+            ref_audio, job_id=job_id,
+            seg_id=req.segment_id or "preview", where="dub preview",
         )
         lang = req.language if req.language != "Auto" else None
         # Same normalization as the full dub render above, so a preview
