@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -214,11 +215,24 @@ def resolve_base_url(p: Provider, *, substitute: bool = True) -> str:
     return val or ""
 
 
-#: Discovered model ids, per provider id. A local server's loaded model does
-#: not change mid-session in practice, and the lookup costs a round-trip, so it
-#: is worth not repeating on every translated segment. Cleared by
-#: :func:`forget_discovered_models` whenever a user edit could invalidate it.
-_DISCOVERED_MODEL: dict[str, str] = {}
+#: How long a discovered model id is trusted. Bounded rather than permanent
+#: because the user can swap the loaded model inside LM Studio without touching
+#: OmniVoice at all — an unbounded cache would keep sending the unloaded name
+#: and 404 every translation until a restart (greptile).
+DISCOVERY_TTL_S = 300.0
+
+#: How long a FAILED probe is remembered. Without this, a server that is
+#: stopped costs a 5s timeout on *every translated segment* — a 200-segment dub
+#: would spend 1000s discovering nothing, which is worse than the bug being
+#: fixed (greptile / CodeRabbit). Short, so starting the server recovers within
+#: seconds rather than needing a restart.
+DISCOVERY_FAILURE_TTL_S = 30.0
+
+#: provider id → (model id or None, monotonic expiry). ``None`` is a remembered
+#: failure, which is why this cannot be a plain ``dict[str, str]``: "no entry"
+#: and "we looked and there was nothing" have to be distinguishable or the
+#: negative case cannot be cached at all.
+_DISCOVERED_MODEL: dict[str, tuple[Optional[str], float]] = {}
 
 
 def forget_discovered_models(pid: Optional[str] = None) -> None:
@@ -226,12 +240,28 @@ def forget_discovered_models(pid: Optional[str] = None) -> None:
 
     Called whenever the user changes a provider's model or base URL: keeping a
     model discovered from the previous server would silently ignore the edit,
-    which is a worse failure than the one this whole path exists to fix.
+    which is a worse failure than the one this whole path exists to fix. Also
+    called when a request is rejected for an unknown model, so a swap made
+    inside the local app self-heals on the next attempt rather than at the next
+    TTL expiry.
     """
     if pid is None:
         _DISCOVERED_MODEL.clear()
     else:
         _DISCOVERED_MODEL.pop(pid, None)
+
+
+def _cached_discovery(pid: str) -> tuple[bool, Optional[str]]:
+    """``(hit, value)``. ``hit`` is False once the entry has expired, so a
+    remembered failure (value ``None``) is still a hit until it ages out."""
+    entry = _DISCOVERED_MODEL.get(pid)
+    if entry is None:
+        return False, None
+    value, expires_at = entry
+    if time.monotonic() >= expires_at:
+        _DISCOVERED_MODEL.pop(pid, None)
+        return False, None
+    return True, value
 
 
 def discover_model(p: Provider) -> Optional[str]:
@@ -240,9 +270,13 @@ def discover_model(p: Provider) -> Optional[str]:
     Only used when we would otherwise send a placeholder. Never raises: a
     server that is down or does not implement ``/v1/models`` leaves the caller
     with the placeholder, which is exactly where it was before.
+
+    Both outcomes are cached — success for :data:`DISCOVERY_TTL_S`, failure for
+    :data:`DISCOVERY_FAILURE_TTL_S` — because this runs once per translated
+    segment, so an uncached failure costs a 5s timeout per segment.
     """
-    cached = _DISCOVERED_MODEL.get(p.id)
-    if cached:
+    hit, cached = _cached_discovery(p.id)
+    if hit:
         return cached
     base_url = resolve_base_url(p)
     if not base_url:
@@ -258,8 +292,10 @@ def discover_model(p: Provider) -> Optional[str]:
         ids = [m.id for m in client.models.list(timeout=5)]
     except Exception as e:  # noqa: BLE001 — discovery is best-effort by design
         logger.debug("model discovery failed for %s: %s", p.id, e)
+        _DISCOVERED_MODEL[p.id] = (None, time.monotonic() + DISCOVERY_FAILURE_TTL_S)
         return None
     if not ids:
+        _DISCOVERED_MODEL[p.id] = (None, time.monotonic() + DISCOVERY_FAILURE_TTL_S)
         return None
     # Deterministic rather than "whatever the server listed first", so two runs
     # on the same machine pick the same model and a bug report is reproducible.
@@ -270,7 +306,7 @@ def discover_model(p: Provider) -> Optional[str]:
             "Pick one in Settings → LLM Providers to choose deliberately.",
             p.display_name, len(ids), chosen,
         )
-    _DISCOVERED_MODEL[p.id] = chosen
+    _DISCOVERED_MODEL[p.id] = (chosen, time.monotonic() + DISCOVERY_TTL_S)
     return chosen
 
 

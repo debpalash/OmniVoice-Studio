@@ -462,12 +462,21 @@ def test_llm_provider(provider_id: str):
                     + (" …" if len(available) > 10 else "")
                     + ". Pick one in the Model field above."
                 )
-            else:
+                # The cached discovery, if any, produced a name this server
+                # rejects — most likely the user swapped the loaded model
+                # inside the local app. Drop it so the next attempt re-asks
+                # rather than repeating the same 404 until the TTL expires.
+                llm_providers.forget_discovered_models(p.id)
+            elif available == []:
                 detail = (
                     f"{p.display_name} is running, but reports no loaded models, "
                     f"so {asked!r} cannot be served. Load a model in "
                     f"{p.display_name} first, then test again."
                 )
+                llm_providers.forget_discovered_models(p.id)
+            # available is None: the model listing itself failed, so nothing
+            # here is established. Keep the generic 404 text rather than
+            # inventing a diagnosis the lookup did not support.
         return {
             "ok": False,
             "kind": kind,
@@ -476,16 +485,22 @@ def test_llm_provider(provider_id: str):
         }
 
 
-def _local_models(base_url: str, api_key: str) -> list:
-    """Model ids a local OpenAI-compatible server currently serves; [] on any
-    failure. Only used to make an error message specific, so it must never
-    raise a second error on top of the first one."""
+def _local_models(base_url: str, api_key: str):
+    """Model ids a local OpenAI-compatible server currently serves.
+
+    ``None`` when the listing itself failed, ``[]`` when it succeeded and the
+    server has nothing loaded. The distinction is load-bearing: collapsing both
+    to ``[]`` let the caller state "reports no loaded models" on a lookup that
+    never happened, which is a confident wrong diagnosis in place of a vague
+    right one (CodeRabbit). Only used to sharpen an error message, so it must
+    never raise a second error on top of the first.
+    """
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
         return sorted(m.id for m in client.models.list(timeout=5))
     except Exception:  # noqa: BLE001
-        return []
+        return None
 
 
 @router.get("/llm-providers/{provider_id}/models")

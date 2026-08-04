@@ -48,6 +48,17 @@ def _no_env_or_store(monkeypatch, llm):
     monkeypatch.setattr(store, "get_text", lambda *a, **k: "")
 
 
+def _expire(llm, pid):
+    """Age a cache entry past its TTL without touching the clock.
+
+    ``time.monotonic`` is the stdlib's, shared with sqlite and logging, so
+    freezing it breaks the settings store underneath the test — rewriting the
+    stored expiry tests the same branch without that blast radius.
+    """
+    value, _ = llm._DISCOVERED_MODEL[pid]
+    llm._DISCOVERED_MODEL[pid] = (value, 0.0)
+
+
 def _fake_openai(monkeypatch, llm, ids, raises=None):
     """Stub the OpenAI SDK's models.list for the discovery path."""
     calls = {"n": 0}
@@ -166,3 +177,68 @@ def test_lmstudio_is_the_only_placeholder_today():
         f"model_is_placeholder changed to {flagged}. Each one adds a network "
         f"probe to model resolution — intended?"
     )
+
+
+def test_a_failed_probe_is_not_retried_per_segment(monkeypatch, llm):
+    """A stopped server must cost one 5s timeout, not one per segment.
+
+    Translation resolves the model for every segment it renders, so an uncached
+    failure turns a 200-segment dub into 1000 seconds of discovering nothing —
+    worse than the bug this whole path fixes (greptile / CodeRabbit).
+    """
+    calls = _fake_openai(monkeypatch, llm, [], raises=ConnectionError("refused"))
+    p = llm.get_provider("lmstudio")
+    for _ in range(20):
+        assert llm.resolve_model(p) == "local-model"
+    assert calls["n"] == 1, (
+        f"probed {calls['n']} times against a server that is down; each one is "
+        f"a 5s timeout in the request path"
+    )
+
+
+def test_an_empty_server_is_also_remembered(monkeypatch, llm):
+    """Running-but-nothing-loaded is just as expensive to re-probe as down."""
+    calls = _fake_openai(monkeypatch, llm, [])
+    p = llm.get_provider("lmstudio")
+    for _ in range(10):
+        llm.resolve_model(p)
+    assert calls["n"] == 1
+
+
+def test_a_remembered_failure_expires(monkeypatch, llm):
+    """...but it must expire, or starting the server would need an app restart."""
+    _fake_openai(monkeypatch, llm, [], raises=ConnectionError("refused"))
+    p = llm.get_provider("lmstudio")
+    assert llm.resolve_model(p) == "local-model"
+
+    # Age the entry rather than patching time.monotonic: that name is the
+    # stdlib's, shared with sqlite and logging, and freezing it breaks the
+    # settings store underneath the test.
+    _expire(llm, "lmstudio")
+    _fake_openai(monkeypatch, llm, ["now-its-up"])
+    assert llm.resolve_model(p) == "now-its-up", (
+        "a failure was remembered forever; the user starts LM Studio and "
+        "nothing works until they restart OmniVoice"
+    )
+
+
+def test_a_discovered_model_expires(monkeypatch, llm):
+    """The user can swap the loaded model inside LM Studio without touching
+    OmniVoice. An unbounded cache keeps sending the unloaded name and 404s
+    every translation until a restart (greptile)."""
+    _fake_openai(monkeypatch, llm, ["first-model"])
+    p = llm.get_provider("lmstudio")
+    assert llm.resolve_model(p) == "first-model"
+
+    _expire(llm, "lmstudio")
+    _fake_openai(monkeypatch, llm, ["swapped-model"])
+    assert llm.resolve_model(p) == "swapped-model"
+
+
+def test_a_fresh_discovery_is_still_reused_within_its_ttl(monkeypatch, llm):
+    """The TTL must not defeat the caching it bounds."""
+    calls = _fake_openai(monkeypatch, llm, ["m"])
+    p = llm.get_provider("lmstudio")
+    llm.resolve_model(p)
+    llm.resolve_model(p)
+    assert calls["n"] == 1
