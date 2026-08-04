@@ -326,25 +326,51 @@ def test_uvicorn_owns_the_logger_level(tmp_path):
 
 def test_main_does_not_raise_the_uvicorn_log_level():
     """Given the two facts above, this is the actual precondition of the fix:
-    `log_level` must stay at uvicorn's INFO default so ERROR records reach the
+    `log_level` must stay at or below ERROR so the bind record reaches the
     filter. Someone quietening the backend later would otherwise silently
-    disarm the #1364 diagnosis."""
-    src = _read("backend", "main.py")
-    # Scope to the GUARDED serve call. main.py has a second uvicorn.run() on
-    # the --health-check smoke path, which sets log_level="warning" to quieten
-    # the access log; that is below ERROR and irrelevant here.
-    guarded = src[src.index('logging.getLogger("uvicorn.error").addFilter('):]
-    call = re.search(r"uvicorn\.run\((.*?)\)\n", guarded, re.DOTALL)
-    assert call, "the guarded uvicorn.run() call was not found after the watcher"
+    disarm the #1364 diagnosis.
 
-    level = re.search(r"log_level\s*=\s*[\"'](\w+)[\"']", call.group(1))
-    if level is not None:
-        # A filter only runs on records the logger emits, so anything above
-        # ERROR drops the bind failure before the watcher can see it.
-        assert level.group(1).lower() in ("debug", "info", "warning", "error"), (
-            f"the guarded uvicorn.run() sets log_level={level.group(1)!r}, which "
-            f"suppresses the ERROR record the #1364 watcher reads"
-        )
+    AST rather than a regex (CodeRabbit): a pattern that only recognises string
+    literals silently passes on `log_level=settings.level` or any other
+    computed value — the check would look present and verify nothing, which is
+    the same class of bug as the pin in #1357 that did not apply.
+    """
+    import ast
+
+    src = _read("backend", "main.py")
+    tree = ast.parse(src)
+
+    # Scope to the GUARDED serve call: the one after the watcher is attached.
+    # main.py has a second uvicorn.run() on the --health-check smoke path which
+    # sets log_level="warning" (below ERROR, irrelevant here).
+    attach = next(
+        n.lineno for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute) and n.func.attr == "addFilter"
+    )
+    guarded = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute) and n.func.attr == "run"
+        and getattr(n.func.value, "id", None) == "uvicorn"
+        and n.lineno > attach
+    ]
+    assert guarded, "the guarded uvicorn.run() call was not found after the watcher"
+
+    _ALLOWED = {"debug", "info", "warning", "error"}
+    for call in guarded:
+        for kw in call.keywords:
+            if kw.arg != "log_level":
+                continue
+            assert isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str), (
+                "the guarded uvicorn.run() computes log_level, so this test "
+                "cannot verify it stays at or below ERROR — the #1364 watcher "
+                "would go blind with no warning. Use a literal."
+            )
+            assert kw.value.value.lower() in _ALLOWED, (
+                f"the guarded uvicorn.run() sets log_level={kw.value.value!r}, "
+                f"which suppresses the ERROR record the #1364 watcher reads"
+            )
 
 
 def test_main_actually_wires_the_watcher():
