@@ -147,6 +147,20 @@ if _prefer_system_webkit; then
   _SYS_WK_LIBDIR="$(_system_webkit_libdir || echo "")"
 fi
 
+if [ -n "$_SYS_WK_LIBDIR" ]; then
+  # The host's WebKit resolves first; ours fills only what the host lacks.
+  export LD_LIBRARY_PATH="${_SYS_WK_LIBDIR}:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+  # The workaround above was chosen for the BUNDLED version; re-decide it
+  # against the copy that will actually run.
+  unset WEBKIT_DISABLE_COMPOSITING_MODE
+  case "$(_system_webkit_version)" in
+    2.44.*|2.46.*|"") export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
+  esac
+else
+  # Standard AppImage env that Tauri's auto-generated AppRun would have set.
+  export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 # ── GStreamer: the bundle has a core but no plugins (#1333) ────────────────
 # Microphone capture died on Debian 13 with "No microphone found", while the
 # same build's raw binary recorded fine. GST_DEBUG=2 named the cause:
@@ -169,22 +183,32 @@ fi
 # the host's core is the only one that can agree with the plugins that will
 # actually load, so let it win. This is why the raw binary works — it sets no
 # LD_LIBRARY_PATH, so core and plugins are both the host's.
+#
+# "Let it win" here means preloading that ONE library, not hoisting the
+# directory it sits in — see _system_gstreamer_lib below.
 
-#: Directory holding the host's libgstreamer-1.0.so.0, or empty.
-_system_gstreamer_libdir() {
-  local dir
+#: Full path to the host's libgstreamer-1.0.so.0, or empty.
+#
+# The FILE, not its directory. The host's GStreamer lives in a general system
+# library directory (/usr/lib/x86_64-linux-gnu on Debian), so putting that
+# directory ahead of ${HERE}/usr/lib would replace every OTHER bundled library
+# with the host's copy too — which is how you get loader symbol errors or a
+# blank window on a distro we never built against (greptile). One library needs
+# to come from the host; the mechanism has to be that narrow.
+_system_gstreamer_lib() {
+  local dir path
   dir="$(pkg-config --variable=libdir gstreamer-1.0 2>/dev/null || echo "")"
   if [ -n "$dir" ] && [ -e "$dir/libgstreamer-1.0.so.0" ]; then
-    printf '%s' "$dir"
+    printf '%s' "$dir/libgstreamer-1.0.so.0"
     return 0
   fi
   # Runtime-only host (no -dev package, so no .pc file), same fallback as
   # _system_webkit_libdir.
   if command -v ldconfig >/dev/null 2>&1; then
-    dir="$(ldconfig -p 2>/dev/null \
-           | awk '/libgstreamer-1\.0\.so\.0 /{print $NF; exit}')"
-    if [ -n "$dir" ] && [ -e "$dir" ]; then
-      printf '%s' "$(dirname -- "$dir")"
+    path="$(ldconfig -p 2>/dev/null \
+            | awk '/libgstreamer-1\.0\.so\.0 /{print $NF; exit}')"
+    if [ -n "$path" ] && [ -e "$path" ]; then
+      printf '%s' "$path"
       return 0
     fi
   fi
@@ -201,37 +225,18 @@ _prefer_system_gstreamer() {
   return 0
 }
 
-_SYS_GST_LIBDIR=""
+# LD_PRELOAD, not LD_LIBRARY_PATH. Preloading names exactly one library and
+# leaves the search path — and therefore every other bundled library — alone.
+# Reordering directories cannot be that precise: the host's GStreamer shares a
+# directory with most of the system, so hoisting it hoists everything.
+#
+# It is inherited by the Python backend we spawn, where nothing links GStreamer
+# and the preload is inert. That is the accepted cost of the narrower mechanism.
 if _prefer_system_gstreamer; then
-  _SYS_GST_LIBDIR="$(_system_gstreamer_libdir || echo "")"
-fi
-
-# ── One place that composes LD_LIBRARY_PATH ────────────────────────────────
-# Order is load-bearing and the two decisions above interact, so they are
-# applied together rather than each prepending its own directory:
-#
-#   host WebKit  →  host GStreamer  →  bundle  →  whatever was inherited
-#
-# The host WebKit dir must stay FIRST. Prepending the GStreamer dir separately
-# put it ahead of WebKit's, which is the invariant #1258 turns on — and on a
-# host where the two libraries live in different directories that silently
-# changes which WebKit resolves. Both host dirs still precede the bundle, so
-# neither preference is weakened.
-_LDPATH=""
-[ -n "$_SYS_WK_LIBDIR" ] && _LDPATH="${_SYS_WK_LIBDIR}"
-if [ -n "$_SYS_GST_LIBDIR" ] && [ "$_SYS_GST_LIBDIR" != "$_SYS_WK_LIBDIR" ]; then
-  _LDPATH="${_LDPATH:+${_LDPATH}:}${_SYS_GST_LIBDIR}"
-fi
-_LDPATH="${_LDPATH:+${_LDPATH}:}${HERE}/usr/lib"
-export LD_LIBRARY_PATH="${_LDPATH}:${LD_LIBRARY_PATH:-}"
-
-if [ -n "$_SYS_WK_LIBDIR" ]; then
-  # The workaround chosen earlier was for the BUNDLED version; re-decide it
-  # against the copy that will actually run.
-  unset WEBKIT_DISABLE_COMPOSITING_MODE
-  case "$(_system_webkit_version)" in
-    2.44.*|2.46.*|"") export WEBKIT_DISABLE_COMPOSITING_MODE=1 ;;
-  esac
+  _SYS_GST_LIB="$(_system_gstreamer_lib || echo "")"
+  if [ -n "$_SYS_GST_LIB" ]; then
+    export LD_PRELOAD="${_SYS_GST_LIB}${LD_PRELOAD:+ $LD_PRELOAD}"
+  fi
 fi
 
 # Private registry cache, unconditionally. GStreamer caches its plugin scan in

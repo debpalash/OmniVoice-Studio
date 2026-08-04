@@ -363,11 +363,19 @@ run_gst_case() {
       export -f exec
 
       unset LD_LIBRARY_PATH
+      unset LD_PRELOAD
       # shellcheck disable=SC1090
       source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
+      case "${LD_PRELOAD:-}" in
+        *"$gstlibdir/libgstreamer-1.0.so.0"*) printf "gst-preloaded" ;;
+        *)                                    printf "no-gst" ;;
+      esac
+      # The whole point of preloading is that the SEARCH PATH is untouched:
+      # the host GStreamer sits in a general system libdir, so hoisting that
+      # directory would supersede every other bundled library too (greptile).
       case "$LD_LIBRARY_PATH" in
-        "$gstlibdir":*) printf "gst-first" ;;
-        *)              printf "no-gst" ;;
+        "$gstlibdir":*) printf "+libdir-hoisted" ;;
+        *)              printf "+libdir-intact" ;;
       esac
       case "${GST_REGISTRY_1_0:-}" in
         "'"$cachedir"'"/OmniVoice/*) printf "+private-registry" ;;
@@ -387,17 +395,17 @@ run_gst_case() {
 
 # The reported machine: a healthy host GStreamer exists, so it must resolve
 # ahead of the bundled core.
-run_gst_case "host GStreamer wins (pkg-config)" ""  "pkgconfig" "gst-first+private-registry"
+run_gst_case "host GStreamer wins (pkg-config)" ""  "pkgconfig" "gst-preloaded+libdir-intact+private-registry"
 # Runtime-only host: the library is installed but there is no .pc file, so only
 # ldconfig can find it. Unlike WebKit there is no version to compare, so this
 # path must still win rather than fall back (CodeRabbit: the fallback branch was
 # untested because every case forced ldconfig to fail).
-run_gst_case "host GStreamer wins (ldconfig)"  ""  "ldconfig"  "gst-first+private-registry"
+run_gst_case "host GStreamer wins (ldconfig)"  ""  "ldconfig"  "gst-preloaded+libdir-intact+private-registry"
 # A host with no GStreamer at all: nothing to prefer, and the bundled core is
 # all there is. Must not break, and must still get a private registry.
-run_gst_case "no host GStreamer is harmless"   ""  "none"      "no-gst+private-registry"
+run_gst_case "no host GStreamer is harmless"   ""  "none"      "no-gst+libdir-intact+private-registry"
 # Escape hatch for a host whose own GStreamer is broken.
-run_gst_case "opt-out keeps the bundled core"  "0" "pkgconfig" "no-gst+private-registry"
+run_gst_case "opt-out keeps the bundled core"  "0" "pkgconfig" "no-gst+libdir-intact+private-registry"
 
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"

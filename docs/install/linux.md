@@ -205,8 +205,12 @@ missing, and it is the one WebKit needs to hand over a capture stream — so
 core with your plugins, which agree.
 
 **From v0.4.3 the launcher prefers your system's GStreamer**, which is the only
-core that can match the plugins that will actually load. If your distro's
-GStreamer is itself broken and you would rather fall back to the bundled core:
+core that can match the plugins that will actually load. It does that by
+preloading that one library (`LD_PRELOAD`) rather than by putting your system
+library directory ahead of the bundle — your GStreamer shares that directory
+with most of the system, so hoisting it would quietly replace every *other*
+bundled library too. If your distro's GStreamer is itself broken and you would
+rather fall back to the bundled core:
 
 ```bash
 OMNIVOICE_PREFER_SYSTEM_GSTREAMER=0 ./OmniVoice.Studio_*.AppImage
