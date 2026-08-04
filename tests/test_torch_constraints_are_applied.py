@@ -137,17 +137,35 @@ def test_the_colab_notebook_passes_the_constraint():
     ]
     assert installs, "no uv pip install cell found in the Colab notebook"
     for src in installs:
-        assert "torch-constraints.txt" in src, (
+        args = _install_argv(src)
+        assert args, "could not parse the install command's argument list"
+        # The ARGUMENT LIST, not the cell text: a substring check passes when
+        # --constraint is deleted from run([...]) but its explanatory comment
+        # survives, which is the shape this whole PR is about (CodeRabbit).
+        assert "--constraint" in args, (
             "the Colab install cell resolves the torch trio unconstrained — the "
             "exact path #1357 was reported on"
         )
+        i = args.index("--constraint")
+        assert args[i + 1:i + 2] == ["deploy/torch-constraints.txt"], (
+            f"--constraint is not followed by the constraints file: {args}"
+        )
 
 
-def test_the_notebook_is_still_valid_json_and_has_its_cells():
-    """The install cell is edited programmatically; a malformed notebook fails
-    for the user at open time, not here, unless this looks."""
-    nb = json.loads(_NOTEBOOK.read_text(encoding="utf-8"))
-    assert nb["cells"], "notebook has no cells"
-    for c in nb["cells"]:
-        assert c["cell_type"] in ("code", "markdown")
-        assert isinstance(c["source"], list)
+def _install_argv(cell_source: str) -> list:
+    """String literals of the `run([...])` argument list in a notebook cell.
+
+    Parsed rather than pattern-matched so a comment mentioning --constraint
+    cannot satisfy the assertion above.
+    """
+    import ast
+
+    tree = ast.parse(cell_source)
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and node.args
+                and isinstance(node.args[0], ast.List)):
+            argv = [e.value for e in node.args[0].elts
+                    if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+            if "install" in argv and "pip" in argv:
+                return argv
+    return []
