@@ -188,7 +188,7 @@ microphones, `gst-launch-1.0 pulsesrc … ! fakesink` captures, and running
 `frontend/src-tauri/target/debug/omnivoice-studio` directly records without
 trouble. `GST_DEBUG=2` shows the real message:
 
-```
+```text
 WARN GST_REGISTRY gst_registry_binary_check_magic:
   Binary registry magic version is different : 1.23.90 != 1.3.0
 GStreamer element appsink not found. Please install it.
@@ -212,10 +212,16 @@ GStreamer is itself broken and you would rather fall back to the bundled core:
 OMNIVOICE_PREFER_SYSTEM_GSTREAMER=0 ./OmniVoice.Studio_*.AppImage
 ```
 
-The AppImage also keeps its plugin-scan cache in
-`~/.cache/OmniVoice/gstreamer-registry.bin` rather than the shared
-`~/.cache/gstreamer-1.0/`, so it can neither be confused by, nor corrupt, the
-cache other GStreamer applications use.
+The AppImage also keeps its plugin-scan cache to itself, at
+`~/.cache/OmniVoice/gstreamer-registry.bin`, rather than in the shared
+`~/.cache/gstreamer-1.0/`. GStreamer names that shared file by architecture
+alone, so two cores of different versions overwrite each other's — which both
+makes this failure depend on whichever application ran last, and lets the
+AppImage corrupt the cache every other GStreamer app on your machine reads.
+
+If you set `XDG_CACHE_HOME`, the path follows it
+(`$XDG_CACHE_HOME/OmniVoice/gstreamer-registry.bin`); `~/.cache` is the default
+when it is unset.
 
 Tracking issue: [#1333](https://github.com/debpalash/OmniVoice-Studio/issues/1333).
 

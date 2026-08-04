@@ -326,12 +326,16 @@ run_workaround_with_system "broken host re-arms it"            "2.44.3" "2.46.1"
 # host plugins fails its version check, finds no `appsink`, and getUserMedia()
 # rejects with NotFoundError — the "No microphone found" the user saw, on a
 # machine whose audio stack was verified healthy with pactl/wpctl/gst-launch.
+# `discovery` selects which lookup path finds the host library:
+#   pkgconfig — the -dev package is installed and answers
+#   ldconfig  — runtime-only host (no .pc file), the #1258-review fallback
+#   none      — no host GStreamer at all
 run_gst_case() {
-  local label="$1" optout="$2" host_present="$3" expected="$4"
+  local label="$1" optout="$2" discovery="$3" expected="$4"
   local gstlibdir cachedir actual
   gstlibdir="$(mktemp -d)"
   cachedir="$(mktemp -d)"
-  [ "$host_present" = "yes" ] && touch "$gstlibdir/libgstreamer-1.0.so.0"
+  [ "$discovery" = "none" ] || touch "$gstlibdir/libgstreamer-1.0.so.0"
 
   actual=$(
     bash -c '
@@ -339,19 +343,21 @@ run_gst_case() {
       export OMNIVOICE_PREFER_SYSTEM_GSTREAMER="'"$optout"'"
       export XDG_CACHE_HOME="'"$cachedir"'"
       gstlibdir="'"$gstlibdir"'"
-      host_present="'"$host_present"'"
+      discovery="'"$discovery"'"
 
       pkg-config() {
         if [ "$1" = "--variable=libdir" ] && [ "$2" = "gstreamer-1.0" ] \
-           && [ "$host_present" = "yes" ]; then
+           && [ "$discovery" = "pkgconfig" ]; then
           echo "$gstlibdir"; return 0
         fi
         return 1
       }
       export -f pkg-config
-      # No host WebKit, and no ldconfig fallback either: this case is only
-      # about the GStreamer branch.
-      ldconfig() { return 1; }
+      # No host WebKit either way; this case is only about the GStreamer branch.
+      ldconfig() {
+        [ "$discovery" = "ldconfig" ] || return 1
+        echo "  libgstreamer-1.0.so.0 (libc6,x86-64) => $gstlibdir/libgstreamer-1.0.so.0"
+      }
       export -f ldconfig
       exec() { :; }
       export -f exec
@@ -381,12 +387,17 @@ run_gst_case() {
 
 # The reported machine: a healthy host GStreamer exists, so it must resolve
 # ahead of the bundled core.
-run_gst_case "host GStreamer wins"            ""  "yes" "gst-first+private-registry"
+run_gst_case "host GStreamer wins (pkg-config)" ""  "pkgconfig" "gst-first+private-registry"
+# Runtime-only host: the library is installed but there is no .pc file, so only
+# ldconfig can find it. Unlike WebKit there is no version to compare, so this
+# path must still win rather than fall back (CodeRabbit: the fallback branch was
+# untested because every case forced ldconfig to fail).
+run_gst_case "host GStreamer wins (ldconfig)"  ""  "ldconfig"  "gst-first+private-registry"
 # A host with no GStreamer at all: nothing to prefer, and the bundled core is
 # all there is. Must not break, and must still get a private registry.
-run_gst_case "no host GStreamer is harmless"  ""  "no"  "no-gst+private-registry"
+run_gst_case "no host GStreamer is harmless"   ""  "none"      "no-gst+private-registry"
 # Escape hatch for a host whose own GStreamer is broken.
-run_gst_case "opt-out keeps the bundled core" "0" "yes" "no-gst+private-registry"
+run_gst_case "opt-out keeps the bundled core"  "0" "pkgconfig" "no-gst+private-registry"
 
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"
