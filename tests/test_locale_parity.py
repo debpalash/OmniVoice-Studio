@@ -56,6 +56,28 @@ _PLACEHOLDER_ALLOWLIST = {
     "bootstrap.suggest_lang",
 }
 
+# Engine brand names that must never appear in a status string covering work a
+# *different* engine may be doing. ASR and TTS are both user-selectable
+# (Settings → Models), so "Transcribing with Whisper…" was a lie for anyone on
+# Parakeet or a transformers pipeline (#1352). Latin spellings only — several
+# locales transliterate ("ウィスパー", "Bisikan", "الهمس"), which no practical
+# pattern catches; the keys below are checked in every locale anyway, so the
+# common case (translators keeping the brand verbatim, as de/es/fr/nl/pt/ru all
+# did) still fails loudly, and en.json — where every one of these enters the
+# codebase first — is covered outright.
+_ENGINE_BRANDS = re.compile(
+    r"\b(whisper|parakeet|demucs|cosyvoice|indextts|supertonic|kokoro|piper|"
+    r"xtts|bark|vall-?e|seed-?vc|pocket-?tts)\b",
+    re.IGNORECASE,
+)
+
+# Status/progress strings that describe a pipeline STAGE, not a specific
+# implementation of it. Naming an engine here is a correctness bug, not a style
+# one: the label is shown while some other engine is running.
+_ENGINE_AGNOSTIC_KEYS = (
+    "dub.transcribing",
+)
+
 # Missing-key ratchet: highest allowed number of en.json keys absent from each
 # locale. Counts may only go DOWN — translate keys and tighten the number.
 # Never raise one: if this fails after adding en.json keys, add the keys to
@@ -232,4 +254,36 @@ def test_no_corrupted_placeholder_tokens(locale):
     assert not bad, (
         f"{locale}.json contains corrupted placeholder tokens "
         f"(restore the real {{{{name}}}} from en.json):\n" + "\n".join(bad[:25])
+    )
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+def test_engine_agnostic_labels_name_no_engine(locale):
+    """A stage label must not name the engine that happens to implement it.
+
+    The dub overlay said "Transcribing with Whisper…" in all 21 languages while
+    ASR is a Settings → Models choice, so anyone on Parakeet or a transformers
+    pipeline was told the wrong engine was running — and a user debugging a slow
+    or failing transcription would go read Whisper's docs (#1352, thanks
+    @paoloantinori!). The same trap is one line away for any future stage label,
+    which is why this is a list to extend rather than a one-off assertion.
+
+    Deliberately checked in EVERY locale, not just en: the fix for #1352 landed
+    in en first and 5 translations kept the old engine name for a while, which
+    is exactly the drift a parity test cannot see (the key is present, the
+    placeholders match — only the brand name gives it away).
+    """
+    flat = _flatten(_load(locale))
+    bad = []
+    for key in _ENGINE_AGNOSTIC_KEYS:
+        value = flat.get(key)
+        if not isinstance(value, str):
+            continue  # absent here; the missing-key ratchet owns that case
+        hit = _ENGINE_BRANDS.search(value)
+        if hit:
+            bad.append(f"  {key}: {value!r} names {hit.group(0)!r}")
+    assert not bad, (
+        f"{locale}.json names a specific engine in a stage label that other "
+        f"engines also run — describe the STAGE, not the implementation "
+        f"(en: 'Transcribing audio…'):\n" + "\n".join(bad)
     )
