@@ -160,6 +160,78 @@ else
   # Standard AppImage env that Tauri's auto-generated AppRun would have set.
   export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
 fi
+
+# ── GStreamer: the bundle has a core but no plugins (#1333) ────────────────
+# Microphone capture died on Debian 13 with "No microphone found", while the
+# same build's raw binary recorded fine. GST_DEBUG=2 named the cause:
+#
+#     WARN GST_REGISTRY gst_registry_binary_check_magic:
+#       Binary registry magic version is different : 1.23.90 != 1.3.0
+#     GStreamer element appsink not found. Please install it.
+#
+# linuxdeploy bundles libgstreamer-1.0 because WebKit links it, but NOT the
+# plugins — those are dlopen'd at runtime, so nothing static can see them to
+# copy. The bundled core therefore falls back to its compile-time default
+# plugin directory, which is the HOST's, and the host's plugins were built
+# against the host's core. Version check fails, the scan yields nothing, and
+# `appsink` — the element WebKit hands a capture stream to — does not exist.
+# getUserMedia() then rejects with NotFoundError and the UI says there is no
+# microphone.
+#
+# Same class as the WebKit problem above (a frozen bundled library paired
+# against a host that moved on) and the same remedy: since we ship no plugins,
+# the host's core is the only one that can agree with the plugins that will
+# actually load, so let it win. This is why the raw binary works — it sets no
+# LD_LIBRARY_PATH, so core and plugins are both the host's.
+
+#: Directory holding the host's libgstreamer-1.0.so.0, or empty.
+_system_gstreamer_libdir() {
+  local dir
+  dir="$(pkg-config --variable=libdir gstreamer-1.0 2>/dev/null || echo "")"
+  if [ -n "$dir" ] && [ -e "$dir/libgstreamer-1.0.so.0" ]; then
+    printf '%s' "$dir"
+    return 0
+  fi
+  # Runtime-only host (no -dev package, so no .pc file), same fallback as
+  # _system_webkit_libdir.
+  if command -v ldconfig >/dev/null 2>&1; then
+    dir="$(ldconfig -p 2>/dev/null \
+           | awk '/libgstreamer-1\.0\.so\.0 /{print $NF; exit}')"
+    if [ -n "$dir" ] && [ -e "$dir" ]; then
+      printf '%s' "$(dirname -- "$dir")"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+_prefer_system_gstreamer() {
+  # Unlike WebKit there is no version comparison to make: we bundle no
+  # plugins, so a bundled core can only ever pair with host plugins it was not
+  # built against. Any host core is better than that. The override exists for
+  # a host whose GStreamer is genuinely broken, where falling back to the
+  # bundled core at least keeps the rest of the app running.
+  [ "${OMNIVOICE_PREFER_SYSTEM_GSTREAMER:-}" = "0" ] && return 1
+  return 0
+}
+
+if _prefer_system_gstreamer; then
+  _SYS_GST_LIBDIR="$(_system_gstreamer_libdir || echo "")"
+  if [ -n "$_SYS_GST_LIBDIR" ]; then
+    export LD_LIBRARY_PATH="${_SYS_GST_LIBDIR}:${LD_LIBRARY_PATH:-}"
+  fi
+fi
+
+# Private registry cache, unconditionally. GStreamer caches its plugin scan in
+# ~/.cache/gstreamer-1.0/registry.<arch>.bin, keyed only by architecture — so
+# two cores of different versions clobber each other's file. That is a second,
+# independent defect: it makes the failure above intermittent (it depends on
+# which application ran last), and the AppImage corrupts the cache for every
+# other GStreamer app on the machine. Giving this app its own file removes the
+# interaction in both directions.
+export GST_REGISTRY_1_0="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/OmniVoice/gstreamer-registry.bin"
+mkdir -p -- "$(dirname -- "$GST_REGISTRY_1_0")" 2>/dev/null || true
+
 export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 exec "${HERE}/usr/bin/omnivoice-studio" "$@"

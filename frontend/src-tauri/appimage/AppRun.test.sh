@@ -320,6 +320,74 @@ run_workaround_with_system "healthy host drops the workaround" "2.44.3" "2.52.5"
 # range: the workaround must be re-armed for the version that actually runs.
 run_workaround_with_system "broken host re-arms it"            "2.44.3" "2.46.1" "1"
 
+# ── GStreamer: host core must win, and the registry must be private (#1333) ──
+# The bundle ships libgstreamer-1.0 (WebKit links it) but no plugins (they are
+# dlopen'd, so nothing static can see them to copy). A bundled core paired with
+# host plugins fails its version check, finds no `appsink`, and getUserMedia()
+# rejects with NotFoundError — the "No microphone found" the user saw, on a
+# machine whose audio stack was verified healthy with pactl/wpctl/gst-launch.
+run_gst_case() {
+  local label="$1" optout="$2" host_present="$3" expected="$4"
+  local gstlibdir cachedir actual
+  gstlibdir="$(mktemp -d)"
+  cachedir="$(mktemp -d)"
+  [ "$host_present" = "yes" ] && touch "$gstlibdir/libgstreamer-1.0.so.0"
+
+  actual=$(
+    bash -c '
+      set +e
+      export OMNIVOICE_PREFER_SYSTEM_GSTREAMER="'"$optout"'"
+      export XDG_CACHE_HOME="'"$cachedir"'"
+      gstlibdir="'"$gstlibdir"'"
+      host_present="'"$host_present"'"
+
+      pkg-config() {
+        if [ "$1" = "--variable=libdir" ] && [ "$2" = "gstreamer-1.0" ] \
+           && [ "$host_present" = "yes" ]; then
+          echo "$gstlibdir"; return 0
+        fi
+        return 1
+      }
+      export -f pkg-config
+      # No host WebKit, and no ldconfig fallback either: this case is only
+      # about the GStreamer branch.
+      ldconfig() { return 1; }
+      export -f ldconfig
+      exec() { :; }
+      export -f exec
+
+      unset LD_LIBRARY_PATH
+      # shellcheck disable=SC1090
+      source "'"$THIS_DIR"'/AppRun" >/dev/null 2>&1 || true
+      case "$LD_LIBRARY_PATH" in
+        "$gstlibdir":*) printf "gst-first" ;;
+        *)              printf "no-gst" ;;
+      esac
+      case "${GST_REGISTRY_1_0:-}" in
+        "'"$cachedir"'"/OmniVoice/*) printf "+private-registry" ;;
+        *)                           printf "+shared-registry" ;;
+      esac'
+  )
+  rm -rf "$gstlibdir" "$cachedir"
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS [$label]"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "FAIL [$label]: expected '$expected' got '$actual'" >&2
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+}
+
+# The reported machine: a healthy host GStreamer exists, so it must resolve
+# ahead of the bundled core.
+run_gst_case "host GStreamer wins"            ""  "yes" "gst-first+private-registry"
+# A host with no GStreamer at all: nothing to prefer, and the bundled core is
+# all there is. Must not break, and must still get a private registry.
+run_gst_case "no host GStreamer is harmless"  ""  "no"  "no-gst+private-registry"
+# Escape hatch for a host whose own GStreamer is broken.
+run_gst_case "opt-out keeps the bundled core" "0" "yes" "no-gst+private-registry"
+
 echo
 echo "─── AppRun test summary: $PASS_COUNT pass / $FAIL_COUNT fail ───"
 if [[ $FAIL_COUNT -ne 0 ]]; then

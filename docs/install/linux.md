@@ -180,6 +180,45 @@ Tracking issues: [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
 [#961](https://github.com/debpalash/OmniVoice-Studio/issues/961),
 [#1258](https://github.com/debpalash/OmniVoice-Studio/issues/1258).
 
+## AppImage: "No microphone found" while the raw binary records fine
+
+Recording from the AppImage fails with *"No microphone found. Connect or enable
+a microphone and try again."* — but `pactl list short sources` shows your
+microphones, `gst-launch-1.0 pulsesrc … ! fakesink` captures, and running
+`frontend/src-tauri/target/debug/omnivoice-studio` directly records without
+trouble. `GST_DEBUG=2` shows the real message:
+
+```
+WARN GST_REGISTRY gst_registry_binary_check_magic:
+  Binary registry magic version is different : 1.23.90 != 1.3.0
+GStreamer element appsink not found. Please install it.
+```
+
+Same shape as the blank-window problem above, in a different library. The
+AppImage bundles the GStreamer **core** (WebKitGTK links it) but not its
+**plugins** — those are loaded dynamically at runtime, so the packaging step
+cannot see them to copy. The bundled core then reads *your* plugin directory,
+whose plugins were built against *your* core, the version check rejects them,
+and the scan produces nothing. `appsink` is one of the elements that goes
+missing, and it is the one WebKit needs to hand over a capture stream — so
+`getUserMedia()` reports no device. Your raw binary works because it uses your
+core with your plugins, which agree.
+
+**From v0.4.3 the launcher prefers your system's GStreamer**, which is the only
+core that can match the plugins that will actually load. If your distro's
+GStreamer is itself broken and you would rather fall back to the bundled core:
+
+```bash
+OMNIVOICE_PREFER_SYSTEM_GSTREAMER=0 ./OmniVoice.Studio_*.AppImage
+```
+
+The AppImage also keeps its plugin-scan cache in
+`~/.cache/OmniVoice/gstreamer-registry.bin` rather than the shared
+`~/.cache/gstreamer-1.0/`, so it can neither be confused by, nor corrupt, the
+cache other GStreamer applications use.
+
+Tracking issue: [#1333](https://github.com/debpalash/OmniVoice-Studio/issues/1333).
+
 ## .deb ffprobe conflict
 
 <a id="deb-ffprobe-conflict"></a>
