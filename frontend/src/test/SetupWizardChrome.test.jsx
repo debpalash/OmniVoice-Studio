@@ -94,9 +94,11 @@ describe('SetupWizard — the pinned action row stays on screen', () => {
     });
     const root = container.firstElementChild;
     let el = scroller.parentElement;
+    let checked = 0;
     while (el && el !== root) {
       const cls = el.className || '';
       if (/\bflex-(1|auto)\b/.test(cls)) {
+        checked += 1;
         expect(
           cls,
           `growable ancestor lacks min-h-0: <${el.tagName.toLowerCase()} class="${cls}">`,
@@ -104,6 +106,12 @@ describe('SetupWizard — the pinned action row stays on screen', () => {
       }
       el = el.parentElement;
     }
+    // The walk must terminate AT the root, not fall off the document — and it
+    // must actually have inspected the growable chain it exists for, or a
+    // refactor that reparents the scroller silently turns this test into a
+    // no-op (CodeRabbit).
+    expect(el).toBe(root);
+    expect(checked).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps Continue and the HF-token card OUT of the scrolling region', async () => {
