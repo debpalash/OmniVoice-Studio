@@ -300,7 +300,16 @@ export default function SetupWizard({ onReady }) {
     // bar, off the bottom of the window. `pb-4` keeps the pinned row off the
     // very edge now that it really is the last thing on screen.
     <div className="absolute inset-0 flex flex-col items-center overflow-hidden bg-bg px-6 pb-4 pt-12 font-sans text-fg">
-      <div className="flex w-full max-w-[1100px] flex-1 flex-col">
+      {/* min-h-0 is THE fix for the pushed-off-screen Continue button: without
+          it this wrapper's automatic minimum height is its CONTENT height (per
+          flex spec, min-height:auto on a column-flex item resolves to
+          min-content, and the step's flex-basis:auto contributes its full
+          content) — so the wrapper silently grows past the root, the root's
+          overflow-hidden clips everything below the window, and no inner
+          min-h-0/overflow-y-auto clamp further down can ever engage. Measured
+          in a real engine (Chromium): footer at y=3078 in a 900px window
+          without this class; y=884 and the list scrolling with it. */}
+      <div className="flex w-full min-h-0 max-w-[1100px] flex-1 flex-col">
         {/* ── Masthead: identical identity to setup + install acts ────────── */}
         <header
           className="fr-rise flex flex-col gap-3 pb-1"

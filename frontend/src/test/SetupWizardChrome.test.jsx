@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -70,6 +70,40 @@ describe('SetupWizard — the pinned action row stays on screen', () => {
     // thing on screen — flush against the window edge is the same bug's
     // cosmetic tail.
     expect(root.className).toMatch(/\bpb-\d/);
+  });
+
+  it('every flex ancestor of the model-list scroller can actually shrink', async () => {
+    // The bug that survived TWO earlier fixes (and shipped in 0.4.2): the
+    // max-w-[1100px] wrapper was `flex-1 flex-col` WITHOUT min-h-0. Per the
+    // flex spec, min-height:auto on a column-flex item resolves to its
+    // min-content height — the full model list — so the wrapper grew past
+    // the root, overflow-hidden clipped everything below the window, and the
+    // inner overflow-y-auto clamp never engaged: Continue and the HF-token
+    // card were simply unreachable. jsdom does no layout, so this pins the
+    // CLASS RULE the layout depends on: every growable flex ancestor between
+    // the scroller and the wizard root must also be allowed to shrink.
+    // Measured for real in Chromium: footer at y=3078 in a 900px window
+    // without min-h-0 on the wrapper; y=884 with it.
+    const { container } = render(withI18n(<SetupWizard onReady={() => {}} />));
+    fireEvent.click(await screen.findByText(/All good — continue/i));
+
+    const scroller = await waitFor(() => {
+      const el = [...container.querySelectorAll('[class*="overflow-y-auto"]')].pop();
+      expect(el).toBeTruthy();
+      return el;
+    });
+    const root = container.firstElementChild;
+    let el = scroller.parentElement;
+    while (el && el !== root) {
+      const cls = el.className || '';
+      if (/\bflex-(1|auto)\b/.test(cls)) {
+        expect(
+          cls,
+          `growable ancestor lacks min-h-0: <${el.tagName.toLowerCase()} class="${cls}">`,
+        ).toMatch(/\bmin-h-0\b/);
+      }
+      el = el.parentElement;
+    }
   });
 
   it('keeps Continue and the HF-token card OUT of the scrolling region', async () => {
