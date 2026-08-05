@@ -110,3 +110,63 @@ def test_extraction_honours_an_out_dir_away_from_the_vocals(tmp_path):
     shutil.rmtree(old_job)
     for info in clones.values():
         assert os.path.isfile(info["ref_audio"])
+
+
+def _all_extraction_calls():
+    """BOTH extraction call sites in dub_core — the per-speaker one and the
+    per-segment one (the default). The first version of this fix covered only
+    the former; both reviewers caught the latter, which is how the class
+    survives a spot fix. Sweeping every call keeps a third copy honest too."""
+    src = open(
+        os.path.join(os.path.dirname(__file__), "..", "backend", "api",
+                     "routers", "dub_core.py"),
+        encoding="utf-8",
+    ).read()
+    calls = [
+        node for node in ast.walk(ast.parse(src))
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "id", getattr(node.func, "attr", None))
+        in ("extract_speaker_clones", "extract_segment_refs")
+    ]
+    assert len(calls) >= 2, "expected both extraction call sites in dub_core"
+    return calls
+
+
+def test_no_extraction_call_derives_its_out_dir_from_the_vocals():
+    for call in _all_extraction_calls():
+        out_dir_arg = ast.unparse(call.args[2])
+        assert "dirname" not in out_dir_arg, (
+            f"an extraction call writes next to the vocals again "
+            f"({ast.unparse(call.func)}: {out_dir_arg!r}) — on a cache hit "
+            f"that is an older job's directory (#1331)"
+        )
+
+
+def test_segment_refs_honour_an_out_dir_away_from_the_vocals(tmp_path):
+    """Functional half for the DEFAULT path: per-segment clips land in the
+    requesting job's dir and survive the vocals-owning job's deletion."""
+    from services.speaker_clone import extract_segment_refs
+
+    old_job = tmp_path / "job-old"
+    new_job = tmp_path / "job-new"
+    old_job.mkdir()
+    new_job.mkdir()
+
+    sr = 16000
+    rng = np.random.default_rng(1)
+    audio = (rng.standard_normal(sr * 12) * 0.1).astype(np.float32)
+    vocals = old_job / "vocals.wav"
+    sf.write(vocals, audio, sr)
+
+    segments = [
+        {"start": 0.0, "end": 5.5, "text": "first line", "speaker_id": "Speaker 1"},
+        {"start": 6.0, "end": 11.5, "text": "second line", "speaker_id": "Speaker 1"},
+    ]
+    refs = extract_segment_refs(str(vocals), segments, str(new_job), seg_ids=[0, 1])
+    assert refs, "no per-segment refs extracted from two 5.5s lines"
+
+    import shutil
+    shutil.rmtree(old_job)
+    for info in refs.values():
+        assert os.path.dirname(info["ref_audio"]) == str(new_job)
+        assert os.path.isfile(info["ref_audio"])

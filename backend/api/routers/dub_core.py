@@ -1315,10 +1315,17 @@ async def dub_transcribe_stream(
                 try:
                     from services.speaker_clone import extract_segment_refs
                     seg_ids_for_clone = [s.get("id", i) for i, s in enumerate(final_segs)]
+                    # Same #1331 rule as the per-speaker extraction above, and
+                    # this is the DEFAULT path: per-segment references must
+                    # live in THIS job's dir, or a cache-hit job's clips die
+                    # with the older job they were written next to (both
+                    # reviewers, on the first version of this fix).
+                    _seg_clone_dir = _safe_job_dir(job_id) or os.path.dirname(vocals_for_clone)
+                    os.makedirs(_seg_clone_dir, exist_ok=True)
                     seg_clones = await loop.run_in_executor(
                         _cpu_pool, lambda: extract_segment_refs(
                             vocals_for_clone, final_segs,
-                            os.path.dirname(vocals_for_clone),
+                            _seg_clone_dir,
                             seg_ids=seg_ids_for_clone,
                         ),
                     )
