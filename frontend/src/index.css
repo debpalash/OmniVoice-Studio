@@ -2537,16 +2537,34 @@ input[type="file"]::file-selector-button:hover {
      LogsFooter (studio chrome belongs to the studio), so there is nothing to
      reserve space for. While it did reserve 28px, the wizard's own root was
      `fixed inset-0` and escaped this box anyway — its pinned Continue / HF
-     token row rendered underneath the status bar and was unreachable. */
+     token row rendered underneath the status bar and was unreachable.
+
+     UI scale: SAME contract as .app-container (#504) — the box is shrunk to
+     `100vw/100vh ÷ scale`, then `zoom` magnifies it back to exactly the
+     viewport. The previous shape (`inset: 0` + inline `zoom` on the mount)
+     zoomed a FULL-viewport box, so at any scale > 1 the bottom
+     `(1 − 1/scale)` of the wizard — the pinned Continue button and the HF
+     token card — rendered past the window edge with no scrollbar to reach
+     them (overflow: hidden). At scale 1 nothing showed, which is how it
+     shipped. Guarded by src/test/SetupWizardChrome.test.jsx. */
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: calc(100vw / var(--ui-scale, 1));
+  height: calc(100vh / var(--ui-scale, 1));
+  zoom: var(--ui-scale, 1);
   overflow: hidden;
   background: var(--color-bg, #1d2021);
   display: flex;
   flex-direction: column;
+}
+/* Older WebKitGTK (Linux) where `zoom` is a layout no-op (same probe +
+   rationale as the .app-container override above): the shrunk box can't be
+   magnified back, so render at 1.0 filling the window instead. */
+html[data-zoom-layout='off'] .app-wizard-wrap {
+  width: 100vw;
+  height: 100vh;
+  zoom: 1;
 }
 .app-wizard-dragstrip {
   position: fixed; top: 0; left: 0; right: 0;

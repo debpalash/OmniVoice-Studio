@@ -1176,7 +1176,11 @@ function App() {
     // awaiting_setup racing the first poll), the wizard must not steal the
     // mount from the install-plan screen.
     return (
-      <div className="app-wizard-wrap" style={{ zoom: uiScale }}>
+      {/* `--ui-scale`, NOT a bare inline `zoom`: the CSS shrinks the box by
+          the scale and zooms it back (#504 contract, same as .app-container).
+          An inline zoom on top of a full-viewport box pushed the pinned
+          Continue/HF-token row below the window at any scale > 1. */}
+      <div className="app-wizard-wrap" style={{ '--ui-scale': uiScale }}>
         {/* Invisible drag strip across the top 28 px of the wizard —
             matches the macOS traffic-light zone so the window can be
             dragged / double-click-zoomed from anywhere along the top. */}

@@ -30,6 +30,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - Every subprocess TTS engine would have turned a stereo render into noise: the mono downmix always averaged axis 0, which is time rather than channels for channels-last audio. Unreachable today since every engine returns mono, fixed in all five before it isn't. (#1328)
+- First-run wizard: with UI scale above 100%, the Continue button and the Hugging Face token box were pushed below the window edge with no way to scroll to them. The wizard now sizes itself by the same rule as the main app, so the pinned row stays on screen at every scale. (#1382)
 - Dubbing the same video twice no longer ties the second job's cloned voices to the first job's files — deleting the older dub from history was silently turning the newer one's single-segment regens into a default voice. (#1331)
 - ...and deleting a dub whose files an existing saved dub still renders from now keeps those files on disk (the history entry still disappears) — protecting dubs created before this fix, whose references already cross directories. (#1331)
 - An unclean previous shutdown is no longer announced as a crash: the notice says what it actually knows, names the benign causes (sleep, force-quit, a stopped VM), and the one-click bug report is only offered when there is evidence to put in it — an empty report helps nobody. (#1375)

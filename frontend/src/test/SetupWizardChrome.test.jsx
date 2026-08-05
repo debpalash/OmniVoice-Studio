@@ -119,6 +119,51 @@ describe('studio chrome does not appear before the studio', () => {
     // A leftover `bottom: var(--logs-footer-height)` would strand a dead 28px
     // gap under the wizard now that no footer is rendered there.
     expect(body).not.toContain('--logs-footer-height');
-    expect(body).toMatch(/bottom:\s*0;/);
+    // The full-viewport promise is now expressed as the #504 scale contract
+    // (viewport ÷ scale, zoomed back) rather than `bottom: 0` — asserted in
+    // detail below.
+    expect(body).toMatch(/height:\s*calc\(100vh/);
+  });
+
+  // The UI-scale regression that shipped in 0.4.2: the wrap was `inset: 0`
+  // (full-viewport box) with a bare inline `zoom` on the mount, so at any
+  // UI scale > 1 the zoomed content overran the window and the pinned
+  // Continue button + HF-token card were pushed below the visible edge —
+  // unreachable, since overflow: hidden means no scrollbar. At scale 1
+  // nothing showed, which is how it survived. The fix is the exact
+  // .app-container contract (#504): shrink the box by the scale, zoom back.
+  describe('UI scale cannot push the pinned row off screen', () => {
+    it('the wrap is shrunk by --ui-scale and zoomed back, like .app-container', () => {
+      const css = readSrc('index.css');
+      const rule = css.slice(css.indexOf('.app-wizard-wrap {'));
+      const body = rule.slice(0, rule.indexOf('}'));
+      expect(body).toMatch(/width:\s*calc\(100vw\s*\/\s*var\(--ui-scale, 1\)\)/);
+      expect(body).toMatch(/height:\s*calc\(100vh\s*\/\s*var\(--ui-scale, 1\)\)/);
+      expect(body).toMatch(/zoom:\s*var\(--ui-scale, 1\)/);
+      // `inset`-style pinning of the bottom edge is the broken shape: a
+      // full-viewport box that zoom then magnifies past the window.
+      expect(body).not.toMatch(/bottom:\s*0/);
+      expect(body).not.toMatch(/right:\s*0/);
+    });
+
+    it('keeps the WebKitGTK zoom-no-op fallback, same as the studio shell', () => {
+      // On engines where `zoom` does not lay out (older WebKitGTK), the
+      // shrunk box cannot be magnified back — without this override the
+      // wizard renders at 1/scale size with a black band around it.
+      const css = readSrc('index.css');
+      expect(css).toMatch(
+        /html\[data-zoom-layout='off'\] \.app-wizard-wrap \{[^}]*zoom:\s*1/,
+      );
+    });
+
+    it('the mount passes --ui-scale and never a bare inline zoom', () => {
+      const app = readSrc('App.jsx');
+      const mount = app.slice(app.indexOf('className="app-wizard-wrap"'));
+      const tag = mount.slice(0, mount.indexOf('>'));
+      expect(tag).toContain("'--ui-scale': uiScale");
+      // An inline `zoom:` on top of the CSS contract double-applies the
+      // scale — the CSS zooms once, this would zoom again.
+      expect(tag).not.toMatch(/zoom:\s*uiScale/);
+    });
   });
 });
