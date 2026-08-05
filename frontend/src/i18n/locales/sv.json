@@ -2299,5 +2299,10 @@
     "intro": "Appen fångade detta när den försökte starta backend. Att bifoga utdatan i en rapport hjälper oss att åtgärda felet.",
     "output_title": "Vad appen rapporterade",
     "retry_hint": "Prova \"Försök igen\" under Inställningar → Loggar → Backend. Misslyckas det igen bygger \"Rensa och försök igen\" om miljön från grunden."
+  },
+  "crash": {
+    "notice_unclean": "Föregående session avslutades utan en ren avstängning för {{ago}} sedan. Det är ofta ofarligt — datorn sov, appen tvångsavslutades eller en VM/container stoppades.",
+    "details_intro_unclean": "Föregående körnings avstängningsmarkör rensades aldrig, för {{ago}} sedan. OmniVoice kan inte avgöra om det var en krasch eller bara ett avbrott — vila, tvångsavslut eller att stoppa en VM/container lämnar samma spår. Om allt fungerar nu behöver inget göras.",
+    "report_needs_log": "Ingen felutdata fångades för denna händelse, så en ett-klicks-rapport vore tom. Om något faktiskt är fel, bifoga de sista raderna från Inställningar → Loggar → Backend i ett nytt ärende."
   }
 }

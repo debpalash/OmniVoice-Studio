@@ -56,7 +56,10 @@ describe('BackendCrashNotice — browser mode (run-sentinel HTTP fallback)', () 
     render(<BackendCrashNotice />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('process ended uncleanly (previous run)');
+    // #1375: the sentinel banner speaks human now — "ended without a clean
+    // shutdown", naming the benign causes — instead of surfacing the raw
+    // exit_desc, because the sentinel cannot know it was a crash.
+    expect(alert.textContent).toContain('without a clean shutdown');
     expect(calls.some((c) => c.url.includes('/system/last-run-crash'))).toBe(true);
 
     // Details dialog shows the captured log tail; viewing acks over HTTP.

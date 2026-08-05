@@ -2299,5 +2299,10 @@
     "intro": "O app registrou isto ao tentar iniciar o backend. Incluir esta saída em um relatório nos ajuda a corrigir.",
     "output_title": "O que o app relatou",
     "retry_hint": "Tente \"Tentar novamente\" em Configurações → Logs → Backend. Se falhar de novo, \"Limpar e tentar novamente\" reconstrói o ambiente do zero."
+  },
+  "crash": {
+    "notice_unclean": "A sessão anterior terminou sem um encerramento limpo há {{ago}}. Muitas vezes é inofensivo — o computador dormiu, o app foi encerrado à força ou uma VM/contêiner parou.",
+    "details_intro_unclean": "O marcador de encerramento da execução anterior nunca foi limpo, há {{ago}}. O OmniVoice não consegue saber se foi uma falha ou apenas uma interrupção — suspender, forçar o encerramento ou parar uma VM/contêiner deixa o mesmo rastro. Se tudo funciona agora, não há nada a fazer.",
+    "report_needs_log": "Nenhuma saída de erro foi capturada para este evento, então um relatório de um clique ficaria vazio. Se algo estiver mesmo errado, anexe as últimas linhas de Configurações → Logs → Backend a uma nova issue."
   }
 }

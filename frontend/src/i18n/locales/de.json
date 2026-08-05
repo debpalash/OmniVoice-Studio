@@ -2299,5 +2299,10 @@
     "intro": "Die App hat dies beim Startversuch des Backends aufgezeichnet. Diese Ausgabe in einem Bericht hilft uns bei der Behebung.",
     "output_title": "Meldung der App",
     "retry_hint": "Versuche \"Erneut versuchen\" unter Einstellungen → Protokolle → Backend. Schlägt es erneut fehl, baut \"Bereinigen & erneut versuchen\" die Umgebung neu auf."
+  },
+  "crash": {
+    "notice_unclean": "Die vorherige Sitzung wurde vor {{ago}} nicht sauber beendet. Das ist oft harmlos — Ruhezustand, erzwungenes Beenden oder eine gestoppte VM/Container.",
+    "details_intro_unclean": "Die Abschlussmarkierung des vorherigen Laufs wurde vor {{ago}} nicht gelöscht. OmniVoice kann nicht erkennen, ob es ein Absturz oder nur eine Unterbrechung war — Ruhezustand, erzwungenes Beenden oder das Stoppen einer VM/eines Containers hinterlassen dieselbe Spur. Wenn jetzt alles funktioniert, ist nichts zu tun.",
+    "report_needs_log": "Für dieses Ereignis wurde keine Fehlerausgabe erfasst, ein Ein-Klick-Report wäre leer. Falls wirklich etwas nicht stimmt, hängen Sie bitte die letzten Zeilen aus Einstellungen → Logs → Backend an ein neues Issue an."
   }
 }

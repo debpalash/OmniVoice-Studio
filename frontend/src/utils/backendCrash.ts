@@ -84,6 +84,30 @@ export function _adaptLastRunCrash(
   };
 }
 
+/** True when this marker is the run SENTINEL — startup noticing the previous
+ * run never cleared its marker — rather than an observed process death. The
+ * sentinel genuinely does not know whether the previous run crashed: the
+ * machine sleeping, a force-quit, a stopped WSL VM or a Docker restart all
+ * leave the same trace, and those benign causes are the majority case
+ * (#1375). */
+export function isSentinelMarker(marker: BackendCrashMarker): boolean {
+  return (
+    marker.exit_code === null &&
+    marker.signal === null &&
+    marker.exit_desc === 'process ended uncleanly (previous run)'
+  );
+}
+
+/** True when the marker carries something a maintainer could act on: a log
+ * tail, or at least a concrete exit code/signal. A sentinel with neither
+ * produces a bug report whose evidence block is EMPTY — the reporter files it
+ * in good faith, nobody can answer it, and it sits open (#1375). The
+ * one-click report is gated on this; the notice itself is not. */
+export function hasCrashEvidence(marker: BackendCrashMarker): boolean {
+  if ((marker.last_stderr || '').trim()) return true;
+  return marker.exit_code !== null || marker.signal !== null;
+}
+
 const HTTP_FALLBACK_TIMEOUT_MS = 2500;
 
 /** Auth headers a non-desktop deployment may need (LAN-share PIN, remote API

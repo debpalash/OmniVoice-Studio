@@ -8,6 +8,8 @@ import {
   crashAge,
   describeCrashExit,
   getUnacknowledgedBackendCrash,
+  hasCrashEvidence,
+  isSentinelMarker,
 } from '../utils/backendCrash';
 import { openExternal } from '../api/external';
 import { buildBugReportUrl } from '../utils/bugReport';
@@ -67,6 +69,15 @@ export default function BackendCrashNotice() {
 
   const exit = describeCrashExit(marker);
   const ago = crashAge(marker);
+  // The run sentinel does not know whether the previous run crashed — sleep,
+  // force-quit, a stopped VM and a Docker restart leave the same trace, and
+  // those benign causes are the majority. Say so instead of "crashed" (#1375).
+  const sentinel = isSentinelMarker(marker);
+  // ...and a report whose evidence block would be EMPTY is not offered as one
+  // click: it files an issue nobody can answer. The user is pointed at the
+  // backend log instead; a real crash (exit code, signal, or a captured tail)
+  // keeps the one-click path.
+  const reportable = hasCrashEvidence(marker);
 
   return (
     <>
@@ -81,7 +92,7 @@ export default function BackendCrashNotice() {
       >
         <AlertTriangle size={16} className="shrink-0 text-danger" aria-hidden />
         <span className="flex-1 text-[length:var(--text-sm)] text-fg">
-          {t('crash.notice', { exit, ago })}
+          {sentinel ? t('crash.notice_unclean', { ago }) : t('crash.notice', { exit, ago })}
         </span>
         <Button variant="subtle" size="sm" onClick={view}>
           {t('crash.view')}
@@ -107,26 +118,28 @@ export default function BackendCrashNotice() {
         size="lg"
         footer={
           <>
-            <Button
-              variant="subtle"
-              onClick={async () => {
-                try {
-                  // buildBugReportUrl attaches the crash marker (exit code +
-                  // scrubbed stderr tail) automatically — the report arrives
-                  // WITH the evidence.
-                  await openExternal(
-                    await buildBugReportUrl({ title: `[Crash] Backend died (${exit})` }),
-                  );
-                } catch (e) {
-                  // Same class as BackendStartFailureNotice (#1177): a Report
-                  // click that silently does nothing reads as a broken button.
-                  console.warn('[BackendCrashNotice] report action failed', e);
-                  toast.error(t('errors.report_failed'));
-                }
-              }}
-            >
-              {t('errors.report')}
-            </Button>
+            {reportable && (
+              <Button
+                variant="subtle"
+                onClick={async () => {
+                  try {
+                    // buildBugReportUrl attaches the crash marker (exit code +
+                    // scrubbed stderr tail) automatically — the report arrives
+                    // WITH the evidence.
+                    await openExternal(
+                      await buildBugReportUrl({ title: `[Crash] Backend died (${exit})` }),
+                    );
+                  } catch (e) {
+                    // Same class as BackendStartFailureNotice (#1177): a Report
+                    // click that silently does nothing reads as a broken button.
+                    console.warn('[BackendCrashNotice] report action failed', e);
+                    toast.error(t('errors.report_failed'));
+                  }
+                }}
+              >
+                {t('errors.report')}
+              </Button>
+            )}
             <Button variant="primary" onClick={dismiss}>
               {t('common.close')}
             </Button>
@@ -135,8 +148,15 @@ export default function BackendCrashNotice() {
       >
         <div className="flex flex-col gap-[var(--space-4)]">
           <p className="m-0 text-[length:var(--text-sm)] text-fg-muted">
-            {t('crash.details_intro', { exit, ago })}
+            {sentinel
+              ? t('crash.details_intro_unclean', { ago })
+              : t('crash.details_intro', { exit, ago })}
           </p>
+          {!reportable && (
+            <p className="m-0 text-[length:var(--text-sm)] text-fg-muted">
+              {t('crash.report_needs_log')}
+            </p>
+          )}
           <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-[var(--space-5)] gap-y-[var(--space-2)] text-[length:var(--text-sm)]">
             <dt className="text-fg-subtle">{t('crash.field_exit')}</dt>
             <dd className="m-0 font-mono text-fg">{exit}</dd>

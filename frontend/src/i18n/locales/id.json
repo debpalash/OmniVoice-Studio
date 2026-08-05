@@ -2299,5 +2299,10 @@
     "intro": "Aplikasi merekam ini saat mencoba menjalankan backend. Menyertakan keluaran ini dalam laporan membantu kami memperbaikinya.",
     "output_title": "Yang dilaporkan aplikasi",
     "retry_hint": "Coba \"Coba lagi\" di Pengaturan → Log → Backend. Jika gagal lagi, \"Bersihkan & Coba lagi\" akan membangun ulang lingkungan dari awal."
+  },
+  "crash": {
+    "notice_unclean": "Sesi sebelumnya berakhir tanpa penutupan yang bersih {{ago}} yang lalu. Ini sering tidak berbahaya — mesin tertidur, aplikasi ditutup paksa, atau VM/kontainer berhenti.",
+    "details_intro_unclean": "Penanda penutupan dari sesi sebelumnya tidak pernah dibersihkan, {{ago}} yang lalu. OmniVoice tidak dapat mengetahui apakah itu crash atau sekadar interupsi — tidur, penutupan paksa, atau menghentikan VM/kontainer meninggalkan jejak yang sama. Jika sekarang semuanya berfungsi, tidak ada yang perlu dilakukan.",
+    "report_needs_log": "Tidak ada keluaran kesalahan yang tertangkap untuk peristiwa ini, jadi laporan sekali klik akan kosong. Jika memang ada masalah, lampirkan baris terakhir dari Pengaturan → Log → Backend ke issue baru."
   }
 }

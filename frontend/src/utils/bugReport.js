@@ -142,7 +142,12 @@ async function captureCrashSection() {
     `**Backend version:** \`${marker.backend_version}\``,
     '',
     '```',
-    tail || '(no stderr captured)',
+    // An empty code block reads as "there was nothing to report" and produces
+    // an issue nobody can answer (#1375). Say what is missing and where the
+    // reporter can get it, so the report asks for the right thing up front.
+    tail ||
+      '(no output was captured for this crash — please paste the last ~100 ' +
+        'lines of Settings → Logs → Backend here)',
     '```',
     '',
   ];

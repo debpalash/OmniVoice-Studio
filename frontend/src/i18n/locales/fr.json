@@ -2299,5 +2299,10 @@
     "intro": "L'application a enregistré ceci en tentant de démarrer le backend. Joindre cette sortie à un rapport nous aide à corriger le problème.",
     "output_title": "Ce que l'application a signalé",
     "retry_hint": "Essayez « Réessayer » dans Paramètres → Journaux → Backend. En cas de nouvel échec, « Nettoyer et réessayer » reconstruit l'environnement de zéro."
+  },
+  "crash": {
+    "notice_unclean": "La session précédente s'est terminée sans arrêt propre il y a {{ago}}. C'est souvent bénin : mise en veille, fermeture forcée ou arrêt d'une VM/d'un conteneur.",
+    "details_intro_unclean": "Le marqueur d'arrêt de l'exécution précédente n'a jamais été effacé, il y a {{ago}}. OmniVoice ne peut pas savoir s'il s'agit d'un plantage ou d'une simple interruption — mise en veille, fermeture forcée ou arrêt d'une VM/d'un conteneur laissent la même trace. Si tout fonctionne maintenant, il n'y a rien à faire.",
+    "report_needs_log": "Aucune sortie d'erreur n'a été capturée pour cet événement ; un rapport en un clic serait vide. Si quelque chose ne va vraiment pas, joignez les dernières lignes de Réglages → Journaux → Backend à un nouveau ticket."
   }
 }

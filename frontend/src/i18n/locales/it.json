@@ -2299,5 +2299,10 @@
     "intro": "L'app ha registrato questo durante il tentativo di avvio del backend. Includere questo output in una segnalazione ci aiuta a risolvere il problema.",
     "output_title": "Cosa ha segnalato l'app",
     "retry_hint": "Prova \"Riprova\" in Impostazioni → Log → Backend. Se fallisce di nuovo, \"Pulisci e riprova\" ricostruisce l'ambiente da zero."
+  },
+  "crash": {
+    "notice_unclean": "La sessione precedente è terminata senza una chiusura pulita {{ago}} fa. Spesso è innocuo: il computer è andato in sospensione, l'app è stata chiusa forzatamente o una VM/container si è fermata.",
+    "details_intro_unclean": "Il marcatore di chiusura dell'esecuzione precedente non è mai stato rimosso, {{ago}} fa. OmniVoice non può sapere se si è trattato di un crash o di una semplice interruzione: sospensione, chiusura forzata o arresto di una VM/container lasciano la stessa traccia. Se ora funziona tutto, non serve fare nulla.",
+    "report_needs_log": "Per questo evento non è stato catturato alcun output di errore, quindi una segnalazione con un clic sarebbe vuota. Se qualcosa non va davvero, allega le ultime righe di Impostazioni → Log → Backend a una nuova issue."
   }
 }

@@ -2299,5 +2299,10 @@
     "intro": "La aplicación registró esto al intentar iniciar el backend. Incluir esta salida en un informe nos ayuda a corregirlo.",
     "output_title": "Lo que informó la aplicación",
     "retry_hint": "Prueba \"Reintentar\" en Ajustes → Registros → Backend. Si vuelve a fallar, \"Limpiar y reintentar\" reconstruye el entorno desde cero."
+  },
+  "crash": {
+    "notice_unclean": "La sesión anterior terminó sin un cierre limpio hace {{ago}}. Suele ser inofensivo: el equipo se suspendió, la app se cerró a la fuerza o se detuvo una VM/contenedor.",
+    "details_intro_unclean": "La marca de cierre de la ejecución anterior no se borró, hace {{ago}}. OmniVoice no puede saber si fue un fallo o solo una interrupción: suspender, forzar el cierre o detener una VM/contenedor deja el mismo rastro. Si ahora todo funciona, no hay nada que hacer.",
+    "report_needs_log": "No se capturó ninguna salida de error para este evento, así que un informe de un clic estaría vacío. Si algo falla de verdad, adjunta las últimas líneas de Ajustes → Registros → Backend a un nuevo issue."
   }
 }

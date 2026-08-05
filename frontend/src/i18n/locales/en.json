@@ -1942,7 +1942,10 @@
     "field_version": "Backend version",
     "uptime_value": "{{count}} s",
     "stderr_title": "Last error output (stderr)",
-    "no_stderr": "No error output was captured."
+    "no_stderr": "No error output was captured.",
+    "notice_unclean": "The previous session ended without a clean shutdown {{ago}} ago. This is often harmless — the machine slept, the app was force-quit, or a VM/container stopped.",
+    "details_intro_unclean": "The previous run's shutdown marker was never cleared, {{ago}} ago. OmniVoice cannot tell whether it crashed or was simply interrupted — sleeping, force-quitting, or stopping a VM/container leaves the same trace. If everything works now, nothing needs doing.",
+    "report_needs_log": "No error output was captured for this event, so a one-click report would be empty. If something is actually wrong, please attach the last lines of Settings → Logs → Backend to a new issue."
   },
   "backend_start_failure": {
     "notice": "OmniVoice's backend couldn't start — nothing can run until it does.",

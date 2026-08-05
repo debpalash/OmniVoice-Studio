@@ -2299,5 +2299,10 @@
     "intro": "Uygulama bunu arka ucu başlatmaya çalışırken kaydetti. Bu çıktıyı bir raporla göndermeniz sorunu düzeltmemize yardımcı olur.",
     "output_title": "Uygulamanın bildirdiği",
     "retry_hint": "Ayarlar → Günlükler → Arka uç bölümünden \"Yeniden dene\"yi deneyin. Yine başarısız olursa \"Temizle ve yeniden dene\" ortamı sıfırdan kurar."
+  },
+  "crash": {
+    "notice_unclean": "Önceki oturum {{ago}} önce düzgün kapanmadan sona erdi. Bu çoğu zaman zararsızdır — makine uykuya geçti, uygulama zorla kapatıldı veya bir VM/kapsayıcı durduruldu.",
+    "details_intro_unclean": "Önceki çalıştırmanın kapanış işareti {{ago}} önce hiç temizlenmedi. OmniVoice bunun bir çökme mi yoksa yalnızca bir kesinti mi olduğunu bilemez — uyku, zorla kapatma veya bir VM/kapsayıcıyı durdurma aynı izi bırakır. Şu anda her şey çalışıyorsa yapılacak bir şey yok.",
+    "report_needs_log": "Bu olay için hata çıktısı yakalanmadı; tek tıkla rapor boş olurdu. Gerçekten bir sorun varsa lütfen Ayarlar → Günlükler → Backend'in son satırlarını yeni bir issue'ya ekleyin."
   }
 }

@@ -2299,5 +2299,10 @@
     "intro": "Ứng dụng đã ghi lại điều này khi cố khởi động backend. Gửi kèm kết quả này trong báo cáo sẽ giúp chúng tôi khắc phục.",
     "output_title": "Nội dung ứng dụng báo về",
     "retry_hint": "Hãy thử \"Thử lại\" trong Cài đặt → Nhật ký → Backend. Nếu vẫn lỗi, \"Dọn dẹp & Thử lại\" sẽ dựng lại môi trường từ đầu."
+  },
+  "crash": {
+    "notice_unclean": "Phiên trước đã kết thúc mà không tắt đúng cách {{ago}} trước. Điều này thường vô hại — máy ngủ, ứng dụng bị buộc đóng, hoặc VM/container bị dừng.",
+    "details_intro_unclean": "Dấu tắt của lần chạy trước không bao giờ được xóa, {{ago}} trước. OmniVoice không thể biết đó là sự cố hay chỉ là gián đoạn — ngủ máy, buộc đóng hoặc dừng VM/container đều để lại dấu vết giống nhau. Nếu hiện tại mọi thứ hoạt động bình thường thì không cần làm gì.",
+    "report_needs_log": "Không có đầu ra lỗi nào được ghi lại cho sự kiện này, nên báo cáo một cú nhấp sẽ trống. Nếu thực sự có vấn đề, hãy đính kèm những dòng cuối của Cài đặt → Nhật ký → Backend vào issue mới."
   }
 }
