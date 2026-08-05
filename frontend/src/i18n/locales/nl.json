@@ -2303,6 +2303,6 @@
   "crash": {
     "notice_unclean": "De vorige sessie is {{ago}} geleden zonder nette afsluiting geëindigd. Dit is vaak onschuldig — de machine sliep, de app werd geforceerd gesloten of een VM/container stopte.",
     "details_intro_unclean": "De afsluitmarkering van de vorige run is {{ago}} geleden nooit gewist. OmniVoice kan niet zien of het een crash of slechts een onderbreking was — slapen, geforceerd afsluiten of het stoppen van een VM/container laat hetzelfde spoor achter. Als alles nu werkt, hoeft er niets te gebeuren.",
-    "report_needs_log": "Er is voor deze gebeurtenis geen foutuitvoer vastgelegd, dus een één-klik-rapport zou leeg zijn. Als er echt iets mis is, voeg dan de laatste regels van Instellingen → Logs → Backend toe aan een nieuw issue."
+    "report_needs_log": "Er is voor deze gebeurtenis geen foutuitvoer vastgelegd, dus een één-klik-rapport zou leeg zijn. Als er echt iets mis is, voeg dan de laatste regels van Instellingen → Logboeken → Backend toe aan een nieuw issue."
   }
 }

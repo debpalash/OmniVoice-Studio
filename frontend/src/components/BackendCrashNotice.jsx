@@ -126,8 +126,15 @@ export default function BackendCrashNotice() {
                     // buildBugReportUrl attaches the crash marker (exit code +
                     // scrubbed stderr tail) automatically — the report arrives
                     // WITH the evidence.
+                    // A sentinel report must not claim a crash in its title —
+                    // the marker's whole point is that it cannot know
+                    // (CodeRabbit on #1380). The evidence still rides along.
                     await openExternal(
-                      await buildBugReportUrl({ title: `[Crash] Backend died (${exit})` }),
+                      await buildBugReportUrl({
+                        title: sentinel
+                          ? '[Crash] Backend ended uncleanly (previous run)'
+                          : `[Crash] Backend died (${exit})`,
+                      }),
                     );
                   } catch (e) {
                     // Same class as BackendStartFailureNotice (#1177): a Report

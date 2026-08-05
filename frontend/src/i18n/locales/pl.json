@@ -2301,8 +2301,8 @@
     "retry_hint": "Spróbuj „Ponów” w Ustawienia → Dzienniki → Backend. Jeśli znów się nie uda, „Wyczyść i ponów” odbuduje środowisko od zera."
   },
   "crash": {
-    "notice_unclean": "Poprzednia sesja zakończyła się bez poprawnego zamknięcia {{ago}} temu. To często niegroźne — komputer uśpiono, aplikację zamknięto wymuszenie albo zatrzymano VM/kontener.",
+    "notice_unclean": "Poprzednia sesja zakończyła się bez poprawnego zamknięcia {{ago}} temu. To często niegroźne — komputer uśpiono, wymuszono zamknięcie aplikacji albo zatrzymano VM/kontener.",
     "details_intro_unclean": "Znacznik zamknięcia poprzedniego uruchomienia nigdy nie został wyczyszczony, {{ago}} temu. OmniVoice nie potrafi stwierdzić, czy to była awaria, czy tylko przerwanie — uśpienie, wymuszone zamknięcie lub zatrzymanie VM/kontenera zostawia ten sam ślad. Jeśli teraz wszystko działa, nic nie trzeba robić.",
-    "report_needs_log": "Dla tego zdarzenia nie przechwycono żadnych błędów, więc raport jednym kliknięciem byłby pusty. Jeśli coś naprawdę nie działa, dołącz ostatnie linie z Ustawienia → Logi → Backend do nowego zgłoszenia."
+    "report_needs_log": "Dla tego zdarzenia nie przechwycono żadnych błędów, więc raport jednym kliknięciem byłby pusty. Jeśli coś naprawdę nie działa, dołącz ostatnie linie z Ustawienia → Dzienniki → Backend do nowego zgłoszenia."
   }
 }

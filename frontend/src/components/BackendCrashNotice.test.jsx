@@ -121,7 +121,7 @@ describe('BackendCrashNotice — sentinel evidence gate (#1375)', () => {
     expect(screen.queryByText('Report this bug')).not.toBeInTheDocument();
   });
 
-  it('a sentinel WITH a log tail keeps the one-click report', async () => {
+  it('a sentinel WITH a log tail keeps the one-click report — under an honest title', async () => {
     getUnacknowledgedBackendCrash.mockResolvedValue({
       ...SENTINEL_NO_EVIDENCE,
       uptime_s: 44,
@@ -134,7 +134,15 @@ describe('BackendCrashNotice — sentinel evidence gate (#1375)', () => {
       await screen.findByText(/cannot tell whether it crashed or was simply interrupted/),
     ).toBeInTheDocument();
     // ...but there is evidence, so reporting is one click again.
-    expect(screen.getByText('Report this bug')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Report this bug'));
+    // The report's TITLE must not claim a death the sentinel cannot attest to
+    // — "Backend died (process ended uncleanly …)" states as fact what the
+    // marker only suspects.
+    const { buildBugReportUrl } = await import('../utils/bugReport');
+    await waitFor(() => expect(buildBugReportUrl).toHaveBeenCalled());
+    const { title } = buildBugReportUrl.mock.calls[0][0];
+    expect(title).toMatch(/ended uncleanly/);
+    expect(title).not.toMatch(/died/);
   });
 
   it('a real crash with an exit code is unchanged: crash wording and the report button', async () => {
