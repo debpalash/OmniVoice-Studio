@@ -13,21 +13,28 @@ built from source):
 """
 
 import ast
+import importlib
 import os
 import re
-import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "backend"))
+import pytest
 
-from engines.omnivoice_gguf import backend as gguf  # noqa: E402
+REPO = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture()
+def gguf(monkeypatch):
+    # Function-scoped runtime import: no module-level app imports that go
+    # stale under sys.modules pollution from other tests.
+    monkeypatch.syspath_prepend(str(REPO / "backend"))
+    return importlib.import_module("engines.omnivoice_gguf.backend")
 
 
 # ── the per-spawn timeout is env-tunable and CPU-realistic ──────────────────
 
 
-def test_default_timeout_exceeds_the_pool_generate_budget(monkeypatch):
+def test_default_timeout_exceeds_the_pool_generate_budget(gguf, monkeypatch):
     # The pool guard (OMNIVOICE_GENERATE_TIMEOUT_S, 300s floor) must be the
     # deadline users actually hit — it classifies and explains. The inner
     # subprocess timeout only reaps a wedged C++ process, so it must sit
@@ -36,16 +43,23 @@ def test_default_timeout_exceeds_the_pool_generate_budget(monkeypatch):
     assert gguf._generate_timeout_s() > 300.0
 
 
-def test_env_override_is_read_at_call_time(monkeypatch):
+def test_env_override_is_read_at_call_time(gguf, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S", "45.5")
     assert gguf._generate_timeout_s() == 45.5
 
 
-def test_bad_env_values_fall_back_to_the_default(monkeypatch):
-    monkeypatch.setenv("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S", "unlimited")
+@pytest.mark.parametrize("raw", ["unlimited", "inf", "-inf", "nan"])
+def test_bad_env_values_fall_back_to_the_default(gguf, monkeypatch, raw):
+    # inf would disarm the wedge guard entirely (subprocess.run never times
+    # out); nan poisons the max() clamp. Both parse as float, so a plain
+    # ValueError guard is not enough.
+    monkeypatch.setenv("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S", raw)
     assert gguf._generate_timeout_s() == 600.0
+
+
+def test_tiny_values_are_floored_not_instant_kill(gguf, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S", "0")
-    assert gguf._generate_timeout_s() == 1.0  # floored, never instant-kill
+    assert gguf._generate_timeout_s() == 1.0
 
 
 def test_timeout_error_names_the_env_knob():
@@ -59,7 +73,7 @@ def test_timeout_error_names_the_env_knob():
 # ── spawns carry a loader path that can see bin/'s shared libs ──────────────
 
 
-def test_spawn_env_puts_bin_on_the_loader_path(monkeypatch):
+def test_spawn_env_puts_bin_on_the_loader_path(gguf, monkeypatch):
     monkeypatch.setenv("LD_LIBRARY_PATH", "/opt/elsewhere")
     monkeypatch.delenv("DYLD_FALLBACK_LIBRARY_PATH", raising=False)
     env = gguf._spawn_env()
@@ -122,3 +136,12 @@ def test_build_script_copies_shared_libs_on_every_platform_branch():
     # The finder must cover all three platforms' shared-lib extensions.
     for pattern in ("libggml*.so*", "libggml*.dylib", "ggml*.dll"):
         assert pattern in script
+
+
+def test_ci_artifact_upload_includes_the_shared_libs():
+    # Greptile P1 on the fix itself: copy_shared_libs is useless if the
+    # workflow's upload glob then drops the libs from the artifact — the
+    # downloaded binary would be exactly as broken as before.
+    wf = (REPO / ".github/workflows/build-omnivoice-tts.yml").read_text()
+    assert "bin/libggml*" in wf
+    assert "bin/ggml*.dll" in wf

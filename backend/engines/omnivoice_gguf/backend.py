@@ -51,6 +51,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import platform
 import re
@@ -131,11 +132,15 @@ def _generate_timeout_s() -> float:
     raw = os.environ.get("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S")
     if raw:
         try:
-            return max(1.0, float(raw))
+            val = float(raw)
         except ValueError:
-            logger.warning(
-                "Ignoring non-numeric OMNIVOICE_GGUF_GENERATE_TIMEOUT_S=%r", raw
-            )
+            val = None
+        # inf would disarm the wedge guard entirely; nan poisons max().
+        if val is not None and math.isfinite(val):
+            return max(1.0, val)
+        logger.warning(
+            "Ignoring invalid OMNIVOICE_GGUF_GENERATE_TIMEOUT_S=%r", raw
+        )
     return 600.0
 
 

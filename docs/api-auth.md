@@ -240,8 +240,10 @@ Add the exact origin the browser shows in its address bar:
 export OMNIVOICE_ALLOWED_ORIGINS="http://192.168.1.159:3901,http://localhost:3901,http://127.0.0.1:3901,tauri://localhost,http://tauri.localhost"
 ```
 
-The variable **replaces** the default list, so restate the loopback/Tauri
-origins alongside your own. (The in-app LAN share and Tailscale flows in
+Each entry must be a bare origin — `scheme://host:port`, exactly what the
+browser sends in its `Origin` header — with no path and no trailing slash
+(`http://192.168.1.159:3901/` would never match). The variable **replaces**
+the default list, so restate the loopback/Tauri origins alongside your own. (The in-app LAN share and Tailscale flows in
 [docs/sharing.md](sharing.md) don't need this — they serve UI and API from the
 same origin.) If you only moved the Vite dev server's port, set
 `OMNIVOICE_UI_PORT` instead and the default list follows it.

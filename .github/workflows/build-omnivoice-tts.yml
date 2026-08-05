@@ -102,4 +102,6 @@ jobs:
           name: omnivoice-tts-${{ matrix.platform }}
           path: |
             bin/omnivoice-tts-${{ matrix.platform }}*
+            bin/libggml*
+            bin/ggml*.dll
             bin/checksums.sha256
