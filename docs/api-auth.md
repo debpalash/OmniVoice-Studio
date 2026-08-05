@@ -222,6 +222,30 @@ credential at all**, because the API-key middleware waved it through as
 
 ---
 
+## Browsers from another origin (CORS)
+
+Everything above gates *authentication*. A **browser** frontend served from a
+different origin than the backend hits a separate wall first: CORS. The
+backend's allow-list defaults to loopback + Tauri origins only
+(`http://localhost:<ui-port>`, `http://127.0.0.1:<ui-port>`,
+`tauri://localhost`, `http://tauri.localhost`), so opening a dev/source UI via
+a LAN IP (e.g. `http://192.168.1.159:3901` talking to `…:3900`) blocks every
+request with *"Missing Header: Access-Control-Allow-Origin"* — regardless of
+`OMNIVOICE_SERVER_MODE` or `OMNIVOICE_TRUSTED_NETWORKS`, neither of which
+touches CORS (#1348).
+
+Add the exact origin the browser shows in its address bar:
+
+```bash
+export OMNIVOICE_ALLOWED_ORIGINS="http://192.168.1.159:3901,http://localhost:3901,http://127.0.0.1:3901,tauri://localhost,http://tauri.localhost"
+```
+
+The variable **replaces** the default list, so restate the loopback/Tauri
+origins alongside your own. (The in-app LAN share and Tailscale flows in
+[docs/sharing.md](sharing.md) don't need this — they serve UI and API from the
+same origin.) If you only moved the Vite dev server's port, set
+`OMNIVOICE_UI_PORT` instead and the default list follows it.
+
 ## Status codes
 
 | Code | Meaning | What to do |

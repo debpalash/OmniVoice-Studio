@@ -76,6 +76,28 @@ git -C "$WORK/src" submodule update --init --recursive
 
 cd "$WORK/src"
 
+# A dynamically-linked build (buildcpu.sh, or cmake when it finds BLAS)
+# leaves the ggml runtime as shared libraries inside the build tree; only
+# copying the executable ships a binary that dies on first spawn with
+# exit 127 — "libggml.so.0: cannot open shared object file" — because the
+# EXIT trap deletes the build tree, .so files and all (#1348). Copy them
+# next to the binary; a static build simply has nothing matching. The
+# backend puts bin/ on the loader path when it spawns the binary.
+copy_shared_libs() {
+    find build \( -name 'libggml*.so*' -o -name 'libggml*.dylib' -o -name 'ggml*.dll' \) \
+        -type f -print0 2>/dev/null |
+        while IFS= read -r -d '' lib; do
+            cp -v "$lib" "$BIN_DIR/"
+        done
+    # Dereference any symlinked SONAMEs (libggml.so.0 -> libggml.so) so the
+    # copies in bin/ are real files under every name the loader asks for.
+    find build \( -name 'libggml*.so*' -o -name 'libggml*.dylib' \) \
+        -type l -print0 2>/dev/null |
+        while IFS= read -r -d '' lib; do
+            cp -vL "$lib" "$BIN_DIR/"
+        done
+}
+
 OUT_NAME="omnivoice-tts-$PLATFORM"
 case "$PLATFORM" in
     windows-x86_64) OUT_NAME="$OUT_NAME.exe" ;;
@@ -90,6 +112,7 @@ case "$PLATFORM" in
             cmake --build build --config Release -j
         fi
         cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
+        copy_shared_libs
         ;;
     windows-x86_64)
         # CI runs this from MSYS / git-bash; CMake picks up the MSVC
@@ -97,12 +120,14 @@ case "$PLATFORM" in
         cmake -B build -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release -j
         cp -v build/Release/omnivoice-tts.exe "$BIN_DIR/$OUT_NAME"
+        copy_shared_libs
         ;;
     darwin-x86_64)
         # x86_64 Macs build the CPU variant; Metal on Intel is undocumented.
         cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64
         cmake --build build --config Release -j
         cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
+        copy_shared_libs
         ;;
     darwin-arm64)
         # Apple Silicon — try Metal (no published buildmetal.sh; we
@@ -110,6 +135,7 @@ case "$PLATFORM" in
         if cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON -DCMAKE_OSX_ARCHITECTURES=arm64; then
             if cmake --build build --config Release -j; then
                 cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
+                copy_shared_libs
             else
                 echo "→ Metal build failed during compilation; macOS Apple Silicon falls back to in-process OmniVoiceBackend per Pitfall 1." >&2
                 exit 2

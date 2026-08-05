@@ -119,6 +119,44 @@ def _binary_path(slug: Optional[str] = None) -> Path:
     return _REPO_ROOT / "bin" / name
 
 
+def _generate_timeout_s() -> float:
+    """Hard per-spawn timeout for the C++ binary, read from the env at call time.
+
+    ``OMNIVOICE_GGUF_GENERATE_TIMEOUT_S`` overrides; the default sits ABOVE
+    the GPU-pool generate budget (``OMNIVOICE_GENERATE_TIMEOUT_S``, 300s
+    floor) on purpose — the pool guard is the real, well-diagnosed deadline,
+    and this one only reaps a truly wedged C++ process. The old hardcoded
+    120s killed legitimate CPU-only generates mid-synthesis (#1348).
+    """
+    raw = os.environ.get("OMNIVOICE_GGUF_GENERATE_TIMEOUT_S")
+    if raw:
+        try:
+            return max(1.0, float(raw))
+        except ValueError:
+            logger.warning(
+                "Ignoring non-numeric OMNIVOICE_GGUF_GENERATE_TIMEOUT_S=%r", raw
+            )
+    return 600.0
+
+
+def _spawn_env() -> dict[str, str]:
+    """Environment for spawning the binary, with ``bin/`` on the loader path.
+
+    A source-built binary can be dynamically linked against the ``libggml*``
+    shared libraries the build script now drops next to it; without the
+    loader path the spawn dies with exit 127 — ``libggml.so.0: cannot open
+    shared object file`` (#1348). Windows resolves DLLs from the exe's own
+    directory already; Linux and macOS need it stated. Both variables are
+    set unconditionally — each OS ignores the other's.
+    """
+    env = os.environ.copy()
+    bin_dir = str(_binary_path().parent)
+    for var in ("LD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"):
+        prev = env.get(var)
+        env[var] = bin_dir if not prev else bin_dir + os.pathsep + prev
+    return env
+
+
 def _binary_repair_hint() -> str:
     """One actionable sentence for a broken/placeholder GGUF binary (#1172).
 
@@ -314,8 +352,6 @@ def _make_backend_class():
         # 24 kHz mono Higgs Audio v2 — same as the in-process OmniVoice.
         _SAMPLE_RATE = 24_000
 
-        # Default per-call timeout matches the SubprocessBackend contract.
-        _GENERATE_TIMEOUT_S = 120.0
         # Quick probe at startup to confirm the binary spawns at all.
         _PROBE_TIMEOUT_S = 5.0
 
@@ -518,6 +554,7 @@ def _make_backend_class():
                     capture_output=True,
                     timeout=timeout,
                     check=False,
+                    env=_spawn_env(),
                 )
             except FileNotFoundError:
                 raise
@@ -718,19 +755,23 @@ def _make_backend_class():
                 validate_executable,
             )
             validate_executable(Path(argv[0]), hint=_binary_repair_hint())
+            timeout_s = _generate_timeout_s()
             try:
                 proc = subprocess.run(
                     argv,
                     input=stdin_text,
                     text=True,
                     capture_output=True,
-                    timeout=self._GENERATE_TIMEOUT_S,
+                    timeout=timeout_s,
                     check=False,
+                    env=_spawn_env(),
                 )
             except subprocess.TimeoutExpired as exc:
                 raise RuntimeError(
                     f"GGUF subprocess timed out after "
-                    f"{self._GENERATE_TIMEOUT_S:.0f}s (T-04-06)"
+                    f"{timeout_s:.0f}s (T-04-06; raise "
+                    f"OMNIVOICE_GGUF_GENERATE_TIMEOUT_S if this host is "
+                    f"genuinely that slow)"
                 ) from exc
             except OSError as exc:
                 raise InvalidBinaryError(

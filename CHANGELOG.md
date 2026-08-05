@@ -29,6 +29,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Building the GGUF engine from source produced a binary that died on its very first spawn ("libggml.so.0: cannot open shared object file") — the build script deleted the shared libraries it had just linked against. It now ships them next to the binary on every platform, and the backend puts that folder on the loader path — thanks @vanderlpp! (#1348)
+- The GGUF engine's hard 120-second per-render kill switch — which was reaping legitimate CPU-only renders mid-synthesis — is now 600s, tunable via `OMNIVOICE_GGUF_GENERATE_TIMEOUT_S`, and the timeout error names that setting — thanks @vanderlpp! (#1348)
 - Every subprocess TTS engine would have turned a stereo render into noise: the mono downmix always averaged axis 0, which is time rather than channels for channels-last audio. Unreachable today since every engine returns mono, fixed in all five before it isn't. (#1328)
 - First-run wizard: the Continue button and the Hugging Face token box were pushed below the window with no way to scroll to them — a layout container grew to the full model list's height, defeating every scroll clamp inside it. The pinned row now stays on screen at every UI scale, with the model list scrolling under it. (#1382, #1383)
 - Dubbing the same video twice no longer ties the second job's cloned voices to the first job's files — deleting the older dub from history was silently turning the newer one's single-segment regens into a default voice. (#1331)
@@ -73,6 +75,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Engine acceptance: new `docs/engine-acceptance.md` documents the job map, the bar a new engine must clear, and the out-of-tree path (#1306)
 - macOS install notes and the README support table now state the real floor (#1268)
 - Contact: the project X account is listed alongside Discord (#1313)
+- `OMNIVOICE_ALLOWED_ORIGINS` is finally documented: a browser loading the UI from another machine's origin needs the backend's CORS allow-list, which neither server mode nor trusted networks touches — thanks @vanderlpp! (#1348)
 
 ### CI
 
