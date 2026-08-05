@@ -582,8 +582,16 @@ class SubprocessBackend(TTSBackend):
                 # generate budget expired mid-download and blamed the hardware.
                 while reply is not None and reply.get("op") == "progress":
                     try:
-                        from services.model_manager import report_model_load_activity
-                        report_model_load_activity()
+                        from services.model_manager import (
+                            report_model_load_activity, running_on_gpu_pool,
+                        )
+                        # Pool jobs only: an off-pool caller (the diagnostic
+                        # probe) never runs _job(), so its thread ident would
+                        # never be cleared — and a pool worker later reusing
+                        # that ident would inherit up to a grace period of
+                        # unearned extension (CodeRabbit on #1379).
+                        if running_on_gpu_pool():
+                            report_model_load_activity()
                     except Exception:
                         pass  # the heartbeat is best-effort; never fail a synth over it
                     reply = self._recv_with_timeout(self.recv_timeout_s)

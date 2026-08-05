@@ -18,6 +18,7 @@ suite stays fast and none of it races real hardware.
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import os
 import sys
@@ -245,4 +246,112 @@ def test_the_sidecar_progress_loop_reports_activity(mm, monkeypatch):
     b.generate("hello")
     assert len(calls) == 2, (
         f"expected one heartbeat per progress frame, got {len(calls)}"
+    )
+
+
+def test_an_off_pool_synthesis_records_no_heartbeat(mm, monkeypatch):
+    """The off-pool path (the diagnostic probe) never runs _job(), so its
+    thread ident would never be CLEARED — and a pool worker later reusing that
+    ident would inherit up to a grace period of unearned extension
+    (CodeRabbit). Off-pool progress frames are therefore not heartbeats."""
+    sb = importlib.import_module("services.subprocess_backend")
+
+    calls = []
+    monkeypatch.setattr(mm, "report_model_load_activity", lambda: calls.append(1))
+    # Off-pool: generate() takes the slot-holding path, which needs a pool to
+    # occupy — patch it as on-pool=False only for the heartbeat gate by driving
+    # the loop with a thread whose name is NOT the pool prefix (the real
+    # mechanism), while skipping the slot dance entirely.
+    monkeypatch.setattr(mm, "running_on_gpu_pool",
+                        lambda: threading.current_thread().name.startswith("gpu-pool"))
+
+    class _Backend(sb.SubprocessBackend):
+        id = "testengine2"
+        display_name = "test"
+
+        @classmethod
+        def is_available(cls):
+            return True, "test"
+
+        @classmethod
+        def venv_python(cls):  # pragma: no cover - not spawned
+            return sys.executable
+
+        @classmethod
+        def sidecar_script(cls):  # pragma: no cover - not spawned
+            return __file__
+
+        @property
+        def sample_rate(self):
+            return 24000
+
+        @property
+        def supported_languages(self):
+            return ["multi"]
+
+    b = _Backend.__new__(_Backend)
+    b._lock = threading.Lock()
+    frames = [
+        {"op": "progress", "stage": "loading_model", "percent": 1},
+        {"op": "audio", "audio_pcm_b64": "", "sample_rate": 24000, "n_samples": 0},
+    ]
+    monkeypatch.setattr(b, "_spawn", lambda: None)
+    monkeypatch.setattr(b, "_send", lambda msg: None)
+    monkeypatch.setattr(b, "_recv_with_timeout", lambda t: frames.pop(0))
+
+    result = {}
+
+    def run_plain():
+        # This thread's name is not "gpu-pool*", so the heartbeat gate must
+        # refuse even though progress frames arrive. (The off-pool slot dance
+        # runs against the real pool — same as the production path it mirrors.)
+        try:
+            b.generate("hello")
+        except Exception as e:  # pragma: no cover - surfaced via result
+            result["err"] = e
+
+    t = threading.Thread(target=run_plain, name="not-a-pool-thread")
+    t.start(); t.join()
+    assert "err" not in result, result.get("err")
+    assert calls == [], "an off-pool synthesis recorded a heartbeat it cannot clear"
+
+
+@pytest.mark.asyncio
+async def test_caller_cancellation_consumes_the_future(mm, pool, monkeypatch):
+    """The old wait_for cancelled the wrapper as a side effect of its own
+    timeout machinery; asyncio.wait does not, so the CancelledError branch has
+    to do both halves itself — cancel the wrapper AND register the consumer —
+    or the job's eventual result is logged as "Future exception was never
+    retrieved" (CodeRabbit). This executes that branch: it fails against a
+    version that only re-raises.
+    """
+    swallowed = []
+    monkeypatch.setattr(mm, "_swallow_abandoned",
+                        lambda fut: swallowed.append(fut))
+
+    release = threading.Event()
+
+    def slow_job():
+        release.wait(5)
+        raise RuntimeError("the abandoned job's parting words")
+
+    started = threading.Event()
+
+    def slow_job_started():
+        started.set()
+        return slow_job()
+
+    task = asyncio.ensure_future(_run(mm, pool, slow_job_started, timeout=30.0))
+    # Cancel only once the job is genuinely executing (phase 2), so the branch
+    # under test — not the phase-1 queue path — is the one that runs.
+    while not started.is_set():
+        await asyncio.sleep(0.01)
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    release.set()
+    assert swallowed, (
+        "cancellation did not register a consumer for the abandoned future — "
+        "its eventual exception will be logged as never retrieved"
     )
