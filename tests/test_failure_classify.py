@@ -177,3 +177,18 @@ def test_classify_ssl_handshake_failure():
 def test_classify_generic_still_empty():
     # A genuinely unknown reason must still classify to "" (no false hint).
     assert failure.classify("some totally unrelated failure") == ""
+
+
+def test_transformers_import_hint_names_the_package_that_actually_breaks():
+    """#1376: the hint told users to reinstall torch+torchaudio+transformers —
+    omitting torchvision, the package whose ABI mismatch produces this exact
+    lazy-import wording (#1357's `torchvision::nms`). Following the advice to
+    the letter left the broken package untouched.
+
+    It must also point at the pinned constraint file: an unpinned reinstall of
+    the trio can itself resolve a drifted pair, which is the bug the pins
+    exist to prevent.
+    """
+    hint = failure._HINTS["TRANSFORMERS_IMPORT"]
+    assert "torchvision" in hint
+    assert "torch-constraints.txt" in hint

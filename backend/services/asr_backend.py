@@ -1239,11 +1239,21 @@ class PyTorchWhisperBackend(ASRBackend):
             # pipeline (e.g. "Could not import module 'AutoFeatureExtractor'").
             # The raw error is opaque; re-raise with an actionable next step so
             # the toast tells the user how to recover instead of "no segments".
+            # #1376: "install is incomplete" is only ONE of the causes. A
+            # torch/torchvision version mismatch fails with the same lazy-import
+            # wording (transformers' __getattr__ wraps the real error), and for
+            # that cause reinstalling transformers alone fixes nothing — the
+            # trio has to move together, at the pinned versions, or the
+            # reinstall can itself resolve a drifted pair (#1357).
             raise RuntimeError(
                 "transformers ASR pipeline failed to import (AutoFeatureExtractor) "
-                "— your transformers install is incomplete; reinstall with "
-                "`uv pip install --reinstall transformers`, or use faster-whisper "
-                "(OmniVoice's default ASR) which avoids the transformers pipeline. "
+                "— either your transformers install is incomplete, or torch and "
+                "torchvision are mismatched (which fails with this exact wording). "
+                "Reinstall them together at the pinned versions: `uv pip install "
+                "--reinstall --constraint deploy/torch-constraints.txt torch "
+                "torchaudio torchvision transformers` from the project folder — "
+                "or use faster-whisper (OmniVoice's default ASR), which avoids "
+                "the transformers pipeline. "
                 f"Underlying: {e}"
             ) from e
 
