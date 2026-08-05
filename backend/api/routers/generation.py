@@ -532,6 +532,23 @@ def _oom_friendly_reraise(e):
             "OMNIVOICE_GENERATE_TIMEOUT_S, will get it through."
             + _tail
         ) from e
+    # #1334: Windows refusing to back a large model mapping (WinError 1455) is
+    # a paging-file limit, not a working-set shortage. It was matching the OOM
+    # branch below and telling the user to press Flush — advice that cannot
+    # work, as the shared hint for this class says outright ("closing other
+    # apps usually won't fix it"). Checked first so the specific case wins.
+    _low_1455 = str(e).lower()
+    if "paging file is too small" in _low_1455 or (
+        "1455" in _low_1455 and ("winerror" in _low_1455 or "os error" in _low_1455)
+    ):
+        from core.failure import _HINTS
+        raise RuntimeError(
+            "Windows ran out of virtual memory while mapping the model — its "
+            "paging file is smaller than the model needs. This is not your RAM "
+            "being full, it is not a network problem, and Flush cannot help. "
+            + _HINTS["WINDOWS_PAGING_FILE_TOO_SMALL"]
+            + f" Underlying error: {e}"
+        ) from e
     if _is_oom_failure(e):
         raise RuntimeError(
             f"TTS engine stopped mid-generation. This usually means it ran out of memory. "

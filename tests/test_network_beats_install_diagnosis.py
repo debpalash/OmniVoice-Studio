@@ -21,8 +21,16 @@ was work the user could do forever without succeeding.
 keeps its own taxonomy and never learned it, so it fell to the
 "an error OmniVoice doesn't recognize" catch-all.
 
-Both fixes are orderings, not new detections: the cause is checked before the
-symptom.
+**#1334** — a Windows paging-file limit (`os error 1455`) matched the OOM branch
+and told the user to press Flush, which cannot help: the hint we already had for
+that class says outright that closing other apps usually will not fix it. The
+reporter also reasonably wondered whether OmniVoice needs the internet, because
+it correlated with going offline. It does not — the correlation is a coincidence,
+and the answer now says so.
+
+All three fixes are orderings and routing, not new detections: the cause is
+checked before the symptom, and hints we had already written are made to reach
+the surface the user actually sees.
 """
 from __future__ import annotations
 
@@ -143,3 +151,69 @@ def test_an_ordinary_generate_failure_is_still_unrecognized(gen):
     with pytest.raises(RuntimeError) as caught:
         gen._oom_friendly_reraise(RuntimeError("tensor shape mismatch"))
     assert "doesn't recognize" in str(caught.value)
+
+
+# ── #1334: a Windows paging-file limit is not "out of memory" ──────────────
+
+_1334 = "The paging file is too small for this operation to complete. (os error 1455)"
+
+
+def test_the_paging_file_error_does_not_send_the_user_to_flush(gen):
+    """The reporter saw a bare 500 and reasonably wondered whether OmniVoice
+    needs the internet. It does not — this is a Windows virtual-memory setting.
+
+    The old path matched the OOM branch and said "Try the Flush button", which
+    cannot work: the hint we already had for this class says outright that
+    closing other apps usually will not fix it.
+    """
+    with pytest.raises(RuntimeError) as caught:
+        gen._oom_friendly_reraise(RuntimeError(_1334))
+    msg = str(caught.value)
+    assert "paging file" in msg.lower()
+    assert "Flush cannot help" in msg
+    assert "Try the Flush button" not in msg
+
+
+def test_the_paging_file_message_says_it_is_not_a_network_problem(gen):
+    """Directly answering what #1334 asked: it correlated with being offline,
+    and the correlation is a coincidence."""
+    with pytest.raises(RuntimeError) as caught:
+        gen._oom_friendly_reraise(RuntimeError(_1334))
+    assert "not a network problem" in str(caught.value).lower()
+
+
+def test_the_paging_file_message_carries_the_actual_instructions(gen):
+    """Naming the cause without the remedy would still leave them stuck."""
+    with pytest.raises(RuntimeError) as caught:
+        gen._oom_friendly_reraise(RuntimeError(_1334))
+    assert "Virtual memory" in str(caught.value)
+
+
+@pytest.mark.parametrize("text", [
+    _1334,
+    "[WinError 1455] The paging file is too small for this operation to complete",
+    "os error 1455",
+])
+def test_both_spellings_are_recognised(gen, text):
+    """Python (`WinError 1455`) and Rust (`os error 1455`, from the safetensors
+    mmap) word this differently."""
+    with pytest.raises(RuntimeError) as caught:
+        gen._oom_friendly_reraise(RuntimeError(text))
+    assert "Flush cannot help" in str(caught.value)
+
+
+def test_a_real_oom_still_gets_the_flush_hint(gen):
+    """The new branch runs first, so pin it did not swallow genuine OOM."""
+    with pytest.raises(RuntimeError) as caught:
+        gen._oom_friendly_reraise(RuntimeError("CUDA out of memory. Tried to allocate 2 GiB"))
+    assert "Try the Flush button" in str(caught.value)
+
+
+def test_the_raw_500_surface_now_carries_the_paging_file_hint():
+    """The reporter's message arrived as a bare 500 with only the OS sentence:
+    the class was classified correctly but its hint was never attached, because
+    it was absent from the context-free set."""
+    assert failure.classify(_1334) == "WINDOWS_PAGING_FILE_TOO_SMALL"
+    appended = failure.append_hint(_1334)
+    assert appended != _1334, "the raw-500 surface still gives the user nothing"
+    assert "Virtual memory" in appended

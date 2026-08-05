@@ -235,6 +235,12 @@ _CONTEXT_FREE_HINT_CLASSES = frozenset({
     # Requires the exact httpx closed-client wording AND an import/transformers
     # term together, so it cannot fire on an unrelated failure (#1347).
     "MODEL_DOWNLOAD_INTERRUPTED",
+    # #1334: triggered by WinError/os error 1455 or the literal "paging file is
+    # too small" — both unmistakable. It reached /generate as a bare 500
+    # carrying only the OS sentence, so the reporter had no way to know it was
+    # a Windows virtual-memory setting rather than a connectivity problem, and
+    # the detailed hint we already had for it never reached them.
+    "WINDOWS_PAGING_FILE_TOO_SMALL",
 })
 
 
