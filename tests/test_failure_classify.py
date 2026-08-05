@@ -218,10 +218,23 @@ def test_transformers_import_hint_versions_match_the_constraint_file():
     with open(os.path.join(root, "docs", "install", "troubleshooting.md")) as fh:
         surfaces["troubleshooting.md"] = fh.read()
 
+    # The COMMAND, not isolated substrings (CodeRabbit): a surface could carry
+    # the right pin in a comment while its actual reinstall line says something
+    # else. Normalizing collapses the asr_backend source's string-literal line
+    # breaks so the assertion sees what the user sees.
+    command = (
+        f"uv pip install --python .venv --reinstall torch=={pins['torch']} "
+        f"torchaudio=={pins['torchaudio']} torchvision=={pins['torchvision']} "
+        f"transformers"
+    )
+
+    def _normalize(text):
+        return re.sub(r"[\s\"\\]+", " ", text)
+
     for name, text in surfaces.items():
-        for pkg in ("torch", "torchaudio", "torchvision"):
-            want = f"{pkg}=={pins[pkg]}"
-            assert want in text, (
-                f"{name} advises a different {pkg} than deploy/torch-constraints.txt "
-                f"({pins[pkg]}) — following it would recreate the mismatch it fixes"
-            )
+        assert command in _normalize(text), (
+            f"{name} does not carry the exact pinned reinstall command "
+            f"({command!r}) — either a pin drifted from "
+            f"deploy/torch-constraints.txt or the command was reworded; "
+            f"following stale advice would recreate the mismatch it fixes"
+        )
