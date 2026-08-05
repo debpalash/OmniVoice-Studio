@@ -101,12 +101,14 @@ unpinned reinstall can itself resolve a drifted pair
 ([#1357](https://github.com/debpalash/OmniVoice-Studio/issues/1357)):
 
 ```
-uv pip install --reinstall --constraint deploy/torch-constraints.txt \
-  torch torchaudio torchvision transformers
+uv pip install --reinstall torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 transformers
 ```
 
-run from the project folder (the constraint file pins the versions that move
-together; it matches CUDA/ROCm vendor builds without replacing them).
+run in the project folder. The versions mirror `deploy/torch-constraints.txt`
+(source checkouts can pass `--constraint deploy/torch-constraints.txt` instead;
+desktop installs don't ship that file, which is why the literal pins are shown).
+They carry no `+cu128`/`+rocm` suffix on purpose — vendor GPU builds match the
+pins rather than being replaced.
 
 **Linked issues:** [#1357](https://github.com/debpalash/OmniVoice-Studio/issues/1357),
 [#1376](https://github.com/debpalash/OmniVoice-Studio/issues/1376)

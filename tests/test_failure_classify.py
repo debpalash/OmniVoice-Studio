@@ -191,4 +191,37 @@ def test_transformers_import_hint_names_the_package_that_actually_breaks():
     """
     hint = failure._HINTS["TRANSFORMERS_IMPORT"]
     assert "torchvision" in hint
-    assert "torch-constraints.txt" in hint
+
+
+def test_transformers_import_hint_versions_match_the_constraint_file():
+    """The hint carries LITERAL pins — desktop installs don't ship deploy/, so
+    a `--constraint deploy/torch-constraints.txt` command fails with "file not
+    found" for exactly the users most likely to need it (greptile on #1377).
+    Literals drift, so this locks them to the constraint file: bump the pins,
+    and this fails until every advice surface says the new versions."""
+    import os
+    import re
+
+    root = os.path.join(os.path.dirname(__file__), "..")
+    with open(os.path.join(root, "deploy", "torch-constraints.txt")) as fh:
+        pins = dict(
+            re.fullmatch(r"([A-Za-z0-9_.\-]+)==([^\s;]+)", ln.split("#")[0].strip()).groups()
+            for ln in fh
+            if re.fullmatch(r"([A-Za-z0-9_.\-]+)==([^\s;]+)", ln.split("#")[0].strip())
+        )
+
+    surfaces = {
+        "core/failure.py hint": failure._HINTS["TRANSFORMERS_IMPORT"],
+    }
+    with open(os.path.join(root, "backend", "services", "asr_backend.py")) as fh:
+        surfaces["asr_backend.py error"] = fh.read()
+    with open(os.path.join(root, "docs", "install", "troubleshooting.md")) as fh:
+        surfaces["troubleshooting.md"] = fh.read()
+
+    for name, text in surfaces.items():
+        for pkg in ("torch", "torchaudio", "torchvision"):
+            want = f"{pkg}=={pins[pkg]}"
+            assert want in text, (
+                f"{name} advises a different {pkg} than deploy/torch-constraints.txt "
+                f"({pins[pkg]}) — following it would recreate the mismatch it fixes"
+            )

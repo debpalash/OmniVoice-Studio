@@ -1245,15 +1245,18 @@ class PyTorchWhisperBackend(ASRBackend):
             # that cause reinstalling transformers alone fixes nothing — the
             # trio has to move together, at the pinned versions, or the
             # reinstall can itself resolve a drifted pair (#1357).
+            # Literal versions rather than the constraint file: desktop
+            # installs don't ship deploy/ (greptile on #1377); the lockstep
+            # test in tests/test_failure_classify.py keeps them current.
             raise RuntimeError(
                 "transformers ASR pipeline failed to import (AutoFeatureExtractor) "
                 "— either your transformers install is incomplete, or torch and "
                 "torchvision are mismatched (which fails with this exact wording). "
                 "Reinstall them together at the pinned versions: `uv pip install "
-                "--reinstall --constraint deploy/torch-constraints.txt torch "
-                "torchaudio torchvision transformers` from the project folder — "
-                "or use faster-whisper (OmniVoice's default ASR), which avoids "
-                "the transformers pipeline. "
+                "--reinstall torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 "
+                "transformers` in the project folder — or use faster-whisper "
+                "(OmniVoice's default ASR), which avoids the transformers "
+                "pipeline. "
                 f"Underlying: {e}"
             ) from e
 
