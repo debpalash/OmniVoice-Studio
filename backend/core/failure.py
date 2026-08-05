@@ -58,6 +58,13 @@ _HINTS: dict[str, str] = {
     # violation of protocol (_ssl.c:1016)", which means nothing to anyone.
     "TLS_CONNECTION_DROPPED": "The secure connection was cut off mid-transfer — the other end (or something between you and it) closed the socket during the TLS exchange. This is almost always transient: flaky Wi-Fi, a VPN reconnecting, a captive portal, or a download server dropping a long transfer. Retrying is safe: a partly-downloaded MODEL is picked up where it left off rather than started over. If it repeats every time, a VPN or an HTTPS-inspecting proxy is terminating long-lived connections — try without the VPN, or on another network.",
     "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
+    # #1347: the transformers pipeline fails to import a component it was
+    # DOWNLOADING when the shared HTTP client closed underneath it (#880). The
+    # message names AutoFeatureExtractor, so TRANSFORMERS_IMPORT matched and
+    # told the reporter to reinstall transformers — advice that cannot work,
+    # because nothing is wrong with their install. Checked first so the cause
+    # wins over the symptom.
+    "MODEL_DOWNLOAD_INTERRUPTED": "A model download was cut off mid-request, and the component it was fetching then failed to load. Nothing is wrong with your install — reinstalling won't help, and the partial download is resumed rather than restarted. Just retry. If it keeps happening, check your connection (and any VPN, proxy or HF mirror setting); if only transcription is affected, switching ASR to faster-whisper in Settings → Models avoids the pipeline that downloads this component.",
     "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
     "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). OmniVoice repairs this automatically and retries the load once. If the error persists, quit OmniVoice, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
     # HF_MIRROR_UNREACHABLE has a DYNAMIC hint (it names the configured mirror)
@@ -225,6 +232,9 @@ _CONTEXT_FREE_HINT_CLASSES = frozenset({
     # Its trigger is an exact OpenSSL string, so it cannot be confused with
     # another failure the way a bare "timed out" could.
     "TLS_CONNECTION_DROPPED",
+    # Requires the exact httpx closed-client wording AND an import/transformers
+    # term together, so it cannot fire on an unrelated failure (#1347).
+    "MODEL_DOWNLOAD_INTERRUPTED",
 })
 
 
@@ -313,6 +323,16 @@ def classify(reason: str) -> str:
     # automatic repair.
     if is_incomplete_cache_message(low) or "broken file link" in low:
         return "MODEL_CACHE_CORRUPT"
+    # #1347: an import that failed because its DOWNLOAD died is a network
+    # problem wearing an import problem's clothes. The reporter's message named
+    # AutoFeatureExtractor *and* carried "Cannot send a request, as the client
+    # has been closed" (#880) — TRANSFORMERS_IMPORT won on the former and told
+    # them to reinstall transformers, which cannot fix a dropped connection.
+    # Checked BEFORE the import rules so the cause beats the symptom.
+    if ("client has been closed" in low or "cannot send a request" in low) and (
+        "import" in low or "transformers" in low or "autofeatureextractor" in low
+    ):
+        return "MODEL_DOWNLOAD_INTERRUPTED"
     if (
         "could not import module" in low
         or "autofeatureextractor" in low

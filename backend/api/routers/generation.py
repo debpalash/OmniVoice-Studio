@@ -215,6 +215,14 @@ _NETWORK_MSG_SIGNATURES = (
     "temporary failure in name resolution",  # DNS down (glibc)
     "name or service not known",             # DNS down (glibc)
     "getaddrinfo failed",                    # DNS down (Windows)
+    # #1335: a TLS connection cut mid-download. core/failure.py already
+    # classifies this for the dub/transcribe surfaces (TLS_CONNECTION_DROPPED,
+    # #1301), but /generate has its own taxonomy and never learned it — so the
+    # reporter got a bare 500 carrying `_ssl.c:1016`, which means nothing to
+    # anyone. It is a dropped download, so the network branch is the right
+    # owner: the remedy is retry, not Flush.
+    "unexpected_eof_while_reading",
+    "eof occurred in violation of protocol",
 )
 
 
