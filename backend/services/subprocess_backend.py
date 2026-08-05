@@ -575,7 +575,17 @@ class SubprocessBackend(TTSBackend):
                 # (during a model load, etc.) before the terminal audio frame.
                 # Each recv re-arms the watchdog, so a long-but-active load
                 # survives while a silent wedge is still killed at the deadline.
+                #
+                # Each frame is also reported to the GPU pool's execution clock
+                # (#1367): the sidecar heartbeats every ~5s precisely to prove a
+                # cold download is healthy, and without this the outer 300s
+                # generate budget expired mid-download and blamed the hardware.
                 while reply is not None and reply.get("op") == "progress":
+                    try:
+                        from services.model_manager import report_model_load_activity
+                        report_model_load_activity()
+                    except Exception:
+                        pass  # the heartbeat is best-effort; never fail a synth over it
                     reply = self._recv_with_timeout(self.recv_timeout_s)
             if not reply:
                 raise RuntimeError(f"{self.id} sidecar closed pipe mid-generate")

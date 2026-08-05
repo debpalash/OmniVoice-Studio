@@ -361,6 +361,43 @@ GPU_JOB_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.0"
 # too-heavy job.
 GPU_QUEUE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GPU_QUEUE_TIMEOUT_S", "1800.0"))
 
+# ── model-load heartbeats (#1367) ────────────────────────────────────────────
+# A first-use generate on a subprocess engine DOWNLOADS the model inside the
+# job, and the sidecar proves the download is healthy by emitting a progress
+# frame every ~5s. The execution clock above ignored that: a slow connection
+# blew the 300s budget mid-download and the user was told their hardware was
+# too slow, while the sidecar's own watchdog was happily fed. These three make
+# the two clocks agree — a job is only "wedged" when it is SILENT.
+#
+# How long a heartbeat stays fresh. Sidecars emit every ~5s (_HEARTBEAT_S in
+# each engine's main.py); 30s tolerates a stall between frames without keeping
+# a genuinely dead load alive for long.
+MODEL_LOAD_HEARTBEAT_GRACE_S = float(
+    os.environ.get("OMNIVOICE_MODEL_LOAD_HEARTBEAT_GRACE_S", "30.0"))
+# Cap on the EXTRA time heartbeats can buy beyond the normal execution budget.
+# Without a cap, a load that heartbeats but never finishes would hold its
+# worker forever. 1800s of extension ≈ a 5 GB model at ~2.5 MB/s on top of the
+# 300s base — beyond that, telling the user is better than silently waiting.
+MODEL_LOAD_EXTRA_TIMEOUT_S = float(
+    os.environ.get("OMNIVOICE_MODEL_LOAD_TIMEOUT_S", "1800.0"))
+
+#: thread ident -> monotonic time of its last model-load heartbeat. Written by
+#: report_model_load_activity() from pool-worker threads, read by the guarded
+#: waiter, cleared when the job ends. Plain dict: CPython dict ops are atomic
+#: enough for a monotonic float, and a torn read only costs one 5s wait slice.
+_MODEL_LOAD_ACTIVITY: dict = {}
+
+
+def report_model_load_activity() -> None:
+    """Record that the CURRENT THREAD's job is making model-load progress.
+
+    Called by engine code that can prove liveness — e.g. SubprocessBackend
+    each time a sidecar progress frame arrives during a cold load. The
+    guarded waiter uses it to extend the execution deadline (bounded by
+    MODEL_LOAD_EXTRA_TIMEOUT_S) instead of abandoning a healthy download.
+    """
+    _MODEL_LOAD_ACTIVITY[threading.get_ident()] = time.monotonic()
+
 
 class GpuJobTimeoutError(TimeoutError):
     """A GPU-pool job **that actually started executing** overran its bound.
@@ -522,16 +559,26 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
 
     started = asyncio.Event()
     _inner = contain_system_exit(fn, what)
+    # The worker thread's ident, published by _job so the waiter can read this
+    # job's model-load heartbeats (#1367). A dict, not a nonlocal: the closure
+    # runs on a pool thread while the waiter reads from the event loop.
+    _ident_box: dict = {}
 
     def _job():
         # First thing the worker does: tell the awaiting coroutine the
         # execution clock may start. call_soon_threadsafe is the only
         # loop-safe way to touch an asyncio primitive from a pool thread.
+        _ident_box["ident"] = threading.get_ident()
         try:
             loop.call_soon_threadsafe(started.set)
         except RuntimeError:
             pass  # loop already closed (caller vanished) — still run the job
-        return _inner()
+        try:
+            return _inner()
+        finally:
+            # Idents are reused by the OS; a stale heartbeat under this ident
+            # must not vouch for some future job on the same thread.
+            _MODEL_LOAD_ACTIVITY.pop(threading.get_ident(), None)
 
     fut = loop.run_in_executor(ex, _job)
     waiter = asyncio.ensure_future(started.wait())
@@ -574,11 +621,61 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         )
 
     # Phase 2 — execution. The clock starts here: this job owns a worker.
+    #
+    # Not a single wait_for (#1367): a first-use generate on a subprocess
+    # engine downloads its model inside the job, and the sidecar proves the
+    # download is healthy with progress frames the backend forwards via
+    # report_model_load_activity(). Sliced waiting lets the deadline extend
+    # while those heartbeats stay fresh — bounded by MODEL_LOAD_EXTRA_TIMEOUT_S
+    # — so a slow connection is no longer reported as too-slow hardware. A job
+    # that goes SILENT still dies at the original deadline (± one slice).
+    _t0 = time.monotonic()
+    _soft_deadline = _t0 + timeout
+    _hard_deadline = _soft_deadline + MODEL_LOAD_EXTRA_TIMEOUT_S
+    _extended = False
     try:
-        return await asyncio.wait_for(fut, timeout=timeout)
+        while True:
+            _now = time.monotonic()
+            if _now < _soft_deadline:
+                _slice = min(_soft_deadline - _now, 5.0)
+            else:
+                # Soft budget exhausted. Keep waiting ONLY on the strength of a
+                # fresh model-load heartbeat from this job's worker thread.
+                _last = _MODEL_LOAD_ACTIVITY.get(_ident_box.get("ident"))
+                if (_last is None
+                        or _now - _last > MODEL_LOAD_HEARTBEAT_GRACE_S
+                        or _now >= _hard_deadline):
+                    raise asyncio.TimeoutError()
+                if not _extended:
+                    _extended = True
+                    logger.info(
+                        "%s reached its %.0fs execution budget mid model-load "
+                        "— extending while download/load heartbeats continue "
+                        "(cap +%.0fs) (#1367).",
+                        _log_safe(what), timeout, MODEL_LOAD_EXTRA_TIMEOUT_S,
+                    )
+                # Wake at the next decision point (heartbeat expiry or the
+                # cap), not a fixed 5s — a fixed slice overshoots both.
+                _slice = max(0.05, min(
+                    (_last + MODEL_LOAD_HEARTBEAT_GRACE_S) - _now,
+                    _hard_deadline - _now,
+                    5.0,
+                ))
+            _done, _ = await asyncio.wait({fut}, timeout=_slice)
+            if _done:
+                return fut.result()
+    except asyncio.CancelledError:
+        # Caller went away mid-execution. The old wait_for cancelled the
+        # wrapper itself; asyncio.wait does not, so do both halves here or the
+        # eventual result is logged as "Future exception was never retrieved".
+        fut.cancel()
+        fut.add_done_callback(_swallow_abandoned)
+        raise
     except asyncio.TimeoutError as timeout_exc:
-        # wait_for already cancelled the asyncio wrapper; the worker thread
-        # keeps going regardless. Consume whatever it eventually produces.
+        # Parity with the old wait_for semantics: cancel the asyncio wrapper;
+        # the worker thread keeps going regardless. Consume whatever it
+        # eventually produces.
+        fut.cancel()
         fut.add_done_callback(_swallow_abandoned)
         # Capture the stacks BEFORE reset(): reset() replaces the executor, and
         # once the wedged thread is no longer a pool worker we can no longer

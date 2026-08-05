@@ -30,6 +30,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - Every subprocess TTS engine would have turned a stereo render into noise: the mono downmix always averaged axis 0, which is time rather than channels for channels-last audio. Unreachable today since every engine returns mono, fixed in all five before it isn't. (#1328)
+- A first-use generate no longer fails at 300s while its model is still downloading: the download's own progress heartbeats now extend the generation budget (bounded), so a slow connection isn't reported as too-slow hardware. A job that goes silent still dies at the original deadline. (#1367)
 - A generation that hits its time limit now says so, instead of "an error OmniVoice doesn't recognize" followed by an empty `TimeoutError:`. It names the likely causes and the setting that raises the limit. (#1368)
 - The "transformers install is incomplete" advice now names torchvision — the package whose version mismatch actually produces that error — and points at the pinned reinstall that repairs it, instead of a reinstall that left the broken package untouched. (#1376, #1357)
 - A model download cut off mid-request is no longer reported as a broken transformers install — reinstalling could never have fixed a dropped connection. (#1347)
