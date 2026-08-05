@@ -1265,10 +1265,18 @@ async def dub_transcribe_stream(
                     "source": "speaker_clone",
                 })
             else:
+                # Clones are written into THIS job's dir, never alongside the
+                # vocals (#1331): on a content-hash cache hit vocals_path
+                # points into an OLDER job's dir, so dirname(vocals) wrote the
+                # new job's clone refs into a directory the user can delete by
+                # removing that older history entry — after which every
+                # single-segment regen silently rendered in the default voice.
+                _clone_dir = _safe_job_dir(job_id) or os.path.dirname(vocals_for_clone)
+                os.makedirs(_clone_dir, exist_ok=True)
                 fut_clones = loop.run_in_executor(
                     _cpu_pool, lambda: extract_speaker_clones(
                         vocals_for_clone, final_segs,
-                        os.path.dirname(vocals_for_clone),
+                        _clone_dir,
                         labels_source=labels_source,
                     ),
                 )
