@@ -151,9 +151,7 @@ describe('studio chrome does not appear before the studio', () => {
       // shrunk box cannot be magnified back — without this override the
       // wizard renders at 1/scale size with a black band around it.
       const css = readSrc('index.css');
-      expect(css).toMatch(
-        /html\[data-zoom-layout='off'\] \.app-wizard-wrap \{[^}]*zoom:\s*1/,
-      );
+      expect(css).toMatch(/html\[data-zoom-layout='off'\] \.app-wizard-wrap \{[^}]*zoom:\s*1/);
     });
 
     it('the mount passes --ui-scale and never a bare inline zoom', () => {
