@@ -335,7 +335,13 @@ def classify(reason: str) -> str:
     # has been closed" (#880) — TRANSFORMERS_IMPORT won on the former and told
     # them to reinstall transformers, which cannot fix a dropped connection.
     # Checked BEFORE the import rules so the cause beats the symptom.
-    if ("client has been closed" in low or "cannot send a request" in low) and (
+    # Requires the closed-client wording itself, not merely "cannot send a
+    # request" (CodeRabbit): the latter is generic enough to appear in an
+    # unrelated failure that also mentions an import, and overriding
+    # TRANSFORMERS_IMPORT there would replace correct reinstall advice with a
+    # "just retry" that never succeeds — the same defect in the other
+    # direction.
+    if "client has been closed" in low and (
         "import" in low or "transformers" in low or "autofeatureextractor" in low
     ):
         return "MODEL_DOWNLOAD_INTERRUPTED"

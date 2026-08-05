@@ -45,7 +45,11 @@ os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
-from core import failure  # noqa: E402
+@pytest.fixture
+def failure():
+    """Resolve at call time — sibling suites reload/purge these modules, so a
+    module-level import would go stale and make these order-dependent."""
+    return importlib.import_module("core.failure")
 
 
 @pytest.fixture
@@ -64,11 +68,11 @@ _1347 = (
 )
 
 
-def test_the_reported_message_is_not_called_a_broken_install():
+def test_the_reported_message_is_not_called_a_broken_install(failure):
     assert failure.classify(_1347) == "MODEL_DOWNLOAD_INTERRUPTED"
 
 
-def test_the_hint_does_not_tell_them_to_reinstall():
+def test_the_hint_does_not_tell_them_to_reinstall(failure):
     """The specific harm: reinstalling transformers cannot fix a dropped
     connection, so the old advice was work that could never succeed."""
     hint = failure._HINTS["MODEL_DOWNLOAD_INTERRUPTED"]
@@ -77,13 +81,13 @@ def test_the_hint_does_not_tell_them_to_reinstall():
     assert "retry" in hint.lower()
 
 
-def test_the_hint_says_the_partial_download_is_kept():
+def test_the_hint_says_the_partial_download_is_kept(failure):
     """Otherwise a user on a slow link assumes retrying restarts a multi-GB
     download and gives up instead."""
     assert "resumed" in failure._HINTS["MODEL_DOWNLOAD_INTERRUPTED"].lower()
 
 
-def test_a_genuinely_broken_install_still_says_so():
+def test_a_genuinely_broken_install_still_says_so(failure):
     """The ordering must not swallow the case TRANSFORMERS_IMPORT exists for —
     no network signature here, so the install really is the problem."""
     assert failure.classify(
@@ -95,7 +99,7 @@ def test_a_genuinely_broken_install_still_says_so():
     ) == "TRANSFORMERS_IMPORT"
 
 
-def test_a_closed_client_without_an_import_is_left_alone():
+def test_a_closed_client_without_an_import_is_left_alone(failure):
     """The rule requires BOTH halves. A bare closed-client error elsewhere must
     not be given a transformers-flavoured explanation."""
     assert failure.classify("Cannot send a request, as the client has been closed") != (
@@ -103,7 +107,7 @@ def test_a_closed_client_without_an_import_is_left_alone():
     )
 
 
-def test_the_class_carries_a_hint_and_is_safe_context_free():
+def test_the_class_carries_a_hint_and_is_safe_context_free(failure):
     evt = failure.build_failure(_1347, stage="transcribe", include_diagnostic=False)
     assert evt["docs_topic"] == "MODEL_DOWNLOAD_INTERRUPTED"
     assert evt["hint"]
@@ -138,7 +142,7 @@ def test_the_generate_message_says_retry_not_flush(gen):
     assert "ran out of memory" not in msg
 
 
-def test_the_shared_taxonomy_still_names_it_precisely():
+def test_the_shared_taxonomy_still_names_it_precisely(failure):
     """core/failure.py distinguishes a CUT connection from a failed handshake —
     the certifi/proxy advice would send the user to fix working trust."""
     assert failure.classify(_1335) == "TLS_CONNECTION_DROPPED"
@@ -209,7 +213,7 @@ def test_a_real_oom_still_gets_the_flush_hint(gen):
     assert "Try the Flush button" in str(caught.value)
 
 
-def test_the_raw_500_surface_now_carries_the_paging_file_hint():
+def test_the_raw_500_surface_now_carries_the_paging_file_hint(failure):
     """The reporter's message arrived as a bare 500 with only the OS sentence:
     the class was classified correctly but its hint was never attached, because
     it was absent from the context-free set."""
@@ -217,3 +221,45 @@ def test_the_raw_500_surface_now_carries_the_paging_file_hint():
     appended = failure.append_hint(_1334)
     assert appended != _1334, "the raw-500 surface still gives the user nothing"
     assert "Virtual memory" in appended
+
+
+# ── the over-broad-match guards (CodeRabbit on #1374) ─────────────────────
+
+def test_a_non_tls_eof_is_not_called_a_network_failure(gen):
+    """The EOF wording is OpenSSL's, but nothing stops an unrelated component
+    from saying something similar. Mislabelling a local fault as a network
+    problem sends the user to check a connection that was never involved, so
+    the match is gated on an `ssl` marker."""
+    assert gen._is_network_failure(
+        RuntimeError("parser: EOF occurred in violation of protocol frame 3")
+    ) is False
+    assert gen._is_network_failure(
+        RuntimeError("codec reported unexpected_eof_while_reading the container")
+    ) is False
+
+
+def test_the_real_openssl_message_still_matches(gen):
+    """...and the gate must not cost us the case it exists for."""
+    assert gen._is_network_failure(RuntimeError(
+        "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of "
+        "protocol (_ssl.c:1016)"
+    )) is True
+
+
+@pytest.mark.parametrize("text", [
+    # "cannot send a request" without the closed-client half: too generic to
+    # override the reinstall advice, which would then never succeed either.
+    "Cannot send a request during import of transformers.models.whisper",
+    "import failed: cannot send a request to the local server",
+])
+def test_a_partial_closed_client_phrase_does_not_override_the_install_advice(
+    failure, text
+):
+    assert failure.classify(text) != "MODEL_DOWNLOAD_INTERRUPTED"
+
+
+def test_the_full_closed_client_signature_still_wins(failure):
+    assert failure.classify(
+        "AutoFeatureExtractor import failed. Cannot send a request, as the "
+        "client has been closed."
+    ) == "MODEL_DOWNLOAD_INTERRUPTED"

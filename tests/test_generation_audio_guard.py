@@ -114,13 +114,39 @@ def test_unknown_error_is_not_labelled_oom():
     "MPS backend out of memory (MPS allocated: 8.00 GB)",
     "DefaultCPUAllocator: not enough memory: you tried to allocate 1073741824 bytes",
     "[enforce fail at alloc_cpu.cpp] posix_memalign. Cannot allocate memory",
-    "[WinError 1455] The paging file is too small for this operation to complete",
 ])
 def test_real_oom_signatures_still_classify_as_oom(reason):
     with pytest.raises(RuntimeError) as ei:
         _oom_friendly_reraise(RuntimeError(reason))
     assert "ran out of memory" in str(ei.value)
     assert "Try the Flush button" in str(ei.value)
+
+
+def test_the_windows_paging_file_case_gets_its_own_advice():
+    """#1334: WinError 1455 used to sit in the list above and get the generic
+    "ran out of memory / try Flush" message.
+
+    It is still a memory-class failure — the guard this file exists for, that a
+    real memory problem never falls through to the unknown catch-all, is intact
+    and asserted below. But Flush cannot fix it: Windows is refusing to back a
+    large mapping because the PAGING FILE is too small, which is not the same
+    as the working set being full, and no amount of reloading the model or
+    closing other apps changes it. So it gets the specific remedy instead of
+    advice that cannot work.
+    """
+    for reason in (
+        "[WinError 1455] The paging file is too small for this operation to complete",
+        "The paging file is too small for this operation to complete. (os error 1455)",
+    ):
+        with pytest.raises(RuntimeError) as ei:
+            _oom_friendly_reraise(RuntimeError(reason))
+        msg = str(ei.value)
+        # Still recognised — not the unknown-error catch-all.
+        assert "doesn't recognize" not in msg
+        assert "paging file" in msg.lower()
+        # ...and pointed at the setting that actually governs it.
+        assert "Virtual memory" in msg
+        assert "Try the Flush button" not in msg
 
 
 def test_typed_oom_without_oom_message_still_classifies_as_oom():

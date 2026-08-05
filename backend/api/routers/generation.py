@@ -215,12 +215,22 @@ _NETWORK_MSG_SIGNATURES = (
     "temporary failure in name resolution",  # DNS down (glibc)
     "name or service not known",             # DNS down (glibc)
     "getaddrinfo failed",                    # DNS down (Windows)
-    # #1335: a TLS connection cut mid-download. core/failure.py already
-    # classifies this for the dub/transcribe surfaces (TLS_CONNECTION_DROPPED,
-    # #1301), but /generate has its own taxonomy and never learned it — so the
-    # reporter got a bare 500 carrying `_ssl.c:1016`, which means nothing to
-    # anyone. It is a dropped download, so the network branch is the right
-    # owner: the remedy is retry, not Flush.
+)
+
+# #1335: a TLS connection cut mid-download. core/failure.py already classifies
+# this for the dub/transcribe surfaces (TLS_CONNECTION_DROPPED, #1301), but
+# /generate has its own taxonomy and never learned it — so the reporter got a
+# bare 500 carrying `_ssl.c:1016`, which means nothing to anyone. It is a
+# dropped download, so the network branch is the right owner: retry, not Flush.
+#
+# Gated on an "ssl" marker rather than matched bare (CodeRabbit): "eof occurred
+# in violation of protocol" is OpenSSL's wording, but nothing stops an
+# unrelated component from saying something similar, and mislabelling a local
+# fault as a network problem sends the user to check their connection for a
+# failure that has nothing to do with it. The real message always carries the
+# marker: "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of
+# protocol (_ssl.c:1016)".
+_TLS_DROP_SIGNATURES = (
     "unexpected_eof_while_reading",
     "eof occurred in violation of protocol",
 )
@@ -235,6 +245,8 @@ def _is_network_failure(e) -> bool:
             return True
         low = str(exc).lower()
         if any(sig in low for sig in _NETWORK_MSG_SIGNATURES):
+            return True
+        if "ssl" in low and any(sig in low for sig in _TLS_DROP_SIGNATURES):
             return True
     return False
 
