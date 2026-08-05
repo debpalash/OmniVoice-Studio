@@ -137,6 +137,45 @@ def safe_job_dir(job_id: str) -> Optional[str]:
     return candidate
 
 
+def job_dir_referenced_by_others(job_id: str) -> "list[str]":
+    """History ids of OTHER jobs whose persisted paths point into ``job_id``'s
+    directory (#1331, the deletion half).
+
+    The content-hash cache legitimately points a newer job's ``vocals_path``
+    (and, for jobs created before the job-scoped-clones fix, its clone
+    reference paths) into an older job's directory. Deleting that older entry
+    used to ``rmtree`` the dir regardless, silently breaking the newer job:
+    single-segment regens fell back to the default voice, stems exports lost
+    their sources. The caller uses this to keep the DIRECTORY while still
+    deleting the history row — disk is the cheap thing here; another job's
+    voice is not.
+
+    Scans persisted ``job_data`` as text for the dir prefix rather than
+    enumerating every path-bearing key: keys have grown before (vocals,
+    no_vocals, thumb, clone refs, segment refs) and a scan cannot fall behind
+    the schema.
+    """
+    target = safe_job_dir(job_id)
+    if not target:
+        return []
+    needle = target.rstrip(os.sep) + os.sep
+    # JSON-encoded job_data escapes backslashes, so match the Windows form too.
+    needle_json = needle.replace("\\", "\\\\")
+    holders: list[str] = []
+    try:
+        with db_conn() as conn:
+            rows = conn.execute(
+                "SELECT id, job_data FROM dub_history WHERE id != ?", (job_id,)
+            ).fetchall()
+    except Exception:
+        return []  # no DB, nothing persisted can reference us
+    for row in rows:
+        data = row["job_data"] or ""
+        if needle in data or needle_json in data:
+            holders.append(row["id"])
+    return holders
+
+
 def sse_event(event: str, payload) -> bytes:
     """Encode one Server-Sent Event frame. UTF-8 bytes, ready to yield."""
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")

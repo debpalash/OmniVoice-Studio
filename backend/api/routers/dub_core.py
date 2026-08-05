@@ -252,13 +252,28 @@ def delete_single_dub_history(history_id: str):
         with db_conn() as conn:
             conn.execute("DELETE FROM dub_history WHERE id=?", (history_id,))
 
+    # #1331 (deletion half): the content-hash cache points newer jobs' paths
+    # (vocals, and pre-fix clone refs) into this dir. Check BEFORE the row is
+    # deleted — the scan reads dub_history, and after _delete_row this row's
+    # neighbours are all that's left to consult either way.
+    holders = dub_pipeline.job_dir_referenced_by_others(history_id)
+
     # Atomic with the evict — see purge_jobs (#1252 review).
     dub_pipeline.purge_jobs([history_id], delete_rows=_delete_row)
     safe = _safe_job_dir(history_id)
-    if safe and os.path.isdir(safe):
+    if holders:
+        # Keep the directory: another saved dub still renders from files in
+        # it. Disk is the cheap thing here; a job that silently loses its
+        # cloned voice on every regen is not. The row is gone, so the entry
+        # disappears from history either way.
+        logger.info(
+            "dub delete %s: history row removed but directory kept — still "
+            "referenced by job(s) %s (#1331)", history_id, ", ".join(holders),
+        )
+    elif safe and os.path.isdir(safe):
         shutil.rmtree(safe, ignore_errors=True)
     event_bus.emit("dub_history", {"action": "deleted", "id": history_id})
-    return {"deleted": True}
+    return {"deleted": True, "dir_kept_for": holders}
 
 @router.post("/preview/upload")
 async def preview_upload(video: UploadFile = File(...)):
