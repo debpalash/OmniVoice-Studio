@@ -91,6 +91,13 @@ const ERROR_AUTO_DISMISS_MS = 8000;
 // that a user who sees an empty capsule does not have to live with it.
 const IDLE_VISIBLE_GRACE_MS = 1200;
 
+// How often we re-check that invariant while idle. The window is shown by the
+// Rust side, so there is no React state change to key off when a press is
+// dropped — only polling catches a window that became visible while we were
+// already idle. One `isVisible()` IPC per tick, skipped entirely whenever the
+// document reports itself hidden (the overwhelmingly common case).
+const IDLE_VISIBLE_POLL_MS = 600;
+
 // A dictation model id is a sherpa-onnx live model when it carries the
 // `sherpa-` prefix the backend assigns (see services/sherpa_dictation.py). Only
 // then do we open the low-latency raw-PCM streaming path; anything else (or no
@@ -1245,27 +1252,57 @@ export default function CaptureWidget({ onDismiss }) {
   // Rather than patch each call site, converge on the invariant itself: if we
   // are idle and the window is still visible a beat later, hide it. One effect
   // covers every path that exists now and every one added later.
+  // A one-shot timer keyed on the transition into `idle` is not enough: the
+  // window is shown by the Rust side, and `state` does not change when a press
+  // is dropped. So a press arriving while we are ALREADY idle shows the window
+  // without re-running this effect, and the square strands exactly as before —
+  // the same bug, one path over. Poll instead, so the invariant holds no matter
+  // who made the window visible or when (CodeRabbit, #1399).
   useEffect(() => {
-    if (state !== 'idle' || !inTauri()) return;
+    if (state !== 'idle' || !inTauri()) return undefined;
     let cancelled = false;
-    const t = setTimeout(async () => {
+    // Grace is measured from when the window was first SEEN visible-while-idle,
+    // not from the effect mounting: a real dictation shows the window a beat
+    // before React flips out of `idle`, and hiding it in that gap would cancel
+    // the very session the user just started.
+    let visibleSince = 0;
+
+    const reconcile = async () => {
+      // A positively-hidden document cannot be a stranded pill, and skipping
+      // the IPC keeps the common case free. Platforms that never report hidden
+      // just pay for the check — correct either way.
+      if (typeof document !== 'undefined' && document.hidden) {
+        visibleSince = 0;
+        return;
+      }
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
         // Only the standalone widget window owns its own visibility; the
         // in-app pill is just a DOM node in the main window.
         if (cancelled || win.label !== 'widget') return;
-        if (await win.isVisible()) {
-          console.warn('capture: widget window visible while idle — hiding it');
-          await win.hide();
+        if (!(await win.isVisible())) {
+          visibleSince = 0;
+          return;
         }
+        const now = Date.now();
+        if (!visibleSince) {
+          visibleSince = now;
+          return;
+        }
+        if (now - visibleSince < IDLE_VISIBLE_GRACE_MS) return;
+        console.warn('capture: widget window visible while idle — hiding it');
+        await win.hide();
+        visibleSince = 0;
       } catch (err) {
         console.warn('capture: idle-visibility reconcile failed:', err);
       }
-    }, IDLE_VISIBLE_GRACE_MS);
+    };
+
+    const id = setInterval(reconcile, IDLE_VISIBLE_POLL_MS);
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      clearInterval(id);
     };
   }, [state]);
 

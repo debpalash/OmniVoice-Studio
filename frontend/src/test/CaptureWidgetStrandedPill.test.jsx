@@ -157,6 +157,18 @@ describe('the widget window never strands empty', () => {
     expect(mocks.holder.hide).toHaveBeenCalled();
   });
 
+  // Advance fake timers in SMALL steps, flushing microtasks after each.
+  // `advanceTimersByTime` fires every due interval tick synchronously before any
+  // of their async bodies run, so a single big jump leaves all ticks observing
+  // the same frozen `Date.now()` — the grace period could never elapse and the
+  // reconcile would look broken when it is not.
+  const settle = async (ms) => {
+    await act(async () => {
+      vi.advanceTimersByTime(ms);
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+  };
+
   it('reconciles a visible-but-idle widget window to hidden', async () => {
     vi.useFakeTimers();
     renderWidget();
@@ -167,11 +179,10 @@ describe('the widget window never strands empty', () => {
     });
     expect(mocks.holder.hide).not.toHaveBeenCalled();
 
-    await act(async () => {
-      vi.advanceTimersByTime(2000);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await settle(700); // first sighting — starts the grace clock
+    expect(mocks.holder.hide).not.toHaveBeenCalled();
+    await settle(700);
+    await settle(700); // grace elapsed
 
     expect(mocks.holder.isVisible).toHaveBeenCalled();
     expect(mocks.holder.hide).toHaveBeenCalled();
@@ -189,6 +200,45 @@ describe('the widget window never strands empty', () => {
     });
 
     expect(mocks.holder.isVisible).toHaveBeenCalled();
+    expect(mocks.holder.hide).not.toHaveBeenCalled();
+  });
+
+  it('reconciles a window that becomes visible LATER, while already idle', async () => {
+    // The hole in the first version of this fix: the reconcile was a one-shot
+    // timer keyed on the transition into `idle`. But the window is shown by the
+    // Rust side and a dropped press changes no React state — so a press
+    // arriving while we are already idle showed the window with no effect
+    // re-run, and the square stranded exactly as before. Same bug, one path
+    // over (CodeRabbit, #1399).
+    vi.useFakeTimers();
+    mocks.holder.isVisible.mockImplementation(async () => false);
+    renderWidget();
+
+    // Settle well past the grace period with the window hidden — the one-shot
+    // timer would have fired and been spent by now.
+    for (let i = 0; i < 5; i += 1) await settle(700);
+    expect(mocks.holder.hide).not.toHaveBeenCalled();
+
+    // Now something shows the window without any state change.
+    mocks.holder.isVisible.mockImplementation(async () => true);
+    for (let i = 0; i < 3; i += 1) await settle(700);
+
+    expect(mocks.holder.hide).toHaveBeenCalled();
+  });
+
+  it('does not hide a window that has only just become visible', async () => {
+    // The other half: a real dictation shows the window a beat BEFORE React
+    // leaves `idle`. Hiding inside that gap would cancel the session the user
+    // just started, so the grace runs from first-seen-visible, not from mount.
+    vi.useFakeTimers();
+    mocks.holder.isVisible.mockImplementation(async () => false);
+    renderWidget();
+
+    for (let i = 0; i < 5; i += 1) await settle(700);
+
+    mocks.holder.isVisible.mockImplementation(async () => true);
+    // One tick: seen visible for the first time — inside the grace period.
+    await settle(700);
     expect(mocks.holder.hide).not.toHaveBeenCalled();
   });
 

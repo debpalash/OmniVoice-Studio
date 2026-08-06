@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   VoiceStudio — clean uninstaller (Windows).
 

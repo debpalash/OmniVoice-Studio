@@ -58,10 +58,7 @@ describe('the widget window marks itself on <html>', () => {
 });
 
 describe('index.css honours the marker', () => {
-  const css = fs.readFileSync(
-    path.join(import.meta.dirname, '..', 'index.css'),
-    'utf8',
-  );
+  const css = fs.readFileSync(path.join(import.meta.dirname, '..', 'index.css'), 'utf8');
 
   it('clears the background on html, body AND #root', () => {
     // Any one of the three left opaque defeats the window transparency, so
