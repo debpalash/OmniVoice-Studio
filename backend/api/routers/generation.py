@@ -46,6 +46,24 @@ def _profile_instruct(row):
     return heal_design_instruct(row["instruct"], vd)
 
 
+def _note_generate_progress() -> None:
+    """Tell the pool guard this render just finished a unit of work (#1391).
+
+    Every multi-part render calls this after each part. A job that keeps
+    completing chunks is working, however slowly, and must not be abandoned as
+    "too heavy for the available compute" the way #1338/#1348/#1391 were —
+    while a job that produces nothing for a whole base budget still dies on
+    time. Never raises: a liveness signal that can break a render is worse
+    than no signal.
+    """
+    try:
+        from services.model_manager import report_generate_progress
+
+        report_generate_progress()
+    except Exception:  # noqa: BLE001 — diagnostics must not break synthesis
+        pass
+
+
 def _render_with_pauses(gen_span, segments, sample_rate):
     """Synthesize ``[(text, pause_ms), ...]`` spans and stitch silence between
     them (issue #276).
@@ -62,6 +80,7 @@ def _render_with_pauses(gen_span, segments, sample_rate):
     for span_text, pause_ms in segments:
         if span_text and span_text.strip():
             items.append(("a", gen_span(span_text)))
+            _note_generate_progress()
         if pause_ms > 0:
             n = int(round(sample_rate * pause_ms / 1000.0))
             if n > 0:
@@ -650,6 +669,7 @@ def _run_inference(
                     if used_seed is not None:
                         torch.manual_seed(used_seed + i)
                     parts.append(_gen(chunk_text, None)[0])
+                    _note_generate_progress()
                 audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
                                                      texts=text_chunks)
             else:
@@ -723,6 +743,7 @@ def _run_backend_inference(
                     if used_seed is not None:
                         torch.manual_seed(used_seed + i)
                     parts.append(backend.generate(chunk_text, duration=None, **gen_kwargs))
+                    _note_generate_progress()
                 audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
                                                      texts=text_chunks)
             else:

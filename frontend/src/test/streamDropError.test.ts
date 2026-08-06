@@ -271,6 +271,32 @@ describe('crashCauseHint', () => {
       ).toBe(false);
     });
 
+    it('never outranks an OOM kill, whose signal is a fact about THIS process', async () => {
+      // backend_err.log is appended across runs and the shell captures its
+      // last ~40 lines, so a process killed early carries the PREVIOUS run's
+      // output. A stale import traceback must not turn a memory kill into
+      // "rebuild your environment" (greptile).
+      const { crashCauseHint } = await import('../utils/backendCrash');
+      const hint = crashCauseHint({
+        exit_code: null,
+        signal: 9,
+        last_stderr: TORCHAUDIO_TAIL,
+      });
+      expect(hint).toMatch(/memory \(RAM\)/);
+      expect(hint).not.toMatch(/Clean & Retry/);
+    });
+
+    it('ignores an import traceback stranded above this run’s own output', async () => {
+      const { isBrokenEnvironmentCrash } = await import('../utils/backendCrash');
+      const stale = [
+        TORCHAUDIO_TAIL,
+        ...Array.from({ length: 25 }, (_, i) => `INFO  this run line ${i}`),
+      ].join('\n');
+      expect(isBrokenEnvironmentCrash({ last_stderr: stale })).toBe(false);
+      // ...but the same traceback as the LAST thing written still counts.
+      expect(isBrokenEnvironmentCrash({ last_stderr: TORCHAUDIO_TAIL })).toBe(true);
+    });
+
     it('falls back cleanly when there is no captured tail at all', async () => {
       const { crashCauseHint, isBrokenEnvironmentCrash } = await import('../utils/backendCrash');
       expect(isBrokenEnvironmentCrash({ last_stderr: '' })).toBe(false);

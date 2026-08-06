@@ -286,11 +286,21 @@ const _CORE_DEPENDENCIES = [
   'numpy',
 ];
 
+// How much of the captured tail is treated as "this run". backend_err.log is
+// appended across runs and the shell captures its last ~40 lines, so a process
+// that died before writing 40 lines of its own carries the PREVIOUS run's
+// output above its own (greptile). An import traceback stranded up there must
+// not diagnose the crash that happened after it — restricting the match to the
+// most recent lines means a stale one only counts when the current run wrote
+// almost nothing, which is itself the startup death this classifies.
+const _RECENT_TAIL_LINES = 20;
+
 export function isBrokenEnvironmentCrash(
   marker: Partial<Pick<BackendCrashMarker, 'last_stderr'>>,
 ): boolean {
-  const tail = (marker.last_stderr || '').toLowerCase();
-  if (!tail) return false;
+  const raw = (marker.last_stderr || '').trim();
+  if (!raw) return false;
+  const tail = raw.split('\n').slice(-_RECENT_TAIL_LINES).join('\n').toLowerCase();
   if (!_IMPORT_FAILURE_MARKERS.some((m) => tail.includes(m))) return false;
   return _CORE_DEPENDENCIES.some((d) => tail.includes(d));
 }
@@ -312,10 +322,23 @@ export function crashCauseHint(
         'session is still holding the port.',
     });
   }
-  // Checked before the signal/fault branches: a dependency that fails to load
-  // can take the process down in any of those ways (a DLL load failure surfaces
-  // as a native fault), and in every one of them the fix is the same and has
-  // nothing to do with memory or drivers.
+  if (marker.signal === 9) {
+    return i18next.t('errors.crash_oom_kill', {
+      defaultValue:
+        'It was force-killed (signal 9), which usually means the operating system ran out of ' +
+        'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
+        'Settings → Models, or flush the TTS model before transcribing.',
+    });
+  }
+  // Ordered deliberately, between the two explicit-fact branches.
+  //
+  // AFTER signal 9: an OOM kill is an unambiguous fact about THIS process, and
+  // a failed import never produces one — so a stale traceback in the captured
+  // tail must never outrank it (greptile).
+  //
+  // BEFORE the native-fault branch: a dependency that will not load takes the
+  // process down as an access violation on Windows (a missing dependent DLL),
+  // where "update your GPU driver" is just as wrong as the VRAM advice.
   if (isBrokenEnvironmentCrash(marker)) {
     return i18next.t('errors.crash_broken_env', {
       defaultValue:
@@ -324,14 +347,6 @@ export function crashCauseHint(
         'in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in ' +
         'place, without touching your voices or projects. If it still fails afterwards, the ' +
         'crash details name the exact package that would not import.',
-    });
-  }
-  if (marker.signal === 9) {
-    return i18next.t('errors.crash_oom_kill', {
-      defaultValue:
-        'It was force-killed (signal 9), which usually means the operating system ran out of ' +
-        'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
-        'Settings → Models, or flush the TTS model before transcribing.',
     });
   }
   // A native crash inside the compute stack — the process was executing bad

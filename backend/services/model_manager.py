@@ -381,10 +381,21 @@ MODEL_LOAD_HEARTBEAT_GRACE_S = float(
 MODEL_LOAD_EXTRA_TIMEOUT_S = float(
     os.environ.get("OMNIVOICE_MODEL_LOAD_TIMEOUT_S", "1800.0"))
 
-#: thread ident -> monotonic time of its last model-load heartbeat. Written by
-#: report_model_load_activity() from pool-worker threads, read by the guarded
-#: waiter, cleared when the job ends. Plain dict: CPython dict ops are atomic
-#: enough for a monotonic float, and a torn read only costs one 5s wait slice.
+# How long a SYNTHESIS heartbeat stays fresh. Much longer than the load grace
+# on purpose: the finest progress signal a generate has is "a chunk finished",
+# and one chunk of a long text on a modest GPU can legitimately take minutes
+# (#1391: an RTX 2060 SUPER with 5.7 GB free). Judging that by the 30s
+# sidecar-frame grace would call every slow-but-healthy render wedged, which is
+# the bug. At this grace the distinction is the honest one: a job that has not
+# finished a single chunk in a whole base budget really has stopped.
+GENERATE_PROGRESS_GRACE_S = float(
+    os.environ.get("OMNIVOICE_GENERATE_PROGRESS_GRACE_S", "300.0"))
+
+#: thread ident -> (monotonic time of its last heartbeat, how long it stays
+#: fresh). Written by report_model_load_activity() / report_generate_progress()
+#: from pool-worker threads, read by the guarded waiter, cleared when the job
+#: ends. Plain dict: CPython dict ops are atomic enough for a small tuple, and
+#: a torn read only costs one 5s wait slice.
 _MODEL_LOAD_ACTIVITY: dict = {}
 
 
@@ -396,7 +407,27 @@ def report_model_load_activity() -> None:
     guarded waiter uses it to extend the execution deadline (bounded by
     MODEL_LOAD_EXTRA_TIMEOUT_S) instead of abandoning a healthy download.
     """
-    _MODEL_LOAD_ACTIVITY[threading.get_ident()] = time.monotonic()
+    _MODEL_LOAD_ACTIVITY[threading.get_ident()] = (
+        time.monotonic(), MODEL_LOAD_HEARTBEAT_GRACE_S,
+    )
+
+
+def report_generate_progress() -> None:
+    """Record that the CURRENT THREAD's job finished a unit of synthesis.
+
+    Same contract as the load heartbeat, different evidence: a multi-chunk
+    render that just completed chunk 7 of 20 is demonstrably working, however
+    slow it is. Without this, a long text on a modest GPU hit the 300s
+    execution budget mid-render and was abandoned as "too heavy for the
+    available compute" — with most of its chunks already rendered, and no way
+    for the user to tell that from a genuine wedge (#1338/#1348/#1391).
+
+    Carries a longer freshness window than the load heartbeat because chunks
+    are coarse: see GENERATE_PROGRESS_GRACE_S.
+    """
+    _MODEL_LOAD_ACTIVITY[threading.get_ident()] = (
+        time.monotonic(), GENERATE_PROGRESS_GRACE_S,
+    )
 
 
 class GpuJobTimeoutError(TimeoutError):
@@ -640,24 +671,29 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
                 _slice = min(_soft_deadline - _now, 5.0)
             else:
                 # Soft budget exhausted. Keep waiting ONLY on the strength of a
-                # fresh model-load heartbeat from this job's worker thread.
-                _last = _MODEL_LOAD_ACTIVITY.get(_ident_box.get("ident"))
+                # fresh heartbeat from this job's worker thread — a model-load
+                # progress frame, or a completed synthesis chunk. Each carries
+                # its own freshness window (loads report every ~5s; chunks are
+                # minutes apart on slow hardware).
+                _beat = _MODEL_LOAD_ACTIVITY.get(_ident_box.get("ident"))
+                _last, _grace = _beat if _beat else (None, 0.0)
                 if (_last is None
-                        or _now - _last > MODEL_LOAD_HEARTBEAT_GRACE_S
+                        or _now - _last > _grace
                         or _now >= _hard_deadline):
                     raise asyncio.TimeoutError()
                 if not _extended:
                     _extended = True
                     logger.info(
-                        "%s reached its %.0fs execution budget mid model-load "
-                        "— extending while download/load heartbeats continue "
-                        "(cap +%.0fs) (#1367).",
-                        _log_safe(what), timeout, MODEL_LOAD_EXTRA_TIMEOUT_S,
+                        "%s reached its %.0fs execution budget while still "
+                        "making progress — extending while heartbeats continue "
+                        "(grace %.0fs, cap +%.0fs) (#1367/#1391).",
+                        _log_safe(what), timeout, _grace,
+                        MODEL_LOAD_EXTRA_TIMEOUT_S,
                     )
                 # Wake at the next decision point (heartbeat expiry or the
                 # cap), not a fixed 5s — a fixed slice overshoots both.
                 _slice = max(0.05, min(
-                    (_last + MODEL_LOAD_HEARTBEAT_GRACE_S) - _now,
+                    (_last + _grace) - _now,
                     _hard_deadline - _now,
                     5.0,
                 ))
