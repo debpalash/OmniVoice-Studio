@@ -211,22 +211,30 @@ def _normalize_chunk_shapes(chunks: list) -> list:
     return chunks
 
 
-def report_dropped_chunks(dropped: list, total: int, texts=None) -> None:
+def report_dropped_chunks(dropped: list, total: int, texts=None, sink=None) -> None:
     """Log the sentences that produced no audio. Never raises.
 
     Deliberately WARNING, not debug: this is missing output the user paid
-    compute for, and the log is the only place it can surface — the waveform
-    itself looks perfectly clean.
+    compute for.
+
+    ``sink`` — an optional list the caller owns. The lost text lands in it so
+    the *user* can be told too, which the log alone never did: a log line
+    nobody reads is not a fix for silent truncation, it is a record of it.
+    Kept as an explicit parameter rather than a contextvar because the render
+    runs on a plain ThreadPoolExecutor, which does not carry context across.
     """
     try:
-        detail = ""
+        named = []
         if texts:
-            named = [
-                repr(str(texts[i])[:80]) for i in dropped
-                if 0 <= i < len(texts)
-            ]
-            if named:
-                detail = " — no audio for: " + "; ".join(named)
+            named = [str(texts[i]) for i in dropped if 0 <= i < len(texts)]
+        if sink is not None:
+            try:
+                sink.extend(named or [""] * len(dropped))
+            except Exception:  # noqa: BLE001 — a caller's odd sink must not break the join
+                pass
+        detail = ""
+        if named:
+            detail = " — no audio for: " + "; ".join(repr(t[:80]) for t in named)
         logger.warning(
             "Dropped %d of %d rendered chunk(s): the engine returned no audio "
             "for them, so the output is missing that text%s. This is silent in "
@@ -245,7 +253,7 @@ def report_dropped_chunks(dropped: list, total: int, texts=None) -> None:
 
 def join_rendered_chunks(rendered: list, sample_rate: int, *,
                          crossfade_ms: int = DEFAULT_CROSSFADE_MS,
-                         texts=None):
+                         texts=None, sink=None):
     """Join what a multi-chunk render produced, reporting whatever it lost.
 
     ``None`` when nothing rendered — the caller's dead-render handling owns
@@ -263,21 +271,22 @@ def join_rendered_chunks(rendered: list, sample_rate: int, *,
     kept = [r for i, r in enumerate(rendered) if i not in set(dropped)]
     if not kept:
         if dropped:
-            report_dropped_chunks(dropped, len(rendered), texts)
+            report_dropped_chunks(dropped, len(rendered), texts, sink)
         return None
     if len(kept) == 1:
         # concatenate_audio_chunks short-circuits a single chunk without
         # reporting, so the report has to happen here.
         if dropped:
-            report_dropped_chunks(dropped, len(rendered), texts)
+            report_dropped_chunks(dropped, len(rendered), texts, sink)
         return kept[0]
     return concatenate_audio_chunks(rendered, sample_rate,
-                                    crossfade_ms=crossfade_ms, texts=texts)
+                                    crossfade_ms=crossfade_ms, texts=texts,
+                                    sink=sink)
 
 
 def concatenate_audio_chunks(chunks: list, sample_rate: int,
                              crossfade_ms: int = DEFAULT_CROSSFADE_MS,
-                             texts=None):
+                             texts=None, sink=None):
     """Join per-chunk waveforms with a linear crossfade on the sample axis.
 
     ``chunks`` are torch tensors as returned by the engine (1-D, or N-D with
@@ -305,7 +314,7 @@ def concatenate_audio_chunks(chunks: list, sample_rate: int,
         else:
             dropped.append(i)
     if dropped:
-        report_dropped_chunks(dropped, len(chunks), texts)
+        report_dropped_chunks(dropped, len(chunks), texts, sink)
     chunks = kept
     if not chunks:
         return torch.zeros(1, dtype=torch.float32)

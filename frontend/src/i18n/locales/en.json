@@ -2519,7 +2519,9 @@
   },
   "tts": {
     "routingFallback": "Running on CPU — this engine has no GPU path on your machine, so generation will be slower. {{reason}}",
-    "routingCaveat": "Using the GPU, but: {{reason}}"
+    "routingCaveat": "Using the GPU, but: {{reason}}",
+    "droppedChunks": "Heads up: {{count}} part of your text produced no audio, so this take is missing it. Try re-generating — a different seed usually fixes it.",
+    "droppedChunksWithText": "Heads up: {{count}} part of your text produced no audio, so this take is missing it — “{{text}}”. Try re-generating; a different seed usually fixes it."
   },
   "voiceSelector": {
     "engineDefault": "Engine default",

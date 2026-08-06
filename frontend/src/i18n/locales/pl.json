@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Działa na procesorze — ten silnik nie ma ścieżki GPU na twoim komputerze, więc generowanie będzie wolniejsze. {{reason}}",
-    "routingCaveat": "Używasz procesora graficznego, ale: {{reason}}"
+    "routingCaveat": "Używasz procesora graficznego, ale: {{reason}}",
+    "droppedChunks": "Uwaga: {{count}} fragment tekstu nie wygenerował dźwięku, więc brakuje go w tym nagraniu. Wygeneruj ponownie — inne ziarno zwykle rozwiązuje problem.",
+    "droppedChunksWithText": "Uwaga: {{count}} fragment tekstu nie wygenerował dźwięku i brakuje go w tym nagraniu — „{{text}}”. Wygeneruj ponownie; inne ziarno zwykle rozwiązuje problem."
   },
   "voiceSelector": {
     "engineDefault": "Domyślne ustawienie silnika",

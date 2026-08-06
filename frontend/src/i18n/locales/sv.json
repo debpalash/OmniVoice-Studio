@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Körs på CPU — den här motorn har ingen GPU-sökväg på din maskin, så genereringen kommer att gå långsammare. {{reason}}",
-    "routingCaveat": "Använder GPU, men: {{reason}}"
+    "routingCaveat": "Använder GPU, men: {{reason}}",
+    "droppedChunks": "Obs: {{count}} del av din text gav inget ljud, så den saknas i den här tagningen. Generera om — ett annat frö brukar lösa det.",
+    "droppedChunksWithText": "Obs: {{count}} del av din text gav inget ljud och saknas i den här tagningen — ”{{text}}”. Generera om; ett annat frö brukar lösa det."
   },
   "voiceSelector": {
     "engineDefault": "Standard för motor",

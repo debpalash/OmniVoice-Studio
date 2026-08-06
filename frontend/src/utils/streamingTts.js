@@ -300,7 +300,7 @@ export async function streamGenerateSpeech(formData, opts = {}) {
 
 async function _streamGenerateSpeech(
   formData,
-  { signal, label, finalLabel, onHeaders, onProgress } = {},
+  { signal, label, finalLabel, onHeaders, onProgress, onWarning } = {},
 ) {
   const fd = new FormData();
   for (const [k, v] of formData.entries()) fd.append(k, v);
@@ -339,6 +339,11 @@ async function _streamGenerateSpeech(
         player?.appendPcm16Base64(ev.pcm);
         if (totalChunks > 0)
           onProgress?.(Math.min(100, Math.round((received / totalChunks) * 100)));
+      } else if (ev.type === 'warning') {
+        // #1330: the render finished, but some of the text produced no audio.
+        // Not an error — the take is real and playable — so it must not take
+        // the stream down; it just must not be silent either.
+        onWarning?.(ev);
       } else if (ev.type === 'done') {
         meta = ev;
       } else if (ev.type === 'error') {

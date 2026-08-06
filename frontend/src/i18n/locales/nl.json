@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Draait op CPU: deze engine heeft geen GPU-pad op uw machine, dus de generatie zal langzamer zijn. {{reason}}",
-    "routingCaveat": "De GPU gebruiken, maar: {{reason}}"
+    "routingCaveat": "De GPU gebruiken, maar: {{reason}}",
+    "droppedChunks": "Let op: {{count}} deel van je tekst leverde geen audio op en ontbreekt dus in deze opname. Genereer opnieuw — een andere seed lost dit meestal op.",
+    "droppedChunksWithText": "Let op: {{count}} deel van je tekst leverde geen audio op en ontbreekt in deze opname — “{{text}}”. Genereer opnieuw; een andere seed lost dit meestal op."
   },
   "voiceSelector": {
     "engineDefault": "Standaard motor",

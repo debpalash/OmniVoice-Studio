@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Läuft auf der CPU – diese Engine verfügt über keinen GPU-Pfad auf Ihrem Computer, daher erfolgt die Generierung langsamer. {{reason}}",
-    "routingCaveat": "GPU nutzen, aber: {{reason}}"
+    "routingCaveat": "GPU nutzen, aber: {{reason}}",
+    "droppedChunks": "Hinweis: {{count}} Teil deines Textes hat kein Audio erzeugt, in dieser Aufnahme fehlt er also. Generiere es neu — ein anderer Seed behebt das meistens.",
+    "droppedChunksWithText": "Hinweis: {{count}} Teil deines Textes hat kein Audio erzeugt und fehlt in dieser Aufnahme — „{{text}}“. Generiere es neu; ein anderer Seed behebt das meistens."
   },
   "voiceSelector": {
     "engineDefault": "Motorstandard",

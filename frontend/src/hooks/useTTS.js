@@ -208,6 +208,20 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
       const ac = new AbortController();
       abortTimer = setTimeout(() => ac.abort(), 21 * 60 * 1000);
 
+      // #1330 — one voice for both delivery paths. A dropped chunk is not an
+      // error (the audio is real), so it is a persistent-ish warning toast
+      // rather than a thrown failure, and it quotes the lost text so the user
+      // can tell at a glance what to re-render.
+      const announceDroppedText = (count, sample) => {
+        const preview = (sample || '').trim().slice(0, 120);
+        toast(
+          preview
+            ? t('tts.droppedChunksWithText', { count, text: preview })
+            : t('tts.droppedChunks', { count }),
+          { icon: '\u26a0\ufe0f', duration: 8000 },
+        );
+      };
+
       // Header handling shared by both delivery paths (streaming + classic).
       const applyResponseHeaders = (response) => {
         // #526: surface the seed the backend actually used so the Design tab
@@ -220,6 +234,16 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
         // headers only on cpu_fallback / accelerated-with-caveat (never on the
         // benign cpu_only / clean-accelerated paths), so their mere presence is
         // the signal. De-duped by status so a batch doesn't spam.
+        // #1330: some of the text rendered to no audio. The take that came
+        // back is clean and simply short, so nothing else would ever tell the
+        // user — they reported it by reading along. Classic path only; the
+        // streaming path learns this from a `warning` frame (headers are sent
+        // before the render starts).
+        const droppedCount = parseInt(response.headers.get('X-OmniVoice-Dropped-Chunks') || '', 10);
+        if (Number.isInteger(droppedCount) && droppedCount > 0) {
+          announceDroppedText(droppedCount, response.headers.get('X-OmniVoice-Dropped-Text'));
+        }
+
         const routingStatus = response.headers.get('X-OmniVoice-Routing');
         if (routingStatus && routingStatus !== _lastRoutingStatus) {
           _lastRoutingStatus = routingStatus;
@@ -253,6 +277,10 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
             finalLabel: t('player.generated_audio'),
             onHeaders: applyResponseHeaders,
             onProgress: setProgressPct,
+            onWarning: (ev) => {
+              if (ev?.code === 'dropped_chunks' && ev.count > 0)
+                announceDroppedText(ev.count, (ev.text || []).join(' | '));
+            },
           });
           streamed = true;
         } catch (err) {

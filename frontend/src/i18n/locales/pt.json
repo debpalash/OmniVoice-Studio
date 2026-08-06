@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Rodando em CPU — este mecanismo não possui caminho de GPU em sua máquina, então a geração será mais lenta. {{reason}}",
-    "routingCaveat": "Usando a GPU, mas: {{reason}}"
+    "routingCaveat": "Usando a GPU, mas: {{reason}}",
+    "droppedChunks": "Atenção: {{count}} parte do seu texto não gerou áudio, então falta nesta gravação. Tente gerar de novo — outra semente costuma resolver.",
+    "droppedChunksWithText": "Atenção: {{count}} parte do seu texto não gerou áudio e falta nesta gravação — “{{text}}”. Tente gerar de novo; outra semente costuma resolver."
   },
   "voiceSelector": {
     "engineDefault": "Padrão do mecanismo",

@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Berjalan pada CPU — mesin ini tidak memiliki jalur GPU pada mesin Anda, sehingga pembuatannya akan lebih lambat. {{reason}}",
-    "routingCaveat": "Menggunakan GPU, tetapi: {{reason}}"
+    "routingCaveat": "Menggunakan GPU, tetapi: {{reason}}",
+    "droppedChunks": "Perhatian: {{count}} bagian teks Anda tidak menghasilkan audio, jadi hasil ini kehilangan bagian tersebut. Coba hasilkan ulang — seed yang berbeda biasanya memperbaikinya.",
+    "droppedChunksWithText": "Perhatian: {{count}} bagian teks Anda tidak menghasilkan audio dan hilang dari hasil ini — “{{text}}”. Coba hasilkan ulang; seed yang berbeda biasanya memperbaikinya."
   },
   "voiceSelector": {
     "engineDefault": "Default mesin",

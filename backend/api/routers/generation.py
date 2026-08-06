@@ -590,7 +590,7 @@ def _run_inference(
     num_step, guidance_scale, speed, t_shift, denoise,
     postprocess_output, layer_penalty_factor, position_temperature,
     class_temperature, used_seed, effect_preset="broadcast",
-    max_chunk_chars=None, crossfade_ms=None,
+    max_chunk_chars=None, crossfade_ms=None, *, dropped_sink=None,
 ):
     import torch
     try:
@@ -651,7 +651,8 @@ def _run_inference(
                         torch.manual_seed(used_seed + i)
                     parts.append(_gen(chunk_text, None)[0])
                 audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
-                                                     texts=text_chunks)
+                                                     texts=text_chunks,
+                                                     sink=dropped_sink)
             else:
                 audio_out = _gen(text, duration)[0]
 
@@ -670,7 +671,7 @@ def _run_backend_inference(
     backend, text, language, ref_audio_path, ref_text, instruct, duration,
     num_step, guidance_scale, speed, denoise, postprocess_output,
     used_seed, effect_preset="broadcast",
-    max_chunk_chars=None, crossfade_ms=None,
+    max_chunk_chars=None, crossfade_ms=None, *, dropped_sink=None,
 ):
     """Engine-aware twin of :func:`_run_inference` (issue #312).
 
@@ -724,7 +725,8 @@ def _run_backend_inference(
                         torch.manual_seed(used_seed + i)
                     parts.append(backend.generate(chunk_text, duration=None, **gen_kwargs))
                 audio_out = concatenate_audio_chunks(parts, sr, _xfade_ms,
-                                                     texts=text_chunks)
+                                                     texts=text_chunks,
+                                                     sink=dropped_sink)
             else:
                 audio_out = backend.generate(text, duration=duration, **gen_kwargs)
 
@@ -1302,6 +1304,10 @@ async def generate_speech(
         _segments = parse_pause_markers(text)
         _has_pause = len(_segments) > 1 or (_segments and _segments[0][1] > 0)
         _text_chunks = [] if _has_pause else split_text_into_chunks(text, max_chunk_chars)
+        # #1330 — see the non-streaming path: chunks the engine rendered to
+        # nothing land here so the stream can say the take is missing text
+        # instead of quietly handing back a short one.
+        _dropped_sink: list = []
 
         def _render_stream_chunk(i: int, chunk_text: str):
             """One text chunk → (raw engine tensor, preview-DSP tensor, sr).
@@ -1368,7 +1374,8 @@ async def generate_speech(
             from services.chunked_tts import concatenate_audio_chunks
             try:
                 audio_out = concatenate_audio_chunks(parts, sr, crossfade_ms,
-                                                     texts=_text_chunks)
+                                                     texts=_text_chunks,
+                                                     sink=_dropped_sink)
                 skip = (getattr(_backend, "applies_own_mastering", False)
                         if _backend is not None else False)
                 return _apply_effect_chain(audio_out, sr, effect_preset, skip_mastering=skip)
@@ -1486,10 +1493,21 @@ async def generate_speech(
                     instruct=instruct, resolved_profile_id=resolved_profile_id,
                     used_seed=used_seed, start_time=start_time,
                 )
+                # #1330: before `done`, say what the take is missing. Its own
+                # frame rather than a `done` field so a consumer that only
+                # handles known types still surfaces it, and so the shape
+                # matches `error` (which clients already special-case).
+                if _dropped_sink:
+                    yield _line({
+                        "type": "warning", "code": "dropped_chunks",
+                        "count": len(_dropped_sink),
+                        "text": [t for t in _dropped_sink if t],
+                    })
                 yield _line({
                     "type": "done", "id": meta["id"], "audio_path": meta["filename"],
                     "duration": meta["duration"], "gen_time": meta["gen_time"],
                     "seed": used_seed, "sample_rate": sample_rate,
+                    "dropped_chunks": len(_dropped_sink),
                 })
             except (asyncio.CancelledError, GeneratorExit):
                 # Client went away mid-stream — same semantics as aborting a
@@ -1535,6 +1553,12 @@ async def generate_speech(
             headers=_stream_headers,
         )
 
+    # #1330: text whose chunk rendered to nothing. The engine dropping a chunk
+    # is silent in the waveform — the take sounds clean and is simply missing a
+    # sentence — so the render collects what it lost here and the response says
+    # so. A warning in a log the user never opens is a record of the bug, not a
+    # fix for it.
+    _dropped_text: list = []
     try:
         if _backend is not None:
             # Bounded + pool-reset on hang so a wedged generate can't starve the
@@ -1545,7 +1569,7 @@ async def generate_speech(
                     _backend, text, language, ref_audio_path, ref_text, instruct,
                     duration, num_step, guidance_scale, speed, denoise,
                     postprocess_output, used_seed, effect_preset,
-                    max_chunk_chars, crossfade_ms,
+                    max_chunk_chars, crossfade_ms, dropped_sink=_dropped_text,
                 ),
                 what="TTS generate",
                 min_vram_gb=_engine_min_vram_gb,
@@ -1562,7 +1586,7 @@ async def generate_speech(
                     num_step, guidance_scale, speed, t_shift, denoise,
                     postprocess_output, layer_penalty_factor, position_temperature,
                     class_temperature, used_seed, effect_preset,
-                    max_chunk_chars, crossfade_ms,
+                    max_chunk_chars, crossfade_ms, dropped_sink=_dropped_text,
                 ),
                 what="TTS generate",
                 min_vram_gb=_engine_min_vram_gb,
@@ -1600,6 +1624,15 @@ async def generate_speech(
             "X-Audio-Duration": str(audio_dur),
             "Content-Length": str(len(wav_bytes)),
         }
+        # #1330: the body is a WAV, so the header channel carries the notice
+        # that some of the text produced no audio. Count first (always exact),
+        # then as much of the lost text as a header can safely hold.
+        if _dropped_text:
+            from services.engine_routing import header_safe_reason
+            _resp_headers["X-OmniVoice-Dropped-Chunks"] = str(len(_dropped_text))
+            _lost = header_safe_reason(" | ".join(t for t in _dropped_text if t))
+            if _lost:
+                _resp_headers["X-OmniVoice-Dropped-Text"] = _lost
         # Routing notice (#21): cpu_fallback or accelerated-with-caveat only;
         # the WAV body is binary so the header channel is the carrier.
         if _routing_notice:

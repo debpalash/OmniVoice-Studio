@@ -2233,7 +2233,9 @@
   },
   "tts": {
     "routingFallback": "Ejecutándose en CPU: este motor no tiene una ruta de GPU en su máquina, por lo que la generación será más lenta. {{reason}}",
-    "routingCaveat": "Usando la GPU, pero: {{reason}}"
+    "routingCaveat": "Usando la GPU, pero: {{reason}}",
+    "droppedChunks": "Aviso: {{count}} parte de tu texto no generó audio, así que falta en esta toma. Prueba a generarlo de nuevo: normalmente basta con otra semilla.",
+    "droppedChunksWithText": "Aviso: {{count}} parte de tu texto no generó audio y falta en esta toma: «{{text}}». Prueba a generarlo de nuevo; normalmente basta con otra semilla."
   },
   "voiceSelector": {
     "engineDefault": "Valor predeterminado del motor",

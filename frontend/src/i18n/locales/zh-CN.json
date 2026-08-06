@@ -2240,7 +2240,9 @@
   },
   "tts": {
     "routingFallback": "在 CPU 上运行 — 该引擎在您的计算机上没有 GPU 路径，因此生成速度会较慢。 {{reason}}",
-    "routingCaveat": "使用 GPU，但是：{{reason}}"
+    "routingCaveat": "使用 GPU，但是：{{reason}}",
+    "droppedChunks": "请注意：文本中有 {{count}} 处没有生成音频，因此这段录音缺少该部分。请重新生成——换一个随机种子通常就能解决。",
+    "droppedChunksWithText": "请注意：文本中有 {{count}} 处没有生成音频，这段录音缺少该部分——“{{text}}”。请重新生成，换一个随机种子通常就能解决。"
   },
   "voiceSelector": {
     "engineDefault": "引擎默认",
