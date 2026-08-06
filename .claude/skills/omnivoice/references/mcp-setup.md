@@ -3,11 +3,11 @@
 ## Install
 
 ```bash
-# Pick any location. The scripts in this skill default to ~/OmniVoice-Studio if
+# Pick any location. The scripts in this skill default to ~/VoiceStudio if
 # $OMNIVOICE_HOME is unset.
-export OMNIVOICE_HOME="${HOME}/OmniVoice-Studio"
+export OMNIVOICE_HOME="${HOME}/VoiceStudio"
 
-git clone https://github.com/debpalash/OmniVoice-Studio.git "$OMNIVOICE_HOME"
+git clone https://github.com/debpalash/VoiceStudio.git "$OMNIVOICE_HOME"
 cd "$OMNIVOICE_HOME"
 uv sync                                                  # ~1.6 GB venv on darwin arm64
 VIRTUAL_ENV="$(pwd)/.venv" uv pip install 'mcp[cli]'     # SDK not in their lockfile yet
@@ -37,7 +37,7 @@ Drop into your MCP client config (Claude Desktop, Claude Code at `~/.claude.json
 
 Restart the MCP client. The server only starts at client launch — in-session edits do not hot-reload.
 
-> **Note (mcp SDK ≥ 1.10):** If you see `TypeError: FastMCP.__init__() got an unexpected keyword argument 'version'`, your `OmniVoice-Studio` checkout is older than [debpalash/OmniVoice-Studio#112](https://github.com/debpalash/OmniVoice-Studio/pull/112). Either `git pull` once that PR lands, or apply the 3-line patch manually: replace `version="…", description=(…)` with `instructions=(…)` in `backend/mcp_server.py`.
+> **Note (mcp SDK ≥ 1.10):** If you see `TypeError: FastMCP.__init__() got an unexpected keyword argument 'version'`, your `VoiceStudio` checkout is older than [debpalash/VoiceStudio#112](https://github.com/debpalash/VoiceStudio/pull/112). Either `git pull` once that PR lands, or apply the 3-line patch manually: replace `version="…", description=(…)` with `instructions=(…)` in `backend/mcp_server.py`.
 
 ## Backend Lifecycle
 
@@ -73,7 +73,7 @@ Cached on subsequent boots.
 
 | Var | Default | Purpose |
 |---|---|---|
-| `OMNIVOICE_HOME` | `~/OmniVoice-Studio` | Where the OmniVoice Studio repo is cloned (used by scripts in this skill) |
+| `OMNIVOICE_HOME` | `~/VoiceStudio` | Where the OmniVoice Studio repo is cloned (used by scripts in this skill) |
 | `OMNIVOICE_API_URL` | `http://localhost:3900` | MCP server's target backend URL |
 | `OMNIVOICE_TTS_BACKEND` | `omnivoice` | Switch engine: `cosyvoice`, `mlx-audio`, `voxcpm2`, `moss-tts-nano`, `kittentts` |
 | `HF_TOKEN` | (none) | Only needed for gated pyannote diarization models — basic TTS does not require one |
@@ -84,7 +84,7 @@ Cached on subsequent boots.
 |---|---|---|
 | MCP tool returns connection error | Backend not running | `scripts/start-backend.sh` |
 | `address already in use` | Stale uvicorn on 3900 | `lsof -nP -iTCP:3900 -sTCP:LISTEN` → `kill -TERM <pid>` |
-| `FastMCP.__init__() got unexpected keyword argument 'version'` | mcp SDK ≥ 1.10 dropped `version`/`description`, checkout pre-dates [#112](https://github.com/debpalash/OmniVoice-Studio/pull/112) | Update the checkout or apply the 3-line patch manually |
+| `FastMCP.__init__() got unexpected keyword argument 'version'` | mcp SDK ≥ 1.10 dropped `version`/`description`, checkout pre-dates [#112](https://github.com/debpalash/VoiceStudio/pull/112) | Update the checkout or apply the 3-line patch manually |
 | First call hangs 5-10 min | Model download from HuggingFace | Watch `~/.cache/huggingface/hub/models--k2-fsa--OmniVoice/` grow |
 | `/health` returns 500 | Alembic migration failed | Inspect `<data_dir>/crash_log.txt` |
 | Voice profile not found | `profile_id` invalid or profile not yet created | `list_voices` first to get valid IDs |

@@ -6,12 +6,12 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SITE_URL="https://github.com/debpalash/OmniVoice-Studio"
+SITE_URL="https://github.com/debpalash/VoiceStudio"
 SITE_NAME="OmniVoice Studio"
 SITE_DESC="Open-source ElevenLabs alternative — cinematic audio dubbing, voice cloning and TTS in 646 languages"
-RSS_URL="https://github.com/debpalash/OmniVoice-Studio/releases.atom"
+RSS_URL="https://github.com/debpalash/VoiceStudio/releases.atom"
 GITHUB_USER="debpalash"
-REPO_NAME="OmniVoice-Studio"
+REPO_NAME="VoiceStudio"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -197,10 +197,10 @@ submit "FOSS Torrents"                  "https://fosstorrents.com/"
 submit "OpenSource.com"                 "https://opensource.com/"
 submit "Open Source Alternative"        "https://www.opensourcealternative.to/"
 submit "Open Source Builders"           "https://opensource.builders/"
-submit "AwesomeOpenSource"              "https://awesomeopensource.com/project/debpalash/OmniVoice-Studio"
+submit "AwesomeOpenSource"              "https://awesomeopensource.com/project/debpalash/VoiceStudio"
 submit "OpenBase"                       "https://openbase.com/"
 submit "Free Software Foundation"       "https://www.fsf.org/"
-submit "OSS Insight (detailed)"         "https://ossinsight.io/analyze/debpalash/OmniVoice-Studio#overview"
+submit "OSS Insight (detailed)"         "https://ossinsight.io/analyze/debpalash/VoiceStudio#overview"
 submit "GitHub Trending"                "https://github.com/trending?since=weekly"
 submit "GitExplorer"                    "https://gitexplorer.com/"
 submit "Best of JS"                     "https://bestofjs.org/"
@@ -274,17 +274,17 @@ submit "Hacker News"                    "https://news.ycombinator.com/submitlink
 echo ""
 echo "${YELLOW}━━━ 12. Extended Wayback Machine Archives ━━━${NC}"
 EXTRA_PAGES=(
-  "https://github.com/debpalash/OmniVoice-Studio/blob/main/STRUCTURE.md"
-  "https://github.com/debpalash/OmniVoice-Studio/blob/main/LICENSE"
-  "https://github.com/debpalash/OmniVoice-Studio/graphs/contributors"
-  "https://github.com/debpalash/OmniVoice-Studio/network/dependents"
-  "https://github.com/debpalash/OmniVoice-Studio/stargazers"
-  "https://github.com/debpalash/OmniVoice-Studio/network/members"
-  "https://github.com/debpalash/OmniVoice-Studio/releases/tag/v0.2.4"
-  "https://github.com/debpalash/OmniVoice-Studio/releases/tag/v0.2.3"
-  "https://github.com/debpalash/OmniVoice-Studio/tree/main/backend"
-  "https://github.com/debpalash/OmniVoice-Studio/tree/main/frontend"
-  "https://github.com/debpalash/OmniVoice-Studio/tree/main/docs"
+  "https://github.com/debpalash/VoiceStudio/blob/main/STRUCTURE.md"
+  "https://github.com/debpalash/VoiceStudio/blob/main/LICENSE"
+  "https://github.com/debpalash/VoiceStudio/graphs/contributors"
+  "https://github.com/debpalash/VoiceStudio/network/dependents"
+  "https://github.com/debpalash/VoiceStudio/stargazers"
+  "https://github.com/debpalash/VoiceStudio/network/members"
+  "https://github.com/debpalash/VoiceStudio/releases/tag/v0.2.4"
+  "https://github.com/debpalash/VoiceStudio/releases/tag/v0.2.3"
+  "https://github.com/debpalash/VoiceStudio/tree/main/backend"
+  "https://github.com/debpalash/VoiceStudio/tree/main/frontend"
+  "https://github.com/debpalash/VoiceStudio/tree/main/docs"
   "https://github.com/debpalash"
 )
 for page in "${EXTRA_PAGES[@]}"; do

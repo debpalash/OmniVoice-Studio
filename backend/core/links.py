@@ -94,7 +94,7 @@ def _resolve() -> str:
     return (
         _from_tauri()
         or _from_pyproject()
-        or "https://github.com/debpalash/OmniVoice-Studio"
+        or "https://github.com/debpalash/VoiceStudio"
     )
 
 

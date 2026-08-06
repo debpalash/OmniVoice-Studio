@@ -3,7 +3,7 @@
 # ElevenLabs-Parity Program — Implementation Spec
 
 **Date:** 2026-06-12
-**Status:** Proposed — derived from [discussion #346](https://github.com/debpalash/OmniVoice-Studio/discussions/346) and the research in [docs/competitive-analysis.md](../competitive-analysis.md) (PR #345)
+**Status:** Proposed — derived from [discussion #346](https://github.com/debpalash/VoiceStudio/discussions/346) and the research in [docs/competitive-analysis.md](../competitive-analysis.md) (PR #345)
 **Owner:** debpalash
 
 ## Goal

@@ -54,7 +54,7 @@ see [linux.md — AMD GPU (ROCm)](linux.md#amd-gpu-rocm).
 Run from a regular (non-admin) PowerShell:
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
+git clone https://github.com/debpalash/VoiceStudio.git
 cd OmniVoice-Studio
 bun install
 bun run desktop-prod
@@ -73,7 +73,7 @@ model weights. The splash screen shows progress.
 ## Install (pre-built MSI)
 
 Download the latest MSI from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
 run it, follow the wizard. The shortcut lands in the Start menu as
 **OmniVoice Studio**.
 
@@ -106,7 +106,7 @@ another drive (`engines\.uv-cache`). An explicit `UV_CACHE_DIR` /
 
 If an install to a local non-C: drive fails anyway, capture a log with
 `msiexec /i OmniVoice*.msi /L*V install.log` and
-[open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) with it
+[open an issue](https://github.com/debpalash/VoiceStudio/issues) with it
 — that log shows exactly which step rolled back.
 
 ## Portable install (Windows)
@@ -124,7 +124,7 @@ The first-run setup screen offers Portable whenever the folder next to
 `OmniVoice Studio.exe` is writable. A default MSI install goes to
 `C:\Program Files`, which is *not* user-writable — that's why Portable shows
 as greyed out after a default install
-([#766](https://github.com/debpalash/OmniVoice-Studio/issues/766)). To enable
+([#766](https://github.com/debpalash/VoiceStudio/issues/766)). To enable
 it, install to a user-writable folder instead:
 
 - Re-run the MSI and choose a custom destination folder in the setup wizard
@@ -200,7 +200,7 @@ bun run desktop-prod
 
 This setting is a no-op on macOS and Linux (the OOM is Windows-specific —
 the `torch.compile` kernel cache behaves differently on the other platforms).
-Tracking issue: [#65](https://github.com/debpalash/OmniVoice-Studio/issues/65).
+Tracking issue: [#65](https://github.com/debpalash/VoiceStudio/issues/65).
 
 ## Hugging Face token (optional but recommended)
 

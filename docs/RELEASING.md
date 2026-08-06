@@ -12,7 +12,7 @@ The private key needs to live in **GitHub Actions Secrets** so CI can sign each 
    ```
    cat ~/.tauri/omnivoice-updater.key
    ```
-2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** (on `debpalash/OmniVoice-Studio`, which is where the updater endpoint points):
+2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** (on `debpalash/VoiceStudio`, which is where the updater endpoint points):
    - Name: `TAURI_SIGNING_PRIVATE_KEY`
    - Value: paste the full contents (including the `untrusted comment:` header line)
 3. Add a second secret:
@@ -30,7 +30,7 @@ No Apple Developer / Windows signing certs needed for v1. Apps ship unsigned; fi
 ## 3. What the updater does
 
 On every app launch, the webview:
-1. Fetches `https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json`
+1. Fetches `https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json`
 2. Compares the version in `latest.json` to the running app's version (from `tauri.conf.json`)
 3. If newer, shows a native dialog: *"A new version (x.y.z) is available. Download and install now?"*
 4. If user accepts, downloads the signed update bundle, verifies the minisign signature against the embedded pubkey, replaces the app in place, relaunches.
@@ -83,7 +83,7 @@ The `Desktop Release` workflow fires on tag push. It builds four targets in para
 Each runner signs the updater payload with the stored `TAURI_SIGNING_PRIVATE_KEY`, merges into a single `latest.json`, and attaches everything to the draft release.
 
 Workflow runtime: **~20-40 minutes** (PyInstaller + four platform builds). Follow progress at:
-`https://github.com/debpalash/OmniVoice-Studio/actions`
+`https://github.com/debpalash/VoiceStudio/actions`
 
 When it finishes, the draft release needs manual publishing — GitHub → Releases → **Edit** the draft → **Publish release**. Once published, existing clients detect the update on their next launch.
 
@@ -127,7 +127,7 @@ Two options:
 **Option A — dry run the manifest:**
 After a release is published, hit the updater URL manually:
 ```
-curl -L https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json | jq
+curl -L https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json | jq
 ```
 You should see platform-keyed download URLs + minisign signatures. If that JSON looks right, clients will pick it up.
 

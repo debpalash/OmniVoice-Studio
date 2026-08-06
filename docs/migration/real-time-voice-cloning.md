@@ -88,7 +88,7 @@ MOSS-TTS-Nano), the heavier cloning engines want a GPU.
 ## Install
 
 Grab the installer for your OS from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
 then follow the guide for your platform end-to-end:
 
 * macOS — [docs/install/macos.md](../install/macos.md)
@@ -169,6 +169,6 @@ Engines** — the choice applies everywhere synthesis happens.
 Setup questions get answered in
 [Discord](https://discord.gg/bzQavDfVV9) (usually within hours), bugs
 go to
-[GitHub Issues](https://github.com/debpalash/OmniVoice-Studio/issues)
+[GitHub Issues](https://github.com/debpalash/VoiceStudio/issues)
 — see [SUPPORT.md](../../.github/SUPPORT.md) for what to include. Welcome
 over.

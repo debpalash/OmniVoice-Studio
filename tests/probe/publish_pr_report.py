@@ -136,7 +136,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("report", nargs="?", help="path to report-*.html")
     ap.add_argument("--pr", type=int, help="PR number for the comment")
-    ap.add_argument("--repo", default="debpalash/OmniVoice-Studio")
+    ap.add_argument("--repo", default="debpalash/VoiceStudio")
     ap.add_argument("--post", action="store_true",
                     help="upload gist + comment (requires --yes)")
     ap.add_argument("--yes", action="store_true",

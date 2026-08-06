@@ -96,7 +96,7 @@ function failNoBash() {
       "        bun run desktop",
       "",
       "   3. Skip building from source — download the installer:",
-      "        https://github.com/debpalash/OmniVoice-Studio/releases/latest",
+      "        https://github.com/debpalash/VoiceStudio/releases/latest",
       "",
       "   More help: docs/install/windows.md",
       "",

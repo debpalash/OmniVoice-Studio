@@ -361,7 +361,7 @@ function SupportView() {
             variant="subtle"
             size="sm"
             leading={<Star size={14} />}
-            onClick={() => openExternal('https://github.com/debpalash/OmniVoice-Studio')}
+            onClick={() => openExternal('https://github.com/debpalash/VoiceStudio')}
           >
             {t('support.star_github')}
           </Button>

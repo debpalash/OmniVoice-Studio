@@ -5,8 +5,8 @@
 | Channel | Best for |
 |---|---|
 | [Discord](https://discord.gg/bzQavDfVV9) — `#help` | Setup problems, quick questions, sharing results |
-| [GitHub Issues](https://github.com/debpalash/OmniVoice-Studio/issues) | Bugs and feature requests — use the templates; attach the diagnostic bundle (Settings → About → "Save diagnostic bundle") |
-| [GitHub Discussions](https://github.com/debpalash/OmniVoice-Studio/discussions) | Design questions, ideas, show & tell |
+| [GitHub Issues](https://github.com/debpalash/VoiceStudio/issues) | Bugs and feature requests — use the templates; attach the diagnostic bundle (Settings → About → "Save diagnostic bundle") |
+| [GitHub Discussions](https://github.com/debpalash/VoiceStudio/discussions) | Design questions, ideas, show & tell |
 | Security issues | **Never a public issue** — see [SECURITY.md](SECURITY.md) for private reporting |
 
 ## Uninstalling / removing all data

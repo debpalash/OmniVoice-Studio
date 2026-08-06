@@ -19,17 +19,17 @@
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Star 数" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="版本" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/VoiceStudio?style=flat-square&color=f59e0b" alt="Star 数" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/VoiceStudio?style=flat-square&color=10b981" alt="版本" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="许可证" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/issues"><img src="https://img.shields.io/github/issues/debpalash/VoiceStudio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
     <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_Us-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
     <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=flat-square&logo=paypal&logoColor=white" alt="PayPal" /></a>
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="下载最新版本" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="下载最新版本" /></a>
   </p>
 </div>
 
@@ -42,7 +42,7 @@
 > **你的声音是你最私密的数据。为什么还要按月付费，从云端把它租回来？** 每一款主流语音工具都会把你的音频送到别人的服务器上，并按月向你收费。OmniVoice Studio 反其道而行：克隆、设计、配音、听写，全部在你自己的硬件上完成——646 种语言，没有计费表在转，任何数据都不离开你的设备。
 
 > [!WARNING]
-> **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/OmniVoice-Studio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
+> **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/VoiceStudio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
 
 <a id="screenshots"></a>
 
@@ -161,11 +161,11 @@
 ## ⚡ 快速开始
 
 <div align="center">
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
   <br/>
-  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
+  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
 </div>
 
 选择你的操作系统，按指南从头到尾操作：
@@ -252,7 +252,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 > **AMD GPU：** ROCm 加速**仅限 Linux 且需手动开启**——在首次运行的设置界面选择 **“AMD GPU (ROCm)”**，或设置 `OMNIVOICE_TORCH_VARIANT=rocm`（[docs/install/linux.md](docs/install/linux.md#amd-gpu-rocm)）。在 **Docker/Podman** 中请改用专门的 ROCm 镜像：`ghcr.io/debpalash/omnivoice-studio:rocm`（[docs/install/docker.md](docs/install/docker.md#pull-and-run-amd-gpu--rocm)）。**在 Windows 上，AMD GPU（含 Ryzen AI 核显）只能以 CPU 运行**：PyTorch 没有 Windows 版 ROCm 轮子，因此 Windows 上的 GPU 加速仅限 NVIDIA/CUDA（[docs/install/windows.md](docs/install/windows.md#gpu-support)）。
 
 > [!IMPORTANT]
-> **macOS Intel（x86_64）不支持本地后端：** 应用 UI 可以安装，但 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（[#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)）。Intel Mac 用户仍可让 UI 指向另一台机器上的远程后端——参见 [docs/install/macos.md](docs/install/macos.md)。
+> **macOS Intel（x86_64）不支持本地后端：** 应用 UI 可以安装，但 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（[#889](https://github.com/debpalash/VoiceStudio/issues/889)）。Intel Mac 用户仍可让 UI 指向另一台机器上的远程后端——参见 [docs/install/macos.md](docs/install/macos.md)。
 
 <a id="tts-engines"></a>
 
@@ -371,7 +371,7 @@ print(result.text)
 
 ### 📓 在 Google Colab 上运行
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/OmniVoice-Studio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
 
 没有本地 GPU？官方笔记本（[notebooks/OmniVoice_Studio_Colab.ipynb](notebooks/OmniVoice_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
 
@@ -510,7 +510,7 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 非常欢迎——Bug 修复、新的 TTS 引擎适配器、UI 改进、文档、翻译。统统欢迎。
 
 - 📖 阅读 **[贡献指南](.github/CONTRIBUTING.md)** 了解环境搭建、代码风格和 PR 工作流
-- 🐛 浏览 [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
+- 🐛 浏览 [good first issues](https://github.com/debpalash/VoiceStudio/labels/good%20first%20issue)
 - 💬 加入我们的 [Discord](https://discord.gg/bzQavDfVV9) 讨论想法或寻求帮助
 
 ---
@@ -534,7 +534,7 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 <details>
 <summary><b>能在 Apple Silicon（M1/M2/M3/M4）上运行吗？</b></summary>
 <br/>
-可以。MPS 加速会被自动检测。在 Apple 硬件上，MLX 优化的 Whisper 模型可提供更快的转录速度。<b>不支持 Intel Mac</b>：应用 UI 可以安装，但本地 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>）——Intel Mac 只能配合远程后端使用。
+可以。MPS 加速会被自动检测。在 Apple 硬件上，MLX 优化的 Whisper 模型可提供更快的转录速度。<b>不支持 Intel Mac</b>：应用 UI 可以安装，但本地 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——Intel Mac 只能配合远程后端使用。
 </details>
 
 <details>
@@ -650,17 +650,17 @@ OmniVoice Studio 站在这些杰出开源工作的肩膀上：
 <br/>
 
 如果你读到了这里，你就是我们的同路人。<br/>
-**[⭐ 给这个仓库点个 Star](https://github.com/debpalash/OmniVoice-Studio)**，让更多人能找到它。<br/>
+**[⭐ 给这个仓库点个 Star](https://github.com/debpalash/VoiceStudio)**，让更多人能找到它。<br/>
 **[💬 加入 Discord](https://discord.gg/bzQavDfVV9)**，分享你的作品。<br/>
 **[❤️ 支持开发](https://ko-fi.com/debpalash)**——资助让 OmniVoice 持续发布的 AI 智能体账单。
 
 <br/>
 
-  <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
+  <a href="https://star-history.com/#debpalash/VoiceStudio&Date">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date" />
-      <img alt="Star 历史" src="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" width="600" />
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date" />
+      <img alt="Star 历史" src="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" width="600" />
     </picture>
   </a>
 </div>

@@ -24,7 +24,7 @@ import ReportBugButton from '../components/ReportBugButton';
 // One home for every outward channel. The repo/Discord/security URLs match the
 // values the rest of the app uses (bug reporter, footer, SECURITY.md) so a link
 // change here can never leave one surface pointing somewhere stale (#contact).
-const REPO_URL = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO_URL = 'https://github.com/debpalash/VoiceStudio';
 const ISSUES_URL = `${REPO_URL}/issues`;
 const DISCORD_URL = 'https://discord.gg/bzQavDfVV9';
 // GitHub Security Advisories = the private "report a vulnerability" flow that

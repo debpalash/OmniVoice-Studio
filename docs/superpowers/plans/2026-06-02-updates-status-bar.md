@@ -376,7 +376,7 @@ Append (the file already uses `reqwest`/`serde` for `check_update`; reuse the sa
 use serde::Serialize;
 
 const RELEASES_API: &str =
-    "https://api.github.com/repos/debpalash/OmniVoice-Studio/releases?per_page=30";
+    "https://api.github.com/repos/debpalash/VoiceStudio/releases?per_page=30";
 
 #[derive(Serialize)]
 pub struct ReleaseInfo {
@@ -395,7 +395,7 @@ pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String>
     let client = reqwest::Client::new();
     let resp = client
         .get(RELEASES_API)
-        .header("User-Agent", "OmniVoice-Studio")
+        .header("User-Agent", "VoiceStudio")
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
