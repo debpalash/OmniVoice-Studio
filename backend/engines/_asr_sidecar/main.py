@@ -26,6 +26,21 @@ import traceback
 MAX_FRAME_BYTES = 64 * 1024 * 1024
 _model = None
 
+# The parent's cuDNN 8 preload lives in the parent PROCESS, and this is a child
+# with its own clean import path — so without this, an install whose side-loaded
+# cuDNN 8 makes the in-process engine work still had the isolated engine die on
+# every transcribe (#1371). Crash isolation turns that into a failed job rather
+# than a dead backend, which is why it went unnoticed: it fails quietly forever.
+# core.cudnn8 is stdlib-only, so importing it does not undo the cheap-startup
+# rule the module docstring sets out (unlike the heavy `services` package).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+try:
+    from core.cudnn8 import preload as _preload_cudnn8
+
+    _preload_cudnn8()
+except Exception:  # noqa: BLE001 — best-effort; never block the ready handshake
+    pass
+
 
 def _send(stream, obj):
     body = json.dumps(obj, separators=(",", ":")).encode("utf-8")
