@@ -4,7 +4,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root — does not exist yet; see below.
+- **`CONTEXT.md`** at the repo root — read it whenever it exists. It has not been created yet, so today this usually resolves to nothing; see below.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
@@ -17,7 +17,7 @@ local-first guarantee. Read it as context alongside anything here.
 
 Single-context repo (most repos):
 
-```
+```text
 /
 ├── CONTEXT.md
 ├── docs/adr/
@@ -28,7 +28,7 @@ Single-context repo (most repos):
 
 Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
 
-```
+```text
 /
 ├── CONTEXT-MAP.md
 ├── docs/adr/                          ← system-wide decisions
