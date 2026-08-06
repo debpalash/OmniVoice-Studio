@@ -250,12 +250,12 @@ pub fn backend_log_path() -> PathBuf {
         let base = std::env::var("LOCALAPPDATA")
             .or_else(|_| std::env::var("USERPROFILE").map(|u| format!("{}\\AppData\\Local", u)))
             .unwrap_or_else(|_| "C:\\Temp".to_string());
-        PathBuf::from(base).join("VoiceStudio").join("Logs")
+        PathBuf::from(base).join("OmniVoice").join("Logs")
     } else {
         let base = std::env::var("XDG_STATE_HOME")
             .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/state", h)))
             .unwrap_or_else(|_| "/tmp".to_string());
-        PathBuf::from(base).join("VoiceStudio")
+        PathBuf::from(base).join("OmniVoice")
     };
     let _ = fs::create_dir_all(&log_dir);
     log_dir.join("backend.log")

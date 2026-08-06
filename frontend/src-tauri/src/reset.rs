@@ -494,7 +494,7 @@ mod tests {
         // Windows: redirected into our own dir to dodge MAX_PATH → app-private.
         assert!(!models_are_shared(
             Path::new("C:/Users/me/AppData/Local/OmniVoice/hf_cache"),
-            Path::new("C:/Users/me/AppData/Roaming/VoiceStudio")
+            Path::new("C:/Users/me/AppData/Roaming/OmniVoice")
         ));
         // Portable: models live under the portable data dir → app-private.
         assert!(!models_are_shared(

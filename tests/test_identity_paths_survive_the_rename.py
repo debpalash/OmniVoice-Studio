@@ -75,13 +75,49 @@ def test_the_database_filename_is_unchanged():
     assert "omnivoice.db" in _read("backend/core/config.py"), WHY
 
 
+@pytest.mark.parametrize(
+    "rel",
+    [
+        "frontend/src-tauri/src/setup.rs",     # default_data_dir / default_models_dir
+        "frontend/src-tauri/src/backend.rs",   # backend_log_path
+        "frontend/src-tauri/src/commands.rs",  # log path + data dir
+    ],
+)
+def test_no_rust_resolver_joins_the_brand_name_as_a_directory(rel):
+    """The Rust side builds these paths with `.join("OmniVoice")`.
+
+    A brand sweep renames that string as readily as any other, and the
+    original assertion here — "does the file mention OmniVoice anywhere" —
+    passed while three resolvers had been repointed at a directory that does
+    not exist. Assert the SHAPE that matters: no resolver may join the
+    product name.
+    """
+    rust = _read(rel)
+    assert 'join("VoiceStudio")' not in rust, (
+        f"{rel} resolves a user directory named after the brand. {WHY}"
+    )
+    assert 'join("OmniVoice")' in rust, (
+        f"{rel} no longer joins the real data directory name. {WHY}"
+    )
+
+
 def test_the_rust_data_dir_mirror_agrees_with_python():
     # setup.rs::default_data_dir() is a hand-maintained mirror of
     # get_app_data_dir(). If they drift, the shell and the backend disagree
     # about where the user's data is.
     rust = _read("frontend/src-tauri/src/setup.rs")
-    assert "Application Support/OmniVoice" in rust or "OmniVoice" in rust, WHY
+    assert "Application Support/OmniVoice" in rust, WHY
     assert ".omnivoice" in rust, WHY
+
+
+def test_no_windows_path_fixture_points_at_the_brand():
+    """The Rust uninstall/reset tests carry Windows path fixtures that are only
+    ABSOLUTE on Windows — so a rename there fails on the Windows runner alone,
+    hours later. Catch it here, on any platform."""
+    for rel in ("frontend/src-tauri/src/uninstall.rs", "frontend/src-tauri/src/reset.rs"):
+        rust = _read(rel)
+        for bad in ("Roaming\\VoiceStudio", "Roaming/VoiceStudio"):
+            assert bad not in rust, f"{rel} fixture points at a brand-named dir. {WHY}"
 
 
 def test_the_uninstall_allowlist_still_recognises_our_paths():

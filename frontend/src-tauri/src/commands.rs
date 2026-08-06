@@ -106,12 +106,12 @@ pub fn read_log_tail(source: String, tail: Option<usize>) -> LogTailPayload {
 
 fn backend_runtime_log_path() -> PathBuf {
     let data_dir = if cfg!(target_os = "macos") {
-        dirs_data_dir().join("VoiceStudio")
+        dirs_data_dir().join("OmniVoice")
     } else if cfg!(target_os = "windows") {
         PathBuf::from(
             std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string()),
         )
-        .join("VoiceStudio")
+        .join("OmniVoice")
     } else {
         PathBuf::from(
             std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),

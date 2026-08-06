@@ -233,7 +233,7 @@ mod tests {
             "/Users/someone/.cache/huggingface",
             // The durable per-user env dir — must clear the same guard as the rest.
             "/Users/someone/.config/omnivoice",
-            "C:\\Users\\someone\\AppData\\Roaming\\VoiceStudio",
+            "C:\\Users\\someone\\AppData\\Roaming\\OmniVoice",
         ] {
             let path = PathBuf::from(p);
             // Windows-style paths aren't absolute on unix; only assert the ones that are.
