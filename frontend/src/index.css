@@ -668,6 +668,34 @@ samp,
   overflow: hidden;
 }
 
+/* ═══ DICTATION WIDGET WINDOW ═══
+   The widget (`label: "widget"`, tauri.conf.json) is declared
+   `transparent: true` + `decorations: false` so the dictation pill floats as
+   a rounded capsule over whatever the user is dictating into. But it loads
+   the same index.html as the main window, so the chrome background above
+   applied to it too and painted an opaque, square-cornered rectangle across
+   the whole 300x64 window — visible as a dark block sitting on the desktop
+   whenever the pill itself wasn't drawing (see CaptureWidget's idle state).
+   Window transparency only shows through if every ancestor box is
+   transparent, so all three of html/body/#root have to opt out.
+   `data-window` is set in main-app.jsx once the window label is known. */
+html[data-window='widget'],
+html[data-window='widget'] body,
+html[data-window='widget'] #root {
+  background: transparent;
+  background-color: transparent;
+}
+
+html[data-window='widget'] #root {
+  /* Let clicks through the empty area around the capsule rather than
+     swallowing them on an invisible full-window box. */
+  pointer-events: none;
+}
+
+html[data-window='widget'] #root > * {
+  pointer-events: auto;
+}
+
 /* ═══ LAYOUT ═══ */
 .app-container {
   /* UI scale (#504 clipping fix + #21 black-band fix): the layout box is
