@@ -1452,7 +1452,8 @@
     "report_failed": "Impossibile aprire la segnalazione. Riprova oppure copia i dettagli qui sopra in una nuova issue.",
     "searchIssues": "Cerca problemi simili",
     "unexpected": "Errore imprevisto: {{message}}",
-    "backend_shutting_down": "OmniVoice si sta chiudendo. Riapri l’app e riprova."
+    "backend_shutting_down": "OmniVoice si sta chiudendo. Riapri l’app e riprova.",
+    "crash_broken_env": "È morto mentre caricava le proprie dipendenze Python, quindi non c'entrano né la memoria né la GPU: l'ambiente è incompleto o è rimasto aggiornato a metà. Usa «Clean & Retry» in Impostazioni → Log → Backend, che lo ricostruisce da zero e lo ripara sul posto, senza toccare le tue voci o i tuoi progetti. Se continua a fallire, i dettagli del crash indicano il pacchetto che non si importava."
   },
   "keyboard": {
     "title": "Scorciatoie da tastiera",

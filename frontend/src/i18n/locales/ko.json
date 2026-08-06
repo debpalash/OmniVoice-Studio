@@ -1452,7 +1452,8 @@
     "report_failed": "버그 리포트를 열지 못했습니다. 다시 시도하거나 위 내용을 새 이슈에 복사해 주세요.",
     "searchIssues": "유사한 문제 검색",
     "unexpected": "예기치 않은 오류: {{message}}",
-    "backend_shutting_down": "OmniVoice를 종료하는 중입니다. 앱을 다시 열고 시도하세요."
+    "backend_shutting_down": "OmniVoice를 종료하는 중입니다. 앱을 다시 열고 시도하세요.",
+    "crash_broken_env": "자체 Python 의존성을 불러오는 도중에 종료됐습니다. 메모리나 GPU 문제가 아니라 환경이 불완전하거나 업데이트가 중간에 멈춘 상태입니다. 설정 → 로그 → 백엔드 의 \"Clean & Retry\"를 사용하세요. 환경을 처음부터 다시 만들어 그 자리에서 복구하며, 음성이나 프로젝트는 건드리지 않습니다. 그래도 실패하면 크래시 세부 정보에 가져오지 못한 패키지 이름이 나옵니다."
   },
   "keyboard": {
     "title": "키보드 단축키",

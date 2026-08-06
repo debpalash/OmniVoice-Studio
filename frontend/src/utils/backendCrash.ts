@@ -255,7 +255,50 @@ export function isNativeFault(marker: Pick<BackendCrashMarker, 'exit_code' | 'si
   return marker.exit_code != null && NT_FAULT_EXIT_CODES.has(marker.exit_code);
 }
 
-export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'>): string {
+/**
+ * True when the captured stderr shows the backend dying while IMPORTING its
+ * own dependencies — a broken/incomplete Python environment, not a workload.
+ *
+ * Reported repeatedly (#1282: `import torchaudio` → `from torch.hub import …`
+ * exploding 4 s after launch; #1376: transformers' lazy module raising
+ * `ModuleNotFoundError: Could not import module 'GenerationMixin'` 28 s in).
+ * Both fell through to the VRAM default, which told users whose venv was
+ * half-installed to go flush a TTS model. Nothing about the exit code
+ * distinguishes these — the traceback is the only evidence, and it was sitting
+ * unread in the marker.
+ *
+ * Deliberately narrow: an ImportError *plus* one of the packages the app
+ * cannot run without. A model file that fails to import mid-request is a
+ * different animal, and a generic "ImportError" match would swallow it.
+ */
+const _IMPORT_FAILURE_MARKERS = [
+  'modulenotfounderror',
+  'importerror',
+  'dll load failed',
+  'undefined symbol',
+];
+const _CORE_DEPENDENCIES = [
+  'torch',
+  'torchaudio',
+  'torchvision',
+  'transformers',
+  'soundfile',
+  'numpy',
+];
+
+export function isBrokenEnvironmentCrash(
+  marker: Partial<Pick<BackendCrashMarker, 'last_stderr'>>,
+): boolean {
+  const tail = (marker.last_stderr || '').toLowerCase();
+  if (!tail) return false;
+  if (!_IMPORT_FAILURE_MARKERS.some((m) => tail.includes(m))) return false;
+  return _CORE_DEPENDENCIES.some((d) => tail.includes(d));
+}
+
+export function crashCauseHint(
+  marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'> &
+    Partial<Pick<BackendCrashMarker, 'last_stderr'>>,
+): string {
   // #1223: the backend exits 78 (EX_CONFIG) when it could not bind its port.
   // That is not a crash and has nothing to do with memory — the old message
   // sent a user whose real problem was a leftover process off to shrink their
@@ -267,6 +310,20 @@ export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 's
         'OmniVoice (or an app that claimed that port) is holding it. Quit the other instance ' +
         'and relaunch; if nothing is visibly running, an orphaned backend from a previous ' +
         'session is still holding the port.',
+    });
+  }
+  // Checked before the signal/fault branches: a dependency that fails to load
+  // can take the process down in any of those ways (a DLL load failure surfaces
+  // as a native fault), and in every one of them the fix is the same and has
+  // nothing to do with memory or drivers.
+  if (isBrokenEnvironmentCrash(marker)) {
+    return i18next.t('errors.crash_broken_env', {
+      defaultValue:
+        'It died while loading its own Python dependencies, so this is not about memory or ' +
+        'your GPU — the environment is incomplete or was left half-updated. Use "Clean & Retry" ' +
+        'in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in ' +
+        'place, without touching your voices or projects. If it still fails afterwards, the ' +
+        'crash details name the exact package that would not import.',
     });
   }
   if (marker.signal === 9) {

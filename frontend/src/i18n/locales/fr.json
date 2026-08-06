@@ -1452,7 +1452,8 @@
     "report_failed": "Impossible d'ouvrir le rapport de bug. Réessayez, ou copiez les détails ci-dessus dans un nouveau ticket.",
     "searchIssues": "Rechercher des problèmes similaires",
     "unexpected": "Erreur inattendue : {{message}}",
-    "backend_shutting_down": "OmniVoice est en cours de fermeture. Rouvrez l’application et réessayez."
+    "backend_shutting_down": "OmniVoice est en cours de fermeture. Rouvrez l’application et réessayez.",
+    "crash_broken_env": "Il est mort en chargeant ses propres dépendances Python : ce n'est donc ni la mémoire ni votre GPU, mais un environnement incomplet ou à moitié mis à jour. Utilisez « Clean & Retry » dans Paramètres → Journaux → Backend, qui le reconstruit de zéro et le répare sur place, sans toucher à vos voix ni à vos projets. Si l'échec persiste, les détails du plantage nomment le paquet qui refusait de s'importer."
   },
   "keyboard": {
     "title": "Raccourcis clavier",

@@ -194,6 +194,89 @@ describe('crashCauseHint', () => {
     expect(isNativeFault({ exit_code: 78, signal: null })).toBe(false);
     expect(crashCauseHint({ exit_code: 78, signal: null })).toMatch(/port 3900/);
   });
+
+  // #1282 (`import torchaudio` exploding 4 s after launch) and #1376
+  // (transformers' lazy loader raising ModuleNotFoundError 28 s in) both
+  // arrived as a plain `exit code 1` and therefore both got the VRAM default —
+  // telling users whose Python environment was half-installed to go flush a
+  // TTS model. Nothing in the exit code distinguishes them; the traceback was
+  // sitting unread in the marker.
+  describe('a backend that died importing its own dependencies (#1282)', () => {
+    const TORCHAUDIO_TAIL = [
+      'Traceback (most recent call last):',
+      '  File "...\\backend\\main.py", line 197, in <module>',
+      '    import torchaudio',
+      '  File "...\\torchaudio\\_internal\\__init__.py", line 4, in <module>',
+      '    from torch.hub import download_url_to_file',
+      "ImportError: cannot import name 'download_url_to_file'",
+    ].join('\n');
+
+    const TRANSFORMERS_TAIL =
+      '  File "...\\transformers\\utils\\import_utils.py", line 2184, in __getattr__\n' +
+      '    raise ModuleNotFoundError(\n' +
+      "ModuleNotFoundError: Could not import module 'GenerationMixin'.";
+
+    it('names the environment, not VRAM, for a torchaudio import failure', async () => {
+      const { crashCauseHint } = await import('../utils/backendCrash');
+      const hint = crashCauseHint({
+        exit_code: 1,
+        signal: null,
+        last_stderr: TORCHAUDIO_TAIL,
+      });
+      expect(hint).toMatch(/Clean & Retry/);
+      expect(hint).not.toMatch(/VRAM/);
+    });
+
+    it('catches the transformers lazy-import failure too', async () => {
+      const { crashCauseHint } = await import('../utils/backendCrash');
+      const hint = crashCauseHint({
+        exit_code: 1,
+        signal: null,
+        last_stderr: TRANSFORMERS_TAIL,
+      });
+      expect(hint).toMatch(/Clean & Retry/);
+      expect(hint).not.toMatch(/VRAM/);
+    });
+
+    it('wins over the native-fault branch — a DLL that will not load is still the environment', async () => {
+      // On Windows a missing dependent DLL surfaces as an access violation.
+      // "Update your GPU driver" is the wrong advice when the venv is broken.
+      const { crashCauseHint } = await import('../utils/backendCrash');
+      const hint = crashCauseHint({
+        exit_code: -1073741819,
+        signal: null,
+        last_stderr: 'ImportError: DLL load failed while importing torch._C',
+      });
+      expect(hint).toMatch(/Clean & Retry/);
+    });
+
+    it('does not fire on an unrelated traceback that merely mentions torch', async () => {
+      // Narrow on purpose: an ImportError is required, not just the word.
+      const { crashCauseHint, isBrokenEnvironmentCrash } = await import('../utils/backendCrash');
+      const marker = {
+        exit_code: 1,
+        signal: null,
+        last_stderr: 'RuntimeError: CUDA error: out of memory (torch/cuda/__init__.py)',
+      };
+      expect(isBrokenEnvironmentCrash(marker)).toBe(false);
+      expect(crashCauseHint(marker)).toMatch(/VRAM/);
+    });
+
+    it('does not fire on an import error in something optional', async () => {
+      const { isBrokenEnvironmentCrash } = await import('../utils/backendCrash');
+      expect(
+        isBrokenEnvironmentCrash({
+          last_stderr: "ModuleNotFoundError: No module named 'some_optional_plugin'",
+        }),
+      ).toBe(false);
+    });
+
+    it('falls back cleanly when there is no captured tail at all', async () => {
+      const { crashCauseHint, isBrokenEnvironmentCrash } = await import('../utils/backendCrash');
+      expect(isBrokenEnvironmentCrash({ last_stderr: '' })).toBe(false);
+      expect(crashCauseHint({ exit_code: 1, signal: null })).toMatch(/VRAM/);
+    });
+  });
 });
 
 describe('stream drop with no crash marker (#1242)', () => {

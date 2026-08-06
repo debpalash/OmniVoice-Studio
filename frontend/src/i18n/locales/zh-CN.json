@@ -1458,7 +1458,8 @@
     "report_failed": "无法打开错误报告。请重试，或将上面的详细信息复制到新的 issue 中。",
     "searchIssues": "搜索类似问题",
     "unexpected": "意外错误：{{message}}",
-    "backend_shutting_down": "OmniVoice 正在关闭。请重新打开应用后再试。"
+    "backend_shutting_down": "OmniVoice 正在关闭。请重新打开应用后再试。",
+    "crash_broken_env": "它在加载自身的 Python 依赖时退出，因此与内存或显卡无关——运行环境不完整，或更新到一半就停下了。请在 设置 → 日志 → 后端 中使用“Clean & Retry”，它会从头重建环境并就地修复，不会动你的声音或项目。如果之后仍然失败，崩溃详情会指出无法导入的具体软件包。"
   },
   "keyboard": {
     "title": "键盘快捷键",

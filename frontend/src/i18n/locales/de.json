@@ -1452,7 +1452,8 @@
     "report_failed": "Der Fehlerbericht konnte nicht geöffnet werden. Versuche es erneut oder kopiere die obigen Details in ein neues Issue.",
     "searchIssues": "Ähnliche Probleme suchen",
     "unexpected": "Unerwarteter Fehler: {{message}}",
-    "backend_shutting_down": "OmniVoice wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal."
+    "backend_shutting_down": "OmniVoice wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal.",
+    "crash_broken_env": "Er ist beim Laden seiner eigenen Python-Abhängigkeiten gestorben — es geht also weder um Speicher noch um deine GPU, sondern um eine unvollständige oder halb aktualisierte Umgebung. Nutze „Clean & Retry“ unter Einstellungen → Logs → Backend: Das baut sie von Grund auf neu und repariert sie an Ort und Stelle, ohne deine Stimmen oder Projekte anzurühren. Schlägt es danach weiter fehl, nennen die Absturzdetails das Paket, das sich nicht importieren ließ."
   },
   "keyboard": {
     "title": "Tastaturkürzel",

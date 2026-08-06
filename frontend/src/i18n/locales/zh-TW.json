@@ -1452,7 +1452,8 @@
     "report_failed": "無法開啟錯誤回報。請重試，或將上方的詳細資訊複製到新的 issue 中。",
     "searchIssues": "搜尋類似問題",
     "unexpected": "未預期的錯誤：{{message}}",
-    "backend_shutting_down": "OmniVoice 正在關閉。請重新開啟應用程式後再試。"
+    "backend_shutting_down": "OmniVoice 正在關閉。請重新開啟應用程式後再試。",
+    "crash_broken_env": "它在載入自身的 Python 相依套件時結束，因此與記憶體或顯示卡無關——執行環境不完整，或更新到一半就停住了。請在 設定 → 記錄 → 後端 中使用「Clean & Retry」，它會從頭重建環境並就地修復，不會動到你的聲音或專案。若之後仍然失敗，當機詳情會指出無法匯入的確切套件。"
   },
   "keyboard": {
     "title": "鍵盤快速鍵",

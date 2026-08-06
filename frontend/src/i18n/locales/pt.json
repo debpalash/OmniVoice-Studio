@@ -1452,7 +1452,8 @@
     "report_failed": "Não foi possível abrir o relatório de bug. Tente novamente ou copie os detalhes acima para uma nova issue.",
     "searchIssues": "Pesquisar problemas semelhantes",
     "unexpected": "Erro inesperado: {{message}}",
-    "backend_shutting_down": "O OmniVoice está sendo encerrado. Reabra o aplicativo e tente novamente."
+    "backend_shutting_down": "O OmniVoice está sendo encerrado. Reabra o aplicativo e tente novamente.",
+    "crash_broken_env": "Ele morreu enquanto carregava as próprias dependências de Python, então não é questão de memória nem da sua GPU — o ambiente está incompleto ou ficou atualizado pela metade. Use \"Clean & Retry\" em Configurações → Logs → Backend, que o reconstrói do zero e o repara no lugar, sem tocar nas suas vozes ou projetos. Se continuar falhando, os detalhes da falha nomeiam o pacote exato que não importava."
   },
   "keyboard": {
     "title": "Atalhos de teclado",

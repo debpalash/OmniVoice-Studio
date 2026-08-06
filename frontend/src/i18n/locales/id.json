@@ -1452,7 +1452,8 @@
     "report_failed": "Tidak dapat membuka laporan bug. Coba lagi, atau salin detail di atas ke isu baru.",
     "searchIssues": "Cari masalah serupa",
     "unexpected": "Kesalahan tak terduga: {{message}}",
-    "backend_shutting_down": "OmniVoice sedang ditutup. Buka kembali aplikasinya lalu coba lagi."
+    "backend_shutting_down": "OmniVoice sedang ditutup. Buka kembali aplikasinya lalu coba lagi.",
+    "crash_broken_env": "Ia mati saat memuat dependensi Python-nya sendiri, jadi ini bukan soal memori atau GPU Anda — lingkungannya tidak lengkap atau tertinggal setengah diperbarui. Gunakan \"Clean & Retry\" di Pengaturan → Log → Backend, yang membangunnya ulang dari nol dan memperbaikinya di tempat, tanpa menyentuh suara atau proyek Anda. Jika masih gagal, detail crash menyebutkan paket persis yang gagal diimpor."
   },
   "keyboard": {
     "title": "Pintasan keyboard",
