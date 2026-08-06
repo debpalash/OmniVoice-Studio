@@ -212,6 +212,30 @@ def _is_compute_type_error(msg: str) -> bool:
     return "compute type" in low or "efficient float16" in low
 
 
+def _ctranslate2_cudnn_ok() -> tuple[bool, str]:
+    """Availability gate for the two CTranslate2 engines (WhisperX, faster-whisper).
+
+    Importing them proves nothing about cuDNN 8: CTranslate2 only reaches for it
+    when it builds a CUDA model, and if it is missing the library prints
+    ``Could not locate cudnn_ops_infer64_8.dll`` and ``__fastfail``s — taking the
+    whole backend down with 0xC0000409, no exception, no traceback, nothing to
+    fall back from (#1371). The shell restarts the backend, the user retries,
+    and it dies again.
+
+    So ask *before* selecting the engine, and let ``_auto_detect`` fall through
+    to pytorch-whisper — which runs on torch's own cuDNN 9 stack and exists for
+    exactly this case. Same shape as the #692 exec-stack handling: a native
+    library we cannot load makes the engine unavailable, not fatal.
+    """
+    try:
+        from core.cudnn8 import ctranslate2_cudnn_status
+
+        return ctranslate2_cudnn_status()
+    except Exception as e:  # noqa: BLE001 — a broken probe must not block ASR
+        logger.debug("cuDNN 8 probe unavailable (%s) — assuming usable", e)
+        return True, "ready"
+
+
 def _decode_audio_16k_mono(audio_path: str):
     """Decode `audio_path` to a 16 kHz mono float32 waveform using VoiceStudio's
     *validated* ffmpeg, instead of whisperx.load_audio's bare ``"ffmpeg"`` PATH
@@ -576,7 +600,6 @@ class WhisperXBackend(ASRBackend):
     def is_available(cls) -> tuple[bool, str]:
         try:
             import whisperx  # noqa: F401
-            return True, "ready"
         except ImportError as e:
             return False, f"whisperx not installed: {e}"
         except Exception as e:  # noqa: BLE001
@@ -586,6 +609,7 @@ class WhisperXBackend(ASRBackend):
             # availability probe must REPORT 'unusable here', never raise, so
             # engine selection falls back instead of crashing the ASR preflight.
             return False, f"whisperx failed to load ({type(e).__name__}): {e}"
+        return _ctranslate2_cudnn_ok()
 
     def ensure_loaded(self) -> None:
         # Surface a whisperx/CTranslate2/torch load failure at preflight (once,
@@ -939,7 +963,6 @@ class FasterWhisperBackend(ASRBackend):
     def is_available(cls) -> tuple[bool, str]:
         try:
             import faster_whisper  # noqa: F401
-            return True, "ready"
         except ImportError as e:
             return False, f"faster-whisper not installed: {e}"
         except Exception as e:  # noqa: BLE001
@@ -947,6 +970,7 @@ class FasterWhisperBackend(ASRBackend):
             # hardened kernels / newer glibc ("cannot enable executable stack",
             # #692) — an OSError. Report unavailable so we fall back, not crash.
             return False, f"faster-whisper failed to load ({type(e).__name__}): {e}"
+        return _ctranslate2_cudnn_ok()
 
     def _ensure_model(self):
         if self._model is not None:
