@@ -172,13 +172,20 @@ export function apiUrl(path?: string): string {
   return path.startsWith('http') ? path : `${API}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
-async function readError(res: Response): Promise<string> {
+// `backendShaped` — whether the body was OmniVoice's own error format. Every
+// backend error route answers JSON with `detail`/`error` (Starlette's mounted
+// StaticFiles answer plain-text "Not Found", the one non-JSON backend voice).
+// Anything else — an HTML 404 page, a host's "NOT_FOUND" blob — is some OTHER
+// server answering, which is a routing problem, not a backend error (#1385).
+async function readError(res: Response): Promise<{ detail: unknown; backendShaped: boolean }> {
   const text = await res.text().catch(() => '');
   try {
     const j = JSON.parse(text);
-    return j.detail || j.error || text || res.statusText;
+    const d = j.detail || j.error;
+    if (d) return { detail: d, backendShaped: true };
+    return { detail: text || res.statusText, backendShaped: false };
   } catch {
-    return text || res.statusText;
+    return { detail: text || res.statusText, backendShaped: text.trim() === 'Not Found' };
   }
 }
 
@@ -392,7 +399,20 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
     }
     if (!res.ok) {
       // An HTTP error means the backend *did* respond — never retry it.
-      const detail = await readError(res);
+      const { detail, backendShaped } = await readError(res);
+      // #1385: a 404 in some other server's voice means the request never
+      // reached an OmniVoice backend at all — a static host's catch-all page
+      // or a reverse proxy with no route for this path. Echoing that page
+      // ("NOT_FOUND bom1::…") sends the user chasing a page that never
+      // existed; name the actual problem instead: where requests are going.
+      if (res.status === 404 && !backendShaped) {
+        throw new ApiError(
+          `The server answering ${apiUrl(path)} is not an OmniVoice backend — it returned its own 404 page. ` +
+            'API requests are landing on the wrong host: check the Backend URL in Settings → Sharing & Remote Access, ' +
+            'or, if a reverse proxy serves this UI, its route for API paths.',
+          { status: res.status, detail },
+        );
+      }
       // 401 on a remote device: route to the right gate by reading the detail.
       // "API key required" (BearerKeyMiddleware, OMNIVOICE_API_KEY) vs anything
       // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
