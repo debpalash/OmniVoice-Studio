@@ -31,6 +31,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- The dictation model picker now tells the truth about download size. Every one of the seven models was wrong: Parakeet TDT v3, the recommended default, said 180 MB and actually downloads 670 MB, while the small low-RAM fallbacks were advertised as three times bigger than they are. (#1398)
+- Dictation with the 0.6B Parakeet models is steadier under load — they now decode on more threads (still capped by your CPU, still overridable with `OMNIVOICE_SHERPA_ASR_THREADS`). The small models are unchanged. (#1398)
 - The dictation hotkey no longer leaves a blank dark square stuck on your desktop. A press that arrived while the pill was re-arming was dropped, and the window it had already opened had nothing in it and no way to close it. (#1398)
 - Dictation is more reliable to trigger: the hotkey listener no longer briefly detaches every time the pill changes state, so a press is never silently lost. (#1398)
 - Text ending in punctuation no longer wastes a whole synthesis pass on it. A chunk boundary could leave a trailing fragment with nothing speakable in it, which the engine renders as nothing at all. (#1330)
