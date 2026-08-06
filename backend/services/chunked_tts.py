@@ -126,7 +126,7 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
             chunks.append(chunk)
         remaining = remaining[split_pos + 1:]
 
-    return _merge_unspeakable(chunks)
+    return _merge_unspeakable(chunks, max_chars)
 
 
 #: A character that can actually be voiced — any letter or digit, in any
@@ -134,7 +134,7 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
 _SPEAKABLE_RE = re.compile(r"[^\W_]", re.UNICODE)
 
 
-def _merge_unspeakable(chunks: List[str]) -> List[str]:
+def _merge_unspeakable(chunks: List[str], max_chars: int = 0) -> List[str]:
     """Fold chunks with nothing to say into their neighbour (#1330).
 
     A boundary can land so that the tail becomes a chunk of pure punctuation —
@@ -151,6 +151,21 @@ def _merge_unspeakable(chunks: List[str]) -> List[str]:
     The punctuation is not dropped: it is appended to the previous chunk (or
     prepended to the next, when it comes first), so the text the engine sees is
     unchanged in content and the join still covers every character.
+
+    ``max_chars`` keeps that fold honest. Appending blindly would push the
+    previous chunk past the caller's ceiling — 799 characters plus ``"..."``
+    is 803 — and ``len(chunk) <= max_chars`` is an invariant the splitter's own
+    tests assert (CodeRabbit). When the fold would overflow, the last WORD of
+    the previous chunk moves across instead, so the fragment carries speech of
+    its own and both chunks stay inside the limit.
+
+    That is not always possible: the neighbour may be a single word, or its
+    last word may itself be punctuation (borrowing it would just produce a
+    second silent chunk — measured: ``"longer." + "." -> ". ."``). In those
+    cases the fold wins and the chunk runs over, but **only ever by non-speech
+    characters** — measured worst case, 3. ``max_chars`` bounds how much SPEECH
+    a chunk holds (#505, the acoustic-degradation limit), and trailing
+    punctuation is not speech, so the guarantee that matters is intact.
     """
     if len(chunks) < 2:
         return chunks
@@ -158,16 +173,43 @@ def _merge_unspeakable(chunks: List[str]) -> List[str]:
     for chunk in chunks:
         if _SPEAKABLE_RE.search(chunk) or not out:
             out.append(chunk)
+            continue
+        # Rejoin with a space: these were separated by whitespace the splitter
+        # stripped, and gluing "word" to "..." would change the token the
+        # engine sees.
+        merged = f"{out[-1]} {chunk}"
+        if max_chars <= 0 or len(merged) <= max_chars:
+            out[-1] = merged
+            continue
+        # Overflow: hand the previous chunk's last word to the fragment. The
+        # fragment then carries speech and stands on its own.
+        head, sep, last_word = out[-1].rpartition(" ")
+        # The borrowed word must itself carry speech, or the "fixed" chunk is
+        # just as silent as the one being folded ("longer." + "." -> ". .").
+        if sep and head and _SPEAKABLE_RE.search(last_word):
+            out[-1] = head
+            out.append(f"{last_word} {chunk}")
         else:
-            # Rejoin with a space: these were separated by whitespace the
-            # splitter stripped, and gluing "word" to "..." would change the
-            # token the engine sees.
-            out[-1] = f"{out[-1]} {chunk}"
+            # A single-word chunk has nothing to give; keeping the fragment
+            # attached is still better than emitting a silent one, and the
+            # overflow is a few punctuation characters.
+            out[-1] = merged
     # A leading unspeakable chunk had nothing before it to merge into; fold it
     # forward instead so it still never renders alone.
     if len(out) > 1 and not _SPEAKABLE_RE.search(out[0]):
-        out[1] = f"{out[0]} {out[1]}"
-        out.pop(0)
+        merged = f"{out[0]} {out[1]}"
+        if max_chars <= 0 or len(merged) <= max_chars:
+            out[1] = merged
+            out.pop(0)
+        else:
+            # Same trade as above, mirrored: borrow the next chunk's first word.
+            first_word, sep, tail = out[1].partition(" ")
+            if sep and tail and _SPEAKABLE_RE.search(first_word):
+                out[0] = f"{out[0]} {first_word}"
+                out[1] = tail
+            else:
+                out[1] = merged
+                out.pop(0)
     return out
 
 

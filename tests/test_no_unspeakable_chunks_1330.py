@@ -122,3 +122,43 @@ def test_cjk_counts_as_speakable(ct):
     cjk = "こんにちは"  # hiragana
     merged = ct._merge_unspeakable([cjk, cjk])
     assert merged == [cjk, cjk]
+
+
+# ── the fold respects the size contract ────────────────────────────────────
+
+
+def test_the_fold_prefers_moving_a_word_over_overflowing(ct):
+    """Given room to rebalance, both chunks stay inside the limit."""
+    text = ("word " * 40).strip() + " ..."
+    chunks = ct.split_text_into_chunks(text, 120)
+    assert all(len(c) <= 120 for c in chunks), [len(c) for c in chunks]
+    assert not _dead(chunks)
+
+
+def test_a_borrowed_word_must_itself_be_speakable(ct):
+    """Borrowing a word that is punctuation just moves the silence: the
+    measured regression was ``"longer." + "." -> ". ."``, a fresh dead chunk
+    produced by the very code meant to remove them."""
+    merged = ct._merge_unspeakable(["some words longer.", ".", "."], 20)
+    assert not _dead(merged), merged
+
+
+def test_any_overflow_is_punctuation_only_and_small(ct):
+    """When no word can move, the fold wins — but max_chars bounds SPEECH
+    (#505), so nothing past the limit may be speakable."""
+    import random
+    import re as _re
+
+    random.seed(11)
+    words = ["hello", "world", "testing", "a", "sentence", "with", "words"]
+    worst = 0
+    for max_chars in (120, 200, 400, 800):
+        for _ in range(200):
+            text = " ".join(random.choice(words) for _ in range(random.randint(50, 400)))
+            text += random.choice([".", " ...", ' "', " —", " !!!", " ;", ". . .", ".. .."])
+            for c in ct.split_text_into_chunks(text, max_chars):
+                if len(c) > max_chars:
+                    excess = c[max_chars:]
+                    assert not _re.search(r"[^\W_]", excess), f"speech past the limit: {excess!r}"
+                    worst = max(worst, len(excess))
+    assert worst <= 8, f"overflow grew to {worst} characters"
