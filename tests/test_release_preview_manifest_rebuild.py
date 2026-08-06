@@ -181,6 +181,40 @@ def test_the_workflow_binds_the_manifest_to_the_run_that_built_it():
     )
 
 
+def test_the_preview_job_can_actually_read_its_run_metadata():
+    """`contents: write` alone 403s the Actions Runs API (greptile), which
+    under `set -e` would take the whole publish down — the outage this change
+    exists to end, with a different cause."""
+    import yaml
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, ".github", "workflows", "release.yml"), encoding="utf-8") as fh:
+        wf = yaml.safe_load(fh)
+    perms = wf["jobs"]["preview-notes"]["permissions"]
+    assert perms.get("actions") == "read", (
+        "preview-notes reads repos/…/actions/runs/<id>; without `actions: read` "
+        "that call 403s"
+    )
+
+
+def test_preview_runs_cannot_overlap():
+    """Two preview runs publish to the SAME rolling release, and the
+    version-less macOS tarballs carry nothing identifying their run — so an
+    overlap lets one run's manifest describe another run's Mac binaries
+    (greptile). Serialization is what makes 'uploaded after this run started'
+    mean 'belongs to this run'."""
+    import yaml
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, ".github", "workflows", "release.yml"), encoding="utf-8") as fh:
+        wf = yaml.safe_load(fh)
+    assert "concurrency" in wf, "release.yml has no concurrency group — preview runs can overlap"
+    assert wf["concurrency"].get("cancel-in-progress") is False, (
+        "cancelling an in-flight preview mid-upload would leave a half-uploaded "
+        "asset set for the next run to describe"
+    )
+
+
 def test_unreadable_timestamps_are_refused_not_ignored():
     """Missing `updatedAt` means the freshness check cannot run. Proceeding
     would silently drop the only thing tying the darwin bundles to this run."""
