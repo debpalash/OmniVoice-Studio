@@ -306,12 +306,40 @@ def _client_429_then_ok(retry_after="2"):
     return client, calls
 
 
+def _record_sleeps(monkeypatch):
+    """Patch ``time.sleep`` and return only the waits THIS thread asked for.
+
+    ``translator`` does a plain ``import time``, so ``tr.time`` is the stdlib
+    module itself and patching it replaces ``time.sleep`` process-wide. Any
+    daemon thread a previous test left running then writes into the list —
+    and, worse, stops sleeping at all. ``subprocess_backend``'s sidecar idle
+    reaper does exactly that on a 30s loop, so a full-suite run turned
+    ``assert not slept`` into ``assert not [30.0, 30.0, …]`` while the reaper
+    busy-looped. Filtering by thread makes the assertion mean what it says:
+    the waits _chat itself performed.
+    """
+    import threading
+    import time as _time
+
+    mine = threading.get_ident()
+    waits: list = []
+    real = _time.sleep
+
+    def fake(seconds):
+        if threading.get_ident() == mine:
+            waits.append(seconds)
+            return
+        real(seconds)  # someone else's thread: let it really sleep
+
+    monkeypatch.setattr(tr.time, "sleep", fake)
+    return waits
+
+
 def test_chat_honors_retry_after_once(monkeypatch):
     """A 429 with a small Retry-After gets ONE polite wait + retry, not a hard
     fail. OpenRouter's free pool says 'Retry-After: 2' — giving up instantly
     turned a two-second wait into a whole failed reflect pass."""
-    sleeps = []
-    monkeypatch.setattr(tr.time, "sleep", lambda s: sleeps.append(s))
+    sleeps = _record_sleeps(monkeypatch)
     client, calls = _client_429_then_ok("2")
     out = tr._chat(client, system="s", user="u")
     assert out == "recovered"
@@ -321,8 +349,7 @@ def test_chat_honors_retry_after_once(monkeypatch):
 
 def test_chat_caps_absurd_retry_after(monkeypatch):
     """A provider demanding a 10-minute wait gets the cap, not a stalled dub."""
-    sleeps = []
-    monkeypatch.setattr(tr.time, "sleep", lambda s: sleeps.append(s))
+    sleeps = _record_sleeps(monkeypatch)
     client, _ = _client_429_then_ok("600")
     tr._chat(client, system="s", user="u")
     assert sleeps and sleeps[0] <= tr._RETRY_AFTER_CAP_S + 1.5
@@ -331,7 +358,7 @@ def test_chat_caps_absurd_retry_after(monkeypatch):
 def test_chat_second_429_propagates(monkeypatch):
     """One retry only — a persistent throttle degrades the segment instead of
     looping."""
-    monkeypatch.setattr(tr.time, "sleep", lambda s: None)
+    _record_sleeps(monkeypatch)
     from unittest.mock import MagicMock
 
     client = MagicMock()
@@ -344,8 +371,7 @@ def test_chat_second_429_propagates(monkeypatch):
 
 def test_chat_non_429_does_not_retry(monkeypatch):
     """Only rate limits are retryable; real errors propagate immediately."""
-    slept = []
-    monkeypatch.setattr(tr.time, "sleep", lambda s: slept.append(s))
+    slept = _record_sleeps(monkeypatch)
     from unittest.mock import MagicMock
 
     client = MagicMock()

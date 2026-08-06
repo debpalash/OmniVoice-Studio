@@ -31,10 +31,18 @@ MAC_X86_64 = "OmniVoice.Studio_x64.app.tar.gz"
 _APPIMAGE_RE = r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_amd64\.AppImage"
 _MSI_RE = r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_x64_en-US\.msi"
 
-#: How far a darwin bundle's upload time may precede the versioned artifacts of
-#: the same run. The matrix legs finish minutes apart, so some slack is
-#: required; it only has to be far smaller than the gap between two runs.
+#: Fallback only (no ``run_started_at`` given): how far a darwin bundle's
+#: upload time may precede the versioned artifacts of the same run. This
+#: binding is inherently flaky — the matrix legs routinely finish more than
+#: two minutes apart (the fast Apple-Silicon leg uploads long before a slow
+#: Windows leg), which is exactly how the 2026-08-05 nightly refused its own
+#: healthy build. The workflow therefore passes ``run_started_at`` and this
+#: window governs only direct/manual invocations.
 FRESHNESS_SLACK = datetime.timedelta(minutes=2)
+
+#: Clock slack for the ``run_started_at`` binding: GitHub's asset timestamps
+#: and the run's start time come from different services.
+RUN_START_SLACK = datetime.timedelta(minutes=2)
 
 NOTES = ("Auto-generated rolling preview build from main. "
          "See CHANGELOG.md and the commit log for details.")
@@ -68,12 +76,21 @@ def _parse_ts(value):
     return datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
-def build_manifest(assets, repo: str, *, signatures, pub_date=None) -> dict:
+def build_manifest(assets, repo: str, *, signatures, pub_date=None,
+                   run_started_at=None) -> dict:
     """Build the updater manifest, or raise :class:`ManifestRefused`.
 
     ``assets`` is ``[{"name": …, "updatedAt": …}, …]`` as ``gh release view``
     returns it. ``signatures`` maps an asset name to its ``.sig`` contents;
     it is passed in so this function needs no network.
+
+    ``run_started_at`` — ISO timestamp of the workflow run's FIRST attempt.
+    When given, it is the binding for the version-less darwin tarballs: any
+    upload after it belongs to this run (only one preview run touches the
+    release at a time), regardless of how far apart the matrix legs finish
+    or which attempt re-uploaded what. Without it, the fallback compares
+    against the versioned artifacts' upload times with a slack that cannot
+    tell "slow sibling leg" from "stale" reliably.
     """
     names = [a["name"] for a in assets]
     updated_at = {a["name"]: a.get("updatedAt") for a in assets}
@@ -116,21 +133,32 @@ def build_manifest(assets, repo: str, *, signatures, pub_date=None) -> dict:
     try:
         newest_versioned = max(_parse_ts(updated_at[appimage]), _parse_ts(updated_at[msi]))
         mac_times = {n: _parse_ts(updated_at[n]) for n in (MAC_AARCH64, MAC_X86_64)}
+        run_start = _parse_ts(run_started_at) if run_started_at else None
     except (TypeError, ValueError) as e:
         raise ManifestRefused(
-            f"cannot read asset upload times, so the macOS bundles cannot be tied "
-            f"to this run: {e}"
+            f"cannot read the asset upload times (or this run's start time), so "
+            f"the macOS bundles cannot be tied to this run: {e}"
         ) from e
 
-    stale = sorted(n for n, t in mac_times.items() if t < newest_versioned - FRESHNESS_SLACK)
+    if run_start is not None:
+        # Anything uploaded after this run began is this run's. Comparing the
+        # legs to EACH OTHER instead (the fallback below) refuses a healthy
+        # build whenever the macOS legs finish more than the slack ahead of
+        # the slowest versioned leg — which is normal, and is what failed the
+        # 2026-08-05 nightly with all four builds green.
+        cutoff = run_start - RUN_START_SLACK
+        stale = sorted(n for n, t in mac_times.items() if t < cutoff)
+        reference = f"this run started at {run_start.isoformat()}"
+    else:
+        stale = sorted(n for n, t in mac_times.items() if t < newest_versioned - FRESHNESS_SLACK)
+        reference = f"this run's versioned artifacts ({newest_versioned.isoformat()})"
     if stale:
         raise ManifestRefused(
-            f"the macOS updater bundle(s) {stale} were last uploaded before this "
-            f"run's versioned artifacts ({newest_versioned.isoformat()}), so they "
-            f"are from an EARLIER build. Publishing would advertise {version} while "
-            f"serving Mac users the previous one — and because they would keep "
-            f"reporting the old version, the updater would re-offer it forever. "
-            f"Re-run the macOS legs."
+            f"the macOS updater bundle(s) {stale} were last uploaded before "
+            f"{reference}, so they are from an EARLIER build. Publishing would "
+            f"advertise {version} while serving Mac users the previous one — and "
+            f"because they would keep reporting the old version, the updater would "
+            f"re-offer it forever. Re-run the macOS legs."
         )
 
     entries = {
