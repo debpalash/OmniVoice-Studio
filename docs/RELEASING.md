@@ -12,7 +12,7 @@ The private key needs to live in **GitHub Actions Secrets** so CI can sign each 
    ```
    cat ~/.tauri/omnivoice-updater.key
    ```
-2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** (on `debpalash/OmniVoice-Studio`, which is where the updater endpoint points):
+2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** (on `debpalash/VoiceStudio`, which is where the updater endpoint points):
    - Name: `TAURI_SIGNING_PRIVATE_KEY`
    - Value: paste the full contents (including the `untrusted comment:` header line)
 3. Add a second secret:

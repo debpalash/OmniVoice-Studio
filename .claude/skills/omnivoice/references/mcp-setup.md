@@ -5,7 +5,7 @@
 ```bash
 # Pick any location. The scripts in this skill default to ~/VoiceStudio if
 # $OMNIVOICE_HOME is unset.
-export OMNIVOICE_HOME="${HOME}/OmniVoice-Studio"
+export OMNIVOICE_HOME="${HOME}/VoiceStudio"
 
 git clone https://github.com/debpalash/VoiceStudio.git "$OMNIVOICE_HOME"
 cd "$OMNIVOICE_HOME"
@@ -37,7 +37,7 @@ Drop into your MCP client config (Claude Desktop, Claude Code at `~/.claude.json
 
 Restart the MCP client. The server only starts at client launch — in-session edits do not hot-reload.
 
-> **Note (mcp SDK ≥ 1.10):** If you see `TypeError: FastMCP.__init__() got an unexpected keyword argument 'version'`, your `OmniVoice-Studio` checkout is older than [debpalash/OmniVoice-Studio#112](https://github.com/debpalash/VoiceStudio/pull/112). Either `git pull` once that PR lands, or apply the 3-line patch manually: replace `version="…", description=(…)` with `instructions=(…)` in `backend/mcp_server.py`.
+> **Note (mcp SDK ≥ 1.10):** If you see `TypeError: FastMCP.__init__() got an unexpected keyword argument 'version'`, your `VoiceStudio` checkout is older than [debpalash/VoiceStudio#112](https://github.com/debpalash/VoiceStudio/pull/112). Either `git pull` once that PR lands, or apply the 3-line patch manually: replace `version="…", description=(…)` with `instructions=(…)` in `backend/mcp_server.py`.
 
 ## Backend Lifecycle
 
