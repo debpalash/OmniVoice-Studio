@@ -280,6 +280,16 @@ Intel-Mac wheels, so this entry only applies to historical installs (see
 log shows `Could not locate cudnn_ops_infer64_8.dll`. Settings → Models shows
 WhisperX or faster-whisper selected.
 
+On builds before this was fixed, the failure looked much worse than a failed
+transcribe: CTranslate2 aborts the **process** rather than raising, so the whole
+backend died with `exit code -1073740791` (`0xC0000409`) and no error, the app
+restarted it, and the next attempt killed it again
+([#1371](https://github.com/debpalash/VoiceStudio/issues/1371)). VoiceStudio now
+checks whether cuDNN 8 will load *before* selecting a CTranslate2 engine and
+falls back to PyTorch Whisper instead, so a missing library costs you WhisperX's
+word-level alignment — not the backend. The repair below is still worth doing to
+get WhisperX back.
+
 **Cause:** WhisperX and faster-whisper run on **CTranslate2**, which needs
 **cuDNN 8**, but PyTorch 2.8 ships cuDNN 9. VoiceStudio side-loads a cuDNN-8 copy
 from `.venv\Lib\site-packages\cudnn8_compat\` — but the step that installs that

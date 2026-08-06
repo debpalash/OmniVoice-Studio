@@ -96,35 +96,17 @@ except ImportError:
 
 # ── cuDNN 8 library preload ─────────────────────────────────────────────
 # CTranslate2 (used by faster-whisper / WhisperX) requires cuDNN 8, but
-# PyTorch 2.8+ pulls cuDNN 9. scripts/setup.py installs cuDNN 8
-# side-by-side into cudnn8_compat/ (survives `uv sync`). We preload all
-# cuDNN 8 libs via ctypes so CTranslate2's dlopen/LoadLibrary finds them.
-if sys.platform != "darwin":  # macOS has no CUDA
-    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    _pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    if sys.platform == "win32":
-        _cudnn8_lib = os.path.join(
-            _project_root, ".venv", "Lib", "site-packages",
-            "cudnn8_compat", "nvidia", "cudnn", "bin",
-        )
-        _cudnn8_glob = "cudnn*64_8.dll"
-    else:
-        _cudnn8_lib = os.path.join(
-            _project_root, ".venv", "lib", _pyver, "site-packages",
-            "cudnn8_compat", "nvidia", "cudnn", "lib",
-        )
-        _cudnn8_glob = "libcudnn*.so.8"
-    if os.path.isdir(_cudnn8_lib):
-        try:
-            import ctypes, glob
-            _mode = 0 if sys.platform == "win32" else ctypes.RTLD_GLOBAL
-            for _so in sorted(glob.glob(os.path.join(_cudnn8_lib, _cudnn8_glob))):
-                try:
-                    ctypes.CDLL(_so, mode=_mode)
-                except OSError:
-                    pass
-        except Exception:
-            pass
+# PyTorch 2.8+ pulls cuDNN 9, so the bootstrap side-loads cuDNN 8 into
+# cudnn8_compat/ and we preload it here for CTranslate2's dlopen/LoadLibrary.
+# Lives in core.cudnn8 so the ASR sidecar — a child process with its own clean
+# import path — gets the same preload, and so `asr_backend` can ASK whether it
+# worked instead of walking into a native __fastfail (#1371).
+try:
+    from core.cudnn8 import preload as _preload_cudnn8
+
+    _preload_cudnn8()
+except Exception:  # noqa: BLE001 — never block startup on a best-effort preload
+    pass
 
 # Route HF/Torch caches to a single external directory when requested.
 _cache_dir = os.environ.get("OMNIVOICE_CACHE_DIR")
