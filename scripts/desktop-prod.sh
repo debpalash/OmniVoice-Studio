@@ -63,10 +63,10 @@ elif [ "$PLATFORM" = "windows" ]; then
   # (backend/core/config.py::get_app_data_dir) and relocates the HF cache to
   # %LOCALAPPDATA%\OmniVoice\hf_cache. Tauri keys its data by APP_ID under
   # LOCALAPPDATA; WebView2 state lives in EBWebView. All paths are APP_ID/
-  # VoiceStudio-scoped, and each rm is guarded by `[ -d ]`, so a slightly-off
+  # data-dir-scoped, and each rm is guarded by `[ -d ]`, so a slightly-off
   # path is a no-op, never a wrong delete.
   APP_DATA="${LOCALAPPDATA}/${APP_ID}"
-  BACKEND_DATA="${APPDATA}/VoiceStudio"
+  BACKEND_DATA="${APPDATA}/OmniVoice"
   TAURI_LOGS="${LOCALAPPDATA}/${APP_ID}/logs"
   WEBKIT_DATA="${LOCALAPPDATA}/${APP_ID}/EBWebView"
   HF_CACHE="${HF_HOME:-${LOCALAPPDATA}/OmniVoice/hf_cache}"

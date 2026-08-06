@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec for OmniVoice Studio backend.
+# PyInstaller spec for VoiceStudio backend.
 #
 # Produces a one-folder bundle at dist/omnivoice-backend/ that Tauri launches
 # as a sidecar binary. Kept intentionally permissive with collect_all(...)

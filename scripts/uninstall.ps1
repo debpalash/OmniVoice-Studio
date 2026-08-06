@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  OmniVoice Studio — clean uninstaller (Windows).
+  VoiceStudio — clean uninstaller (Windows).
 
 .DESCRIPTION
-  Finds every folder OmniVoice wrote (app data, the managed Python env, config,
+  Finds every folder VoiceStudio wrote (app data, the managed Python env, config,
   logs) and — separately, because it's a SHARED cache — the Hugging Face model
   cache, prints each with its size, and removes them. Dry-run by default: it
   prints what it WOULD delete and stops, so you always see the plan first.
@@ -72,10 +72,10 @@ foreach ($p in @($dataDir, $configDefault, $logsDefault, $userEnvDir)) {
   if (Test-Path -LiteralPath $p) { $appTargets += $p }
 }
 
-Write-Host 'OmniVoice Studio uninstaller (Windows)'
-Write-Host '--------------------------------------'
+Write-Host 'VoiceStudio uninstaller (Windows)'
+Write-Host '---------------------------------'
 if ($appTargets.Count -eq 0) {
-  Write-Host 'No OmniVoice app data / env / config folders found at the default or'
+  Write-Host 'No VoiceStudio app data / env / config folders found at the default or'
   Write-Host 'env-configured locations. Nothing to remove.'
 } else {
   Write-Host 'App data, managed Python env, config, and logs:'
@@ -94,7 +94,8 @@ Write-Host ''
 if (-not $Yes) {
   Write-Host 'DRY RUN — nothing deleted. Re-run with -Yes to remove the app folders'
   if ($modelsPresent) { Write-Host '         (add -Models to also remove the shared model cache).' }
-  Write-Host 'To remove the app itself: Settings > Apps > OmniVoice Studio > Uninstall.'
+  Write-Host 'To remove the app itself: Settings > Apps > VoiceStudio > Uninstall'
+  Write-Host '(listed as "OmniVoice Studio" if you have not updated since the rename).'
   exit 0
 }
 
@@ -148,4 +149,5 @@ if ($Models -and $modelsPresent) {
 
 Write-Host ''
 Write-Host "Done — removed $deleted folder(s)."
-Write-Host 'To remove the app itself: Settings > Apps > OmniVoice Studio > Uninstall.'
+Write-Host 'To remove the app itself: Settings > Apps > VoiceStudio > Uninstall'
+Write-Host '(listed as "OmniVoice Studio" if you have not updated since the rename).'

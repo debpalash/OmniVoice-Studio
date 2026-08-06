@@ -1,5 +1,5 @@
 #!/bin/sh
-# OmniVoice Studio — .deb post-install hook.
+# VoiceStudio — .deb post-install hook.
 #
 # Issue #76: prior versions placed bundled ffprobe at /usr/bin/ffprobe via
 # Tauri's externalBin, overwriting the system ffprobe on Ubuntu 26.04 + others.

@@ -1,4 +1,4 @@
-# ── OmniVoice Studio — Model Catalog ─────────────────────────────────────
+# ── VoiceStudio — Model Catalog ─────────────────────────────────────
 #
 # This file is the source of truth for all known HuggingFace models.
 # The backend loads it at startup via `load_model_catalog()`.

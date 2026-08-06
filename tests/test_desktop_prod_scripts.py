@@ -115,7 +115,7 @@ def test_kill_is_scoped_to_this_checkouts_build():
 
     Now that ``kill_running_instances`` runs on EVERY invocation rather than
     only on wipe runs, its pattern matters in a way it did not before. A bare
-    ``"OmniVoice Studio.app"`` matches the installed release app too, so a
+    ``"VoiceStudio.app"`` matches the installed release app too, so a
     developer running ``desktop-prod:run`` while using the shipped app would
     have it killed underneath them — losing unsaved work in a session this
     script never started. Previously that was masked: the kill only ran when
@@ -139,7 +139,7 @@ def test_kill_is_scoped_to_this_checkouts_build():
         f"build output, so it can match an installed app: {pgrep}"
     )
     assert "${APP_NAME}.app" not in pgrep, (
-        "kill_running_instances matches any 'OmniVoice Studio.app', including "
+        "kill_running_instances matches any 'VoiceStudio.app', including "
         f"the installed one in /Applications: {pgrep}"
     )
     # The installed copy still has to be surfaced — single-instance keys on the

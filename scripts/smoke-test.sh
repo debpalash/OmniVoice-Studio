@@ -86,11 +86,12 @@ if [ "$PLATFORM" = "macos" ]; then
 elif [ "$PLATFORM" = "windows" ]; then
   # Git Bash exposes Windows env vars; match backend/core/config.py paths.
   APP_DATA="${LOCALAPPDATA}/${APP_ID}"
-  OV_DATA="${APPDATA}/VoiceStudio"
+  OV_DATA="${APPDATA}/OmniVoice"
   HF_CACHE="${HF_HOME:-${LOCALAPPDATA}/OmniVoice/hf_cache}"
 else
   APP_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}"
-  OV_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/VoiceStudio"
+  # Linux: the backend uses ~/.omnivoice, NOT XDG (backend/core/config.py).
+  OV_DATA="$HOME/.omnivoice"
   HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}"
 fi
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OmniVoice Studio — AppImage launcher
+# VoiceStudio — AppImage launcher
 #
 # Issue #56: AppImage shows a white screen on Fedora 44 / Ubuntu 24.04.
 # Root cause: WebKitGTK 2.44.x / 2.46.x has a compositing-path regression on

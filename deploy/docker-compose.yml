@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────
-#  OmniVoice Studio — Docker Compose
+#  VoiceStudio — Docker Compose
 #
 #  Quick start:
 #    docker compose -f deploy/docker-compose.yml --profile cpu up    # CPU mode
