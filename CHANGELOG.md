@@ -19,7 +19,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
-- The app is now **VoiceStudio** (previously OmniVoice-Studio). The name changes everywhere you see it — the app itself, the installer, the window title and the docs — while your data folder, settings and the Docker image paths stay exactly where they are, so upgrading needs nothing from you. On Linux the .deb is now ; if you installed the old  package, remove it once.
+- The app is now **VoiceStudio** (previously OmniVoice-Studio). The name changes everywhere you see it — the app itself, the installer, the window title and the docs — while your data folder, settings and the Docker image paths stay exactly where they are, so upgrading needs nothing from you. On Linux the .deb package is now `voicestudio`; if you installed the old `omnivoice-studio` package, remove it once.
 - macOS floor raised to 13.3 (Ventura) — the frontend has required Safari 16.4 for some time, so macOS 12 was a promise the stack could not keep (#1268)
 
 ### Added
