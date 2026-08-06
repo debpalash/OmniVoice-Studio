@@ -86,6 +86,10 @@ const EN = {
     'thing the backend logged.',
   server:
     "Can't reach the OmniVoice backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",
+  desktop:
+    "Can't reach the local OmniVoice backend. {{contact}} Open the crash notice if one appeared, " +
+    'or Settings → Logs → Backend for the last thing it logged — "{{retry}}" restarts it, and ' +
+    '"{{cleanRetry}}" rebuilds its environment if it will not come back.',
   misrouted:
     'The server answering {{url}} is not an OmniVoice backend — it returned its own 404 page. ' +
     'API requests are landing on the wrong host: check the Backend URL in Settings → Sharing, ' +
@@ -116,16 +120,38 @@ export function describeLastContact(nowMs: number = Date.now()): string {
 }
 
 /**
- * Mode-aware give-up message for a transport failure (#1164). Only for
- * non-desktop modes — the desktop copy (crash markers, lifecycle stages,
- * Settings → Logs) stays in api/client.ts, where the shell forensics live.
+ * Mode-aware give-up message for a transport failure (#1164, #1337).
+ *
+ * Every mode now carries the last-contact story, desktop included. It used to
+ * be non-desktop only, and the desktop copy said "it may still be starting up,
+ * or it stopped" — which its own captured data often contradicted: #1337 and
+ * #1378 both recorded the backend answering **2 seconds** before the failure,
+ * and a backend that answered 2s ago is not starting up. Saying so sent
+ * desktop users off to wait and retry instead of at the forensics that would
+ * have told them what happened.
  */
 export function unreachableBackendMessage(
-  mode?: Exclude<DeploymentMode, 'desktop'> | DeploymentMode,
+  mode?: DeploymentMode,
   nowMs: number = Date.now(),
 ): string {
   const m = mode ?? deploymentMode();
   const contact = describeLastContact(nowMs);
+  if (m === 'desktop') {
+    // The buttons this names are themselves translated (French renders
+    // them as "Réessayer" / "Nettoyer et réessayer", Japanese differently
+    // again), so quoting the English labels would send a non-English user
+    // hunting for a button that says something else (CodeRabbit). Resolve
+    // them through the same i18n layer.
+    return tr(
+      'backendUnreachable.desktop',
+      {
+        contact,
+        retry: tr('bootstrap.retry', {}, 'Retry'),
+        cleanRetry: tr('bootstrap.clean_retry', {}, 'Clean & Retry'),
+      },
+      EN.desktop,
+    );
+  }
   if (m === 'dev') return tr('backendUnreachable.dev', { contact }, EN.dev);
   return tr('backendUnreachable.server', { contact }, EN.server);
 }

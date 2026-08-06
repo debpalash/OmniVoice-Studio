@@ -4,7 +4,8 @@
     "contact_never": "Nó chưa hề phản hồi trong phiên này — có thể nó chưa bao giờ khởi động.",
     "dev": "Không thể kết nối tới backend OmniVoice cục bộ. {{contact}} Với `bun run dev`, backend chạy ở chế độ tự tải lại: bất kỳ thay đổi tệp nào — kể cả lưu khi đang có yêu cầu — sẽ khởi động lại nó và làm mất kết nối. Hãy thử lại thao tác trước; nếu là do tải lại thì sẽ chạy được. Nếu vẫn lỗi, xem terminal đang chạy `bun run dev` để tìm traceback Python hoặc thông báo thoát, và omnivoice.log trong thư mục dữ liệu OmniVoice.",
     "server": "Không thể kết nối tới máy chủ backend OmniVoice. {{contact}} Hãy kiểm tra log máy chủ để tìm nguyên nhân (ví dụ `docker logs <container>` hoặc `journalctl`) — và lưu ý nếu Docker phục vụ trang này thì chính trang này cũng có thể sập cùng backend.",
-    "misrouted": "Máy chủ trả lời tại {{url}} không phải là backend của OmniVoice — nó đã trả về trang 404 của chính nó. Các yêu cầu API đang đi tới sai máy chủ: hãy kiểm tra Backend URL trong Cài đặt → Chia sẻ, hoặc nếu một reverse proxy phục vụ giao diện này, hãy kiểm tra tuyến đường của nó cho các đường dẫn API."
+    "misrouted": "Máy chủ trả lời tại {{url}} không phải là backend của OmniVoice — nó đã trả về trang 404 của chính nó. Các yêu cầu API đang đi tới sai máy chủ: hãy kiểm tra Backend URL trong Cài đặt → Chia sẻ, hoặc nếu một reverse proxy phục vụ giao diện này, hãy kiểm tra tuyến đường của nó cho các đường dẫn API.",
+    "desktop": "Không thể kết nối tới backend OmniVoice cục bộ. {{contact}} Hãy mở thông báo sự cố nếu có, hoặc vào Cài đặt → Nhật ký → Backend để xem điều cuối cùng nó ghi lại — \"{{retry}}\" khởi động lại nó, và \"{{cleanRetry}}\" dựng lại môi trường nếu nó không quay lại."
   },
   "nav": {
     "clone": "Nhân bản",

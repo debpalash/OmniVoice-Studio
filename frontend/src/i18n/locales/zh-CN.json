@@ -4,7 +4,8 @@
     "contact_never": "本次会话中它从未响应过——可能根本没有启动。",
     "dev": "无法连接本地 OmniVoice 后端。{{contact}} 在 `bun run dev` 下后端以自动重载方式运行，任何文件改动（包括请求进行中的保存）都会重启它并中断连接。请先重试该操作；如果是重载导致的，重试即可成功。若仍然失败，请查看运行 `bun run dev` 的终端是否有 Python 回溯或退出信息，以及 OmniVoice 数据文件夹中的 omnivoice.log。",
     "server": "无法连接 OmniVoice 后端服务器。{{contact}} 请查看服务器日志以找到原因（例如 `docker logs <容器>` 或 `journalctl`）——另外请注意：如果此页面由 Docker 提供，页面本身也可能随后端一起不可用。",
-    "misrouted": "响应 {{url}} 的服务器不是 OmniVoice 后端——它返回了自己的 404 页面。API 请求发送到了错误的主机：请在 设置 → 分享 中检查后端 URL；如果此界面由反向代理提供，请检查它对 API 路径的路由配置。"
+    "misrouted": "响应 {{url}} 的服务器不是 OmniVoice 后端——它返回了自己的 404 页面。API 请求发送到了错误的主机：请在 设置 → 分享 中检查后端 URL；如果此界面由反向代理提供，请检查它对 API 路径的路由配置。",
+    "desktop": "无法连接本地 OmniVoice 后端。{{contact}} 如果出现了崩溃提示，请打开它；或在 设置 → 日志 → 后端 中查看它最后记录的内容——“{{retry}}”会重新启动它，若仍无法恢复，“{{cleanRetry}}”会重建它的运行环境。"
   },
   "stories": {
     "title": "故事编辑器",
