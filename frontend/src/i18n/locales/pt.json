@@ -4,7 +4,8 @@
     "contact_never": "Não respondeu nenhuma vez nesta sessão — pode ser que nunca tenha iniciado.",
     "dev": "Não é possível contactar o backend local do OmniVoice. {{contact}} Com `bun run dev` o backend corre com recarga automática: qualquer alteração de ficheiro — incluindo gravar enquanto havia um pedido em curso — reinicia-o e corta a ligação. Tente a ação novamente primeiro; se foi uma recarga, funciona. Se continuar a falhar, verifique o terminal com `bun run dev` para um traceback de Python ou uma mensagem de saída, e omnivoice.log na sua pasta de dados do OmniVoice.",
     "server": "Não foi possível conectar ao servidor backend do OmniVoice. {{contact}} Verifique os logs do servidor para encontrar a causa (ex.: `docker logs <container>` ou `journalctl`) — e note que, se o Docker serve esta página, a própria página pode cair junto com o backend.",
-    "misrouted": "O servidor que responde em {{url}} não é um backend do OmniVoice — ele devolveu a própria página 404. As requisições de API estão chegando ao host errado: verifique a URL do backend em Configurações → Compartilhamento ou, se um proxy reverso serve esta interface, a rota dele para os caminhos da API."
+    "misrouted": "O servidor que responde em {{url}} não é um backend do OmniVoice — ele devolveu a própria página 404. As requisições de API estão chegando ao host errado: verifique a URL do backend em Configurações → Compartilhamento ou, se um proxy reverso serve esta interface, a rota dele para os caminhos da API.",
+    "desktop": "Não foi possível conectar ao backend local do OmniVoice. {{contact}} Abra o aviso de falha, se apareceu, ou Configurações → Logs → Backend para a última coisa registrada — \"Retry\" o reinicia e \"Clean & Retry\" reconstrói o ambiente dele se não voltar."
   },
   "nav": {
     "clone": "Clonar",

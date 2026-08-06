@@ -29,6 +29,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- The desktop "can't reach the backend" message now says what actually happened. It claimed the backend might still be starting up even when it had answered two seconds earlier — it now reports that it was answering and stopped, and points at the crash notice and the backend log. (#1337, #1351, #1378)
 - A take that is missing part of your text now says so instead of coming back quietly short. When the engine renders a sentence to nothing, the app names the missing text and suggests re-generating — until now the only way to notice was to read along. (#1330)
 - A long render on modest hardware is no longer abandoned as "too heavy for the available compute" while it is visibly working. A generate that keeps finishing chunks now extends its own deadline (bounded), the way a model download already could; one that stops producing anything still fails on time. (#1338, #1348, #1391)
 - A backend that dies while loading its own Python dependencies is no longer reported as a memory problem. The crash notice now says the environment is incomplete and points at "Clean & Retry", instead of sending users to flush a model that had nothing to do with it. (#1282, #1376)

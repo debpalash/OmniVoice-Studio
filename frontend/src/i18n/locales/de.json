@@ -4,7 +4,8 @@
     "contact_never": "Es hat in dieser Sitzung überhaupt nicht geantwortet — möglicherweise ist es nie gestartet.",
     "dev": "Der lokale OmniVoice-Dienst ist nicht erreichbar. {{contact}} Bei `bun run dev` läuft das Backend mit Auto-Reload: jede Dateiänderung — auch ein Speichern während einer laufenden Anfrage — startet es neu und bricht die Verbindung ab. Wiederholen Sie die Aktion zuerst; war es ein Reload, funktioniert es einfach. Bleibt es fehlerhaft, prüfen Sie das Terminal mit `bun run dev` auf einen Python-Traceback oder eine Exit-Meldung und omnivoice.log in Ihrem OmniVoice-Datenordner.",
     "server": "Der OmniVoice-Backend-Server ist nicht erreichbar. {{contact}} Prüfe die Server-Logs auf die Ursache (z. B. `docker logs <container>` oder `journalctl`) — und beachte: Wenn Docker diese Seite ausliefert, kann die Seite selbst zusammen mit dem Backend ausfallen.",
-    "misrouted": "Der Server, der {{url}} beantwortet, ist kein OmniVoice-Backend — er hat seine eigene 404-Seite zurückgegeben. Die API-Anfragen landen beim falschen Host: Prüfe die Backend-URL unter Einstellungen → Freigabe oder, falls ein Reverse-Proxy diese Oberfläche ausliefert, dessen Route für API-Pfade."
+    "misrouted": "Der Server, der {{url}} beantwortet, ist kein OmniVoice-Backend — er hat seine eigene 404-Seite zurückgegeben. Die API-Anfragen landen beim falschen Host: Prüfe die Backend-URL unter Einstellungen → Freigabe oder, falls ein Reverse-Proxy diese Oberfläche ausliefert, dessen Route für API-Pfade.",
+    "desktop": "Der lokale OmniVoice-Dienst ist nicht erreichbar. {{contact}} Öffne die Absturzmeldung, falls eine erschienen ist, oder Einstellungen → Logs → Backend für das Letzte, was er protokolliert hat — „Retry“ startet ihn neu, „Clean & Retry“ baut seine Umgebung neu auf, falls er nicht zurückkommt."
   },
   "nav": {
     "clone": "Klonen",

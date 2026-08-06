@@ -10,7 +10,7 @@
  * connection — indistinguishable from a crash at the transport layer, and
  * fixed by simply retrying.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 describe('dev-mode unreachable copy names the reloader (#1261)', () => {
   // #1261: dev mode, "Failed to fetch", backend had answered 10 min earlier,
   // three dub uploads in quick succession. The message offered only "crashed or
@@ -35,5 +35,69 @@ describe('dev-mode unreachable copy names the reloader (#1261)', () => {
     const msg = unreachableBackendMessage('server');
     expect(msg).not.toMatch(/auto-reload/i);
     expect(msg).toMatch(/docker logs|journalctl/i);
+  });
+});
+
+/**
+ * Desktop got the same honesty the other modes already had (#1337).
+ *
+ * #1164 gave dev and server deployments a message built from what we actually
+ * knew — whether the backend had answered this session, and how recently.
+ * Desktop kept a fixed string: "it may still be starting up, or it stopped."
+ *
+ * That was often provably wrong. #1337 and #1378 both captured **Last backend
+ * response: 2 s before this report**. A backend that answered two seconds ago
+ * is not starting up, and saying so sent those users off to wait and retry
+ * instead of at the crash notice and the backend log — the two things that
+ * would have told them what happened.
+ */
+describe('desktop unreachable copy tells the last-contact story (#1337)', () => {
+  const LS_LAST_CONTACT = 'ov_last_backend_contact';
+
+  const withContact = async (secondsAgo: number | null) => {
+    // Reset the module too, not just storage: the last-contact timestamp is
+    // cached in a module variable, so a cached import would carry the
+    // previous test's contact into the "never answered" case.
+    sessionStorage.clear();
+    sessionStorage.removeItem(LS_LAST_CONTACT);
+    vi.resetModules();
+    const mod = await import('../utils/backendContact');
+    if (secondsAgo != null) mod.recordBackendContact(Date.now() - secondsAgo * 1000);
+    return mod;
+  };
+
+  it('says it crashed rather than "still starting up" when it answered seconds ago', async () => {
+    // The exact shape of #1337 / #1378.
+    const mod = await withContact(2);
+    const msg = mod.unreachableBackendMessage('desktop');
+    expect(msg).toMatch(/answering .* ago and then stopped/i);
+    expect(msg).toMatch(/crashed or was killed/i);
+    // The claim its own data contradicts must be gone.
+    expect(msg).not.toMatch(/still be starting up/i);
+  });
+
+  it('says it may never have started when it never answered', async () => {
+    const mod = await withContact(null);
+    const msg = mod.unreachableBackendMessage('desktop');
+    expect(msg).toMatch(/not answered at all this session|never have started/i);
+    expect(msg).not.toMatch(/crashed or was killed/i);
+  });
+
+  it('keeps the desktop-only forensics, which the other modes do not have', async () => {
+    // The point is to ADD the honest cause, not to lose the shell's own next
+    // steps — a dev/server message here would send desktop users to a
+    // terminal and a docker log they do not have.
+    const mod = await withContact(2);
+    const msg = mod.unreachableBackendMessage('desktop');
+    expect(msg).toMatch(/Settings → Logs → Backend/);
+    expect(msg).toMatch(/Clean & Retry/);
+    expect(msg).not.toMatch(/bun run dev|docker logs|journalctl/i);
+  });
+
+  it('does not give desktop the dev or server copy', async () => {
+    const mod = await withContact(2);
+    const desktop = mod.unreachableBackendMessage('desktop');
+    expect(desktop).not.toBe(mod.unreachableBackendMessage('dev'));
+    expect(desktop).not.toBe(mod.unreachableBackendMessage('server'));
   });
 });
