@@ -322,9 +322,11 @@ describe('streamGenerateSpeech', () => {
 
   it('does not require the caller to handle warnings', async () => {
     // A consumer that never passes onWarning must not crash on the new frame.
+    // total_chunks covers the chunk delivered plus the two that dropped —
+    // a payload the backend could actually emit (CodeRabbit).
     apiFetch.mockResolvedValue(
       ndjsonResponse([
-        startEvent(1),
+        startEvent(3),
         chunkEvent(0),
         { type: 'warning', code: 'dropped_chunks', count: 2, text: [] },
         doneEvent,
