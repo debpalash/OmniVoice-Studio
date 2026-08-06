@@ -113,6 +113,80 @@ describe('apiFetch 401 routing', () => {
   });
 });
 
+describe('apiFetch 404 from a non-OmniVoice server (#1385)', () => {
+  // A rehosted UI (static host, reverse proxy) whose API requests land on the
+  // wrong host gets that host's 404 page back. Echoing it ("NOT_FOUND
+  // bom1::…") is useless — the error must say where requests are going.
+  let realFetch: typeof globalThis.fetch;
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const stub404 = (body: string, headers: Record<string, string> = {}) =>
+    vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        headers: { get: (k: string) => headers[k.toLowerCase()] ?? null },
+        text: async () => body,
+      }),
+    ) as any;
+
+  const thrownBy = async (body: string, headers?: Record<string, string>) => {
+    globalThis.fetch = stub404(body, headers);
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/generate');
+    } catch (e) {
+      return e as Error;
+    }
+    throw new Error('expected apiFetch to throw');
+  };
+
+  it('names the misrouted host instead of echoing its 404 page', async () => {
+    const err = await thrownBy(
+      'The page could not be found\n\nNOT_FOUND\n\nbom1::2lhsl-1786000655272',
+    );
+    expect(err.message).toMatch(/not an OmniVoice backend/);
+    expect(err.message).toMatch(/Backend URL in Settings/);
+    expect(err.message).not.toMatch(/bom1/);
+  });
+
+  it("keeps the plain message for the backend's own JSON 404", async () => {
+    const err = await thrownBy(JSON.stringify({ detail: 'Voice not found' }));
+    expect(err.message).toMatch(/404 Not Found: Voice not found/);
+    expect(err.message).not.toMatch(/not an OmniVoice backend/);
+  });
+
+  it('treats Starlette StaticFiles\' plain-text "Not Found" as the backend speaking', async () => {
+    // Mounted StaticFiles apps answer text/plain "Not Found" — the one
+    // non-JSON 404 the backend itself produces. Not a routing problem.
+    const err = await thrownBy('Not Found');
+    expect(err.message).not.toMatch(/not an OmniVoice backend/);
+  });
+
+  it("believes the backend's marker header over any body shape", async () => {
+    // The header is what makes this authoritative rather than a guess: a
+    // backend 404 whose body looks like nothing we recognise is still a
+    // backend 404.
+    const err = await thrownBy('<html>weird proxy rewrite</html>', {
+      'x-omnivoice-backend': '0.4.3',
+    });
+    expect(err.message).not.toMatch(/not an OmniVoice backend/);
+  });
+
+  it('is not fooled by a proxy that imitates a JSON error body', async () => {
+    // CodeRabbit: an unmarked `{"error": …}` 404 is a foreign server — the
+    // backend never answers 404 with an `error` key, only `detail`.
+    const err = await thrownBy(JSON.stringify({ error: 'Not Found' }));
+    expect(err.message).toMatch(/not an OmniVoice backend/);
+  });
+});
+
 describe('_parseDeepLinkCredentials', () => {
   it('reads the API key from the fragment (not the query) and scrubs it', () => {
     const r = _parseDeepLinkCredentials('https://h:3900/#api_key=SECRET');
