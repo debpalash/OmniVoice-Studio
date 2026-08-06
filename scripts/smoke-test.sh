@@ -31,7 +31,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 APP_ID="com.debpalash.omnivoice-studio"
 TAURI_DIR="frontend/src-tauri"
-APP_NAME="OmniVoice Studio"
+APP_NAME="VoiceStudio"
 BACKEND_URL="http://127.0.0.1:3900"
 
 # Timeouts (seconds)
@@ -86,11 +86,11 @@ if [ "$PLATFORM" = "macos" ]; then
 elif [ "$PLATFORM" = "windows" ]; then
   # Git Bash exposes Windows env vars; match backend/core/config.py paths.
   APP_DATA="${LOCALAPPDATA}/${APP_ID}"
-  OV_DATA="${APPDATA}/OmniVoice"
+  OV_DATA="${APPDATA}/VoiceStudio"
   HF_CACHE="${HF_HOME:-${LOCALAPPDATA}/OmniVoice/hf_cache}"
 else
   APP_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/${APP_ID}"
-  OV_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/OmniVoice"
+  OV_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/VoiceStudio"
   HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}"
 fi
 
@@ -116,7 +116,7 @@ for arg in "$@"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════════
-header "🧪 OmniVoice Studio — End-to-End Smoke Test"
+header "🧪 VoiceStudio — End-to-End Smoke Test"
 echo "   Platform: $PLATFORM | $(date)"
 echo ""
 

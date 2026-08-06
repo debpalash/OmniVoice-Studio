@@ -1,4 +1,4 @@
-# OmniVoice Studio — Road to World-Class
+# VoiceStudio — Road to World-Class
 
 **Last updated:** 2026-04-21 · **Current phase:** Phases 0–4 complete. Remaining work sits in Design / Performance / Quality tracks + the Phase 4 eval sprint. · **Resourcing:** 1 FTE + ad-hoc
 
@@ -128,8 +128,8 @@ Progress: **4/4 (100 %)**
 
 | ID | Item | Status | Notes |
 |----|------|:---:|------|
-| 3.1 | TTS adapter interface | ✅ | Shipped 2026-04-21. `backend/services/tts_backend.py` — `TTSBackend` ABC + registry, `OmniVoiceBackend` wrapping the current model (zero behaviour change; reuses `model_manager.get_model()` so no double load), `list_backends()` with per-engine availability reasons, env-driven selection via `OMNIVOICE_TTS_BACKEND`. |
-| 3.2 | Alternative TTS backends (VoxCPM2 + MOSS-TTS-Nano) | ✅ | Shipped 2026-04-21 / 2026-04-20. **VoxCPM2**: GPU studio pick, 30 langs, 48 kHz, `"(instruct)prompt"` syntax wired from OmniVoice's `instruct`. **MOSS-TTS-Nano-100M** added 2026-04-20 as the low-resource / broad-language pick — 100M-param autoregressive, 20 langs (incl. Arabic/Hebrew/Persian/Korean/Turkish), realtime on 4-core CPU, native 48 kHz stereo, Apache-2.0. Both `is_available()` return actionable install hints when deps are missing. **Runtime picker**: `POST /engines/select` + `backend/core/prefs.py` (atomic JSON store); Settings > Engines tab has **Use** buttons per family; env vars still override. 14 engine tests pass. |
+| 3.1 | TTS adapter interface | ✅ | Shipped 2026-04-21. `backend/services/tts_backend.py` — `TTSBackend` ABC + registry, `VoiceStudioBackend` wrapping the current model (zero behaviour change; reuses `model_manager.get_model()` so no double load), `list_backends()` with per-engine availability reasons, env-driven selection via `OMNIVOICE_TTS_BACKEND`. |
+| 3.2 | Alternative TTS backends (VoxCPM2 + MOSS-TTS-Nano) | ✅ | Shipped 2026-04-21 / 2026-04-20. **VoxCPM2**: GPU studio pick, 30 langs, 48 kHz, `"(instruct)prompt"` syntax wired from VoiceStudio's `instruct`. **MOSS-TTS-Nano-100M** added 2026-04-20 as the low-resource / broad-language pick — 100M-param autoregressive, 20 langs (incl. Arabic/Hebrew/Persian/Korean/Turkish), realtime on 4-core CPU, native 48 kHz stereo, Apache-2.0. Both `is_available()` return actionable install hints when deps are missing. **Runtime picker**: `POST /engines/select` + `backend/core/prefs.py` (atomic JSON store); Settings > Engines tab has **Use** buttons per family; env vars still override. 14 engine tests pass. |
 | 3.3 | ASR adapter interface | ✅ | Shipped 2026-04-21. `backend/services/asr_backend.py` — `ASRBackend` ABC, `MLXWhisperBackend` (Apple Silicon, current default), `PyTorchWhisperBackend` (CUDA / CPU fallback using the TTS model's `_asr_pipe`). `active_backend_id()` auto-detects based on `torch.backends.mps` availability; override with `OMNIVOICE_ASR_BACKEND`. |
 | 3.4 | LLM adapter | ✅ | Shipped 2026-04-21. `backend/services/llm_backend.py` — `LLMBackend` ABC, `OpenAICompatBackend` (lifts the Ollama/OpenAI client out of `translator.py` so glossary auto-extract + future Directorial AI share one code path), `OffBackend` (explicit no-LLM with a copy-paste env-var hint). Privacy default honoured: Cloud LLMs opt-in per-feature, never required. |
 
@@ -141,7 +141,7 @@ Progress: **4/4 (100 %)**
 
 ## 🎛️ Phase 4 — The two bets land _(shipped 2026-04-21 → ✅)_
 
-> *The defining phase. This is why someone chooses OmniVoice over everything else. Built on Phase 2's persistent job store and Phase 3's adapters.*
+> *The defining phase. This is why someone chooses VoiceStudio over everything else. Built on Phase 2's persistent job store and Phase 3's adapters.*
 
 Progress: **6/6 ✅** (both bets wired end-to-end; review banners + step-level resumability live)
 
@@ -349,7 +349,7 @@ TTS is 99 % of the budget. Cache load (29 WAVs), timeline mix (30 segments with 
 
 ### 2026-04-21 — Phase 4.1 benchmarked on fireship clip: **7.05 s, MISS by 2 s**
 
-First real measurement of the Phase 4.1 exit criterion. Fixture: `https://www.youtube.com/watch?v=ZzI9JE0i6Lc` (fireship clip, ~3 min, 489 transcribed segments — capped to first 30 for tractable baseline). Apple Silicon MPS, OmniVoice default engine.
+First real measurement of the Phase 4.1 exit criterion. Fixture: `https://www.youtube.com/watch?v=ZzI9JE0i6Lc` (fireship clip, ~3 min, 489 transcribed segments — capped to first 30 for tractable baseline). Apple Silicon MPS, VoiceStudio default engine.
 
 | Stage | Wall-clock |
 |---|---|
@@ -494,7 +494,7 @@ Bundle: main bundle 229.31 kB → 230.20 kB (+0.89 kB for two new lazy pages; ne
 
 All four adapter interfaces shipped in one sitting, with tests + HTTP surface.
 
-- **3.1 TTS** — new `backend/services/tts_backend.py`. `TTSBackend` ABC, `OmniVoiceBackend` wrapping `k2-fsa/OmniVoice` (reuses `model_manager.get_model()` so no double load), env-driven selection (`OMNIVOICE_TTS_BACKEND`, default `omnivoice`). `list_backends()` returns `[{id, display_name, available, reason}]` so the Settings-UI picker can grey out unavailable engines with actionable reasons.
+- **3.1 TTS** — new `backend/services/tts_backend.py`. `TTSBackend` ABC, `VoiceStudioBackend` wrapping `k2-fsa/OmniVoice` (reuses `model_manager.get_model()` so no double load), env-driven selection (`OMNIVOICE_TTS_BACKEND`, default `omnivoice`). `list_backends()` returns `[{id, display_name, available, reason}]` so the Settings-UI picker can grey out unavailable engines with actionable reasons.
 - **3.2 VoxCPM2** — `VoxCPM2Backend` in the same file. Scaffold returns an actionable "install voxcpm + need CUDA" message until deps are present; when they are, `generate()` maps our `instruct` field onto VoxCPM2's inline `"(instruct)prompt"` syntax and supports ultimate cloning (ref_audio + ref_text). 48 kHz, 30 advertised languages.
 - **3.3 ASR** — new `backend/services/asr_backend.py`. `MLXWhisperBackend` (default on Apple Silicon) + `PyTorchWhisperBackend` (CUDA/CPU fallback reusing the TTS model's `_asr_pipe`). Auto-detects best engine based on `torch.backends.mps`; override via `OMNIVOICE_ASR_BACKEND`. Both normalise to the `chunks` shape existing code already consumes.
 - **3.4 LLM** — new `backend/services/llm_backend.py`. `OpenAICompatBackend` lifts the client construction out of `translator.py` so every LLM-using feature (Cinematic translate, glossary auto-extract, Phase-4 Directorial AI) goes through one code path. `OffBackend` provides an explicit no-LLM state with a clear "set TRANSLATE_BASE_URL" hint; defaults to `off` when nothing's configured.

@@ -17,7 +17,7 @@ _REPO = Path(__file__).resolve().parents[1]
 SNAPSHOT = _REPO / "tests" / "fixtures" / "api_routes.txt"
 
 _HEADER = (
-    "# OmniVoice backend API route snapshot — regenerate with "
+    "# VoiceStudio backend API route snapshot — regenerate with "
     "scripts/dump_api_routes.py\n"
     "# Guards against accidental endpoint removal/rename "
     "(tests/test_api_route_inventory.py).\n"

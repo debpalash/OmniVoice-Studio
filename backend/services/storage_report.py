@@ -507,7 +507,7 @@ def clear_temp(temp_root: str | None = None) -> dict:
 
     Removes exactly the population ``build_report`` counts as the "temp"
     category — direct children of ``temp_root`` whose basename starts with
-    ``omnivoice`` — so nothing outside OmniVoice's own working files can ever
+    ``omnivoice`` — so nothing outside VoiceStudio's own working files can ever
     be swept up. Symlinked entries are unlinked, never followed, so a stray
     ``omnivoice*`` link cannot make this delete its target's contents.
 

@@ -1,4 +1,4 @@
-# `ui/` — OmniVoice design system
+# `ui/` — VoiceStudio design system
 
 The one place new UI is built from. Primitives, tokens, motion, all here.
 

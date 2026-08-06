@@ -10,7 +10,7 @@ import { openAccessibilitySettings, openMicrophoneSettings } from '../../utils/p
 
 /**
  * PermissionsPanel — Settings → Permissions: live OS-permission status for
- * the grants OmniVoice's default features actually use, with a deep-link
+ * the grants VoiceStudio's default features actually use, with a deep-link
  * into the exact OS settings pane when one is denied.
  *
  *   • Microphone — dictation + voice recording (all platforms; Linux has no

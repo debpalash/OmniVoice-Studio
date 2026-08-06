@@ -5,9 +5,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Button — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Button — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). `bg-primary`/`text-primary-foreground`/`bg-destructive`/
- * `border-input`/`ring-ring` resolve to the OmniVoice palette, so this renders
+ * `border-input`/`ring-ring` resolve to the VoiceStudio palette, so this renders
  * in brand pink + amber accent + the dark chrome bg, and recolors with every
  * [data-theme].
  *
@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
  *   • the stock shadcn set (default / secondary / outline / ghost / link /
  *     destructive + sizes default / sm / lg / icon) — used by the foundation
  *     proof spec; and
- *   • the OmniVoice set (primary / subtle / softGhost / danger / chip[+Active] /
+ *   • the VoiceStudio set (primary / subtle / softGhost / danger / chip[+Active] /
  *     preset[+Active] / iconBtn[+Active] + sizes omniSm / omniMd / chip /
  *     preset / iconSm / iconMd) — these back the live `src/ui/Button.jsx`
  *     wrapper, which maps the legacy prop API onto them. They are expressed with
@@ -37,7 +37,7 @@ const buttonVariants = cva(
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
 
-        // ── OmniVoice (back the legacy src/ui/Button.jsx) ──
+        // ── VoiceStudio (back the legacy src/ui/Button.jsx) ──
         // NB: app ships Tailwind WITHOUT Preflight, so a bare <button> keeps its
         // native UA border — every variant must set an explicit border (even a
         // transparent one) or the default chrome leaks through.
@@ -66,7 +66,7 @@ const buttonVariants = cva(
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
 
-        // ── OmniVoice ──
+        // ── VoiceStudio ──
         omniSm: 'px-2.5 py-[3px] text-xs',
         omniMd: 'px-3 py-1.5 text-sm',
         chip: 'px-2 py-0.5 text-xs',

@@ -7,7 +7,7 @@ import { Textarea as ShadcnTextarea } from '@/components/ui/textarea.tsx';
 // hover border) lives in src/styles/residual.css under `.ui-select` — an SVG
 // data-URI background that's impractical to express as a utility.
 
-/* OmniVoice form primitives, now BACKED BY shadcn/ui (src/components/ui/*) while
+/* VoiceStudio form primitives, now BACKED BY shadcn/ui (src/components/ui/*) while
  * keeping the exact same exports + prop APIs the app already imports:
  *   import { Field, Input, Textarea, Select } from '../ui';
  *
@@ -18,7 +18,7 @@ import { Textarea as ShadcnTextarea } from '@/components/ui/textarea.tsx';
  * …e.target.value}`, which Radix's value-only Select would break — but is given
  * the same shadcn shell (`inputBaseClass`) so all three look identical.
  *
- * `fieldSizeVariants` is the OmniVoice size scale layered over the shadcn shell:
+ * `fieldSizeVariants` is the VoiceStudio size scale layered over the shadcn shell:
  * it swaps the shell's fixed `h-9` for padding-based sizing (the established
  * compact look) and restores the filled `bg-bg-elev-2` surface. Named utilities
  * only, so tailwind-merge resolves them cleanly over the shell defaults; the
@@ -102,7 +102,7 @@ export function Field({ label, hint, error, icon, children }) {
 
 /**
  * Input — text / number / email / url input.
- * Backed by the shadcn <Input> shell + the OmniVoice size scale.
+ * Backed by the shadcn <Input> shell + the VoiceStudio size scale.
  */
 export const Input = forwardRef(function Input({ size = 'md', className = '', ...rest }, ref) {
   return <ShadcnInput ref={ref} className={cn(fieldSizeVariants({ size }), className)} {...rest} />;

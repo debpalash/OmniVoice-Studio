@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 
 const MINIMAL_SPEC = {
   openapi: '3.1.0',
-  info: { title: 'OmniVoice', version: '0.0.0' },
+  info: { title: 'VoiceStudio', version: '0.0.0' },
   paths: {},
 };
 

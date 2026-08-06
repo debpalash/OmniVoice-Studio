@@ -65,7 +65,7 @@ async function run() {
   };
 
   try {
-    console.log('📍 Navigating to OmniVoice Studio Launchpad...');
+    console.log('📍 Navigating to VoiceStudio Launchpad...');
     await page.goto(URL, { waitUntil: 'load' });
     
     // Give it enough time to stabilize the layout

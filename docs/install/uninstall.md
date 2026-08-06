@@ -1,6 +1,6 @@
-# Uninstalling OmniVoice Studio
+# Uninstalling VoiceStudio
 
-OmniVoice is **fully local** — it has no accounts, no cloud state, and no
+VoiceStudio is **fully local** — it has no accounts, no cloud state, and no
 background services. Removing it is just deleting the app plus the folders it
 wrote on your machine. This page lists every one of those folders per platform,
 and ships a script that finds and removes them for you (with a dry-run first).
@@ -24,7 +24,7 @@ don't have the repo, so the script below isn't available to you.
 
 ## Resetting instead of uninstalling
 
-**Settings → Storage → Reset & remove** puts part — or all — of OmniVoice back to
+**Settings → Storage → Reset & remove** puts part — or all — of VoiceStudio back to
 how it shipped, without removing the app. Every option shows its real size before
 you commit, and the app restarts itself when it's done.
 
@@ -33,7 +33,7 @@ you commit, and the app restarts itself when it's done.
 | **UI preferences only** | Theme, layout, language, dub settings | Everything on disk |
 | **All settings** | The above, plus saved settings on disk (engine choices, voice defaults) | Voices, projects, audio, models |
 | **Downloaded assets & models** | Model weights, sidecar engines, audio tools, caches | Everything you made |
-| **Everything OmniVoice did** | All of the above, plus voices, projects, generated audio, history, logs | The app itself, and the Python environment it runs on |
+| **Everything VoiceStudio did** | All of the above, plus voices, projects, generated audio, history, logs | The app itself, and the Python environment it runs on |
 
 "Choose exactly what to remove" opens the same list as individual checkboxes, so
 you can drop just the model weights, just a wedged sidecar engine, or just the
@@ -41,17 +41,17 @@ history — whatever is actually wrong.
 
 Two things it deliberately does **not** touch:
 
-- **Your storage locations.** If you pointed OmniVoice at a custom data or model
+- **Your storage locations.** If you pointed VoiceStudio at a custom data or model
   directory, a settings reset keeps that pointer. Clearing it would strand
   gigabytes of already-downloaded weights at a path the app no longer looks in.
-- **The managed Python environment.** "Everything OmniVoice did" still leaves you
+- **The managed Python environment.** "Everything VoiceStudio did" still leaves you
   with a working app that restarts on the first-run screen. If you want the
   interpreter gone too, that's **Remove all data** — the section above.
 
 The shared Hugging Face model cache is called out separately wherever it applies:
 on macOS and Linux it's the standard cache other AI tools use too, so removing it
-may delete models OmniVoice never downloaded. (On Windows, and in portable
-installs, the cache is OmniVoice's own — there's nothing to share, and the app
+may delete models VoiceStudio never downloaded. (On Windows, and in portable
+installs, the cache is VoiceStudio's own — there's nothing to share, and the app
 says so.)
 
 ## The one-command uninstaller (from a clone)
@@ -83,11 +83,11 @@ The script honors your custom locations: if you set `OMNIVOICE_DATA_DIR`,
 `OMNIVOICE_CACHE_DIR`, `HF_HOME`, or `HF_HUB_CACHE` (or picked custom
 data/model folders during setup), export the same variables before running it
 and it will target those instead of the defaults. It never touches anything
-outside the OmniVoice folders, and it does **not** delete the app binary itself
+outside the VoiceStudio folders, and it does **not** delete the app binary itself
 (see "Remove the app" below) — so it's safe to run even if you only want to
 reclaim disk space and keep the app installed.
 
-## What OmniVoice writes, and where
+## What VoiceStudio writes, and where
 
 Four kinds of data, in up to four locations:
 
@@ -126,10 +126,10 @@ Four kinds of data, in up to four locations:
 %LOCALAPPDATA%\com.debpalash.omnivoice-studio\    ← config.json, shell logs, AND the managed Python env (project\.venv)
 %LOCALAPPDATA%\OmniVoice\Logs\                    ← backend logs (backend.log, backend_err.log)
 %USERPROFILE%\.config\omnivoice\                  ← saved env file (cache location, HF token)
-%LOCALAPPDATA%\OmniVoice\hf_cache\                ← model weights (OmniVoice uses a short path here to dodge MAX_PATH)
+%LOCALAPPDATA%\OmniVoice\hf_cache\                ← model weights (VoiceStudio uses a short path here to dodge MAX_PATH)
 ```
 
-On Windows, if `HF_HOME` isn't set, OmniVoice redirects the model cache to
+On Windows, if `HF_HOME` isn't set, VoiceStudio redirects the model cache to
 `%LOCALAPPDATA%\OmniVoice\hf_cache` (instead of `~/.cache/huggingface`) so deep
 model paths don't hit the 260-character `MAX_PATH` limit.
 
@@ -147,7 +147,7 @@ model paths don't hit the 260-character `MAX_PATH` limit.
 > **Shared HF cache caveat:** `~/.cache/huggingface/` is the **standard Hugging
 > Face cache**, shared by any tool that uses `huggingface_hub` (other ML apps,
 > `transformers`, etc.). If you use other Hugging Face tools, deleting the whole
-> folder removes *their* cached models too. To remove only OmniVoice's models,
+> folder removes *their* cached models too. To remove only VoiceStudio's models,
 > delete the `models--*` subfolders you recognize under
 > `~/.cache/huggingface/hub/`, or just let it be — it's only a cache and any
 > tool re-downloads what it needs. The uninstaller script prints the cache size
@@ -158,16 +158,18 @@ model paths don't hit the 260-character `MAX_PATH` limit.
 The steps above clear the **data**; removing the installed **app** is the
 normal per-platform step:
 
-- **macOS:** drag **OmniVoice Studio.app** from `/Applications` to the Trash.
-- **Windows:** **Settings → Apps → Installed apps → OmniVoice Studio →
+- **macOS:** drag **VoiceStudio.app** from `/Applications` to the Trash.
+- **Windows:** **Settings → Apps → Installed apps → VoiceStudio →
   Uninstall** (or via "Add or remove programs").
 - **Linux (AppImage):** delete the `.AppImage` file. If you integrated it into
   your menu (e.g. with AppImageLauncher or a hand-written `.desktop` file),
   also remove `~/.local/share/applications/*omnivoice*.desktop` and any icon
   under `~/.local/share/icons/`.
-- **Linux (.deb):** `sudo apt remove omnivoice-studio` (this removes the
-  program; your data folders above are user data and are left in place — delete
-  them with the script or by hand).
+- **Linux (.deb):** `sudo apt remove voicestudio` (this removes the program;
+  your data folders above are user data and are left in place — delete them
+  with the script or by hand). Installed before the rename? The old package is
+  called `omnivoice-studio` — the two are separate packages, so
+  `sudo apt remove omnivoice-studio` removes the earlier one.
 
 ## Reinstalling later
 

@@ -139,7 +139,7 @@ def _isolated_engine_hint(streak: int) -> str:
         "ASR engine to 'Faster-Whisper (crash-isolated subprocess)' "
         "(faster-whisper-isolated) in Settings → Engines — it runs "
         "transcription in a separate process that can be force-killed to "
-        "reclaim a hung transcribe and its VRAM. OmniVoice never switches "
+        "reclaim a hung transcribe and its VRAM. VoiceStudio never switches "
         "engines automatically."
     )
 
@@ -213,7 +213,7 @@ def _is_compute_type_error(msg: str) -> bool:
 
 
 def _decode_audio_16k_mono(audio_path: str):
-    """Decode `audio_path` to a 16 kHz mono float32 waveform using OmniVoice's
+    """Decode `audio_path` to a 16 kHz mono float32 waveform using VoiceStudio's
     *validated* ffmpeg, instead of whisperx.load_audio's bare ``"ffmpeg"`` PATH
     lookup.
 
@@ -240,7 +240,7 @@ def _decode_audio_16k_mono(audio_path: str):
     if not ffmpeg:
         raise RuntimeError(
             "Cannot transcribe: ffmpeg is missing or not runnable. Install "
-            "ffmpeg (or let OmniVoice's bundled binary download), then retry. "
+            "ffmpeg (or let VoiceStudio's bundled binary download), then retry. "
             "On Windows a '[WinError 193]' here means the ffmpeg binary is "
             "corrupt or the wrong architecture — reinstall it or clear the "
             "imageio-ffmpeg cache."
@@ -366,7 +366,7 @@ def _harden_speechbrain_lazy_imports() -> None:
         except AttributeError:
             _warnings.warn(
                 "Failed to inspect frame to check if we should ignore importing a "
-                "module lazily (OmniVoice cross-platform guard)."
+                "module lazily (VoiceStudio cross-platform guard)."
             )
         if importer_frame is not None:
             # Normalise BOTH separators explicitly (not os.path.basename, which is
@@ -850,7 +850,7 @@ class WhisperXBackend(ASRBackend):
         import whisperx  # used for whisperx.align() below
         self._ensure_asr()
         logger.info("whisperx transcribing %s (word_timestamps=%s)", audio_path, word_timestamps)
-        # Decode via OmniVoice's validated ffmpeg, NOT whisperx.load_audio's bare
+        # Decode via VoiceStudio's validated ffmpeg, NOT whisperx.load_audio's bare
         # "ffmpeg" PATH lookup which yields [WinError 193] -> "no segments" on
         # Windows (#479). Same 16 kHz mono s16le array whisperx expects.
         audio = _decode_audio_16k_mono(audio_path)
@@ -1255,7 +1255,7 @@ class PyTorchWhisperBackend(ASRBackend):
                 "Reinstall them together at the pinned versions: `uv pip install "
                 "--python .venv --reinstall torch==2.8.0 torchaudio==2.8.0 "
                 "torchvision==0.23.0 transformers` in the project folder — or use faster-whisper "
-                "(OmniVoice's default ASR), which avoids the transformers "
+                "(VoiceStudio's default ASR), which avoids the transformers "
                 "pipeline. "
                 f"Underlying: {e}"
             ) from e
@@ -1334,7 +1334,7 @@ class NeMoASRBackend(ASRBackend):
             [audio_path], timestamps=word_timestamps
         )
         # NeMo returns a list of Hypothesis objects with .text and optional
-        # .timestep / .alignments. Normalise to OmniVoice's expected shape.
+        # .timestep / .alignments. Normalise to VoiceStudio's expected shape.
         hyp = outputs[0] if outputs else None
         if hyp is None:
             return {"chunks": [], "segments": [], "language": "en"}
@@ -1620,7 +1620,7 @@ def _load_audio_16k_mono_f32(audio_path: str):
     """Decode any audio file to 16 kHz mono float32 in [-1, 1] for sherpa.
 
     Prefers soundfile (WAV/FLAC — the dictation buffers are already WAV) and
-    resamples to 16 kHz when needed; falls back to OmniVoice's validated ffmpeg
+    resamples to 16 kHz when needed; falls back to VoiceStudio's validated ffmpeg
     for containers soundfile can't read (WebM/Opus). 16 kHz is sherpa's cheapest
     feed; it resamples internally too, but doing it here keeps the contract tight.
     """
@@ -1756,7 +1756,7 @@ class SherpaDictationBackend(ASRBackend):
 
 
 def _sherpa_result(text: str, samples, sr) -> dict:
-    """Normalise a sherpa decode to OmniVoice's ``{chunks, segments, language,
+    """Normalise a sherpa decode to VoiceStudio's ``{chunks, segments, language,
     text}`` contract. sherpa gives plain text (no VAD split), so emit a single
     segment spanning the buffer — same shape Moonshine uses."""
     text = (text or "").strip()
@@ -1794,7 +1794,7 @@ def _clean_funasr_text(text):
 
 
 def _normalize_funasr(res) -> dict:
-    """Normalise FunASR ``generate()`` output → OmniVoice's
+    """Normalise FunASR ``generate()`` output → VoiceStudio's
     ``{chunks, segments, language}`` shape (the same one the Whisper backends
     return, consumed by ``services.segmentation``). Defensive about FunASR's
     output variations: prefers VAD ``sentence_info`` (ms timestamps + optional
@@ -2239,12 +2239,12 @@ _INSTALL_HINTS: dict[str, str] = {
     "pytorch-whisper": "Bundled with transformers — no extra install (CUDA/MPS/CPU)",
     "nemo-parakeet":   (
         "No safe install path in this app yet — nemo_toolkit's ASR extras pin "
-        "transformers>=4.57,<4.58, which conflicts with OmniVoice's own "
+        "transformers>=4.57,<4.58, which conflicts with VoiceStudio's own "
         "transformers>=5.3 requirement and WILL break the backend "
         "(ImportError on startup) if installed into this shared venv. Do NOT "
         "install nemo_toolkit here. If you want to try Parakeet TDT, set it "
         "up in a separate/dedicated Python environment — not the one "
-        "OmniVoice manages; in-app isolation for this engine is tracked "
+        "VoiceStudio manages; in-app isolation for this engine is tracked "
         "separately."
     ),
     "parakeet-mlx":    (
@@ -2257,7 +2257,7 @@ _INSTALL_HINTS: dict[str, str] = {
     "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
     "openai-compat-asr": (
         "No install needed — configure a server endpoint in Settings → "
-        "Engines. Points OmniVoice at any OpenAI-compatible transcription "
+        "Engines. Points VoiceStudio at any OpenAI-compatible transcription "
         "server (a self-hosted Qwen3-ASR/FunASR/SenseVoice server, OpenAI's "
         "own Whisper API, or similar) — a path to Qwen3-ASR today, without "
         "waiting on a direct transformers integration."
@@ -2299,7 +2299,7 @@ def _deep_import_reason(cls: type["ASRBackend"], exc: ImportError) -> str:
     )
     return (
         f"{cls.display_name} failed to load: {what}. The app environment "
-        "looks partially installed — reinstall OmniVoice Studio (or run "
+        "looks partially installed — reinstall VoiceStudio (or run "
         "`uv sync --reinstall` on a source checkout; plain `uv sync` "
         "trusts the intact package metadata and skips the broken files) "
         "to repair it."
@@ -2589,7 +2589,7 @@ def transcribe_reference(audio_path: str) -> str | None:
     """Transcribe a voice-clone reference clip with the active ASR backend.
 
     Voice cloning without a user-supplied transcript used to fall through to
-    ``OmniVoice.load_asr_model()`` — a transformers ``pipeline()`` load of
+    ``VoiceStudio.load_asr_model()`` — a transformers ``pipeline()`` load of
     whisper-large-v3-turbo that fails outright on transformers 5.3 (#308),
     even when whisperx / faster-whisper / mlx-whisper are installed and
     working. Route the reference transcript through the registry instead, so

@@ -376,7 +376,7 @@ Append (the file already uses `reqwest`/`serde` for `check_update`; reuse the sa
 use serde::Serialize;
 
 const RELEASES_API: &str =
-    "https://api.github.com/repos/debpalash/OmniVoice-Studio/releases?per_page=30";
+    "https://api.github.com/repos/debpalash/VoiceStudio/releases?per_page=30";
 
 #[derive(Serialize)]
 pub struct ReleaseInfo {
@@ -395,7 +395,7 @@ pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String>
     let client = reqwest::Client::new();
     let resp = client
         .get(RELEASES_API)
-        .header("User-Agent", "OmniVoice-Studio")
+        .header("User-Agent", "VoiceStudio")
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
@@ -976,7 +976,7 @@ Insert a new top-level `"updates"` block (e.g. right after the existing `"update
 Only `en.json` is edited by hand. The repo's existing backfill script (`scripts/translate_all.py` — `deep_translator`/GoogleTranslator, source `en.json` → fills any keys missing from each `frontend/src/i18n/locales/{lang}.json`; the same pipeline used for #205) propagates the new `updates.*` block to all 20 other locales:
 
 ```bash
-cd /Users/user4/orca/workspaces/OmniVoice/main-2
+cd /Users/user4/orca/workspaces/VoiceStudio/main-2
 uv run python scripts/translate_all.py
 ```
 
@@ -987,7 +987,7 @@ uv run python scripts/translate_all.py
 Run:
 ```bash
 cd frontend && node -e "const fs=require('fs');const g=require('./src/i18n/locales/en.json').updates;const files=fs.readdirSync('src/i18n/locales').filter(f=>f.endsWith('.json'));let bad=0;for(const f of files){const u=require('./src/i18n/locales/'+f).updates||{};for(const k of Object.keys(g)){if(!(k in u)){console.log('MISSING',f,k);bad++}}}console.log(bad?('FAIL '+bad):'PARITY OK')"
-cd /Users/user4/orca/workspaces/OmniVoice/main-2 && uv run python -m pytest tests/test_no_hardcoded_cjk.py -q
+cd /Users/user4/orca/workspaces/VoiceStudio/main-2 && uv run python -m pytest tests/test_no_hardcoded_cjk.py -q
 ```
 Expected: "PARITY OK"; CJK guard passes (no hardcoded CJK outside the i18n layer — all new strings are in locale files).
 
@@ -1007,7 +1007,7 @@ git commit -m "i18n(update): add updates.* keys across 21 locales"
 - [ ] **Step 1: Run the full suite**
 
 ```bash
-cd /Users/user4/orca/workspaces/OmniVoice/main-2/frontend
+cd /Users/user4/orca/workspaces/VoiceStudio/main-2/frontend
 bun run test            # vitest — all suites incl. new helper/slice tests
 bun run typecheck:ci    # tsc gate
 bun run build           # production build

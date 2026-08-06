@@ -23,7 +23,7 @@ is an LLM-based multilingual / cross-lingual zero-shot voice-cloning TTS.
   CPU validated on Apple Silicon but ~17× realtime. Output: 22 050 Hz mono.
 
 Like IndexTTS-2 / MOSS-TTS-v1.5 / dots.tts, it runs in its **own subprocess venv**
-so its dependency stack never touches the default OmniVoice interpreter.
+so its dependency stack never touches the default VoiceStudio interpreter.
 
 ## Install
 
@@ -35,7 +35,7 @@ uv pip install -r requirements.txt
 ```
 
 > Upstream ships **no `pyproject.toml`/`setup.py`**, so there is nothing to
-> `pip install -e` — don't try; it fails. The OmniVoice sidecar puts the clone
+> `pip install -e` — don't try; it fails. The VoiceStudio sidecar puts the clone
 > on `sys.path` itself (the same thing upstream's `example.py` does).
 
 **Model weights — all fetched automatically from HuggingFace on first
@@ -51,7 +51,7 @@ synthesis (~5 GB total, cached in `$HF_HUB_CACHE`):**
 
 Set your `HF_TOKEN` (Settings → Credentials) if you hit rate limits.
 
-Then point OmniVoice at the clone and restart:
+Then point VoiceStudio at the clone and restart:
 
 - **macOS/Linux:** `export OMNIVOICE_CONFUCIUS4_TTS_DIR=/path/to/Confucius4-TTS`
 - **Windows (PowerShell):** `[Environment]::SetEnvironmentVariable("OMNIVOICE_CONFUCIUS4_TTS_DIR","C:\path\to\Confucius4-TTS","User")`

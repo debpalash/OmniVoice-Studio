@@ -25,7 +25,7 @@ export function floatToInt16(float32) {
 
 /**
  * Build a tagged binary frame: ``[1-byte kind][int16 LE PCM…]`` as an
- * ArrayBuffer ready for ``ws.send()``. All OmniVoice target platforms are
+ * ArrayBuffer ready for ``ws.send()``. All VoiceStudio target platforms are
  * little-endian (x86_64 / arm64), matching numpy's native int16 read on the
  * server, so the Int16Array bytes are copied verbatim.
  */

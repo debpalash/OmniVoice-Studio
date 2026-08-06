@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, Executor
 from utils.containment import contain_system_exit
 
 # ── Lazy imports ─────────────────────────────────────────────────────
-# torch and OmniVoice are heavy (~2-3s import on Apple Silicon).
+# torch and VoiceStudio are heavy (~2-3s import on Apple Silicon).
 # Deferring them until first use cuts cold start from ~4s to ~1.5s,
 # so health/status endpoints respond immediately on boot.
 
@@ -29,7 +29,7 @@ def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
         try:
-            from omnivoice.models.omnivoice import OmniVoice as _OV
+            from omnivoice.models.omnivoice import VoiceStudio as _OV
         except ModuleNotFoundError:
             # The venv's editable install is missing/broken (#564). main.py wires
             # the source fallback at startup, but resolve it here too so the
@@ -37,7 +37,7 @@ def _lazy_omnivoice():
             from core.omnivoice_path import ensure_omnivoice_importable
             _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ensure_omnivoice_importable(_backend_dir, logger)
-            from omnivoice.models.omnivoice import OmniVoice as _OV
+            from omnivoice.models.omnivoice import VoiceStudio as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
@@ -46,7 +46,7 @@ from core.config import IDLE_TIMEOUT_SECONDS, CPU_POOL_WORKERS
 
 logger = logging.getLogger("omnivoice.model")
 
-# Per-TTS-job VRAM headroom estimate. OmniVoice's forward + autoregressive
+# Per-TTS-job VRAM headroom estimate. VoiceStudio's forward + autoregressive
 # decode peaks around 1.6 GB, but the interactive clone path co-loads WhisperX
 # large-v3 ASR (~3 GB) to transcribe the reference, so a *concurrent* clone job
 # is realistically ~5 GB. The old 2.5 GB budget over-committed: an 8 GB card
@@ -1325,7 +1325,7 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 def should_preload_tts_asr() -> bool:
-    """Whether OmniVoice.from_pretrained should attach PyTorch Whisper.
+    """Whether VoiceStudio.from_pretrained should attach PyTorch Whisper.
 
     The default is intentionally false. On Apple Silicon, eager TTS + ASR
     loading can overcommit unified memory and leave desktop startup stuck
@@ -1425,7 +1425,7 @@ def _manual_cache_delete_hint(checkpoint: str) -> str:
             return ""
         from services.hf_cache_repair import repo_cache_dir
         return (
-            f" If the problem persists, quit OmniVoice, delete "
+            f" If the problem persists, quit VoiceStudio, delete "
             f"{repo_cache_dir(checkpoint)} and restart — the model "
             "re-downloads automatically."
         )
@@ -1577,7 +1577,7 @@ _DEFAULT_OMNIVOICE_CHECKPOINT = "k2-fsa/OmniVoice"
 
 
 def resolve_omnivoice_checkpoint() -> str:
-    """Resolve the OmniVoice TTS checkpoint from ``OMNIVOICE_MODEL``, self-healing
+    """Resolve the VoiceStudio TTS checkpoint from ``OMNIVOICE_MODEL``, self-healing
     a misconfigured value.
 
     A valid checkpoint is either a HuggingFace repo id (``org/repo`` — contains a
@@ -1731,22 +1731,22 @@ def _load_model_sync():
 
     lid = register_listener(_on_hf_progress)
     try:
-        _set_loading("importing", "Importing PyTorch & OmniVoice runtime…")
-        logger.info("Importing PyTorch & OmniVoice runtime…")
+        _set_loading("importing", "Importing PyTorch & VoiceStudio runtime…")
+        logger.info("Importing PyTorch & VoiceStudio runtime…")
         torch = _lazy_torch()
-        OmniVoice = _lazy_omnivoice()
+        VoiceStudio = _lazy_omnivoice()
         device = get_best_device()
 
         checkpoint = resolve_omnivoice_checkpoint()
         _set_loading("loading_weights", f"Loading TTS weights on {device}…")
-        logger.info("Loading OmniVoice model on device: %s", device)
+        logger.info("Loading VoiceStudio model on device: %s", device)
         preload_asr = should_preload_tts_asr()
         if preload_asr:
             logger.info("Preloading PyTorch Whisper with TTS model.")
         else:
             logger.info("Skipping PyTorch Whisper preload; ASR will load on demand.")
         def _load():
-            return OmniVoice.from_pretrained(
+            return VoiceStudio.from_pretrained(
                 checkpoint, device_map=device, dtype=torch.float16, load_asr=preload_asr,
             )
 
@@ -1793,7 +1793,7 @@ def _load_model_sync():
                         f"The TTS model cache for {checkpoint} is incomplete "
                         "(weights missing — usually an interrupted download)."
                         f"{_repair_failure_detail()} "
-                        "Open Settings → Models, delete the OmniVoice TTS model, "
+                        "Open Settings → Models, delete the VoiceStudio TTS model, "
                         f"and install it again.{_manual_cache_delete_hint(checkpoint)}"
                     ) from e
                 _set_loading("loading_weights", f"Loading TTS weights on {device}…")
@@ -1815,21 +1815,21 @@ def _load_model_sync():
                                 raise RuntimeError(
                                     f"The TTS model cache for {checkpoint} is incomplete "
                                     "and could not be auto-repaired. Open Settings → "
-                                    "Models, delete the OmniVoice TTS model, and install "
+                                    "Models, delete the VoiceStudio TTS model, and install "
                                     f"it again.{_manual_cache_delete_hint(checkpoint)}"
                                 ) from e3
                         else:
                             raise RuntimeError(
                                 f"The TTS model cache for {checkpoint} is incomplete and "
                                 f"could not be auto-repaired.{_repair_failure_detail()} "
-                                "Open Settings → Models, delete the OmniVoice TTS model, "
+                                "Open Settings → Models, delete the VoiceStudio TTS model, "
                                 f"and install it again.{_manual_cache_delete_hint(checkpoint)}"
                             ) from e2
                     else:
                         raise RuntimeError(
                             f"The TTS model cache for {checkpoint} is incomplete and "
                             "could not be auto-repaired. Open Settings → Models, delete "
-                            "the OmniVoice TTS model, and install it again."
+                            "the VoiceStudio TTS model, and install it again."
                             f"{_manual_cache_delete_hint(checkpoint)}"
                         ) from e2
 
@@ -1878,7 +1878,7 @@ def _load_model_sync():
             logger.info("torch.compile skipped: %s", e)
 
         _set_loading("ready", "Model ready", progress=100)
-        logger.info("OmniVoice model loaded successfully.")
+        logger.info("VoiceStudio model loaded successfully.")
         return _model
     except ModelLoadInterruptedByShutdown:
         raise
@@ -2227,7 +2227,7 @@ async def idle_worker():
         idle_timeout = _resolve_idle_timeout()
         async with _model_lock:
             if model is not None and time.time() - _last_used > idle_timeout:
-                logger.info("Idle timeout reached. Unloading OmniVoice model to free VRAM.")
+                logger.info("Idle timeout reached. Unloading VoiceStudio model to free VRAM.")
                 model = None
                 release_tts_side_caches()
                 free_vram()

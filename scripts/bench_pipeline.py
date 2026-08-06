@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-"""Profile the hot paths of OmniVoice's major features — once, safely.
+"""Profile the hot paths of VoiceStudio's major features — once, safely.
 
 This exists because "make it faster" kept turning into guesswork. Every claim in
 the dub-performance work (#1127, #1129) is supposed to come from a number, and a
 number needs a repeatable way to get it.
 
-**It is deliberately gentle with memory.** OmniVoice's worst bug class is the
+**It is deliberately gentle with memory.** VoiceStudio's worst bug class is the
 out-of-memory kill on a 16 GB unified-memory Mac (#1119), so a profiler that
 loads every model at once — or loops a benchmark until RAM runs out — would
 reproduce the very crash it is meant to help fix. Therefore:
@@ -198,7 +198,7 @@ STAGES = {"tts": bench_tts, "clone": bench_clone, "asr": bench_asr}
 
 def main() -> None:
     want = [a for a in sys.argv[1:] if not a.startswith("-")] or list(STAGES)
-    print(f"OmniVoice pipeline profile — floor {FLOOR_GB} GB, stages: {', '.join(want)}")
+    print(f"VoiceStudio pipeline profile — floor {FLOOR_GB} GB, stages: {', '.join(want)}")
     print(f"free RAM at start: {free_gb():.1f} GB", flush=True)
 
     for name in want:

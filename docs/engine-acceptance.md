@@ -1,6 +1,6 @@
 # Adding a TTS or ASR engine
 
-OmniVoice ships a lot of engines. That breadth is only an asset while every one
+VoiceStudio ships a lot of engines. That breadth is only an asset while every one
 of them still works on every platform — otherwise it is a pile of support
 queues, and the project's actual promise (*a first run that works*) is what pays
 for it.

@@ -3,7 +3,7 @@
 # ElevenLabs-Parity Program — Implementation Spec
 
 **Date:** 2026-06-12
-**Status:** Proposed — derived from [discussion #346](https://github.com/debpalash/OmniVoice-Studio/discussions/346) and the research in [docs/competitive-analysis.md](../competitive-analysis.md) (PR #345)
+**Status:** Proposed — derived from [discussion #346](https://github.com/debpalash/VoiceStudio/discussions/346) and the research in [docs/competitive-analysis.md](../competitive-analysis.md) (PR #345)
 **Owner:** debpalash
 
 ## Goal
@@ -48,7 +48,7 @@ half); timeline segment editor (#348); Scalar at `/docs` (#307).
 | PR | Item | Source | Effort | Depends on |
 |----|------|--------|--------|------------|
 | 2.1 | **Dictation LLM refinement** phase 2: prompt builder + toggles via `llm_backend.py`; raw+refined persisted (alembic, additive); WS `{type:"final", refined_text?}`; auto-refine default ON only when an LLM backend is active (identical pass-through everywhere otherwise — parity rule) | Spec 3 | M | 1.1 |
-| 2.2 | **MCP server v1**: mount existing FastMCP at `/mcp` (lifespan composition), `transcribe` tool with loopback gate, `X-OmniVoice-Client-Id` middleware + `mcp_client_bindings` table (alembic), stdio shim, Settings bindings UI | Spec 2 | M | — |
+| 2.2 | **MCP server v1**: mount existing FastMCP at `/mcp` (lifespan composition), `transcribe` tool with loopback gate, `X-VoiceStudio-Client-Id` middleware + `mcp_client_bindings` table (alembic), stdio shim, Settings bindings UI | Spec 2 | M | — |
 | 2.3 | **Remote backend rungs 1–3**: Backend URL setting + `/health` handshake; `OMNIVOICE_API_KEY` bearer on all non-loopback HTTP+WS (extend `NetworkAccessMiddleware`; token still required behind Tailscale Serve); `docs/remote-gpu.md` Tailscale page (MagicDNS + Serve + headscale note + "never Funnel without the key") | §R2 rungs 1–3 | M | — |
 | 2.4 | **Remote LLM endpoint UI**: Settings fields (base URL, model, optional API key) feeding `llm_backend.py`; verified drop-in for Ollama/vLLM/LM Studio | §R2 rung 4 | S–M | — |
 | 2.5 | **Agentic v1**: `docs/agentic-voice.md` (pipecat + LiveKit recipes against `:3900/v1`) + a pipecat smoke test in CI-optional lane; fix param/streaming mismatches it exposes | Action 15, §R1 v1 | S–M | 2.3 (remote auth story referenced by the docs) |

@@ -137,7 +137,7 @@ const refetch = vi.fn();
 const MODELS = [
   {
     repo_id: 'k2-fsa/OmniVoice',
-    label: 'OmniVoice TTS',
+    label: 'VoiceStudio TTS',
     role: 'TTS',
     size_gb: 2.4,
     installed: true,

@@ -17,7 +17,7 @@ import { detectHints, isUnrecoverableFailure } from './BootstrapSplash';
  * GitHub). BootstrapSplash renders that diagnosis — but only while the splash
  * is up. Once the app is running, a later start failure (a supervisor giving up
  * after a crash loop, a Retry that re-failed) had no surface at all: apiFetch
- * threw the evidence-free "Can't reach the local OmniVoice backend — it may
+ * threw the evidence-free "Can't reach the local VoiceStudio backend — it may
  * still be starting up, or it stopped", which is the exact string #1177
  * reported, and which is also false — it is not starting, and it will not
  * recover on its own.

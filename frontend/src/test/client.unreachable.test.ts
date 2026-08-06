@@ -10,7 +10,7 @@ import {
 } from '../utils/backendContact';
 import { detectDeploymentMode } from '../utils/deploymentMode';
 
-// #1164: "Can't reach the local OmniVoice backend" reported from a
+// #1164: "Can't reach the local VoiceStudio backend" reported from a
 // `bun run dev` browser session with ZERO diagnostics. The give-up error must
 // now (a) know which deployment it's in — there is no app to restart and no
 // Settings → Logs in a browser tab — and (b) say whether the backend ever
@@ -60,7 +60,7 @@ describe('backendContact', () => {
 
   it('gives dev-mode advice pointing at the bun run dev terminal and omnivoice.log', () => {
     const msg = unreachableBackendMessage('dev');
-    expect(msg).toContain("Can't reach the local OmniVoice backend");
+    expect(msg).toContain("Can't reach the local VoiceStudio backend");
     expect(msg).toContain('bun run dev');
     expect(msg).toContain('omnivoice.log');
     expect(msg).not.toContain('restart the app');

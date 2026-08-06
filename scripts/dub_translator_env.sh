@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source this BEFORE launching OmniVoice to enable Cinematic dub translation.
+# Source this BEFORE launching VoiceStudio to enable Cinematic dub translation.
 #   source scripts/dub_translator_env.sh gemini    # hosted (best Hindi quality)
 #   source scripts/dub_translator_env.sh openai    # hosted GPT
 #   source scripts/dub_translator_env.sh gemma     # local Gemma 4 E4B (needs llama-server)

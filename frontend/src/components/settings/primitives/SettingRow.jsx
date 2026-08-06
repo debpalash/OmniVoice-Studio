@@ -6,7 +6,7 @@ import InfoHint from './InfoHint';
  * SettingRow — one labelled row in a SettingsSection.
  *
  * FAST-mode shadcn migration: the grid layout, label/subtitle typography and the
- * right-aligned control slot are now Tailwind utilities on the OmniVoice
+ * right-aligned control slot are now Tailwind utilities on the VoiceStudio
  * `--chrome-*` / `--space-*` token bridge (palette preserved exactly). The old
  * `.st-row*` rules in primitives.css are gone. Row-stacking on a narrow Settings
  * column is reproduced with the Tailwind v4 named-container variant

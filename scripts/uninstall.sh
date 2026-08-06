@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# OmniVoice Studio — clean uninstaller (macOS + Linux).
+# VoiceStudio — clean uninstaller (macOS + Linux).
 #
-# Finds every folder OmniVoice wrote (app data, the managed Python env, config,
+# Finds every folder VoiceStudio wrote (app data, the managed Python env, config,
 # logs) and — separately, because it's a SHARED cache — the Hugging Face model
 # cache, prints each with its size, and removes them. Dry-run by default: it
 # prints what it WOULD delete and stops, so you always see the plan first.
 #
 #   scripts/uninstall.sh            # dry-run: list targets + sizes, delete nothing
-#   scripts/uninstall.sh --yes      # delete the OmniVoice data/env/config/logs
+#   scripts/uninstall.sh --yes      # delete the VoiceStudio data/env/config/logs
 #   scripts/uninstall.sh --yes --models   # also delete the shared HF model cache
 #
 # Honors custom locations via the same env vars the app reads:
 #   OMNIVOICE_DATA_DIR, OMNIVOICE_CACHE_DIR, HF_HOME, HF_HUB_CACHE
-# Export the ones you set for OmniVoice before running, and it targets those.
+# Export the ones you set for VoiceStudio before running, and it targets those.
 #
 # It NEVER deletes the app binary itself (that's a per-platform step — see
 # docs/install/uninstall.md), and it never touches anything outside the paths
@@ -54,7 +54,7 @@ case "$OS" in
     # The BACKEND writes its own logs outside the app-data dir — see
     # backend_log_path() in src-tauri/src/backend.rs. Missing this left a stray
     # log dir behind on every Linux uninstall.
-    logs_extra=("${XDG_STATE_HOME:-$HOME/.local/state}/OmniVoice")
+    logs_extra=("${XDG_STATE_HOME:-$HOME/.local/state}/VoiceStudio")
     models_default="$HOME/.cache/huggingface"
     ;;
   *)
@@ -80,10 +80,10 @@ for d in "${logs_extra[@]:-}"; do [ -n "$d" ] && [ -e "$d" ] && app_targets+=("$
 
 human_size() { du -sh "$1" 2>/dev/null | cut -f1 || echo "?"; }
 
-echo "OmniVoice Studio uninstaller ($OS)"
+echo "VoiceStudio uninstaller ($OS)"
 echo "----------------------------------"
 if [ "${#app_targets[@]}" -eq 0 ]; then
-  echo "No OmniVoice app data / env / config folders found at the default or"
+  echo "No VoiceStudio app data / env / config folders found at the default or"
   echo "env-configured locations. Nothing to remove."
 else
   echo "App data, managed Python env, config, and logs:"

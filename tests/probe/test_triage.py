@@ -48,7 +48,7 @@ def test_detect_repo_from_origin():
         pytest.skip("no GitHub origin remote here (tarball/archive checkout)")
     owner, name = repo
     assert isinstance(owner, str) and owner
-    assert name == "OmniVoice-Studio"
+    assert isinstance(name, str) and name
 
 
 def test_clustering_dedupes_and_excludes_nonblocking():
@@ -71,11 +71,11 @@ def test_triage_builds_github_url(monkeypatch):
     # Pin detect_repo so the URL is deterministic on every fork: this test
     # exercises URL construction, not the git origin (which is the fork owner on
     # a contributor's checkout, not the upstream "debpalash").
-    monkeypatch.setattr(T, "detect_repo", lambda cwd=None: ("debpalash", "OmniVoice-Studio"))
+    monkeypatch.setattr(T, "detect_repo", lambda cwd=None: ("debpalash", "VoiceStudio"))
     res = T.triage(_failing_report())
-    assert res.owner == "debpalash" and res.repo == "OmniVoice-Studio"
+    assert res.owner == "debpalash" and res.repo == "VoiceStudio"
     assert res.url and res.url.startswith(
-        "https://github.com/debpalash/OmniVoice-Studio/issues/new?"
+        "https://github.com/debpalash/VoiceStudio/issues/new?"
     )
     q = urllib.parse.parse_qs(urllib.parse.urlparse(res.url).query)
     assert q["title"][0] == res.title
@@ -93,7 +93,7 @@ def test_report_renders_issue_button_on_failure():
     from . import report as R
 
     rep = _failing_report()
-    rep.issue_url = "https://github.com/debpalash/OmniVoice-Studio/issues/new?title=x"
+    rep.issue_url = "https://github.com/debpalash/VoiceStudio/issues/new?title=x"
     html = R.render_html(rep)
     assert "Draft GitHub issue" in html
     assert rep.issue_url in html

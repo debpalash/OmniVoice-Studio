@@ -36,7 +36,7 @@
 
 ## Release cadence
 
-OmniVoice ships **continuous-to-main** — no release candidates, no soak windows.
+VoiceStudio ships **continuous-to-main** — no release candidates, no soak windows.
 Every merged PR is immediately part of the rolling preview (`main`, Docker
 `:latest`, the desktop Preview channel). Versioned releases are tagged from
 `main` when it's ready; `main` then bumps to the next patch automatically.

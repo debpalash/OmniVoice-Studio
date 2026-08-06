@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Re-render the demo bundle using the real OmniVoice TTS engine.
+"""Re-render the demo bundle using the real VoiceStudio TTS engine.
 
 This is the production-quality counterpart to scripts/build_demos.sh, which
 uses macOS `say` to bootstrap the demo bundle. Run this once on a machine
-with OmniVoice model weights cached (typically your dev box) to replace the
+with VoiceStudio model weights cached (typically your dev box) to replace the
 `say`-rendered placeholders with engine output. Commit the resulting WAVs.
 
 Prerequisites:
   * The project's .venv exists and is activated (`uv sync`).
-  * OmniVoice model weights cached under $HF_HUB_CACHE (the first
+  * VoiceStudio model weights cached under $HF_HUB_CACHE (the first
     `model.generate()` call will download them otherwise — ~5 GB).
   * Run from the repo root: `python3 scripts/render_demos_omnivoice.py`.
 
@@ -51,7 +51,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 # Cloning demo — must match scripts/build_demos.sh exactly so the manifest
 # stays in sync with what the bootstrap script produced.
 CLONE_REF_TEXT = (
-    "Hi, I'm the OmniVoice demo voice. Everything you hear me say from now on "
+    "Hi, I'm the VoiceStudio demo voice. Everything you hear me say from now on "
     "was synthesized on your own machine. No cloud, no account, just you and "
     "the model."
 )
@@ -78,7 +78,7 @@ def _save_wav(audio_tensor, sample_rate: int, out_path: Path):
 
     if audio_tensor.dim() == 1:
         audio_tensor = audio_tensor.unsqueeze(0)
-    # Ensure mono — most OmniVoice outputs are mono already.
+    # Ensure mono — most VoiceStudio outputs are mono already.
     if audio_tensor.shape[0] > 1:
         audio_tensor = audio_tensor.mean(dim=0, keepdim=True)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +98,7 @@ def render_cloning(model, args):
     """Render the cloning demo: reference clip + pre-rendered output.
 
     The reference clip is itself synthesized — chicken-and-egg, but the
-    OmniVoice engine in non-zero-shot mode (no ref_audio) accepts a plain
+    VoiceStudio engine in non-zero-shot mode (no ref_audio) accepts a plain
     `instruct=` taxonomy string and produces a clean voice.
     """
     print("── Cloning demo ─────────────────────────────────────")
@@ -188,7 +188,7 @@ def main():
     )
     args = parser.parse_args()
 
-    print("Loading OmniVoice engine (this can take 30-60 s on first run)…")
+    print("Loading VoiceStudio engine (this can take 30-60 s on first run)…")
     try:
         import asyncio
         from services.model_manager import get_model
@@ -198,7 +198,7 @@ def main():
         except RuntimeError:
             model = asyncio.run(get_model())
     except Exception as e:
-        print(f"\nERROR: Could not load OmniVoice engine: {e}\n")
+        print(f"\nERROR: Could not load VoiceStudio engine: {e}\n")
         print("Check that:")
         print("  1. You're running inside the project venv (uv sync first).")
         print("  2. The omnivoice package is importable: `python -c 'import omnivoice'`.")

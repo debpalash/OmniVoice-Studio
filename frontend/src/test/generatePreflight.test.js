@@ -277,7 +277,7 @@ describe('CPU-tuned engines do not recommend themselves', () => {
   const LONG = 'a'.repeat(1500);
   const onCpu = (id) => engines(id, [{ id, routing_status: 'cpu_only', routing_reason: null }]);
 
-  // Greptile P1: the generic advice is "try a CPU-tuned engine (OmniVoice
+  // Greptile P1: the generic advice is "try a CPU-tuned engine (VoiceStudio
   // GGUF, Supertonic-3)". Showing that to someone already running one of them
   // is advice to switch to what they are using.
   it.each(['omnivoice-gguf', 'supertonic3'])(

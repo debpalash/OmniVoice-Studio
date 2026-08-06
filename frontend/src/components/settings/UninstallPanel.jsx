@@ -10,7 +10,7 @@
  * Two deliberate choices:
  *  - The **shared Hugging Face cache is opt-in**, on its own checkbox with the
  *    caveat spelled out: it's the standard HF cache other ML tools use, so
- *    removing it can delete models OmniVoice never downloaded.
+ *    removing it can delete models VoiceStudio never downloaded.
  *  - The confirmation requires **typing the word**, not just a click. This
  *    deletes voice profiles and projects that cannot be recovered.
  *
@@ -139,13 +139,13 @@ export default function UninstallPanel() {
         icon={Trash2}
         title={t('settings.uninstall', { defaultValue: 'Remove all data' })}
         description={t('settings.uninstall_desc', {
-          defaultValue: 'Delete everything OmniVoice has written to this machine, then quit.',
+          defaultValue: 'Delete everything VoiceStudio has written to this machine, then quit.',
         })}
       >
         <p className="m-0 mb-[var(--space-4)] [font-family:var(--font-sans)] text-[length:var(--text-md)] leading-[1.6] text-[var(--chrome-fg-muted)]">
           {t('settings.uninstall_body', {
             defaultValue:
-              'OmniVoice is fully local, so uninstalling is just deleting the folders it wrote. This removes your voice profiles, projects, and generated audio permanently — there is no undo. Removing the app itself is a separate step.',
+              'VoiceStudio is fully local, so uninstalling is just deleting the folders it wrote. This removes your voice profiles, projects, and generated audio permanently — there is no undo. Removing the app itself is a separate step.',
           })}
         </p>
         {owned.length > 0 && (
@@ -175,7 +175,7 @@ export default function UninstallPanel() {
                   label={LABELS.models}
                   hint={t('settings.uninstall_models_caveat', {
                     defaultValue:
-                      'The standard Hugging Face cache, shared with other AI tools on this machine — removing it may delete models OmniVoice never downloaded. Anything OmniVoice needs downloads again.',
+                      'The standard Hugging Face cache, shared with other AI tools on this machine — removing it may delete models VoiceStudio never downloaded. Anything VoiceStudio needs downloads again.',
                   })}
                   path={models.path}
                   size={models.size_bytes}
@@ -215,7 +215,7 @@ export default function UninstallPanel() {
         open={open}
         onClose={() => !busy && setOpen(false)}
         title={t('settings.uninstall_confirm_title', {
-          defaultValue: 'Remove all OmniVoice data?',
+          defaultValue: 'Remove all VoiceStudio data?',
         })}
         size="md"
         footer={

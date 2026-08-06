@@ -22,7 +22,7 @@ import { deploymentMode } from './deploymentMode';
 
 /** Canonical project repository — every GitHub link in the app derives from
  * this single constant so a fork/rename can never leave stale links behind. */
-export const REPO_URL = 'https://github.com/debpalash/OmniVoice-Studio';
+export const REPO_URL = 'https://github.com/debpalash/VoiceStudio';
 
 export const ISSUES_URL = `${REPO_URL}/issues/new`;
 

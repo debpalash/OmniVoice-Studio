@@ -378,7 +378,7 @@ def engine_health(engine_id: str):
 
 # Deliberately short + ASCII so the synth stays CPU-cheap and the phrase never
 # trips the no-hardcoded-CJK guard.
-_SELFTEST_PHRASE = "OmniVoice engine self test."
+_SELFTEST_PHRASE = "VoiceStudio engine self test."
 _SELFTEST_LOCK = threading.Lock()
 
 

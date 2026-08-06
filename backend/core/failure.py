@@ -39,7 +39,7 @@ _HINTS: dict[str, str] = {
     "APPIMAGE_WEBKIT_WHITESCREEN": "Launch with WEBKIT_DISABLE_DMABUF_RENDERER=1 set.",
     "HF_AUTH_FAILED": "Set a valid HF_TOKEN in Settings → Hugging Face and retry.",
     "PYANNOTE_LICENSE_REQUIRED": "Accept the pyannote model licenses on Hugging Face, then retry.",
-    "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — OmniVoice retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
+    "COMPUTE_TYPE_UNSUPPORTED": "Your GPU doesn't support float16 — VoiceStudio retried on int8. If transcription still fails, set OMNIVOICE/ASR_COMPUTE_TYPE=int8 or use CPU.",
     # Literal versions, not `--constraint deploy/torch-constraints.txt`:
     # desktop installs don't ship deploy/ (tauri.conf.json bundles only
     # pyproject/uv.lock/backend/omnivoice), so the file-based command would
@@ -47,23 +47,23 @@ _HINTS: dict[str, str] = {
     # (greptile on #1377). tests/test_failure_classify.py pins these literals
     # to the constraint file so they cannot drift when the pins bump.
     "TRANSFORMERS_IMPORT": "Your transformers install is incomplete, or a package it loads models through (torchaudio, torchvision) is missing or mismatched with your torch — a torch/torchvision version mismatch fails with exactly this wording. Reinstall them together at the pinned versions (`uv pip install --python .venv --reinstall torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 transformers` in the project folder), then restart the backend. If only transcription is affected, switching ASR to faster-whisper (Settings → Models) also works around it.",
-    "WINDOWS_APP_CONTROL_BLOCKED": "Windows refused to load a file OmniVoice needs — an Application Control policy (Smart App Control, WDAC, or AppLocker) blocked it. On a personal PC: Windows Security → App & browser control → Smart App Control → Off (Windows only lets you turn it off once — re-enabling requires a Windows reset), then restart OmniVoice. On a managed/work PC, ask IT to allow the OmniVoice install folder.",
+    "WINDOWS_APP_CONTROL_BLOCKED": "Windows refused to load a file VoiceStudio needs — an Application Control policy (Smart App Control, WDAC, or AppLocker) blocked it. On a personal PC: Windows Security → App & browser control → Smart App Control → Off (Windows only lets you turn it off once — re-enabling requires a Windows reset), then restart VoiceStudio. On a managed/work PC, ask IT to allow the VoiceStudio install folder.",
     "WINDOWS_PAGING_FILE_TOO_SMALL": "Windows ran out of virtual memory while mapping the model into memory — its paging file is smaller than the model needs. This is not the same as your RAM being full, and closing other apps usually won't fix it: Windows has to be allowed to back the mapping. Set a bigger paging file — Settings → System → About → Advanced system settings → Performance → Settings → Advanced → Virtual memory → Change: untick \"Automatically manage\", pick your system drive, choose \"Custom size\" and set both Initial and Maximum to at least 32768 MB (more than the model's size), then OK and restart Windows. A smaller/quantized engine (OmniVoice GGUF, Supertonic-3) also avoids the large mapping entirely.",
-    "MEDIA_TOOL_MISSING": "OmniVoice's media engine (ffmpeg/ffprobe) wasn't on the system path when a component went looking for it. Open Settings → Audio tools and use Download/Repair to fetch the bundled copy, then retry — a restart picks it up for everything. If you'd rather use a system install, install ffmpeg (macOS: `brew install ffmpeg`; Windows: `winget install Gyan.FFmpeg`; Linux: your package manager) and restart OmniVoice, or point FFMPEG_PATH / OMNIVOICE_FFPROBE_PATH at the binaries in Settings.",
-    "AUDIO_IO_FAILED": "An audio file couldn't be read or written at the OS level. Check the drive isn't full, that the output and temp folders exist and are writable, and that antivirus or OneDrive isn't locking them (add an OmniVoice exclusion if you use one).",
-    "VIDEO_DOWNLOAD_OS_ERROR": "The OS refused a file operation while saving the downloaded video — this is a disk/folder problem, not a network one, so retrying the same link won't help. The download is written to a job folder under your OmniVoice data directory (Settings → Storage shows the path): check that drive isn't full, that the folder exists and is writable, and that antivirus or a cloud-sync client (OneDrive, Dropbox) isn't locking it — add an OmniVoice exclusion if you use one. If your data directory sits on a synced or network drive, move it to a local one.",
-    "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add an OmniVoice antivirus exclusion if you use one), then retry.",
-    "SOCKS_PROXY_SUPPORT_MISSING": "A SOCKS proxy is configured in your environment (ALL_PROXY/HTTPS_PROXY=socks5://…) and the backend's HTTP client is missing SOCKS support. Newer OmniVoice builds ship SOCKS support (the socksio package) — update the app. If you still see this, unset ALL_PROXY/HTTPS_PROXY for OmniVoice, or run `uv pip install 'httpx[socks]'` in the backend venv, then restart.",
-    "SSL_HANDSHAKE_FAILURE": "A corporate or antivirus proxy is intercepting HTTPS traffic and re-signing certificates with its own CA — your OS trusts that CA, but Python's bundled certifi CA list doesn't, so the TLS handshake fails even though the connection reached the server. Newer OmniVoice builds trust the OS certificate store at startup (the truststore package), which should already fix this — update the app and retry. If you still see this, add an HTTPS-scanning exclusion for OmniVoice/Python in your antivirus, or ask IT for the proxy's CA bundle and set SSL_CERT_FILE to it, then restart.",
+    "MEDIA_TOOL_MISSING": "VoiceStudio's media engine (ffmpeg/ffprobe) wasn't on the system path when a component went looking for it. Open Settings → Audio tools and use Download/Repair to fetch the bundled copy, then retry — a restart picks it up for everything. If you'd rather use a system install, install ffmpeg (macOS: `brew install ffmpeg`; Windows: `winget install Gyan.FFmpeg`; Linux: your package manager) and restart VoiceStudio, or point FFMPEG_PATH / OMNIVOICE_FFPROBE_PATH at the binaries in Settings.",
+    "AUDIO_IO_FAILED": "An audio file couldn't be read or written at the OS level. Check the drive isn't full, that the output and temp folders exist and are writable, and that antivirus or OneDrive isn't locking them (add a VoiceStudio exclusion if you use one).",
+    "VIDEO_DOWNLOAD_OS_ERROR": "The OS refused a file operation while saving the downloaded video — this is a disk/folder problem, not a network one, so retrying the same link won't help. The download is written to a job folder under your VoiceStudio data directory (Settings → Storage shows the path): check that drive isn't full, that the folder exists and is writable, and that antivirus or a cloud-sync client (OneDrive, Dropbox) isn't locking it — add a VoiceStudio exclusion if you use one. If your data directory sits on a synced or network drive, move it to a local one.",
+    "OS_INVALID_ARGUMENT": "The OS rejected a file operation (Errno 22 / invalid argument) — in the transcribe path this is the temporary WAV write before ASR. It's almost always the temp directory: missing, read-only, on a full or removed drive, or blocked by antivirus. Check that your system TEMP/TMP folder exists and is writable and the drive has free space (add a VoiceStudio antivirus exclusion if you use one), then retry.",
+    "SOCKS_PROXY_SUPPORT_MISSING": "A SOCKS proxy is configured in your environment (ALL_PROXY/HTTPS_PROXY=socks5://…) and the backend's HTTP client is missing SOCKS support. Newer VoiceStudio builds ship SOCKS support (the socksio package) — update the app. If you still see this, unset ALL_PROXY/HTTPS_PROXY for VoiceStudio, or run `uv pip install 'httpx[socks]'` in the backend venv, then restart.",
+    "SSL_HANDSHAKE_FAILURE": "A corporate or antivirus proxy is intercepting HTTPS traffic and re-signing certificates with its own CA — your OS trusts that CA, but Python's bundled certifi CA list doesn't, so the TLS handshake fails even though the connection reached the server. Newer VoiceStudio builds trust the OS certificate store at startup (the truststore package), which should already fix this — update the app and retry. If you still see this, add an HTTPS-scanning exclusion for VoiceStudio/Python in your antivirus, or ask IT for the proxy's CA bundle and set SSL_CERT_FILE to it, then restart.",
     "UNSUPPORTED_VIDEO_URL": "This link isn't a directly downloadable video. Paste a direct video page (e.g. a youtube.com/watch?v=… or douyin.com/video/<id> link), not a share/profile/feed link — or download the file and drop it in directly.",
-    "VIDEO_DRM_PROTECTED": "The video host only offered OmniVoice a DRM-protected copy, which can't be downloaded. This is often not a property of the video itself — the host serves a different format set to different clients, and OmniVoice already retried through every client it has. Try the link again in a minute, or download the video with a browser extension / the host's own download button and drop the file into Dubbing directly.",
+    "VIDEO_DRM_PROTECTED": "The video host only offered VoiceStudio a DRM-protected copy, which can't be downloaded. This is often not a property of the video itself — the host serves a different format set to different clients, and VoiceStudio already retried through every client it has. Try the link again in a minute, or download the video with a browser extension / the host's own download button and drop the file into Dubbing directly.",
     # #1301: distinct from SSL_HANDSHAKE_FAILURE. The handshake did not fail on
     # trust — the connection was CUT while TLS was in progress, so the certifi /
     # proxy-CA advice above would send the user to fix something that isn't
     # broken. Raw form is "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in
     # violation of protocol (_ssl.c:1016)", which means nothing to anyone.
     "TLS_CONNECTION_DROPPED": "The secure connection was cut off mid-transfer — the other end (or something between you and it) closed the socket during the TLS exchange. This is almost always transient: flaky Wi-Fi, a VPN reconnecting, a captive portal, or a download server dropping a long transfer. Retrying is safe: a partly-downloaded MODEL is picked up where it left off rather than started over. If it repeats every time, a VPN or an HTTPS-inspecting proxy is terminating long-lived connections — try without the VPN, or on another network.",
-    "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — OmniVoice already cleaned up the partial download. If it keeps failing, check your network/VPN.",
+    "VIDEO_DOWNLOAD_NETWORK": "The connection to the video server dropped mid-download (often a transient CDN/network blip or a regional rate-limit). Just retry — VoiceStudio already cleaned up the partial download. If it keeps failing, check your network/VPN.",
     # #1347: the transformers pipeline fails to import a component it was
     # DOWNLOADING when the shared HTTP client closed underneath it (#880). The
     # message names AutoFeatureExtractor, so TRANSFORMERS_IMPORT matched and
@@ -71,8 +71,8 @@ _HINTS: dict[str, str] = {
     # because nothing is wrong with their install. Checked first so the cause
     # wins over the symptom.
     "MODEL_DOWNLOAD_INTERRUPTED": "A model download was cut off mid-request, and the component it was fetching then failed to load. Nothing is wrong with your install — reinstalling won't help, and the partial download is resumed rather than restarted. Just retry. If it keeps happening, check your connection (and any VPN, proxy or HF mirror setting); if only transcription is affected, switching ASR to faster-whisper in Settings → Models avoids the pipeline that downloads this component.",
-    "BROKEN_VENV": "The Python backend environment was moved or damaged. OmniVoice rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
-    "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). OmniVoice repairs this automatically and retries the load once. If the error persists, quit OmniVoice, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
+    "BROKEN_VENV": "The Python backend environment was moved or damaged. VoiceStudio rebuilds it automatically on the next launch; if it keeps failing, use Clean & Retry on the setup screen.",
+    "MODEL_CACHE_CORRUPT": "The model cache had broken file links — snapshot entries that no longer point at their downloaded data (interrupted renames or antivirus interference can cause this). VoiceStudio repairs this automatically and retries the load once. If the error persists, quit VoiceStudio, delete the model's models--<org>--<name> folder inside the Hugging Face cache, and restart — the model re-downloads automatically.",
     # HF_MIRROR_UNREACHABLE has a DYNAMIC hint (it names the configured mirror)
     # — see hf_mirror_hint(); build_failure special-cases it.
 }
@@ -211,7 +211,7 @@ def hf_mirror_hint(reason: Optional[str]) -> str:
         "first-run setup, use the mirror picker right on this screen — or "
         "wait for the mirror to recover, then retry: downloads pick up a "
         "mirror change immediately. If a retry still fails after switching, "
-        "restart OmniVoice."
+        "restart VoiceStudio."
     )
 
 
@@ -299,7 +299,7 @@ def classify(reason: str) -> str:
     # transformers + site-packages markers, which this signature lacks.
     # #1225: the same errno raised by the DUB video download is a different
     # class with a different remedy — the failing directory is the job folder
-    # under the OmniVoice data dir, not the system temp dir. Checked first so
+    # under the VoiceStudio data dir, not the system temp dir. Checked first so
     # a download's errno 22 stops being handed the transcribe path's
     # "check your TEMP folder" hint, which sends the user to the wrong place.
     if is_os_write_refusal(reason) and any(
@@ -307,10 +307,10 @@ def classify(reason: str) -> str:
     ):
         return "VIDEO_DOWNLOAD_OS_ERROR"
     # #1256: a third-party library shelled out to `ffprobe`/`ffmpeg` BY NAME and
-    # the OS had nothing to run. OmniVoice's own code always resolves the
+    # the OS had nothing to run. VoiceStudio's own code always resolves the
     # bundled sidecar explicitly, so this only ever comes from a dependency —
     # which meant it arrived with no class at all and the user was told the
-    # engine "stopped with an error OmniVoice doesn't recognize". Checked
+    # engine "stopped with an error VoiceStudio doesn't recognize". Checked
     # before the generic errno-2 rules, which would otherwise claim it.
     if _is_missing_media_tool(low):
         return "MEDIA_TOOL_MISSING"
@@ -330,7 +330,7 @@ def classify(reason: str) -> str:
     # zero-byte stand-ins) or which is simply missing its weight shard.
     # model_manager self-heals this (delete broken entries → snapshot_download
     # → retry once); the class here covers the raw transformers wordings (any
-    # load surface can leak them) and OmniVoice's own repair messages, so the
+    # load surface can leak them) and VoiceStudio's own repair messages, so the
     # user-facing error and the auto bug report name the class and its
     # automatic repair.
     if is_incomplete_cache_message(low) or "broken file link" in low:
@@ -604,7 +604,7 @@ def _env_summary() -> str:
 def diagnostic(*, reason: str, error_class: str, stage: str) -> str:
     """A sanitized, copy-paste-friendly diagnostic block for a failed job."""
     block = (
-        "OmniVoice diagnostic\n"
+        "VoiceStudio diagnostic\n"
         "--------------------\n"
         f"Stage:   {stage}\n"
         f"Error:   {error_class}\n"

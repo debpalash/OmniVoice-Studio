@@ -81,7 +81,7 @@ export default function AboutTab({
 
   return (
     <SettingsSection icon={Info} title={t('settings.about')}>
-      <Row label={t('about.app')} value="OmniVoice Studio" />
+      <Row label={t('about.app')} value="VoiceStudio" />
       <Row label={t('about.version')} value={resolveAboutVersion(appVersion, info)} mono />
       <Row
         label={t('about.tauri_runtime')}

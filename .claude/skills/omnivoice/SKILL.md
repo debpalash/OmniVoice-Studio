@@ -1,20 +1,20 @@
 ---
 name: omnivoice
-description: "Local TTS, voice cloning, voice design, and video dubbing via the OmniVoice Studio MCP server (open-source ElevenLabs alternative; nothing leaves the machine, runs on MPS/CUDA/CPU). Use when: (1) generating speech from text in any of 646 languages, (2) cloning a voice from a 3-second reference clip, (3) designing a voice by gender/age/accent/pitch/style, (4) dubbing a video into another language, (5) listing voice profiles or personality presets, (6) producing narration where privacy, cost, or absent API keys matter, (7) non-English narration where Edge TTS/kokoro fall short, (8) batch audio for blog posts or content pipelines. Triggers: 'omnivoice', 'voice clone', 'clone this voice', 'tts', 'narrate', 'generate speech', 'voice synthesis', 'dub video', 'voice design', 'local tts', 'multilingual voice', 'narrate this post', 'elevenlabs alternative'."
+description: "Local TTS, voice cloning, voice design, and video dubbing via the VoiceStudio MCP server (open-source ElevenLabs alternative; nothing leaves the machine, runs on MPS/CUDA/CPU). Use when: (1) generating speech from text in any of 646 languages, (2) cloning a voice from a 3-second reference clip, (3) designing a voice by gender/age/accent/pitch/style, (4) dubbing a video into another language, (5) listing voice profiles or personality presets, (6) producing narration where privacy, cost, or absent API keys matter, (7) non-English narration where Edge TTS/kokoro fall short, (8) batch audio for blog posts or content pipelines. Triggers: 'omnivoice', 'voice clone', 'clone this voice', 'tts', 'narrate', 'generate speech', 'voice synthesis', 'dub video', 'voice design', 'local tts', 'multilingual voice', 'narrate this post', 'elevenlabs alternative'."
 ---
 
-# OmniVoice
+# VoiceStudio
 
 ## Overview
 
-Generate audio locally via the OmniVoice Studio MCP server. Tools: `generate_speech`, `list_voices`, `list_personalities`, `list_languages`, `check_health`. Resources: `voice://{id}`, `history://recent`.
+Generate audio locally via the VoiceStudio MCP server. Tools: `generate_speech`, `list_voices`, `list_personalities`, `list_languages`, `check_health`. Resources: `voice://{id}`, `history://recent`.
 
 ## Prerequisites — Backend Must Be Running
 
 The MCP tools all hit `$OMNIVOICE_API_URL` (default `http://localhost:3900`). If the backend is down, every tool returns a connection error. Install + boot:
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git "$OMNIVOICE_HOME"
+git clone https://github.com/debpalash/VoiceStudio.git "$OMNIVOICE_HOME"
 cd "$OMNIVOICE_HOME"
 uv sync
 VIRTUAL_ENV="$(pwd)/.venv" uv pip install 'mcp[cli]'
@@ -41,7 +41,7 @@ First synthesis call lazy-downloads the `k2-fsa/OmniVoice` model (~2.4 GB) from 
 | List personality presets | `list_personalities` | Returns narrator / casual / news-anchor / etc. with their `instruct` strings |
 | List supported languages | `list_languages` | 646 total; returns 20 popular + the full count |
 
-For non-trivial decisions (which engine to use, when to pick OmniVoice over kokoro / Edge TTS / ElevenLabs), see [references/engines-comparison.md](references/engines-comparison.md).
+For non-trivial decisions (which engine to use, when to pick VoiceStudio over kokoro / Edge TTS / ElevenLabs), see [references/engines-comparison.md](references/engines-comparison.md).
 
 For MCP wiring details, backend lifecycle, troubleshooting, and a clean teardown, see [references/mcp-setup.md](references/mcp-setup.md).
 
@@ -52,7 +52,7 @@ For MCP wiring details, backend lifecycle, troubleshooting, and a clean teardown
 ```python
 # As called through the MCP client (your agent will do this for you):
 result = generate_speech(
-    text="Hello — this is OmniVoice generating speech locally.",
+    text="Hello — this is VoiceStudio generating speech locally.",
     profile_id="demo0001",
     language="English",
     steps=16,                   # 8 = fast/draft · 16 = balanced · 32 = quality
@@ -148,16 +148,16 @@ Get pre-made instructs via `list_personalities` and copy the one matching the br
 
 The MCP server does not expose the dubbing endpoint. The full transcribe → translate → re-voice → mux pipeline lives behind the desktop UI (`bun run desktop` in `$OMNIVOICE_HOME`) and the `/dub/*` REST routes. When the user asks to dub a video, point them to the UI; surface this skill only for the synthesis primitives above.
 
-## When NOT to use OmniVoice
+## When NOT to use VoiceStudio
 
 - **Fast English-only narration on weak hardware** → `kokoro-tts` is ~10× smaller and 2× realtime on CPU (see [references/engines-comparison.md](references/engines-comparison.md))
 - **Lowest-friction one-off TTS** → Edge TTS needs no install or backend
-- **Highest possible quality regardless of cost** → ElevenLabs still wins on English narration polish; OmniVoice ties or wins on multilingual + cloning
-- **Real-time streaming dictation** → use the OmniVoice desktop widget (`⌘+⇧+Space`), not the MCP server
+- **Highest possible quality regardless of cost** → ElevenLabs still wins on English narration polish; VoiceStudio ties or wins on multilingual + cloning
+- **Real-time streaming dictation** → use the VoiceStudio desktop widget (`⌘+⇧+Space`), not the MCP server
 
 ## Resources
 
-- [references/engines-comparison.md](references/engines-comparison.md) — Decision tree across OmniVoice / kokoro / Voicebox / Edge TTS / ElevenLabs / cloud APIs
+- [references/engines-comparison.md](references/engines-comparison.md) — Decision tree across VoiceStudio / kokoro / Voicebox / Edge TTS / ElevenLabs / cloud APIs
 - [references/mcp-setup.md](references/mcp-setup.md) — MCP wiring, backend lifecycle, env vars, troubleshooting
 - [scripts/check-health.sh](scripts/check-health.sh) — `curl /health`, exit 0/1
 - [scripts/start-backend.sh](scripts/start-backend.sh) — Start uvicorn on 127.0.0.1:3900 with health probe
@@ -166,4 +166,4 @@ The MCP server does not expose the dubbing endpoint. The full transcribe → tra
 
 Backend Swagger / OpenAPI: `http://127.0.0.1:3900/docs` (when backend is up).
 
-Upstream: github.com/debpalash/OmniVoice-Studio — FSL-1.1-ALv2 (free for personal/internal/non-commercial; auto-converts to Apache-2.0 two years after each release).
+Upstream: github.com/debpalash/VoiceStudio — FSL-1.1-ALv2 (free for personal/internal/non-commercial; auto-converts to Apache-2.0 two years after each release).

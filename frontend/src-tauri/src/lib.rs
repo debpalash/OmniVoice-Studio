@@ -1,4 +1,4 @@
-//! OmniVoice Studio — Tauri desktop shell.
+//! VoiceStudio — Tauri desktop shell.
 //!
 //! Module layout:
 //!   config    – persistent app config, region helpers
@@ -592,7 +592,7 @@ pub fn run() {
                 let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
                     .id("dictate")
                     .build(app)?;
-                let open_studio_i = MenuItemBuilder::new("Open OmniVoice Studio")
+                let open_studio_i = MenuItemBuilder::new("Open VoiceStudio")
                     .id("open_studio")
                     .build(app)?;
                 let quit_i = MenuItemBuilder::new("Quit Dictation")
@@ -607,7 +607,7 @@ pub fn run() {
                     .build()?
             } else {
                 // Studio mode: full tray
-                let show_i = MenuItemBuilder::new("Show OmniVoice")
+                let show_i = MenuItemBuilder::new("Show VoiceStudio")
                     .id("show")
                     .build(app)?;
                 let dictate_i = MenuItemBuilder::new("Start Dictation  ⌘⇧Space")
@@ -619,7 +619,7 @@ pub fn run() {
                 let settings_i = MenuItemBuilder::new("Settings")
                     .id("settings")
                     .build(app)?;
-                let quit_i = MenuItemBuilder::new("Quit OmniVoice")
+                let quit_i = MenuItemBuilder::new("Quit VoiceStudio")
                     .id("quit")
                     .build(app)?;
                 MenuBuilder::new(app)
@@ -637,7 +637,7 @@ pub fn run() {
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&tray_menu)
-                .tooltip(if pill_mode_tray { "OmniVoice Dictation" } else { "OmniVoice Studio" })
+                .tooltip(if pill_mode_tray { "VoiceStudio Dictation" } else { "VoiceStudio" })
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "show" => {
@@ -762,7 +762,7 @@ pub fn run() {
                 // shortcut or tray 'Start Dictation'. Pre-position it now so
                 // the first show appears at bottom-center without an
                 // animation/frame flicker. Trade-off accepted vs the original
-                // 'looks-launch-failed' concern: the tray icon + 'OmniVoice
+                // 'looks-launch-failed' concern: the tray icon + 'VoiceStudio
                 // Dictation' tooltip provide the app-running signal.
                 match app.get_webview_window("widget") {
                     Some(win) => {
@@ -845,7 +845,7 @@ pub fn run() {
                     Some(v) if backend::same_app_version(&v) => {
                         if backend::backend_deep_healthy(backend_port()) {
                             log::info!(
-                                "Port {} already serving OmniVoice backend v{} — attaching",
+                                "Port {} already serving VoiceStudio backend v{} — attaching",
                                 backend_port(), v
                             );
                             set_stage(&stage_handle, BootstrapStage::Ready);
@@ -855,7 +855,7 @@ pub fn run() {
                         // install was wiped/corrupted while it kept running. Attaching
                         // would look alive and 500 on everything — replace it.
                         log::warn!(
-                            "Port {} serves OmniVoice v{} but failed the deep health probe — replacing it",
+                            "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
                             backend_port(), v
                         );
                         backend::kill_orphan_on_port(backend_port());
@@ -867,7 +867,7 @@ pub fn run() {
                         // old backend code. Replace it (see backend.rs
                         // same_app_version for the full story).
                         log::warn!(
-                            "Port {} serves a stale OmniVoice backend (v{} != app v{}) — replacing it",
+                            "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
                             backend_port(),
                             if v.is_empty() { "<unknown>" } else { v.as_str() },
                             env!("CARGO_PKG_VERSION"),

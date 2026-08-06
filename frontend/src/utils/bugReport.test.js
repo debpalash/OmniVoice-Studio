@@ -15,7 +15,7 @@ describe('scrubText — frontend twin of backend/core/scrub.py', () => {
   it.each([
     ['/Users/alice/Library/Logs/app.log', '~/Library/Logs/app.log'],
     ['/home/bob/.omnivoice/omnivoice.log', '~/.omnivoice/omnivoice.log'],
-    ['C:\\Users\\carol\\AppData\\Roaming\\OmniVoice', '~\\AppData\\Roaming\\OmniVoice'],
+    ['C:\\Users\\carol\\AppData\\Roaming\\VoiceStudio', '~\\AppData\\Roaming\\VoiceStudio'],
     // Windows paths normalized to forward slashes (webview stacks, file URLs)
     ['C:/Users/dave/AppData/Local/OmniVoice/app.log', '~/AppData/Local/OmniVoice/app.log'],
     ['file:///C:/Users/erin/project/index.js', '~/project/index.js'],
@@ -188,7 +188,7 @@ describe('buildBugReportUrl — backend reachability section (#1164)', () => {
   });
 
   it('includes the transport ApiError diagnostics when the report is built from one', async () => {
-    const err = new Error("Can't reach the local OmniVoice backend");
+    const err = new Error("Can't reach the local VoiceStudio backend");
     err.detail = {
       transport: 'Failed to fetch /Users/alice/x',
       mode: 'server',
@@ -221,7 +221,7 @@ describe('buildIssueSearchUrl', () => {
       new Error('CUDA error 700 at /home/eve/cache: illegal memory access'),
     );
     const q = decodeURIComponent(url.split('q=')[1]);
-    expect(url).toContain('github.com/debpalash/OmniVoice-Studio/issues?q=');
+    expect(url).toContain('github.com/debpalash/VoiceStudio/issues?q=');
     expect(q).toContain('CUDA error');
     expect(q).not.toContain('700'); // machine-specific noise stripped
     expect(q).not.toContain('/home/eve'); // scrubbed + punctuation-stripped

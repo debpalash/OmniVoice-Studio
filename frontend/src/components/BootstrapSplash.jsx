@@ -234,7 +234,7 @@ function JourneyRail({ t }) {
   return (
     <nav
       className="flex flex-wrap items-center gap-x-5 gap-y-2"
-      aria-label={t('bootstrap.title', 'OmniVoice Studio')}
+      aria-label={t('bootstrap.title', 'VoiceStudio')}
     >
       {stages.map(([label, state]) => (
         <span
@@ -613,7 +613,7 @@ export function BootstrapSplash({ stage, message }) {
                   screenshot from any of them identifies the build. */}
               <div className="flex flex-wrap items-baseline gap-2.5">
                 <h1 className="m-0 font-serif text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight tracking-tight">
-                  {t('bootstrap.title', 'OmniVoice Studio')}
+                  {t('bootstrap.title', 'VoiceStudio')}
                 </h1>
                 <span className="font-mono text-[0.62rem] tracking-[0.14em] text-fg-subtle">
                   v{APP_VERSION}

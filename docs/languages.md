@@ -1,11 +1,11 @@
 # Supported Languages
 
-OmniVoice supports **646 languages** with a total of **581k hours** of training data.
+VoiceStudio supports **646 languages** with a total of **581k hours** of training data.
 
-The table below lists each language with its OmniVoice language ID,
+The table below lists each language with its VoiceStudio language ID,
 ISO 639-3 code, and training data duration (hours).
 
-| # | Language | OmniVoice ID | ISO 639-3 | Duration (h) |
+| # | Language | VoiceStudio ID | ISO 639-3 | Duration (h) |
 |--:|----------|:------------:|:---------:|:------------:|
 | 1 | Abadi | kbt | kbt | 9.73 |
 | 2 | Abkhazian | ab | abk | 57.27 |

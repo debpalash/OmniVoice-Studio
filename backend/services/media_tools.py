@@ -193,7 +193,7 @@ def _download(url: str, dest_path: str, expected_sha256: str,
 
     if not url.startswith("https://"):
         raise ValueError("media-tools downloads must be https")
-    req = urllib.request.Request(url, headers={"User-Agent": "OmniVoice-Studio"})
+    req = urllib.request.Request(url, headers={"User-Agent": "VoiceStudio"})
     hasher = hashlib.sha256()
     done = 0
     with urllib.request.urlopen(req, timeout=_DOWNLOAD_TIMEOUT_S) as resp:
@@ -528,7 +528,7 @@ def _fetch_pypi_ytdlp() -> tuple[str, str, str]:
     """(version, wheel_url, sha256) of the latest yt-dlp wheel on PyPI."""
     import json
     import urllib.request
-    req = urllib.request.Request(_PYPI_YTDLP_URL, headers={"User-Agent": "OmniVoice-Studio"})
+    req = urllib.request.Request(_PYPI_YTDLP_URL, headers={"User-Agent": "VoiceStudio"})
     with urllib.request.urlopen(req, timeout=_DOWNLOAD_TIMEOUT_S) as resp:
         meta = json.load(resp)
     version = meta["info"]["version"]

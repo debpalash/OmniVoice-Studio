@@ -23,7 +23,7 @@ import { askConfirm } from './native';
 import { SettingsSection, SettingRow, SettingsInput, InfoHint } from './primitives';
 import { Button, Badge, Select } from '../../ui';
 
-const MCP_DOCS_URL = 'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/mcp.md';
+const MCP_DOCS_URL = 'https://github.com/debpalash/VoiceStudio/blob/main/docs/mcp.md';
 
 export default function MCPBindingsPanel() {
   const { t } = useTranslation();
@@ -125,7 +125,7 @@ export default function MCPBindingsPanel() {
         <InfoHint learnMoreHref={MCP_DOCS_URL}>
           {t('settings.mcp_hint', {
             defaultValue:
-              'Agents reach OmniVoice at /mcp and identify themselves with a client id (e.g. claude-code). Bind that id to a voice so the agent always speaks in that profile.',
+              'Agents reach VoiceStudio at /mcp and identify themselves with a client id (e.g. claude-code). Bind that id to a voice so the agent always speaks in that profile.',
           })}
         </InfoHint>
       }

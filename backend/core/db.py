@@ -470,12 +470,12 @@ def _run_alembic_upgrade() -> None:
         )
         msg = (
             f"Database migration failed while running: {exc}. "
-            f"OmniVoice stopped instead of running on a partially migrated database, "
+            f"VoiceStudio stopped instead of running on a partially migrated database, "
             f"and nothing was auto-restored (your database at {DB_PATH} was left "
             f"exactly as the failed migration left it). "
             f"{backup_note}. "
             "What to do: relaunch to retry; if it keeps failing, report it at "
-            "https://github.com/debpalash/OmniVoice-Studio/issues (keep the backup file). "
+            "https://github.com/debpalash/VoiceStudio/issues (keep the backup file). "
             "To roll back manually: quit the app, replace omnivoice.db with the backup "
             "file, and reinstall the previous version."
         )

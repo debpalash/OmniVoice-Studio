@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",
     "contact_never": "Bu oturumda hiç yanıt vermedi — hiç başlamamış olabilir.",
-    "dev": "Yerel OmniVoice arka ucuna ulaşılamıyor. {{contact}} `bun run dev` ile arka uç otomatik yeniden yükleme ile çalışır: herhangi bir dosya değişikliği — bir istek sürerken kaydetmek dâhil — onu yeniden başlatır ve bağlantıyı koparır. Önce işlemi yeniden deneyin; yeniden yükleme olduysa çalışacaktır. Hata sürerse `bun run dev` çalıştıran terminalde bir Python izini veya çıkış mesajını ve OmniVoice veri klasörünüzdeki omnivoice.log dosyasını kontrol edin.",
-    "server": "OmniVoice arka uç sunucusuna ulaşılamıyor. {{contact}} Nedenini görmek için sunucu günlüklerini kontrol edin (ör. `docker logs <container>` veya `journalctl`) — ve bu sayfayı Docker sunuyorsa sayfanın kendisinin de arka uçla birlikte kapanabileceğini unutmayın.",
-    "misrouted": "{{url}} adresine yanıt veren sunucu bir OmniVoice arka ucu değil — kendi 404 sayfasını döndürdü. API istekleri yanlış sunucuya gidiyor: Ayarlar → Paylaşım bölümünden arka uç URL'sini kontrol edin veya bu arayüzü bir ters proxy sunuyorsa API yolları için tanımlı rotasını denetleyin."
+    "dev": "Yerel VoiceStudio arka ucuna ulaşılamıyor. {{contact}} `bun run dev` ile arka uç otomatik yeniden yükleme ile çalışır: herhangi bir dosya değişikliği — bir istek sürerken kaydetmek dâhil — onu yeniden başlatır ve bağlantıyı koparır. Önce işlemi yeniden deneyin; yeniden yükleme olduysa çalışacaktır. Hata sürerse `bun run dev` çalıştıran terminalde bir Python izini veya çıkış mesajını ve VoiceStudio veri klasörünüzdeki omnivoice.log dosyasını kontrol edin.",
+    "server": "VoiceStudio arka uç sunucusuna ulaşılamıyor. {{contact}} Nedenini görmek için sunucu günlüklerini kontrol edin (ör. `docker logs <container>` veya `journalctl`) — ve bu sayfayı Docker sunuyorsa sayfanın kendisinin de arka uçla birlikte kapanabileceğini unutmayın.",
+    "misrouted": "{{url}} adresine yanıt veren sunucu bir VoiceStudio arka ucu değil — kendi 404 sayfasını döndürdü. API istekleri yanlış sunucuya gidiyor: Ayarlar → Paylaşım bölümünden arka uç URL'sini kontrol edin veya bu arayüzü bir ters proxy sunuyorsa API yolları için tanımlı rotasını denetleyin."
   },
   "nav": {
     "clone": "Klonla",
@@ -165,7 +165,7 @@
     "review_mode_desc": "ASR / çeviri çıktısını gözden geçirebilmek için ardışık düzen aşamaları arasında duraklayın.",
     "header_live_stats": "Başlıkta canlı sistem ölçümlerini göster",
     "header_live_stats_desc": "Üst çubuğa canlı bir RAM / CPU / VRAM monitörü ekler (varsayılan olarak kapalıdır).",
-    "storage_desc": "OmniVoice'un verilerinizi ve çıktılarınızı sakladığı yer.",
+    "storage_desc": "VoiceStudio'un verilerinizi ve çıktılarınızı sakladığı yer.",
     "history_retention": "Üretim geçmişi",
     "history_retention_desc": "En eskiler temizlenmeden önce kaç kaydın saklanacağı.",
     "history_retention_help": "Her üretimden sonra bu sınırı aşan en eski yıldızsız kayıtlar ses dosyalarıyla birlikte silinir. Yıldızlı kayıtlar her zaman saklanır. 0 = tümünü sakla.",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "0 veya daha büyük bir değer girin"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "Ortam kontrol ediliyor…",
     "downloading_uv": "uv (Python paket yöneticisi) indiriliyor…",
     "creating_venv": "Python sanal ortamı oluşturuluyor…",
@@ -210,10 +210,10 @@
     "hint_uv_sync": "Bağımlılık kurulumu başarısız oldu. \"Temizle ve Yeniden Dene\" önbellekteki venv'i silip baştan başlar.",
     "hint_build_backend": "Python derleme arka ucu hatası. \"Temizle ve Yeniden Dene\" bozuk venv'i kaldırır ve sıfırdan yeniden oluşturur.",
     "hint_ffmpeg": "ffmpeg indirmesi başarısız oldu. Bu kritik değil — yeniden deneyin veya ffmpeg'i elle kurun.",
-    "hint_port": "3900 numaralı bağlantı noktası zaten kullanımda. Diğer OmniVoice kopyalarını veya bu portu kullanan uygulamaları kapatın.",
+    "hint_port": "3900 numaralı bağlantı noktası zaten kullanımda. Diğer VoiceStudio kopyalarını veya bu portu kullanan uygulamaları kapatın.",
     "hint_silent_crash": "Arka uç hata mesajı vermeden çöktü. \"Temizle ve Yeniden Dene\" bozuk venv sorunlarını genellikle çözer.",
     "hint_github_blocked": "Ağınız GitHub'ı engelliyor olabilir. python.org'dan Python 3.11+ kurun (PATH'e ekleyin) ve yeniden başlatın veya UV_PYTHON_INSTALL_MIRROR ayarlayın — bkz. docs/install/troubleshooting.md.",
-    "hint_intel_mac": "Bu Mac'te Intel işlemci var ve PyTorch artık Intel-Mac derlemeleri yayınlamıyor — yerel yapay zekâ arka ucu kurulamaz ve yeniden denemek bunu değiştirmez. Uygulamayı yine de başka bir makinede çalışan uzak arka uca bağlayabilir (Ayarlar → Paylaşım → Uzak arka uç) veya OmniVoice'u Apple Silicon Mac, Windows ya da Linux'ta kullanabilirsiniz. Ayrıntılar: docs/install/macos.md.",
+    "hint_intel_mac": "Bu Mac'te Intel işlemci var ve PyTorch artık Intel-Mac derlemeleri yayınlamıyor — yerel yapay zekâ arka ucu kurulamaz ve yeniden denemek bunu değiştirmez. Uygulamayı yine de başka bir makinede çalışan uzak arka uca bağlayabilir (Ayarlar → Paylaşım → Uzak arka uç) veya VoiceStudio'u Apple Silicon Mac, Windows ya da Linux'ta kullanabilirsiniz. Ayrıntılar: docs/install/macos.md.",
     "hint_default": "Önce \"Yeniden Dene\"yi deneyin. Yine başarısız olursa \"Temizle ve Yeniden Dene\" ortamı sıfırdan kurar.",
     "hint_stuck": "Arka ucun başlatılması tamamlanmadı. Kaynaktan, önce \"uv senkronizasyonunu\" çalıştırın ve \"uv\" ile Python'un PATH'inizde olduğundan emin olun, ardından Yeniden Dene. Tam durma noktası için aşağıdaki günlüğü (veya Ayarlar → Günlükler → Arka uç) kontrol edin.",
     "lines": "{{count}} satır"
@@ -465,7 +465,7 @@
     "downloading": "İndiriliyor…",
     "check_updates": "Güncellemeleri kontrol edin",
     "copy_diagnostics": "Tanılamayı kopyala",
-    "github": "GitHub'da OmniVoice",
+    "github": "GitHub'da VoiceStudio",
     "commercial_license": "Ticari Lisans",
     "update_channel": "Güncelleme kanalı",
     "channel_stable": "Kararlı",
@@ -501,8 +501,8 @@
     "watermark_failed": "Filigran ayarı değiştirilemedi."
   },
   "consent": {
-    "title": "OmniVoice'un gelişmesine yardım eder misiniz?",
-    "step_label": "OmniVoice'u geliştir",
+    "title": "VoiceStudio'un gelişmesine yardım eder misiniz?",
+    "step_label": "VoiceStudio'u geliştir",
     "body": "Anonim, içerik barındırmayan kullanım istatistikleri: hangi motorların kullanıldığı, üretimlerin ne kadar sürdüğü ve hata türleri. Asla metniniz, sesiniz, dosyalarınız veya sizi tanımlayan hiçbir şey gönderilmez. Evet demedikçe hiçbir şey gönderilmez ve kararınızı istediğiniz zaman Ayarlar → Gizlilik'ten değiştirebilirsiniz.",
     "learn_more": "Tam olarak ne gönderiliyor?",
     "yes": "Evet, anonim istatistikleri paylaş",
@@ -510,7 +510,7 @@
     "dismiss": "Kapat (analitik kapalı kalır)"
   },
   "langPrompt": {
-    "offer": "OmniVoice {{language}} dilinde açıldı. İngilizceyi mi tercih edersiniz?",
+    "offer": "VoiceStudio {{language}} dilinde açıldı. İngilizceyi mi tercih edersiniz?",
     "switch": "İngilizceye geç",
     "keep": "{{language}} kalsın"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "Kurulu değil",
     "available": "Mevcut",
     "subprocessTitle": "Kendi alt sürecinde + venv'de çalışır",
-    "inProcessTitle": "OmniVoice Python sürecinde çalışır",
+    "inProcessTitle": "VoiceStudio Python sürecinde çalışır",
     "testEngine": "Test motoru",
     "testing": "Test ediliyor…",
     "recheck": "Tekrar kontrol et",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "Genel kısayol tuşları yalnızca masaüstü uygulamasında çalışır. Web kullanıcı arayüzü, pencere odaktayken sayfa içi <1>Ctrl+Shift+Space</1> kısayolunu kullanır.",
-    "desc_detail": "Kısayol tuşu OmniVoice çalışırken sistem genelinde çalışır; pencereye odaklanır ve dikteyi başlatır. İşletim sistemi tarafından halihazırda talep edilen kombinasyonlardan kaçının (macOS'te <1>⌘+Space</1> Spotlight'tır ve <2>⌘+⇧+Space</2> giriş kaynaklarını döndürür). Kayıt başarısız olursa farklı bir kombinasyon seçin.",
+    "desc_detail": "Kısayol tuşu VoiceStudio çalışırken sistem genelinde çalışır; pencereye odaklanır ve dikteyi başlatır. İşletim sistemi tarafından halihazırda talep edilen kombinasyonlardan kaçının (macOS'te <1>⌘+Space</1> Spotlight'tır ve <2>⌘+⇧+Space</2> giriş kaynaklarını döndürür). Kayıt başarısız olursa farklı bir kombinasyon seçin.",
     "active_shortcut": "Etkin kısayol",
     "new_shortcut": "Yeni kısayol",
     "press_key": "Bir tuş kombinasyonuna basın…",
@@ -609,8 +609,8 @@
     "no_speech": "Konuşma algılanmadı",
     "mic_denied": "Mikrofon erişimi reddedildi",
     "mic_denied_toast": "Mikrofon erişimi reddedildi. {{hint}}",
-    "mic_hint_mac": "macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon'u açın ve OmniVoice'u etkinleştirin.",
-    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın, 'Mikrofon erişimi' ve 'Masaüstü uygulamalarının mikrofonunuza erişmesine izin ver' seçeneklerini etkinleştirin, ardından OmniVoice'a izin verin.",
+    "mic_hint_mac": "macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon'u açın ve VoiceStudio'u etkinleştirin.",
+    "mic_hint_windows": "Windows: Ayarlar → Gizlilik ve güvenlik → Mikrofon'u açın, 'Mikrofon erişimi' ve 'Masaüstü uygulamalarının mikrofonunuza erişmesine izin ver' seçeneklerini etkinleştirin, ardından VoiceStudio'a izin verin.",
     "mic_hint_linux": "Linux: Kullanıcınızın ses grubunda olduğundan ve Web Görünümünün mikrofon erişimine sahip olduğundan emin olun.",
     "transcription_failed": "Transkripsiyon başarısız oldu: {{message}}",
     "mic_not_found": "Mikrofon bulunamadı. Bir mikrofon bağlayın veya etkinleştirin ve tekrar deneyin.",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "Ham referans klibini ekleyin. Kapalı = yalnızca filigranlı önizlemeyi paylaşın (önerilir).",
     "consent_title": "Ses sahipliği",
     "consent_explain": "Bunun kendi sesiniz olduğunu doğrulamak için aşağıdaki ifadeyi okurken kendinizi kaydedin. Ajans özellikleri ve topluluk paylaşımı için doğrulama gerekli olacaktır; asla yerel sentez için değil.",
-    "consent_statement": "Bu ses profilinin kendi sesim olduğunu onaylıyorum ve OmniVoice Studio'nun bunu benim adıma klonlamasına izin veriyorum.",
+    "consent_statement": "Bu ses profilinin kendi sesim olduğunu onaylıyorum ve VoiceStudio'nun bunu benim adıma klonlamasına izin veriyorum.",
     "consent_record": "Onay beyanını kaydedin",
     "consent_stop": "Kaydı durdur",
     "consent_saved": "Ses sahipliği doğrulandı",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "Kuyruğa Ekle"
   },
   "gallery": {
-    "title": "OmniVoice Galeri",
+    "title": "VoiceStudio Galeri",
     "search_placeholder": "YouTube'da ara…",
     "all_voices": "Tüm Sesler ({{count}})",
     "no_voices": "Henüz ses yok",
@@ -1253,8 +1253,8 @@
   "donate": {
     "title": "Destek",
     "desc": "Bu projeyi beğendiyseniz gelişimimizi desteklemek için bağış yapmayı düşünün.",
-    "hero_title": "OmniVoice'u destekleyin",
-    "hero_desc": "OmniVoice ücretsizdir, açık kaynaklıdır ve tamamen donanımınızda çalışır. İş akışınıza değer katıyorsa çekirdek ekibi desteklemeyi düşünün.",
+    "hero_title": "VoiceStudio'u destekleyin",
+    "hero_desc": "VoiceStudio ücretsizdir, açık kaynaklıdır ve tamamen donanımınızda çalışır. İş akışınıza değer katıyorsa çekirdek ekibi desteklemeyi düşünün.",
     "github_desc": "Tekrarlanan veya tek seferlik — doğrudan GitHub aracılığıyla.",
     "coffee_desc": "Takıma bir kahve ısmarla. Hesaba gerek yok.",
     "paypal_desc": "PayPal aracılığıyla tek seferlik hızlı veya yinelenen.",
@@ -1262,7 +1262,7 @@
     "footer": "Her katkı, yerel yapay zekanın sınırlarını zorlamaya yardımcı olur.",
     "back": "Studio'ya geri dön",
     "commercial": "Ticari Lisans",
-    "pill": "OmniVoice'u destekleyin",
+    "pill": "VoiceStudio'u destekleyin",
     "suggested_title": "Bir miktar seçin",
     "most_common": "en yaygın",
     "custom": "Özel",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "Claude Max'e fon sağlayın",
-      "lead_default": "İşe yaradığına sevindim! OmniVoice ücretsizdir ve tamamen yereldir. Size zaman kazandıracaksa, aylık küçük bir chip-in, arkasındaki Claude Max'e fon sağlar.",
-      "lead_first_clone": "İlk ses klonunuz tamamlandı — güzel! OmniVoice tamamen makinenizde çalışır ve desteğiniz de bu şekilde kalmasını sağlar.",
+      "lead_default": "İşe yaradığına sevindim! VoiceStudio ücretsizdir ve tamamen yereldir. Size zaman kazandıracaksa, aylık küçük bir chip-in, arkasındaki Claude Max'e fon sağlar.",
+      "lead_first_clone": "İlk ses klonunuz tamamlandı — güzel! VoiceStudio tamamen makinenizde çalışır ve desteğiniz de bu şekilde kalmasını sağlar.",
       "lead_tenth_dub": "On dublaj - açıkça işe koyuyorsunuz. Küçük bir aylık chip-in, bu özellikleri sunan Claude Max'e fon sağlıyor.",
-      "lead_sustained": "Bir aydır OmniVoice'la birliktesiniz. İş akışınızda bir yer kazanmışsa, bir sonraki adımın finansmanına yardımcı olmayı düşünün.",
+      "lead_sustained": "Bir aydır VoiceStudio'la birliktesiniz. İş akışınızda bir yer kazanmışsa, bir sonraki adımın finansmanına yardımcı olmayı düşünün.",
       "chip_in": "Çip yapın",
       "later": "Belki daha sonra",
       "star": "GitHub'da yıldız",
@@ -1296,14 +1296,14 @@
     "back": "Studio'ya geri dön",
     "badge": "Ticari Lisans",
     "hero_title": "Üretimde yapay zeka seslerini gönderin",
-    "hero_desc": "OmniVoice Studio, GNU Affero Genel Kamu Lisansı v3 (AGPL-3.0) kapsamında özgür ve açık kaynaklı bir yazılımdır — ticari ve kurum içi iş kullanımı dahil, kullanımı ücretsizdir. Ticari lisans yalnızca OmniVoice Studio'yu AGPL-3.0'ın copyleft yükümlülükleri olmadan kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömmek istediğinizde gereklidir.",
-    "why_title": "İşletmeler neden OmniVoice'u seçiyor?",
+    "hero_desc": "VoiceStudio, GNU Affero Genel Kamu Lisansı v3 (AGPL-3.0) kapsamında özgür ve açık kaynaklı bir yazılımdır — ticari ve kurum içi iş kullanımı dahil, kullanımı ücretsizdir. Ticari lisans yalnızca VoiceStudio'yu AGPL-3.0'ın copyleft yükümlülükleri olmadan kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömmek istediğinizde gereklidir.",
+    "why_title": "İşletmeler neden VoiceStudio'u seçiyor?",
     "pricing_title": "Fiyatlandırma",
     "faq_title": "Sık sorulan sorular",
     "pricing_desc": "Katmanlar ve fiyatlandırma henüz kesinleşme aşamasındadır.",
     "pricing_detail": "Herkese açık hale gelene kadar her ticari dağıtım ayrı ayrı fiyatlandırılır, böylece ekibinize ve iş yükünüze göre doğru boyutu belirleyebiliriz.",
     "request_quote": "Fiyat teklifi isteyin",
-    "footer_email": "Sorunuz mu var? OmniVoice@palash.dev adresinden bize ulaşın",
+    "footer_email": "Sorunuz mu var? VoiceStudio@palash.dev adresinden bize ulaşın",
     "footer_discord": "Topluluk desteği için Discord'umuza katılın.",
     "benefit_ip": "Tam IP sahipliği",
     "benefit_ip_desc": "Her çıktının, her modelin, her türevinin sahibi sizsiniz. Paylaşılan kiracılık yok, veri sızıntısı yok.",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "Yığına tam görünürlük. Lisans koşulları dahilinde denetleyin, çatallayın ve uyarlayın.",
     "benefit_lang": "646 dil",
     "benefit_lang_desc": "646 dilde insan düzeyinde kaliteyle metne dönüştürün, tercüme edin ve dublaj yapın.",
-    "hero_note": "Kullanım, kendi sunucunuzda barındırma ve ticari kullanım AGPL-3.0 kapsamında tamamen ücretsizdir — büyük ölçekte bile. AGPL bir ağ copyleft lisansıdır: OmniVoice'u değiştirir ve bu değiştirilmiş sürümü ağ üzerinden başkalarına sunarsanız, değiştirilmiş kaynak kodunuzu aynı koşullarla paylaşmanız gerekir. Ticari lisans, tescilli ve kapalı kaynaklı dağıtımlar için bu copyleft yükümlülüklerini kaldırır. Fiyatlandırma planları yakında — bu arada bizimle iletişime geçin.",
-    "hero_simple": "OmniVoice Studio, ticari ve dahili iş kullanımı da dahil olmak üzere, AGPL-3.0 kapsamında ücretsiz ve açık kaynaktır. AGPL'nin copyleft yükümlülükleri olmadan kapalı kaynaklı bir ürüne yerleştirmek için yalnızca ticari bir lisansa ihtiyacınız vardır.",
+    "hero_note": "Kullanım, kendi sunucunuzda barındırma ve ticari kullanım AGPL-3.0 kapsamında tamamen ücretsizdir — büyük ölçekte bile. AGPL bir ağ copyleft lisansıdır: VoiceStudio'u değiştirir ve bu değiştirilmiş sürümü ağ üzerinden başkalarına sunarsanız, değiştirilmiş kaynak kodunuzu aynı koşullarla paylaşmanız gerekir. Ticari lisans, tescilli ve kapalı kaynaklı dağıtımlar için bu copyleft yükümlülüklerini kaldırır. Fiyatlandırma planları yakında — bu arada bizimle iletişime geçin.",
+    "hero_simple": "VoiceStudio, ticari ve dahili iş kullanımı da dahil olmak üzere, AGPL-3.0 kapsamında ücretsiz ve açık kaynaktır. AGPL'nin copyleft yükümlülükleri olmadan kapalı kaynaklı bir ürüne yerleştirmek için yalnızca ticari bir lisansa ihtiyacınız vardır.",
     "contact_lead": "Fiyatlandırma, ekibinize ve iş yükünüze uyacak şekilde dağıtım başına belirtilir. Bana kullanım durumunuzu söyleyin, ben de size bir fiyat teklifi vereyim."
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "Endişelenmeyin; uygulamanın geri kalanı hala çalışıyor. Sekmeleri değiştirebilir veya aşağıda tekrar deneyebilirsiniz.",
     "tryAgain": "Tekrar dene",
     "openDocs": "Bu hata için dokümanları açın",
-    "crash_port_in_use": "3900 numaralı bağlantı noktası zaten kullanımda olduğu için arka uç başlatılamadı — OmniVoice'ın başka bir kopyası (ya da o bağlantı noktasını alan bir uygulama) onu tutuyor. Diğer örneği kapatıp yeniden başlatın; görünürde çalışan bir şey yoksa, önceki oturumdan kalan bir arka uç bağlantı noktasını hâlâ tutuyordur.",
+    "crash_port_in_use": "3900 numaralı bağlantı noktası zaten kullanımda olduğu için arka uç başlatılamadı — VoiceStudio'ın başka bir kopyası (ya da o bağlantı noktasını alan bir uygulama) onu tutuyor. Diğer örneği kapatıp yeniden başlatın; görünürde çalışan bir şey yoksa, önceki oturumdan kalan bir arka uç bağlantı noktasını hâlâ tutuyordur.",
     "crash_oom_kill": "Süreç zorla sonlandırıldı (sinyal 9); bu genellikle işletim sisteminin belleğinin (RAM) tükendiği anlamına gelir. Belleği çok kullanan uygulamaları kapatın, Ayarlar → Modeller bölümünden daha küçük bir ASR modeli seçin veya deşifre etmeden önce TTS modelini bellekten kaldırın.",
-    "crash_native_fault": "Bellek yetersizliğinden değil, hesaplama yığınının içinde çöktü — bu, pakete dâhil CUDA çalışma zamanıyla uyuşmayan bir GPU sürücüsüne ya da eksik indirilmiş bir model dosyasına işaret eder. GPU sürücünüzü güncelleyin, ardından Ayarlar → Modeller bölümünden modeli yeniden indirin (eksik indirmeyi yerinde onarır). Tekrarlamaya devam ederse Ayarlar → Motorlar bölümünden çökme yalıtımlı bir motora geçin — sentez için \"OmniVoice (subprocess)\", deşifre için \"Faster-Whisper (crash-isolated subprocess)\". Bunlar modeli ayrı bir süreçte çalıştırır, böylece böyle bir çökme arka ucun tamamını değil yalnızca o süreci düşürür.",
+    "crash_native_fault": "Bellek yetersizliğinden değil, hesaplama yığınının içinde çöktü — bu, pakete dâhil CUDA çalışma zamanıyla uyuşmayan bir GPU sürücüsüne ya da eksik indirilmiş bir model dosyasına işaret eder. GPU sürücünüzü güncelleyin, ardından Ayarlar → Modeller bölümünden modeli yeniden indirin (eksik indirmeyi yerinde onarır). Tekrarlamaya devam ederse Ayarlar → Motorlar bölümünden çökme yalıtımlı bir motora geçin — sentez için \"VoiceStudio (subprocess)\", deşifre için \"Faster-Whisper (crash-isolated subprocess)\". Bunlar modeli ayrı bir süreçte çalıştırır, böylece böyle bir çökme arka ucun tamamını değil yalnızca o süreci düşürür.",
     "report": "Bu hatayı bildir",
     "report_failed": "Hata raporu açılamadı. Tekrar deneyin veya yukarıdaki ayrıntıları yeni bir konuya kopyalayın.",
     "searchIssues": "Benzer sorunları ara",
     "unexpected": "Beklenmeyen hata: {{message}}",
-    "backend_shutting_down": "OmniVoice kapanıyor. Uygulamayı yeniden açıp tekrar dene.",
+    "backend_shutting_down": "VoiceStudio kapanıyor. Uygulamayı yeniden açıp tekrar dene.",
     "crash_broken_env": "Kendi Python bağımlılıklarını yüklerken sonlandı; yani sorun bellek ya da ekran kartınız değil — ortam eksik veya yarım güncellenmiş durumda. Ayarlar → Günlükler → Arka uç bölümündeki \"Clean & Retry\" seçeneğini kullanın: ortamı sıfırdan yeniden kurar ve seslerinize ya da projelerinize dokunmadan yerinde onarır. Yine de başarısız olursa, çökme ayrıntıları içe aktarılamayan paketin adını verir."
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "Ağ",
     "local": "Yerel",
     "share_confirm_title": "Ağınızda paylaşılsın mı?",
-    "share_confirm_hint": "Wi-Fi/Ethernet'inizdeki diğer cihazlar, açıldığında gösterilen erişim PIN'ini kullanarak OmniVoice'e ulaşabilecektir.",
+    "share_confirm_hint": "Wi-Fi/Ethernet'inizdeki diğer cihazlar, açıldığında gösterilen erişim PIN'ini kullanarak VoiceStudio'e ulaşabilecektir.",
     "enabling": "Etkinleştiriliyor…",
     "enable": "Etkinleştir",
     "shared_title": "Ağınızda paylaşıldı",
@@ -1530,7 +1530,7 @@
     "model_heading": "Model Ağırlıkları · OpenRAIL-M",
     "model_desc": "Supertonic-3 model ağırlıkları OpenRAIL-M lisansı altında piyasaya sürülmüştür. Bu lisans, kullanımı kötü amaçlı olmayan amaçlarla sınırlandırır; kullanıma dayalı kısıtlamaların tamamı için bağlantılı lisansa bakın.",
     "read_openrail": "OpenRAIL-M lisansını okuyun →",
-    "footer": "Kabul Et'e tıklamak, kabulünüzü OmniVoice'in yerel ayarlarına kaydeder ve motoru etkinleştirir. Kabulünüz yalnızca bu makinede saklanır; Supertone Inc.'e veya herhangi bir üçüncü tarafa hiçbir şey bildirilmez.",
+    "footer": "Kabul Et'e tıklamak, kabulünüzü VoiceStudio'in yerel ayarlarına kaydeder ve motoru etkinleştirir. Kabulünüz yalnızca bu makinede saklanır; Supertone Inc.'e veya herhangi bir üçüncü tarafa hiçbir şey bildirilmez.",
     "saving": "Kaydediliyor…",
     "accept": "Kabul et",
     "accepted_toast": "Supertonic-3 lisansı kabul edildi.",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Dahili araçlar için lisansa ihtiyacım var mı?",
-    "a_internal_tools": "Hayır. Çalışanlarınızın ve yüklenicilerinizin kullanımı — kurum içi değişiklik ve kendi sunucunuzda barındırma dahil — AGPL-3.0 kapsamında ücretsizdir. Ticari lisans yalnızca OmniVoice'u kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömüp AGPL'nin kaynak paylaşım yükümlülüklerine uymak istemediğinizde gereklidir.",
+    "a_internal_tools": "Hayır. Çalışanlarınızın ve yüklenicilerinizin kullanımı — kurum içi değişiklik ve kendi sunucunuzda barındırma dahil — AGPL-3.0 kapsamında ücretsizdir. Ticari lisans yalnızca VoiceStudio'u kapalı kaynaklı veya tescilli bir ürün ya da hizmete gömüp AGPL'nin kaynak paylaşım yükümlülüklerine uymak istemediğinizde gereklidir.",
     "q_try_before": "Taahhüt etmeden önce deneyebilir miyim?",
     "a_try_before": "Evet. Uygulamanın tamamı AGPL-3.0 kapsamında ücretsiz indirilebilir, çalıştırılabilir ve kendi sunucunuzda barındırılabilir — hiçbir sözleşme gerekmez. Ticari (tescilli kullanım) lisansını görüşmeye hazır olduğunuzda bize e-posta gönderin; ayrıntıları birlikte netleştirelim.",
     "q_watermark": "Filigran ne olacak?",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "Paylaşım ve Uzaktan Erişim",
-    "help": "Çalışan bu OmniVoice örneğini, yeniden başlatmaya gerek kalmadan diğer makinelerinize gösterin. Yalnızca geri döngü varsayılandır; siz burada açana kadar hiçbir şey paylaşılmaz.",
+    "help": "Çalışan bu VoiceStudio örneğini, yeniden başlatmaya gerek kalmadan diğer makinelerinize gösterin. Yalnızca geri döngü varsayılandır; siz burada açana kadar hiçbir şey paylaşılmaz.",
     "local_network": "Yerel ağ",
     "local_help": "Tek seferlik erişim PIN'i ile Wi-Fi/Ethernet'inizde paylaşın. Diğer cihazlar QR kodunu tarar veya bağlantıyı açar.",
     "ports_title": "Limanlar",
-    "ports_help": "Bunlar başlangıçta okunan ortam değişkenleri aracılığıyla ayarlanır. Değişkeni ayarlayıp OmniVoice'i yeniden başlatarak arka ucu veya kullanıcı arayüzü bağlantı noktasını değiştirin.",
+    "ports_help": "Bunlar başlangıçta okunan ortam değişkenleri aracılığıyla ayarlanır. Değişkeni ayarlayıp VoiceStudio'i yeniden başlatarak arka ucu veya kullanıcı arayüzü bağlantı noktasını değiştirin.",
     "backend_port": "Arka uç bağlantı noktası",
     "ui_port": "kullanıcı arayüzü bağlantı noktası",
     "lan_share_port": "LAN paylaşım bağlantı noktası",
@@ -1854,9 +1854,9 @@
     "ports_note": "Arka uç ve kullanıcı arayüzü bağlantı noktaları yeniden başlatma sırasında uygulanır. LAN paylaşım bağlantı noktası, paylaşımı bir sonraki etkinleştirişinizde geçerli olur.",
     "tailscale_title": "Kuyruk ölçeği (özel uzaktan erişim)",
     "tailscale_checking": "Kuyruk Ölçeği kontrol ediliyor…",
-    "tailscale_absent": "Kuyruk ölçeği algılanmadı. Özel kuyruk ağınızın herhangi bir yerinden OmniVoice'e güvenli bir şekilde ulaşmak için bunu yükleyin.",
+    "tailscale_absent": "Kuyruk ölçeği algılanmadı. Özel kuyruk ağınızın herhangi bir yerinden VoiceStudio'e güvenli bir şekilde ulaşmak için bunu yükleyin.",
     "tailscale_install": "Tailscale'i yükleyin",
-    "tailscale_running": "Kuyruk ölçeği çalışıyor. OmniVoice'u özel kuyruk ağınız üzerinden servis edin.",
+    "tailscale_running": "Kuyruk ölçeği çalışıyor. VoiceStudio'u özel kuyruk ağınız üzerinden servis edin.",
     "tailscale_not_logged_in": "Tailscale kuruldu ancak oturum açılmadı. Önce Tailscale'i başlatın ve oturum açın.",
     "tailscale_enabled": "Kuyruk ölçeği sunumu etkin",
     "tailscale_enable_failed": "Tailscale etkinleştirilemedi",
@@ -1912,7 +1912,7 @@
     "failed": "Güncelleme başarısız oldu",
     "retry": "Yeniden dene",
     "dismiss": "Reddet",
-    "toast_available": "OmniVoice Studio {{version}} kullanılabilir",
+    "toast_available": "VoiceStudio {{version}} kullanılabilir",
     "toast_install": "Yükle ve yeniden başlat",
     "toast_whats_new": "Yenilikler",
     "toast_later": "Daha sonra"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "Kurulum hazırlanıyor…",
-    "title": "OmniVoice Studio'yu kur",
+    "title": "VoiceStudio'yu kur",
     "subtitle": "Henüz hiçbir şey kurulmadı — her şeyin nereye gideceğini gözden geçirin, sonra başlatın. Daha sonra Ayarlar'dan değiştirebilirsiniz.",
     "language": "Dil",
     "mode_title": "Kurulum modu",
@@ -2165,7 +2165,7 @@
     "lex_add": "Kelime ekle",
     "lex_remove": "Kaldır",
     "markup_help": "İşaretleme referansı",
-    "markup_hint": "# Bölüm başlığı · [voice:NAME] sesi değiştir · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Tepkiler (OmniVoice): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# Bölüm başlığı · [voice:NAME] sesi değiştir · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Tepkiler (VoiceStudio): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "Dil",
     "expressive": "Prodüksiyon geçersiz kılmalar",
     "reset": "Sıfırla",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "Erişim PIN'ini girin",
-    "body": "Bu OmniVoice örneği ağda paylaşılıyor. Ana bilgisayarda gösterilen PIN'i girin.",
+    "body": "Bu VoiceStudio örneği ağda paylaşılıyor. Ana bilgisayarda gösterilen PIN'i girin.",
     "label": "Erişim PIN'i",
     "connect": "Bağlan"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "İzinler",
-    "desc": "OmniVoice tamamen cihazınızda çalışır — bu sistem izinleri yalnızca burada listelenen özellikler için kullanılır ve ses asla makinenizden ayrılmaz.",
+    "desc": "VoiceStudio tamamen cihazınızda çalışır — bu sistem izinleri yalnızca burada listelenen özellikler için kullanılır ve ses asla makinenizden ayrılmaz.",
     "microphone": "Mikrofon",
     "microphone_why": "Dikte ve ses kaydı için kullanılır. Ses yerel olarak işlenir.",
     "accessibility": "Erişilebilirlik",
@@ -2299,7 +2299,7 @@
     "install_failed": "İndirme başlatılamadı: {{message}}"
   },
   "backend_start_failure": {
-    "notice": "OmniVoice arka ucu başlatılamadı — başlayana kadar hiçbir şey çalışmaz.",
+    "notice": "VoiceStudio arka ucu başlatılamadı — başlayana kadar hiçbir şey çalışmaz.",
     "view": "Nedenini gör",
     "title": "Arka uç başlatılamadı",
     "intro": "Uygulama bunu arka ucu başlatmaya çalışırken kaydetti. Bu çıktıyı bir raporla göndermeniz sorunu düzeltmemize yardımcı olur.",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "Önceki oturum {{ago}} önce düzgün kapanmadan sona erdi. Bu çoğu zaman zararsızdır — makine uykuya geçti, uygulama zorla kapatıldı veya bir VM/kapsayıcı durduruldu.",
-    "details_intro_unclean": "Önceki çalıştırmanın kapanış işareti {{ago}} önce hiç temizlenmedi. OmniVoice bunun bir çökme mi yoksa yalnızca bir kesinti mi olduğunu bilemez — uyku, zorla kapatma veya bir VM/kapsayıcıyı durdurma aynı izi bırakır. Şu anda her şey çalışıyorsa yapılacak bir şey yok.",
+    "details_intro_unclean": "Önceki çalıştırmanın kapanış işareti {{ago}} önce hiç temizlenmedi. VoiceStudio bunun bir çökme mi yoksa yalnızca bir kesinti mi olduğunu bilemez — uyku, zorla kapatma veya bir VM/kapsayıcıyı durdurma aynı izi bırakır. Şu anda her şey çalışıyorsa yapılacak bir şey yok.",
     "report_needs_log": "Bu olay için hata çıktısı yakalanmadı; tek tıkla rapor boş olurdu. Gerçekten bir sorun varsa lütfen Ayarlar → Günlükler → Arka uç'in son satırlarını yeni bir issue'ya ekleyin."
   }
 }

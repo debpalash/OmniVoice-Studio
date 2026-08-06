@@ -13,7 +13,7 @@
 
 import { openExternal } from '../api/external';
 
-const BASE = 'https://github.com/debpalash/OmniVoice-Studio/blob/main';
+const BASE = 'https://github.com/debpalash/VoiceStudio/blob/main';
 
 export const ERROR_DOCS: Record<string, string> = {
   GATEKEEPER_QUARANTINE: `${BASE}/docs/install/macos.md#gatekeeper-quarantine`,

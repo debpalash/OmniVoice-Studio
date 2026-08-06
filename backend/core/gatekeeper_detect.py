@@ -4,7 +4,7 @@ Issue #54 — When a user downloads the .dmg/.zip outside the Mac App Store,
 macOS Gatekeeper attaches an `com.apple.quarantine` extended attribute to the
 .app bundle. On first launch, that attribute propagates to every binary inside
 the bundle, and Gatekeeper refuses to exec any of them. The user sees
-"OmniVoice Studio can't be opened" or the app crashes silently — both bad UX.
+"VoiceStudio can't be opened" or the app crashes silently — both bad UX.
 
 The fix is documented in Phase 1 Wave 2's `docs/install/macos-gatekeeper.md`
 (shipped by Plan 01-02 — Wave 2 scope) and reachable via the React
@@ -14,7 +14,7 @@ quarantined.
 This module is **detection only**. It never runs `xattr -cr` to clear the
 quarantine — the app cannot fix its own quarantine state (the very process
 calling `xattr -cr` would itself be quarantined and refused exec). Surface
-the workaround to the user; they run `xattr -cr /Applications/OmniVoice\\ Studio.app`
+the workaround to the user; they run `xattr -cr /Applications/VoiceStudio\\ Studio.app`
 from Terminal once, and the next launch succeeds.
 
 Plan: 01-03-PLAN.md (Phase 1 Wave 3)
@@ -38,11 +38,11 @@ ERROR_CLASS = "GATEKEEPER_QUARANTINE"
 def _resolve_app_bundle_path() -> Optional[str]:
     """Walk up from ``sys.executable`` until we find a ``.app`` directory.
 
-    When OmniVoice is launched from an installed .app bundle, Python runs from
-    `OmniVoice Studio.app/Contents/Resources/.venv/bin/python` (or similar),
+    When VoiceStudio is launched from an installed .app bundle, Python runs from
+    `VoiceStudio.app/Contents/Resources/.venv/bin/python` (or similar),
     so ``sys.executable`` is several levels below the bundle root.
 
-    Returns the .app path (e.g. ``/Applications/OmniVoice Studio.app``) or
+    Returns the .app path (e.g. ``/Applications/VoiceStudio.app``) or
     ``None`` for dev runs where we are not inside a bundle.
     """
     if sys.platform != "darwin":

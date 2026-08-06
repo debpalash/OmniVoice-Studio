@@ -445,7 +445,7 @@ export default function LogsFooter() {
     // + user agent — onto the clipboard so the user can paste into a
     // GitHub issue without hand-collecting files.
     const header = [
-      `OmniVoice Studio — diagnostic report`,
+      `VoiceStudio — diagnostic report`,
       `When: ${new Date().toISOString()}`,
       `UA: ${navigator.userAgent}`,
       `Counts: backend err=${counts.backend.error}/warn=${counts.backend.warn}, ` +

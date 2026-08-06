@@ -876,7 +876,7 @@ def yt_download_sync(
         raise OSError(
             f"Unable to download video: unable to open for writing in "
             f"{job_dir} ({_target_facts}). The video downloads into this job "
-            f"folder under your OmniVoice data directory — check it exists, is "
+            f"folder under your VoiceStudio data directory — check it exists, is "
             f"writable, and isn't locked by antivirus or a cloud-sync client."
         )
     ydl_opts: dict = {
@@ -921,7 +921,7 @@ def yt_download_sync(
     # #712: the format selector above pulls separate video+audio streams, so
     # yt-dlp muxes them via ffmpeg (merge_output_format=mp4). yt-dlp only looks
     # for ffmpeg on PATH and aborts with "you have requested merging of multiple
-    # formats but ffmpeg is not installed" — but OmniVoice's ffmpeg is often a
+    # formats but ffmpeg is not installed" — but VoiceStudio's ffmpeg is often a
     # bundled Tauri sidecar / imageio-ffmpeg binary that isn't on PATH (common on
     # Windows). Point yt-dlp at the exact ffmpeg we resolve so the merge works.
     _ffmpeg_bin = find_ffmpeg()

@@ -4,13 +4,13 @@
 — the three-stage SV2TTS implementation (speaker encoder → Tacotron
 synthesizer → WaveRNN vocoder) that introduced tens of thousands of
 people to voice cloning — is archived and no longer maintained. This
-guide is for its users: what maps to what in OmniVoice Studio, what
+guide is for its users: what maps to what in VoiceStudio, what
 you gain, what you genuinely lose, and how to get your first clone
 out.
 
 ## The short version
 
-OmniVoice Studio is a maintained, fully-local desktop app for
+VoiceStudio is a maintained, fully-local desktop app for
 macOS / Windows / Linux built around the same core idea SV2TTS
 demonstrated: give it a short reference clip of a voice, get that
 voice speaking any text you type. The differences are generational —
@@ -21,26 +21,26 @@ on your own machine: no accounts, no API keys, no cloud.
 
 ## Concept map
 
-| Real-Time-Voice-Cloning | OmniVoice Studio | Notes |
+| Real-Time-Voice-Cloning | VoiceStudio | Notes |
 |---|---|---|
 | Speaker encoder + reference utterance | Reference clip in the **Voice Clone** workflow ("From audio") | No separate embedding step — zero-shot engines condition on the clip directly |
 | Saved speaker embeddings (`.npy`) | **Voice Profiles** — save a clone once, reuse it everywhere | Exportable as portable `.ovsvoice` bundles |
 | Synthesizer + vocoder choice (Tacotron 2 · WaveRNN / Griffin-Lim) | **TTS engine choice** — Settings → Engines | 14 engines, from CPU-realtime to GPU heavyweights; per-engine GPU preflight |
 | The Toolbox GUI (`demo_toolbox.py`) | The app itself | Record or drop a clip, type text, synthesize — same loop, no `python demo_toolbox.py` |
 | `demo_cli.py` / scripting your own pipeline | Local REST API (OpenAI-compatible, `http://localhost:3900/v1`), `omnivoice-infer` CLI, MCP server | See the [API section of the README](../../README.md#openai-api) |
-| Training your own encoder / synthesizer / vocoder | Partial — see ["What RTVC did that OmniVoice doesn't"](#what-rtvc-did-that-omnivoice-doesnt) | Fine-tuning the bundled model is documented; RTVC-style three-stage research training is not what this project is |
+| Training your own encoder / synthesizer / vocoder | Partial — see ["What RTVC did that VoiceStudio doesn't"](#what-rtvc-did-that-omnivoice-doesnt) | Fine-tuning the bundled model is documented; RTVC-style three-stage research training is not what this project is |
 
 ## What you gain
 
 * **Languages.** RTVC's pretrained models were English-only. The
-  default OmniVoice engine clones across 646 languages, zero-shot —
+  default VoiceStudio engine clones across 646 languages, zero-shot —
   the same reference clip can speak Bengali, Japanese, or Swahili.
 * **No Python setup.** RTVC's most-reported problems were environment
   ones (PyTorch versions, `webrtcvad` builds, missing models).
-  OmniVoice ships installers (DMG / MSI / AppImage / deb) and manages
+  VoiceStudio ships installers (DMG / MSI / AppImage / deb) and manages
   its own Python via `uv` when run from source.
 * **Quality.** SV2TTS was a 2019 proof of concept and its author said
-  as much — modern zero-shot engines (the bundled OmniVoice model,
+  as much — modern zero-shot engines (the bundled VoiceStudio model,
   CosyVoice 3, IndexTTS 2, …) are a generation ahead in naturalness
   and speaker similarity.
 * **A pipeline, not just a demo.** Video dubbing (transcribe →
@@ -53,17 +53,17 @@ on your own machine: no accounts, no API keys, no cloud.
 * **Maintenance.** Active releases, an issue tracker that answers,
   and a Discord that helps with setup.
 
-## What RTVC did that OmniVoice doesn't
+## What RTVC did that VoiceStudio doesn't
 
 Honesty where it's due:
 
 * **A research toolbox.** RTVC let you inspect speaker embeddings,
   project them with UMAP, and watch the encoder separate speakers in
-  real time. OmniVoice is a production app, not an instrument for
+  real time. VoiceStudio is a production app, not an instrument for
   studying speaker verification.
 * **Training all three stages from scratch.** RTVC documented
   training your own encoder, synthesizer, and vocoder on your own
-  datasets. OmniVoice documents [training / fine-tuning the bundled
+  datasets. VoiceStudio documents [training / fine-tuning the bundled
   TTS model](../training.md) (with [data
   preparation](../data_preparation.md)), but it is not a framework
   for building new architectures.
@@ -72,23 +72,23 @@ Honesty where it's due:
   voice cloning works*, the RTVC code and thesis remain worth
   reading; the archive doesn't take that away.
 * **Minimal footprint.** RTVC's pretrained models were about 1 GB.
-  Expect roughly 10 GB free disk for OmniVoice models + cache, and
+  Expect roughly 10 GB free disk for VoiceStudio models + cache, and
   8 GB RAM minimum (a GPU is optional — CPU works, just slower).
-* **License.** RTVC is MIT. OmniVoice Studio is AGPL-3.0 — free for
+* **License.** RTVC is MIT. VoiceStudio is AGPL-3.0 — free for
   any use including commercial, but if you modify it and serve the
   modified version over a network, you must share your changes. A
   commercial license is available for closed-source embedding — see
   the [README's License section](../../README.md#license).
 
 One more honesty note: despite the name, RTVC's "real-time" was about
-vocoding speed. OmniVoice generation speed depends on the engine and
+vocoding speed. VoiceStudio generation speed depends on the engine and
 your hardware — some engines run realtime on CPU (KittenTTS,
 MOSS-TTS-Nano), the heavier cloning engines want a GPU.
 
 ## Install
 
 Grab the installer for your OS from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
 then follow the guide for your platform end-to-end:
 
 * macOS — [docs/install/macos.md](../install/macos.md)
@@ -169,6 +169,6 @@ Engines** — the choice applies everywhere synthesis happens.
 Setup questions get answered in
 [Discord](https://discord.gg/bzQavDfVV9) (usually within hours), bugs
 go to
-[GitHub Issues](https://github.com/debpalash/OmniVoice-Studio/issues)
+[GitHub Issues](https://github.com/debpalash/VoiceStudio/issues)
 — see [SUPPORT.md](../../.github/SUPPORT.md) for what to include. Welcome
 over.

@@ -8,7 +8,7 @@
 //    import { SettingsSection, SettingRow, InfoHint,
 //             SettingsToggle, Collapsible } from './primitives';
 //
-//  All styling now lives as Tailwind utilities on the OmniVoice `--chrome-*` /
+//  All styling now lives as Tailwind utilities on the VoiceStudio `--chrome-*` /
 //  `--space-*` token bridge directly on each primitive's JSX (FAST-mode shadcn
 //  migration) — there is no longer a primitives.css stylesheet to import.
 // ─────────────────────────────────────────────────────────────────

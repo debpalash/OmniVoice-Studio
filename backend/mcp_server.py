@@ -1,5 +1,5 @@
 """
-OmniVoice MCP Server — expose voice synthesis as AI-agent tools.
+VoiceStudio MCP Server — expose voice synthesis as AI-agent tools.
 
 Run standalone:
     python -m backend.mcp_server          # stdio transport (Claude Desktop)
@@ -99,9 +99,9 @@ def create_mcp_server():
     """Build and return the FastMCP server instance."""
     FastMCP = _ensure_mcp()
     mcp = FastMCP(
-        "OmniVoice Studio",
+        "VoiceStudio",
         instructions=(
-            "AI-agent interface for OmniVoice Studio — voice cloning, "
+            "AI-agent interface for VoiceStudio — voice cloning, "
             "voice design, and video dubbing in 646 languages."
         ),
     )
@@ -254,7 +254,7 @@ def create_mcp_server():
     async def list_languages() -> str:
         """List a sample of supported TTS languages.
 
-        OmniVoice supports 646 languages. This returns the most popular ones
+        VoiceStudio supports 646 languages. This returns the most popular ones
         plus a note about the full count.
         """
         return (
@@ -294,7 +294,7 @@ def create_mcp_server():
 
     @mcp.tool()
     async def check_health() -> str:
-        """Check if the OmniVoice backend is running and what GPU device is active."""
+        """Check if the VoiceStudio backend is running and what GPU device is active."""
         info = await _api_get("/health")
         return str(info)
 
@@ -407,7 +407,7 @@ def mount_mcp(app) -> bool:
 # ── CLI entrypoint ──────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="OmniVoice MCP Server")
+    parser = argparse.ArgumentParser(description="VoiceStudio MCP Server")
     parser.add_argument(
         "--sse", action="store_true",
         help="Use SSE transport instead of stdio (for remote agents)",

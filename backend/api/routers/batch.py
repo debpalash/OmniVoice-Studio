@@ -188,7 +188,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
         return
 
     # ── Engine resolution (issue #312 class) ────────────────────────────
-    # Batch used to hardcode OmniVoice via get_model() regardless of the
+    # Batch used to hardcode VoiceStudio via get_model() regardless of the
     # engine selected in Settings → Engines. require_cloning only when a
     # specific voice is pinned (job["voice_id"]) — an unpinned job is fine on
     # any active engine. Resolved ONCE for the whole job (every language

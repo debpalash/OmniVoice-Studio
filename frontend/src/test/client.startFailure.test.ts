@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { apiFetch } from '../api/client';
 import { backendLifecycleStage, _toLifecycle } from '../utils/backendLifecycle';
 
-// #1177 — "Can't reach the local OmniVoice backend — it may still be starting
+// #1177 — "Can't reach the local VoiceStudio backend — it may still be starting
 // up, or it stopped", reported with no other information to act on. That exact
 // string is apiFetch's LAST fallback, reached only when no crash marker exists
 // AND the shell's lifecycle stage is 'failed' or 'unknown'. The 'failed' half
@@ -105,7 +105,7 @@ describe('apiFetch — a failed backend start surfaces the shell diagnosis (#117
     stageMock.mockResolvedValue(lc('failed', null));
 
     const err = await rejection(apiFetch('/model/status'), CASCADE_MS + 100);
-    expect(err.message).toContain("Can't reach the local OmniVoice backend");
+    expect(err.message).toContain("Can't reach the local VoiceStudio backend");
   });
 
   // #1164 must not regress: outside the desktop shell there IS no shell to
@@ -117,7 +117,7 @@ describe('apiFetch — a failed backend start surfaces the shell diagnosis (#117
     stageMock.mockResolvedValue(lc('unknown'));
 
     const err = await rejection(apiFetch('/model/status'), CASCADE_MS + 100);
-    expect(err.message).toContain("Can't reach the local OmniVoice backend");
+    expect(err.message).toContain("Can't reach the local VoiceStudio backend");
     expect(err.message).not.toContain('could not start');
   });
 });

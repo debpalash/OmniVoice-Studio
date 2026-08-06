@@ -184,7 +184,7 @@ export interface PrefsSlice {
    * Opt-in dictate-over-playback echo cancellation (parity Action 8). When
    * on, dictation streams raw PCM through the server-side NLMS AEC and the
    * audio player taps its output as the echo reference, so dictating while
-   * OmniVoice plays audio doesn't transcribe the playback. Default OFF — the
+   * VoiceStudio plays audio doesn't transcribe the playback. Default OFF — the
    * standard MediaRecorder dictation path is unchanged when off.
    */
   aecEnabled: boolean;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────
-# desktop-prod.sh — Build & launch OmniVoice Studio as a "fresh install"
+# desktop-prod.sh — Build & launch VoiceStudio as a "fresh install"
 #
 # This gives you the EXACT same experience as a user downloading the
 # installer (DMG on macOS, AppImage on Linux):
@@ -32,7 +32,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 APP_ID="com.debpalash.omnivoice-studio"
 TAURI_DIR="frontend/src-tauri"
-APP_NAME="OmniVoice Studio"
+APP_NAME="VoiceStudio"
 
 # ── Detect platform ───────────────────────────────────────────────────────
 OS="$(uname -s)"
@@ -63,10 +63,10 @@ elif [ "$PLATFORM" = "windows" ]; then
   # (backend/core/config.py::get_app_data_dir) and relocates the HF cache to
   # %LOCALAPPDATA%\OmniVoice\hf_cache. Tauri keys its data by APP_ID under
   # LOCALAPPDATA; WebView2 state lives in EBWebView. All paths are APP_ID/
-  # OmniVoice-scoped, and each rm is guarded by `[ -d ]`, so a slightly-off
+  # VoiceStudio-scoped, and each rm is guarded by `[ -d ]`, so a slightly-off
   # path is a no-op, never a wrong delete.
   APP_DATA="${LOCALAPPDATA}/${APP_ID}"
-  BACKEND_DATA="${APPDATA}/OmniVoice"
+  BACKEND_DATA="${APPDATA}/VoiceStudio"
   TAURI_LOGS="${LOCALAPPDATA}/${APP_ID}/logs"
   WEBKIT_DATA="${LOCALAPPDATA}/${APP_ID}/EBWebView"
   HF_CACHE="${HF_HOME:-${LOCALAPPDATA}/OmniVoice/hf_cache}"
@@ -106,17 +106,17 @@ for arg in "$@"; do
       echo "Environment:"
       echo "  FRESH_NUKE_HF=1  Also wipe the HF cache when it is the SHARED global"
       echo "                   cache (~/.cache/huggingface). By default only an"
-      echo "                   OmniVoice-scoped cache path is removed."
+      echo "                   VoiceStudio-scoped cache path is removed."
       exit 0
       ;;
   esac
 done
 
-# Is a path unambiguously OmniVoice-scoped (safe to auto-delete)? The HF
+# Is a path unambiguously VoiceStudio-scoped (safe to auto-delete)? The HF
 # cache defaults to the SHARED ~/.cache/huggingface on macOS/Linux — the app
 # only relocates it on Windows (backend/core/config.py) — and HF_HOME can
 # point anywhere. Wiping a shared cache would delete models unrelated to
-# OmniVoice, so non-scoped paths are kept unless FRESH_NUKE_HF=1.
+# VoiceStudio, so non-scoped paths are kept unless FRESH_NUKE_HF=1.
 # (Kept in sync with isAppScoped() in scripts/desktop-common.mjs.)
 is_app_scoped() {
   case "$1" in
@@ -180,7 +180,7 @@ kill_running_instances() {
   # shellcheck disable=SC2086
   pids="$(echo $pids | tr ' ' '\n' | sort -u | tr '\n' ' ')"
   [ -z "${pids// /}" ] && return 0
-  echo "🔪 Terminating running OmniVoice processes:$pids"
+  echo "🔪 Terminating running VoiceStudio processes:$pids"
   # shellcheck disable=SC2086
   kill $pids 2>/dev/null || true
   local i=0
@@ -200,7 +200,7 @@ kill_running_instances
 
 # ── Wipe app data for fresh-install simulation ─────────────────────────────
 if [ "$KEEP_DATA" = false ]; then
-  echo "🧹 Cleaning all OmniVoice data for fresh prod emulation..."
+  echo "🧹 Cleaning all VoiceStudio data for fresh prod emulation..."
   echo ""
 
   # 1. App data (Tauri bundle dir: post-install venv + webview state)
@@ -225,7 +225,7 @@ if [ "$KEEP_DATA" = false ]; then
   #    --keep-models preserves it so a "fresh app" run doesn't re-pull multi-GB
   #    weights (the model-download is the slow, bandwidth-heavy part of a clean
   #    run; everything else still resets for an honest first-run emulation).
-  #    Only an OmniVoice-scoped path is auto-removed: on macOS/Linux the app
+  #    Only a VoiceStudio-scoped path is auto-removed: on macOS/Linux the app
   #    uses the SHARED ~/.cache/huggingface, which also holds models from
   #    other projects — wiping it needs the explicit FRESH_NUKE_HF=1 opt-in.
   if [ "$KEEP_MODELS" = true ]; then
@@ -244,7 +244,7 @@ if [ "$KEEP_DATA" = false ]; then
   else
     HF_SIZE=$(du -sh "${HF_CACHE}" 2>/dev/null | cut -f1)
     echo "   ◆ HF cache:     ${HF_CACHE} (${HF_SIZE}) — KEPT (shared global cache)"
-    echo "     ↳ Not OmniVoice-scoped; wiping it would delete models unrelated to"
+    echo "     ↳ Not VoiceStudio-scoped; wiping it would delete models unrelated to"
     echo "       this app. Models will be REUSED, not re-downloaded. To wipe anyway:"
     echo "       FRESH_NUKE_HF=1 bun desktop-prod"
   fi

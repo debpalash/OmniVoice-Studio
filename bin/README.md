@@ -1,7 +1,7 @@
 # Bundled binaries
 
 This directory holds platform-specific binaries that ship inside the
-OmniVoice Studio installer. Today:
+VoiceStudio installer. Today:
 
 | File | Built from | Purpose |
 |------|------------|---------|
@@ -9,7 +9,7 @@ OmniVoice Studio installer. Today:
 | `omnivoice-tts-darwin-x86_64` | same | Intel Mac |
 | `omnivoice-tts-linux-x86_64` | same | Linux |
 | `omnivoice-tts-windows-x86_64.exe` | same | Windows |
-| `checksums.sha256` | computed by `scripts/build-omnivoice-tts.sh` | SHA-256 manifest — verified by `OmniVoiceGGUFBackend.is_available()` |
+| `checksums.sha256` | computed by `scripts/build-omnivoice-tts.sh` | SHA-256 manifest — verified by `VoiceStudioGGUFBackend.is_available()` |
 
 The pinned commit SHA for `omnivoice.cpp` lives in
 `backend/engines/omnivoice_gguf/quant_map.json` `_meta.runtime_commit_sha`.
@@ -26,19 +26,19 @@ slot (`macos-14`) is marked `continue-on-error: true` because the
 upstream `omnivoice.cpp` README does not publish a `buildmetal.sh`
 (Pitfall 1 in `04-RESEARCH.md`); a failed Metal build is documented
 and the macOS Apple Silicon cloning default falls back to the
-in-process `OmniVoiceBackend`.
+in-process `VoiceStudioBackend`.
 
 ## Placeholder note
 
 Until the CI matrix produces real binaries, this directory contains
 zero-byte placeholders — a plain `git clone` always gets those (real
 binaries ship via the installers / CI artifacts, and are never committed
-here). `OmniVoiceGGUFBackend.is_available()` validates the file before
+here). `VoiceStudioGGUFBackend.is_available()` validates the file before
 trusting it (`services/binary_preflight.py`: non-empty + a real
 Mach-O/ELF/PE magic, #1172) and returns `(False, "...not a usable
 executable...")` for a placeholder, so the engine reports honestly
 through the Engine Compatibility Matrix and the default selection falls
-back to the in-process `OmniVoiceBackend`. Selecting the engine anyway
+back to the in-process `VoiceStudioBackend`. Selecting the engine anyway
 (e.g. `model: "omnivoice-gguf"` on `/v1/audio/speech`) yields an
 actionable 400/503 naming `scripts/build-omnivoice-tts.sh`, never a raw
 "Exec format error".

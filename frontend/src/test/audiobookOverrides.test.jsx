@@ -19,7 +19,7 @@ import AudiobookOverrides, { overridesToRequest } from '../components/audiobook/
 const withI18n = (node) => <I18nextProvider i18n={i18n}>{node}</I18nextProvider>;
 
 describe('audiobook markup reference lists the reaction tags (#1208 D1)', () => {
-  it('markup_hint advertises the OmniVoice reaction tags', () => {
+  it('markup_hint advertises the VoiceStudio reaction tags', () => {
     const hint = en.audiobook.markup_hint;
     for (const tag of ['[laughter]', '[sigh]', '[question-en]', '[dissatisfaction-hnn]']) {
       expect(hint).toContain(tag);

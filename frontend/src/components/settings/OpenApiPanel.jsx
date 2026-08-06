@@ -9,7 +9,7 @@ import { SettingsSection } from './primitives';
 import { Button } from '../../ui';
 
 /**
- * Settings → OpenAPI — an embedded, interactive reference for OmniVoice's own
+ * Settings → OpenAPI — an embedded, interactive reference for VoiceStudio's own
  * local backend REST API (FastAPI, live spec at `<backend>/openapi.json`).
  *
  * The spec is fetched here (from the resolved backend base — same helper every
@@ -92,7 +92,7 @@ export default function OpenApiPanel() {
       icon={Braces}
       title={t('openapi.title', { defaultValue: 'OpenAPI Reference' })}
       description={t('openapi.description', {
-        defaultValue: "Interactive reference for OmniVoice's local backend API.",
+        defaultValue: "Interactive reference for VoiceStudio's local backend API.",
       })}
     >
       {/* Spec URL + copy / open-raw affordances — useful whether the embed

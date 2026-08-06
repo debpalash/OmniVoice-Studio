@@ -68,7 +68,7 @@ single field name, key, or type.
 
 **Constraints mandate (this revision):** because this is a *verification* spec for
 features that already ship in the default build, the verification is **also a constraints
-audit**. Five OmniVoice hard rules bear directly on these features — cross-platform
+audit**. Five VoiceStudio hard rules bear directly on these features — cross-platform
 parity, local-first, backward-compatible data, CodeQL py/polynomial-redos, and
 localization — and the test plan is required to *prove* each one holds, not assume it.
 The new §"Constraints" section below states, rule-by-rule and grounded in `file:line`,
@@ -460,7 +460,7 @@ Mechanism (grounded in the code):
 
 ## Constraints
 
-This is a verification spec for features that ship in the **default** OmniVoice build, so
+This is a verification spec for features that ship in the **default** VoiceStudio build, so
 the verification doubles as a constraints audit. Each applicable hard rule is mapped to
 how it is satisfied and which case **proves** it. A runtime check that *disproves* a
 constraint is escalated per the rule (P0 for a default-behavior platform divergence).
@@ -1229,7 +1229,7 @@ Audiobook tab — happy paths:
 - [ ] Switch format to mp3 → output is mp3, plays, no cover (expected per `:260` skip).
 - [ ] Loudness OFF by default (`loudness` state default `'off'`, `AudiobookTab.jsx:35` —
       verified; C1 opt-in); turning on ACX produces audibly normalized output.
-- [ ] Add a lexicon row (e.g. `OmniVoice → Omni Voice`) → the word is pronounced
+- [ ] Add a lexicon row (e.g. `VoiceStudio → Omni Voice`) → the word is pronounced
       respelled in preview/output.
 - [ ] Use markup `[slow]…[/slow]`, `[fast]`, `[emphasis]`, `[spell]USA[/spell]` in the
       script → audible rate change / letter-spelling.

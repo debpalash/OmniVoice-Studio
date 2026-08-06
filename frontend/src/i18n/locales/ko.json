@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "{{ago}} 전까지는 응답하다가 응답을 멈췄습니다 — 요청 처리 중에 크래시했거나 강제 종료되었을 가능성이 큽니다.",
     "contact_never": "이번 세션에서 한 번도 응답하지 않았습니다 — 아예 시작되지 않았을 수 있습니다.",
-    "dev": "로컬 OmniVoice 백엔드에 연결할 수 없습니다. {{contact}} `bun run dev`에서는 백엔드가 자동 리로드로 실행되므로, 파일 변경(요청 도중 저장 포함)이 백엔드를 재시작하고 연결을 끊습니다. 먼저 작업을 다시 시도하세요. 리로드였다면 바로 됩니다. 계속 실패하면 `bun run dev`를 실행한 터미널의 Python 트레이스백이나 종료 메시지, 그리고 OmniVoice 데이터 폴더의 omnivoice.log를 확인하세요.",
-    "server": "OmniVoice 백엔드 서버에 연결할 수 없습니다. {{contact}} 서버 로그에서 원인을 확인하세요(예: `docker logs <container>` 또는 `journalctl`) — Docker가 이 페이지를 제공하는 경우 백엔드와 함께 페이지 자체가 중단될 수 있습니다.",
-    "misrouted": "{{url}} 에 응답한 서버는 OmniVoice 백엔드가 아닙니다 — 해당 서버 자체의 404 페이지가 반환되었습니다. API 요청이 잘못된 호스트로 가고 있습니다. 설정 → 공유 에서 백엔드 URL을 확인하거나, 리버스 프록시가 이 UI를 제공한다면 API 경로에 대한 라우트를 확인하세요."
+    "dev": "로컬 VoiceStudio 백엔드에 연결할 수 없습니다. {{contact}} `bun run dev`에서는 백엔드가 자동 리로드로 실행되므로, 파일 변경(요청 도중 저장 포함)이 백엔드를 재시작하고 연결을 끊습니다. 먼저 작업을 다시 시도하세요. 리로드였다면 바로 됩니다. 계속 실패하면 `bun run dev`를 실행한 터미널의 Python 트레이스백이나 종료 메시지, 그리고 VoiceStudio 데이터 폴더의 omnivoice.log를 확인하세요.",
+    "server": "VoiceStudio 백엔드 서버에 연결할 수 없습니다. {{contact}} 서버 로그에서 원인을 확인하세요(예: `docker logs <container>` 또는 `journalctl`) — Docker가 이 페이지를 제공하는 경우 백엔드와 함께 페이지 자체가 중단될 수 있습니다.",
+    "misrouted": "{{url}} 에 응답한 서버는 VoiceStudio 백엔드가 아닙니다 — 해당 서버 자체의 404 페이지가 반환되었습니다. API 요청이 잘못된 호스트로 가고 있습니다. 설정 → 공유 에서 백엔드 URL을 확인하거나, 리버스 프록시가 이 UI를 제공한다면 API 경로에 대한 라우트를 확인하세요."
   },
   "nav": {
     "clone": "복제",
@@ -165,7 +165,7 @@
     "review_mode_desc": "ASR/번역 출력을 검토할 수 있도록 파이프라인 단계 사이에 일시 중지합니다.",
     "header_live_stats": "헤더에 실시간 시스템 측정항목 표시",
     "header_live_stats_desc": "상단 표시줄에 라이브 RAM/CPU/VRAM 모니터를 추가합니다(기본적으로 꺼져 있음).",
-    "storage_desc": "OmniVoice가 데이터와 출력을 보관하는 곳입니다.",
+    "storage_desc": "VoiceStudio가 데이터와 출력을 보관하는 곳입니다.",
     "history_retention": "생성 기록",
     "history_retention_desc": "오래된 테이크를 정리하기 전에 유지할 테이크 수입니다.",
     "history_retention_help": "생성할 때마다 이 한도를 초과한 오래된 별표 없는 테이크가 오디오 파일과 함께 삭제됩니다. 별표된 테이크는 항상 유지됩니다. 0 = 모두 유지.",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "0 이상을 입력하세요"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "환경 확인 중…",
     "downloading_uv": "uv(Python 패키지 관리자) 다운로드 중…",
     "creating_venv": "Python 가상 환경 생성 중…",
@@ -210,10 +210,10 @@
     "hint_uv_sync": "의존성 설치에 실패했습니다. \"정리 후 재시도\"는 캐시된 venv를 삭제하고 처음부터 다시 시작합니다.",
     "hint_build_backend": "Python 빌드 백엔드 오류입니다. \"정리 후 재시도\"는 손상된 venv를 제거하고 처음부터 다시 빌드합니다.",
     "hint_ffmpeg": "ffmpeg 다운로드에 실패했습니다. 치명적이지 않습니다 — 재시도하거나 ffmpeg를 수동으로 설치하세요.",
-    "hint_port": "포트 3900이 이미 사용 중입니다. 다른 OmniVoice 인스턴스나 해당 포트를 사용하는 앱을 종료하세요.",
+    "hint_port": "포트 3900이 이미 사용 중입니다. 다른 VoiceStudio 인스턴스나 해당 포트를 사용하는 앱을 종료하세요.",
     "hint_silent_crash": "백엔드가 오류 메시지 없이 종료되었습니다. \"정리 후 재시도\"가 손상된 venv 문제를 자주 해결합니다.",
     "hint_github_blocked": "네트워크가 GitHub을 차단하고 있을 수 있습니다. python.org에서 Python 3.11+를 설치하고(PATH에 추가) 다시 실행하거나 UV_PYTHON_INSTALL_MIRROR를 설정하세요 — docs/install/troubleshooting.md 참고.",
-    "hint_intel_mac": "이 Mac은 Intel 프로세서를 사용하며, PyTorch는 더 이상 Intel Mac용 빌드를 제공하지 않습니다 — 로컬 AI 백엔드를 설치할 수 없고, 다시 시도해도 달라지지 않습니다. 다른 컴퓨터에서 실행 중인 원격 백엔드에 앱을 연결하거나(설정 → 공유 → 원격 백엔드), Apple Silicon Mac, Windows 또는 Linux에서 OmniVoice를 사용하세요. 자세한 내용: docs/install/macos.md.",
+    "hint_intel_mac": "이 Mac은 Intel 프로세서를 사용하며, PyTorch는 더 이상 Intel Mac용 빌드를 제공하지 않습니다 — 로컬 AI 백엔드를 설치할 수 없고, 다시 시도해도 달라지지 않습니다. 다른 컴퓨터에서 실행 중인 원격 백엔드에 앱을 연결하거나(설정 → 공유 → 원격 백엔드), Apple Silicon Mac, Windows 또는 Linux에서 VoiceStudio를 사용하세요. 자세한 내용: docs/install/macos.md.",
     "hint_default": "먼저 \"재시도\"를 시도하세요. 다시 실패하면 \"정리 후 재시도\"가 환경을 처음부터 다시 구축합니다.",
     "hint_stuck": "백엔드 시작이 완료되지 않았습니다. 소스에서 먼저 'uv sync'를 실행하고 'uv'와 Python이 PATH에 있는지 확인한 다음 다시 시도하세요. 정확한 정지 지점은 아래 로그(또는 설정 → 로그 → 백엔드)를 확인하세요.",
     "lines": "{{count}} 라인"
@@ -465,7 +465,7 @@
     "downloading": "다운로드 중…",
     "check_updates": "업데이트 확인",
     "copy_diagnostics": "진단 복사",
-    "github": "GitHub의 OmniVoice",
+    "github": "GitHub의 VoiceStudio",
     "commercial_license": "상업용 라이센스",
     "update_channel": "업데이트 채널",
     "channel_stable": "안정 버전",
@@ -501,8 +501,8 @@
     "watermark_failed": "워터마크 설정을 변경할 수 없습니다."
   },
   "consent": {
-    "title": "OmniVoice 개선에 참여하시겠어요?",
-    "step_label": "OmniVoice 개선",
+    "title": "VoiceStudio 개선에 참여하시겠어요?",
+    "step_label": "VoiceStudio 개선",
     "body": "익명의 콘텐츠 없는 사용 통계입니다: 어떤 엔진이 사용되는지, 생성에 걸리는 시간, 오류 유형만 전송됩니다. 당신의 텍스트, 오디오, 파일, 신원을 알 수 있는 정보는 절대 전송되지 않습니다. 동의하지 않는 한 아무것도 전송되지 않으며, 설정 → 개인정보에서 언제든지 변경할 수 있습니다.",
     "learn_more": "정확히 무엇이 전송되나요?",
     "yes": "예, 익명 통계 공유",
@@ -510,7 +510,7 @@
     "dismiss": "닫기 (분석은 꺼진 상태 유지)"
   },
   "langPrompt": {
-    "offer": "OmniVoice가 {{language}}(으)로 열렸습니다. 영어를 사용하시겠어요?",
+    "offer": "VoiceStudio가 {{language}}(으)로 열렸습니다. 영어를 사용하시겠어요?",
     "switch": "영어로 전환",
     "keep": "{{language}} 유지"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "설치되지 않음",
     "available": "가능",
     "subprocessTitle": "자체 하위 프로세스 + venv에서 실행됩니다.",
-    "inProcessTitle": "OmniVoice Python 프로세스에서 실행됩니다.",
+    "inProcessTitle": "VoiceStudio Python 프로세스에서 실행됩니다.",
     "testEngine": "테스트 엔진",
     "testing": "테스트 중…",
     "recheck": "재확인",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "전역 단축키는 데스크톱 앱에서만 작동합니다. 웹 UI는 창에 포커스가 있는 동안 페이지 내 <1>Ctrl+Shift+Space</1> 단축키를 사용합니다.",
-    "desc_detail": "단축키는 OmniVoice가 실행되는 동안 시스템 전체에서 작동합니다. 즉, 창에 초점을 맞추고 받아쓰기를 시작합니다. OS에서 이미 요구한 콤보를 피하세요(macOS에서는 <1>⌘+Space</1>이 Spotlight이고 <2>⌘+⇧+Space</2> 사이클 입력 소스입니다). 등록에 실패하면 다른 콤보를 선택하세요.",
+    "desc_detail": "단축키는 VoiceStudio가 실행되는 동안 시스템 전체에서 작동합니다. 즉, 창에 초점을 맞추고 받아쓰기를 시작합니다. OS에서 이미 요구한 콤보를 피하세요(macOS에서는 <1>⌘+Space</1>이 Spotlight이고 <2>⌘+⇧+Space</2> 사이클 입력 소스입니다). 등록에 실패하면 다른 콤보를 선택하세요.",
     "active_shortcut": "활성 바로가기",
     "new_shortcut": "새로운 단축키",
     "press_key": "키 콤보를 누르세요…",
@@ -609,8 +609,8 @@
     "no_speech": "음성이 감지되지 않았습니다.",
     "mic_denied": "마이크 액세스가 거부되었습니다.",
     "mic_denied_toast": "마이크 액세스가 거부되었습니다. {{hint}}",
-    "mic_hint_mac": "macOS: 시스템 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 OmniVoice를 활성화합니다.",
-    "mic_hint_windows": "Windows: 설정 → 개인 정보 및 보안 → 마이크를 열고 '마이크 액세스'와 '데스크톱 앱이 마이크에 액세스하도록 허용'을 켠 다음 OmniVoice를 허용하세요.",
+    "mic_hint_mac": "macOS: 시스템 설정 → 개인 정보 보호 및 보안 → 마이크를 열고 VoiceStudio를 활성화합니다.",
+    "mic_hint_windows": "Windows: 설정 → 개인 정보 및 보안 → 마이크를 열고 '마이크 액세스'와 '데스크톱 앱이 마이크에 액세스하도록 허용'을 켠 다음 VoiceStudio를 허용하세요.",
     "mic_hint_linux": "Linux: 사용자가 오디오 그룹에 있고 WebView에 마이크 액세스 권한이 있는지 확인하세요.",
     "transcription_failed": "스크립트 작성 실패: {{message}}",
     "mic_not_found": "마이크를 찾을 수 없습니다. 마이크를 연결하거나 활성화한 후 다시 시도하세요.",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "원시 참조 클립을 포함합니다. 끄기 = 워터마크가 표시된 미리보기만 공유합니다(권장).",
     "consent_title": "음성 소유권",
     "consent_explain": "아래 설명을 읽는 자신을 녹음하여 이것이 귀하의 목소리인지 확인하십시오. 에이전트 기능 및 커뮤니티 공유에는 확인이 필요하며 로컬 합성에는 확인이 필요하지 않습니다.",
-    "consent_statement": "나는 이 음성 프로필이 내 목소리임을 확인하며 OmniVoice Studio가 나를 대신하여 이 프로필을 복제하는 데 동의합니다.",
+    "consent_statement": "나는 이 음성 프로필이 내 목소리임을 확인하며 VoiceStudio가 나를 대신하여 이 프로필을 복제하는 데 동의합니다.",
     "consent_record": "동의서 녹음",
     "consent_stop": "녹음 중지",
     "consent_saved": "음성 소유권이 확인되었습니다.",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "대기열에 추가"
   },
   "gallery": {
-    "title": "OmniVoice 갤러리",
+    "title": "VoiceStudio 갤러리",
     "search_placeholder": "유튜브 검색…",
     "all_voices": "모든 음색({{count}})",
     "no_voices": "아직 음성이 없습니다.",
@@ -1254,7 +1254,7 @@
     "title": "지원",
     "desc": "이 프로젝트가 마음에 드셨다면, 우리의 발전을 지원하기 위해 기부해 보시기 바랍니다.",
     "hero_title": "옴니보이스 지원",
-    "hero_desc": "OmniVoice는 무료 오픈 소스이며 하드웨어에서 완전히 실행됩니다. 워크플로우에 가치를 부여한다면 핵심 팀 지원을 고려해보세요.",
+    "hero_desc": "VoiceStudio는 무료 오픈 소스이며 하드웨어에서 완전히 실행됩니다. 워크플로우에 가치를 부여한다면 핵심 팀 지원을 고려해보세요.",
     "github_desc": "반복 또는 일회성 — GitHub를 통해 직접.",
     "coffee_desc": "팀에 커피를 사주세요. 계정이 필요하지 않습니다.",
     "paypal_desc": "PayPal을 통해 빠르게 일회성 또는 반복적으로 결제할 수 있습니다.",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "클로드 맥스 기금",
-      "lead_default": "효과가 있어서 다행이에요! OmniVoice는 무료이며 완전히 로컬입니다. 시간을 절약할 수 있다면 매월 소액의 칩인을 통해 Claude Max에 자금을 지원할 수 있습니다.",
-      "lead_first_clone": "첫 번째 음성 복제가 완료되었습니다. 좋습니다! OmniVoice는 전적으로 귀하의 컴퓨터에서 실행되며 귀하의 지원은 이를 그대로 유지합니다.",
+      "lead_default": "효과가 있어서 다행이에요! VoiceStudio는 무료이며 완전히 로컬입니다. 시간을 절약할 수 있다면 매월 소액의 칩인을 통해 Claude Max에 자금을 지원할 수 있습니다.",
+      "lead_first_clone": "첫 번째 음성 복제가 완료되었습니다. 좋습니다! VoiceStudio는 전적으로 귀하의 컴퓨터에서 실행되며 귀하의 지원은 이를 그대로 유지합니다.",
       "lead_tenth_dub": "10개의 더빙이 포함되어 있습니다. 확실히 효과를 발휘하고 계십니다. 이러한 기능을 제공하는 Claude Max에는 매월 소액의 칩인 자금이 지원됩니다.",
-      "lead_sustained": "OmniVoice를 사용한 지 한 달이 되었습니다. 귀하의 작업 흐름에서 한 자리를 차지했다면 다음 단계에 자금을 지원하는 것을 고려해 보십시오.",
+      "lead_sustained": "VoiceStudio를 사용한 지 한 달이 되었습니다. 귀하의 작업 흐름에서 한 자리를 차지했다면 다음 단계에 자금을 지원하는 것을 고려해 보십시오.",
       "chip_in": "칩인",
       "later": "어쩌면 나중에",
       "star": "GitHub의 스타",
@@ -1296,14 +1296,14 @@
     "back": "스튜디오로 돌아가기",
     "badge": "상업용 라이센스",
     "hero_title": "프로덕션에 AI 음성 전달",
-    "hero_desc": "OmniVoice Studio는 GNU Affero General Public License v3(AGPL-3.0)에 따라 제공되는 자유 오픈소스 소프트웨어입니다. 상업적 이용과 사내 업무 이용을 포함해 무료로 사용할 수 있습니다. 상업용 라이선스는 AGPL-3.0의 카피레프트 의무 없이 OmniVoice Studio를 클로즈드 소스 또는 독점 제품·서비스에 포함하려는 경우에만 필요합니다.",
-    "why_title": "기업이 OmniVoice를 선택하는 이유",
+    "hero_desc": "VoiceStudio는 GNU Affero General Public License v3(AGPL-3.0)에 따라 제공되는 자유 오픈소스 소프트웨어입니다. 상업적 이용과 사내 업무 이용을 포함해 무료로 사용할 수 있습니다. 상업용 라이선스는 AGPL-3.0의 카피레프트 의무 없이 VoiceStudio를 클로즈드 소스 또는 독점 제품·서비스에 포함하려는 경우에만 필요합니다.",
+    "why_title": "기업이 VoiceStudio를 선택하는 이유",
     "pricing_title": "가격",
     "faq_title": "일반적인 질문",
     "pricing_desc": "등급과 가격은 아직 확정 중입니다.",
     "pricing_detail": "공개될 때까지 모든 상용 배포는 개별적으로 견적이 나오므로 귀하의 팀과 작업량에 맞게 규모를 조정할 수 있습니다.",
     "request_quote": "견적 요청",
-    "footer_email": "질문이 있으신가요? OmniVoice@palash.dev로 문의하세요.",
+    "footer_email": "질문이 있으신가요? VoiceStudio@palash.dev로 문의하세요.",
     "footer_discord": "커뮤니티 지원을 위해 Discord에 참여하세요.",
     "benefit_ip": "전체 IP 소유권",
     "benefit_ip_desc": "귀하는 모든 산출물, 모든 모델, 모든 파생물을 소유합니다. 공유 테넌시가 없고 데이터 유출도 없습니다.",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "스택에 대한 완전한 가시성. 라이선스 조건 내에서 감사, 분기 및 조정합니다.",
     "benefit_lang": "646개 언어",
     "benefit_lang_desc": "인간 수준의 품질로 646개 언어로 전사, 번역, 더빙하세요.",
-    "hero_note": "사용, 자체 호스팅, 상업적 이용 모두 AGPL-3.0에 따라 무료이며, 대규모 사용도 마찬가지입니다. AGPL은 네트워크 카피레프트 라이선스입니다. OmniVoice를 수정하여 그 수정 버전을 네트워크를 통해 다른 사람에게 제공하는 경우, 동일한 조건으로 수정된 소스 코드를 공개해야 합니다. 상업용 라이선스를 구매하면 독점·클로즈드 소스 배포에 대해 이러한 카피레프트 의무가 면제됩니다. 가격 정책은 곧 공개됩니다. 그동안은 문의해 주세요.",
-    "hero_simple": "OmniVoice Studio는 상업용 및 내부 업무용을 포함하여 AGPL-3.0에 따른 무료 오픈 소스입니다. AGPL의 카피레프트 의무 없이 비공개 소스 제품에 포함하려면 상용 라이선스만 필요합니다.",
+    "hero_note": "사용, 자체 호스팅, 상업적 이용 모두 AGPL-3.0에 따라 무료이며, 대규모 사용도 마찬가지입니다. AGPL은 네트워크 카피레프트 라이선스입니다. VoiceStudio를 수정하여 그 수정 버전을 네트워크를 통해 다른 사람에게 제공하는 경우, 동일한 조건으로 수정된 소스 코드를 공개해야 합니다. 상업용 라이선스를 구매하면 독점·클로즈드 소스 배포에 대해 이러한 카피레프트 의무가 면제됩니다. 가격 정책은 곧 공개됩니다. 그동안은 문의해 주세요.",
+    "hero_simple": "VoiceStudio는 상업용 및 내부 업무용을 포함하여 AGPL-3.0에 따른 무료 오픈 소스입니다. AGPL의 카피레프트 의무 없이 비공개 소스 제품에 포함하려면 상용 라이선스만 필요합니다.",
     "contact_lead": "가격은 배포별로 견적되므로 팀과 워크로드에 적합합니다. 사용 사례를 알려주시면 견적을 받아보겠습니다."
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "걱정하지 마세요. 앱의 나머지 부분은 여전히 작동합니다. 탭을 전환하거나 아래에서 다시 시도해 보세요.",
     "tryAgain": "다시 시도하세요",
     "openDocs": "이 오류에 대한 문서 열기",
-    "crash_port_in_use": "포트 3900이 이미 사용 중이어서 백엔드를 시작하지 못했습니다 — 다른 OmniVoice 사본(또는 해당 포트를 점유한 앱)이 붙잡고 있습니다. 다른 인스턴스를 종료한 뒤 다시 실행하세요. 눈에 띄게 실행 중인 것이 없다면 이전 세션에서 남은 백엔드가 아직 포트를 점유하고 있습니다.",
+    "crash_port_in_use": "포트 3900이 이미 사용 중이어서 백엔드를 시작하지 못했습니다 — 다른 VoiceStudio 사본(또는 해당 포트를 점유한 앱)이 붙잡고 있습니다. 다른 인스턴스를 종료한 뒤 다시 실행하세요. 눈에 띄게 실행 중인 것이 없다면 이전 세션에서 남은 백엔드가 아직 포트를 점유하고 있습니다.",
     "crash_oom_kill": "강제 종료되었습니다(시그널 9). 보통 운영체제의 메모리(RAM)가 부족해 중단되었다는 뜻입니다. 메모리를 많이 쓰는 앱을 닫거나, 설정 → 모델에서 더 작은 ASR 모델을 선택하거나, 전사 전에 TTS 모델을 언로드하세요.",
-    "crash_native_fault": "메모리 부족이 아니라 연산 스택 내부에서 충돌했습니다. 이는 번들된 CUDA 런타임과 맞지 않는 GPU 드라이버이거나, 불완전하게 내려받은 모델 파일을 가리킵니다. GPU 드라이버를 업데이트한 뒤 설정 → 모델에서 모델을 다시 내려받으세요(부분 다운로드를 그 자리에서 복구합니다). 계속 발생하면 설정 → 엔진에서 충돌 격리 엔진으로 전환하세요 — 합성은 \"OmniVoice (subprocess)\", 전사는 \"Faster-Whisper (crash-isolated subprocess)\". 이들은 모델을 별도 프로세스에서 실행하므로 이런 충돌이 백엔드 전체가 아니라 해당 프로세스만 중단시킵니다.",
+    "crash_native_fault": "메모리 부족이 아니라 연산 스택 내부에서 충돌했습니다. 이는 번들된 CUDA 런타임과 맞지 않는 GPU 드라이버이거나, 불완전하게 내려받은 모델 파일을 가리킵니다. GPU 드라이버를 업데이트한 뒤 설정 → 모델에서 모델을 다시 내려받으세요(부분 다운로드를 그 자리에서 복구합니다). 계속 발생하면 설정 → 엔진에서 충돌 격리 엔진으로 전환하세요 — 합성은 \"VoiceStudio (subprocess)\", 전사는 \"Faster-Whisper (crash-isolated subprocess)\". 이들은 모델을 별도 프로세스에서 실행하므로 이런 충돌이 백엔드 전체가 아니라 해당 프로세스만 중단시킵니다.",
     "report": "이 버그 신고",
     "report_failed": "버그 리포트를 열지 못했습니다. 다시 시도하거나 위 내용을 새 이슈에 복사해 주세요.",
     "searchIssues": "유사한 문제 검색",
     "unexpected": "예기치 않은 오류: {{message}}",
-    "backend_shutting_down": "OmniVoice를 종료하는 중입니다. 앱을 다시 열고 시도하세요.",
+    "backend_shutting_down": "VoiceStudio를 종료하는 중입니다. 앱을 다시 열고 시도하세요.",
     "crash_broken_env": "자체 Python 의존성을 불러오는 도중에 종료됐습니다. 메모리나 GPU 문제가 아니라 환경이 불완전하거나 업데이트가 중간에 멈춘 상태입니다. 설정 → 로그 → 백엔드 의 \"Clean & Retry\"를 사용하세요. 환경을 처음부터 다시 만들어 그 자리에서 복구하며, 음성이나 프로젝트는 건드리지 않습니다. 그래도 실패하면 크래시 세부 정보에 가져오지 못한 패키지 이름이 나옵니다."
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "네트워크",
     "local": "지역",
     "share_confirm_title": "네트워크에서 공유하시겠습니까?",
-    "share_confirm_hint": "Wi-Fi/이더넷의 다른 장치는 켜져 있으면 표시된 액세스 PIN을 사용하여 OmniVoice에 연결할 수 있습니다.",
+    "share_confirm_hint": "Wi-Fi/이더넷의 다른 장치는 켜져 있으면 표시된 액세스 PIN을 사용하여 VoiceStudio에 연결할 수 있습니다.",
     "enabling": "활성화 중…",
     "enable": "활성화",
     "shared_title": "네트워크에서 공유됨",
@@ -1530,7 +1530,7 @@
     "model_heading": "모델 중량 · OpenRAIL-M",
     "model_desc": "Supertonic-3 모델 가중치는 OpenRAIL-M 라이센스에 따라 출시됩니다. 이 라이선스는 악의적이지 않은 목적으로 사용을 제한합니다. 전체 사용 기반 제한 사항은 링크된 라이선스를 참조하세요.",
     "read_openrail": "OpenRAIL-M 라이센스 읽기 →",
-    "footer": "수락을 클릭하면 OmniVoice의 로컬 설정에 수락이 기록되고 엔진이 활성화됩니다. 귀하의 수락은 이 컴퓨터에만 저장되며 Supertone Inc.나 제3자에게는 아무 것도 보고되지 않습니다.",
+    "footer": "수락을 클릭하면 VoiceStudio의 로컬 설정에 수락이 기록되고 엔진이 활성화됩니다. 귀하의 수락은 이 컴퓨터에만 저장되며 Supertone Inc.나 제3자에게는 아무 것도 보고되지 않습니다.",
     "saving": "저장 중…",
     "accept": "수락",
     "accepted_toast": "Supertonic-3 라이센스가 허용됩니다.",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "내부 도구에 대한 라이선스가 필요합니까?",
-    "a_internal_tools": "아니요. 직원과 계약자의 사용은 — 내부 수정 및 자체 호스팅을 포함해 — AGPL-3.0에 따라 무료입니다. 상업용 라이선스는 OmniVoice를 클로즈드 소스 또는 독점 제품·서비스에 포함하면서 AGPL의 소스 공개 의무를 따르고 싶지 않은 경우에만 필요합니다.",
+    "a_internal_tools": "아니요. 직원과 계약자의 사용은 — 내부 수정 및 자체 호스팅을 포함해 — AGPL-3.0에 따라 무료입니다. 상업용 라이선스는 VoiceStudio를 클로즈드 소스 또는 독점 제품·서비스에 포함하면서 AGPL의 소스 공개 의무를 따르고 싶지 않은 경우에만 필요합니다.",
     "q_try_before": "커밋하기 전에 시도해 볼 수 있나요?",
     "a_try_before": "예. 전체 앱은 AGPL-3.0에 따라 무료로 다운로드, 실행, 자체 호스팅할 수 있으며 별도의 계약이 필요 없습니다. 상업용(독점 사용) 라이선스에 대해 논의할 준비가 되면 이메일로 연락해 주세요. 함께 세부 사항을 조율하겠습니다.",
     "q_watermark": "워터마크는 어떻습니까?",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "공유 및 원격 액세스",
-    "help": "실행 중인 OmniVoice 인스턴스를 다시 시작하지 않고 다른 시스템에 노출하세요. 루프백 전용이 기본값입니다. 여기에서 활성화할 때까지 아무 것도 공유되지 않습니다.",
+    "help": "실행 중인 VoiceStudio 인스턴스를 다시 시작하지 않고 다른 시스템에 노출하세요. 루프백 전용이 기본값입니다. 여기에서 활성화할 때까지 아무 것도 공유되지 않습니다.",
     "local_network": "로컬 네트워크",
     "local_help": "일회성 액세스 PIN을 사용하여 Wi-Fi/이더넷에서 공유하세요. 다른 장치에서는 QR 코드를 스캔하거나 링크를 엽니다.",
     "ports_title": "포트",
-    "ports_help": "이는 시작 시 읽은 환경 변수를 통해 설정됩니다. 변수를 설정하고 OmniVoice를 다시 시작하여 백엔드 또는 UI 포트를 변경하세요.",
+    "ports_help": "이는 시작 시 읽은 환경 변수를 통해 설정됩니다. 변수를 설정하고 VoiceStudio를 다시 시작하여 백엔드 또는 UI 포트를 변경하세요.",
     "backend_port": "백엔드 포트",
     "ui_port": "UI 포트",
     "lan_share_port": "LAN 공유 포트",
@@ -1854,9 +1854,9 @@
     "ports_note": "백엔드 및 UI 포트는 다시 시작 시 적용됩니다. LAN 공유 포트는 다음에 공유를 활성화할 때 적용됩니다.",
     "tailscale_title": "Tailscale(개인 원격 액세스)",
     "tailscale_checking": "Tailscale 확인 중…",
-    "tailscale_absent": "테일 스케일이 감지되지 않았습니다. 개인 테일넷의 어느 곳에서나 안전하게 OmniVoice에 연결하려면 이를 설치하세요.",
+    "tailscale_absent": "테일 스케일이 감지되지 않았습니다. 개인 테일넷의 어느 곳에서나 안전하게 VoiceStudio에 연결하려면 이를 설치하세요.",
     "tailscale_install": "테일스케일 설치",
-    "tailscale_running": "테일스케일이 실행 중입니다. 개인 tailnet을 통해 OmniVoice를 제공하십시오.",
+    "tailscale_running": "테일스케일이 실행 중입니다. 개인 tailnet을 통해 VoiceStudio를 제공하십시오.",
     "tailscale_not_logged_in": "Tailscale이 설치되었지만 로그인되지 않았습니다. 먼저 Tailscale을 시작하고 로그인하세요.",
     "tailscale_enabled": "테일스케일 서브 활성화됨",
     "tailscale_enable_failed": "Tailscale을 활성화할 수 없습니다.",
@@ -1912,7 +1912,7 @@
     "failed": "업데이트 실패",
     "retry": "재시도",
     "dismiss": "닫기",
-    "toast_available": "OmniVoice Studio {{version}}을(를) 사용할 수 있습니다",
+    "toast_available": "VoiceStudio {{version}}을(를) 사용할 수 있습니다",
     "toast_install": "설치 후 재시작",
     "toast_whats_new": "새로운 기능",
     "toast_later": "나중에"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "설정 준비 중…",
-    "title": "OmniVoice Studio 설정",
+    "title": "VoiceStudio 설정",
     "subtitle": "아직 아무것도 설치되지 않았습니다. 저장 위치를 확인한 뒤 시작하세요. 나중에 설정에서 변경할 수 있습니다.",
     "language": "언어",
     "mode_title": "설치 방식",
@@ -2165,7 +2165,7 @@
     "lex_add": "단어 추가",
     "lex_remove": "제거",
     "markup_help": "마크업 참조",
-    "markup_hint": "# 장 제목 · [voice:NAME] 음성 전환 · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · 반응 (OmniVoice): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# 장 제목 · [voice:NAME] 음성 전환 · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · 반응 (VoiceStudio): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "언어",
     "expressive": "제작 무시",
     "reset": "재설정",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "액세스 PIN을 입력하세요.",
-    "body": "이 OmniVoice 인스턴스는 네트워크에서 공유됩니다. 호스트에 표시된 PIN을 입력하세요.",
+    "body": "이 VoiceStudio 인스턴스는 네트워크에서 공유됩니다. 호스트에 표시된 PIN을 입력하세요.",
     "label": "PIN 액세스",
     "connect": "연결하다"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "권한",
-    "desc": "OmniVoice는 전적으로 사용자의 기기에서 실행됩니다. 이 OS 권한들은 여기에 나열된 기능에만 사용되며 오디오는 절대 기기를 떠나지 않습니다.",
+    "desc": "VoiceStudio는 전적으로 사용자의 기기에서 실행됩니다. 이 OS 권한들은 여기에 나열된 기능에만 사용되며 오디오는 절대 기기를 떠나지 않습니다.",
     "microphone": "마이크",
     "microphone_why": "받아쓰기와 음성 녹음에 사용됩니다. 오디오는 로컬에서 처리됩니다.",
     "accessibility": "손쉬운 사용",
@@ -2299,7 +2299,7 @@
     "install_failed": "다운로드를 시작할 수 없습니다: {{message}}"
   },
   "backend_start_failure": {
-    "notice": "OmniVoice 백엔드를 시작하지 못했습니다. 시작되기 전까지는 아무것도 실행할 수 없습니다.",
+    "notice": "VoiceStudio 백엔드를 시작하지 못했습니다. 시작되기 전까지는 아무것도 실행할 수 없습니다.",
     "view": "이유 보기",
     "title": "백엔드를 시작하지 못했습니다",
     "intro": "백엔드를 시작하려 할 때 앱이 기록한 내용입니다. 이 출력을 보고서에 포함하면 문제 해결에 도움이 됩니다.",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "이전 세션이 {{ago}} 전에 정상 종료되지 않은 채 끝났습니다. 대부분 무해합니다 — 컴퓨터가 절전 모드로 전환되었거나, 앱이 강제 종료되었거나, VM/컨테이너가 중지된 경우입니다.",
-    "details_intro_unclean": "이전 실행의 종료 마커가 {{ago}} 전에 지워지지 않은 채 남아 있었습니다. OmniVoice는 그것이 충돌인지 단순한 중단인지 알 수 없습니다 — 절전, 강제 종료, VM/컨테이너 중지는 모두 같은 흔적을 남깁니다. 지금 모든 것이 잘 작동한다면 할 일은 없습니다.",
+    "details_intro_unclean": "이전 실행의 종료 마커가 {{ago}} 전에 지워지지 않은 채 남아 있었습니다. VoiceStudio는 그것이 충돌인지 단순한 중단인지 알 수 없습니다 — 절전, 강제 종료, VM/컨테이너 중지는 모두 같은 흔적을 남깁니다. 지금 모든 것이 잘 작동한다면 할 일은 없습니다.",
     "report_needs_log": "이 이벤트에 대해 캡처된 오류 출력이 없어 원클릭 보고서는 비어 있게 됩니다. 실제로 문제가 있다면 설정 → 로그 → 백엔드의 마지막 줄을 새 이슈에 첨부해 주세요."
   }
 }

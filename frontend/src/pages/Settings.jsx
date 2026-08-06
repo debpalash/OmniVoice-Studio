@@ -190,7 +190,7 @@ export default function Settings() {
     })();
     const fmtGB = (v) => (typeof v === 'number' ? `${v.toFixed(2)} GB` : '—');
     const lines = [
-      '### OmniVoice Studio diagnostics',
+      '### VoiceStudio diagnostics',
       '',
       `- **App version:** ${resolveAboutVersion(appVersion, info)}`,
       `- **Tauri runtime:** ${tauriVersion || (isTauri() ? '—' : 'web preview')}`,
@@ -213,8 +213,8 @@ export default function Settings() {
       `- **Update channel:** ${updateChannel}`,
       `- **Update endpoint:** ${
         updateChannel === 'preview'
-          ? 'https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json'
-          : 'https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json'
+          ? 'https://github.com/debpalash/VoiceStudio/releases/download/preview/latest.json'
+          : 'https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json'
       }`,
       `- **User agent:** ${ua}`,
     ];

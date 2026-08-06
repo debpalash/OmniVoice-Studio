@@ -9,12 +9,12 @@
 
 ### The gap vs ElevenLabs Studio / Dubbing Studio
 
-ElevenLabs has converged its "pro polish" loop into two editors that OmniVoice partially matches and partially does not:
+ElevenLabs has converged its "pro polish" loop into two editors that VoiceStudio partially matches and partially does not:
 
 - **Studio (Projects / Audiobooks)** — paste a manuscript, see chapters laid out, assign different voices per character/paragraph, and make **surgical edits without regenerating everything**: a *Replace voice* pop-up tells you *how many paragraphs* will be re-rendered, and editing one fragment re-renders only that fragment ([Studio overview](https://elevenlabs.io/docs/eleven-creative/products/studio), [change voice across paragraphs](https://help.elevenlabs.io/hc/en-us/articles/23370957112721-How-can-I-change-the-voice-and-settings-across-multiple-paragraphs-in-Studio), [Audiobooks](https://elevenlabs.io/docs/eleven-creative/products/audiobooks)).
 - **Dubbing Studio** — transcript **and** translation are edited inline in speaker cards; a clip carries a **"stale" badge** when its text/settings/length change; you **regenerate one clip** (refresh icon) or *Generate Stale Audio* in bulk; you **reassign a clip to another speaker** by dragging it to that track; and you adjust **timing** by dragging clip handles / Split / Merge ([Dubbing Studio](https://elevenlabs.io/docs/eleven-creative/products/dubbing/dubbing-studio)).
 
-OmniVoice today is **asymmetric** across its three longform surfaces:
+VoiceStudio today is **asymmetric** across its three longform surfaces:
 
 | Capability | Dub | Stories | Audiobook |
 |---|---|---|---|
@@ -50,7 +50,7 @@ The dub pipeline **already** content-addresses segments so that editing one line
 6. **Local-first, cross-platform parity preserved**, docs-sync in the same PR.
 
 ### Non-goals (explicitly deferred)
-- **A timeline/waveform DAW view.** ElevenLabs reassigns a speaker by dragging a clip between tracks on a timeline; OmniVoice reassigns via the existing per-row `<select>`. No timeline canvas, no clip-drag-to-track, no multi-track audio lanes in this spec. (Split/Merge already exist in `DubSegmentRow.jsx`.)
+- **A timeline/waveform DAW view.** ElevenLabs reassigns a speaker by dragging a clip between tracks on a timeline; VoiceStudio reassigns via the existing per-row `<select>`. No timeline canvas, no clip-drag-to-track, no multi-track audio lanes in this spec. (Split/Merge already exist in `DubSegmentRow.jsx`.)
 - **New TTS engines or new emotion *models*.** This spec consumes whatever emotion/style field exists; it does not add a new style engine.
 - **Sub-chapter resume of an *interrupted* render.** Resume stays chapter-granular (`audiobook.py:714–759`); span-level incrementality is for *edits*, not for crash recovery, in this milestone.
 - **Collaborative / multi-user editing.** Local-first, single-user.

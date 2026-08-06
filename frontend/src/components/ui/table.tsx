@@ -3,12 +3,12 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Table — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Table — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). Standard semantic <table>/<thead>/<tbody> primitives with
- * `border-b`/`bg-muted`/`text-muted-foreground` resolving to the OmniVoice
+ * `border-b`/`bg-muted`/`text-muted-foreground` resolving to the VoiceStudio
  * palette.
  *
- * NOTE: this is the shadcn foundation table, NOT a drop-in for the OmniVoice
+ * NOTE: this is the shadcn foundation table, NOT a drop-in for the VoiceStudio
  * `Table` primitive in src/ui/Table.jsx. That one is a flex-`<div>` chrome
  * wrapper whose `.ui-table*` global classes (Table.css) are a SHARED CONTRACT
  * consumed directly by ModelsTable / DubSegmentTable / EngineCompatibilityMatrix

@@ -380,7 +380,7 @@ export default function IdleSkeleton({
 
               {/* One decision up front: the target language. Everything else
                     (speakers, style) hides behind Advanced — ElevenLabs-style
-                    flow, OmniVoice chrome. The pick pre-seeds the editor. */}
+                    flow, VoiceStudio chrome. The pick pre-seeds the editor. */}
               <div className="flex items-center justify-between gap-[10px] mt-[10px] px-[10px] py-[8px] [border:1px_solid_var(--chrome-border)] rounded-[10px] bg-[var(--chrome-hover-bg)]">
                 <label className="dub-landing-opts__lang inline-flex items-center gap-[7px] min-w-0 text-[var(--chrome-fg-muted)]">
                   <Globe size={13} />

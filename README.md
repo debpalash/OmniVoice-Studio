@@ -1,6 +1,7 @@
 <div align="center">
-  <img src="docs/logo.png" alt="OmniVoice Logo" width="120" />
-  <h1>OmniVoice Studio</h1>
+  <img src="docs/logo.png" alt="VoiceStudio Logo" width="120" />
+  <h1>VoiceStudio</h1>
+  <p><sub><em>previously OmniVoice-Studio</em></sub></p>
   <h3>The open-source ElevenLabs alternative.</h3>
   <p>Real-time dictation, zero-shot voice cloning, and cinematic video dubbing — all on your desktop.<br/><b>No accounts. No API keys. No cloud.</b> Everything runs on your machine. Open-source, <b>646 languages.</b></p>
 
@@ -12,17 +13,20 @@
     <a href="#openai-api">API</a> ·
     <a href="#sponsor--donate">Donate</a> ·
     <a href="#contributing">Contributing</a> ·
+    <a href="https://voicestudio.sh">Website</a> ·
+    <a href="https://voicestudio.sh/docs">Docs</a> ·
+    <a href="https://status.voicestudio.sh">Status</a> ·
     <a href="https://discord.gg/bzQavDfVV9">Discord</a> ·
     <a href="https://x.com/idebpalash">X</a> ·
     <a href="README_CN.md"><strong>简体中文</strong></a>
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Stars" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases"><img src="https://img.shields.io/github/downloads/debpalash/OmniVoice-Studio/total?style=flat-square&color=8b5cf6&label=downloads" alt="Total downloads" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="Release" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/VoiceStudio?style=flat-square&color=f59e0b" alt="Stars" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases"><img src="https://img.shields.io/github/downloads/debpalash/VoiceStudio/total?style=flat-square&color=8b5cf6&label=downloads" alt="Total downloads" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/VoiceStudio?style=flat-square&color=10b981" alt="Release" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/issues"><img src="https://img.shields.io/github/issues/debpalash/VoiceStudio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
     <a href="https://x.com/idebpalash"><img src="https://img.shields.io/badge/X-Follow_for_updates-000000?style=flat-square&logo=x&logoColor=white" alt="Follow on X" /></a>
     <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_Us-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
@@ -30,24 +34,24 @@
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="Download the latest release" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="Download the latest release" /></a>
   </p>
 
   <p>
-    <a href="https://trendshift.io/repositories/28176?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/28176/daily?language=Python" alt="debpalash%2FOmniVoice-Studio | Trendshift" width="250" height="55"/></a>
+    <a href="https://trendshift.io/repositories/28176?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/28176/daily?language=Python" alt="debpalash%2FVoiceStudio | Trendshift" width="250" height="55"/></a>
   </p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src="docs/screenshot-launchpad.png" alt="OmniVoice Studio — Launchpad" width="100%"/>
+  <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — Launchpad" width="100%"/>
 </div>
 
-> **Your voice is the most personal data you have. So why rent it back from a cloud?** Every mainstream voice tool ships your audio to someone else's server and bills you monthly for the privilege. OmniVoice Studio flips that: clone, design, dub, and dictate on your own hardware — 646 languages, no meter running, nothing leaving your machine.
+> **Your voice is the most personal data you have. So why rent it back from a cloud?** Every mainstream voice tool ships your audio to someone else's server and bills you monthly for the privilege. VoiceStudio flips that: clone, design, dub, and dictate on your own hardware — 646 languages, no meter running, nothing leaving your machine.
 
 > [!WARNING]
-> **Active beta.** Things may break between releases — for the newest fixes, run from source. Bug reports and PRs are very welcome: [open an issue](https://github.com/debpalash/OmniVoice-Studio/issues) or [join Discord](https://discord.gg/bzQavDfVV9).
+> **Active beta.** Things may break between releases — for the newest fixes, run from source. Bug reports and PRs are very welcome: [open an issue](https://github.com/debpalash/VoiceStudio/issues) or [join Discord](https://discord.gg/bzQavDfVV9).
 
 <a id="screenshots"></a>
 
@@ -150,11 +154,11 @@ Three flagships, five more headliners, and a dozen under the fold.
 ## ⚡ Quickstart
 
 <div align="center">
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS DMG" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows MSI" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download Linux AppImage" /></a>
   <br/>
-  <sub><b>macOS:</b> first launch needs a one-time approval — right-click → <b>Open</b> (or System Settings → Privacy &amp; Security → <b>"Open Anyway"</b> on macOS 15). No Terminal needed. <a href="docs/install/macos.md#gatekeeper-quarantine">Why?</a> · <b>Intel Macs:</b> local backend unsupported (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — <a href="docs/install/macos.md">details</a>.</sub>
+  <sub><b>macOS:</b> first launch needs a one-time approval — right-click → <b>Open</b> (or System Settings → Privacy &amp; Security → <b>"Open Anyway"</b> on macOS 15). No Terminal needed. <a href="docs/install/macos.md#gatekeeper-quarantine">Why?</a> · <b>Intel Macs:</b> local backend unsupported (<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>) — <a href="docs/install/macos.md">details</a>.</sub>
 </div>
 
 **Install guide:** [🍎 macOS](docs/install/macos.md) · [🪟 Windows](docs/install/windows.md) · [🐧 Linux](docs/install/linux.md) · [🐳 Docker](docs/install/docker.md)
@@ -178,9 +182,9 @@ Three flagships, five more headliners, and a dozen under the fold.
 
 ## ⚖️ vs Others
 
-ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. OmniVoice Studio runs **on your hardware, with no usage limits.**
+ElevenLabs charges **$5–$330/mo** and processes your audio on their servers. VoiceStudio runs **on your hardware, with no usage limits.**
 
-| | **ElevenLabs** | **OmniVoice Studio** |
+| | **ElevenLabs** | **VoiceStudio** |
 |---|---|---|
 | **Pricing** | $5–$330/mo, per-character billing | Free & open-source (AGPL-3.0) · [Commercial license](#license) for proprietary use |
 | **Voice Cloning** | ✅ 3s clip | ✅ 3s clip, zero-shot |
@@ -221,13 +225,13 @@ Professional-grade voice AI, minus the subscription and the cloud.
 | **GPU** | Optional — CPU works | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm (Linux only) |
 
 > [!NOTE]
-> **A GPU is optional** — the whole pipeline runs on CPU (just slower), and on ≤8 GB VRAM, TTS auto-offloads to CPU. Caveats: **AMD ROCm** is Linux-only + opt-in ([Linux](docs/install/linux.md#amd-gpu-rocm)) — Windows AMD/Ryzen AI is CPU-only ([Windows](docs/install/windows.md#gpu-support)); **macOS Intel** can't run the local backend, so point it at a remote one ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889) · [macOS](docs/install/macos.md)).
+> **A GPU is optional** — the whole pipeline runs on CPU (just slower), and on ≤8 GB VRAM, TTS auto-offloads to CPU. Caveats: **AMD ROCm** is Linux-only + opt-in ([Linux](docs/install/linux.md#amd-gpu-rocm)) — Windows AMD/Ryzen AI is CPU-only ([Windows](docs/install/windows.md#gpu-support)); **macOS Intel** can't run the local backend, so point it at a remote one ([#889](https://github.com/debpalash/VoiceStudio/issues/889) · [macOS](docs/install/macos.md)).
 
 <a id="tts-engines"></a>
 
 ### 🗣️ TTS Engines
 
-**14 engines, one picker.** OmniVoice (default, 600+ languages) is always available; seven more are opt-in and auto-detected (CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, Sherpa-ONNX), plus six lazy-installed heavyweights (IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS). Switch in **Settings → TTS Engine**; the choice applies everywhere synthesis happens.
+**14 engines, one picker.** VoiceStudio (default, 600+ languages) is always available; seven more are opt-in and auto-detected (CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, Sherpa-ONNX), plus six lazy-installed heavyweights (IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS). Switch in **Settings → TTS Engine**; the choice applies everywhere synthesis happens.
 
 <details>
 <summary><b>📊 The full matrix</b> — 14 engines × platform × clone/instruct × license</summary>
@@ -253,7 +257,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 
 > **CUDA** = GPU-accelerated · **MPS** = Apple Silicon Metal · **CPU** = runs everywhere, slower for large models · KittenTTS and MOSS-TTS-Nano run realtime on CPU · MLX-Audio is Apple Silicon only · ⚡ = lazy-registered (installed on first use)
 >
-> **Clone** matters beyond single-clip generation: Video Dubbing (and any Batch job with a pinned voice) needs reference-audio cloning to preserve speaker identity, so picking a Clone-less engine (KittenTTS, Sherpa-ONNX, Supertonic 3) as the active engine fails those jobs up front with an actionable message instead of silently falling back to OmniVoice.
+> **Clone** matters beyond single-clip generation: Video Dubbing (and any Batch job with a pinned voice) needs reference-audio cloning to preserve speaker identity, so picking a Clone-less engine (KittenTTS, Sherpa-ONNX, Supertonic 3) as the active engine fails those jobs up front with an actionable message instead of silently falling back to VoiceStudio.
 >
 > **MOSS-TTS-v1.5** (8B, ~16 GB), **dots.tts** (2B, ~9 GB), and **Confucius4-TTS** are heavyweight opt-ins that run in their own isolated venv from a local clone. None claims Apple-Silicon MPS (CPU on Macs); dots.tts has no Windows path; Confucius4 wants CUDA (CPU works, ~17× realtime). Details: [MOSS-TTS-v1.5](docs/engines/moss-tts-v15.md) · [dots.tts](docs/engines/dots-tts.md) · [Confucius4-TTS](docs/engines/confucius4-tts.md).
 
@@ -286,7 +290,7 @@ Professional-grade voice AI, minus the subscription and the cloud.
 
 > Whisper-family engines cover ~100 languages; **FunASR / SenseVoice** adds an all-in-one multilingual path with built-in voice-activity detection and inline speaker diarization. **sherpa-onnx** powers the live dictation model picker — you talk and text appears as you speak. Every engine runs on-device — no API keys, no cloud.
 
-> **GPU without efficient float16?** On older NVIDIA GPUs (Maxwell/Pascal, GTX 16xx) or after a CTranslate2/cuDNN mismatch, the CTranslate2 ASR engines (WhisperX, Faster-Whisper) can't run `float16` and OmniVoice automatically retries on `int8` — no config needed. If transcription still fails, pin the compute type with the `ASR_COMPUTE_TYPE` env var (escape hatch): `ASR_COMPUTE_TYPE=int8` (or `float32` for CPU). Set it to `int8` and restart the backend.
+> **GPU without efficient float16?** On older NVIDIA GPUs (Maxwell/Pascal, GTX 16xx) or after a CTranslate2/cuDNN mismatch, the CTranslate2 ASR engines (WhisperX, Faster-Whisper) can't run `float16` and VoiceStudio automatically retries on `int8` — no config needed. If transcription still fails, pin the compute type with the `ASR_COMPUTE_TYPE` env var (escape hatch): `ASR_COMPUTE_TYPE=int8` (or `float32` for CPU). Set it to `int8` and restart the backend.
 
 </details>
 
@@ -347,7 +351,7 @@ Your existing scripts, agents, and OpenAI/ElevenLabs SDK calls now run **locally
 |---|---|
 | `POST /v1/audio/speech` | TTS — text in; `mp3` / `opus` / `aac` / `flac` / `wav` / `pcm` out. `model`: `tts-1`/`tts-1-hd` (active engine) or a specific one (`voxcpm2`, `cosyvoice`, `kittentts`, …). `voice`: a cloned profile ID, `default`, or an OpenAI name (`alloy`, …). `speed` supported. |
 | `POST /v1/audio/transcriptions` | STT — audio file in; `json` / `text` / `verbose_json` / `srt` / `vtt` out (`verbose_json` adds word-level timings). `whisper-1` maps to your active ASR engine. |
-| `GET /v1/audio/voices` | OmniVoice extension — lists every voice profile and engine, so clients can discover your clones. |
+| `GET /v1/audio/voices` | VoiceStudio extension — lists every voice profile and engine, so clients can discover your clones. |
 
 **Speak with your own cloned voice** — list the IDs, then pass one as `voice`:
 
@@ -381,13 +385,13 @@ Calling the backend from **another machine** (LAN, Tailscale, behind a proxy)? I
 
 ### 📓 Run on Google Colab
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/OmniVoice-Studio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/VoiceStudio_Studio_Colab.ipynb)
 
-No local GPU? The [official notebook](notebooks/OmniVoice_Studio_Colab.ipynb) boots the full app — web UI included — on a free Colab T4, then walks the whole feature surface (TTS, cloning, design, transcription, dubbing, audiobook, watermarking, the OpenAI-compatible API) as a guided tour with inline playback. No tunnels, no API keys.
+No local GPU? The [official notebook](notebooks/VoiceStudio_Studio_Colab.ipynb) boots the full app — web UI included — on a free Colab T4, then walks the whole feature surface (TTS, cloning, design, transcription, dubbing, audiobook, watermarking, the OpenAI-compatible API) as a guided tour with inline playback. No tunnels, no API keys.
 
 ### 🤝 Agent Skills
 
-Teach your coding agent to speak and listen through your local OmniVoice — one command, works with **Claude Code, Codex, Cursor, Grok, Kimi, opencode**, and any [skills.sh](https://skills.sh)-compatible agent:
+Teach your coding agent to speak and listen through your local VoiceStudio — one command, works with **Claude Code, Codex, Cursor, Grok, Kimi, opencode**, and any [skills.sh](https://skills.sh)-compatible agent:
 
 ```sh
 npx skills add debpalash/omnivoice-studio
@@ -405,7 +409,7 @@ Ships two [skills](https://skills.sh):
 ### 🔜 Up Next
 
 - 🎬 **Lip-sync v2** — visual speech timing with wav2lip
-- 🌐 **Hosted Demo** — try OmniVoice without installing anything
+- 🌐 **Hosted Demo** — try VoiceStudio without installing anything
 - 🔌 **Plugin Marketplace** — community-contributed TTS engines and effects
 - 🎵 **Real-time Voice Changer** — live microphone transformation during calls
 
@@ -423,7 +427,7 @@ Ships two [skills](https://skills.sh):
 | **Multi-Lang** | Multi-language batch picker, batch dubbing queue with sequential GPU execution |
 | **Diarization** | Pyannote ML diarization, auto speaker clone extraction, per-speaker voice assignment |
 | **ASR** | 11 engines (WhisperX, Faster-Whisper, isolated Faster-Whisper, MLX Whisper, PyTorch Whisper, Parakeet TDT, Parakeet TDT v3 MLX, Moonshine, FunASR/SenseVoice, sherpa-onnx live dictation, OpenAI-compatible remote), crash-isolated subprocess backend |
-| **TTS** | 14 engines (OmniVoice, CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, Sherpa-ONNX, + lazy: IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS), engine routing with GPU preflight |
+| **TTS** | 14 engines (VoiceStudio, CosyVoice 3, GPT-SoVITS, VoxCPM2, MOSS-TTS-Nano, KittenTTS, MLX-Audio, Sherpa-ONNX, + lazy: IndexTTS 2, OmniVoice GGUF, Supertonic 3, MOSS-TTS-v1.5, dots.tts, Confucius4-TTS), engine routing with GPU preflight |
 | **Infra** | Docker deployment, CUDA/MPS/ROCm auto-detect, cuDNN 8 compat, VRAM-aware model offloading, engine routing (no silent CPU fallback), diagnostics suite & error journal, restricted-network mirror support |
 | **AI Provenance** | AudioSeal invisible watermarking (SynthID-like), video logo overlay, watermark detection API |
 | **UX** | Undo/redo, keyboard shortcuts, drag-and-drop, session persistence, glassmorphism design system, UI scale fix for Linux/WebKitGTK |
@@ -432,7 +436,7 @@ Ships two [skills](https://skills.sh):
 | **Desktop** | Cross-platform Tauri installers (macOS DMG — Apple Silicon; Intel unsupported for the local backend, #889 — Windows MSI, Linux deb/AppImage), auto-update infrastructure, single-instance enforcement, close-to-tray, macOS Gatekeeper fix |
 | **Dictation** | Global system-wide hotkey (`⌘+⇧+Space`), frameless floating widget, streaming ASR via WebSocket, auto-paste, customizable hotkey, local-LLM transcript refinement |
 | **Batch Pipeline** | Full batch TTS: extract → transcribe → translate → generate → mix → export, with live progress tracking |
-| **MCP Server** | OmniVoice as a local TTS/STT provider for Claude, Cursor, and any MCP client |
+| **MCP Server** | VoiceStudio as a local TTS/STT provider for Claude, Cursor, and any MCP client |
 | **Remote Backend** | Point the desktop UI at a remote backend URL with bearer auth (Tailscale-documented) |
 | **Reliability** | Stall watchdog on bootstrap splash, per-engine GPU compatibility matrix, actionable errors for non-executable engine binaries, setuptools auto-repair |
 
@@ -444,7 +448,7 @@ Ships two [skills](https://skills.sh):
 
 ## 💜 Sponsor / Donate
 
-One developer, real AI-agent bills. If OmniVoice is useful to you, chipping in keeps development full-time — every dollar goes straight to the bills.
+One developer, real AI-agent bills. If VoiceStudio is useful to you, chipping in keeps development full-time — every dollar goes straight to the bills.
 
 <div align="center">
 
@@ -466,7 +470,7 @@ One developer, real AI-agent bills. If OmniVoice is useful to you, chipping in k
 
 ### 🌟 Sponsors
 
-OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponsors keep development going, and in return get a logo slot here, in the app, and (for top tiers) on the project website. It's a thank-you, never a paywall. **[See tiers & become a sponsor →](SPONSORS.md)**
+VoiceStudio is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponsors keep development going, and in return get a logo slot here, in the app, and (for top tiers) on the project website. It's a thank-you, never a paywall. **[See tiers & become a sponsor →](SPONSORS.md)**
 
 <div align="center">
 
@@ -516,7 +520,7 @@ OmniVoice is **free** and **AGPL-3.0** — no paid tier, no SaaS revenue. Sponso
 Yes please — bug fixes, new TTS engine adapters, UI improvements, docs, translations. All of it.
 
 - 📖 Read the **[Contributing Guide](.github/CONTRIBUTING.md)** for setup, code style, and PR workflow
-- 🐛 Browse [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
+- 🐛 Browse [good first issues](https://github.com/debpalash/VoiceStudio/labels/good%20first%20issue)
 - 💬 Join our [Discord](https://discord.gg/bzQavDfVV9) to discuss ideas or ask for help
 - 𝕏 Follow [@idebpalash](https://x.com/idebpalash) for updates and what's being built next
 
@@ -529,7 +533,7 @@ Yes please — bug fixes, new TTS engine adapters, UI improvements, docs, transl
 <br/>
 Honest answer: <b>it depends on what you're doing.</b>
 
-<b>Where OmniVoice is genuinely competitive:</b> voice cloning from a clean reference clip (state-of-the-art open diffusion TTS), language coverage (646 languages vs. their 32), and everything structural — no per-character billing, no usage caps, no audio leaving your machine, full pipeline customizability (14 TTS engines, 11 ASR engines, your choice of translation).
+<b>Where VoiceStudio is genuinely competitive:</b> voice cloning from a clean reference clip (state-of-the-art open diffusion TTS), language coverage (646 languages vs. their 32), and everything structural — no per-character billing, no usage caps, no audio leaving your machine, full pipeline customizability (14 TTS engines, 11 ASR engines, your choice of translation).
 
 <b>Where ElevenLabs still wins:</b> out-of-the-box consistency and polish, especially for English TTS. Their one model is heavily tuned; our quality depends on which engine you pick, your hardware, and — for cloning — the reference audio (a dry, close-mic clip clones dramatically better than a noisy or echoey one).
 
@@ -541,7 +545,7 @@ Try it on your real material — it's free and takes one download. Many users re
 <details>
 <summary><b>Why doesn't a longer reference clip sound more like me?</b></summary>
 <br/>
-Because OmniVoice's cloning is <b>zero-shot</b>: your clip is a <i>prompt</i> the model conditions on at generation time — it is never trained on. Feeding it 2 hours doesn't teach it your voice; past a short window the extra audio is simply not used. The dubbing pipeline's reference builder targets ~8 s and hard-caps at 15 s (<code>backend/services/speaker_clone.py</code>), and engines cap the prompt themselves (VoxCPM2 trims references to 30 s). This is different from ElevenLabs <i>Professional</i> Voice Cloning, which fine-tunes a model on hours of your audio — that's a training job, not a bigger prompt.
+Because VoiceStudio's cloning is <b>zero-shot</b>: your clip is a <i>prompt</i> the model conditions on at generation time — it is never trained on. Feeding it 2 hours doesn't teach it your voice; past a short window the extra audio is simply not used. The dubbing pipeline's reference builder targets ~8 s and hard-caps at 15 s (<code>backend/services/speaker_clone.py</code>), and engines cap the prompt themselves (VoxCPM2 trims references to 30 s). This is different from ElevenLabs <i>Professional</i> Voice Cloning, which fine-tunes a model on hours of your audio — that's a training job, not a bigger prompt.
 
 <b>What actually moves clone quality is the clip, not its length.</b> Zero-shot cloning mirrors the acoustics and delivery of the prompt, so: record 5–15 seconds (~8 s is the sweet spot) of continuous natural speech, close to the mic, in a quiet room with no reverb or music — an echoey clip clones echoey. One speaker only, and read in the tone and pace you want the output to have, because the clone copies your delivery, not just your timbre. Recording a few candidate clips and comparing results beats any amount of extra footage.
 
@@ -551,7 +555,7 @@ Because OmniVoice's cloning is <b>zero-shot</b>: your clip is a <i>prompt</i> th
 <details>
 <summary><b>Does it work on Apple Silicon (M1/M2/M3/M4)?</b></summary>
 <br/>
-Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are available for faster transcription on Apple hardware. <b>Intel Macs are not supported</b>: the app UI installs, but the local Python backend cannot run because PyTorch no longer ships Intel-Mac wheels (<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>) — an Intel Mac can only be used with a remote backend.
+Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are available for faster transcription on Apple hardware. <b>Intel Macs are not supported</b>: the app UI installs, but the local Python backend cannot run because PyTorch no longer ships Intel-Mac wheels (<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>) — an Intel Mac can only be used with a remote backend.
 </details>
 
 <details>
@@ -563,13 +567,13 @@ Yes. MPS acceleration is auto-detected. MLX-optimized Whisper models are availab
 <details>
 <summary><b>Can I use this commercially?</b></summary>
 <br/>
-<b>Yes — commercial use is free</b> under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>: run it, sell the audio you make, dub client videos, deploy it across your team. One obligation: if you <b>modify</b> OmniVoice and offer the modified version to others over a network, you must share that modified source under the same terms. Embedding it in a closed-source product instead? A commercial license is available — see <a href="#license">License</a>.
+<b>Yes — commercial use is free</b> under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>: run it, sell the audio you make, dub client videos, deploy it across your team. One obligation: if you <b>modify</b> VoiceStudio and offer the modified version to others over a network, you must share that modified source under the same terms. Embedding it in a closed-source product instead? A commercial license is available — see <a href="#license">License</a>.
 </details>
 
 <details>
 <summary><b>What languages are supported?</b></summary>
 <br/>
-646 languages for TTS via the OmniVoice model. Transcription (WhisperX) supports 99 languages. Translation coverage depends on the target language pair.
+646 languages for TTS via the VoiceStudio model. Transcription (WhisperX) supports 99 languages. Translation coverage depends on the target language pair.
 </details>
 
 <details>
@@ -579,17 +583,17 @@ Yes. Subclass <code>TTSBackend</code> in <code>backend/services/tts_backend.py</
 </details>
 
 <details>
-<summary><b>Does OmniVoice collect any data about me?</b></summary>
+<summary><b>Does VoiceStudio collect any data about me?</b></summary>
 <br/>
-<b>Not unless you explicitly say yes.</b> On first run the app <i>asks</i> — one screen, two equal-weight buttons, no pre-ticked box — and until you answer yes, OmniVoice sends nothing: no analytics, no telemetry, no accounts, no phone-home. Skipping the question means no. Your text, audio, voices, and projects never leave your machine either way.
+<b>Not unless you explicitly say yes.</b> On first run the app <i>asks</i> — one screen, two equal-weight buttons, no pre-ticked box — and until you answer yes, VoiceStudio sends nothing: no analytics, no telemetry, no accounts, no phone-home. Skipping the question means no. Your text, audio, voices, and projects never leave your machine either way.
 
-If you do opt in (also togglable anytime under <b>Settings → Privacy → "Help improve OmniVoice"</b>), what's sent is anonymous, content-free usage stats: generations (engine, language, generation time, character <i>count</i>, error <i>type</i>), plus app lifecycle — an install ping, updates (version-to-version), crashes (error class and a <i>bucketed</i> uptime, never logs), error <i>types</i> (capped, deduplicated), and a single uninstall ping if you remove it. Never your text, audio, file names, or anything identifying — enforced in code by a property allowlist (<code>backend/core/analytics.py</code>), not just a promise. Every build — installer, Docker, or built from source — asks the same first-run question and stays off unless you say yes (the destination is PostHog's publishable write-only client key; skipping the question means off). Your own numbers live in <b>Settings → Usage</b>, computed locally, sent nowhere.
+If you do opt in (also togglable anytime under <b>Settings → Privacy → "Help improve VoiceStudio"</b>), what's sent is anonymous, content-free usage stats: generations (engine, language, generation time, character <i>count</i>, error <i>type</i>), plus app lifecycle — an install ping, updates (version-to-version), crashes (error class and a <i>bucketed</i> uptime, never logs), error <i>types</i> (capped, deduplicated), and a single uninstall ping if you remove it. Never your text, audio, file names, or anything identifying — enforced in code by a property allowlist (<code>backend/core/analytics.py</code>), not just a promise. Every build — installer, Docker, or built from source — asks the same first-run question and stays off unless you say yes (the destination is PostHog's publishable write-only client key; skipping the question means off). Your own numbers live in <b>Settings → Usage</b>, computed locally, sent nowhere.
 </details>
 
 <details>
 <summary><b>How do I uninstall it / remove all its data?</b></summary>
 <br/>
-OmniVoice is fully local — uninstalling is just deleting the app plus the folders it wrote (model cache, Python env, your voices/projects, config). Run <code>scripts/uninstall.sh</code> (macOS/Linux) or <code>scripts\uninstall.ps1</code> (Windows) — it prints every folder with its size as a dry-run first, then deletes on <code>--yes</code>. The full per-platform path list and app-removal steps are in <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>.
+VoiceStudio is fully local — uninstalling is just deleting the app plus the folders it wrote (model cache, Python env, your voices/projects, config). Run <code>scripts/uninstall.sh</code> (macOS/Linux) or <code>scripts\uninstall.ps1</code> (Windows) — it prints every folder with its size as a dry-run first, then deletes on <code>--yes</code>. The full per-platform path list and app-removal steps are in <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>.
 </details>
 
 ---
@@ -598,11 +602,11 @@ OmniVoice is fully local — uninstalling is just deleting the app plus the fold
 
 ## 📜 License
 
-OmniVoice Studio is free and open-source software under the [**GNU Affero General Public License v3.0 (AGPL-3.0)**](https://www.gnu.org/licenses/agpl-3.0.html).
+VoiceStudio is free and open-source software under the [**GNU Affero General Public License v3.0 (AGPL-3.0)**](https://www.gnu.org/licenses/agpl-3.0.html).
 
-**Free for any use — including commercial and internal business use.** Run it, sell the audio you produce with it, dub your own or clients' videos, roll it out across your team — all free, no license needed. As a **network copyleft** license, AGPL adds one obligation: if you **modify** OmniVoice Studio and offer that modified version to others over a network, you must make the complete corresponding source of your modified version available to them under the same AGPL-3.0 terms.
+**Free for any use — including commercial and internal business use.** Run it, sell the audio you produce with it, dub your own or clients' videos, roll it out across your team — all free, no license needed. As a **network copyleft** license, AGPL adds one obligation: if you **modify** VoiceStudio and offer that modified version to others over a network, you must make the complete corresponding source of your modified version available to them under the same AGPL-3.0 terms.
 
-A **commercial license** is available for organizations that want to embed OmniVoice Studio in a **closed-source or proprietary** product or service without the AGPL-3.0 copyleft obligations. **Pricing tiers coming soon.** Inquiries: **OmniVoice@palash.dev**.
+A **commercial license** is available for organizations that want to embed VoiceStudio in a **closed-source or proprietary** product or service without the AGPL-3.0 copyleft obligations. **Pricing tiers coming soon.** Inquiries: **VoiceStudio@palash.dev**.
 
 The bundled `omnivoice/` TTS model by Han Zhu remains Apache-2.0 upstream. See [`LICENSE`](LICENSE) for the full, binding terms, and [`LICENSE-NOTICE.md`](LICENSE-NOTICE.md) for the plain-language summary and scope.
 
@@ -610,11 +614,11 @@ The bundled `omnivoice/` TTS model by Han Zhu remains Apache-2.0 upstream. See [
 
 ## 🙏 Acknowledgments
 
-OmniVoice Studio is built on the shoulders of exceptional open-source work:
+VoiceStudio is built on the shoulders of exceptional open-source work:
 
 | Project | Role |
 |---------|------|
-| [**OmniVoice (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | Zero-shot diffusion TTS engine — the core voice synthesis model |
+| [**VoiceStudio (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | Zero-shot diffusion TTS engine — the core voice synthesis model |
 | [**WhisperX**](https://github.com/m-bain/whisperX) | Word-level speech recognition and alignment |
 | [**Demucs (Meta)**](https://github.com/facebookresearch/demucs) | Music source separation for vocal isolation |
 | [**Pyannote**](https://github.com/pyannote/pyannote-audio) | Speaker diarization — who said what |
@@ -667,17 +671,17 @@ Like the local-first philosophy? It runs in the family — same maker, same rule
 <br/>
 
 If you read this far, you're our kind of person.<br/>
-**[⭐ Star this repo](https://github.com/debpalash/OmniVoice-Studio)** so others can find it too.<br/>
+**[⭐ Star this repo](https://github.com/debpalash/VoiceStudio)** so others can find it too.<br/>
 **[💬 Join the Discord](https://discord.gg/bzQavDfVV9)** to share what you build.<br/>
-**[❤️ Support development](https://ko-fi.com/debpalash)** — fund the AI agent bills that keep OmniVoice shipping.
+**[❤️ Support development](https://ko-fi.com/debpalash)** — fund the AI agent bills that keep VoiceStudio shipping.
 
 <br/>
 
-  <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
+  <a href="https://star-history.com/#debpalash/VoiceStudio&Date">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date" />
-      <img alt="Star History" src="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" width="600" />
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date" />
+      <img alt="Star History" src="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" width="600" />
     </picture>
   </a>
 </div>

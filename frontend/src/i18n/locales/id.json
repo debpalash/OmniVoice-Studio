@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "Backend masih merespons {{ago}} yang lalu lalu berhenti merespons — kemungkinan besar crash atau dihentikan di tengah permintaan.",
     "contact_never": "Backend sama sekali belum merespons pada sesi ini — mungkin tidak pernah berhasil dijalankan.",
-    "dev": "Tidak dapat menghubungi backend OmniVoice lokal. {{contact}} Pada `bun run dev` backend berjalan dengan muat-ulang otomatis: setiap perubahan berkas — termasuk menyimpan saat ada permintaan berjalan — membuatnya dimulai ulang dan memutus koneksi. Coba ulangi tindakan dulu; jika itu muat-ulang, akan langsung berhasil. Jika terus gagal, periksa terminal `bun run dev` untuk traceback Python atau pesan keluar, dan omnivoice.log di folder data OmniVoice Anda.",
-    "server": "Tidak dapat menghubungi server backend OmniVoice. {{contact}} Periksa log server untuk penyebabnya (mis. `docker logs <container>` atau `journalctl`) — dan perlu diketahui, jika Docker menyajikan halaman ini, halaman ini sendiri bisa ikut mati bersama backend.",
-    "misrouted": "Server yang menjawab {{url}} bukan backend OmniVoice — ia mengembalikan halaman 404 miliknya sendiri. Permintaan API mendarat di host yang salah: periksa URL Backend di Pengaturan → Berbagi, atau, jika reverse proxy menyajikan UI ini, rutenya untuk jalur API."
+    "dev": "Tidak dapat menghubungi backend VoiceStudio lokal. {{contact}} Pada `bun run dev` backend berjalan dengan muat-ulang otomatis: setiap perubahan berkas — termasuk menyimpan saat ada permintaan berjalan — membuatnya dimulai ulang dan memutus koneksi. Coba ulangi tindakan dulu; jika itu muat-ulang, akan langsung berhasil. Jika terus gagal, periksa terminal `bun run dev` untuk traceback Python atau pesan keluar, dan omnivoice.log di folder data VoiceStudio Anda.",
+    "server": "Tidak dapat menghubungi server backend VoiceStudio. {{contact}} Periksa log server untuk penyebabnya (mis. `docker logs <container>` atau `journalctl`) — dan perlu diketahui, jika Docker menyajikan halaman ini, halaman ini sendiri bisa ikut mati bersama backend.",
+    "misrouted": "Server yang menjawab {{url}} bukan backend VoiceStudio — ia mengembalikan halaman 404 miliknya sendiri. Permintaan API mendarat di host yang salah: periksa URL Backend di Pengaturan → Berbagi, atau, jika reverse proxy menyajikan UI ini, rutenya untuk jalur API."
   },
   "nav": {
     "clone": "Kloning",
@@ -165,7 +165,7 @@
     "review_mode_desc": "Jeda di antara tahapan alur sehingga Anda dapat meninjau ASR/output terjemahan.",
     "header_live_stats": "Tampilkan metrik sistem langsung di header",
     "header_live_stats_desc": "Menambahkan monitor RAM/CPU/VRAM langsung ke bilah atas (dinonaktifkan secara default).",
-    "storage_desc": "Tempat OmniVoice menyimpan data dan keluaran Anda.",
+    "storage_desc": "Tempat VoiceStudio menyimpan data dan keluaran Anda.",
     "history_retention": "Riwayat pembuatan",
     "history_retention_desc": "Berapa banyak take yang disimpan sebelum yang tertua dibersihkan.",
     "history_retention_help": "Setelah setiap pembuatan, take tertua tanpa bintang yang melebihi batas ini dihapus beserta berkas audionya. Take berbintang selalu disimpan. 0 = simpan semua.",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "Masukkan 0 atau lebih"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "Memeriksa lingkungan…",
     "downloading_uv": "Mengunduh uv (pengelola paket Python)…",
     "creating_venv": "Membuat lingkungan virtual Python…",
@@ -210,10 +210,10 @@
     "hint_uv_sync": "Pemasangan dependensi gagal. \"Bersihkan & Coba Lagi\" akan menghapus venv yang ter-cache dan memulai dari awal.",
     "hint_build_backend": "Kesalahan backend build Python. \"Bersihkan & Coba Lagi\" menghapus venv yang rusak agar dibangun ulang dari awal.",
     "hint_ffmpeg": "Unduhan ffmpeg gagal. Ini tidak fatal — coba lagi atau pasang ffmpeg secara manual.",
-    "hint_port": "Port 3900 sudah digunakan. Tutup instans OmniVoice lain atau aplikasi yang memakai port itu.",
+    "hint_port": "Port 3900 sudah digunakan. Tutup instans VoiceStudio lain atau aplikasi yang memakai port itu.",
     "hint_silent_crash": "Backend berhenti tanpa pesan kesalahan. \"Bersihkan & Coba Lagi\" sering memperbaiki masalah venv yang rusak.",
     "hint_github_blocked": "Jaringan Anda mungkin memblokir GitHub. Pasang Python 3.11+ dari python.org (tambahkan ke PATH) lalu jalankan ulang, atau setel UV_PYTHON_INSTALL_MIRROR — lihat docs/install/troubleshooting.md.",
-    "hint_intel_mac": "Mac ini menggunakan prosesor Intel, dan PyTorch tidak lagi merilis build untuk Mac Intel — backend AI lokal tidak dapat dipasang, dan mencoba ulang tidak akan mengubahnya. Anda tetap dapat mengarahkan aplikasi ke backend jarak jauh di mesin lain (Pengaturan → Berbagi → Backend jarak jauh), atau menjalankan OmniVoice di Mac Apple Silicon, Windows, atau Linux. Detail: docs/install/macos.md.",
+    "hint_intel_mac": "Mac ini menggunakan prosesor Intel, dan PyTorch tidak lagi merilis build untuk Mac Intel — backend AI lokal tidak dapat dipasang, dan mencoba ulang tidak akan mengubahnya. Anda tetap dapat mengarahkan aplikasi ke backend jarak jauh di mesin lain (Pengaturan → Berbagi → Backend jarak jauh), atau menjalankan VoiceStudio di Mac Apple Silicon, Windows, atau Linux. Detail: docs/install/macos.md.",
     "hint_default": "Coba \"Coba Lagi\" dulu. Jika gagal lagi, \"Bersihkan & Coba Lagi\" akan membangun ulang lingkungan dari awal.",
     "hint_stuck": "Backend belum selesai dimulai. Dari sumber, jalankan `uv sync` terlebih dahulu dan pastikan `uv` dan Python ada di PATH Anda, lalu Coba Lagi. Periksa log di bawah (atau Pengaturan → Log → Backend) untuk mengetahui titik penghentian yang tepat.",
     "lines": "{{count}} baris"
@@ -465,7 +465,7 @@
     "downloading": "Mengunduh…",
     "check_updates": "Periksa pembaruan",
     "copy_diagnostics": "Salin diagnostik",
-    "github": "OmniVoice di GitHub",
+    "github": "VoiceStudio di GitHub",
     "commercial_license": "Lisensi Komersial",
     "update_channel": "Saluran pembaruan",
     "channel_stable": "Stabil",
@@ -501,8 +501,8 @@
     "watermark_failed": "Tidak dapat mengubah pengaturan tanda air."
   },
   "consent": {
-    "title": "Bantu meningkatkan OmniVoice?",
-    "step_label": "Tingkatkan OmniVoice",
+    "title": "Bantu meningkatkan VoiceStudio?",
+    "step_label": "Tingkatkan VoiceStudio",
     "body": "Statistik penggunaan anonim tanpa konten: mesin mana yang digunakan, berapa lama proses pembuatan, dan jenis kesalahan. Tidak pernah teks Anda, audio Anda, file Anda, atau apa pun yang mengidentifikasi Anda. Tidak ada yang dikirim kecuali Anda setuju, dan Anda dapat berubah pikiran kapan saja di Pengaturan → Privasi.",
     "learn_more": "Apa saja yang sebenarnya dikirim?",
     "yes": "Ya, bagikan statistik anonim",
@@ -510,7 +510,7 @@
     "dismiss": "Tutup (analitik tetap mati)"
   },
   "langPrompt": {
-    "offer": "OmniVoice terbuka dalam {{language}}. Lebih suka bahasa Inggris?",
+    "offer": "VoiceStudio terbuka dalam {{language}}. Lebih suka bahasa Inggris?",
     "switch": "Beralih ke bahasa Inggris",
     "keep": "Tetap {{language}}"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "Tidak dipasang",
     "available": "Tersedia",
     "subprocessTitle": "Berjalan dalam subprosesnya sendiri + venv",
-    "inProcessTitle": "Berjalan dalam proses OmniVoice Python",
+    "inProcessTitle": "Berjalan dalam proses VoiceStudio Python",
     "testEngine": "Mesin uji",
     "testing": "Pengujian…",
     "recheck": "Periksa kembali",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "Tombol pintas global hanya berfungsi di aplikasi desktop. UI web menggunakan pintasan <1>Ctrl+Shift+Space</1> dalam halaman saat jendela memiliki fokus.",
-    "desc_detail": "Tombol pintas berfungsi di seluruh sistem saat OmniVoice berjalan — tombol ini memfokuskan jendela dan memulai dikte. Hindari kombo yang sudah diklaim oleh OS (di macOS, <1>⌘+Space</1> adalah sumber input siklus Spotlight dan <2>⌘+⇧+Space</2>). Jika pendaftaran gagal, pilih kombo lain.",
+    "desc_detail": "Tombol pintas berfungsi di seluruh sistem saat VoiceStudio berjalan — tombol ini memfokuskan jendela dan memulai dikte. Hindari kombo yang sudah diklaim oleh OS (di macOS, <1>⌘+Space</1> adalah sumber input siklus Spotlight dan <2>⌘+⇧+Space</2>). Jika pendaftaran gagal, pilih kombo lain.",
     "active_shortcut": "Pintasan aktif",
     "new_shortcut": "Jalan pintas baru",
     "press_key": "Tekan kombinasi tombol…",
@@ -609,8 +609,8 @@
     "no_speech": "Tidak ada ucapan yang terdeteksi",
     "mic_denied": "Akses mikrofon ditolak",
     "mic_denied_toast": "Akses mikrofon ditolak. {{hint}}",
-    "mic_hint_mac": "macOS: buka Pengaturan Sistem → Privasi & Keamanan → Mikrofon dan aktifkan OmniVoice.",
-    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon, aktifkan 'Akses mikrofon' dan 'Izinkan aplikasi desktop mengakses mikrofon Anda', lalu izinkan OmniVoice.",
+    "mic_hint_mac": "macOS: buka Pengaturan Sistem → Privasi & Keamanan → Mikrofon dan aktifkan VoiceStudio.",
+    "mic_hint_windows": "Windows: buka Pengaturan → Privasi & keamanan → Mikrofon, aktifkan 'Akses mikrofon' dan 'Izinkan aplikasi desktop mengakses mikrofon Anda', lalu izinkan VoiceStudio.",
     "mic_hint_linux": "Linux: periksa apakah pengguna Anda ada di grup audio dan WebView memiliki akses mikrofon.",
     "transcription_failed": "Transkripsi gagal: {{message}}",
     "mic_not_found": "Mikrofon tidak ditemukan. Hubungkan atau aktifkan mikrofon, lalu coba lagi.",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "Sertakan klip referensi mentah. Nonaktif = hanya membagikan pratinjau yang diberi watermark (disarankan).",
     "consent_title": "Kepemilikan suara",
     "consent_explain": "Rekam diri Anda saat membaca pernyataan di bawah ini untuk memverifikasi bahwa ini adalah suara Anda sendiri. Verifikasi akan diperlukan untuk fitur agen dan berbagi komunitas — tidak pernah untuk sintesis lokal.",
-    "consent_statement": "Saya mengonfirmasi bahwa profil suara ini adalah suara saya sendiri, dan saya menyetujui OmniVoice Studio mengkloningnya atas nama saya.",
+    "consent_statement": "Saya mengonfirmasi bahwa profil suara ini adalah suara saya sendiri, dan saya menyetujui VoiceStudio mengkloningnya atas nama saya.",
     "consent_record": "Catat pernyataan persetujuan",
     "consent_stop": "Berhenti merekam",
     "consent_saved": "Kepemilikan suara diverifikasi",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "Tambahkan ke Antrean"
   },
   "gallery": {
-    "title": "OmniVoice Galeri",
+    "title": "VoiceStudio Galeri",
     "search_placeholder": "Telusuri YouTube…",
     "all_voices": "Semua Suara ({{count}})",
     "no_voices": "Belum ada suara",
@@ -1253,8 +1253,8 @@
   "donate": {
     "title": "Dukungan",
     "desc": "Jika Anda menikmati proyek ini, pertimbangkan untuk berdonasi untuk mendukung pengembangan kami.",
-    "hero_title": "Mendukung OmniVoice",
-    "hero_desc": "OmniVoice gratis, bersumber terbuka, dan berjalan sepenuhnya di perangkat keras Anda. Jika hal ini memberikan nilai pada alur kerja Anda, pertimbangkan untuk mendukung tim inti.",
+    "hero_title": "Mendukung VoiceStudio",
+    "hero_desc": "VoiceStudio gratis, bersumber terbuka, dan berjalan sepenuhnya di perangkat keras Anda. Jika hal ini memberikan nilai pada alur kerja Anda, pertimbangkan untuk mendukung tim inti.",
     "github_desc": "Berulang atau satu kali — langsung melalui GitHub.",
     "coffee_desc": "Belikan kopi untuk tim. Tidak diperlukan akun.",
     "paypal_desc": "Cepat satu kali atau berulang melalui PayPal.",
@@ -1262,7 +1262,7 @@
     "footer": "Setiap kontribusi membantu mendorong batasan AI lokal.",
     "back": "Kembali ke Studio",
     "commercial": "Lisensi Komersial",
-    "pill": "Mendukung OmniVoice",
+    "pill": "Mendukung VoiceStudio",
     "suggested_title": "Pilih jumlah",
     "most_common": "paling umum",
     "custom": "Adat",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "Dana Claude Max",
-      "lead_default": "Senang itu berhasil! OmniVoice gratis dan sepenuhnya lokal. Jika ini menghemat waktu Anda, chip-in bulanan kecil akan mendanai Claude Max di belakangnya.",
-      "lead_first_clone": "Klon suara pertama Anda selesai — bagus! OmniVoice berjalan sepenuhnya di mesin Anda, dan dukungan Anda menjaganya tetap seperti itu.",
+      "lead_default": "Senang itu berhasil! VoiceStudio gratis dan sepenuhnya lokal. Jika ini menghemat waktu Anda, chip-in bulanan kecil akan mendanai Claude Max di belakangnya.",
+      "lead_first_clone": "Klon suara pertama Anda selesai — bagus! VoiceStudio berjalan sepenuhnya di mesin Anda, dan dukungan Anda menjaganya tetap seperti itu.",
       "lead_tenth_dub": "Sepuluh sulih suara - Anda jelas berhasil. Chip-in bulanan kecil mendanai Claude Max yang mengirimkan fitur-fitur ini.",
-      "lead_sustained": "Anda telah menggunakan OmniVoice selama sebulan. Jika hal ini mendapat tempat dalam alur kerja Anda, pertimbangkan untuk membantu mendanai langkah selanjutnya.",
+      "lead_sustained": "Anda telah menggunakan VoiceStudio selama sebulan. Jika hal ini mendapat tempat dalam alur kerja Anda, pertimbangkan untuk membantu mendanai langkah selanjutnya.",
       "chip_in": "ikut serta",
       "later": "Mungkin nanti",
       "star": "Bintangi di GitHub",
@@ -1296,14 +1296,14 @@
     "back": "Kembali ke Studio",
     "badge": "Lisensi Komersial",
     "hero_title": "Kirimkan suara AI dalam produksi",
-    "hero_desc": "OmniVoice Studio adalah perangkat lunak bebas dan open source di bawah GNU Affero General Public License v3 (AGPL-3.0) — gratis digunakan, termasuk untuk penggunaan komersial dan bisnis internal. Lisensi komersial hanya diperlukan jika Anda ingin menyematkan OmniVoice Studio ke dalam produk atau layanan closed-source atau proprietary tanpa kewajiban copyleft AGPL-3.0.",
-    "why_title": "Mengapa bisnis memilih OmniVoice",
+    "hero_desc": "VoiceStudio adalah perangkat lunak bebas dan open source di bawah GNU Affero General Public License v3 (AGPL-3.0) — gratis digunakan, termasuk untuk penggunaan komersial dan bisnis internal. Lisensi komersial hanya diperlukan jika Anda ingin menyematkan VoiceStudio ke dalam produk atau layanan closed-source atau proprietary tanpa kewajiban copyleft AGPL-3.0.",
+    "why_title": "Mengapa bisnis memilih VoiceStudio",
     "pricing_title": "Harga",
     "faq_title": "Pertanyaan umum",
     "pricing_desc": "Tingkatan dan harga masih dalam tahap penyelesaian.",
     "pricing_detail": "Sebelum dipublikasikan, setiap penerapan komersial akan dikutip satu per satu sehingga kami dapat menyesuaikan ukurannya untuk tim dan beban kerja Anda.",
     "request_quote": "Minta penawaran",
-    "footer_email": "Pertanyaan? Hubungi OmniVoice@palash.dev",
+    "footer_email": "Pertanyaan? Hubungi VoiceStudio@palash.dev",
     "footer_discord": "Bergabunglah dengan Discord kami untuk mendapatkan dukungan komunitas.",
     "benefit_ip": "Kepemilikan IP penuh",
     "benefit_ip_desc": "Anda memiliki setiap keluaran, setiap model, setiap turunan. Tidak ada sewa bersama, tidak ada kebocoran data.",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "Visibilitas penuh ke dalam tumpukan. Audit, fork, dan adaptasi sesuai ketentuan lisensi.",
     "benefit_lang": "646 bahasa",
     "benefit_lang_desc": "Transkripsikan, terjemahkan, dan sulih suara dalam 646 bahasa dengan kualitas setingkat manusia.",
-    "hero_note": "Penggunaan, self-hosting, dan penggunaan komersial semuanya gratis di bawah AGPL-3.0 — termasuk dalam skala besar. AGPL adalah lisensi copyleft jaringan: jika Anda memodifikasi OmniVoice dan menawarkan versi modifikasi itu kepada orang lain melalui jaringan, Anda harus membagikan kode sumber modifikasi Anda dengan ketentuan yang sama. Lisensi komersial menghapus kewajiban copyleft tersebut untuk penerapan proprietary closed-source. Paket harga segera hadir — sementara itu, hubungi kami.",
-    "hero_simple": "OmniVoice Studio gratis dan bersumber terbuka di bawah AGPL-3.0 — termasuk untuk penggunaan komersial dan bisnis internal. Anda hanya memerlukan lisensi komersial untuk menyematkannya dalam produk sumber tertutup tanpa kewajiban copyleft AGPL.",
+    "hero_note": "Penggunaan, self-hosting, dan penggunaan komersial semuanya gratis di bawah AGPL-3.0 — termasuk dalam skala besar. AGPL adalah lisensi copyleft jaringan: jika Anda memodifikasi VoiceStudio dan menawarkan versi modifikasi itu kepada orang lain melalui jaringan, Anda harus membagikan kode sumber modifikasi Anda dengan ketentuan yang sama. Lisensi komersial menghapus kewajiban copyleft tersebut untuk penerapan proprietary closed-source. Paket harga segera hadir — sementara itu, hubungi kami.",
+    "hero_simple": "VoiceStudio gratis dan bersumber terbuka di bawah AGPL-3.0 — termasuk untuk penggunaan komersial dan bisnis internal. Anda hanya memerlukan lisensi komersial untuk menyematkannya dalam produk sumber tertutup tanpa kewajiban copyleft AGPL.",
     "contact_lead": "Harga dikutip per penerapan sehingga sesuai dengan tim dan beban kerja Anda. Ceritakan kasus penggunaan Anda dan saya akan memberi Anda penawaran."
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "Jangan khawatir — aplikasi lainnya masih berfungsi. Anda dapat berpindah tab, atau coba lagi di bawah.",
     "tryAgain": "Coba lagi",
     "openDocs": "Buka dokumen untuk kesalahan ini",
-    "crash_port_in_use": "Backend tidak dapat dijalankan karena port 3900 sudah digunakan — salinan OmniVoice lain (atau aplikasi yang mengklaim port itu) sedang menahannya. Tutup instance lain lalu jalankan ulang; jika tidak ada yang terlihat berjalan, backend yatim dari sesi sebelumnya masih menahan port tersebut.",
+    "crash_port_in_use": "Backend tidak dapat dijalankan karena port 3900 sudah digunakan — salinan VoiceStudio lain (atau aplikasi yang mengklaim port itu) sedang menahannya. Tutup instance lain lalu jalankan ulang; jika tidak ada yang terlihat berjalan, backend yatim dari sesi sebelumnya masih menahan port tersebut.",
     "crash_oom_kill": "Proses dihentikan paksa (sinyal 9), yang biasanya berarti sistem operasi kehabisan memori (RAM). Tutup aplikasi yang boros memori, pilih model ASR yang lebih kecil di Pengaturan → Model, atau bongkar model TTS sebelum mentranskripsi.",
-    "crash_native_fault": "Proses mogok di dalam tumpukan komputasi, bukan karena kehabisan memori — itu menunjuk pada driver GPU yang tidak cocok dengan runtime CUDA bawaan, atau berkas model yang terunduh tidak lengkap. Perbarui driver GPU Anda, lalu unduh ulang model dari Pengaturan → Model (unduhan parsial diperbaiki di tempat). Jika terus terjadi, beralihlah ke mesin terisolasi di Pengaturan → Mesin — \"OmniVoice (subprocess)\" untuk sintesis, \"Faster-Whisper (crash-isolated subprocess)\" untuk transkripsi. Keduanya menjalankan model di proses terpisah, sehingga kerusakan seperti ini menjatuhkan proses itu saja, bukan seluruh backend.",
+    "crash_native_fault": "Proses mogok di dalam tumpukan komputasi, bukan karena kehabisan memori — itu menunjuk pada driver GPU yang tidak cocok dengan runtime CUDA bawaan, atau berkas model yang terunduh tidak lengkap. Perbarui driver GPU Anda, lalu unduh ulang model dari Pengaturan → Model (unduhan parsial diperbaiki di tempat). Jika terus terjadi, beralihlah ke mesin terisolasi di Pengaturan → Mesin — \"VoiceStudio (subprocess)\" untuk sintesis, \"Faster-Whisper (crash-isolated subprocess)\" untuk transkripsi. Keduanya menjalankan model di proses terpisah, sehingga kerusakan seperti ini menjatuhkan proses itu saja, bukan seluruh backend.",
     "report": "Laporkan bug ini",
     "report_failed": "Tidak dapat membuka laporan bug. Coba lagi, atau salin detail di atas ke isu baru.",
     "searchIssues": "Cari masalah serupa",
     "unexpected": "Kesalahan tak terduga: {{message}}",
-    "backend_shutting_down": "OmniVoice sedang ditutup. Buka kembali aplikasinya lalu coba lagi.",
+    "backend_shutting_down": "VoiceStudio sedang ditutup. Buka kembali aplikasinya lalu coba lagi.",
     "crash_broken_env": "Ia mati saat memuat dependensi Python-nya sendiri, jadi ini bukan soal memori atau GPU Anda — lingkungannya tidak lengkap atau tertinggal setengah diperbarui. Gunakan \"Clean & Retry\" di Pengaturan → Log → Backend, yang membangunnya ulang dari nol dan memperbaikinya di tempat, tanpa menyentuh suara atau proyek Anda. Jika masih gagal, detail crash menyebutkan paket persis yang gagal diimpor."
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "Jaringan",
     "local": "Lokal",
     "share_confirm_title": "Bagikan di jaringan Anda?",
-    "share_confirm_hint": "Perangkat lain di Wi-Fi/Ethernet Anda akan dapat menjangkau OmniVoice menggunakan PIN akses yang ditampilkan setelah aktif.",
+    "share_confirm_hint": "Perangkat lain di Wi-Fi/Ethernet Anda akan dapat menjangkau VoiceStudio menggunakan PIN akses yang ditampilkan setelah aktif.",
     "enabling": "Mengaktifkan…",
     "enable": "Aktifkan",
     "shared_title": "Dibagikan di jaringan Anda",
@@ -1530,7 +1530,7 @@
     "model_heading": "Bobot Model · OpenRAIL-M",
     "model_desc": "Anak timbangan model Supertonic-3 dirilis di bawah lisensi OpenRAIL-M. Lisensi ini membatasi penggunaan untuk tujuan yang tidak berbahaya — lihat lisensi tertaut untuk mengetahui rangkaian lengkap pembatasan berbasis penggunaan.",
     "read_openrail": "Baca lisensi OpenRAIL-M →",
-    "footer": "Mengklik Terima mencatat penerimaan Anda di pengaturan lokal OmniVoice dan mengaktifkan mesin. Penerimaan Anda hanya disimpan di mesin ini — tidak ada yang dilaporkan ke Supertone Inc. atau pihak ketiga mana pun.",
+    "footer": "Mengklik Terima mencatat penerimaan Anda di pengaturan lokal VoiceStudio dan mengaktifkan mesin. Penerimaan Anda hanya disimpan di mesin ini — tidak ada yang dilaporkan ke Supertone Inc. atau pihak ketiga mana pun.",
     "saving": "Menyimpan…",
     "accept": "Terima",
     "accepted_toast": "Lisensi Supertonic-3 diterima.",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Apakah saya memerlukan lisensi untuk alat internal?",
-    "a_internal_tools": "Tidak. Penggunaan oleh karyawan dan kontraktor Anda — termasuk memodifikasi dan self-hosting secara internal — gratis di bawah AGPL-3.0. Lisensi komersial hanya diperlukan jika Anda menyematkan OmniVoice ke dalam produk atau layanan closed-source atau proprietary dan tidak ingin mematuhi kewajiban berbagi kode sumber AGPL.",
+    "a_internal_tools": "Tidak. Penggunaan oleh karyawan dan kontraktor Anda — termasuk memodifikasi dan self-hosting secara internal — gratis di bawah AGPL-3.0. Lisensi komersial hanya diperlukan jika Anda menyematkan VoiceStudio ke dalam produk atau layanan closed-source atau proprietary dan tidak ingin mematuhi kewajiban berbagi kode sumber AGPL.",
     "q_try_before": "Bisakah saya mencoba sebelum melakukan?",
     "a_try_before": "Ya. Aplikasi lengkap gratis untuk diunduh, dijalankan, dan di-host sendiri di bawah AGPL-3.0 — tanpa perjanjian apa pun. Saat Anda siap membahas lisensi komersial (penggunaan proprietary), kirim email kepada kami dan kita akan menyelesaikan detailnya bersama.",
     "q_watermark": "Bagaimana dengan tanda airnya?",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "Berbagi & Akses Jarak Jauh",
-    "help": "Ekspos instans OmniVoice yang sedang berjalan ini ke mesin Anda yang lain tanpa memulai ulang. Hanya loopback yang merupakan default — tidak ada yang dibagikan sampai Anda mengaktifkannya di sini.",
+    "help": "Ekspos instans VoiceStudio yang sedang berjalan ini ke mesin Anda yang lain tanpa memulai ulang. Hanya loopback yang merupakan default — tidak ada yang dibagikan sampai Anda mengaktifkannya di sini.",
     "local_network": "Jaringan lokal",
     "local_help": "Bagikan di Wi-Fi / Ethernet Anda dengan PIN akses satu kali. Perangkat lain memindai kode QR atau membuka tautan.",
     "ports_title": "Pelabuhan",
-    "ports_help": "Ini diatur melalui variabel lingkungan yang dibaca saat startup. Ubah backend atau port UI dengan mengatur variabel dan memulai ulang OmniVoice.",
+    "ports_help": "Ini diatur melalui variabel lingkungan yang dibaca saat startup. Ubah backend atau port UI dengan mengatur variabel dan memulai ulang VoiceStudio.",
     "backend_port": "Pelabuhan ujung belakang",
     "ui_port": "Pelabuhan UI",
     "lan_share_port": "Port berbagi LAN",
@@ -1854,9 +1854,9 @@
     "ports_note": "Port backend dan UI berlaku saat restart. Port berbagi LAN berlaku saat berikutnya Anda mengaktifkan berbagi.",
     "tailscale_title": "Tailscale (akses jarak jauh pribadi)",
     "tailscale_checking": "Memeriksa Skala Ekor…",
-    "tailscale_absent": "Sisik ekor tidak terdeteksi. Instal untuk menjangkau OmniVoice dengan aman dari mana saja di tailnet pribadi Anda.",
+    "tailscale_absent": "Sisik ekor tidak terdeteksi. Instal untuk menjangkau VoiceStudio dengan aman dari mana saja di tailnet pribadi Anda.",
     "tailscale_install": "Instal Skala Ekor",
-    "tailscale_running": "Skala ekor sedang berjalan. Sajikan OmniVoice melalui tailnet pribadi Anda.",
+    "tailscale_running": "Skala ekor sedang berjalan. Sajikan VoiceStudio melalui tailnet pribadi Anda.",
     "tailscale_not_logged_in": "Tailscale diinstal tetapi belum login. Mulai dan masuk ke Tailscale terlebih dahulu.",
     "tailscale_enabled": "Pelayanan tailscale diaktifkan",
     "tailscale_enable_failed": "Tidak dapat mengaktifkan Tailscale",
@@ -1912,7 +1912,7 @@
     "failed": "Pembaruan gagal",
     "retry": "Coba lagi",
     "dismiss": "Singkirkan",
-    "toast_available": "OmniVoice Studio {{version}} tersedia",
+    "toast_available": "VoiceStudio {{version}} tersedia",
     "toast_install": "Instal dan mulai ulang",
     "toast_whats_new": "Yang baru",
     "toast_later": "Nanti"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "Menyiapkan penyiapan…",
-    "title": "Siapkan OmniVoice Studio",
+    "title": "Siapkan VoiceStudio",
     "subtitle": "Belum ada yang terpasang — tinjau ke mana semuanya disimpan, lalu mulai. Bisa diubah nanti di Pengaturan.",
     "language": "Bahasa",
     "mode_title": "Mode pemasangan",
@@ -2165,7 +2165,7 @@
     "lex_add": "Tambahkan kata",
     "lex_remove": "Hapus",
     "markup_help": "Referensi markup",
-    "markup_hint": "# Judul bab · [voice:NAME] ganti suara · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Reaksi (OmniVoice): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# Judul bab · [voice:NAME] ganti suara · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Reaksi (VoiceStudio): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "Bahasa",
     "expressive": "Overide produksi",
     "reset": "Setel ulang",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "Masukkan PIN akses",
-    "body": "Mesin virtual OmniVoice ini dibagikan di jaringan. Masukkan PIN yang tertera pada host.",
+    "body": "Mesin virtual VoiceStudio ini dibagikan di jaringan. Masukkan PIN yang tertera pada host.",
     "label": "Akses PIN",
     "connect": "Hubungkan"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "Izin",
-    "desc": "OmniVoice berjalan sepenuhnya di perangkat Anda — izin sistem ini hanya digunakan untuk fitur yang tercantum di sini, dan audio tidak pernah meninggalkan komputer Anda.",
+    "desc": "VoiceStudio berjalan sepenuhnya di perangkat Anda — izin sistem ini hanya digunakan untuk fitur yang tercantum di sini, dan audio tidak pernah meninggalkan komputer Anda.",
     "microphone": "Mikrofon",
     "microphone_why": "Digunakan untuk dikte dan perekaman suara. Audio diproses secara lokal.",
     "accessibility": "Aksesibilitas",
@@ -2299,7 +2299,7 @@
     "install_failed": "Tidak dapat memulai unduhan: {{message}}"
   },
   "backend_start_failure": {
-    "notice": "Backend OmniVoice gagal dijalankan — tidak ada yang bisa berjalan sampai backend hidup.",
+    "notice": "Backend VoiceStudio gagal dijalankan — tidak ada yang bisa berjalan sampai backend hidup.",
     "view": "Lihat alasannya",
     "title": "Backend gagal dijalankan",
     "intro": "Aplikasi merekam ini saat mencoba menjalankan backend. Menyertakan keluaran ini dalam laporan membantu kami memperbaikinya.",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "Sesi sebelumnya berakhir tanpa penutupan yang bersih {{ago}} yang lalu. Ini sering tidak berbahaya — mesin tertidur, aplikasi ditutup paksa, atau VM/kontainer berhenti.",
-    "details_intro_unclean": "Penanda penutupan dari sesi sebelumnya tidak pernah dibersihkan, {{ago}} yang lalu. OmniVoice tidak dapat mengetahui apakah itu crash atau sekadar interupsi — tidur, penutupan paksa, atau menghentikan VM/kontainer meninggalkan jejak yang sama. Jika sekarang semuanya berfungsi, tidak ada yang perlu dilakukan.",
+    "details_intro_unclean": "Penanda penutupan dari sesi sebelumnya tidak pernah dibersihkan, {{ago}} yang lalu. VoiceStudio tidak dapat mengetahui apakah itu crash atau sekadar interupsi — tidur, penutupan paksa, atau menghentikan VM/kontainer meninggalkan jejak yang sama. Jika sekarang semuanya berfungsi, tidak ada yang perlu dilakukan.",
     "report_needs_log": "Tidak ada keluaran kesalahan yang tertangkap untuk peristiwa ini, jadi laporan sekali klik akan kosong. Jika memang ada masalah, lampirkan baris terakhir dari Pengaturan → Log → Backend ke issue baru."
   }
 }

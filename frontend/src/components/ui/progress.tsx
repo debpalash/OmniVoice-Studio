@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * shadcn/ui Progress — new-york style, built on @radix-ui/react-progress for
- * correct ARIA value attributes, themed through the OmniVoice token bridge
+ * correct ARIA value attributes, themed through the VoiceStudio token bridge
  * (`bg-secondary` track resolves to the dark elevated surface).
  *
  * Adapted from the stock shadcn source so it can back the legacy

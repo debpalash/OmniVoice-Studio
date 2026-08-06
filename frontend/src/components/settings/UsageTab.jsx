@@ -107,7 +107,7 @@ export default function UsageTab() {
       icon={BarChart3}
       title={t('settings.usage', { defaultValue: 'Usage' })}
       description={t('settings.usage_desc', {
-        defaultValue: 'What you have made with OmniVoice — counted on your own machine.',
+        defaultValue: 'What you have made with VoiceStudio — counted on your own machine.',
       })}
     >
       {/* The guarantee, stated where the user can actually see it. */}
@@ -116,7 +116,7 @@ export default function UsageTab() {
         <span>
           {t('settings.usage_privacy', {
             defaultValue:
-              'These numbers are counted from your own history, on this machine, and are never sent anywhere. OmniVoice has no analytics service — nothing here leaves your computer.',
+              'These numbers are counted from your own history, on this machine, and are never sent anywhere. VoiceStudio has no analytics service — nothing here leaves your computer.',
           })}
         </span>
       </p>

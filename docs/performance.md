@@ -1,6 +1,6 @@
 # Performance guide
 
-Where the time goes when OmniVoice feels slow, what you can tune, and what you
+Where the time goes when VoiceStudio feels slow, what you can tune, and what you
 should leave alone. Everything here applies to the current release; numbers
 marked "measured" come from `scripts/bench_pipeline.py` on a 16 GB Apple
 Silicon M2 — your hardware will differ, but the *ratios* hold.

@@ -57,7 +57,7 @@ function renderCell(colId, overrides = {}, mOver = {}) {
 
 const RESIDENT = {
   id: 'tts',
-  name: 'OmniVoice TTS',
+  name: 'VoiceStudio TTS',
   checkpoint: REPO,
   device: 'mps',
   vram_mb: 2048,

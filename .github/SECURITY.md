@@ -10,7 +10,7 @@
 
 ## Model supply chain
 
-OmniVoice supports models from **public, verifiable sources only** (Hugging
+VoiceStudio supports models from **public, verifiable sources only** (Hugging
 Face repos, official project releases). Privately sold or gated model files
 are not supported: an archive from a private source can carry anything
 (bundled executables, modified configs), and nobody else can verify or
@@ -23,7 +23,7 @@ download, and never run executables bundled with model archives.
 
 Instead, report them privately via one of these channels:
 
-1. **GitHub Security Advisories** (preferred) — [Report a vulnerability](https://github.com/debpalash/OmniVoice-Studio/security/advisories/new)
+1. **GitHub Security Advisories** (preferred) — [Report a vulnerability](https://github.com/debpalash/VoiceStudio/security/advisories/new)
 2. **Email** — Send details to **security@palash.dev**
 
 ### What to include
@@ -44,7 +44,7 @@ Instead, report them privately via one of these channels:
 
 ### Scope
 
-OmniVoice Studio runs **100% locally** by default. The primary attack surface is:
+VoiceStudio runs **100% locally** by default. The primary attack surface is:
 
 - **Network exposure** — if the user binds to `0.0.0.0` without a reverse proxy
 - **Model downloads** — fetched from Hugging Face Hub over HTTPS
@@ -71,6 +71,6 @@ GitHub Apps on creation.
 
 ## Security Best Practices for Users
 
-- **Do not expose OmniVoice to the internet without authentication.** The API has no built-in auth. Use a reverse proxy (Caddy, nginx, Tailscale) if you need remote access.
+- **Do not expose VoiceStudio to the internet without authentication.** The API has no built-in auth. Use a reverse proxy (Caddy, nginx, Tailscale) if you need remote access.
 - **Keep your installation updated.** The desktop app auto-checks for updates via the built-in updater.
 - **Review model sources.** Only download models from trusted Hugging Face repositories.

@@ -72,11 +72,11 @@ describe('SetupWizard analytics consent step', () => {
     });
     render(withI18n(<SetupWizard onReady={() => {}} />));
     // The stepper rail gains the consent stage.
-    expect(await screen.findByText(/Improve OmniVoice/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Improve VoiceStudio/i)).toBeInTheDocument();
 
     await advancePastModels();
     // Headline appears (masthead subtitle + section head + card title).
-    expect((await screen.findAllByText(/Help improve OmniVoice\?/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Help improve VoiceStudio\?/i)).length).toBeGreaterThan(0);
     // Two equal-weight choices, no preselected default.
     expect(screen.getByTestId('analytics-consent-yes')).toBeInTheDocument();
     expect(screen.getByTestId('analytics-consent-no')).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('SetupWizard analytics consent step', () => {
       opted_in: false,
     });
     render(withI18n(<SetupWizard onReady={() => {}} />));
-    await screen.findByText(/Improve OmniVoice/i);
+    await screen.findByText(/Improve VoiceStudio/i);
     await advancePastModels();
 
     fireEvent.click(await screen.findByTestId('analytics-consent-yes'));
@@ -114,7 +114,7 @@ describe('SetupWizard analytics consent step', () => {
       opted_in: false,
     });
     render(withI18n(<SetupWizard onReady={() => {}} />));
-    await screen.findByText(/Improve OmniVoice/i);
+    await screen.findByText(/Improve VoiceStudio/i);
     await advancePastModels();
 
     fireEvent.click(await screen.findByTestId('analytics-consent-no'));
@@ -142,7 +142,7 @@ describe('SetupWizard analytics consent step', () => {
     await advancePastModels();
     // Straight from models to dictation — an unanswerable ask would be a lie.
     expect(await screen.findByText(/Enter studio/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Help improve OmniVoice\?/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Help improve VoiceStudio\?/i)).not.toBeInTheDocument();
     expect(apiFetch).not.toHaveBeenCalled();
   });
 

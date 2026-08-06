@@ -12,7 +12,7 @@ import { Button } from '../ui';
  * events (src-tauri/src/bootstrap.rs promised a frontend banner for them —
  * this is it; until now nothing listened). Without it, a 10–20 s respawn
  * window was invisible: every in-flight request surfaced its own "Can't
- * reach the local OmniVoice backend" toast with zero context, which read as
+ * reach the local VoiceStudio backend" toast with zero context, which read as
  * a recurring bug rather than a self-heal in progress.
  *
  * While restarting: a quiet pinned banner ("restarting — hang tight");

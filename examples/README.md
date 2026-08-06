@@ -1,6 +1,6 @@
-# OmniVoice Examples
+# VoiceStudio Examples
 
-This directory contains scripts and configs for training, fine-tuning, and evaluating OmniVoice.
+This directory contains scripts and configs for training, fine-tuning, and evaluating VoiceStudio.
 
 | Use Case | Script | Description |
 |---|---|---|

@@ -121,7 +121,7 @@ def probe_endpoint(endpoint: str, timeout: float = PROBE_TIMEOUT_S) -> ProbeResu
     measures whether the network path works, not whether a specific resource
     exists. Never raises."""
     url = endpoint.rstrip("/") + "/"
-    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "OmniVoice-endpoint-probe"})
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "VoiceStudio-endpoint-probe"})
     start = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=timeout):
@@ -148,7 +148,7 @@ def throughput_probe(endpoint: str, timeout: float = PROBE_TIMEOUT_S) -> Optiona
         url,
         headers={
             "Range": f"bytes=0-{_THROUGHPUT_SAMPLE_BYTES - 1}",
-            "User-Agent": "OmniVoice-endpoint-probe",
+            "User-Agent": "VoiceStudio-endpoint-probe",
         },
     )
     deadline = time.monotonic() + timeout

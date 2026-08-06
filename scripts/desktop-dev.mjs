@@ -54,7 +54,7 @@ function cargoResolvable(env) {
  *
  * So: clear the previous dev instance first, loudly. Deliberately matches ONLY
  * the cargo-built dev binary (`omnivoice-studio`); the installed release app is
- * `OmniVoice Studio` and is never touched.
+ * `VoiceStudio` and is never touched.
  */
 function killStaleDevApp() {
   const NAME = DEV_APP_PROCESS_NAME;
@@ -125,7 +125,7 @@ if (res.error) {
   process.exit(1);
 }
 // #1177: "builds but won't launch" (reported on Discord) is the from-source
-// twin of the packaged app's evidence-free "Can't reach the local OmniVoice
+// twin of the packaged app's evidence-free "Can't reach the local VoiceStudio
 // backend": cargo compiles fine, the shell exits non-zero, and this script
 // used to forward the bare status and say NOTHING — leaving the user with a
 // silent exit code and nowhere to look. Point at the two places that actually
@@ -140,12 +140,12 @@ if (status !== 0 && status !== 130) {
       "   The reason is in one of these — the shell logs the backend's failure",
       "   even when the window never appears:",
       "     • the cargo/tauri output above (a Rust panic or a webview error)",
-      "     • omnivoice.log and backend_err.log in your OmniVoice data folder",
+      "     • omnivoice.log and backend_err.log in your VoiceStudio data folder",
       // Paths mirror resolveDataDir() in dev-backend.mjs, itself a mirror of
       // backend/core/config.py::get_app_data_dir — keep all three in step.
       "       (macOS: ~/Library/Application Support/OmniVoice,",
       "        Linux: ~/.omnivoice,",
-      "        Windows: %APPDATA%\\OmniVoice)",
+      "        Windows: %APPDATA%\\VoiceStudio)",
       "",
       "   Common causes and fixes: docs/install/troubleshooting.md",
       "",

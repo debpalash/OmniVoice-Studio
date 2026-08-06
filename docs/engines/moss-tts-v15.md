@@ -1,4 +1,4 @@
-# OmniVoice Studio — MOSS-TTS-v1.5 Engine
+# VoiceStudio — MOSS-TTS-v1.5 Engine
 
 MOSS-TTS-v1.5 (OpenMOSS) is an **8B** flagship zero-shot TTS — a Qwen3-8B
 language backbone plus a 1.6B audio codec. It covers **31 languages**, does
@@ -6,7 +6,7 @@ zero-shot voice cloning, token-level duration control and inline
 `[pause Ns]` markers. Released under **Apache-2.0** (code + weights).
 
 It runs in its own subprocess **and its own Python venv** with
-`transformers==5.0.0`, isolated from the OmniVoice parent process which
+`transformers==5.0.0`, isolated from the VoiceStudio parent process which
 pins `transformers>=5.3`. This is the same isolation primitive used by
 [IndexTTS-2](indextts.md): the two `transformers` pins cannot share one
 interpreter, so MOSS runs behind
@@ -14,7 +14,7 @@ interpreter, so MOSS runs behind
 
 > **Opt-in, and never a default.** MOSS-TTS-v1.5 is selected explicitly in
 > **Settings → Engines** (or `OMNIVOICE_TTS_BACKEND=moss-tts-v15`). It is
-> not part of the default install and does not change OmniVoice's
+> not part of the default install and does not change VoiceStudio's
 > out-of-the-box behaviour on any platform.
 
 ## Hardware
@@ -25,13 +25,13 @@ interpreter, so MOSS runs behind
   **CPU** (fp32) — correct but slow.
 - **Device:** CUDA when present, else CPU. **There is no MPS path** —
   upstream documents only CUDA/CPU and the custom modelling code is
-  untested on Apple Silicon, so OmniVoice never routes MOSS to MPS. On a
+  untested on Apple Silicon, so VoiceStudio never routes MOSS to MPS. On a
   Mac it runs on CPU.
 
 ## Install
 
 MOSS-TTS-v1.5 is **not** bundled (the model is large and the package pins a
-conflicting `transformers`). OmniVoice ships a sidecar runner that loads it
+conflicting `transformers`). VoiceStudio ships a sidecar runner that loads it
 into an isolated venv on demand.
 
 1. Clone the MOSS-TTS repo on disk:
@@ -42,7 +42,7 @@ into an isolated venv on demand.
 
 2. Install the editable package into a fresh venv. Use
    `uv pip install -e ".[torch-runtime]"` — **never** `uv sync --all-extras`,
-   which would overwrite OmniVoice's lock file with `transformers==5.0` and
+   which would overwrite VoiceStudio's lock file with `transformers==5.0` and
    break the parent process. The `torch-runtime` extra is CUDA (`+cu128`):
 
    ```bash
@@ -57,7 +57,7 @@ into an isolated venv on demand.
 
 3. The ~16 GB weights download from HuggingFace on first synthesize. The
    parent forwards `HF_HOME` / `HF_HUB_CACHE` to the sidecar so the cache is
-   shared with the rest of OmniVoice's downloads.
+   shared with the rest of VoiceStudio's downloads.
 
 4. Set `OMNIVOICE_MOSS_TTS_V15_DIR` to the repo root (the directory that
    contains `pyproject.toml`):
@@ -73,20 +73,20 @@ into an isolated venv on demand.
    [Environment]::SetEnvironmentVariable("OMNIVOICE_MOSS_TTS_V15_DIR","$env:USERPROFILE\code\MOSS-TTS","User")
    ```
 
-5. Restart OmniVoice. MOSS-TTS-v1.5 appears in **Settings → Engines** with
+5. Restart VoiceStudio. MOSS-TTS-v1.5 appears in **Settings → Engines** with
    `available: true` and `isolation_mode: subprocess`.
 
 ## Venv resolution order
 
-OmniVoice probes for a usable MOSS Python interpreter in this priority
+VoiceStudio probes for a usable MOSS Python interpreter in this priority
 order (see `backend/engines/moss_tts_v15/bootstrap.py`):
 
 1. **`${OMNIVOICE_MOSS_TTS_V15_DIR}/.venv/`** — your existing clone's venv.
    Highest priority, so a power user who already set MOSS up gets zero
    re-install.
-2. **`backend/engines/moss_tts_v15/.venv/`** — OmniVoice's own venv,
+2. **`backend/engines/moss_tts_v15/.venv/`** — VoiceStudio's own venv,
    created on demand by step 3.
-3. **Lazy bootstrap** — if neither venv exists, OmniVoice runs `uv venv`
+3. **Lazy bootstrap** — if neither venv exists, VoiceStudio runs `uv venv`
    then `uv pip install --python <python> -e "${DIR}[torch-runtime]"`.
    Requires `OMNIVOICE_MOSS_TTS_V15_DIR`; raises a clear error otherwise.
    On a non-CUDA host the `+cu128` extra cannot resolve — set the venv up
@@ -111,7 +111,7 @@ default voice. `duration` (seconds) maps to MOSS's `tokens` argument at
 
 ### `MOSS-TTS-v1.5 venv not found. Set OMNIVOICE_MOSS_TTS_V15_DIR ...`
 
-You haven't pointed OmniVoice at a MOSS-TTS clone yet. Follow **Install**.
+You haven't pointed VoiceStudio at a MOSS-TTS clone yet. Follow **Install**.
 
 ### `uv pip install -e failed ... '[torch-runtime]' extra (cu128) cannot resolve`
 

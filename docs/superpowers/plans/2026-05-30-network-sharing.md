@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let a user expose the *same running* OmniVoice backend to their other machines — PIN-gated LAN sharing (with QR) and Tailscale private remote access — without restarting the backend or dropping the loaded model / in-flight jobs, and with loopback-only as the default on every launch.
+**Goal:** Let a user expose the *same running* VoiceStudio backend to their other machines — PIN-gated LAN sharing (with QR) and Tailscale private remote access — without restarting the backend or dropping the loaded model / in-flight jobs, and with loopback-only as the default on every launch.
 
-**Architecture:** A second in-process `uvicorn.Server` bound to `0.0.0.0:<P+1>` serves the *same* FastAPI `app` (no restart). A PIN middleware gates non-loopback clients (inert unless a PIN is set → docker deploys unaffected). The existing loopback-gated `system` router hosts the control endpoints (desktop-only by construction). Tailscale is driven by shelling out to the `tailscale` CLI and proxies the loopback backend. Frontend: a footer toggle + Settings panel, a global `X-OmniVoice-Pin` header injection in the single `apiFetch` chokepoint, and a remote PIN gate.
+**Architecture:** A second in-process `uvicorn.Server` bound to `0.0.0.0:<P+1>` serves the *same* FastAPI `app` (no restart). A PIN middleware gates non-loopback clients (inert unless a PIN is set → docker deploys unaffected). The existing loopback-gated `system` router hosts the control endpoints (desktop-only by construction). Tailscale is driven by shelling out to the `tailscale` CLI and proxies the loopback backend. Frontend: a footer toggle + Settings panel, a global `X-VoiceStudio-Pin` header injection in the single `apiFetch` chokepoint, and a remote PIN gate.
 
 **Tech Stack:** FastAPI + uvicorn (programmatic `Server`), Starlette `BaseHTTPMiddleware`, `psutil.net_if_addrs`, `secrets`; React + Vitest, `qrcode` (new frontend dep), the `tailscale` CLI.
 
@@ -26,7 +26,7 @@
 - `backend/api/schemas.py` — extend `SystemInfoResponse` with sharing fields.
 - `backend/api/routers/system.py` — `/system/network/{enable,disable,state}`, `/system/tailscale/{status,enable,disable}`, `/system/info` fields.
 - `backend/main.py` — register `NetworkAccessMiddleware`; init `app.state.network_share` in `lifespan`.
-- `frontend/src/api/client.ts` — inject `X-OmniVoice-Pin` in `apiFetch`; capture `?pin=` at module load.
+- `frontend/src/api/client.ts` — inject `X-VoiceStudio-Pin` in `apiFetch`; capture `?pin=` at module load.
 - `frontend/src/components/LogsFooter.jsx` — mount `<NetworkToggle/>` in `logs-footer__right`.
 - `frontend/src/pages/Settings.jsx` — register the "Sharing" tab + `<SharingPanel/>`.
 - `frontend/src/App.jsx` (or root) — mount `<RemoteAuthGate/>`.
@@ -78,7 +78,7 @@ def test_gen_pin_is_six_digits():
 
 - [ ] **Step 2: Run it — expect failure**
 
-Run: `cd /Users/user4/Desktop/github/OmniVoice && python -m pytest tests/test_network_share.py -q`
+Run: `cd /Users/user4/Desktop/github/VoiceStudio && python -m pytest tests/test_network_share.py -q`
 Expected: FAIL (module `services.network_share` does not exist).
 
 - [ ] **Step 3: Implement the module (enumeration + PIN + state, no listener yet)**
@@ -366,7 +366,7 @@ def test_non_loopback_without_pin_401_on_api():
 
 def test_non_loopback_with_valid_pin_passes():
     c = TestClient(_app_with_pin("654321"), client=("10.0.0.5", 1))
-    r = c.get("/api/voices", headers={"X-OmniVoice-Pin": "654321"})
+    r = c.get("/api/voices", headers={"X-VoiceStudio-Pin": "654321"})
     assert r.status_code != 401
 
 
@@ -440,7 +440,7 @@ git commit -m "feat(network): PIN middleware — gate non-loopback API access wh
 
 ## Phase 3 — Frontend: PIN header injection + remote gate
 
-### Task 5: Inject `X-OmniVoice-Pin` in `apiFetch` + capture `?pin=`
+### Task 5: Inject `X-VoiceStudio-Pin` in `apiFetch` + capture `?pin=`
 
 **Files:**
 - Modify: `frontend/src/api/client.ts`
@@ -457,13 +457,13 @@ describe('apiFetch PIN header', () => {
   beforeEach(() => { realFetch = global.fetch; sessionStorage.clear(); });
   afterEach(() => { global.fetch = realFetch; sessionStorage.clear(); });
 
-  it('attaches X-OmniVoice-Pin when present in sessionStorage', async () => {
+  it('attaches X-VoiceStudio-Pin when present in sessionStorage', async () => {
     sessionStorage.setItem('ov_pin', '424242');
     const seen: any = {};
     global.fetch = vi.fn((_url, opts) => { Object.assign(seen, opts); return Promise.resolve({ ok: true, json: async () => ({}) }); });
     const { apiFetch } = await import('./client');
     await apiFetch('/system/info');
-    expect((seen.headers || {})['X-OmniVoice-Pin']).toBe('424242');
+    expect((seen.headers || {})['X-VoiceStudio-Pin']).toBe('424242');
   });
 
   it('omits the header when no pin', async () => {
@@ -471,7 +471,7 @@ describe('apiFetch PIN header', () => {
     global.fetch = vi.fn((_url, opts) => { Object.assign(seen, opts); return Promise.resolve({ ok: true, json: async () => ({}) }); });
     const { apiFetch } = await import('./client');
     await apiFetch('/system/info');
-    expect((seen.headers || {})['X-OmniVoice-Pin']).toBeUndefined();
+    expect((seen.headers || {})['X-VoiceStudio-Pin']).toBeUndefined();
   });
 });
 ```
@@ -484,7 +484,7 @@ describe('apiFetch PIN header', () => {
 export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string> || {}) };
-  if (pin) headers['X-OmniVoice-Pin'] = pin;
+  if (pin) headers['X-VoiceStudio-Pin'] = pin;
   const res = await fetch(apiUrl(path), { ...opts, headers });
   if (!res.ok) { const detail = await readError(res); throw new ApiError(res.status, detail); }
   return res;
@@ -507,7 +507,7 @@ if (typeof window !== 'undefined') {
 
 ```bash
 git add frontend/src/api/client.ts frontend/src/api/client.test.ts
-git commit -m "feat(network): inject X-OmniVoice-Pin globally + capture ?pin= from QR URL"
+git commit -m "feat(network): inject X-VoiceStudio-Pin globally + capture ?pin= from QR URL"
 ```
 
 ### Task 6: `RemoteAuthGate` component
@@ -575,7 +575,7 @@ export default function RemoteAuthGate({ children, forceGate = false }) {
     <div className="remote-auth-gate" role="dialog" aria-modal="true">
       <form onSubmit={submit} className="remote-auth-gate__card">
         <h2>Enter access PIN</h2>
-        <p>This OmniVoice instance is shared on the network. Enter the PIN shown on the host.</p>
+        <p>This VoiceStudio instance is shared on the network. Enter the PIN shown on the host.</p>
         <label htmlFor="ov-pin">Access PIN</label>
         <input id="ov-pin" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} autoFocus />
         <button type="submit">Connect</button>
@@ -675,7 +675,7 @@ export default function NetworkToggle() {
   }, [st.enabled, st.pin, st.share_port, st.lan_addresses]);
 
   const enable = async () => {
-    if (!window.confirm('Share OmniVoice on your local network? Other devices will be able to reach it with the access PIN.')) return;
+    if (!window.confirm('Share VoiceStudio on your local network? Other devices will be able to reach it with the access PIN.')) return;
     setBusy(true);
     try { setSt(await apiPost('/system/network/enable')); setOpen(true); }
     catch (e) { toast.error(`Could not enable sharing: ${e.message}`); }

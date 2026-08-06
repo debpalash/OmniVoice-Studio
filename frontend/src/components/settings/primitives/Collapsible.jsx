@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
  * Collapsible — a chevron-header disclosure for hiding power-user / advanced
  * rows. Closed by default.
  *
- * FAST-mode shadcn migration: styling is now Tailwind utilities on the OmniVoice
+ * FAST-mode shadcn migration: styling is now Tailwind utilities on the VoiceStudio
  * `--chrome-*` / `--space-*` token bridge (palette preserved exactly); the old
  * `.st-collapsible*` rules in primitives.css are gone. The chevron rotates on
  * the `is-open` class; the body's last SettingRow drops its bottom padding.

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 /* ── Prop API → shadcn CVA mapping ───────────────────────────────────────
  * This wrapper preserves the exact legacy prop surface (variant / size /
  * iconSize / active / loading / leading / trailing / block / className / ref)
- * and maps it onto the OmniVoice variants/sizes that live in the shadcn
+ * and maps it onto the VoiceStudio variants/sizes that live in the shadcn
  * Button's CVA (button.tsx). The shadcn variants are styled with palette token
  * utilities (bg-primary, border-border, text-success, …) so every variant stays
  * on-palette and recolors with each [data-theme]. */

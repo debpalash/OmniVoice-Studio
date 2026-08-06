@@ -1,6 +1,6 @@
 # Remote GPU backend
 
-Run the OmniVoice backend on one machine (a GPU box, a home server) and drive
+Run the VoiceStudio backend on one machine (a GPU box, a home server) and drive
 it from the desktop app or a browser on another — over your tailnet, with the
 inference staying on the powerful machine.
 
@@ -17,7 +17,7 @@ loopback-only exactly as before.
 ```
 ┌──────────────┐     tailnet (WireGuard)      ┌─────────────────────┐
 │ laptop        │  ws/https to MagicDNS URL   │ gpu-box              │
-│ OmniVoice UI  │ ──────────────────────────▶ │ OmniVoice backend    │
+│ VoiceStudio UI  │ ──────────────────────────▶ │ VoiceStudio backend    │
 │ (thin client) │  Authorization: Bearer …    │ OMNIVOICE_API_KEY set │
 └──────────────┘                              └─────────────────────┘
 ```
@@ -127,7 +127,7 @@ remote key — is what's gating access.
   the access control for those too (the short share PIN is consumption-only and
   does not gate admin) — see the credential rule below.
 - **Trust a LAN or reverse proxy with `OMNIVOICE_TRUSTED_NETWORKS`.** If you run
-  OmniVoice behind a reverse proxy (nginx, Caddy, NPM) or only expose it on a
+  VoiceStudio behind a reverse proxy (nginx, Caddy, NPM) or only expose it on a
   trusted LAN/Tailnet, set `OMNIVOICE_TRUSTED_NETWORKS` to a comma-separated list
   of CIDRs (e.g. `192.168.1.0/24,10.0.0.0/8`); clients from those networks are
   then treated as trusted by the **consumption** gates (share PIN, API key,

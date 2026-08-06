@@ -4,7 +4,7 @@
  * Opt-in toggle for dictate-over-playback AEC. When on, dictation streams raw
  * PCM through the backend's server-side NLMS canceller (`/ws/transcribe?aec=1`)
  * and the audio player taps its output as the echo reference, so dictating
- * while OmniVoice plays audio doesn't transcribe the playback. Off by default —
+ * while VoiceStudio plays audio doesn't transcribe the playback. Off by default —
  * dictation uses the standard MediaRecorder path and behaves identically on
  * every platform. The pref is the zustand `aecEnabled` flag (persisted); no
  * backend round-trip needed. All strings go through i18n (`dictation.aec_*`).

@@ -224,7 +224,7 @@ pub fn respawn_backend(
             Some(v) if crate::backend::same_app_version(&v) => {
                 if crate::backend::backend_deep_healthy(backend_port()) {
                     log::info!(
-                        "Port {} already serving OmniVoice backend v{} — attaching",
+                        "Port {} already serving VoiceStudio backend v{} — attaching",
                         backend_port(), v
                     );
                     set_stage(&stage_handle, BootstrapStage::Ready);
@@ -234,7 +234,7 @@ pub fn respawn_backend(
                 // install was wiped/corrupted while it kept running. Attaching
                 // would look alive and 500 on everything — replace it.
                 log::warn!(
-                    "Port {} serves OmniVoice v{} but failed the deep health probe — replacing it",
+                    "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
                     backend_port(), v
                 );
                     set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
@@ -246,7 +246,7 @@ pub fn respawn_backend(
                 // classic post-update orphan). Attaching would silently run
                 // OLD backend code under the new UI — replace it instead.
                 log::warn!(
-                    "Port {} serves a stale OmniVoice backend (v{} != app v{}) — replacing it",
+                    "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
                     backend_port(),
                     if v.is_empty() { "<unknown>" } else { v.as_str() },
                     env!("CARGO_PKG_VERSION"),
@@ -269,8 +269,8 @@ pub fn respawn_backend(
                     BootstrapStage::Failed {
                         message: format!(
                             "Port {} is already in use by another application, \
-                             and OmniVoice could not free it. Quit whatever is \
-                             using that port (another copy of OmniVoice, or an \
+                             and VoiceStudio could not free it. Quit whatever is \
+                             using that port (another copy of VoiceStudio, or an \
                              app that claimed it) and try again.",
                             backend_port()
                         ),
@@ -426,7 +426,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                 {
                     format!(
                         "Port {} is already in use, so the backend could not \
-                         start. Another copy of OmniVoice — or an app that \
+                         start. Another copy of VoiceStudio — or an app that \
                          claimed that port — is holding it. Quit it and try \
                          again; if nothing is visibly running, an orphaned \
                          backend from a previous session still has the port.",
@@ -629,7 +629,7 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
                     // silently lost the translated guidance.
                     message: format!(
                         "Port {} is still in use by another application and \
-                         OmniVoice could not free it, so the backend can't \
+                         VoiceStudio could not free it, so the backend can't \
                          restart. Quit whatever is using that port and relaunch.",
                         backend_port()
                     ),
@@ -789,7 +789,7 @@ const PY_INSTALL_MIRROR: &str =
 const BOOTSTRAP_REMEDIATION: &str =
     "First-run setup couldn't download Python — your network may be blocking GitHub. \
 Fix: install Python 3.11+ from https://www.python.org/downloads/ (tick \"Add to PATH\"), \
-then relaunch — OmniVoice will use your system Python. Advanced: set \
+then relaunch — VoiceStudio will use your system Python. Advanced: set \
 UV_PYTHON_INSTALL_MIRROR to a reachable mirror (see docs/install/troubleshooting.md).";
 
 /// #889: PyTorch stopped shipping macOS x86_64 wheels after 2.2.x, and the
@@ -1667,7 +1667,7 @@ the existing venv; newly added dependencies may be missing (#307)",
     if resource_readme.is_file() {
         let _ = fs::copy(&resource_readme, project_dir.join("README.md"));
     } else if !project_dir.join("README.md").exists() {
-        let _ = fs::write(project_dir.join("README.md"), "# OmniVoice\n");
+        let _ = fs::write(project_dir.join("README.md"), "# VoiceStudio\n");
         log::warn!("No README.md in bundle — created stub");
     }
     // Shipped release notes for the Settings → Updates "What's new" viewer

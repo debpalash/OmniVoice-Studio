@@ -79,7 +79,7 @@ describe('toastErrorWithReport shutdown handling (#1276)', () => {
   };
 
   const SHUTDOWN =
-    "[shutting_down] OmniVoice is shutting down, so it didn't start loading " +
+    "[shutting_down] VoiceStudio is shutting down, so it didn't start loading " +
     'the model. Reopen the app and try again.';
 
   it('shows localized guidance for the shutdown marker, with no Report action', () => {

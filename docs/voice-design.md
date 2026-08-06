@@ -7,9 +7,9 @@ generates a matching voice on the fly.
 
 ```python
 import torch
-from omnivoice import OmniVoice
+from omnivoice import VoiceStudio
 
-model = OmniVoice.from_pretrained(
+model = VoiceStudio.from_pretrained(
     "k2-fsa/OmniVoice",
     device_map="cuda:0",
     dtype=torch.float16

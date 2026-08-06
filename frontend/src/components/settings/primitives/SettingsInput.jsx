@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /**
  * SettingsInput — the token-styled text field for Settings.
  *
- * FAST-mode shadcn migration: styling is now Tailwind utilities on the OmniVoice
+ * FAST-mode shadcn migration: styling is now Tailwind utilities on the VoiceStudio
  * `--chrome-*` / `--space-*` token bridge (palette preserved exactly); the old
  * `.st-input*` rules in primitives.css are gone. Drop it inside a SettingRow's
  * `control`, or use it standalone. In a stacked SettingRow it stretches to fill

@@ -78,16 +78,16 @@ const EN = {
     'It was answering {{ago}} ago and then stopped responding — it most likely crashed or was killed mid-request.',
   contact_never: 'It has not answered at all this session — it may never have started.',
   dev:
-    "Can't reach the local OmniVoice backend. {{contact}} In `bun run dev` the backend runs " +
+    "Can't reach the local VoiceStudio backend. {{contact}} In `bun run dev` the backend runs " +
     'with auto-reload, so any file change — including a save while a request was in flight — ' +
     'restarts it and drops the connection. Retry the action first; if it was a reload, it just ' +
     'works. If it keeps failing, check the terminal running `bun run dev` for a Python ' +
-    'traceback or an exit banner, and omnivoice.log in your OmniVoice data folder for the last ' +
+    'traceback or an exit banner, and omnivoice.log in your VoiceStudio data folder for the last ' +
     'thing the backend logged.',
   server:
-    "Can't reach the OmniVoice backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",
+    "Can't reach the VoiceStudio backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",
   misrouted:
-    'The server answering {{url}} is not an OmniVoice backend — it returned its own 404 page. ' +
+    'The server answering {{url}} is not a VoiceStudio backend — it returned its own 404 page. ' +
     'API requests are landing on the wrong host: check the Backend URL in Settings → Sharing, ' +
     'or, if a reverse proxy serves this UI, its route for API paths.',
 } as const;

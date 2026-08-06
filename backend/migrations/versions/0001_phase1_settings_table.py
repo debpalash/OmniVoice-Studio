@@ -4,7 +4,7 @@ Revision ID: 0001_phase1_settings
 Revises:
 Create Date: 2026-05-20 00:00:00.000000
 
-This is the first hand-written alembic migration in OmniVoice. Before
+This is the first hand-written alembic migration in VoiceStudio. Before
 v0.3.0 the schema lived entirely in `backend/core/db.py::_BASE_SCHEMA`
 with `CREATE TABLE IF NOT EXISTS`. We keep that pattern for fresh
 installs (both paths converge on the same schema) and use this migration

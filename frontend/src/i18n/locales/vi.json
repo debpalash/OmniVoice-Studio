@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "Nó vẫn phản hồi cách đây {{ago}} rồi ngừng phản hồi — rất có thể nó đã gặp sự cố hoặc bị buộc dừng giữa một yêu cầu.",
     "contact_never": "Nó chưa hề phản hồi trong phiên này — có thể nó chưa bao giờ khởi động.",
-    "dev": "Không thể kết nối tới backend OmniVoice cục bộ. {{contact}} Với `bun run dev`, backend chạy ở chế độ tự tải lại: bất kỳ thay đổi tệp nào — kể cả lưu khi đang có yêu cầu — sẽ khởi động lại nó và làm mất kết nối. Hãy thử lại thao tác trước; nếu là do tải lại thì sẽ chạy được. Nếu vẫn lỗi, xem terminal đang chạy `bun run dev` để tìm traceback Python hoặc thông báo thoát, và omnivoice.log trong thư mục dữ liệu OmniVoice.",
-    "server": "Không thể kết nối tới máy chủ backend OmniVoice. {{contact}} Hãy kiểm tra log máy chủ để tìm nguyên nhân (ví dụ `docker logs <container>` hoặc `journalctl`) — và lưu ý nếu Docker phục vụ trang này thì chính trang này cũng có thể sập cùng backend.",
-    "misrouted": "Máy chủ trả lời tại {{url}} không phải là backend của OmniVoice — nó đã trả về trang 404 của chính nó. Các yêu cầu API đang đi tới sai máy chủ: hãy kiểm tra Backend URL trong Cài đặt → Chia sẻ, hoặc nếu một reverse proxy phục vụ giao diện này, hãy kiểm tra tuyến đường của nó cho các đường dẫn API."
+    "dev": "Không thể kết nối tới backend VoiceStudio cục bộ. {{contact}} Với `bun run dev`, backend chạy ở chế độ tự tải lại: bất kỳ thay đổi tệp nào — kể cả lưu khi đang có yêu cầu — sẽ khởi động lại nó và làm mất kết nối. Hãy thử lại thao tác trước; nếu là do tải lại thì sẽ chạy được. Nếu vẫn lỗi, xem terminal đang chạy `bun run dev` để tìm traceback Python hoặc thông báo thoát, và omnivoice.log trong thư mục dữ liệu VoiceStudio.",
+    "server": "Không thể kết nối tới máy chủ backend VoiceStudio. {{contact}} Hãy kiểm tra log máy chủ để tìm nguyên nhân (ví dụ `docker logs <container>` hoặc `journalctl`) — và lưu ý nếu Docker phục vụ trang này thì chính trang này cũng có thể sập cùng backend.",
+    "misrouted": "Máy chủ trả lời tại {{url}} không phải là backend của VoiceStudio — nó đã trả về trang 404 của chính nó. Các yêu cầu API đang đi tới sai máy chủ: hãy kiểm tra Backend URL trong Cài đặt → Chia sẻ, hoặc nếu một reverse proxy phục vụ giao diện này, hãy kiểm tra tuyến đường của nó cho các đường dẫn API."
   },
   "nav": {
     "clone": "Nhân bản",
@@ -165,7 +165,7 @@
     "review_mode_desc": "Tạm dừng giữa các giai đoạn quy trình để bạn có thể xem lại đầu ra ASR/bản dịch.",
     "header_live_stats": "Hiển thị số liệu hệ thống trực tiếp trong tiêu đề",
     "header_live_stats_desc": "Thêm màn hình RAM/CPU/VRAM trực tiếp vào thanh trên cùng (tắt theo mặc định).",
-    "storage_desc": "Nơi OmniVoice lưu giữ dữ liệu và kết quả đầu ra của bạn.",
+    "storage_desc": "Nơi VoiceStudio lưu giữ dữ liệu và kết quả đầu ra của bạn.",
     "history_retention": "Lịch sử tạo",
     "history_retention_desc": "Số bản thu được giữ trước khi dọn các bản cũ nhất.",
     "history_retention_help": "Sau mỗi lần tạo, các bản thu cũ nhất chưa gắn sao vượt quá giới hạn này sẽ bị xóa cùng tệp âm thanh. Bản thu đã gắn sao luôn được giữ lại. 0 = giữ tất cả.",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "Nhập 0 trở lên"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "Đang kiểm tra môi trường…",
     "downloading_uv": "Đang tải xuống uv (trình quản lý gói Python)…",
     "creating_venv": "Đang tạo môi trường ảo Python…",
@@ -210,10 +210,10 @@
     "hint_uv_sync": "Cài đặt phụ thuộc thất bại. \"Dọn dẹp & Thử lại\" sẽ xóa venv trong bộ nhớ đệm và bắt đầu lại.",
     "hint_build_backend": "Lỗi backend build của Python. \"Dọn dẹp & Thử lại\" sẽ xóa venv hỏng để xây dựng lại từ đầu.",
     "hint_ffmpeg": "Tải ffmpeg thất bại. Không nghiêm trọng — thử lại hoặc tự cài ffmpeg thủ công.",
-    "hint_port": "Cổng 3900 đang được sử dụng. Hãy đóng các phiên bản OmniVoice khác hoặc ứng dụng đang dùng cổng đó.",
+    "hint_port": "Cổng 3900 đang được sử dụng. Hãy đóng các phiên bản VoiceStudio khác hoặc ứng dụng đang dùng cổng đó.",
     "hint_silent_crash": "Backend bị lỗi mà không có thông báo. \"Dọn dẹp & Thử lại\" thường khắc phục được sự cố venv bị hỏng.",
     "hint_github_blocked": "Mạng của bạn có thể đang chặn GitHub. Cài Python 3.11+ từ python.org (thêm vào PATH) rồi khởi động lại, hoặc đặt UV_PYTHON_INSTALL_MIRROR — xem docs/install/troubleshooting.md.",
-    "hint_intel_mac": "Máy Mac này dùng vi xử lý Intel và PyTorch không còn phát hành bản dựng cho Mac Intel — không thể cài backend AI cục bộ, và thử lại cũng không thay đổi được. Bạn vẫn có thể trỏ ứng dụng tới backend từ xa chạy trên máy khác (Cài đặt → Chia sẻ → Backend từ xa), hoặc dùng OmniVoice trên Mac Apple Silicon, Windows hoặc Linux. Chi tiết: docs/install/macos.md.",
+    "hint_intel_mac": "Máy Mac này dùng vi xử lý Intel và PyTorch không còn phát hành bản dựng cho Mac Intel — không thể cài backend AI cục bộ, và thử lại cũng không thay đổi được. Bạn vẫn có thể trỏ ứng dụng tới backend từ xa chạy trên máy khác (Cài đặt → Chia sẻ → Backend từ xa), hoặc dùng VoiceStudio trên Mac Apple Silicon, Windows hoặc Linux. Chi tiết: docs/install/macos.md.",
     "hint_default": "Hãy thử \"Thử lại\" trước. Nếu vẫn lỗi, \"Dọn dẹp & Thử lại\" sẽ xây dựng lại môi trường từ đầu.",
     "hint_stuck": "Phần phụ trợ chưa hoàn thành việc bắt đầu. Từ nguồn, trước tiên hãy chạy `uv sync` và đảm bảo `uv` và Python nằm trên PATH của bạn, sau đó Thử lại. Kiểm tra nhật ký bên dưới (hoặc Cài đặt → Nhật ký → Phần cuối) để biết điểm dừng chính xác.",
     "lines": "{{count}} dòng"
@@ -465,7 +465,7 @@
     "downloading": "Đang tải xuống…",
     "check_updates": "Kiểm tra các bản cập nhật",
     "copy_diagnostics": "Sao chép chẩn đoán",
-    "github": "OmniVoice trên GitHub",
+    "github": "VoiceStudio trên GitHub",
     "commercial_license": "Giấy phép thương mại",
     "update_channel": "Kênh cập nhật",
     "channel_stable": "Ổn định",
@@ -501,8 +501,8 @@
     "watermark_failed": "Không thể thay đổi cài đặt hình mờ."
   },
   "consent": {
-    "title": "Giúp cải thiện OmniVoice?",
-    "step_label": "Cải thiện OmniVoice",
+    "title": "Giúp cải thiện VoiceStudio?",
+    "step_label": "Cải thiện VoiceStudio",
     "body": "Thống kê sử dụng ẩn danh, không chứa nội dung: engine nào được dùng, thời gian tạo mất bao lâu và loại lỗi. Không bao giờ gửi văn bản, âm thanh, tệp của bạn hay bất cứ thứ gì nhận dạng bạn. Không có gì được gửi trừ khi bạn đồng ý, và bạn có thể đổi ý bất cứ lúc nào trong Cài đặt → Quyền riêng tư.",
     "learn_more": "Chính xác thì những gì được gửi?",
     "yes": "Có, chia sẻ thống kê ẩn danh",
@@ -510,7 +510,7 @@
     "dismiss": "Đóng (phân tích vẫn tắt)"
   },
   "langPrompt": {
-    "offer": "OmniVoice đã mở bằng {{language}}. Bạn muốn dùng tiếng Anh?",
+    "offer": "VoiceStudio đã mở bằng {{language}}. Bạn muốn dùng tiếng Anh?",
     "switch": "Chuyển sang tiếng Anh",
     "keep": "Giữ {{language}}"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "Chưa được cài đặt",
     "available": "Có sẵn",
     "subprocessTitle": "Chạy trong quy trình con + venv của chính nó",
-    "inProcessTitle": "Chạy trong quy trình OmniVoice Python",
+    "inProcessTitle": "Chạy trong quy trình VoiceStudio Python",
     "testEngine": "Động cơ thử nghiệm",
     "testing": "Đang thử nghiệm…",
     "recheck": "Kiểm tra lại",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "Phím nóng chung chỉ hoạt động trong ứng dụng máy tính để bàn. Giao diện người dùng web sử dụng phím tắt <1>Ctrl+Shift+Space</1> trong trang trong khi cửa sổ đang có tiêu điểm.",
-    "desc_detail": "Phím nóng hoạt động trên toàn hệ thống trong khi OmniVoice đang chạy — nó tập trung vào cửa sổ và bắt đầu đọc chính tả. Tránh các tổ hợp đã được hệ điều hành xác nhận quyền sở hữu (trên macOS, <1>⌘+Space</1> là Spotlight và <2>⌘+⇧+Space</2> xoay vòng các nguồn đầu vào). Nếu đăng ký không thành công, hãy chọn một combo khác.",
+    "desc_detail": "Phím nóng hoạt động trên toàn hệ thống trong khi VoiceStudio đang chạy — nó tập trung vào cửa sổ và bắt đầu đọc chính tả. Tránh các tổ hợp đã được hệ điều hành xác nhận quyền sở hữu (trên macOS, <1>⌘+Space</1> là Spotlight và <2>⌘+⇧+Space</2> xoay vòng các nguồn đầu vào). Nếu đăng ký không thành công, hãy chọn một combo khác.",
     "active_shortcut": "Phím tắt hoạt động",
     "new_shortcut": "Phím tắt mới",
     "press_key": "Nhấn tổ hợp phím…",
@@ -609,8 +609,8 @@
     "no_speech": "Không phát hiện thấy giọng nói nào",
     "mic_denied": "Quyền truy cập micrô bị từ chối",
     "mic_denied_toast": "Quyền truy cập micrô bị từ chối. {{hint}}",
-    "mic_hint_mac": "macOS: mở Cài đặt hệ thống → Quyền riêng tư & bảo mật → Micrô và bật OmniVoice.",
-    "mic_hint_windows": "Windows: mở Cài đặt → Quyền riêng tư & bảo mật → Micrô, bật 'Quyền truy cập micrô' và 'Cho phép ứng dụng máy tính truy cập micrô của bạn', sau đó cho phép OmniVoice.",
+    "mic_hint_mac": "macOS: mở Cài đặt hệ thống → Quyền riêng tư & bảo mật → Micrô và bật VoiceStudio.",
+    "mic_hint_windows": "Windows: mở Cài đặt → Quyền riêng tư & bảo mật → Micrô, bật 'Quyền truy cập micrô' và 'Cho phép ứng dụng máy tính truy cập micrô của bạn', sau đó cho phép VoiceStudio.",
     "mic_hint_linux": "Linux: kiểm tra xem người dùng của bạn có thuộc nhóm âm thanh hay không và WebView có quyền truy cập micrô.",
     "transcription_failed": "Phiên âm không thành công: {{message}}",
     "mic_not_found": "Không tìm thấy micrô. Hãy kết nối hoặc bật micrô rồi thử lại.",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "Bao gồm clip tham khảo thô. Tắt = chỉ chia sẻ bản xem trước có hình mờ (được khuyến nghị).",
     "consent_title": "Quyền sở hữu giọng nói",
     "consent_explain": "Ghi lại chính mình đọc câu dưới đây để xác minh đây là giọng nói của chính bạn. Sẽ cần phải xác minh đối với các tính năng tác nhân và chia sẻ trong cộng đồng — không bao giờ đối với tổng hợp cục bộ.",
-    "consent_statement": "Tôi xác nhận rằng cấu hình giọng nói này là giọng nói của chính tôi và tôi đồng ý để OmniVoice Studio nhân danh nó thay mặt tôi.",
+    "consent_statement": "Tôi xác nhận rằng cấu hình giọng nói này là giọng nói của chính tôi và tôi đồng ý để VoiceStudio nhân danh nó thay mặt tôi.",
     "consent_record": "Ghi lại tuyên bố đồng ý",
     "consent_stop": "Dừng ghi",
     "consent_saved": "Đã xác minh quyền sở hữu giọng nói",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "Thêm vào hàng đợi"
   },
   "gallery": {
-    "title": "OmniVoice Thư viện ảnh",
+    "title": "VoiceStudio Thư viện ảnh",
     "search_placeholder": "Tìm kiếm YouTube…",
     "all_voices": "Tất cả các giọng nói ({{count}})",
     "no_voices": "Chưa có tiếng nói nào",
@@ -1253,8 +1253,8 @@
   "donate": {
     "title": "Hỗ trợ",
     "desc": "Nếu bạn thích dự án này, hãy cân nhắc quyên góp để hỗ trợ sự phát triển của chúng tôi.",
-    "hero_title": "Hỗ trợ OmniVoice",
-    "hero_desc": "OmniVoice miễn phí, mã nguồn mở và chạy hoàn toàn trên phần cứng của bạn. Nếu nó mang lại giá trị cho quy trình làm việc của bạn, hãy cân nhắc việc hỗ trợ nhóm nòng cốt.",
+    "hero_title": "Hỗ trợ VoiceStudio",
+    "hero_desc": "VoiceStudio miễn phí, mã nguồn mở và chạy hoàn toàn trên phần cứng của bạn. Nếu nó mang lại giá trị cho quy trình làm việc của bạn, hãy cân nhắc việc hỗ trợ nhóm nòng cốt.",
     "github_desc": "Định kỳ hoặc một lần - trực tiếp thông qua GitHub.",
     "coffee_desc": "Mua cho đội một ly cà phê. Không cần tài khoản.",
     "paypal_desc": "Nhanh chóng một lần hoặc định kỳ qua PayPal.",
@@ -1262,7 +1262,7 @@
     "footer": "Mọi đóng góp đều giúp mở rộng ranh giới của AI địa phương.",
     "back": "Quay lại Studio",
     "commercial": "Giấy phép thương mại",
-    "pill": "Hỗ trợ OmniVoice",
+    "pill": "Hỗ trợ VoiceStudio",
     "suggested_title": "Chọn một số tiền",
     "most_common": "phổ biến nhất",
     "custom": "tùy chỉnh",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "Quỹ Claude Max",
-      "lead_default": "Vui mừng vì nó đã hiệu quả! OmniVoice là miễn phí và hoàn toàn cục bộ. Nếu việc này giúp bạn tiết kiệm thời gian, một khoản chip-in nhỏ hàng tháng sẽ tài trợ cho Claude Max đằng sau nó.",
-      "lead_first_clone": "Bản sao giọng nói đầu tiên của bạn đã hoàn tất - thật tuyệt! OmniVoice chạy hoàn toàn trên máy của bạn và bộ phận hỗ trợ của bạn sẽ duy trì hoạt động đó.",
+      "lead_default": "Vui mừng vì nó đã hiệu quả! VoiceStudio là miễn phí và hoàn toàn cục bộ. Nếu việc này giúp bạn tiết kiệm thời gian, một khoản chip-in nhỏ hàng tháng sẽ tài trợ cho Claude Max đằng sau nó.",
+      "lead_first_clone": "Bản sao giọng nói đầu tiên của bạn đã hoàn tất - thật tuyệt! VoiceStudio chạy hoàn toàn trên máy của bạn và bộ phận hỗ trợ của bạn sẽ duy trì hoạt động đó.",
       "lead_tenth_dub": "Mười bản lồng tiếng - rõ ràng bạn đang thực hiện nó. Một khoản chip-in nhỏ hàng tháng sẽ tài trợ cho Claude Max cung cấp các tính năng này.",
-      "lead_sustained": "Bạn đã sử dụng OmniVoice được một tháng. Nếu nó giành được một vị trí trong quy trình làm việc của bạn, hãy cân nhắc việc hỗ trợ tài trợ cho những gì tiếp theo.",
+      "lead_sustained": "Bạn đã sử dụng VoiceStudio được một tháng. Nếu nó giành được một vị trí trong quy trình làm việc của bạn, hãy cân nhắc việc hỗ trợ tài trợ cho những gì tiếp theo.",
       "chip_in": "Chip vào",
       "later": "Có lẽ sau này",
       "star": "Sao trên GitHub",
@@ -1296,14 +1296,14 @@
     "back": "Quay lại Studio",
     "badge": "Giấy phép thương mại",
     "hero_title": "Vận chuyển giọng nói AI trong quá trình sản xuất",
-    "hero_desc": "OmniVoice Studio là phần mềm tự do, mã nguồn mở theo giấy phép GNU Affero General Public License v3 (AGPL-3.0) — miễn phí sử dụng, bao gồm cả mục đích thương mại và sử dụng nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại nếu muốn nhúng OmniVoice Studio vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền mà không chịu các nghĩa vụ copyleft của AGPL-3.0.",
-    "why_title": "Tại sao doanh nghiệp chọn OmniVoice",
+    "hero_desc": "VoiceStudio là phần mềm tự do, mã nguồn mở theo giấy phép GNU Affero General Public License v3 (AGPL-3.0) — miễn phí sử dụng, bao gồm cả mục đích thương mại và sử dụng nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại nếu muốn nhúng VoiceStudio vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền mà không chịu các nghĩa vụ copyleft của AGPL-3.0.",
+    "why_title": "Tại sao doanh nghiệp chọn VoiceStudio",
     "pricing_title": "Định giá",
     "faq_title": "Câu hỏi thường gặp",
     "pricing_desc": "Các cấp độ và giá cả vẫn đang được hoàn thiện.",
     "pricing_detail": "Cho đến khi chúng được công khai, mọi hoạt động triển khai thương mại đều được báo giá riêng lẻ để chúng tôi có thể điều chỉnh quy mô phù hợp với nhóm và khối lượng công việc của bạn.",
     "request_quote": "Yêu cầu báo giá",
-    "footer_email": "Câu hỏi? Hãy liên hệ tại OmniVoice@palash.dev",
+    "footer_email": "Câu hỏi? Hãy liên hệ tại VoiceStudio@palash.dev",
     "footer_discord": "Tham gia Discord của chúng tôi để được hỗ trợ cộng đồng.",
     "benefit_ip": "Quyền sở hữu IP đầy đủ",
     "benefit_ip_desc": "Bạn sở hữu mọi đầu ra, mọi mô hình, mọi công cụ phái sinh. Không có thuê chung, không có rò rỉ dữ liệu.",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "Hiển thị đầy đủ vào ngăn xếp. Kiểm tra, phân nhánh và điều chỉnh theo các điều khoản cấp phép.",
     "benefit_lang": "646 ngôn ngữ",
     "benefit_lang_desc": "Phiên âm, dịch và lồng tiếng trên 646 ngôn ngữ với chất lượng ngang tầm con người.",
-    "hero_note": "Sử dụng, tự lưu trữ và dùng cho mục đích thương mại đều miễn phí theo AGPL-3.0 — kể cả ở quy mô lớn. AGPL là giấy phép copyleft qua mạng: nếu bạn chỉnh sửa OmniVoice và cung cấp phiên bản chỉnh sửa đó cho người khác qua mạng, bạn phải chia sẻ mã nguồn đã chỉnh sửa theo cùng điều khoản. Giấy phép thương mại sẽ gỡ bỏ các nghĩa vụ copyleft này cho các triển khai độc quyền, mã nguồn đóng. Các gói giá sẽ sớm ra mắt — trong lúc đó hãy liên hệ với chúng tôi.",
-    "hero_simple": "OmniVoice Studio là nguồn mở và miễn phí theo AGPL-3.0 — bao gồm cả mục đích sử dụng cho mục đích thương mại và nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại để nhúng nó vào sản phẩm nguồn đóng mà không có nghĩa vụ về bản quyền của AGPL.",
+    "hero_note": "Sử dụng, tự lưu trữ và dùng cho mục đích thương mại đều miễn phí theo AGPL-3.0 — kể cả ở quy mô lớn. AGPL là giấy phép copyleft qua mạng: nếu bạn chỉnh sửa VoiceStudio và cung cấp phiên bản chỉnh sửa đó cho người khác qua mạng, bạn phải chia sẻ mã nguồn đã chỉnh sửa theo cùng điều khoản. Giấy phép thương mại sẽ gỡ bỏ các nghĩa vụ copyleft này cho các triển khai độc quyền, mã nguồn đóng. Các gói giá sẽ sớm ra mắt — trong lúc đó hãy liên hệ với chúng tôi.",
+    "hero_simple": "VoiceStudio là nguồn mở và miễn phí theo AGPL-3.0 — bao gồm cả mục đích sử dụng cho mục đích thương mại và nội bộ doanh nghiệp. Bạn chỉ cần giấy phép thương mại để nhúng nó vào sản phẩm nguồn đóng mà không có nghĩa vụ về bản quyền của AGPL.",
     "contact_lead": "Giá được báo cho mỗi lần triển khai để phù hợp với nhóm và khối lượng công việc của bạn. Hãy cho tôi biết trường hợp sử dụng của bạn và tôi sẽ nhận được báo giá cho bạn."
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "Đừng lo lắng — phần còn lại của ứng dụng vẫn hoạt động. Bạn có thể chuyển đổi tab hoặc thử lại bên dưới.",
     "tryAgain": "Thử lại",
     "openDocs": "Mở tài liệu cho lỗi này",
-    "crash_port_in_use": "Không thể khởi động backend vì cổng 3900 đã được sử dụng — một bản OmniVoice khác (hoặc ứng dụng đã chiếm cổng đó) đang giữ nó. Hãy thoát bản kia rồi khởi chạy lại; nếu không thấy gì đang chạy, một backend còn sót từ phiên trước vẫn đang giữ cổng.",
+    "crash_port_in_use": "Không thể khởi động backend vì cổng 3900 đã được sử dụng — một bản VoiceStudio khác (hoặc ứng dụng đã chiếm cổng đó) đang giữ nó. Hãy thoát bản kia rồi khởi chạy lại; nếu không thấy gì đang chạy, một backend còn sót từ phiên trước vẫn đang giữ cổng.",
     "crash_oom_kill": "Tiến trình bị buộc dừng (tín hiệu 9), thường có nghĩa là hệ điều hành đã hết bộ nhớ (RAM). Hãy đóng các ứng dụng ngốn bộ nhớ, chọn mô hình ASR nhỏ hơn trong Cài đặt → Mô hình, hoặc giải phóng mô hình TTS trước khi chuyển lời nói thành văn bản.",
-    "crash_native_fault": "Nó sập bên trong tầng tính toán chứ không phải do hết bộ nhớ — điều này cho thấy trình điều khiển GPU không khớp với CUDA runtime đi kèm, hoặc tệp mô hình tải xuống không trọn vẹn. Hãy cập nhật trình điều khiển GPU, rồi tải lại mô hình trong Cài đặt → Mô hình (nó sửa bản tải dở ngay tại chỗ). Nếu vẫn tiếp diễn, hãy chuyển sang engine cách ly sự cố trong Cài đặt → Engine — \"OmniVoice (subprocess)\" cho tổng hợp giọng nói, \"Faster-Whisper (crash-isolated subprocess)\" cho chuyển lời nói thành văn bản. Chúng chạy mô hình trong tiến trình riêng, nên sự cố như thế chỉ hạ tiến trình đó thay vì toàn bộ backend.",
+    "crash_native_fault": "Nó sập bên trong tầng tính toán chứ không phải do hết bộ nhớ — điều này cho thấy trình điều khiển GPU không khớp với CUDA runtime đi kèm, hoặc tệp mô hình tải xuống không trọn vẹn. Hãy cập nhật trình điều khiển GPU, rồi tải lại mô hình trong Cài đặt → Mô hình (nó sửa bản tải dở ngay tại chỗ). Nếu vẫn tiếp diễn, hãy chuyển sang engine cách ly sự cố trong Cài đặt → Engine — \"VoiceStudio (subprocess)\" cho tổng hợp giọng nói, \"Faster-Whisper (crash-isolated subprocess)\" cho chuyển lời nói thành văn bản. Chúng chạy mô hình trong tiến trình riêng, nên sự cố như thế chỉ hạ tiến trình đó thay vì toàn bộ backend.",
     "report": "Báo cáo lỗi này",
     "report_failed": "Không mở được báo cáo lỗi. Vui lòng thử lại, hoặc sao chép chi tiết ở trên vào một issue mới.",
     "searchIssues": "Tìm các vấn đề tương tự",
     "unexpected": "Lỗi không mong muốn: {{message}}",
-    "backend_shutting_down": "OmniVoice đang tắt. Mở lại ứng dụng rồi thử lại.",
+    "backend_shutting_down": "VoiceStudio đang tắt. Mở lại ứng dụng rồi thử lại.",
     "crash_broken_env": "Nó dừng khi đang nạp các phụ thuộc Python của chính mình, nên đây không phải chuyện bộ nhớ hay GPU — môi trường bị thiếu hoặc cập nhật dở dang. Hãy dùng \"Clean & Retry\" trong Cài đặt → Nhật ký → Backend: nó dựng lại từ đầu và sửa ngay tại chỗ, không đụng đến giọng nói hay dự án của bạn. Nếu vẫn lỗi, phần chi tiết sự cố sẽ nêu đúng gói không nạp được."
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "Mạng",
     "local": "Địa phương",
     "share_confirm_title": "Chia sẻ trên mạng của bạn?",
-    "share_confirm_hint": "Các thiết bị khác trên Wi-Fi/Ethernet của bạn sẽ có thể truy cập OmniVoice bằng mã PIN truy cập được hiển thị sau khi bật.",
+    "share_confirm_hint": "Các thiết bị khác trên Wi-Fi/Ethernet của bạn sẽ có thể truy cập VoiceStudio bằng mã PIN truy cập được hiển thị sau khi bật.",
     "enabling": "Đang bật…",
     "enable": "Kích hoạt",
     "shared_title": "Được chia sẻ trên mạng của bạn",
@@ -1530,7 +1530,7 @@
     "model_heading": "Trọng lượng mô hình · OpenRAIL-M",
     "model_desc": "Quả tạ mẫu Supertonic-3 được phát hành theo giấy phép OpenRAIL-M. Giấy phép này hạn chế sử dụng cho các mục đích không độc hại — xem giấy phép được liên kết để biết toàn bộ các hạn chế dựa trên việc sử dụng.",
     "read_openrail": "Đọc giấy phép OpenRAIL-M →",
-    "footer": "Nhấp vào Chấp nhận sẽ ghi lại sự chấp nhận của bạn trong cài đặt cục bộ của OmniVoice và kích hoạt công cụ. Sự chấp nhận của bạn chỉ được lưu trữ trên máy này - không có gì được báo cáo cho Supertone Inc. hoặc bất kỳ bên thứ ba nào.",
+    "footer": "Nhấp vào Chấp nhận sẽ ghi lại sự chấp nhận của bạn trong cài đặt cục bộ của VoiceStudio và kích hoạt công cụ. Sự chấp nhận của bạn chỉ được lưu trữ trên máy này - không có gì được báo cáo cho Supertone Inc. hoặc bất kỳ bên thứ ba nào.",
     "saving": "Đang lưu…",
     "accept": "Chấp nhận",
     "accepted_toast": "Giấy phép Supertonic-3 được chấp nhận.",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Tôi có cần giấy phép cho các công cụ nội bộ không?",
-    "a_internal_tools": "Không. Việc sử dụng bởi nhân viên và nhà thầu của bạn — bao gồm chỉnh sửa và tự lưu trữ nội bộ — là miễn phí theo AGPL-3.0. Giấy phép thương mại chỉ cần thiết nếu bạn nhúng OmniVoice vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền và không muốn tuân thủ nghĩa vụ chia sẻ mã nguồn của AGPL.",
+    "a_internal_tools": "Không. Việc sử dụng bởi nhân viên và nhà thầu của bạn — bao gồm chỉnh sửa và tự lưu trữ nội bộ — là miễn phí theo AGPL-3.0. Giấy phép thương mại chỉ cần thiết nếu bạn nhúng VoiceStudio vào sản phẩm hoặc dịch vụ mã nguồn đóng hay độc quyền và không muốn tuân thủ nghĩa vụ chia sẻ mã nguồn của AGPL.",
     "q_try_before": "Tôi có thể thử trước khi cam kết không?",
     "a_try_before": "Có. Toàn bộ ứng dụng có thể tải xuống, chạy và tự lưu trữ miễn phí theo AGPL-3.0 — không cần bất kỳ thỏa thuận nào. Khi bạn sẵn sàng trao đổi về giấy phép thương mại (sử dụng độc quyền), hãy gửi email cho chúng tôi và chúng ta sẽ cùng thống nhất chi tiết.",
     "q_watermark": "Còn hình mờ thì sao?",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "Chia sẻ & Truy cập từ xa",
-    "help": "Hiển thị phiên bản OmniVoice đang chạy này cho các máy khác của bạn mà không cần khởi động lại. Chỉ vòng lặp lại là mặc định — không có gì được chia sẻ cho đến khi bạn bật tính năng này tại đây.",
+    "help": "Hiển thị phiên bản VoiceStudio đang chạy này cho các máy khác của bạn mà không cần khởi động lại. Chỉ vòng lặp lại là mặc định — không có gì được chia sẻ cho đến khi bạn bật tính năng này tại đây.",
     "local_network": "Mạng cục bộ",
     "local_help": "Chia sẻ trên Wi-Fi / Ethernet của bạn bằng mã PIN truy cập một lần. Các thiết bị khác quét mã QR hoặc mở link.",
     "ports_title": "Cổng",
-    "ports_help": "Chúng được đặt thông qua các biến môi trường được đọc khi khởi động. Thay đổi cổng phụ trợ hoặc giao diện người dùng bằng cách đặt biến và khởi động lại OmniVoice.",
+    "ports_help": "Chúng được đặt thông qua các biến môi trường được đọc khi khởi động. Thay đổi cổng phụ trợ hoặc giao diện người dùng bằng cách đặt biến và khởi động lại VoiceStudio.",
     "backend_port": "Cổng phụ trợ",
     "ui_port": "cổng giao diện người dùng",
     "lan_share_port": "Cổng chia sẻ mạng LAN",
@@ -1854,9 +1854,9 @@
     "ports_note": "Cổng phụ trợ và giao diện người dùng áp dụng khi khởi động lại. Cổng chia sẻ mạng LAN sẽ áp dụng vào lần tiếp theo bạn bật chia sẻ.",
     "tailscale_title": "Tailscale (truy cập từ xa riêng tư)",
     "tailscale_checking": "Đang kiểm tra vảy đuôi…",
-    "tailscale_absent": "Không phát hiện được vảy đuôi. Cài đặt nó để truy cập OmniVoice một cách an toàn từ mọi nơi trên mạng riêng của bạn.",
+    "tailscale_absent": "Không phát hiện được vảy đuôi. Cài đặt nó để truy cập VoiceStudio một cách an toàn từ mọi nơi trên mạng riêng của bạn.",
     "tailscale_install": "Cài đặt Tailscale",
-    "tailscale_running": "Tailscale đang chạy. Phục vụ OmniVoice qua tailnet riêng của bạn.",
+    "tailscale_running": "Tailscale đang chạy. Phục vụ VoiceStudio qua tailnet riêng của bạn.",
     "tailscale_not_logged_in": "Tailscale đã được cài đặt nhưng chưa đăng nhập. Trước tiên hãy bắt đầu và đăng nhập vào Tailscale.",
     "tailscale_enabled": "Đã bật phân phối theo quy mô",
     "tailscale_enable_failed": "Không thể bật Tailscale",
@@ -1912,7 +1912,7 @@
     "failed": "Cập nhật không thành công",
     "retry": "Thử lại",
     "dismiss": "Loại bỏ",
-    "toast_available": "OmniVoice Studio {{version}} đã có",
+    "toast_available": "VoiceStudio {{version}} đã có",
     "toast_install": "Cài đặt và khởi động lại",
     "toast_whats_new": "Có gì mới",
     "toast_later": "Để sau"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "Đang chuẩn bị thiết lập…",
-    "title": "Thiết lập OmniVoice Studio",
+    "title": "Thiết lập VoiceStudio",
     "subtitle": "Chưa có gì được cài đặt — hãy xem lại nơi lưu mọi thứ rồi bắt đầu. Có thể thay đổi sau trong Cài đặt.",
     "language": "Ngôn ngữ",
     "mode_title": "Chế độ cài đặt",
@@ -2165,7 +2165,7 @@
     "lex_add": "Thêm từ",
     "lex_remove": "Xóa",
     "markup_help": "Tham chiếu đánh dấu",
-    "markup_hint": "# Tiêu đề chương · [voice:NAME] chuyển giọng nói · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Phản ứng (OmniVoice): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# Tiêu đề chương · [voice:NAME] chuyển giọng nói · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Phản ứng (VoiceStudio): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "Ngôn ngữ",
     "expressive": "Ghi đè sản xuất",
     "reset": "Đặt lại",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "Nhập mã PIN truy cập",
-    "body": "Phiên bản OmniVoice này được chia sẻ trên mạng. Nhập mã PIN hiển thị trên máy chủ.",
+    "body": "Phiên bản VoiceStudio này được chia sẻ trên mạng. Nhập mã PIN hiển thị trên máy chủ.",
     "label": "Mã PIN truy cập",
     "connect": "Kết nối"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "Quyền truy cập",
-    "desc": "OmniVoice chạy hoàn toàn trên thiết bị của bạn — các quyền hệ thống này chỉ dùng cho các tính năng liệt kê ở đây, và âm thanh không bao giờ rời khỏi máy của bạn.",
+    "desc": "VoiceStudio chạy hoàn toàn trên thiết bị của bạn — các quyền hệ thống này chỉ dùng cho các tính năng liệt kê ở đây, và âm thanh không bao giờ rời khỏi máy của bạn.",
     "microphone": "Micrô",
     "microphone_why": "Dùng cho đọc chính tả và ghi âm giọng nói. Âm thanh được xử lý cục bộ.",
     "accessibility": "Trợ năng",
@@ -2299,7 +2299,7 @@
     "install_failed": "Không thể bắt đầu tải xuống: {{message}}"
   },
   "backend_start_failure": {
-    "notice": "Backend của OmniVoice không khởi động được — sẽ không có gì chạy cho đến khi nó khởi động.",
+    "notice": "Backend của VoiceStudio không khởi động được — sẽ không có gì chạy cho đến khi nó khởi động.",
     "view": "Xem lý do",
     "title": "Backend không khởi động được",
     "intro": "Ứng dụng đã ghi lại điều này khi cố khởi động backend. Gửi kèm kết quả này trong báo cáo sẽ giúp chúng tôi khắc phục.",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "Phiên trước đã kết thúc mà không tắt đúng cách {{ago}} trước. Điều này thường vô hại — máy ngủ, ứng dụng bị buộc đóng, hoặc VM/container bị dừng.",
-    "details_intro_unclean": "Dấu tắt của lần chạy trước không bao giờ được xóa, {{ago}} trước. OmniVoice không thể biết đó là sự cố hay chỉ là gián đoạn — ngủ máy, buộc đóng hoặc dừng VM/container đều để lại dấu vết giống nhau. Nếu hiện tại mọi thứ hoạt động bình thường thì không cần làm gì.",
+    "details_intro_unclean": "Dấu tắt của lần chạy trước không bao giờ được xóa, {{ago}} trước. VoiceStudio không thể biết đó là sự cố hay chỉ là gián đoạn — ngủ máy, buộc đóng hoặc dừng VM/container đều để lại dấu vết giống nhau. Nếu hiện tại mọi thứ hoạt động bình thường thì không cần làm gì.",
     "report_needs_log": "Không có đầu ra lỗi nào được ghi lại cho sự kiện này, nên báo cáo một cú nhấp sẽ trống. Nếu thực sự có vấn đề, hãy đính kèm những dòng cuối của Cài đặt → Nhật ký → Backend vào issue mới."
   }
 }

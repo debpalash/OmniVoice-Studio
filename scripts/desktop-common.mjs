@@ -10,7 +10,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 export const APP_ID = "com.debpalash.omnivoice-studio";
-export const APP_NAME = "OmniVoice Studio";
+export const APP_NAME = "VoiceStudio";
 
 /** Backend data dir name — backend/core/config.py::get_app_data_dir() writes
  *  to "~/Library/Application Support/OmniVoice" on macOS (NOT under APP_ID). */
@@ -70,11 +70,11 @@ export function tauriBuildArgs(platform) {
 }
 
 /**
- * True when a path is unambiguously OmniVoice-scoped and therefore safe to
+ * True when a path is unambiguously VoiceStudio-scoped and therefore safe to
  * auto-delete. The HF cache defaults to the SHARED ~/.cache/huggingface on
  * macOS/Linux (backend/core/config.py only relocates it on Windows), and
  * HF_HOME can point anywhere — wiping a non-scoped path would delete models
- * unrelated to OmniVoice.
+ * unrelated to VoiceStudio.
  */
 export function isAppScoped(p) {
   const s = String(p).toLowerCase();
@@ -82,9 +82,9 @@ export function isAppScoped(p) {
 }
 
 /**
- * Every trace a past OmniVoice install leaves on macOS. Superset of what
+ * Every trace a past VoiceStudio install leaves on macOS. Superset of what
  * desktop-prod.sh cleans; desktop-fresh.mjs removes all of it for a true
- * new-user blank slate. All paths are APP_ID / OmniVoice-scoped by
+ * new-user blank slate. All paths are APP_ID / VoiceStudio-scoped by
  * construction — enforced by tests/frontend/desktopScripts.test.mjs.
  *
  * `kind: "prefix"` entries match every directory entry whose basename starts
@@ -167,8 +167,10 @@ export function hiddenFrom(env) {
 /**
  * Process name of the *dev* desktop binary (the cargo package name, built to
  * `frontend/src-tauri/target/debug/`). The installed release app is
- * "OmniVoice Studio" — a different name on purpose, so the dev launcher's
- * stale-instance cleanup can never take down a user's real app.
+ * "VoiceStudio" — a different name on purpose, so the dev launcher's
+ * stale-instance cleanup can never take down a user's real app. (The cargo
+ * package deliberately kept the old name through the rename for exactly
+ * this reason.)
  */
 export const DEV_APP_PROCESS_NAME = "omnivoice-studio";
 
@@ -178,7 +180,7 @@ export const DEV_APP_PROCESS_NAME = "omnivoice-studio";
  * `bun desktop` clears a leftover dev instance before starting (two instances
  * fight over the dev server and leave one window blank). That cleanup kills by
  * process name, so this predicate is the safety boundary: it must reject
- * "OmniVoice Studio(.exe)" — killing a user's installed app would be a far
+ * "VoiceStudio(.exe)" — killing a user's installed app would be a far
  * worse bug than the one the cleanup fixes.
  *
  * @param {string} name process name, with or without a .exe suffix
@@ -188,7 +190,7 @@ export function isDevAppProcess(name) {
   const base = String(name ?? "")
     .trim()
     .replace(/\.exe$/i, "");
-  // Exact match only. The release app ("OmniVoice Studio") differs by both
-  // spacing and case, so a loose/normalised compare would wrongly match it.
+  // Exact match only. The release app ("VoiceStudio") is a different string
+  // entirely, so a loose/normalised compare could wrongly match it.
   return base === DEV_APP_PROCESS_NAME;
 }

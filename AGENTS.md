@@ -1,4 +1,4 @@
-# Agent Rules — OmniVoice Studio
+# Agent Rules — VoiceStudio
 
 Binding for every AI agent (Claude, Codex, Cursor, review bots, …). CLAUDE.md is the full constitution; this is the operating contract. When they conflict, CLAUDE.md wins.
 

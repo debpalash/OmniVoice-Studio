@@ -79,7 +79,7 @@ class ExpressiveOptions:
     stale audio — the whole point of the CRITICAL TRAP guard.
 
     ``emo_*`` reach only engines that understand them (IndexTTS2) through the
-    generic synth closure; the OmniVoice model rejects unknown config kwargs, so
+    generic synth closure; the VoiceStudio model rejects unknown config kwargs, so
     the omnivoice path forwards only the sampling knobs. ``vary_repeats`` is the
     cache opt-out: identical lines get distinct takes.
     """

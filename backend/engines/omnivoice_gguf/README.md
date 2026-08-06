@@ -12,8 +12,8 @@ isolated from the parent's Python process.
 - **Runtime** (`omnivoice.cpp`, the C++ inference binary in `bin/`): MIT.
 - **Audio codec** (Higgs Audio v2, embedded in the tokenizer GGUF): Apache-2.0.
 
-The license chain is identical to the engine OmniVoice Studio already
-ships in v0.2.7 (`OmniVoiceBackend`); this engine is the same model
+The license chain is identical to the engine VoiceStudio already
+ships in v0.2.7 (`VoiceStudioBackend`); this engine is the same model
 under a different runtime.
 
 ## Sources
@@ -104,7 +104,7 @@ as the `.app` quarantine (issue #54).
 The workaround is identical:
 
 ```
-xattr -cr "/Applications/OmniVoice Studio.app"
+xattr -cr "/Applications/VoiceStudio.app"
 ```
 
 This clears the quarantine xattr recursively — including on the bundled
@@ -116,7 +116,7 @@ silently hanging on a Gatekeeper-killed spawn.
 If the macOS Apple Silicon Metal build fails to materialize in Wave 1
 (no published `buildmetal.sh` in `omnivoice.cpp` per Pitfall 1), the
 GGUF engine is unavailable on Apple Silicon and the existing in-process
-`OmniVoiceBackend` remains the cloning default on that platform — no
+`VoiceStudioBackend` remains the cloning default on that platform — no
 hard block, no error toast on launch.
 
 ## Smoke test

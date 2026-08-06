@@ -49,8 +49,8 @@ def _iso(minutes_after=0):
 
 def _assets(appimage_n=7, msi_n=7, version="0.4.3", mac_offset=0, versioned_offset=0):
     """A published-asset list, with each artifact's `.sig` companion."""
-    appimage = f"OmniVoice.Studio_{version}-{appimage_n}_amd64.AppImage"
-    msi = f"OmniVoice.Studio_{version}-{msi_n}_x64_en-US.msi"
+    appimage = f"VoiceStudio_{version}-{appimage_n}_amd64.AppImage"
+    msi = f"VoiceStudio_{version}-{msi_n}_x64_en-US.msi"
     rows = []
     for name in (appimage, msi):
         rows.append({"name": name, "updatedAt": _iso(versioned_offset)})

@@ -24,13 +24,13 @@ import ReportBugButton from '../components/ReportBugButton';
 // One home for every outward channel. The repo/Discord/security URLs match the
 // values the rest of the app uses (bug reporter, footer, SECURITY.md) so a link
 // change here can never leave one surface pointing somewhere stale (#contact).
-const REPO_URL = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO_URL = 'https://github.com/debpalash/VoiceStudio';
 const ISSUES_URL = `${REPO_URL}/issues`;
 const DISCORD_URL = 'https://discord.gg/bzQavDfVV9';
 // GitHub Security Advisories = the private "report a vulnerability" flow that
 // SECURITY.md points at (never a public issue for security bugs).
 const SECURITY_URL = `${REPO_URL}/security/advisories/new`;
-const EMAIL = 'OmniVoice@palash.dev';
+const EMAIL = 'VoiceStudio@palash.dev';
 const WEBSITE_URL = 'https://palash.dev';
 const X_URL = 'https://x.com/idebpalash';
 
@@ -105,7 +105,7 @@ const SECTIONS = [
     titleDefault: 'Support the project',
     descKey: 'contact.support_desc',
     descDefault:
-      'OmniVoice is free and runs entirely on your machine. If it saves you time, a one-off tip keeps development going — every bit genuinely helps.',
+      'VoiceStudio is free and runs entirely on your machine. If it saves you time, a one-off tip keeps development going — every bit genuinely helps.',
     ctaKey: 'contact.support_cta',
     ctaDefault: 'See ways to support',
   },
@@ -227,7 +227,7 @@ export default function ContactPage({ onBack }) {
           <p className="mx-auto mt-4 max-w-[560px] font-sans text-[0.9rem] leading-[1.7] text-[var(--chrome-fg-muted)]">
             {t('contact.hero_desc', {
               defaultValue:
-                'OmniVoice is built in the open and shaped by the people who use it. Whether you’ve found a bug, have a feature in mind, need a hand getting set up, or just want to share what you made — there’s a channel below for it.',
+                'VoiceStudio is built in the open and shaped by the people who use it. Whether you’ve found a bug, have a feature in mind, need a hand getting set up, or just want to share what you made — there’s a channel below for it.',
             })}
           </p>
         </header>

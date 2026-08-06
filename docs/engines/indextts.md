@@ -1,18 +1,18 @@
-# OmniVoice Studio — IndexTTS-2 Engine
+# VoiceStudio — IndexTTS-2 Engine
 
-IndexTTS-2 (Bilibili) is OmniVoice's emotion-controlled zero-shot TTS
+IndexTTS-2 (Bilibili) is VoiceStudio's emotion-controlled zero-shot TTS
 engine. It runs in its own subprocess + dedicated Python venv with
-`transformers<5`, isolated from the OmniVoice parent process which
+`transformers<5`, isolated from the VoiceStudio parent process which
 pins `transformers>=5.3`. This isolation is the resolution of
-[#42](https://github.com/voice-design/OmniVoice/issues/42) — the
+[#42](https://github.com/voice-design/VoiceStudio/issues/42) — the
 canonical `OffloadedCache` ImportError that resulted from loading
 both libraries inside one Python interpreter.
 
 ## Install (one-click, recommended)
 
-IndexTTS-2 is **not** bundled with OmniVoice — the model weights are
+IndexTTS-2 is **not** bundled with VoiceStudio — the model weights are
 ~6 GB and the package itself pins a conflicting transformers
-version. OmniVoice ships with a sidecar runner that loads IndexTTS
+version. VoiceStudio ships with a sidecar runner that loads IndexTTS
 into an isolated venv on demand, plus a guided installer that
 provisions everything for you:
 
@@ -30,7 +30,7 @@ macOS / Windows / Linux):
 
 * Fetches the IndexTTS source with `git clone --depth 1` (or, when
   git isn't installed, downloads the GitHub source tarball over
-  HTTPS) into OmniVoice's data directory
+  HTTPS) into VoiceStudio's data directory
   (`<data-dir>/engines/indextts2/index-tts`).
 * Creates a dedicated venv inside the checkout with `uv venv` and
   runs `uv pip install -e .` against it — the `transformers<5`
@@ -50,7 +50,7 @@ downloads instead of starting over. An app-managed install can be
 removed again with `DELETE /engines/sidecar/indextts2/install` (a
 user-managed clone is never touched).
 
-If you already installed IndexTTS manually (any OmniVoice version),
+If you already installed IndexTTS manually (any VoiceStudio version),
 the installer detects it via `OMNIVOICE_INDEXTTS_DIR` and reports
 `already_installed` — nothing is re-downloaded or moved.
 
@@ -68,7 +68,7 @@ tools, or can't use the in-app installer:
 
 2. Install the editable package into a fresh venv. Use
    `uv pip install -e .` — **never** `uv sync --all-extras`, which
-   would overwrite OmniVoice's lock file with `transformers<5` and
+   would overwrite VoiceStudio's lock file with `transformers<5` and
    break the parent process:
 
    ```bash
@@ -98,12 +98,12 @@ tools, or can't use the in-app installer:
    [Environment]::SetEnvironmentVariable("OMNIVOICE_INDEXTTS_DIR","$env:USERPROFILE\code\index-tts","User")
    ```
 
-5. Restart OmniVoice. IndexTTS-2 will appear in **Settings → Engines**
+5. Restart VoiceStudio. IndexTTS-2 will appear in **Settings → Engines**
    with `available: true` and `isolation_mode: subprocess`.
 
 ## Venv resolution order
 
-OmniVoice probes for a usable IndexTTS Python interpreter in this
+VoiceStudio probes for a usable IndexTTS Python interpreter in this
 priority order (see `backend/engines/indextts/bootstrap.py`):
 
 1. **`${OMNIVOICE_INDEXTTS_DIR}/.venv/`** — the install dir's own
@@ -112,9 +112,9 @@ priority order (see `backend/engines/indextts/bootstrap.py`):
    clone resolve to. Highest priority, so v0.2.7 users who already
    ran `uv pip install -e .` get zero migration cost on the upgrade
    to v0.3.x.
-2. **`backend/engines/indextts/.venv/`** — OmniVoice's own venv,
+2. **`backend/engines/indextts/.venv/`** — VoiceStudio's own venv,
    created on demand by the lazy bootstrap below.
-3. **Lazy bootstrap** — if neither venv exists, OmniVoice runs
+3. **Lazy bootstrap** — if neither venv exists, VoiceStudio runs
    `uv venv backend/engines/indextts/.venv` and
    `uv pip install --python <python> -e ${OMNIVOICE_INDEXTTS_DIR}`
    on first launch. Requires `OMNIVOICE_INDEXTTS_DIR` to be set;
@@ -146,7 +146,7 @@ as in the manual steps.
 
 The installer's preflight found less free space than the estimated
 source + venv + weights footprint (plus headroom). The message names
-the exact numbers; free up space (or move OmniVoice's data directory
+the exact numbers; free up space (or move VoiceStudio's data directory
 to a larger volume) and click Install again — it resumes where it
 stopped.
 
@@ -161,17 +161,17 @@ ls "$OMNIVOICE_INDEXTTS_DIR/indextts/"        # should exist
 ```
 
 If the directory is correct but the import still fails, delete
-`backend/engines/indextts/.venv/` and re-launch — OmniVoice will
+`backend/engines/indextts/.venv/` and re-launch — VoiceStudio will
 re-bootstrap from scratch.
 
 ## Why a subprocess?
 
-IndexTTS-2 pins `transformers<5`. OmniVoice pins `transformers>=5.3`.
+IndexTTS-2 pins `transformers<5`. VoiceStudio pins `transformers>=5.3`.
 The two cannot share a Python interpreter — at import time, one of
 them blows up trying to find a class the other moved or removed (the
 canonical failure is `OffloadedCache` from `transformers.cache_utils`,
 which v5 renamed). Running IndexTTS in its own subprocess + its own
-venv lets both libraries coexist in the same OmniVoice session.
+venv lets both libraries coexist in the same VoiceStudio session.
 
 This is the structural fix for issue #42; the previous
 graceful-degradation wrap (which simply detected the conflict and

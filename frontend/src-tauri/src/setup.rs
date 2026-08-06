@@ -135,7 +135,7 @@ pub fn default_data_dir() -> PathBuf {
         std::env::var("APPDATA")
             .map(PathBuf::from)
             .unwrap_or_default()
-            .join("OmniVoice")
+            .join("VoiceStudio")
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
@@ -154,7 +154,7 @@ pub fn default_models_dir() -> PathBuf {
         std::env::var("LOCALAPPDATA")
             .map(PathBuf::from)
             .unwrap_or_default()
-            .join("OmniVoice")
+            .join("VoiceStudio")
             .join("hf_cache")
     }
     #[cfg(not(target_os = "windows"))]

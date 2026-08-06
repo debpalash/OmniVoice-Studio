@@ -3,10 +3,10 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Input — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Input — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). `border-input`/`text-foreground`/`placeholder:text-muted-
  * foreground`/`focus-visible:ring-ring`/`aria-invalid:border-destructive`
- * resolve to the OmniVoice palette, so it shows the chrome border, muted
+ * resolve to the VoiceStudio palette, so it shows the chrome border, muted
  * placeholder, and brand-pink focus ring, recoloring with every [data-theme].
  * Proof component for the foundation — not yet wired into the app (the existing
  * src/ui/Input.jsx stays the live primitive; see docs/shadcn-migration.md).
@@ -14,9 +14,9 @@ import { cn } from '@/lib/utils';
 /**
  * inputBaseClass — the shadcn/ui Input shell: chrome border, transparent fill,
  * muted placeholder, brand focus ring, destructive invalid state, all resolved
- * through the OmniVoice token bridge so it tracks every [data-theme].
+ * through the VoiceStudio token bridge so it tracks every [data-theme].
  *
- * Exported so the OmniVoice form primitives (`src/ui/Input.jsx`) reuse this
+ * Exported so the VoiceStudio form primitives (`src/ui/Input.jsx`) reuse this
  * exact shell on their native <select> — which must stay a real <select> for
  * the `onChange={(e) => …e.target.value}` call sites and therefore can't render
  * through this <input> component — keeping Input/Select/Textarea visually

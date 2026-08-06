@@ -1,15 +1,15 @@
 # Generation Parameters
 
-Parameters can be passed as keyword arguments to `model.generate(...)` or via the `OmniVoiceGenerationConfig` dataclass. See below for the full list and which category each belongs to.
+Parameters can be passed as keyword arguments to `model.generate(...)` or via the `VoiceStudioGenerationConfig` dataclass. See below for the full list and which category each belongs to.
 
 ```python
 # 1) Direct keyword arguments
 audio = model.generate(text="Hello world", num_step=32, guidance_scale=2.0)
 
-# 2) Via OmniVoiceGenerationConfig dataclass
-from omnivoice import OmniVoiceGenerationConfig
+# 2) Via VoiceStudioGenerationConfig dataclass
+from omnivoice import VoiceStudioGenerationConfig
 
-config = OmniVoiceGenerationConfig(num_step=32, guidance_scale=2.0)
+config = VoiceStudioGenerationConfig(num_step=32, guidance_scale=2.0)
 audio = model.generate(text="Hello world", generation_config=config)
 ```
 

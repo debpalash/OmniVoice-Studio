@@ -4,9 +4,9 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Tooltip — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Tooltip — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). The arrow + body use `bg-primary`/`text-primary-foreground`
- * by default; `src/ui/Tooltip.jsx` overrides the surface with the OmniVoice
+ * by default; `src/ui/Tooltip.jsx` overrides the surface with the VoiceStudio
  * dark chrome look via className and maps the legacy `placement`/`delay` props.
  * Enter/exit transitions use tw-animate-css `animate-in`/`animate-out` keyed off
  * Radix `data-[state]` + `data-[side]`.

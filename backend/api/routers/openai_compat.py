@@ -2,17 +2,17 @@
 OpenAI-compatible TTS & STT API — Phase 3.2 (ROADMAP.md P0).
 
 Drop-in replacement for OpenAI's audio endpoints so that any tool speaking the
-OpenAI protocol (Claude, Cursor, LangChain, litellm, etc.) can use OmniVoice
+OpenAI protocol (Claude, Cursor, LangChain, litellm, etc.) can use VoiceStudio
 as a local backend with zero code changes.
 
 Endpoints
 ─────────
     POST /v1/audio/speech          → TTS  (text → wav/mp3/opus/flac)
     POST /v1/audio/transcriptions  → STT  (audio file → text/json)
-    GET  /v1/audio/voices          → list available voices (OmniVoice extension)
+    GET  /v1/audio/voices          → list available voices (VoiceStudio extension)
 
 The router delegates to the active TTS/ASR backends via the same adapter
-protocol used by the rest of OmniVoice, so engine selection, GPU offloading,
+protocol used by the rest of VoiceStudio, so engine selection, GPU offloading,
 model loading, and invisible provenance watermarking (services.watermark,
 #1169) all work identically.
 
@@ -48,7 +48,7 @@ class SpeechRequest(BaseModel):
     model: str = Field(
         default="omnivoice",
         description=(
-            "TTS model to use. Maps to OmniVoice engine IDs: "
+            "TTS model to use. Maps to VoiceStudio engine IDs: "
             "'omnivoice', 'voxcpm2', 'cosyvoice', 'mlx-audio', 'kittentts', 'moss-tts-nano'. "
             "Also accepts 'tts-1' and 'tts-1-hd' as aliases for the active engine."
         ),
@@ -61,7 +61,7 @@ class SpeechRequest(BaseModel):
     voice: str = Field(
         default="default",
         description=(
-            "Voice to use. For OmniVoice: pass a voice profile ID, 'default', "
+            "Voice to use. For VoiceStudio: pass a voice profile ID, 'default', "
             "or a KittenTTS preset name. OpenAI voice names (alloy, echo, fable, "
             "onyx, nova, shimmer) are accepted but mapped to defaults."
         ),
@@ -76,7 +76,7 @@ class SpeechRequest(BaseModel):
         le=4.0,
         description="Speed of the generated audio (0.25 to 4.0).",
     )
-    # OmniVoice extensions (not part of OpenAI spec, but accepted if sent)
+    # VoiceStudio extensions (not part of OpenAI spec, but accepted if sent)
     language: Optional[str] = Field(default=None, description="Language code (ISO 639-1)")
     description: Optional[str] = Field(
         default=None,
@@ -87,19 +87,19 @@ class SpeechRequest(BaseModel):
     duration: Optional[float] = Field(
         default=None,
         gt=0,
-        description="OmniVoice extension: target output duration in seconds.",
+        description="VoiceStudio extension: target output duration in seconds.",
     )
     seed: Optional[int] = Field(
         default=None,
-        description="OmniVoice extension: deterministic sampling seed.",
+        description="VoiceStudio extension: deterministic sampling seed.",
     )
     denoise: bool = Field(
         default=True,
-        description="OmniVoice extension: prepend denoise control when supported.",
+        description="VoiceStudio extension: prepend denoise control when supported.",
     )
     preprocess_prompt: bool = Field(
         default=True,
-        description="OmniVoice extension: trim/preprocess reference prompt when supported.",
+        description="VoiceStudio extension: trim/preprocess reference prompt when supported.",
     )
     chunk_duration: Optional[float] = Field(
         default=None,
@@ -120,13 +120,13 @@ class SpeechRequest(BaseModel):
         default=None,
         ge=1,
         le=128,
-        description="OmniVoice extension: iterative unmasking steps (app default 16; 32 = the model's documented quality preset).",
+        description="VoiceStudio extension: iterative unmasking steps (app default 16; 32 = the model's documented quality preset).",
     )
     guidance_scale: Optional[float] = Field(
         default=None,
         gt=0,
         le=20,
-        description="OmniVoice extension: classifier-free guidance scale (app default 2.0).",
+        description="VoiceStudio extension: classifier-free guidance scale (app default 2.0).",
     )
 
 
@@ -148,7 +148,7 @@ class VerboseTranscriptionResponse(BaseModel):
 
 # ── OpenAI voice name mapping ──────────────────────────────────────────────
 
-# OpenAI's 6 named voices aren't real voices in OmniVoice. Map them to
+# OpenAI's 6 named voices aren't real voices in VoiceStudio. Map them to
 # sensible defaults so callers that hardcode "alloy" don't get a 400.
 _OPENAI_VOICE_ALIASES = {
     "alloy", "echo", "fable", "onyx", "nova", "shimmer",
@@ -159,7 +159,7 @@ _OPENAI_VOICE_ALIASES = {
 
 
 def _resolve_engine(model_id: str):
-    """Map an OpenAI model name to an OmniVoice backend."""
+    """Map an OpenAI model name to a VoiceStudio backend."""
     from services.tts_backend import get_backend_class, get_active_tts_backend
 
     # Accept OpenAI model names as pass-through to the active engine.
@@ -290,7 +290,7 @@ def _run_tts(backend, text: str, kw: dict):
     sr = backend.sample_rate
     # Engines that already emit mastered, studio-grade audio (e.g. VoxCPM2's
     # native 48 kHz) opt out of apply_mastering via `applies_own_mastering`.
-    # That chain's highpass + Compressor is tuned for OmniVoice's 24 kHz clone
+    # That chain's highpass + Compressor is tuned for VoiceStudio's 24 kHz clone
     # output; applied to a studio engine it adds an audible level pump that
     # degrades the very output we want clean. Loudness normalisation still
     # runs — it's a benign peak scale, not dynamics.
@@ -495,7 +495,7 @@ async def create_transcription(
         default="whisper-1",
         description=(
             "ASR model. Accepts 'whisper-1' (maps to active engine), or an "
-            "OmniVoice engine ID: whisperx, faster-whisper, mlx-whisper, pytorch-whisper."
+            "VoiceStudio engine ID: whisperx, faster-whisper, mlx-whisper, pytorch-whisper."
         ),
     ),
     language: Optional[str] = Form(
@@ -525,7 +525,7 @@ async def create_transcription(
     # TTS-only install: no ASR model on disk → actionable 409, BEFORE any
     # backend load could silently auto-download multi-GB whisper weights.
     # Same typed detail shape as /transcribe (capture.py): the machine fields
-    # (`error`, `missing_repo_id`, `recommended`) let OmniVoice-aware clients
+    # (`error`, `missing_repo_id`, `recommended`) let VoiceStudio-aware clients
     # render the one-click download CTA, while `message` keeps a human-readable
     # line for generic OpenAI-compat clients.
     missing = await asyncio.to_thread(asr_model_missing_error)
@@ -640,12 +640,12 @@ async def create_transcription(
             pass
 
 
-# ── Voices: GET /v1/audio/voices (OmniVoice extension) ─────────────────────
+# ── Voices: GET /v1/audio/voices (VoiceStudio extension) ─────────────────────
 
 
 @router.get("/voices")
 def list_voices():
-    """List available voices. OmniVoice extension to the OpenAI API."""
+    """List available voices. VoiceStudio extension to the OpenAI API."""
     from services.tts_backend import list_backends
 
     backends = list_backends()
@@ -657,7 +657,7 @@ def list_voices():
             "voice_id": name,
             "name": name.capitalize(),
             "type": "openai_alias",
-            "description": f"OpenAI '{name}' voice — maps to the active OmniVoice engine's default voice.",
+            "description": f"OpenAI '{name}' voice — maps to the active VoiceStudio engine's default voice.",
         })
 
     # Include voice profiles from the database

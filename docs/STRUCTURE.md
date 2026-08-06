@@ -5,7 +5,7 @@ Every folder has a single job. Every file at the root earns its place.
 ## Layout
 
 ```
-OmniVoice/
+VoiceStudio/
 │
 ├── README.md                    ⟵ user-facing overview
 ├── CHANGELOG.md                 ⟵ release history
@@ -143,7 +143,7 @@ Removed in the 2026-07-12 cleanup pass (all preserved in git history):
 The current flat layout works fine for the current size. If the project grows to include additional apps (a mobile companion, a plugin SDK, multiple backends), migrate to a Turborepo-style monorepo:
 
 ```
-OmniVoice/
+VoiceStudio/
 ├── apps/
 │   ├── api/                 ← was backend/
 │   ├── web/                 ← was frontend/

@@ -6,7 +6,7 @@ that users can pick from a strip in the Voice Design tab.
 
 Why taxonomy tokens and not prose
 =================================
-OmniVoice's ``model.generate(instruct=...)`` runs every instruct string
+VoiceStudio's ``model.generate(instruct=...)`` runs every instruct string
 through ``_resolve_instruct``, which splits on commas and validates each
 item against a fixed vocabulary (e.g. ``male``, ``middle-aged``,
 ``moderate pitch``, ``british accent``). Anything outside that vocabulary
@@ -134,7 +134,7 @@ PERSONALITIES = [
             "ChineseDialect": "Auto",
         },
         "script": (
-            "Thank you for calling OmniVoice support. I can see your account "
+            "Thank you for calling VoiceStudio support. I can see your account "
             "here. Let's get this sorted out together."
         ),
         "preview_url": "/demo_audio/voice_design/demo_voice_design_indian_support_agent.wav",

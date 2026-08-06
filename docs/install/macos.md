@@ -1,19 +1,19 @@
-# OmniVoice Studio — Install on macOS
+# VoiceStudio — Install on macOS
 
 This page is self-contained: follow it top to bottom and you'll end up with a
-working OmniVoice Studio install on macOS (Apple Silicon).
+working VoiceStudio install on macOS (Apple Silicon).
 
 > [!IMPORTANT]
 > **Intel Macs are not supported.** The app UI installs and launches, but the
 > local Python backend **cannot run**: PyTorch stopped shipping Intel-Mac
-> (macOS x86_64) wheels after 2.2.x, and OmniVoice's dependencies require a
+> (macOS x86_64) wheels after 2.2.x, and VoiceStudio's dependencies require a
 > newer torch — so the first-run dependency install can never succeed, from
 > the DMG *or* from source
-> ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The app
+> ([#889](https://github.com/debpalash/VoiceStudio/issues/889)). The app
 > detects this at first launch and tells you directly instead of failing with
 > a raw installer error. Your options on an Intel Mac: point the UI at a
 > remote backend running on another machine (**Settings → Sharing → Remote
-> backend**), or run OmniVoice on an Apple Silicon Mac, Windows, or Linux.
+> backend**), or run VoiceStudio on an Apple Silicon Mac, Windows, or Linux.
 
 ## Prerequisites
 
@@ -52,8 +52,8 @@ Optional but recommended:
 ## Install (from source)
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
-cd OmniVoice-Studio
+git clone https://github.com/debpalash/VoiceStudio.git
+cd VoiceStudio
 bun install
 bun run desktop-prod
 ```
@@ -65,15 +65,15 @@ live progress for every step.
 ## Install (pre-built `.app`)
 
 Download the latest DMG from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
-double-click to mount, drag **OmniVoice Studio.app** into `/Applications`.
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
+double-click to mount, drag **VoiceStudio.app** into `/Applications`.
 
 Pick the DMG that matches your Mac (check **Apple menu → About This Mac → Chip/Processor**):
 
 | Mac | DMG to download |
 |-----|-----------------|
-| Apple Silicon (M1/M2/M3/M4…) | `OmniVoice.Studio_<version>_aarch64.dmg` |
-| Intel | `OmniVoice.Studio_<version>_x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)) |
+| Apple Silicon (M1/M2/M3/M4…) | `VoiceStudio.Studio_<version>_aarch64.dmg` |
+| Intel | `VoiceStudio.Studio_<version>_x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/VoiceStudio/issues/889)) |
 
 The architectures are **not** interchangeable: an Intel Mac cannot run the
 `aarch64` build (Rosetta 2 only translates the other direction — it lets Apple
@@ -83,7 +83,7 @@ remote backend — the local Python backend cannot install on Intel because
 PyTorch no longer ships Intel-Mac wheels. Installing from source does not
 help; the dependency resolution fails the same way.
 
-If the first launch is blocked by macOS Gatekeeper ("OmniVoice Studio cannot be
+If the first launch is blocked by macOS Gatekeeper ("VoiceStudio cannot be
 opened because the developer cannot be verified"), see the next section — it
 opens with one right-click, no Terminal.
 
@@ -91,7 +91,7 @@ opens with one right-click, no Terminal.
 
 <a id="gatekeeper-quarantine"></a>
 
-On first launch you'll see **"OmniVoice Studio cannot be opened because the
+On first launch you'll see **"VoiceStudio cannot be opened because the
 developer cannot be verified"** — macOS Gatekeeper blocking an app it can't trace
 to a paid Apple Developer account (issues #134, #72).
 
@@ -105,7 +105,7 @@ page; for belt-and-braces, verify the SHA-256 against the `*.dmg.sha256` checksu
 on the release page first.
 
 **Fix — GUI, no Terminal (do this):** in Finder, **right-click** (or
-Control-click) **OmniVoice Studio.app** → **Open** → click **Open** again in the
+Control-click) **VoiceStudio.app** → **Open** → click **Open** again in the
 dialog. (On macOS 15 Sequoia: double-click once, then go to **System Settings →
 Privacy & Security**, scroll down, and click **"Open Anyway"**.) This is a
 one-time confirmation per install; afterwards it launches by double-click.
@@ -117,7 +117,7 @@ one-time confirmation per install; afterwards it launches by double-click.
 **Fix — Terminal:** after dragging the app into `/Applications`, run:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/OmniVoice Studio.app"
+xattr -dr com.apple.quarantine "/Applications/VoiceStudio.app"
 ```
 
 (Adjust the path if you put the app somewhere other than `/Applications`.)
@@ -146,7 +146,7 @@ without the quarantine step.
 
 ## Apple Silicon vs Intel
 
-- **Apple Silicon (M-series):** OmniVoice automatically picks the `mlx-whisper`
+- **Apple Silicon (M-series):** VoiceStudio automatically picks the `mlx-whisper`
   and `mlx-audio` backends where available — these use the Apple Neural Engine
   and Metal Performance Shaders for ~2× the throughput of the CPU path.
   Installing the **Parakeet TDT v3 (MLX)** model from **Settings → Models**
@@ -158,7 +158,7 @@ without the quarantine step.
   never regresses; pin `ASR_MODEL_PARAKEET_MLX` to force it).
 - **Intel Macs:** the local backend is **unsupported** — PyTorch no longer
   ships Intel-Mac wheels, so the Python environment can never install
-  ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The UI
+  ([#889](https://github.com/debpalash/VoiceStudio/issues/889)). The UI
   works only when pointed at a remote backend (**Settings → Sharing → Remote
   backend**).
 

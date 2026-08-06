@@ -785,7 +785,7 @@ async def get_storage_report(refresh: bool = Query(False)):
 
 @router.post("/storage/temp/clear")
 async def clear_temp_files():
-    """Delete OmniVoice-owned temp files (Settings → Storage → Temporary files).
+    """Delete VoiceStudio-owned temp files (Settings → Storage → Temporary files).
 
     Removes only the ``omnivoice*`` entries in the OS temp dir — the exact
     population the storage report's "temp" category counts — and invalidates

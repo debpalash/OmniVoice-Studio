@@ -68,7 +68,7 @@ def test_format_text_ascii_and_exit_signal(report):
     text = format_text(report)
     # ASCII-only: Windows consoles on legacy code pages must not choke.
     text.encode("ascii")
-    assert "OmniVoice Studio self-check" in text
+    assert "VoiceStudio self-check" in text
     assert ("looks healthy" in text) == report["summary"]["ok"]
 
 

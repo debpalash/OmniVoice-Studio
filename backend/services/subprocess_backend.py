@@ -1,8 +1,8 @@
 """SubprocessBackend — long-lived sidecar-process TTS primitive (Phase 2.1).
 
 The architectural keystone for engine isolation. Engines that need their
-own Python venv (because their dependency pins conflict with OmniVoice's
-— IndexTTS demands `transformers<5`, OmniVoice demands `transformers>=5.3`)
+own Python venv (because their dependency pins conflict with VoiceStudio's
+— IndexTTS demands `transformers<5`, VoiceStudio demands `transformers>=5.3`)
 run inside a `subprocess.Popen` child interpreter. The parent backend
 talks to them through length-prefixed JSON over the child's stdin/stdout.
 
@@ -106,7 +106,7 @@ RECV_TIMEOUT_S = 60.0
 #
 # A subprocess engine's sidecar holds a process and, for GPU engines, VRAM —
 # for the whole life of the backend, even when the user has moved on to another
-# engine. The default in-process OmniVoice model already idle-unloads via
+# engine. The default in-process VoiceStudio model already idle-unloads via
 # model_manager.idle_worker; this gives the *subprocess* engine class the same
 # treatment: a background reaper shuts down sidecars that have been idle past a
 # timeout, and the next request transparently respawns one (the base already

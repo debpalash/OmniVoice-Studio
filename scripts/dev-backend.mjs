@@ -5,7 +5,7 @@
 // In dev, the backend has no supervisor: concurrently's --kill-others-on-fail
 // tears the whole dev stack down the moment uvicorn exits, and the only
 // trace of WHY was whatever scrolled past in the terminal — the browser tab
-// just showed "Can't reach the local OmniVoice backend". This wrapper spawns
+// just showed "Can't reach the local VoiceStudio backend". This wrapper spawns
 // the exact same uvicorn command (args identical to the old dev:api script)
 // with inherited stdio, and when the child dies with a non-zero exit — and
 // the developer didn't Ctrl+C — it prints a boxed banner with:

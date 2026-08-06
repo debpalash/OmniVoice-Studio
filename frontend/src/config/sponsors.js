@@ -1,15 +1,15 @@
-// Single source of truth for OmniVoice's sponsors + the "become a sponsor"
+// Single source of truth for VoiceStudio's sponsors + the "become a sponsor"
 // contact links. Consumed by the Support page's Sponsors section and the
 // footer's Sponsors link, so a logo or link change lands in exactly one place.
 //
 // Local-first / zero-token by design: "Become a sponsor" opens a PREFILLED
 // GitHub issue (same pattern as the bug reporter, utils/bugReport.js) — the
-// user reviews and submits it in their own browser; OmniVoice never POSTs or
+// user reviews and submits it in their own browser; VoiceStudio never POSTs or
 // holds a credential.
 
 import { KOFI_URL } from '../utils/donateLinks';
 
-const REPO = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO = 'https://github.com/debpalash/VoiceStudio';
 
 /**
  * Active sponsors. EMPTY until the first sponsor signs on — the Support page

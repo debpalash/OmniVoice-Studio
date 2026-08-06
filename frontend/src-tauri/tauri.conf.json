@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "OmniVoice Studio",
+  "productName": "VoiceStudio",
   "version": "../package.json",
   "identifier": "com.debpalash.omnivoice-studio",
   "build": {
@@ -15,7 +15,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "OmniVoice Studio",
+        "title": "VoiceStudio",
         "width": 1920,
         "height": 1080,
         "minWidth": 900,

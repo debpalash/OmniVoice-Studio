@@ -1,7 +1,7 @@
 /**
  * Settings → Storage (System group).
  *
- * Shows where OmniVoice keeps its data and outputs (read-only, from systemInfo,
+ * Shows where VoiceStudio keeps its data and outputs (read-only, from systemInfo,
  * each with an Open-folder affordance via the /export/reveal endpoint), then the
  * two destructive affordances, in escalating order:
  *
@@ -70,7 +70,7 @@ export default function StorageTab() {
         icon={HardDrive}
         title={t('settings.storage', { defaultValue: 'Storage' })}
         description={t('settings.storage_desc', {
-          defaultValue: 'Where OmniVoice keeps your data and outputs.',
+          defaultValue: 'Where VoiceStudio keeps your data and outputs.',
         })}
       >
         {pathRow(

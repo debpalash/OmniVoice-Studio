@@ -1,6 +1,6 @@
 # probe — spec-driven test harness
 
-`probe` is a portable test harness for OmniVoice Studio (and, by design, other
+`probe` is a portable test harness for VoiceStudio (and, by design, other
 projects/APIs). It is **mostly deterministic with three narrowly-scoped agent
 roles**, not an "AI does everything" system — that distinction is the whole point.
 

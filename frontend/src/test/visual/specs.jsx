@@ -24,7 +24,7 @@ import Table from '../../ui/Table.jsx';
 import Tabs from '../../ui/Tabs.jsx';
 import SettingRow from '../../components/settings/primitives/SettingRow.jsx';
 import SettingsToggle from '../../components/settings/primitives/SettingsToggle.jsx';
-// shadcn/ui proof components — themed via the OmniVoice token bridge (index.css).
+// shadcn/ui proof components — themed via the VoiceStudio token bridge (index.css).
 // Rendered here across all 3 themes to prove the bridge keeps them on-palette.
 import { Button as ShadcnButton } from '../../components/ui/button.tsx';
 import { Input as ShadcnInput } from '../../components/ui/input.tsx';
@@ -54,7 +54,7 @@ const RESET_SCAN = [
   { key: 'history', paths: [], size_bytes: 0, exists: true, shared: false, needs_restart: false },
   {
     key: 'settings',
-    paths: ['~/…/OmniVoice/prefs.json'],
+    paths: ['~/…/VoiceStudio/prefs.json'],
     size_bytes: 4096,
     exists: true,
     shared: false,
@@ -62,7 +62,7 @@ const RESET_SCAN = [
   },
   {
     key: 'content',
-    paths: ['~/…/OmniVoice/voices'],
+    paths: ['~/…/VoiceStudio/voices'],
     size_bytes: 5.4 * 1024 ** 3,
     exists: true,
     shared: false,
@@ -70,7 +70,7 @@ const RESET_SCAN = [
   },
   {
     key: 'engines',
-    paths: ['~/…/OmniVoice/engines'],
+    paths: ['~/…/VoiceStudio/engines'],
     size_bytes: 2.3 * 1024 ** 3,
     exists: true,
     shared: false,
@@ -78,7 +78,7 @@ const RESET_SCAN = [
   },
   {
     key: 'tools',
-    paths: ['~/…/OmniVoice/media_tools'],
+    paths: ['~/…/VoiceStudio/media_tools'],
     size_bytes: 96 * 1024 ** 2,
     exists: true,
     shared: false,
@@ -94,7 +94,7 @@ const RESET_SCAN = [
   },
   {
     key: 'caches',
-    paths: ['~/…/OmniVoice/gallery_cache'],
+    paths: ['~/…/VoiceStudio/gallery_cache'],
     size_bytes: 11 * 1024 ** 2,
     exists: true,
     shared: false,
@@ -102,7 +102,7 @@ const RESET_SCAN = [
   },
   {
     key: 'logs',
-    paths: ['~/…/OmniVoice/omnivoice.log'],
+    paths: ['~/…/VoiceStudio/omnivoice.log'],
     size_bytes: 820,
     exists: true,
     shared: false,

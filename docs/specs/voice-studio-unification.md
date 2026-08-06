@@ -19,7 +19,7 @@ Constraints honored (from `CLAUDE.md`): existing `voice_profiles` / `generation_
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│  ◉ Voice                              ⊙ OmniVoice                        ● Idle    ⚡ Flush ▾   │
+│  ◉ Voice                              ⊙ VoiceStudio                        ● Idle    ⚡ Flush ▾   │
 ├────────────┬──────────────────────────────────────────────┬────────────────────────────────────┤
 │ 📁 Projects│  ⌘ PROMPT                                     │  ↺ HISTORY        [All][Clone][Des]│
 │ ⤓ Downloads│ ┌──────────────────────────────────────────┐ │ ┌────────────────────────────────┐ │

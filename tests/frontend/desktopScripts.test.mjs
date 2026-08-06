@@ -178,7 +178,12 @@ test('stale-instance cleanup matches the dev binary', () => {
 });
 
 test('stale-instance cleanup NEVER matches the installed release app', () => {
-  // The release app is "OmniVoice Studio" — different spacing and case.
+  // The release app is "VoiceStudio". The cargo package deliberately kept the
+  // old binary name through the rename so the two can never collide.
+  assert.equal(isDevAppProcess('VoiceStudio'), false);
+  assert.equal(isDevAppProcess('VoiceStudio.exe'), false);
+  // The pre-rename names must stay rejected too: a user who has not updated
+  // is still running an app called "OmniVoice Studio".
   assert.equal(isDevAppProcess('OmniVoice Studio'), false);
   assert.equal(isDevAppProcess('OmniVoice Studio.exe'), false);
   assert.equal(isDevAppProcess('OmniVoice-Studio.exe'), false);

@@ -1,6 +1,6 @@
 # macOS Build, Signing & Notarization — Requirements & Verification
 
-The canonical checklist for producing and verifying the OmniVoice Studio macOS
+The canonical checklist for producing and verifying the VoiceStudio macOS
 desktop bundle. It pairs with two helper scripts and the release workflow:
 
 - **`scripts/verify-macos-signing.sh`** — runs every verification command below
@@ -74,8 +74,8 @@ When modifying or releasing this Tauri application:
 ### Required verification commands
 
 ```bash
-codesign --verify --deep --strict --verbose=4 "OmniVoice Studio.app"
-spctl -a -vv "OmniVoice Studio.app"
+codesign --verify --deep --strict --verbose=4 "VoiceStudio.app"
+spctl -a -vv "VoiceStudio.app"
 xcrun notarytool history          # needs Apple credentials / keychain profile
 ```
 
@@ -90,11 +90,11 @@ A release is considered **successful only when all verification checks pass.**
 scripts/verify-macos-signing.sh
 
 # Verify a specific bundle or DMG:
-scripts/verify-macos-signing.sh "path/to/OmniVoice Studio.app"
-scripts/verify-macos-signing.sh ~/Downloads/OmniVoice*.dmg
+scripts/verify-macos-signing.sh "path/to/VoiceStudio.app"
+scripts/verify-macos-signing.sh ~/Downloads/VoiceStudio*.dmg
 
 # Production gate — fail on ANY unsigned/un-notarized component:
-scripts/verify-macos-signing.sh "OmniVoice Studio.app" --require-signed
+scripts/verify-macos-signing.sh "VoiceStudio.app" --require-signed
 ```
 
 The script runs checks 3–8 plus stapler/notarytool, and exits non-zero in strict
@@ -112,7 +112,7 @@ For **local test artifacts only**, you may remove the quarantine attribute so an
 unsigned dev build launches without the right-click → Open dance:
 
 ```bash
-scripts/macos-dev-unquarantine.sh "path/to/OmniVoice Studio.app"
+scripts/macos-dev-unquarantine.sh "path/to/VoiceStudio.app"
 ```
 
 > ⚠️ This is a **development convenience only** and is **never a substitute** for

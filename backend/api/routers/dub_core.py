@@ -600,7 +600,7 @@ async def dub_transcribe_stream(
         else:
             # The TTS core model is loaded here for exactly one reason: to harvest a
             # preloaded `_asr_pipe` off it (passed to get_active_asr_backend below).
-            # That attribute is only ever set by OmniVoice.from_pretrained under
+            # That attribute is only ever set by VoiceStudio.from_pretrained under
             # OMNIVOICE_PRELOAD_TTS_ASR, which is off by default — so in the default
             # config this loaded ~3 GB, harvested None, and then offload_tts_for_asr()
             # freed it again 60 lines below. On unified memory that offload is a full

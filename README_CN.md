@@ -1,8 +1,9 @@
 *本文档是 [README.md](README.md) 的简体中文翻译；若与英文版有出入，以英文版为准。*
 
 <div align="center">
-  <img src="docs/logo.png" alt="OmniVoice 徽标" width="120" />
-  <h1>OmniVoice Studio</h1>
+  <img src="docs/logo.png" alt="VoiceStudio 徽标" width="120" />
+  <h1>VoiceStudio</h1>
+  <p><sub><em>原名 OmniVoice-Studio</em></sub></p>
   <h3>开源版 ElevenLabs 替代品。</h3>
   <p>实时听写、零样本语音克隆、电影级视频配音——全部在你的桌面上完成。<br/><b>无需账号。无需 API 密钥。无需云端。</b>一切都在你自己的设备上运行。开源，支持 <b>646 种语言</b>。</p>
 
@@ -19,30 +20,30 @@
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/OmniVoice-Studio?style=flat-square&color=f59e0b" alt="Star 数" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/OmniVoice-Studio?style=flat-square&color=10b981" alt="版本" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/VoiceStudio?style=flat-square&color=f59e0b" alt="Star 数" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/VoiceStudio?style=flat-square&color=10b981" alt="版本" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="许可证" /></a>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/issues"><img src="https://img.shields.io/github/issues/debpalash/OmniVoice-Studio?style=flat-square&color=ef4444" alt="Issues" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/issues"><img src="https://img.shields.io/github/issues/debpalash/VoiceStudio?style=flat-square&color=ef4444" alt="Issues" /></a>
     <a href="https://discord.gg/bzQavDfVV9"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
     <a href="https://ko-fi.com/debpalash"><img src="https://img.shields.io/badge/Ko--fi-Support_Us-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white" alt="Ko-fi" /></a>
     <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=flat-square&logo=paypal&logoColor=white" alt="PayPal" /></a>
   </p>
 
   <p>
-    <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="下载最新版本" /></a>
+    <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-macOS_·_Windows_·_Linux-10b981?style=for-the-badge" alt="下载最新版本" /></a>
   </p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src="docs/screenshot-launchpad.png" alt="OmniVoice Studio — 启动台" width="100%"/>
+  <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — 启动台" width="100%"/>
 </div>
 
-> **你的声音是你最私密的数据。为什么还要按月付费，从云端把它租回来？** 每一款主流语音工具都会把你的音频送到别人的服务器上，并按月向你收费。OmniVoice Studio 反其道而行：克隆、设计、配音、听写，全部在你自己的硬件上完成——646 种语言，没有计费表在转，任何数据都不离开你的设备。
+> **你的声音是你最私密的数据。为什么还要按月付费，从云端把它租回来？** 每一款主流语音工具都会把你的音频送到别人的服务器上，并按月向你收费。VoiceStudio 反其道而行：克隆、设计、配音、听写，全部在你自己的硬件上完成——646 种语言，没有计费表在转，任何数据都不离开你的设备。
 
 > [!WARNING]
-> **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/OmniVoice-Studio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
+> **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/VoiceStudio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
 
 <a id="screenshots"></a>
 
@@ -129,7 +130,7 @@
   </td>
   <td align="center" valign="top">
     <h3>🤖 MCP 服务器</h3>
-    <p>从 <b>Claude</b>、Cursor 或<br/>任何 MCP 客户端使用 OmniVoice。</p>
+    <p>从 <b>Claude</b>、Cursor 或<br/>任何 MCP 客户端使用 VoiceStudio。</p>
   </td>
 </tr>
 </table>
@@ -161,11 +162,11 @@
 ## ⚡ 快速开始
 
 <div align="center">
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
-  <a href="https://github.com/debpalash/OmniVoice-Studio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
   <br/>
-  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
+  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
 </div>
 
 选择你的操作系统，按指南从头到尾操作：
@@ -201,11 +202,11 @@ Hugging Face Token 的配置见
 
 <a id="why-ovs"></a>
 
-## 💡 为什么选择 OmniVoice？
+## 💡 为什么选择 VoiceStudio？
 
-ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音频。OmniVoice Studio **在你的硬件上运行，没有任何用量限制。**
+ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音频。VoiceStudio **在你的硬件上运行，没有任何用量限制。**
 
-| | **ElevenLabs** | **OmniVoice Studio** |
+| | **ElevenLabs** | **VoiceStudio** |
 |---|---|---|
 | **价格** | $5–$330/月，按字符计费 | 免费且开源（AGPL-3.0）· 专有用途可选 [商业许可证](#license) |
 | **语音克隆** | ✅ 3 秒音频 | ✅ 3 秒音频，零样本 |
@@ -246,19 +247,19 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 | **GPU** | 可选——CPU 也能跑 | NVIDIA CUDA · Apple Silicon MPS · AMD ROCm（仅 Linux） |
 
 > [!TIP]
-> 对于显存 **≤8 GB** 的 GPU，OmniVoice 会在转录期间自动将 TTS 卸载到 CPU——无需配置。不需要专用 GPU；整条流水线都可以在 CPU 上运行（只是慢一些）。
+> 对于显存 **≤8 GB** 的 GPU，VoiceStudio 会在转录期间自动将 TTS 卸载到 CPU——无需配置。不需要专用 GPU；整条流水线都可以在 CPU 上运行（只是慢一些）。
 
 > [!NOTE]
 > **AMD GPU：** ROCm 加速**仅限 Linux 且需手动开启**——在首次运行的设置界面选择 **“AMD GPU (ROCm)”**，或设置 `OMNIVOICE_TORCH_VARIANT=rocm`（[docs/install/linux.md](docs/install/linux.md#amd-gpu-rocm)）。在 **Docker/Podman** 中请改用专门的 ROCm 镜像：`ghcr.io/debpalash/omnivoice-studio:rocm`（[docs/install/docker.md](docs/install/docker.md#pull-and-run-amd-gpu--rocm)）。**在 Windows 上，AMD GPU（含 Ryzen AI 核显）只能以 CPU 运行**：PyTorch 没有 Windows 版 ROCm 轮子，因此 Windows 上的 GPU 加速仅限 NVIDIA/CUDA（[docs/install/windows.md](docs/install/windows.md#gpu-support)）。
 
 > [!IMPORTANT]
-> **macOS Intel（x86_64）不支持本地后端：** 应用 UI 可以安装，但 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（[#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)）。Intel Mac 用户仍可让 UI 指向另一台机器上的远程后端——参见 [docs/install/macos.md](docs/install/macos.md)。
+> **macOS Intel（x86_64）不支持本地后端：** 应用 UI 可以安装，但 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（[#889](https://github.com/debpalash/VoiceStudio/issues/889)）。Intel Mac 用户仍可让 UI 指向另一台机器上的远程后端——参见 [docs/install/macos.md](docs/install/macos.md)。
 
 <a id="tts-engines"></a>
 
 ### 🗣️ TTS 引擎
 
-**14 个引擎，一个选择器。** OmniVoice（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加六个按需延迟安装的重量级引擎（IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。
+**14 个引擎，一个选择器。** VoiceStudio（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加六个按需延迟安装的重量级引擎（IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。
 
 <details>
 <summary><b>📊 完整矩阵</b>——14 个引擎 × 平台 × 克隆/指令 × 许可证</summary>
@@ -284,7 +285,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 
 > **CUDA** = GPU 加速 · **MPS** = Apple Silicon Metal · **CPU** = 随处可运行，大模型较慢 · KittenTTS 和 MOSS-TTS-Nano 可在 CPU 上实时运行 · MLX-Audio 仅限 Apple Silicon · ⚡ = 延迟注册（首次使用时安装）
 >
-> **克隆**能力的意义不止于单段生成：视频配音（以及任何固定了声音的批量任务）需要参考音频克隆来保持说话人身份，因此把不支持克隆的引擎（KittenTTS、Sherpa-ONNX、Supertonic 3）设为当前引擎时，这些任务会在开始前就给出可操作的失败提示，而不是静默回退到 OmniVoice。
+> **克隆**能力的意义不止于单段生成：视频配音（以及任何固定了声音的批量任务）需要参考音频克隆来保持说话人身份，因此把不支持克隆的引擎（KittenTTS、Sherpa-ONNX、Supertonic 3）设为当前引擎时，这些任务会在开始前就给出可操作的失败提示，而不是静默回退到 VoiceStudio。
 >
 > **MOSS-TTS-v1.5**（8B，约 16 GB）、**dots.tts**（2B，约 9 GB）和 **Confucius4-TTS** 是重量级可选引擎，从本地克隆在各自独立的 venv 中运行。三者均不支持 Apple Silicon MPS（在 Mac 上以 CPU 运行）；dots.tts 没有 Windows 路径；Confucius4 建议使用 CUDA（CPU 可用，约为实时时长的 17 倍）。详情：[MOSS-TTS-v1.5](docs/engines/moss-tts-v15.md) · [dots.tts](docs/engines/dots-tts.md) · [Confucius4-TTS](docs/engines/confucius4-tts.md)。
 
@@ -316,7 +317,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 
 > Whisper 系列引擎覆盖约 100 种语言；**FunASR / SenseVoice** 额外提供一条多语言一体化路径，内置语音活动检测与行内说话人分离。**sherpa-onnx** 驱动实时听写的模型选择器——你边说，文字边出现。每个引擎都在本地设备上运行——无需 API 密钥，无需云端。
 
-> **GPU 不支持高效 float16？** 在较老的 NVIDIA GPU（Maxwell/Pascal、GTX 16xx）上，或在 CTranslate2/cuDNN 版本不匹配之后，CTranslate2 系 ASR 引擎（WhisperX、Faster-Whisper）无法运行 `float16`，OmniVoice 会自动改用 `int8` 重试——无需配置。如果转录仍然失败，可用 `ASR_COMPUTE_TYPE` 环境变量固定计算类型（逃生舱口）：`ASR_COMPUTE_TYPE=int8`（CPU 用 `float32`）。将其设为 `int8` 并重启后端。
+> **GPU 不支持高效 float16？** 在较老的 NVIDIA GPU（Maxwell/Pascal、GTX 16xx）上，或在 CTranslate2/cuDNN 版本不匹配之后，CTranslate2 系 ASR 引擎（WhisperX、Faster-Whisper）无法运行 `float16`，VoiceStudio 会自动改用 `int8` 重试——无需配置。如果转录仍然失败，可用 `ASR_COMPUTE_TYPE` 环境变量固定计算类型（逃生舱口）：`ASR_COMPUTE_TYPE=int8`（CPU 用 `float32`）。将其设为 `int8` 并重启后端。
 
 </details>
 
@@ -333,7 +334,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 │                  Backend (FastAPI)                           │
 │  100+ API endpoints · SSE+WSS streaming · SQLite            │
 ├──────────┬──────────┬──────────┬──────────┬────────────────┤
-│ WhisperX │  Demucs  │OmniVoice │ Pyannote │ Engine Routing  │
+│ WhisperX │  Demucs  │VoiceStudio │ Pyannote │ Engine Routing  │
 │  (+7 ASR │  Source  │  (+10    │ Diariz-  │ ↳ GPU preflight │
 │ engines) │  Sep.    │  TTS)    │ ation    │ ↳ No silent CPU │
 └──────────┴──────────┴──────────┴──────────┴────────────────┘
@@ -350,7 +351,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 |---|---|
 | `POST /v1/audio/speech` | TTS——输入文本；输出 `mp3` / `wav` / `flac` / `opus` / `pcm`。`tts-1` / `tts-1-hd` 映射到你当前启用的引擎；也接受 OpenAI 的声音名称（`alloy` 等）。 |
 | `POST /v1/audio/transcriptions` | STT——输入音频文件；输出 `json`、`text`、`verbose_json`、`srt` 或 `vtt`。`whisper-1` 映射到你当前启用的 ASR 引擎。 |
-| `GET /v1/audio/voices` | OmniVoice 扩展——列出所有声音配置和引擎，客户端可据此发现你的克隆声音。 |
+| `GET /v1/audio/voices` | VoiceStudio 扩展——列出所有声音配置和引擎，客户端可据此发现你的克隆声音。 |
 
 ```sh
 curl http://localhost:3900/v1/audio/speech \
@@ -371,13 +372,13 @@ print(result.text)
 
 ### 📓 在 Google Colab 上运行
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/OmniVoice-Studio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/VoiceStudio_Studio_Colab.ipynb)
 
-没有本地 GPU？官方笔记本（[notebooks/OmniVoice_Studio_Colab.ipynb](notebooks/OmniVoice_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
+没有本地 GPU？官方笔记本（[notebooks/VoiceStudio_Studio_Colab.ipynb](notebooks/VoiceStudio_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
 
 ### 🤝 智能体技能（Agent Skills）
 
-用一条命令教会你的 AI 智能体（Claude Code、Cursor、Codex 等）使用 OmniVoice：
+用一条命令教会你的 AI 智能体（Claude Code、Cursor、Codex 等）使用 VoiceStudio：
 
 ```sh
 npx skills add debpalash/omnivoice-studio
@@ -392,7 +393,7 @@ npx skills add debpalash/omnivoice-studio
 ### 🔜 即将推出
 
 - 🎬 **唇形同步 v2** — 使用 wav2lip 进行视觉语音时间对齐
-- 🌐 **在线演示** — 无需安装即可体验 OmniVoice
+- 🌐 **在线演示** — 无需安装即可体验 VoiceStudio
 - 🔌 **插件市场** — 社区贡献的 TTS 引擎与特效
 - 🎵 **实时变声器** — 通话中的麦克风实时变声
 
@@ -410,7 +411,7 @@ npx skills add debpalash/omnivoice-studio
 | **多语言** | 多语言批量选择器、顺序 GPU 执行的批量配音队列 |
 | **说话人分离** | Pyannote 机器学习分离、自动说话人克隆提取、逐说话人声音分配 |
 | **ASR** | 9 个引擎（WhisperX、Faster-Whisper、隔离版 Faster-Whisper、MLX Whisper、PyTorch Whisper、Parakeet TDT、Moonshine、FunASR/SenseVoice、sherpa-onnx 实时听写）、崩溃隔离的子进程后端 |
-| **TTS** | 14 个引擎（OmniVoice、CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX，+ 延迟安装：IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）、带 GPU 预检的引擎路由 |
+| **TTS** | 14 个引擎（VoiceStudio、CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX，+ 延迟安装：IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）、带 GPU 预检的引擎路由 |
 | **基础设施** | Docker 部署、CUDA/MPS/ROCm 自动检测、cuDNN 8 兼容、显存感知模型卸载、引擎路由（绝不静默回退 CPU）、诊断套件与错误日志、受限网络镜像支持 |
 | **AI 溯源** | AudioSeal 不可见水印（类似 SynthID）、视频徽标叠加、水印检测 API |
 | **用户体验** | 撤销/重做、键盘快捷键、拖放、会话持久化、毛玻璃设计系统、Linux/WebKitGTK 的 UI 缩放修复 |
@@ -419,7 +420,7 @@ npx skills add debpalash/omnivoice-studio
 | **桌面** | 跨平台 Tauri 安装程序（macOS DMG——Apple Silicon；Intel 不支持本地后端，#889——Windows MSI、Linux deb/AppImage）、自动更新基础设施、单实例约束、关闭最小化到托盘、macOS Gatekeeper 修复 |
 | **听写** | 全局系统级热键（`⌘+⇧+Space`）、无边框浮动控件、WebSocket 流式 ASR、自动粘贴、可自定义热键、本地 LLM 转录润色 |
 | **批量流水线** | 完整批量 TTS：提取 → 转录 → 翻译 → 生成 → 混音 → 导出，带实时进度追踪 |
-| **MCP 服务器** | 让 OmniVoice 成为 Claude、Cursor 及任何 MCP 客户端的本地 TTS/STT 提供方 |
+| **MCP 服务器** | 让 VoiceStudio 成为 Claude、Cursor 及任何 MCP 客户端的本地 TTS/STT 提供方 |
 | **远程后端** | 让桌面 UI 指向远程后端 URL，支持 Bearer 认证（附 Tailscale 文档） |
 | **可靠性** | 启动开屏的卡死看门狗、逐引擎 GPU 兼容矩阵、引擎二进制不可执行时的可操作报错、setuptools 自动修复 |
 
@@ -431,7 +432,7 @@ npx skills add debpalash/omnivoice-studio
 
 ## 💜 赞助 / 捐赠
 
-OmniVoice Studio 由一位开发者使用 Claude Code 和 AI 智能体独立打造——而智能体账单是实打实的（过去三个月花了数千美元）。如果 OmniVoice 为你创造了价值，帮忙分担一小部分账单，就能让开发保持全职推进。
+VoiceStudio 由一位开发者使用 Claude Code 和 AI 智能体独立打造——而智能体账单是实打实的（过去三个月花了数千美元）。如果 VoiceStudio 为你创造了价值，帮忙分担一小部分账单，就能让开发保持全职推进。
 
 <div align="center">
 
@@ -446,11 +447,11 @@ OmniVoice Studio 由一位开发者使用 Claude Code 和 AI 智能体独立打�
 <a href="https://paypal.me/palashCoder"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal" /></a>
 
 <br/>
-<sub>每一美元都直接用于支付智能体账单——让 OmniVoice 的开发持续不断。</sub>
+<sub>每一美元都直接用于支付智能体账单——让 VoiceStudio 的开发持续不断。</sub>
 
 <br/><br/>
 
-<sub><b>来自 OmniVoice Studio 作者的更多应用</b>——同样的本地优先理念：
+<sub><b>来自 VoiceStudio 作者的更多应用</b>——同样的本地优先理念：
 <a href="https://github.com/debpalash/Opal"><b>Opal</b> 💠</a>（播放一切——AI 时代的媒体播放器）·
 <a href="https://github.com/debpalash/memxt"><b>memxt</b> 🧠</a>（Claude Code 与编码智能体的本地记忆）。
 给它们点个 ⭐ 也是一种支持 → <a href="#more-from-the-maker">详见下文</a>。</sub>
@@ -461,7 +462,7 @@ OmniVoice Studio 由一位开发者使用 Claude Code 和 AI 智能体独立打�
 
 ### 🌟 赞助商
 
-OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 SaaS 收入。赞助商让开发得以持续，作为回报，可以在这里、在应用内（顶级档位还包括项目官网）获得一个徽标位。这是一份感谢，绝不是付费墙。**[查看档位并成为赞助商 →](SPONSORS.md)**
+VoiceStudio **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 SaaS 收入。赞助商让开发得以持续，作为回报，可以在这里、在应用内（顶级档位还包括项目官网）获得一个徽标位。这是一份感谢，绝不是付费墙。**[查看档位并成为赞助商 →](SPONSORS.md)**
 
 <div align="center">
 
@@ -510,7 +511,7 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 非常欢迎——Bug 修复、新的 TTS 引擎适配器、UI 改进、文档、翻译。统统欢迎。
 
 - 📖 阅读 **[贡献指南](.github/CONTRIBUTING.md)** 了解环境搭建、代码风格和 PR 工作流
-- 🐛 浏览 [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
+- 🐛 浏览 [good first issues](https://github.com/debpalash/VoiceStudio/labels/good%20first%20issue)
 - 💬 加入我们的 [Discord](https://discord.gg/bzQavDfVV9) 讨论想法或寻求帮助
 
 ---
@@ -522,7 +523,7 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 <br/>
 诚实的回答：<b>取决于你要做什么。</b>
 
-<b>OmniVoice 真正有竞争力的地方：</b>从干净的参考音频进行语音克隆（最先进的开源扩散 TTS）、语言覆盖（646 种语言对他们的 32 种），以及所有结构性优势——没有按字符计费、没有用量上限、音频不离开你的设备、完整的流水线可定制性（14 个 TTS 引擎、10 个 ASR 引擎、翻译方案随你选）。
+<b>VoiceStudio 真正有竞争力的地方：</b>从干净的参考音频进行语音克隆（最先进的开源扩散 TTS）、语言覆盖（646 种语言对他们的 32 种），以及所有结构性优势——没有按字符计费、没有用量上限、音频不离开你的设备、完整的流水线可定制性（14 个 TTS 引擎、10 个 ASR 引擎、翻译方案随你选）。
 
 <b>ElevenLabs 仍然领先的地方：</b>开箱即用的稳定性与打磨程度，尤其是英语 TTS。他们的单一模型经过深度调优；我们的质量取决于你选择的引擎、你的硬件，以及（对克隆而言）参考音频——干燥、近麦的音频比嘈杂或有回声的音频克隆效果好得多。
 
@@ -534,7 +535,7 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 <details>
 <summary><b>能在 Apple Silicon（M1/M2/M3/M4）上运行吗？</b></summary>
 <br/>
-可以。MPS 加速会被自动检测。在 Apple 硬件上，MLX 优化的 Whisper 模型可提供更快的转录速度。<b>不支持 Intel Mac</b>：应用 UI 可以安装，但本地 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（<a href="https://github.com/debpalash/OmniVoice-Studio/issues/889">#889</a>）——Intel Mac 只能配合远程后端使用。
+可以。MPS 加速会被自动检测。在 Apple 硬件上，MLX 优化的 Whisper 模型可提供更快的转录速度。<b>不支持 Intel Mac</b>：应用 UI 可以安装，但本地 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——Intel Mac 只能配合远程后端使用。
 </details>
 
 <details>
@@ -546,13 +547,13 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 <details>
 <summary><b>可以用于商业用途吗？</b></summary>
 <br/>
-<b>可以——商业使用免费</b>，基于 <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>：运行它、出售用它生成的音频、为客户的视频配音、在团队中部署。只有一项义务：如果你<b>修改</b>了 OmniVoice 并通过网络向他人提供该修改版本，你必须依据相同条款分享修改后的源代码。想把它嵌入闭源产品？可获取商业许可证——参见<a href="#license">许可证</a>。
+<b>可以——商业使用免费</b>，基于 <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a>：运行它、出售用它生成的音频、为客户的视频配音、在团队中部署。只有一项义务：如果你<b>修改</b>了 VoiceStudio 并通过网络向他人提供该修改版本，你必须依据相同条款分享修改后的源代码。想把它嵌入闭源产品？可获取商业许可证——参见<a href="#license">许可证</a>。
 </details>
 
 <details>
 <summary><b>支持哪些语言？</b></summary>
 <br/>
-通过 OmniVoice 模型的 TTS 支持 646 种语言。转录（WhisperX）支持 99 种语言。翻译覆盖范围取决于目标语言对。
+通过 VoiceStudio 模型的 TTS 支持 646 种语言。转录（WhisperX）支持 99 种语言。翻译覆盖范围取决于目标语言对。
 </details>
 
 <details>
@@ -562,17 +563,17 @@ OmniVoice **免费**且采用 **AGPL-3.0** 许可——没有付费版，没有 
 </details>
 
 <details>
-<summary><b>OmniVoice 会收集我的任何数据吗？</b></summary>
+<summary><b>VoiceStudio 会收集我的任何数据吗？</b></summary>
 <br/>
-<b>除非你明确同意，否则不会。</b>首次运行时应用会<i>询问</i>你——一个页面、两个同等分量的按钮，没有预先勾选。在你回答“是”之前，OmniVoice 什么都不发送：没有分析、没有遥测、没有账号、没有“回传”。跳过提问就等于“否”。无论如何，你的文本、音频、声音和项目永远不会离开你的设备。
+<b>除非你明确同意，否则不会。</b>首次运行时应用会<i>询问</i>你——一个页面、两个同等分量的按钮，没有预先勾选。在你回答“是”之前，VoiceStudio 什么都不发送：没有分析、没有遥测、没有账号、没有“回传”。跳过提问就等于“否”。无论如何，你的文本、音频、声音和项目永远不会离开你的设备。
 
-如果你选择同意（也可随时在 <b>设置 → 隐私 → “帮助改进 OmniVoice”</b> 中开关），发送的只是匿名、不含内容的使用统计：生成信息（引擎、语言、生成耗时、字符<i>数量</i>、错误<i>类型</i>），以及应用生命周期——一次安装信号、版本更新（版本号之间）、崩溃（错误类别和<i>分桶后的</i>运行时长，绝不含日志）、错误<i>类型</i>（有上限、去重），以及卸载时的一次告别信号。绝不包含你的文本、音频、文件名或任何可识别信息——这由代码中的属性白名单强制保证（<code>backend/core/analytics.py</code>），而不只是一句承诺。源码构建根本没有分析数据的接收端，因此根本不会询问。你自己的统计数字在 <b>设置 → 用量</b> 中查看，本地计算，不发送到任何地方。
+如果你选择同意（也可随时在 <b>设置 → 隐私 → “帮助改进 VoiceStudio”</b> 中开关），发送的只是匿名、不含内容的使用统计：生成信息（引擎、语言、生成耗时、字符<i>数量</i>、错误<i>类型</i>），以及应用生命周期——一次安装信号、版本更新（版本号之间）、崩溃（错误类别和<i>分桶后的</i>运行时长，绝不含日志）、错误<i>类型</i>（有上限、去重），以及卸载时的一次告别信号。绝不包含你的文本、音频、文件名或任何可识别信息——这由代码中的属性白名单强制保证（<code>backend/core/analytics.py</code>），而不只是一句承诺。源码构建根本没有分析数据的接收端，因此根本不会询问。你自己的统计数字在 <b>设置 → 用量</b> 中查看，本地计算，不发送到任何地方。
 </details>
 
 <details>
 <summary><b>如何卸载它 / 删除它的所有数据？</b></summary>
 <br/>
-OmniVoice 完全本地运行——卸载就是删除应用及其写入的文件夹（模型缓存、Python 环境、你的声音/项目、配置）。运行 <code>scripts/uninstall.sh</code>（macOS/Linux）或 <code>scripts\uninstall.ps1</code>（Windows）——它会先以干跑方式列出每个文件夹及其大小，加 <code>--yes</code> 才会真正删除。完整的各平台路径列表和应用移除步骤见 <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>。
+VoiceStudio 完全本地运行——卸载就是删除应用及其写入的文件夹（模型缓存、Python 环境、你的声音/项目、配置）。运行 <code>scripts/uninstall.sh</code>（macOS/Linux）或 <code>scripts\uninstall.ps1</code>（Windows）——它会先以干跑方式列出每个文件夹及其大小，加 <code>--yes</code> 才会真正删除。完整的各平台路径列表和应用移除步骤见 <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>。
 </details>
 
 ---
@@ -581,11 +582,11 @@ OmniVoice 完全本地运行——卸载就是删除应用及其写入的文件�
 
 ## 📜 许可证
 
-OmniVoice Studio 是基于 [**GNU Affero 通用公共许可证 v3.0（AGPL-3.0）**](https://www.gnu.org/licenses/agpl-3.0.html) 的自由开源软件。
+VoiceStudio 是基于 [**GNU Affero 通用公共许可证 v3.0（AGPL-3.0）**](https://www.gnu.org/licenses/agpl-3.0.html) 的自由开源软件。
 
-**可免费用于任何用途——包括商业和企业内部用途。** 运行它、出售用它生成的音频、为自己或客户的视频配音、在团队中推广——全部免费，无需许可证。作为一份**网络著佐权（copyleft）**许可证，AGPL 增加了一项义务：如果你**修改**了 OmniVoice Studio 并通过网络向他人提供该修改版本，你必须依据相同的 AGPL-3.0 条款向他们提供该修改版本的完整对应源代码。
+**可免费用于任何用途——包括商业和企业内部用途。** 运行它、出售用它生成的音频、为自己或客户的视频配音、在团队中推广——全部免费，无需许可证。作为一份**网络著佐权（copyleft）**许可证，AGPL 增加了一项义务：如果你**修改**了 VoiceStudio 并通过网络向他人提供该修改版本，你必须依据相同的 AGPL-3.0 条款向他们提供该修改版本的完整对应源代码。
 
-希望将 OmniVoice Studio 嵌入**闭源或专有**产品或服务、又不受 AGPL-3.0 著佐权义务约束的组织，可获取**商业许可证**。**定价方案即将推出。** 咨询：**OmniVoice@palash.dev**。
+希望将 VoiceStudio 嵌入**闭源或专有**产品或服务、又不受 AGPL-3.0 著佐权义务约束的组织，可获取**商业许可证**。**定价方案即将推出。** 咨询：**VoiceStudio@palash.dev**。
 
 捆绑的 `omnivoice/` TTS 模型（作者 Han Zhu）在上游仍为 Apache-2.0 许可。完整且具约束力的条款请参见 [`LICENSE`](LICENSE)。
 
@@ -593,11 +594,11 @@ OmniVoice Studio 是基于 [**GNU Affero 通用公共许可证 v3.0（AGPL-3.0�
 
 ## 🙏 致谢
 
-OmniVoice Studio 站在这些杰出开源工作的肩膀上：
+VoiceStudio 站在这些杰出开源工作的肩膀上：
 
 | 项目 | 作用 |
 |---------|------|
-| [**OmniVoice (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | 零样本扩散 TTS 引擎——核心语音合成模型 |
+| [**VoiceStudio (k2-fsa)**](https://github.com/k2-fsa/OmniVoice) | 零样本扩散 TTS 引擎——核心语音合成模型 |
 | [**WhisperX**](https://github.com/m-bain/whisperX) | 词级别语音识别与时间对齐 |
 | [**Demucs (Meta)**](https://github.com/facebookresearch/demucs) | 音乐源分离，用于人声分离 |
 | [**Pyannote**](https://github.com/pyannote/pyannote-audio) | 说话人分离——谁说了什么 |
@@ -650,17 +651,17 @@ OmniVoice Studio 站在这些杰出开源工作的肩膀上：
 <br/>
 
 如果你读到了这里，你就是我们的同路人。<br/>
-**[⭐ 给这个仓库点个 Star](https://github.com/debpalash/OmniVoice-Studio)**，让更多人能找到它。<br/>
+**[⭐ 给这个仓库点个 Star](https://github.com/debpalash/VoiceStudio)**，让更多人能找到它。<br/>
 **[💬 加入 Discord](https://discord.gg/bzQavDfVV9)**，分享你的作品。<br/>
-**[❤️ 支持开发](https://ko-fi.com/debpalash)**——资助让 OmniVoice 持续发布的 AI 智能体账单。
+**[❤️ 支持开发](https://ko-fi.com/debpalash)**——资助让 VoiceStudio 持续发布的 AI 智能体账单。
 
 <br/>
 
-  <a href="https://star-history.com/#debpalash/OmniVoice-Studio&Date">
+  <a href="https://star-history.com/#debpalash/VoiceStudio&Date">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date" />
-      <img alt="Star 历史" src="https://api.star-history.com/svg?repos=debpalash/OmniVoice-Studio&type=Date&theme=dark" width="600" />
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date" />
+      <img alt="Star 历史" src="https://api.star-history.com/svg?repos=debpalash/VoiceStudio&type=Date&theme=dark" width="600" />
     </picture>
   </a>
 </div>

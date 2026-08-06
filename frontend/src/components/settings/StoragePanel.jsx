@@ -149,7 +149,7 @@ export default function StoragePanel() {
 
       {restart && (
         <p className="mx-0 mb-0 mt-[var(--space-3)] text-[length:var(--text-base)] text-[var(--chrome-severity-warn)]">
-          ↻ Restart OmniVoice to use the new location.
+          ↻ Restart VoiceStudio to use the new location.
         </p>
       )}
     </SettingsSection>

@@ -1,6 +1,6 @@
 //! Blank-window guard — the app must never sit on an empty window.
 //!
-//! OmniVoice has shipped a blank window more than once, from unrelated causes:
+//! VoiceStudio has shipped a blank window more than once, from unrelated causes:
 //!
 //!   * **Production** (#1178): a minifier temporal-dead-zone reorder threw
 //!     before React mounted. Assets loaded fine; `#root` stayed empty.
@@ -109,13 +109,13 @@ fn fallback_html(detail: &str) -> String {
     (function () {{
       try {{
         document.documentElement.innerHTML =
-          '<head><meta charset="utf-8"><title>OmniVoice Studio</title></head>' +
+          '<head><meta charset="utf-8"><title>VoiceStudio</title></head>' +
           '<body style="margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;' +
           'background:#14161a;color:#e8eaed;display:flex;align-items:center;' +
           'justify-content:center;height:100vh;">' +
           '<div style="max-width:32rem;padding:2rem;text-align:center;">' +
           '<div style="font-size:2.5rem;line-height:1;margin-bottom:1rem;">⚠️</div>' +
-          '<h1 style="font-size:1.25rem;margin:0 0 .75rem;">OmniVoice could not display its interface</h1>' +
+          '<h1 style="font-size:1.25rem;margin:0 0 .75rem;">VoiceStudio could not display its interface</h1>' +
           '<p style="opacity:.8;line-height:1.5;margin:0 0 1.5rem;">' +
           'The app started, but the window stayed empty. Your projects and voices are safe — ' +
           'this is a display problem, not data loss.</p>' +

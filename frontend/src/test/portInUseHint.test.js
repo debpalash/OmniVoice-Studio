@@ -91,18 +91,18 @@ describe('the Rust failure messages reach the localised hint (#1223)', () => {
   it.each([
     [
       'take-ownership',
-      'Port 3900 is already in use by another application, and OmniVoice could not free it. ' +
-        'Quit whatever is using that port (another copy of OmniVoice, or an app that claimed it) ' +
+      'Port 3900 is already in use by another application, and VoiceStudio could not free it. ' +
+        'Quit whatever is using that port (another copy of VoiceStudio, or an app that claimed it) ' +
         'and try again.',
     ],
     [
       'respawn',
-      'Port 3900 is still in use by another application and OmniVoice could not free it, so the ' +
+      'Port 3900 is still in use by another application and VoiceStudio could not free it, so the ' +
         "backend can't restart. Quit whatever is using that port and relaunch.",
     ],
     [
       'early-exit',
-      'Port 3900 is already in use, so the backend could not start. Another copy of OmniVoice — ' +
+      'Port 3900 is already in use, so the backend could not start. Another copy of VoiceStudio — ' +
         'or an app that claimed that port — is holding it.',
     ],
   ])('%s message maps to the localised port hint', (_which, message) => {

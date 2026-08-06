@@ -9,7 +9,7 @@ import { toggleVariants } from '@/components/ui/toggle';
  * shadcn/ui ToggleGroup — new-york style, built on @radix-ui/react-toggle-group
  * for keyboard navigation + single/multiple selection state. The chosen
  * `variant`/`size` flow to every item via context. Backs the legacy
- * `src/ui/Segmented.jsx` wrapper (variant="seg"); themed through the OmniVoice
+ * `src/ui/Segmented.jsx` wrapper (variant="seg"); themed through the VoiceStudio
  * token bridge.
  */
 const ToggleGroupContext = React.createContext<VariantProps<typeof toggleVariants>>({

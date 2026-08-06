@@ -5,10 +5,10 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Toggle — new-york style, themed through the OmniVoice token bridge.
+ * shadcn/ui Toggle — new-york style, themed through the VoiceStudio token bridge.
  *
  * `toggleVariants` is shared with ToggleGroup. Beyond the stock variants
- * (default / outline + sizes default / sm / lg) it carries the OmniVoice
+ * (default / outline + sizes default / sm / lg) it carries the VoiceStudio
  * segmented-control option (`variant="seg"` + sizes segXs / segSm) that backs
  * the legacy `src/ui/Segmented.jsx` wrapper: a borderless pill whose on/off look
  * keys off Radix's `data-state`, styled with palette token utilities so it
@@ -22,14 +22,14 @@ const toggleVariants = cva(
         default: 'bg-transparent',
         outline:
           'border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground',
-        // ── OmniVoice segmented option ──
+        // ── VoiceStudio segmented option ──
         seg: 'font-extrabold border-0 cursor-pointer rounded-[var(--radius-pill)] bg-transparent text-fg-subtle transition-[background,color] duration-[var(--dur-fast)] ease-[var(--ease-out)] data-[state=off]:hover:text-fg data-[state=off]:hover:bg-[var(--chrome-hover-bg)] data-[state=on]:bg-primary/25 data-[state=on]:text-fg',
       },
       size: {
         default: 'h-9 px-2 min-w-9',
         sm: 'h-8 px-1.5 min-w-8',
         lg: 'h-10 px-2.5 min-w-10',
-        // ── OmniVoice segmented sizes ──
+        // ── VoiceStudio segmented sizes ──
         segXs: 'px-[9px] py-[2px] text-[0.58rem]',
         segSm: 'px-[10px] py-[3px] text-[0.62rem]',
       },

@@ -101,7 +101,7 @@ def test_shutdown_error_wrapped_in_cause_chain():
         try:
             raise root
         except RuntimeError as e:
-            raise ImportError("Could not import module OmniVoice") from e
+            raise ImportError("Could not import module VoiceStudio") from e
     except ImportError as wrapped:
         assert _is_interpreter_shutdown_error(wrapped) is True
 

@@ -46,7 +46,7 @@ Set `resume_from_checkpoint` in your training config to resume from an existing 
 
 ## Initializing from a Pretrained Model
 
-To start training from a pretrained OmniVoice checkpoint (for fine-tuning):
+To start training from a pretrained VoiceStudio checkpoint (for fine-tuning):
 
 ```json
 {

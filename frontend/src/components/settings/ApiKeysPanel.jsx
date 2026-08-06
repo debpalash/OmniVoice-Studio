@@ -28,13 +28,15 @@ import { SettingsSection, InfoHint } from './primitives';
 export default function ApiKeysPanel() {
   const { t } = useTranslation();
   const SOURCE_LABELS = {
-    app: t('settings.hf_source_app_label', { defaultValue: 'OmniVoice (encrypted, recommended)' }),
+    app: t('settings.hf_source_app_label', {
+      defaultValue: 'VoiceStudio (encrypted, recommended)',
+    }),
     env: t('settings.hf_source_env_label', { defaultValue: 'Environment variable' }),
     'hf-cli': t('settings.hf_source_cli_label', { defaultValue: 'HuggingFace CLI' }),
   };
   const SOURCE_HELP = {
     app: t('settings.hf_source_app_help', {
-      defaultValue: "Stored encrypted in OmniVoice's local SQLite store. Set or clear here.",
+      defaultValue: "Stored encrypted in VoiceStudio's local SQLite store. Set or clear here.",
     }),
     env: t('settings.hf_source_env_help', {
       defaultValue: 'Set via HF_TOKEN in your shell. Read-only from the UI.',

@@ -1,19 +1,19 @@
 # Hugging Face Token Setup
 
-OmniVoice uses a single HF token for every model download, license-gate
-check, and `whoami` ping. This page covers the three places OmniVoice will
+VoiceStudio uses a single HF token for every model download, license-gate
+check, and `whoami` ping. This page covers the three places VoiceStudio will
 look for a token and the recommended path for v0.3+.
 
 ## Three sources (cascade)
 
-OmniVoice resolves the active HF token by walking three sources in priority
+VoiceStudio resolves the active HF token by walking three sources in priority
 order — the first source that has a token *and* survives a live `whoami`
 call wins:
 
-1. **App** — encrypted in OmniVoice's SQLite settings store.
+1. **App** — encrypted in VoiceStudio's SQLite settings store.
    Set via the in-app **Settings → API Keys** panel.
 2. **Env** — `HF_TOKEN` (or the legacy `HUGGING_FACE_HUB_TOKEN`) environment
-   variable visible to the OmniVoice process.
+   variable visible to the VoiceStudio process.
 3. **HF CLI** — the canonical `~/.cache/huggingface/token` file written by
    `huggingface-cli login`.
 
@@ -44,7 +44,7 @@ serving the cascade.
 
 ## Setting via environment variable (power users)
 
-If you launch OmniVoice from a terminal or CI and prefer env-var management,
+If you launch VoiceStudio from a terminal or CI and prefer env-var management,
 export `HF_TOKEN` from your shell's startup file:
 
 ```bash
@@ -79,7 +79,7 @@ huggingface-cli login
 # paste token at the prompt
 ```
 
-That writes to `~/.cache/huggingface/token`. OmniVoice reads via
+That writes to `~/.cache/huggingface/token`. VoiceStudio reads via
 `huggingface_hub.get_token()` and picks it up automatically — you'll see the
 **HF CLI** row in **Settings → API Keys** flip to "set".
 
@@ -95,7 +95,7 @@ downloads work. Visit each page while signed in with the same HF account:
 - `Supertone/supertonic-3` — required if you enable the Supertonic-3 engine.
 
 After clicking **"Agree and access repository"** on each page, restart any
-in-flight OmniVoice job (the gated check is cached for the lifetime of the
+in-flight VoiceStudio job (the gated check is cached for the lifetime of the
 process).
 
 ## Troubleshooting

@@ -1,7 +1,7 @@
-# OmniVoice Studio — Speaker Diarization
+# VoiceStudio — Speaker Diarization
 
 Diarization splits a single audio stream into per-speaker tracks: who said
-what, and when. OmniVoice uses **pyannote** + **WhisperX** under the hood —
+what, and when. VoiceStudio uses **pyannote** + **WhisperX** under the hood —
 the same stack the original WhisperX paper used.
 
 ## What diarization buys you
@@ -35,7 +35,7 @@ button deeplinks to.
 ## Fallback behaviour
 
 When diarization is unavailable (no HF token, license not accepted, model
-download failed mid-run), OmniVoice's dub pipeline falls back to a
+download failed mid-run), VoiceStudio's dub pipeline falls back to a
 **silence-gap heuristic** that splits speakers on long quiet stretches.
 You'll see a warning toast and the `dub_core.py` reason string surfaces in
 the job log:
@@ -51,7 +51,7 @@ end-to-end instead of erroring.
 
 ## HF token requirement
 
-Diarization is the one OmniVoice feature where a HF token is **required**, not
+Diarization is the one VoiceStudio feature where a HF token is **required**, not
 just recommended. See
 [docs/setup/huggingface-token.md](../setup/huggingface-token.md) for the
 three-source cascade and how the in-app **Settings → API Keys** panel works.

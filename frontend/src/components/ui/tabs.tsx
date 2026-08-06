@@ -4,9 +4,9 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Tabs — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Tabs — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). `src/ui/Tabs.jsx` wraps `Tabs` + `TabsList` + `TabsTrigger`
- * and supplies the OmniVoice pill/underline rail look via className while
+ * and supplies the VoiceStudio pill/underline rail look via className while
  * keeping its `items`/`value`/`onChange`/`size`/`variant` prop API. Provides
  * roving tabindex, arrow-key navigation, and proper ARIA roles for free.
  */

@@ -5,10 +5,10 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Badge — new-york style, themed through the OmniVoice token bridge.
+ * shadcn/ui Badge — new-york style, themed through the VoiceStudio token bridge.
  *
  * Beyond the stock shadcn variants (default / secondary / destructive /
- * outline) the CVA carries the OmniVoice *tones* (neutral / brand / success /
+ * outline) the CVA carries the VoiceStudio *tones* (neutral / brand / success /
  * warn / danger / info / violet) that back the legacy `src/ui/Badge.jsx`
  * wrapper. Tones render as chrome chips — a mono uppercase pill with a
  * tinted fill (borders removed app-wide) — using palette token utilities so
@@ -24,7 +24,7 @@ const badgeVariants = cva(
         secondary: 'border border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border border-transparent bg-destructive text-destructive-foreground',
         outline: 'border border-transparent bg-secondary text-foreground',
-        // ── OmniVoice tones ──
+        // ── VoiceStudio tones ──
         neutral: 'text-muted-foreground border border-transparent bg-transparent',
         brand: 'text-primary border border-transparent bg-primary/[0.12]',
         success: 'text-success border border-transparent bg-success/10',

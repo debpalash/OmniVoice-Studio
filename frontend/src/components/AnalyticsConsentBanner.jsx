@@ -56,14 +56,14 @@ export default function AnalyticsConsentBanner() {
   return (
     <div
       role="dialog"
-      aria-label={t('consent.title', 'Help improve OmniVoice?')}
+      aria-label={t('consent.title', 'Help improve VoiceStudio?')}
       className="fixed left-1/2 top-[var(--space-4)] z-[70] flex w-[min(680px,92vw)] -translate-x-1/2 items-start gap-[var(--space-3)] rounded-lg border border-border bg-bg-elev-1 px-[var(--space-4)] py-[var(--space-3)] shadow-lg backdrop-blur-md"
       data-testid="analytics-consent-banner"
     >
       <BarChart3 size={16} className="mt-[3px] shrink-0 text-primary" aria-hidden />
       <div className="min-w-0 flex-1">
         <div className="mb-1 text-[length:var(--text-sm)] font-semibold text-fg">
-          {t('consent.title', 'Help improve OmniVoice?')}
+          {t('consent.title', 'Help improve VoiceStudio?')}
         </div>
         <AnalyticsConsentCard compact onDone={() => setShow(false)} />
       </div>

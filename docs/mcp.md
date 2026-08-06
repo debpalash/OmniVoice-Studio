@@ -1,10 +1,10 @@
 # MCP server — let agents speak in your voice
 
-OmniVoice ships an [MCP](https://modelcontextprotocol.io/) server so AI agents
+VoiceStudio ships an [MCP](https://modelcontextprotocol.io/) server so AI agents
 (Claude Code, Cursor, …) can synthesize speech, clone voices, transcribe audio,
 and list your voices — locally, in a voice you choose per agent. The server is
 **mounted on the running backend** at `/mcp`, so there's nothing extra to
-start once OmniVoice is open.
+start once VoiceStudio is open.
 
 ## Tools
 
@@ -27,7 +27,7 @@ http://localhost:3900/mcp
 ```
 
 To bind this agent to a specific voice, send an
-`X-OmniVoice-Client-Id` header (e.g. `claude-code`). See
+`X-VoiceStudio-Client-Id` header (e.g. `claude-code`). See
 [per-agent voices](#per-agent-voices).
 
 **Agents in Docker or on another machine:** the MCP SDK rejects non-localhost
@@ -49,14 +49,14 @@ this into your client's MCP config (`docs/mcp.json` is a template):
     "omnivoice": {
       "command": "python",
       "args": ["-m", "backend.mcp_shim"],
-      "cwd": "/path/to/OmniVoice-Studio",
+      "cwd": "/path/to/VoiceStudio",
       "env": { "OMNIVOICE_PORT": "3900", "OMNIVOICE_CLIENT_ID": "claude-code" }
     }
   }
 }
 ```
 
-The shim forwards `OMNIVOICE_CLIENT_ID` as the `X-OmniVoice-Client-Id` header,
+The shim forwards `OMNIVOICE_CLIENT_ID` as the `X-VoiceStudio-Client-Id` header,
 so the per-agent voice binding works the same as the HTTP path. It waits for
 the backend to be up, relays JSON-RPC, and exits cleanly when the client
 closes.
@@ -70,7 +70,7 @@ in Scarlett". Voice resolution precedence on every `generate_speech` call:
 1. an explicit `profile_id` argument, else
 2. the calling agent's binding, else
 3. the global default voice, else
-4. OmniVoice's default voice.
+4. VoiceStudio's default voice.
 
 Manage bindings over the loopback REST API (the Settings UI uses these):
 

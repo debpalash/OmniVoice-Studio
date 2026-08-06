@@ -17,7 +17,7 @@
 # Hard exits:
 #   * exit 2 — macOS Apple Silicon + cmake -DGGML_METAL=ON failed. The
 #     caller (CI matrix) treats this as a documented Pitfall 1 fallback:
-#     macOS Apple Silicon stays on the in-process OmniVoiceBackend.
+#     macOS Apple Silicon stays on the in-process VoiceStudioBackend.
 set -euo pipefail
 
 PLATFORM=""
@@ -137,11 +137,11 @@ case "$PLATFORM" in
                 cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
                 copy_shared_libs
             else
-                echo "→ Metal build failed during compilation; macOS Apple Silicon falls back to in-process OmniVoiceBackend per Pitfall 1." >&2
+                echo "→ Metal build failed during compilation; macOS Apple Silicon falls back to in-process VoiceStudioBackend per Pitfall 1." >&2
                 exit 2
             fi
         else
-            echo "→ Metal cmake configure failed; macOS Apple Silicon falls back to in-process OmniVoiceBackend per Pitfall 1." >&2
+            echo "→ Metal cmake configure failed; macOS Apple Silicon falls back to in-process VoiceStudioBackend per Pitfall 1." >&2
             exit 2
         fi
         ;;

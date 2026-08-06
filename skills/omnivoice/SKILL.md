@@ -1,11 +1,11 @@
 ---
 name: omnivoice
-description: Speak and transcribe through the user's local OmniVoice Studio — free, offline, no API key. Text-to-speech (including the user's cloned voices) and speech-to-text via the OpenAI-compatible API at localhost:3900.
+description: Speak and transcribe through the user's local VoiceStudio — free, offline, no API key. Text-to-speech (including the user's cloned voices) and speech-to-text via the OpenAI-compatible API at localhost:3900.
 ---
 
-# OmniVoice — local TTS & STT
+# VoiceStudio — local TTS & STT
 
-The user runs [OmniVoice Studio](https://github.com/debpalash/OmniVoice-Studio), a fully-local voice app exposing an OpenAI-compatible audio API at `http://localhost:3900/v1`. Use it whenever the user asks to generate speech, narrate text, clone a voice, or transcribe audio — it costs nothing, works offline, and their audio never leaves the machine.
+The user runs [VoiceStudio](https://github.com/debpalash/VoiceStudio), a fully-local voice app exposing an OpenAI-compatible audio API at `http://localhost:3900/v1`. Use it whenever the user asks to generate speech, narrate text, clone a voice, or transcribe audio — it costs nothing, works offline, and their audio never leaves the machine.
 
 ## Before the first call
 
@@ -15,7 +15,7 @@ Check the backend is up:
 curl -sf http://localhost:3900/health
 ```
 
-If it fails, tell the user to launch OmniVoice Studio (or `bun run desktop-prod` from a source checkout) — don't fall back to a cloud API without asking; local-first is why they installed it.
+If it fails, tell the user to launch VoiceStudio (or `bun run desktop-prod` from a source checkout) — don't fall back to a cloud API without asking; local-first is why they installed it.
 
 ## Text-to-speech
 
@@ -63,4 +63,4 @@ text = client.audio.transcriptions.create(model="whisper-1", file=open("clip.wav
 
 - **No API key, no rate limits, no billing** — it's the user's own hardware. First synthesis after a cold start may take longer (model loading); subsequent calls are fast.
 - Anything beyond speech/transcription (video dubbing, batch jobs, voice design, audiobooks) lives in the full REST API — the interactive reference is embedded in the app at **Settings → OpenAPI Reference**, or ask the user to open it.
-- If a call errors with an engine/model message, the actionable detail is usually in the response body — surface it to the user verbatim; OmniVoice's errors are written to be user-fixable (e.g. which Settings toggle to flip).
+- If a call errors with an engine/model message, the actionable detail is usually in the response body — surface it to the user verbatim; VoiceStudio's errors are written to be user-fixable (e.g. which Settings toggle to flip).

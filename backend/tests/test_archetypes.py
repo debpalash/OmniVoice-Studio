@@ -2,7 +2,7 @@
 
 The archetype engine generates hundreds of ready-to-use *designed* voices for
 the Voice Gallery. Every archetype carries an ``instruct`` string that flows
-into ``OmniVoice.generate(instruct=...)``. That call runs the string through
+into ``VoiceStudio.generate(instruct=...)``. That call runs the string through
 ``_resolve_instruct``, which rejects any token outside the fixed taxonomy
 vocabulary with ``ValueError`` — the exact failure mode that made issue #89
 crash synthesis when a personality shipped prose instead of valid tokens.

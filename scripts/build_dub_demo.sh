@@ -38,15 +38,15 @@ fi
 # long enough to show off pacing + accent. All translations preserve meaning;
 # they were drafted manually so the script is reproducible.
 
-EN_SCRIPT="OmniVoice Studio is a desktop app for voice cloning, video dubbing, and voice design. It runs entirely on your machine. No accounts, no cloud, no API keys. Just open the app and start creating."
+EN_SCRIPT="VoiceStudio is a desktop app for voice cloning, video dubbing, and voice design. It runs entirely on your machine. No accounts, no cloud, no API keys. Just open the app and start creating."
 
-ES_SCRIPT="OmniVoice Studio es una aplicación de escritorio para clonación de voz, doblaje de vídeo y diseño de voz. Funciona completamente en tu máquina. Sin cuentas, sin nube, sin claves de API. Solo abre la aplicación y comienza a crear."
+ES_SCRIPT="VoiceStudio es una aplicación de escritorio para clonación de voz, doblaje de vídeo y diseño de voz. Funciona completamente en tu máquina. Sin cuentas, sin nube, sin claves de API. Solo abre la aplicación y comienza a crear."
 
-FR_SCRIPT="OmniVoice Studio est une application de bureau pour le clonage de voix, le doublage vidéo et la conception vocale. Elle fonctionne entièrement sur votre machine. Pas de compte, pas de cloud, pas de clé d'API. Ouvrez l'application et commencez à créer."
+FR_SCRIPT="VoiceStudio est une application de bureau pour le clonage de voix, le doublage vidéo et la conception vocale. Elle fonctionne entièrement sur votre machine. Pas de compte, pas de cloud, pas de clé d'API. Ouvrez l'application et commencez à créer."
 
-ZH_SCRIPT="OmniVoice Studio 是一款桌面应用，用于语音克隆、视频配音和声音设计。它完全在你的电脑上运行。无需账户，无需云端，无需 API 密钥。打开应用即可开始创作。"
+ZH_SCRIPT="VoiceStudio 是一款桌面应用，用于语音克隆、视频配音和声音设计。它完全在你的电脑上运行。无需账户，无需云端，无需 API 密钥。打开应用即可开始创作。"
 
-JA_SCRIPT="OmniVoice Studioは、ボイスクローン、ビデオ吹き替え、ボイスデザインのためのデスクトップアプリです。すべてお使いのコンピュータ上で動作します。アカウント、クラウド、APIキーは不要です。アプリを開けば、すぐに制作を始められます。"
+JA_SCRIPT="VoiceStudioは、ボイスクローン、ビデオ吹き替え、ボイスデザインのためのデスクトップアプリです。すべてお使いのコンピュータ上で動作します。アカウント、クラウド、APIキーは不要です。アプリを開けば、すぐに制作を始められます。"
 
 # ── render_lang(code, voice, text) ──────────────────────────────────────
 #   Produces: $OUT_DIR/{source|dubbed_$code}.mp4 + matching .srt

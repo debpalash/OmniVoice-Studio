@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVoice Studio — Automated SEO Backlink Submission Script
+# VoiceStudio — Automated SEO Backlink Submission Script
 # Programmatically submits to every free, open endpoint that accepts URLs.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SITE_URL="https://github.com/debpalash/OmniVoice-Studio"
-SITE_NAME="OmniVoice Studio"
+SITE_URL="https://github.com/debpalash/VoiceStudio"
+SITE_NAME="VoiceStudio"
 SITE_DESC="Open-source ElevenLabs alternative — cinematic audio dubbing, voice cloning & TTS in 646 languages, runs 100% locally"
-RSS_URL="https://github.com/debpalash/OmniVoice-Studio/releases.atom"
+RSS_URL="https://github.com/debpalash/VoiceStudio/releases.atom"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -60,7 +60,7 @@ ENCODED_RSS=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$RSS_UR
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  OmniVoice Studio — Automated Backlink Submission Engine    ║"
+echo "║  VoiceStudio — Automated Backlink Submission Engine    ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  URL:  $SITE_URL"
@@ -151,16 +151,16 @@ submit "Pearltrees Add"              "https://www.pearltrees.com/s/save?url=${EN
 # ── 7. DEVELOPER / TECH-SPECIFIC ────────────────────────────────────────────
 echo ""
 echo "${YELLOW}━━━ 7. Developer & Tech Platforms ━━━${NC}"
-submit "LibHunt Lookup"              "https://www.libhunt.com/r/OmniVoice-Studio"
+submit "LibHunt Lookup"              "https://www.libhunt.com/r/VoiceStudio"
 submit "StackShare Lookup"           "https://stackshare.io/omnivoice-studio"
 submit "DevHunt Submit"              "https://devhunt.org/submit?url=${ENCODED_URL}"
-submit "OSS Insight Lookup"          "https://ossinsight.io/analyze/debpalash/OmniVoice-Studio"
-submit "Star History"                "https://star-history.com/#debpalash/OmniVoice-Studio"
-submit "GitTrends"                   "https://gittrends.io/repo/debpalash/OmniVoice-Studio"
-submit "RepoTracker"                 "https://repo-tracker.com/r/gh/debpalash/OmniVoice-Studio"
+submit "OSS Insight Lookup"          "https://ossinsight.io/analyze/debpalash/VoiceStudio"
+submit "Star History"                "https://star-history.com/#debpalash/VoiceStudio"
+submit "GitTrends"                   "https://gittrends.io/repo/debpalash/VoiceStudio"
+submit "RepoTracker"                 "https://repo-tracker.com/r/gh/debpalash/VoiceStudio"
 submit "Snyk Advisor"                "https://snyk.io/advisor/python/omnivoice"
-submit "Libraries.io"                "https://libraries.io/github/debpalash/OmniVoice-Studio"
-submit "OpenHub"                     "https://www.openhub.net/p/OmniVoice-Studio"
+submit "Libraries.io"                "https://libraries.io/github/debpalash/VoiceStudio"
+submit "OpenHub"                     "https://www.openhub.net/p/VoiceStudio"
 submit "Awesome Self-Hosted"         "https://awesome-selfhosted.net/"
 submit "RunaCapital ROSS Index"      "https://runacap.com/ross-index/"
 submit "SaaSHub Lookup"              "https://www.saashub.com/omnivoice-studio"
@@ -246,7 +246,7 @@ echo "${YELLOW}━━━ 12. WHOIS & Domain Lookup Caches ━━━${NC}"
 submit "W3Techs"                     "https://w3techs.com/sites/info/github.com"
 submit "BuiltWith"                   "https://builtwith.com/debpalash.github.io"
 submit "Netcraft Site Report"        "https://sitereport.netcraft.com/?url=${ENCODED_URL}"
-submit "SimilarWeb"                  "https://www.similarweb.com/website/github.com/debpalash/OmniVoice-Studio/"
+submit "SimilarWeb"                  "https://www.similarweb.com/website/github.com/debpalash/VoiceStudio/"
 submit "Wappalyzer"                  "https://www.wappalyzer.com/lookup/${SITE_URL}/"
 submit "SecurityHeaders"             "https://securityheaders.com/?q=${ENCODED_URL}&followRedirects=on"
 submit "Mozilla Observatory"         "https://observatory.mozilla.org/analyze/${SITE_URL}"
@@ -256,14 +256,14 @@ submit "SSL Labs"                    "https://www.ssllabs.com/ssltest/analyze.ht
 echo ""
 echo "${YELLOW}━━━ 13. Additional Pages to Index ━━━${NC}"
 PAGES=(
-  "https://github.com/debpalash/OmniVoice-Studio"
-  "https://github.com/debpalash/OmniVoice-Studio/releases"
-  "https://github.com/debpalash/OmniVoice-Studio/wiki"
-  "https://github.com/debpalash/OmniVoice-Studio/issues"
-  "https://github.com/debpalash/OmniVoice-Studio/pulls"
-  "https://github.com/debpalash/OmniVoice-Studio/blob/main/README.md"
-  "https://github.com/debpalash/OmniVoice-Studio/blob/main/ROADMAP.md"
-  "https://github.com/debpalash/OmniVoice-Studio/releases/tag/v0.2.4"
+  "https://github.com/debpalash/VoiceStudio"
+  "https://github.com/debpalash/VoiceStudio/releases"
+  "https://github.com/debpalash/VoiceStudio/wiki"
+  "https://github.com/debpalash/VoiceStudio/issues"
+  "https://github.com/debpalash/VoiceStudio/pulls"
+  "https://github.com/debpalash/VoiceStudio/blob/main/README.md"
+  "https://github.com/debpalash/VoiceStudio/blob/main/ROADMAP.md"
+  "https://github.com/debpalash/VoiceStudio/releases/tag/v0.2.4"
 )
 for page in "${PAGES[@]}"; do
   EPAGE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$page', safe=''))")

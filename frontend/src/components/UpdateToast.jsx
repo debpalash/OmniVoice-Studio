@@ -50,7 +50,7 @@ function UpdateToastBody({ id, version }) {
       <div className="leading-snug">
         {t('update.toast_available', {
           version,
-          defaultValue: 'OmniVoice Studio {{version}} is available',
+          defaultValue: 'VoiceStudio {{version}} is available',
         })}
       </div>
       <div className="flex flex-wrap items-center gap-2">

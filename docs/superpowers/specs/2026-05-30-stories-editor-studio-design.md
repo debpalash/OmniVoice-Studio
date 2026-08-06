@@ -9,7 +9,7 @@
 
 The Stories Editor turns a **written story or script into a fully-voiced audio production** — narrator plus a distinct cloned/designed voice per character, with pacing and per-line direction — and generates **one cohesive audiobook** (plus pro outputs: per-character stems, chapter markers).
 
-It is the step up from the Clone/Design tabs (one voice, one block) to a **multi-voice production tool**: OmniVoice's "audiobook / radio-drama studio." Target users: indie authors (chapter → audiobook), podcasters/creators (dramatized readings), game & animation devs (batch character lines), hobbyists (bring a story to life).
+It is the step up from the Clone/Design tabs (one voice, one block) to a **multi-voice production tool**: VoiceStudio's "audiobook / radio-drama studio." Target users: indie authors (chapter → audiobook), podcasters/creators (dramatized readings), game & animation devs (batch character lines), hobbyists (bring a story to life).
 
 ## 2. Design philosophy — simple by default, deep on demand
 

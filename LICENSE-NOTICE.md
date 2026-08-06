@@ -1,4 +1,4 @@
-# OmniVoice Studio — License Notice
+# VoiceStudio — License Notice
 
 ## Abbreviation
 
@@ -6,9 +6,9 @@ AGPL-3.0-only
 
 ## Notice
 
-Copyright 2024-present Palash Debnath and OmniVoice Studio contributors.
+Copyright 2024-present Palash Debnath and VoiceStudio contributors.
 
-OmniVoice Studio is **free and open-source software, licensed under the GNU
+VoiceStudio is **free and open-source software, licensed under the GNU
 Affero General Public License, Version 3 (AGPL-3.0)**. You are free to use,
 copy, modify, and redistribute it — and that **includes commercial and internal
 business use**: run the app, use its outputs commercially, sell the audio you
@@ -16,22 +16,22 @@ produce with it, provide professional/client services with it, and deploy it
 within your organization.
 
 Because this is the **Affero** GPL, one additional obligation applies: if you
-modify OmniVoice Studio and make that modified version available to others over
+modify VoiceStudio and make that modified version available to others over
 a network, you must also offer those users the complete corresponding source
 code of your modified version under these same AGPL-3.0 terms. See the full
 text in [`LICENSE`](LICENSE).
 
 A **commercial license is available** for organizations that want to embed
-OmniVoice Studio in a closed-source or proprietary product or service without
+VoiceStudio in a closed-source or proprietary product or service without
 the AGPL-3.0 copyleft obligations. Pricing tiers are coming soon; for inquiries
-contact `OmniVoice@palash.dev`.
+contact `VoiceStudio@palash.dev`.
 
 (This Notice is a plain-language summary; the binding terms are the full GNU
 AGPL-3.0 text in [`LICENSE`](LICENSE).)
 
 ### Scope
 
-These terms cover the OmniVoice Studio application — the Tauri desktop shell
+These terms cover the VoiceStudio application — the Tauri desktop shell
 (`frontend/src-tauri/`), the React frontend (`frontend/src/`), the FastAPI
 backend (`backend/`), and supporting build / packaging scripts (`scripts/`,
 `Dockerfile`, `docker-compose.yml`, `.github/`).

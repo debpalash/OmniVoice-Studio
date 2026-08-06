@@ -3,12 +3,12 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Textarea — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Textarea — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). Mirrors the Input shell (`border-input`/`bg-transparent`/
  * `placeholder:text-muted-foreground`/`focus-visible:ring-ring`/
  * `aria-invalid:border-destructive`) so multi-line fields match single-line
  * ones and recolor with every [data-theme]. `textareaBaseClass` is exported so
- * the OmniVoice `Textarea` primitive (src/ui/Input.jsx) can layer its
+ * the VoiceStudio `Textarea` primitive (src/ui/Input.jsx) can layer its
  * padding-based size scale on top without re-deriving the shell.
  */
 const textareaBaseClass =

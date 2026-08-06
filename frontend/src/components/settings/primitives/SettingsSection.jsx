@@ -4,7 +4,7 @@ import React from 'react';
  * SettingsSection — the standard header + body wrapper for every Settings card.
  *
  * FAST-mode shadcn migration: the surface, header, icon tile, titles and actions
- * are now Tailwind utilities layered on the OmniVoice `--chrome-*` / `--space-*`
+ * are now Tailwind utilities layered on the VoiceStudio `--chrome-*` / `--space-*`
  * token bridge (palette preserved exactly — no hardcoded colors). The old
  * `.st-section*` rules in primitives.css are gone.
  *

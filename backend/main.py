@@ -863,7 +863,7 @@ async def lifespan(app: FastAPI):
 from core.version import APP_VERSION  # single source of truth (pyproject metadata)
 
 app = FastAPI(
-    title="OmniVoice Studio API",
+    title="VoiceStudio API",
     version=APP_VERSION,
     lifespan=lifespan,
     docs_url=None,       # Disabled — replaced by Scalar at /docs
@@ -953,7 +953,7 @@ async def global_exception_handler(request: Request, exc: Exception):
                 # genuinely reportable bugs — suppressing the report button for
                 # every 503 would silence exactly the class users need to file.
                 "detail": (
-                    "[shutting_down] OmniVoice is shutting down, so it didn't "
+                    "[shutting_down] VoiceStudio is shutting down, so it didn't "
                     "start loading the model. Reopen the app and try again."
                 )
             },
@@ -1053,7 +1053,7 @@ class NetworkAccessMiddleware:
 #: from whatever else might answer at the same URL (#1385). A rehosted UI
 #: whose API requests land on a static host or a proxy with no API route gets
 #: that host's 404 page; the frontend needs an authoritative "this really is
-#: an OmniVoice backend" signal rather than guessing from the body shape,
+#: a VoiceStudio backend" signal rather than guessing from the body shape,
 #: since a proxy can return JSON too. Value is the version, which is also
 #: useful when a desktop app talks to an older remote backend.
 BACKEND_MARKER_HEADER = "x-omnivoice-backend"
@@ -1203,7 +1203,7 @@ app.add_middleware(BearerKeyMiddleware)
 # Registered LAST, which in Starlette means OUTERMOST — so the marker lands on
 # every response, including the two gates' 401s above and StaticFiles' bare
 # "Not Found". Its absence is what lets a client conclude "whatever answered
-# me is not an OmniVoice backend" (#1385).
+# me is not a VoiceStudio backend" (#1385).
 app.add_middleware(BackendMarkerMiddleware)
 
 # Register canonical audio MIME types before any StaticFiles mount.
@@ -1425,7 +1425,7 @@ if __name__ == "__main__":
     # Rust sidecar launcher in lib.rs::BACKEND_PORT must stay in sync.
     #
     # SECURITY: default to loopback (127.0.0.1) so the API isn't reachable
-    # from the LAN out of the box. OmniVoice ships no authentication; binding
+    # from the LAN out of the box. VoiceStudio ships no authentication; binding
     # to 0.0.0.0 by default would expose every router on this process to any
     # host on the user's network. Docker images that need to publish the port
     # set OMNIVOICE_BIND_HOST=0.0.0.0 explicitly (see deploy/docker-compose.yml)
@@ -1457,7 +1457,7 @@ if __name__ == "__main__":
 
     def _fail_port_in_use(exc: "OSError | None") -> None:
         print(
-            f"FATAL: port {_port} is already in use — another OmniVoice "
+            f"FATAL: port {_port} is already in use — another VoiceStudio "
             f"backend (or another app) is listening on it. Quit the other "
             f"instance and relaunch; if nothing is visibly running, an "
             f"orphaned backend from a previous session is still holding the "

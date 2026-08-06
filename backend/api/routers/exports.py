@@ -29,7 +29,7 @@ def _safe_destination(raw: str) -> str:
     if not os.path.isabs(expanded):
         raise HTTPException(
             status_code=400,
-            detail="The destination needs to be a full path (e.g. /Users/you/Movies/OmniVoice) — not relative.",
+            detail="The destination needs to be a full path (e.g. /Users/you/Movies/VoiceStudio) — not relative.",
         )
     dest = os.path.realpath(expanded)
     parent = os.path.dirname(dest)
@@ -68,7 +68,7 @@ def export_file(req: ExportRequest):
     src = _safe_source(req.source_filename)
     dest = _safe_destination(req.destination_path)
     try:
-        # Video exports: overlay OmniVoice logo if visible watermark is enabled
+        # Video exports: overlay VoiceStudio logo if visible watermark is enabled
         if src.lower().endswith(".mp4"):
             from services.watermark import is_visible_video_enabled, get_ffmpeg_overlay_args
             logo_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "logo.png")

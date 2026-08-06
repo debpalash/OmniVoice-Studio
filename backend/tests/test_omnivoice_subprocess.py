@@ -10,7 +10,7 @@ the zombie outlives the reset.
 
 CI stays model-free: the roundtrip/hard-kill tests spawn a stub sidecar that
 speaks the wire protocol and either returns a sine wave or wedges forever
-(text == "HANG"), instead of loading the multi-GB OmniVoice model.
+(text == "HANG"), instead of loading the multi-GB VoiceStudio model.
 """
 import struct
 import json

@@ -540,7 +540,7 @@ New `frontend/src/utils/scriptToStory.test.js`:
 
 ## Constraints
 
-This section states, per OmniVoice hard rule, exactly how the spec satisfies it.
+This section states, per VoiceStudio hard rule, exactly how the spec satisfies it.
 
 - **Cross-platform parity / default-features-everywhere (P0 rule).** Ships in **default mode** (no toggle, no env var, no opt-in). Pure JS text transforms + a zustand store handoff + `setMode` nav + a `window.confirm` dialog — all webview-standard APIs identical on macOS (WKWebView), Windows (WebView2), and Linux (WebKitGTK). **No platform branches** in `storyToScript.js`/`scriptToStory.js`/the UI wiring; the one place line endings could diverge (`\r\n` from a Windows paste) is normalized to `\n` in `scriptToStory` *before* parsing, so the transform is byte-for-byte deterministic on every OS (unit-tested).
 - **Local-first guarantee.** No network call, no new HTTP endpoint, no account/token, no telemetry. Both conversions run in-process on the client. The render path it hands off to (`/longform/render`) is the existing fully-local renderer — unchanged.

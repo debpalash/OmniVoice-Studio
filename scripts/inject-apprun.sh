@@ -25,7 +25,7 @@ if [ ! -f "$APPRUN_SRC" ]; then
 fi
 
 # Tauri's AppImage staging dir: frontend/src-tauri/target/{profile}/bundle/appimage/*.AppDir/
-# The .AppDir name follows productName (e.g. "OmniVoice Studio.AppDir").
+# The .AppDir name follows productName (e.g. "VoiceStudio.AppDir").
 # Glob across both release and debug profiles in case the caller used --debug.
 STAGE_BASE_RELEASE="$REPO_ROOT/frontend/src-tauri/target/release/bundle/appimage"
 STAGE_BASE_DEBUG="$REPO_ROOT/frontend/src-tauri/target/debug/bundle/appimage"

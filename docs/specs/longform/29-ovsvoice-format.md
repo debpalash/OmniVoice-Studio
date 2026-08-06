@@ -8,11 +8,11 @@ Add a self-contained, portable **`.ovsvoice`** persona bundle (a ZIP) that packa
 
 ## Problem
 
-OmniVoice already ships a `.omnivoice` bundle (`backend/api/routers/marketplace.py`) that zips `metadata.json` + `ref_audio` + `locked_audio` (built by `export_profile`/`publish_to_marketplace`; `marketplace.py:99-137` and `:275-296`). It is insufficient as a *portable persona* format:
+VoiceStudio already ships a `.omnivoice` bundle (`backend/api/routers/marketplace.py`) that zips `metadata.json` + `ref_audio` + `locked_audio` (built by `export_profile`/`publish_to_marketplace`; `marketplace.py:99-137` and `:275-296`). It is insufficient as a *portable persona* format:
 
 - **No consent attestation travels with the persona.** The owner's `verified_own_voice` flag and consent record (`verified_own_voice`, `consent_text`, `consent_audio_path`, `consent_recorded_at` — `backend/core/db.py:52-55`) are never read by `_bundle_metadata` (`marketplace.py:69-81` only captures `bundle_version`/`profile_name`/`ref_text`/`instruct`/`language`/`personality`/`seed`/`kind`/`vd_states`/`is_locked`/`omnivoice_version`), so a shared persona carries no creation-method / attestation provenance. §R3 G2 (persona gallery) requires consent attestation at package time; without it, an imported persona silently loses its verified status.
 - **No license tag.** There is no machine-readable statement of how the persona may be reused (the competitive-analysis recommendation is an SPDX-style tag — `docs/competitive-analysis.md:1151-1152`).
-- **No watermarked preview.** The bundle carries raw `ref_audio`/`locked_audio` only (`marketplace.py:108-122`). The parity program mandates an **AudioSeal-watermarked preview** so a shared persona can be attributed back to OmniVoice and (later) to a persona ID ("AudioSeal watermark mandatory on preview audio … enough to carry a persona ID" — `docs/competitive-analysis.md:1140` / `:1151-1153`).
+- **No watermarked preview.** The bundle carries raw `ref_audio`/`locked_audio` only (`marketplace.py:108-122`). The parity program mandates an **AudioSeal-watermarked preview** so a shared persona can be attributed back to VoiceStudio and (later) to a persona ID ("AudioSeal watermark mandatory on preview audio … enough to carry a persona ID" — `docs/competitive-analysis.md:1140` / `:1151-1153`).
 - **The format version is shared with `.omnivoice` and undifferentiated.** `BUNDLE_VERSION = 1` (`marketplace.py:52`, stamped into `metadata.bundle_version` at `:70`) does not distinguish "persona bundle with consent + preview" from the legacy share bundle.
 
 The persona gallery (row 5.4) gates on "designed / self-recorded only, consent attestation, AudioSeal preview watermark enforced at package time" (`docs/specs/2026-06-12-elevenlabs-parity-program.md:79`) — none of which the current bundle satisfies.
@@ -49,7 +49,7 @@ preview.wav          # AudioSeal-watermarked preview, 24 kHz mono 16-bit PCM    
 consent_audio.<ext>  # the recorded consent statement                                   (optional)
 ```
 
-`manifest.json` replaces the legacy flat `metadata.json` as the canonical reader. To stay readable by the **legacy** `.omnivoice` importer (`marketplace.import_profile`, which requires `metadata.json` — `marketplace.py:168-172`), the export **also** writes `metadata.json` (a verbatim copy of `_bundle_metadata(profile, ...)`) when producing a `.ovsvoice`, so an older OmniVoice can still import the ref audio. The new importer prefers `manifest.json` and falls back to `metadata.json` (B4).
+`manifest.json` replaces the legacy flat `metadata.json` as the canonical reader. To stay readable by the **legacy** `.omnivoice` importer (`marketplace.import_profile`, which requires `metadata.json` — `marketplace.py:168-172`), the export **also** writes `metadata.json` (a verbatim copy of `_bundle_metadata(profile, ...)`) when producing a `.ovsvoice`, so an older VoiceStudio can still import the ref audio. The new importer prefers `manifest.json` and falls back to `metadata.json` (B4).
 
 ### Bundle versioning
 
@@ -71,13 +71,13 @@ MAX_BUNDLE_BYTES = 100 * 1024 * 1024          # reuse marketplace.py:55 value
 PREVIEW_MAX_SECONDS = 8.0                      # A6 cap
 PREVIEW_SAMPLE_RATE = 24_000                   # A8 declared rate; mono, 16-bit PCM
 _MIN_CONSENT_AUDIO_BYTES = 1000                # import profiles.py:302 floor
-DEFAULT_LICENSE = "LicenseRef-OmniVoice-Personal"
+DEFAULT_LICENSE = "LicenseRef-VoiceStudio-Personal"
 
 # Membership allowlist for SPDX validation — fixed-string set + LicenseRef- prefix
 # (NO regex over SPDX input — CodeQL py/polynomial-redos). Extend as needed.
 _SPDX_ALLOWLIST: frozenset[str] = frozenset({
     "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0",
-    "CC-BY-ND-4.0", "MIT", "Apache-2.0", "LicenseRef-OmniVoice-Personal",
+    "CC-BY-ND-4.0", "MIT", "Apache-2.0", "LicenseRef-VoiceStudio-Personal",
 })
 
 class BundleError(Exception):
@@ -161,7 +161,7 @@ Reuse the exact hardening already in the repo (this branch has a string of CodeQ
 
 ### License tag
 
-Add a `license` block to the manifest: `{ "spdx": "<id>", "custom_text": "<optional>" }`. Default on export = `DEFAULT_LICENSE = "LicenseRef-OmniVoice-Personal"` (a custom ref meaning "personal use, no redistribution"); the export call accepts an SPDX id from the UI. Validate against `_SPDX_ALLOWLIST` (set membership) plus `spdx.startswith("LicenseRef-")`; on miss, **normalize to `DEFAULT_LICENSE`** (never 400). **Validate by membership / fixed-string prefix check, not by a back-tracking regex** (CodeQL `py/polynomial-redos`). No license-enforcement logic — metadata only.
+Add a `license` block to the manifest: `{ "spdx": "<id>", "custom_text": "<optional>" }`. Default on export = `DEFAULT_LICENSE = "LicenseRef-VoiceStudio-Personal"` (a custom ref meaning "personal use, no redistribution"); the export call accepts an SPDX id from the UI. Validate against `_SPDX_ALLOWLIST` (set membership) plus `spdx.startswith("LicenseRef-")`; on miss, **normalize to `DEFAULT_LICENSE`** (never 400). **Validate by membership / fixed-string prefix check, not by a back-tracking regex** (CodeQL `py/polynomial-redos`). No license-enforcement logic — metadata only.
 
 ## Completeness — exhaustive edge cases, states, and failure paths
 
@@ -386,7 +386,7 @@ A `kind='design'` persona exports with `method="designed-synthetic"`, `verified_
 POST /personas/export/{profile_id}
   request: path param profile_id: str
            query params (FastAPI Query, like marketplace.py:252):
-             license_spdx: str = "LicenseRef-OmniVoice-Personal"
+             license_spdx: str = "LicenseRef-VoiceStudio-Personal"
              tags: str = ""                  # comma-separated, parsed to list[str]
              include_reference: bool = true  # privacy: false → preview-only bundle (A12)
   200: StreamingResponse, media_type="application/zip"     # NOT octet-stream (matches marketplace.py:132)
@@ -570,7 +570,7 @@ export interface PersonaBundleMeta {
 
 ## Constraints
 
-This feature ships in **default mode** (no opt-in toggle to export/import a persona), so it is held to every OmniVoice hard rule. Each is satisfied as follows:
+This feature ships in **default mode** (no opt-in toggle to export/import a persona), so it is held to every VoiceStudio hard rule. Each is satisfied as follows:
 
 - **Default-features cross-platform parity (CLAUDE.md P0 rule — "behave identically on macOS, Windows, and Linux"):** export/import is default-on with no platform branch. Its building blocks are all OS-agnostic: stdlib `zipfile`/`json`, the `_voices_path` confinement using `os.path.realpath` + `startswith(root + os.sep)` (which uses `os.sep`, resolving Windows drive-letter/UNC the same way the existing consent/delete paths already do — **verified** `profiles.py:309-322`, E1), and the watermark gate (`_check_available()` at `watermark.py:43-53` is a pure import check). The single capability that *could* diverge — AudioSeal availability — is handled by the **identical degrade path on all three platforms**: when AudioSeal is absent the preview is still written, just with `manifest.preview.watermarked = false` recorded honestly (A10). There is **no platform-only skip** and no platform that produces a different bundle shape. No new platform-only feature is introduced, so nothing needs an opt-in gate.
 - **Local-first guarantee preserved (no cloud/accounts/telemetry):** **zero network calls.** Export builds the ZIP in-memory from local DB + local files and streams it back to the same machine; import reads an uploaded local file. No new endpoint posts anywhere; no token, account, or API key is read or required. The only network code adjacent to this path is AudioSeal's *first-run model fetch* via `huggingface_hub`, which is the pre-existing, optional watermark dependency (not introduced here) and degrades to no-op offline (A10/A11). The feature is fully functional with no connectivity.

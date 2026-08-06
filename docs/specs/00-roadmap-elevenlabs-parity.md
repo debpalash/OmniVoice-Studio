@@ -1,7 +1,7 @@
-# OmniVoice → True ElevenLabs Alternative — Spec Roadmap
+# VoiceStudio → True ElevenLabs Alternative — Spec Roadmap
 
 This directory holds the implementation-ready specs that close the gap between
-OmniVoice Studio and ElevenLabs **without giving up what makes OmniVoice
+VoiceStudio and ElevenLabs **without giving up what makes VoiceStudio
 different**: fully local, no accounts, no API keys, no telemetry, 646 languages,
 cross-platform. The thesis is *counter-positioning*, not feature-cloning — we
 match the capabilities creators actually feel, and we win on "your voice never
@@ -11,14 +11,14 @@ leaves your machine."
 
 ElevenLabs' moat is **perceived voice quality + expressive control**, and its
 2025-26 expansion is **voice agents**. Everything else (library, studio editor,
-dubbing depth, API) is table-stakes polish. OmniVoice already has the hard parts
+dubbing depth, API) is table-stakes polish. VoiceStudio already has the hard parts
 — multi-engine TTS/ASR, cloning, design, dubbing, live dictation, an MCP server,
 a local-LLM adapter, streaming TTS, echo cancellation. The gap is mostly **the
 last mile of control and polish on top of infrastructure that already exists.**
 
 ## Gap analysis
 
-| ElevenLabs capability | OmniVoice today | Spec that closes it |
+| ElevenLabs capability | VoiceStudio today | Spec that closes it |
 |---|---|---|
 | Expressive/emotional delivery (v3 audio tags) | Voice *design* attributes only; no per-utterance emotion | **01 — Expressive TTS** |
 | Pronunciation dictionaries (IPA/phoneme) | `pronunciation.py` alias/respell, not user-editable/persisted | **01 — Expressive TTS** |
@@ -35,7 +35,7 @@ last mile of control and polish on top of infrastructure that already exists.**
 
 - **[01 — Expressive TTS](01-expressive-tts.md)** — engine-agnostic emotion/style
   intent (inline tags + controls) *lowered* onto each engine's real mechanism
-  (OmniVoice `instruct`, CosyVoice NL-instruct/`[laughter]`, IndexTTS2 emotion
+  (VoiceStudio `instruct`, CosyVoice NL-instruct/`[laughter]`, IndexTTS2 emotion
   vector, VoxCPM2 prefix), degrading **visibly** never silently; plus a
   user-editable, per-language, DB-persisted **pronunciation dictionary** (IPA/CMU/
   respell) applied pre-synthesis. Builds on `services/ssml_lite.py`,
@@ -71,7 +71,7 @@ last mile of control and polish on top of infrastructure that already exists.**
 - **05 — Streaming latency + API/SDK parity.** Honest benchmark of streaming TTS
   **time-to-first-audio** and real-time-factor per engine/device, a latency
   budget, and a documented **OpenAI-compatible + native streaming HTTP/WS API**
-  with thin Python/JS SDK wrappers so developers can drop OmniVoice in where they
+  with thin Python/JS SDK wrappers so developers can drop VoiceStudio in where they
   used ElevenLabs. *Touchpoints:* `tts_stream.py` (`/ws/tts`), the MCP server, the
   generate path. *Open: which engines get the low-latency "Flash-class" path; SDK
   surface; OpenAI `/v1/audio/speech` compatibility scope.*
@@ -102,7 +102,7 @@ ship value without the whole feature):
    small (the cache already exists) and immediately feels "pro."
 3. **02 Conversational Agent** — the headline new *category*; ship half-duplex
    first, then barge-in. Pair with the 05 latency benchmark.
-4. **05 / 04 / 06** — as capacity allows; 05 makes OmniVoice a real developer
+4. **05 / 04 / 06** — as capacity allows; 05 makes VoiceStudio a real developer
    drop-in, 04 builds community gravity, 06 is breadth.
 
 ## Cross-cutting principles (every spec obeys these)
@@ -127,7 +127,7 @@ Accounts, login, cloud sync, a hosted voice marketplace, server-side rendering,
 and usage analytics/telemetry are ElevenLabs *features* that are **anti-features**
 for a local-first tool. We don't measure parity against them. "Fully local, no
 keys, 646 languages, free, your voice never leaves your machine" is the
-counter-position — these specs make OmniVoice match ElevenLabs on the things
+counter-position — these specs make VoiceStudio match ElevenLabs on the things
 creators feel, while staying on the right side of that line.
 
 ## Prior art & reconciliation

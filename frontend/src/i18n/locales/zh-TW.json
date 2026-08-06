@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前還有回應，之後停止回應——很可能是在處理請求時當機或被強制終止。",
     "contact_never": "本次工作階段中它從未回應——可能根本沒有啟動。",
-    "dev": "無法連線本機 OmniVoice 後端。{{contact}} 在 `bun run dev` 下後端以自動重新載入方式執行，任何檔案變動（包括請求進行中的儲存）都會重啟它並中斷連線。請先重試該操作；若是重新載入造成的，重試即可成功。若仍然失敗，請查看執行 `bun run dev` 的終端機是否有 Python 追蹤訊息或結束訊息，以及 OmniVoice 資料夾中的 omnivoice.log。",
-    "server": "無法連線 OmniVoice 後端伺服器。{{contact}} 請查看伺服器日誌以找出原因（例如 `docker logs <容器>` 或 `journalctl`）——另請注意：如果此頁面由 Docker 提供，頁面本身也可能隨後端一起停止運作。",
-    "misrouted": "回應 {{url}} 的伺服器並非 OmniVoice 後端——它回傳了自己的 404 頁面。API 請求送到了錯誤的主機：請在 設定 → 網路共享 中檢查後端 URL；若此介面由反向代理提供，請檢查它對 API 路徑的路由設定。"
+    "dev": "無法連線本機 VoiceStudio 後端。{{contact}} 在 `bun run dev` 下後端以自動重新載入方式執行，任何檔案變動（包括請求進行中的儲存）都會重啟它並中斷連線。請先重試該操作；若是重新載入造成的，重試即可成功。若仍然失敗，請查看執行 `bun run dev` 的終端機是否有 Python 追蹤訊息或結束訊息，以及 VoiceStudio 資料夾中的 omnivoice.log。",
+    "server": "無法連線 VoiceStudio 後端伺服器。{{contact}} 請查看伺服器日誌以找出原因（例如 `docker logs <容器>` 或 `journalctl`）——另請注意：如果此頁面由 Docker 提供，頁面本身也可能隨後端一起停止運作。",
+    "misrouted": "回應 {{url}} 的伺服器並非 VoiceStudio 後端——它回傳了自己的 404 頁面。API 請求送到了錯誤的主機：請在 設定 → 網路共享 中檢查後端 URL；若此介面由反向代理提供，請檢查它對 API 路徑的路由設定。"
   },
   "nav": {
     "clone": "複製聲音",
@@ -165,7 +165,7 @@
     "review_mode_desc": "在管道階段之間暫停，以便您可以查看 ASR/翻譯輸出。",
     "header_live_stats": "在標題中顯示即時系統指標",
     "header_live_stats_desc": "在頂部欄位新增即時 RAM/CPU/VRAM 監視器（預設為關閉）。",
-    "storage_desc": "OmniVoice 保存您的資料和輸出的地方。",
+    "storage_desc": "VoiceStudio 保存您的資料和輸出的地方。",
     "history_retention": "生成歷史",
     "history_retention_desc": "在清理最舊項目之前保留的生成數量。",
     "history_retention_help": "每次生成後,超過此上限的最舊未加星項目將連同音訊檔案一併刪除。已加星的項目永遠保留。0 = 全部保留。",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "請輸入 0 或更大的數字"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "正在檢查環境…",
     "downloading_uv": "正在下載 uv（Python 包管理器）…",
     "creating_venv": "正在建立 Python 虛擬環境…",
@@ -210,10 +210,10 @@
     "hint_uv_sync": "相依套件安裝失敗。「清理並重試」會刪除快取的 venv 並重新開始。",
     "hint_build_backend": "Python 建置後端發生錯誤。「清理並重試」會移除損壞的 venv,從頭重新建置。",
     "hint_ffmpeg": "ffmpeg 下載失敗。這不是致命問題 — 可以重試,或手動安裝 ffmpeg。",
-    "hint_port": "連接埠 3900 已被佔用。請關閉其他 OmniVoice 實例或佔用該連接埠的應用程式。",
+    "hint_port": "連接埠 3900 已被佔用。請關閉其他 VoiceStudio 實例或佔用該連接埠的應用程式。",
     "hint_silent_crash": "後端在沒有錯誤訊息的情況下當機。「清理並重試」通常能解決 venv 損壞的問題。",
     "hint_github_blocked": "您的網路可能封鎖了 GitHub。請從 python.org 安裝 Python 3.11+(加入 PATH)後重新啟動,或設定 UV_PYTHON_INSTALL_MIRROR — 參見 docs/install/troubleshooting.md。",
-    "hint_intel_mac": "這台 Mac 使用 Intel 處理器,而 PyTorch 已不再發布 Intel Mac 版本 — 無法安裝本機 AI 後端,重試也無濟於事。您仍可將應用程式連接到另一台機器上執行的遠端後端(設定 → 網路共享 → 遠端後端),或在 Apple Silicon Mac、Windows 或 Linux 上使用 OmniVoice。詳情:docs/install/macos.md。",
+    "hint_intel_mac": "這台 Mac 使用 Intel 處理器,而 PyTorch 已不再發布 Intel Mac 版本 — 無法安裝本機 AI 後端,重試也無濟於事。您仍可將應用程式連接到另一台機器上執行的遠端後端(設定 → 網路共享 → 遠端後端),或在 Apple Silicon Mac、Windows 或 Linux 上使用 VoiceStudio。詳情:docs/install/macos.md。",
     "hint_default": "請先嘗試「重試」。若再次失敗,「清理並重試」會從頭重建執行環境。",
     "hint_stuck": "後端沒有啟動完成。從原始程式碼中，首先執行“uvsync”並確保“uv”和Python位於您的路徑上，然後再試一次。檢查下面的日誌（或設定 → 日誌 → 後端）以了解確切的停頓點。",
     "lines": "{{count}} 行"
@@ -465,7 +465,7 @@
     "downloading": "正在下載...",
     "check_updates": "檢查更新",
     "copy_diagnostics": "複製診斷",
-    "github": "GitHub 上的 OmniVoice",
+    "github": "GitHub 上的 VoiceStudio",
     "commercial_license": "商業許可",
     "update_channel": "更新通道",
     "channel_stable": "穩定版",
@@ -501,8 +501,8 @@
     "watermark_failed": "無法變更浮水印設定。"
   },
   "consent": {
-    "title": "協助改進 OmniVoice？",
-    "step_label": "改進 OmniVoice",
+    "title": "協助改進 VoiceStudio？",
+    "step_label": "改進 VoiceStudio",
     "body": "匿名且不含內容的使用統計：使用了哪些引擎、生成花費多久，以及錯誤的類型。絕不會傳送你的文字、音訊、檔案或任何可識別你身分的資訊。除非你同意，否則不會傳送任何資料；你可以隨時在 設定 → 隱私 中變更選擇。",
     "learn_more": "究竟會傳送什麼？",
     "yes": "是，分享匿名統計",
@@ -510,7 +510,7 @@
     "dismiss": "關閉（分析保持關閉）"
   },
   "langPrompt": {
-    "offer": "OmniVoice 以{{language}}開啟。想改用英文嗎？",
+    "offer": "VoiceStudio 以{{language}}開啟。想改用英文嗎？",
     "switch": "切換到英文",
     "keep": "保留{{language}}"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "未安裝",
     "available": "可用",
     "subprocessTitle": "在自己的子進程+venv中運行",
-    "inProcessTitle": "在 OmniVoice Python 進程中執行",
+    "inProcessTitle": "在 VoiceStudio Python 進程中執行",
     "testEngine": "測試引擎",
     "testing": "測試...",
     "recheck": "重新檢查",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "全域熱鍵僅適用於桌面應用程式。當視窗具有焦點時，Web UI 使用頁內 <1>Ctrl+Shift+Space</1> 快速鍵。",
-    "desc_detail": "當 OmniVoice 運作時，熱鍵在整個系統範圍內有效 — 它聚焦視窗並開始聽寫。避免作業系統已宣告的組合（在 macOS 上，<1>⌘+Space</1> 是 Spotlight，<2>⌘+⇧+Space</2> 迴圈輸入來源）。如果註冊失敗，請選擇不同的組合。",
+    "desc_detail": "當 VoiceStudio 運作時，熱鍵在整個系統範圍內有效 — 它聚焦視窗並開始聽寫。避免作業系統已宣告的組合（在 macOS 上，<1>⌘+Space</1> 是 Spotlight，<2>⌘+⇧+Space</2> 迴圈輸入來源）。如果註冊失敗，請選擇不同的組合。",
     "active_shortcut": "活動快捷方式",
     "new_shortcut": "新快捷方式",
     "press_key": "按組合鍵...",
@@ -609,8 +609,8 @@
     "no_speech": "未偵測到語音",
     "mic_denied": "麥克風存取被拒絕",
     "mic_denied_toast": "麥克風存取被拒絕。 {{hint}}",
-    "mic_hint_mac": "macOS：開啟系統設定 → 隱私和安全 → 麥克風並啟用 OmniVoice。",
-    "mic_hint_windows": "Windows：開啟 設定 → 隱私權與安全性 → 麥克風，開啟「麥克風存取權」和「允許桌面應用程式存取您的麥克風」，然後允許 OmniVoice。",
+    "mic_hint_mac": "macOS：開啟系統設定 → 隱私和安全 → 麥克風並啟用 VoiceStudio。",
+    "mic_hint_windows": "Windows：開啟 設定 → 隱私權與安全性 → 麥克風，開啟「麥克風存取權」和「允許桌面應用程式存取您的麥克風」，然後允許 VoiceStudio。",
     "mic_hint_linux": "Linux：檢查您的使用者是否在音訊群組中且 WebView 是否具有麥克風存取權限。",
     "transcription_failed": "轉錄失敗：{{message}}",
     "mic_not_found": "找不到麥克風。請連接或啟用麥克風後再試一次。",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "包括原始參考剪輯。關閉 = 僅共享帶浮水印的預覽（建議）。",
     "consent_title": "語音所有權",
     "consent_explain": "錄製您自己閱讀下面的聲明，以驗證這是您自己的聲音。代理特徵和社區共享需要驗證－本地綜合則不需要。",
-    "consent_statement": "我確認此語音設定檔是我自己的聲音，並且我同意 OmniVoice Studio 代表我克隆它。",
+    "consent_statement": "我確認此語音設定檔是我自己的聲音，並且我同意 VoiceStudio 代表我克隆它。",
     "consent_record": "記錄同意聲明",
     "consent_stop": "停止錄音",
     "consent_saved": "語音所有權已驗證",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "添加到隊列"
   },
   "gallery": {
-    "title": "OmniVoice 畫廊",
+    "title": "VoiceStudio 畫廊",
     "search_placeholder": "搜尋 YouTube...",
     "all_voices": "所有聲音 ({{count}})",
     "no_voices": "還沒有聲音",
@@ -1253,8 +1253,8 @@
   "donate": {
     "title": "支援",
     "desc": "如果您喜歡這個項目，請考慮捐贈以支持我們的發展。",
-    "hero_title": "支持OmniVoice",
-    "hero_desc": "OmniVoice 是免費、開源的，並且完全在您的硬體上運行。如果它為您的工作流程帶來價值，請考慮支援核心團隊。",
+    "hero_title": "支持VoiceStudio",
+    "hero_desc": "VoiceStudio 是免費、開源的，並且完全在您的硬體上運行。如果它為您的工作流程帶來價值，請考慮支援核心團隊。",
     "github_desc": "重複或一次性—直接透過 GitHub。",
     "coffee_desc": "請團隊喝杯咖啡。無需帳戶。",
     "paypal_desc": "快速一次性或透過 PayPal 定期進行。",
@@ -1262,7 +1262,7 @@
     "footer": "每一項貢獻都有助於突破本地人工智慧的界限。",
     "back": "返回工作室",
     "commercial": "商業許可",
-    "pill": "支持OmniVoice",
+    "pill": "支持VoiceStudio",
     "suggested_title": "選擇金額",
     "most_common": "最常見的",
     "custom": "客製化",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "克勞德馬克斯基金",
-      "lead_default": "很高興這有效！ OmniVoice 是免費的並且完全本地化。如果可以節省您的時間，每月只需投入一小筆資金即可資助其背後的 Claude Max。",
-      "lead_first_clone": "你的第一個聲音克隆已經完成——太好了！ OmniVoice 完全在您的電腦上運行，並且您的支援使其保持這種狀態。",
+      "lead_default": "很高興這有效！ VoiceStudio 是免費的並且完全本地化。如果可以節省您的時間，每月只需投入一小筆資金即可資助其背後的 Claude Max。",
+      "lead_first_clone": "你的第一個聲音克隆已經完成——太好了！ VoiceStudio 完全在您的電腦上運行，並且您的支援使其保持這種狀態。",
       "lead_tenth_dub": "十次配音——你顯然正在讓它發揮作用。每月一小筆資金為 Claude Max 提供這些功能的資金。",
-      "lead_sustained": "您使用 OmniVoice 已經一個月了。如果它在您的工作流程中贏得了一席之地，請考慮幫助資助下一步的工作。",
+      "lead_sustained": "您使用 VoiceStudio 已經一個月了。如果它在您的工作流程中贏得了一席之地，請考慮幫助資助下一步的工作。",
       "chip_in": "籌碼",
       "later": "也許稍後",
       "star": "在 GitHub 上加星標",
@@ -1296,14 +1296,14 @@
     "back": "返回工作室",
     "badge": "商業許可",
     "hero_title": "在生產中傳送人工智慧聲音",
-    "hero_desc": "OmniVoice Studio 是基於 GNU Affero 通用公眾授權條款第 3 版（AGPL-3.0）的自由開源軟體——可免費使用，包括商業用途與企業內部用途。只有當您想在不承擔 AGPL-3.0 著佐權（copyleft）義務的情況下，將 OmniVoice Studio 嵌入閉源或專有產品/服務時，才需要商業授權。",
-    "why_title": "為什麼企業選擇 OmniVoice",
+    "hero_desc": "VoiceStudio 是基於 GNU Affero 通用公眾授權條款第 3 版（AGPL-3.0）的自由開源軟體——可免費使用，包括商業用途與企業內部用途。只有當您想在不承擔 AGPL-3.0 著佐權（copyleft）義務的情況下，將 VoiceStudio 嵌入閉源或專有產品/服務時，才需要商業授權。",
+    "why_title": "為什麼企業選擇 VoiceStudio",
     "pricing_title": "定價",
     "faq_title": "常見問題",
     "pricing_desc": "等級和定價仍在最終確定中。",
     "pricing_detail": "在公開之前，每個商業部署都會單獨報價，以便我們可以根據您的團隊和工作負載調整規模。",
     "request_quote": "索取報價",
-    "footer_email": "有問題嗎？請透過 OmniVoice@palash.dev 聯繫",
+    "footer_email": "有問題嗎？請透過 VoiceStudio@palash.dev 聯繫",
     "footer_discord": "加入我們的 Discord 以獲得社群支持。",
     "benefit_ip": "完全IP所有權",
     "benefit_ip_desc": "您擁有每一個輸出、每一個模型、每一個衍生品。無共享租賃，無資料外洩。",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "對堆疊的完全可見性。在許可條款範圍內進行審核、分叉和調整。",
     "benefit_lang": "646 種語言",
     "benefit_lang_desc": "以人類層次的品質轉錄、翻譯和配音 646 種語言。",
-    "hero_note": "使用、自行架設與商業用途在 AGPL-3.0 下皆免費——包括大規模使用。AGPL 是網路著佐權授權條款：如果您修改 OmniVoice 並透過網路向他人提供該修改版本，就必須以相同條款公開您修改後的原始碼。商業授權可為專有閉源部署免除這些著佐權義務。定價方案即將推出——在此期間歡迎與我們聯繫。",
-    "hero_simple": "OmniVoice Studio 在 AGPL-3.0 下是免費且開源的 — 包括商業和內部業務用途。您只需要商業許可即可將其嵌入閉源產品中，無需 AGPL 的 Copyleft 義務。",
+    "hero_note": "使用、自行架設與商業用途在 AGPL-3.0 下皆免費——包括大規模使用。AGPL 是網路著佐權授權條款：如果您修改 VoiceStudio 並透過網路向他人提供該修改版本，就必須以相同條款公開您修改後的原始碼。商業授權可為專有閉源部署免除這些著佐權義務。定價方案即將推出——在此期間歡迎與我們聯繫。",
+    "hero_simple": "VoiceStudio 在 AGPL-3.0 下是免費且開源的 — 包括商業和內部業務用途。您只需要商業許可即可將其嵌入閉源產品中，無需 AGPL 的 Copyleft 義務。",
     "contact_lead": "定價按部署報價，因此適合您的團隊和工作負載。告訴我您的用例，我會給您報價。"
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "別擔心——應用程式的其餘部分仍然有效。您可以切換選項卡，或在下面重試。",
     "tryAgain": "再試一次",
     "openDocs": "開啟此錯誤的文檔",
-    "crash_port_in_use": "後端無法啟動，因為連接埠 3900 已被占用 — 另一個 OmniVoice 執行個體（或占用該連接埠的應用程式）正持有它。請結束另一個執行個體後重新啟動；若看不到任何正在執行的程式，則是上一次工作階段殘留的後端仍占用該連接埠。",
+    "crash_port_in_use": "後端無法啟動，因為連接埠 3900 已被占用 — 另一個 VoiceStudio 執行個體（或占用該連接埠的應用程式）正持有它。請結束另一個執行個體後重新啟動；若看不到任何正在執行的程式，則是上一次工作階段殘留的後端仍占用該連接埠。",
     "crash_oom_kill": "程序遭強制終止（信號 9），通常表示作業系統記憶體（RAM）不足而將其停止。請關閉占用記憶體較大的應用程式，在設定 → 模型中選擇較小的 ASR 模型，或在轉錄前卸載 TTS 模型。",
-    "crash_native_fault": "它是在計算堆疊內部崩潰的，而不是記憶體耗盡 — 這通常指向與內建 CUDA 執行環境不相符的 GPU 驅動程式，或未完整下載的模型檔案。請更新 GPU 驅動程式，然後在設定 → 模型中重新下載該模型（可就地修復未完成的下載）。若反覆發生，請在設定 → 引擎中切換到崩潰隔離引擎 — 合成用「OmniVoice (subprocess)」，轉錄用「Faster-Whisper (crash-isolated subprocess)」。它們在獨立程序中執行模型，因此這類崩潰只會終止該程序，而非整個後端。",
+    "crash_native_fault": "它是在計算堆疊內部崩潰的，而不是記憶體耗盡 — 這通常指向與內建 CUDA 執行環境不相符的 GPU 驅動程式，或未完整下載的模型檔案。請更新 GPU 驅動程式，然後在設定 → 模型中重新下載該模型（可就地修復未完成的下載）。若反覆發生，請在設定 → 引擎中切換到崩潰隔離引擎 — 合成用「VoiceStudio (subprocess)」，轉錄用「Faster-Whisper (crash-isolated subprocess)」。它們在獨立程序中執行模型，因此這類崩潰只會終止該程序，而非整個後端。",
     "report": "回報此錯誤",
     "report_failed": "無法開啟錯誤回報。請重試，或將上方的詳細資訊複製到新的 issue 中。",
     "searchIssues": "搜尋類似問題",
     "unexpected": "未預期的錯誤：{{message}}",
-    "backend_shutting_down": "OmniVoice 正在關閉。請重新開啟應用程式後再試。",
+    "backend_shutting_down": "VoiceStudio 正在關閉。請重新開啟應用程式後再試。",
     "crash_broken_env": "它在載入自身的 Python 相依套件時結束，因此與記憶體或顯示卡無關——執行環境不完整，或更新到一半就停住了。請在 設定 → 記錄 → 後端 中使用「Clean & Retry」，它會從頭重建環境並就地修復，不會動到你的聲音或專案。若之後仍然失敗，當機詳情會指出無法匯入的確切套件。"
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "網路",
     "local": "本地",
     "share_confirm_title": "在您的网络上分享？",
-    "share_confirm_hint": "Wi-Fi/乙太網路上的其他裝置將能夠使用開啟後顯示的存取 PIN 碼來存取 OmniVoice。",
+    "share_confirm_hint": "Wi-Fi/乙太網路上的其他裝置將能夠使用開啟後顯示的存取 PIN 碼來存取 VoiceStudio。",
     "enabling": "启用...",
     "enable": "啟用",
     "shared_title": "在您的網路上分享",
@@ -1530,7 +1530,7 @@
     "model_heading": "模型重量 · OpenRAIL-M",
     "model_desc": "Supertonic-3 模型權重在 OpenRAIL-M 許可證下發布。此許可證限制用於非惡意目的 - 請參閱連結許可證以了解全套基於使用的限制。",
     "read_openrail": "閱讀 OpenRAIL-M 許可證 →",
-    "footer": "按一下「接受」會在 OmniVoice 的本機設定中記錄您的接受情況並啟用引擎。您的接受僅儲存在本機上 — 不會向 Supertone Inc. 或任何第三方報告任何內容。",
+    "footer": "按一下「接受」會在 VoiceStudio 的本機設定中記錄您的接受情況並啟用引擎。您的接受僅儲存在本機上 — 不會向 Supertone Inc. 或任何第三方報告任何內容。",
     "saving": "正在儲存...",
     "accept": "接受",
     "accepted_toast": "已接受 Supertonic-3 許可證。",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "我需要內部工具的授權嗎？",
-    "a_internal_tools": "不需要。您的員工與承包商的使用——包括內部修改與自行架設——在 AGPL-3.0 下是免費的。只有當您將 OmniVoice 嵌入閉源或專有產品/服務，且不願遵守 AGPL 的原始碼公開義務時，才需要商業授權。",
+    "a_internal_tools": "不需要。您的員工與承包商的使用——包括內部修改與自行架設——在 AGPL-3.0 下是免費的。只有當您將 VoiceStudio 嵌入閉源或專有產品/服務，且不願遵守 AGPL 的原始碼公開義務時，才需要商業授權。",
     "q_try_before": "我可以在提交之前嘗試一下嗎？",
     "a_try_before": "可以。完整應用程式可在 AGPL-3.0 下免費下載、執行與自行架設——無需任何協議。當您準備討論商業（專有用途）授權時，請寄信給我們，我們會一起確認細節。",
     "q_watermark": "水印呢？",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "共享和遠端存取",
-    "help": "將此正在運行的 OmniVoice 實例公開給您的其他計算機，而無需重新啟動它。僅環回是預設設定 - 除非您在此處將其打開，否則不會共享任何內容。",
+    "help": "將此正在運行的 VoiceStudio 實例公開給您的其他計算機，而無需重新啟動它。僅環回是預設設定 - 除非您在此處將其打開，否則不會共享任何內容。",
     "local_network": "本地網路",
     "local_help": "使用一次性存取 PIN 在 Wi-Fi/乙太網路上共用。其他設備掃描二維碼或開啟連結。",
     "ports_title": "港口",
-    "ports_help": "這些是透過啟動時讀取的環境變數所設定的。透過設定變數並重新啟動 OmniVoice 來變更後端或 UI 連接埠。",
+    "ports_help": "這些是透過啟動時讀取的環境變數所設定的。透過設定變數並重新啟動 VoiceStudio 來變更後端或 UI 連接埠。",
     "backend_port": "後端連接埠",
     "ui_port": "使用者介面連接埠",
     "lan_share_port": "LAN共用連接埠",
@@ -1854,9 +1854,9 @@
     "ports_note": "後端和 UI 連接埠在重新啟動時會套用。 LAN 共用連接埠將在您下次啟用共用時套用。",
     "tailscale_title": "Tailscale（私人遠端存取）",
     "tailscale_checking": "檢查尾鱗...",
-    "tailscale_absent": "未檢測到尾鱗。安裝它即可從私人尾網上的任何地方安全地存取 OmniVoice。",
+    "tailscale_absent": "未檢測到尾鱗。安裝它即可從私人尾網上的任何地方安全地存取 VoiceStudio。",
     "tailscale_install": "安裝尾秤",
-    "tailscale_running": "尾鱗正在運行。透過您的私人尾網提供 OmniVoice。",
+    "tailscale_running": "尾鱗正在運行。透過您的私人尾網提供 VoiceStudio。",
     "tailscale_not_logged_in": "Tailscale 已安裝但未登入。首先啟動並登入 Tailscale。",
     "tailscale_enabled": "Tailscale 服務已啟用",
     "tailscale_enable_failed": "無法啟用 Tailscale",
@@ -1912,7 +1912,7 @@
     "failed": "更新失敗",
     "retry": "重試",
     "dismiss": "關閉",
-    "toast_available": "OmniVoice Studio {{version}} 可用",
+    "toast_available": "VoiceStudio {{version}} 可用",
     "toast_install": "安裝並重新啟動",
     "toast_whats_new": "新增內容",
     "toast_later": "稍後"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "正在準備安裝精靈…",
-    "title": "設定 OmniVoice Studio",
+    "title": "設定 VoiceStudio",
     "subtitle": "尚未安裝任何內容——先確認各項儲存位置，再開始安裝。之後可在設定中變更。",
     "language": "語言",
     "mode_title": "安裝模式",
@@ -2165,7 +2165,7 @@
     "lex_add": "添加單字",
     "lex_remove": "刪除",
     "markup_help": "標記參考",
-    "markup_hint": "# 章節標題 · [voice:NAME] 切換語音 · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · 反應 (OmniVoice)： [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]: [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# 章節標題 · [voice:NAME] 切換語音 · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · 反應 (VoiceStudio)： [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]: [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "語言",
     "expressive": "製作覆蓋",
     "reset": "重置",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "輸入訪問 PIN 碼",
-    "body": "此 OmniVoice 實例在網路上共用。輸入主機上顯示的 PIN。",
+    "body": "此 VoiceStudio 實例在網路上共用。輸入主機上顯示的 PIN。",
     "label": "訪問密碼",
     "connect": "連接"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "權限",
-    "desc": "OmniVoice 完全在您的裝置上執行——這些系統權限僅用於此處列出的功能，音訊絕不會離開您的電腦。",
+    "desc": "VoiceStudio 完全在您的裝置上執行——這些系統權限僅用於此處列出的功能，音訊絕不會離開您的電腦。",
     "microphone": "麥克風",
     "microphone_why": "用於聽寫與語音錄製。音訊在本機處理。",
     "accessibility": "輔助使用",
@@ -2299,7 +2299,7 @@
     "install_failed": "無法開始下載：{{message}}"
   },
   "backend_start_failure": {
-    "notice": "OmniVoice 後端無法啟動 — 在它啟動之前無法執行任何功能。",
+    "notice": "VoiceStudio 後端無法啟動 — 在它啟動之前無法執行任何功能。",
     "view": "查看原因",
     "title": "後端無法啟動",
     "intro": "這是應用程式嘗試啟動後端時記錄的內容。在回報中附上這段輸出有助於我們修正問題。",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "上一個工作階段在 {{ago}}前未正常關閉就結束了。這通常無害 —— 電腦進入了睡眠、應用程式被強制結束，或某個虛擬機/容器停止了。",
-    "details_intro_unclean": "上次執行的關閉標記在 {{ago}}前一直未被清除。OmniVoice 無法判斷那是當機還是僅僅被中斷 —— 睡眠、強制結束或停止虛擬機/容器都會留下相同的痕跡。如果現在一切正常，則無需處理。",
+    "details_intro_unclean": "上次執行的關閉標記在 {{ago}}前一直未被清除。VoiceStudio 無法判斷那是當機還是僅僅被中斷 —— 睡眠、強制結束或停止虛擬機/容器都會留下相同的痕跡。如果現在一切正常，則無需處理。",
     "report_needs_log": "此事件沒有擷取到任何錯誤輸出，因此一鍵回報將是空的。如果確實有問題，請將 設定 → 記錄 → 後端 的最後幾行附加到新的 issue 中。"
   }
 }

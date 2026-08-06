@@ -2,9 +2,9 @@
   "backendUnreachable": {
     "contact_recent": "Es hat vor {{ago}} noch geantwortet und dann aufgehört zu reagieren — höchstwahrscheinlich ist es mitten in einer Anfrage abgestürzt oder wurde beendet.",
     "contact_never": "Es hat in dieser Sitzung überhaupt nicht geantwortet — möglicherweise ist es nie gestartet.",
-    "dev": "Der lokale OmniVoice-Dienst ist nicht erreichbar. {{contact}} Bei `bun run dev` läuft das Backend mit Auto-Reload: jede Dateiänderung — auch ein Speichern während einer laufenden Anfrage — startet es neu und bricht die Verbindung ab. Wiederholen Sie die Aktion zuerst; war es ein Reload, funktioniert es einfach. Bleibt es fehlerhaft, prüfen Sie das Terminal mit `bun run dev` auf einen Python-Traceback oder eine Exit-Meldung und omnivoice.log in Ihrem OmniVoice-Datenordner.",
-    "server": "Der OmniVoice-Backend-Server ist nicht erreichbar. {{contact}} Prüfe die Server-Logs auf die Ursache (z. B. `docker logs <container>` oder `journalctl`) — und beachte: Wenn Docker diese Seite ausliefert, kann die Seite selbst zusammen mit dem Backend ausfallen.",
-    "misrouted": "Der Server, der {{url}} beantwortet, ist kein OmniVoice-Backend — er hat seine eigene 404-Seite zurückgegeben. Die API-Anfragen landen beim falschen Host: Prüfe die Backend-URL unter Einstellungen → Freigabe oder, falls ein Reverse-Proxy diese Oberfläche ausliefert, dessen Route für API-Pfade."
+    "dev": "Der lokale VoiceStudio-Dienst ist nicht erreichbar. {{contact}} Bei `bun run dev` läuft das Backend mit Auto-Reload: jede Dateiänderung — auch ein Speichern während einer laufenden Anfrage — startet es neu und bricht die Verbindung ab. Wiederholen Sie die Aktion zuerst; war es ein Reload, funktioniert es einfach. Bleibt es fehlerhaft, prüfen Sie das Terminal mit `bun run dev` auf einen Python-Traceback oder eine Exit-Meldung und omnivoice.log in Ihrem VoiceStudio-Datenordner.",
+    "server": "Der VoiceStudio-Backend-Server ist nicht erreichbar. {{contact}} Prüfe die Server-Logs auf die Ursache (z. B. `docker logs <container>` oder `journalctl`) — und beachte: Wenn Docker diese Seite ausliefert, kann die Seite selbst zusammen mit dem Backend ausfallen.",
+    "misrouted": "Der Server, der {{url}} beantwortet, ist kein VoiceStudio-Backend — er hat seine eigene 404-Seite zurückgegeben. Die API-Anfragen landen beim falschen Host: Prüfe die Backend-URL unter Einstellungen → Freigabe oder, falls ein Reverse-Proxy diese Oberfläche ausliefert, dessen Route für API-Pfade."
   },
   "nav": {
     "clone": "Klonen",
@@ -165,7 +165,7 @@
     "review_mode_desc": "Machen Sie eine Pause zwischen den Pipeline-Stufen, damit Sie die ASR-/Übersetzungsausgabe überprüfen können.",
     "header_live_stats": "Live-Systemmetriken in der Kopfzeile anzeigen",
     "header_live_stats_desc": "Fügt der oberen Leiste einen Live-RAM-/CPU-/VRAM-Monitor hinzu (standardmäßig deaktiviert).",
-    "storage_desc": "Wo OmniVoice Ihre Daten und Ausgaben speichert.",
+    "storage_desc": "Wo VoiceStudio Ihre Daten und Ausgaben speichert.",
     "history_retention": "Generierungsverlauf",
     "history_retention_desc": "Wie viele Takes behalten werden, bevor die ältesten aufgeräumt werden.",
     "history_retention_help": "Nach jeder Generierung werden die ältesten nicht markierten Takes über diesem Limit samt Audiodateien entfernt. Markierte Takes bleiben immer erhalten. 0 = alles behalten.",
@@ -176,7 +176,7 @@
     "history_retention_invalid": "0 oder mehr eingeben"
   },
   "bootstrap": {
-    "title": "OmniVoice Studio",
+    "title": "VoiceStudio",
     "checking": "Umgebung wird überprüft…",
     "downloading_uv": "uv (Python Paket-Manager) wird heruntergeladen…",
     "creating_venv": "Virtuelle Python-Umgebung wird erstellt…",
@@ -211,10 +211,10 @@
     "hint_uv_sync": "Installation der Abhängigkeiten fehlgeschlagen. „Bereinigen & Wiederholen“ löscht das zwischengespeicherte venv und startet neu.",
     "hint_build_backend": "Fehler im Python-Build-Backend. „Bereinigen & Wiederholen“ entfernt das defekte venv, sodass es von Grund auf neu aufgebaut wird.",
     "hint_ffmpeg": "ffmpeg-Download fehlgeschlagen. Das ist nicht kritisch — erneut versuchen oder ffmpeg manuell installieren.",
-    "hint_port": "Port 3900 wird bereits verwendet. Schließen Sie andere OmniVoice-Instanzen oder Programme, die diesen Port nutzen.",
+    "hint_port": "Port 3900 wird bereits verwendet. Schließen Sie andere VoiceStudio-Instanzen oder Programme, die diesen Port nutzen.",
     "hint_silent_crash": "Das Backend ist ohne Fehlermeldung abgestürzt. „Bereinigen & Wiederholen“ behebt oft Probleme mit einem beschädigten venv.",
     "hint_github_blocked": "Ihr Netzwerk blockiert möglicherweise GitHub. Installieren Sie Python 3.11+ von python.org (zu PATH hinzufügen) und starten Sie neu, oder setzen Sie UV_PYTHON_INSTALL_MIRROR — siehe docs/install/troubleshooting.md.",
-    "hint_intel_mac": "Dieser Mac hat einen Intel-Prozessor, und PyTorch liefert keine Intel-Mac-Builds mehr — das lokale KI-Backend kann nicht installiert werden, und ein erneuter Versuch ändert daran nichts. Sie können die App weiterhin mit einem Remote-Backend auf einem anderen Rechner verbinden (Einstellungen → Freigabe → Remote-Backend) oder OmniVoice auf einem Apple-Silicon-Mac, Windows oder Linux nutzen. Details: docs/install/macos.md.",
+    "hint_intel_mac": "Dieser Mac hat einen Intel-Prozessor, und PyTorch liefert keine Intel-Mac-Builds mehr — das lokale KI-Backend kann nicht installiert werden, und ein erneuter Versuch ändert daran nichts. Sie können die App weiterhin mit einem Remote-Backend auf einem anderen Rechner verbinden (Einstellungen → Freigabe → Remote-Backend) oder VoiceStudio auf einem Apple-Silicon-Mac, Windows oder Linux nutzen. Details: docs/install/macos.md.",
     "hint_default": "Versuchen Sie zuerst „Wiederholen“. Schlägt es erneut fehl, baut „Bereinigen & Wiederholen“ die Umgebung von Grund auf neu.",
     "hint_stuck": "Das Backend wurde nicht vollständig gestartet. Führen Sie von der Quelle aus zuerst „uv sync“ aus und stellen Sie sicher, dass sich „uv“ und Python in Ihrem PATH befinden, und versuchen Sie es dann erneut. Überprüfen Sie das Protokoll unten (oder Einstellungen → Protokolle → Backend), um den genauen Stall-Punkt zu erfahren."
   },
@@ -465,7 +465,7 @@
     "downloading": "Herunterladen…",
     "check_updates": "Suchen Sie nach Updates",
     "copy_diagnostics": "Diagnose kopieren",
-    "github": "OmniVoice auf GitHub",
+    "github": "VoiceStudio auf GitHub",
     "commercial_license": "Kommerzielle Lizenz",
     "update_channel": "Update-Kanal",
     "channel_stable": "Stabil",
@@ -501,8 +501,8 @@
     "watermark_failed": "Die Wasserzeichen-Einstellung konnte nicht geändert werden."
   },
   "consent": {
-    "title": "OmniVoice verbessern helfen?",
-    "step_label": "OmniVoice verbessern",
+    "title": "VoiceStudio verbessern helfen?",
+    "step_label": "VoiceStudio verbessern",
     "body": "Anonyme, inhaltsfreie Nutzungsstatistiken: welche Engines verwendet werden, wie lange Generierungen dauern und die Art von Fehlern. Niemals Ihr Text, Ihr Audio, Ihre Dateien oder etwas, das Sie identifiziert. Es wird nichts gesendet, solange Sie nicht zustimmen — und Sie können Ihre Entscheidung jederzeit unter Einstellungen → Datenschutz ändern.",
     "learn_more": "Was genau wird gesendet?",
     "yes": "Ja, anonyme Statistiken teilen",
@@ -510,7 +510,7 @@
     "dismiss": "Schließen (Analytik bleibt aus)"
   },
   "langPrompt": {
-    "offer": "OmniVoice wurde auf {{language}} geöffnet. Lieber Englisch?",
+    "offer": "VoiceStudio wurde auf {{language}} geöffnet. Lieber Englisch?",
     "switch": "Zu Englisch wechseln",
     "keep": "Bei {{language}} bleiben"
   },
@@ -568,7 +568,7 @@
     "notInstalled": "Nicht installiert",
     "available": "Verfügbar",
     "subprocessTitle": "Läuft in einem eigenen Unterprozess + venv",
-    "inProcessTitle": "Wird im OmniVoice-Python-Prozess ausgeführt",
+    "inProcessTitle": "Wird im VoiceStudio-Python-Prozess ausgeführt",
     "testEngine": "Testmotor",
     "testing": "Testen…",
     "recheck": "Überprüfen Sie es noch einmal",
@@ -593,7 +593,7 @@
   },
   "capture": {
     "desc": "Globale Hotkeys funktionieren nur in der Desktop-App. Die Web-Benutzeroberfläche verwendet eine In-Page-Verknüpfung <1>Strg+Umschalt+Leertaste</1>, während das Fenster den Fokus hat.",
-    "desc_detail": "Der Hotkey funktioniert systemweit, während OmniVoice ausgeführt wird – er fokussiert das Fenster und startet das Diktieren. Vermeiden Sie Kombinationen, die bereits vom Betriebssystem beansprucht werden (unter macOS ist <1>⌘+Leertaste</1> Spotlight und <2>⌘+⇧+Leertaste</2> wechselt die Eingabequellen). Wenn die Registrierung fehlschlägt, wählen Sie eine andere Kombination.",
+    "desc_detail": "Der Hotkey funktioniert systemweit, während VoiceStudio ausgeführt wird – er fokussiert das Fenster und startet das Diktieren. Vermeiden Sie Kombinationen, die bereits vom Betriebssystem beansprucht werden (unter macOS ist <1>⌘+Leertaste</1> Spotlight und <2>⌘+⇧+Leertaste</2> wechselt die Eingabequellen). Wenn die Registrierung fehlschlägt, wählen Sie eine andere Kombination.",
     "active_shortcut": "Aktive Verknüpfung",
     "new_shortcut": "Neue Verknüpfung",
     "press_key": "Drücken Sie eine Tastenkombination…",
@@ -609,8 +609,8 @@
     "no_speech": "Keine Sprache erkannt",
     "mic_denied": "Mikrofonzugriff verweigert",
     "mic_denied_toast": "Mikrofonzugriff verweigert. {{hint}}",
-    "mic_hint_mac": "macOS: Öffnen Sie Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon und aktivieren Sie OmniVoice.",
-    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon, aktivieren Sie 'Mikrofonzugriff' und 'Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben' und erlauben Sie OmniVoice.",
+    "mic_hint_mac": "macOS: Öffnen Sie Systemeinstellungen → Datenschutz und Sicherheit → Mikrofon und aktivieren Sie VoiceStudio.",
+    "mic_hint_windows": "Windows: Öffnen Sie Einstellungen → Datenschutz und Sicherheit → Mikrofon, aktivieren Sie 'Mikrofonzugriff' und 'Desktop-Apps den Zugriff auf Ihr Mikrofon erlauben' und erlauben Sie VoiceStudio.",
     "mic_hint_linux": "Linux: Überprüfen Sie, ob sich Ihr Benutzer in der Audiogruppe befindet und WebView Zugriff auf das Mikrofon hat.",
     "transcription_failed": "Transkription fehlgeschlagen: {{message}}",
     "mic_not_found": "Kein Mikrofon gefunden. Schließen Sie ein Mikrofon an oder aktivieren Sie eines und versuchen Sie es erneut.",
@@ -714,7 +714,7 @@
     "persona_include_ref_hint": "Fügen Sie den rohen Referenzclip ein. Aus = nur eine mit Wasserzeichen versehene Vorschau teilen (empfohlen).",
     "consent_title": "Sprachbesitz",
     "consent_explain": "Nehmen Sie auf, wie Sie die folgende Aussage lesen, um sicherzustellen, dass es sich um Ihre eigene Stimme handelt. Für Agentenfunktionen und Community-Sharing ist eine Verifizierung erforderlich – niemals für die lokale Synthese.",
-    "consent_statement": "Ich bestätige, dass es sich bei diesem Stimmprofil um meine eigene Stimme handelt, und stimme zu, dass OmniVoice Studio es in meinem Namen klont.",
+    "consent_statement": "Ich bestätige, dass es sich bei diesem Stimmprofil um meine eigene Stimme handelt, und stimme zu, dass VoiceStudio es in meinem Namen klont.",
     "consent_record": "Einverständniserklärung aufzeichnen",
     "consent_stop": "Stoppen Sie die Aufnahme",
     "consent_saved": "Sprachbesitz bestätigt",
@@ -1135,7 +1135,7 @@
     "add_to_queue": "Zur Warteschlange hinzufügen"
   },
   "gallery": {
-    "title": "OmniVoice Galerie",
+    "title": "VoiceStudio Galerie",
     "search_placeholder": "YouTube durchsuchen…",
     "all_voices": "Alle Stimmen ({{count}})",
     "no_voices": "Noch keine Stimmen",
@@ -1253,8 +1253,8 @@
   "donate": {
     "title": "Unterstützung",
     "desc": "Wenn Ihnen dieses Projekt gefällt, denken Sie über eine Spende nach, um unsere Entwicklung zu unterstützen.",
-    "hero_title": "Unterstützen Sie OmniVoice",
-    "hero_desc": "OmniVoice ist kostenlos, Open Source und läuft vollständig auf Ihrer Hardware. Wenn es Ihren Arbeitsablauf bereichert, sollten Sie darüber nachdenken, das Kernteam zu unterstützen.",
+    "hero_title": "Unterstützen Sie VoiceStudio",
+    "hero_desc": "VoiceStudio ist kostenlos, Open Source und läuft vollständig auf Ihrer Hardware. Wenn es Ihren Arbeitsablauf bereichert, sollten Sie darüber nachdenken, das Kernteam zu unterstützen.",
     "github_desc": "Wiederkehrend oder einmalig – direkt über GitHub.",
     "coffee_desc": "Laden Sie dem Team einen Kaffee ein. Kein Konto erforderlich.",
     "paypal_desc": "Schnell einmalig oder wiederkehrend per PayPal.",
@@ -1262,7 +1262,7 @@
     "footer": "Jeder Beitrag trägt dazu bei, die Grenzen der lokalen KI zu erweitern.",
     "back": "Zurück zum Studio",
     "commercial": "Kommerzielle Lizenz",
-    "pill": "Unterstützen Sie OmniVoice",
+    "pill": "Unterstützen Sie VoiceStudio",
     "suggested_title": "Wählen Sie einen Betrag",
     "most_common": "am häufigsten",
     "custom": "Benutzerdefiniert",
@@ -1279,10 +1279,10 @@
     },
     "postcard": {
       "title": "Fonds Claude Max",
-      "lead_default": "Ich bin froh, dass das funktioniert hat! OmniVoice ist kostenlos und vollständig lokal. Wenn es Ihnen Zeit spart, finanziert ein kleiner monatlicher Chip-In den dahinter stehenden Claude Max.",
-      "lead_first_clone": "Ihr erster Sprachklon ist fertig – schön! OmniVoice läuft vollständig auf Ihrem Computer und Ihr Support sorgt dafür, dass dies auch so bleibt.",
+      "lead_default": "Ich bin froh, dass das funktioniert hat! VoiceStudio ist kostenlos und vollständig lokal. Wenn es Ihnen Zeit spart, finanziert ein kleiner monatlicher Chip-In den dahinter stehenden Claude Max.",
+      "lead_first_clone": "Ihr erster Sprachklon ist fertig – schön! VoiceStudio läuft vollständig auf Ihrem Computer und Ihr Support sorgt dafür, dass dies auch so bleibt.",
       "lead_tenth_dub": "Nach zehn Dubs – Sie setzen es eindeutig um. Ein kleiner monatlicher Chip-In finanziert den Claude Max, der diese Funktionen bereitstellt.",
-      "lead_sustained": "Sie sind seit einem Monat bei OmniVoice. Wenn es einen Platz in Ihrem Arbeitsablauf verdient hat, denken Sie darüber nach, bei der Finanzierung der nächsten Schritte mitzuhelfen.",
+      "lead_sustained": "Sie sind seit einem Monat bei VoiceStudio. Wenn es einen Platz in Ihrem Arbeitsablauf verdient hat, denken Sie darüber nach, bei der Finanzierung der nächsten Schritte mitzuhelfen.",
       "chip_in": "Machen Sie mit",
       "later": "Vielleicht später",
       "star": "Stern auf GitHub",
@@ -1296,14 +1296,14 @@
     "back": "Zurück zum Studio",
     "badge": "Kommerzielle Lizenz",
     "hero_title": "Versenden Sie KI-Stimmen in der Produktion",
-    "hero_desc": "OmniVoice Studio ist freie Open-Source-Software unter der GNU Affero General Public License v3 (AGPL-3.0) — kostenlos nutzbar, auch für kommerzielle und interne geschäftliche Zwecke. Eine kommerzielle Lizenz benötigen Sie nur, wenn Sie OmniVoice Studio ohne die Copyleft-Pflichten der AGPL-3.0 in ein Closed-Source- oder proprietäres Produkt oder einen entsprechenden Dienst einbetten möchten.",
-    "why_title": "Warum Unternehmen sich für OmniVoice entscheiden",
+    "hero_desc": "VoiceStudio ist freie Open-Source-Software unter der GNU Affero General Public License v3 (AGPL-3.0) — kostenlos nutzbar, auch für kommerzielle und interne geschäftliche Zwecke. Eine kommerzielle Lizenz benötigen Sie nur, wenn Sie VoiceStudio ohne die Copyleft-Pflichten der AGPL-3.0 in ein Closed-Source- oder proprietäres Produkt oder einen entsprechenden Dienst einbetten möchten.",
+    "why_title": "Warum Unternehmen sich für VoiceStudio entscheiden",
     "pricing_title": "Preise",
     "faq_title": "Häufige Fragen",
     "pricing_desc": "Stufen und Preise werden noch finalisiert.",
     "pricing_detail": "Bis zur Veröffentlichung wird für jede kommerzielle Bereitstellung ein individuelles Angebot erstellt, damit wir die richtige Größe für Ihr Team und Ihre Arbeitslast festlegen können.",
     "request_quote": "Fordern Sie ein Angebot an",
-    "footer_email": "Fragen? Kontaktieren Sie uns unter OmniVoice@palash.dev",
+    "footer_email": "Fragen? Kontaktieren Sie uns unter VoiceStudio@palash.dev",
     "footer_discord": "Treten Sie unserem Discord bei, um Community-Unterstützung zu erhalten.",
     "benefit_ip": "Vollständiges IP-Eigentum",
     "benefit_ip_desc": "Sie besitzen jede Ausgabe, jedes Modell, jedes Derivat. Keine gemeinsame Miete, keine Datenlecks.",
@@ -1317,8 +1317,8 @@
     "benefit_source_desc": "Volle Sicht auf den Stapel. Prüfen, forken und anpassen Sie innerhalb der Lizenzbedingungen.",
     "benefit_lang": "646 Sprachen",
     "benefit_lang_desc": "Transkribieren, übersetzen und synchronisieren Sie in 646 Sprachen mit menschlicher Qualität.",
-    "hero_note": "Nutzung, Self-Hosting und kommerzielle Nutzung sind unter der AGPL-3.0 kostenlos — auch im großen Maßstab. Die AGPL ist eine Netzwerk-Copyleft-Lizenz: Wenn Sie OmniVoice modifizieren und diese modifizierte Version anderen über ein Netzwerk anbieten, müssen Sie Ihren geänderten Quellcode zu denselben Bedingungen offenlegen. Eine kommerzielle Lizenz hebt diese Copyleft-Pflichten für proprietäre Closed-Source-Deployments auf. Preismodelle folgen in Kürze — melden Sie sich in der Zwischenzeit gerne.",
-    "hero_simple": "OmniVoice Studio ist kostenlos und Open Source gemäß AGPL-3.0 – auch für die kommerzielle und interne Geschäftsnutzung. Sie benötigen lediglich eine kommerzielle Lizenz, um es in ein Closed-Source-Produkt einzubetten, ohne die Copyleft-Verpflichtungen von AGPL.",
+    "hero_note": "Nutzung, Self-Hosting und kommerzielle Nutzung sind unter der AGPL-3.0 kostenlos — auch im großen Maßstab. Die AGPL ist eine Netzwerk-Copyleft-Lizenz: Wenn Sie VoiceStudio modifizieren und diese modifizierte Version anderen über ein Netzwerk anbieten, müssen Sie Ihren geänderten Quellcode zu denselben Bedingungen offenlegen. Eine kommerzielle Lizenz hebt diese Copyleft-Pflichten für proprietäre Closed-Source-Deployments auf. Preismodelle folgen in Kürze — melden Sie sich in der Zwischenzeit gerne.",
+    "hero_simple": "VoiceStudio ist kostenlos und Open Source gemäß AGPL-3.0 – auch für die kommerzielle und interne Geschäftsnutzung. Sie benötigen lediglich eine kommerzielle Lizenz, um es in ein Closed-Source-Produkt einzubetten, ohne die Copyleft-Verpflichtungen von AGPL.",
     "contact_lead": "Die Preise werden pro Bereitstellung angegeben, sodass sie zu Ihrem Team und Ihrer Arbeitslast passen. Nennen Sie mir Ihren Anwendungsfall und ich erstelle Ihnen ein Angebot."
   },
   "exportModal": {
@@ -1446,14 +1446,14 @@
     "desc": "Keine Sorge – der Rest der App funktioniert weiterhin. Sie können die Registerkarten wechseln oder es unten noch einmal versuchen.",
     "tryAgain": "Versuchen Sie es erneut",
     "openDocs": "Öffnen Sie die Dokumentation zu diesem Fehler",
-    "crash_port_in_use": "Der Backend-Dienst konnte nicht starten, weil Port 3900 bereits belegt ist — eine andere OmniVoice-Instanz (oder eine App, die den Port beansprucht hat) hält ihn. Beenden Sie die andere Instanz und starten Sie neu; wenn nichts sichtbar läuft, hält ein verwaistes Backend aus einer früheren Sitzung den Port.",
+    "crash_port_in_use": "Der Backend-Dienst konnte nicht starten, weil Port 3900 bereits belegt ist — eine andere VoiceStudio-Instanz (oder eine App, die den Port beansprucht hat) hält ihn. Beenden Sie die andere Instanz und starten Sie neu; wenn nichts sichtbar läuft, hält ein verwaistes Backend aus einer früheren Sitzung den Port.",
     "crash_oom_kill": "Er wurde zwangsbeendet (Signal 9), was in der Regel bedeutet, dass dem Betriebssystem der Arbeitsspeicher (RAM) ausging. Schließen Sie speicherintensive Apps, wählen Sie unter Einstellungen → Modelle ein kleineres ASR-Modell, oder entladen Sie das TTS-Modell vor der Transkription.",
-    "crash_native_fault": "Der Absturz erfolgte innerhalb des Compute-Stacks und nicht wegen Speichermangels — das deutet auf einen GPU-Treiber hin, der nicht zur mitgelieferten CUDA-Laufzeit passt, oder auf eine unvollständig heruntergeladene Modelldatei. Aktualisieren Sie den GPU-Treiber und laden Sie das Modell unter Einstellungen → Modelle erneut (ein unvollständiger Download wird dabei repariert). Wenn es weiterhin auftritt, wechseln Sie unter Einstellungen → Engines zu einer absturzisolierten Engine — „OmniVoice (subprocess)“ für die Synthese, „Faster-Whisper (crash-isolated subprocess)“ für die Transkription. Diese führen das Modell in einem eigenen Prozess aus, sodass ein solcher Absturz nur diesen Prozess beendet statt des gesamten Backends.",
+    "crash_native_fault": "Der Absturz erfolgte innerhalb des Compute-Stacks und nicht wegen Speichermangels — das deutet auf einen GPU-Treiber hin, der nicht zur mitgelieferten CUDA-Laufzeit passt, oder auf eine unvollständig heruntergeladene Modelldatei. Aktualisieren Sie den GPU-Treiber und laden Sie das Modell unter Einstellungen → Modelle erneut (ein unvollständiger Download wird dabei repariert). Wenn es weiterhin auftritt, wechseln Sie unter Einstellungen → Engines zu einer absturzisolierten Engine — „VoiceStudio (subprocess)“ für die Synthese, „Faster-Whisper (crash-isolated subprocess)“ für die Transkription. Diese führen das Modell in einem eigenen Prozess aus, sodass ein solcher Absturz nur diesen Prozess beendet statt des gesamten Backends.",
     "report": "Diesen Fehler melden",
     "report_failed": "Der Fehlerbericht konnte nicht geöffnet werden. Versuche es erneut oder kopiere die obigen Details in ein neues Issue.",
     "searchIssues": "Ähnliche Probleme suchen",
     "unexpected": "Unerwarteter Fehler: {{message}}",
-    "backend_shutting_down": "OmniVoice wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal.",
+    "backend_shutting_down": "VoiceStudio wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal.",
     "crash_broken_env": "Er ist beim Laden seiner eigenen Python-Abhängigkeiten gestorben — es geht also weder um Speicher noch um deine GPU, sondern um eine unvollständige oder halb aktualisierte Umgebung. Nutze „Clean & Retry“ unter Einstellungen → Logs → Backend: Das baut sie von Grund auf neu und repariert sie an Ort und Stelle, ohne deine Stimmen oder Projekte anzurühren. Schlägt es danach weiter fehl, nennen die Absturzdetails das Paket, das sich nicht importieren ließ."
   },
   "keyboard": {
@@ -1491,7 +1491,7 @@
     "network": "Netzwerk",
     "local": "Lokal",
     "share_confirm_title": "In Ihrem Netzwerk teilen?",
-    "share_confirm_hint": "Andere Geräte in Ihrem WLAN/Ethernet können OmniVoice über die angezeigte Zugangs-PIN erreichen, sobald es eingeschaltet ist.",
+    "share_confirm_hint": "Andere Geräte in Ihrem WLAN/Ethernet können VoiceStudio über die angezeigte Zugangs-PIN erreichen, sobald es eingeschaltet ist.",
     "enabling": "Aktivieren…",
     "enable": "Aktivieren",
     "shared_title": "In Ihrem Netzwerk geteilt",
@@ -1530,7 +1530,7 @@
     "model_heading": "Modellgewichte · OpenRAIL-M",
     "model_desc": "Die Supertonic-3-Modellgewichte werden unter der OpenRAIL-M-Lizenz veröffentlicht. Diese Lizenz beschränkt die Nutzung auf nicht böswillige Zwecke. Den vollständigen Satz nutzungsbasierter Einschränkungen finden Sie in der verlinkten Lizenz.",
     "read_openrail": "Lesen Sie die OpenRAIL-M-Lizenz →",
-    "footer": "Wenn Sie auf „Akzeptieren“ klicken, wird Ihre Zustimmung in den lokalen Einstellungen von OmniVoice erfasst und die Engine aktiviert. Ihre Zustimmung wird nur auf diesem Gerät gespeichert – keine Meldung an Supertone Inc. oder Dritte.",
+    "footer": "Wenn Sie auf „Akzeptieren“ klicken, wird Ihre Zustimmung in den lokalen Einstellungen von VoiceStudio erfasst und die Engine aktiviert. Ihre Zustimmung wird nur auf diesem Gerät gespeichert – keine Meldung an Supertone Inc. oder Dritte.",
     "saving": "Sparen…",
     "accept": "Akzeptiere",
     "accepted_toast": "Supertonic-3-Lizenz akzeptiert.",
@@ -1761,7 +1761,7 @@
   },
   "enterprise_faq": {
     "q_internal_tools": "Benötige ich eine Lizenz für interne Tools?",
-    "a_internal_tools": "Nein. Die Nutzung durch Ihre Mitarbeitenden und Auftragnehmer — einschließlich interner Modifikation und internem Self-Hosting — ist unter der AGPL-3.0 kostenlos. Eine kommerzielle Lizenz ist nur nötig, wenn Sie OmniVoice in ein Closed-Source- oder proprietäres Produkt oder einen Dienst einbetten und die Quelloffenlegungspflichten der AGPL nicht erfüllen möchten.",
+    "a_internal_tools": "Nein. Die Nutzung durch Ihre Mitarbeitenden und Auftragnehmer — einschließlich interner Modifikation und internem Self-Hosting — ist unter der AGPL-3.0 kostenlos. Eine kommerzielle Lizenz ist nur nötig, wenn Sie VoiceStudio in ein Closed-Source- oder proprietäres Produkt oder einen Dienst einbetten und die Quelloffenlegungspflichten der AGPL nicht erfüllen möchten.",
     "q_try_before": "Kann ich es versuchen, bevor ich mich verpflichte?",
     "a_try_before": "Ja. Die vollständige App lässt sich unter der AGPL-3.0 kostenlos herunterladen, ausführen und selbst hosten — ganz ohne Vertrag. Wenn Sie über eine kommerzielle Lizenz (für proprietäre Nutzung) sprechen möchten, schreiben Sie uns eine E-Mail und wir klären die Details gemeinsam.",
     "q_watermark": "Was ist mit dem Wasserzeichen?",
@@ -1839,11 +1839,11 @@
   },
   "sharing": {
     "title": "Teilen und Fernzugriff",
-    "help": "Stellen Sie diese laufende OmniVoice-Instanz Ihren anderen Computern zur Verfügung, ohne sie neu zu starten. „Nur Loopback“ ist die Standardeinstellung – es wird nichts geteilt, bis Sie es hier aktivieren.",
+    "help": "Stellen Sie diese laufende VoiceStudio-Instanz Ihren anderen Computern zur Verfügung, ohne sie neu zu starten. „Nur Loopback“ ist die Standardeinstellung – es wird nichts geteilt, bis Sie es hier aktivieren.",
     "local_network": "Lokales Netzwerk",
     "local_help": "Teilen Sie mit einer einmaligen Zugangs-PIN über Ihr WLAN/Ethernet. Andere Geräte scannen den QR-Code oder öffnen den Link.",
     "ports_title": "Häfen",
-    "ports_help": "Diese werden über Umgebungsvariablen festgelegt, die beim Start gelesen werden. Ändern Sie den Backend- oder UI-Port, indem Sie die Variable festlegen und OmniVoice neu starten.",
+    "ports_help": "Diese werden über Umgebungsvariablen festgelegt, die beim Start gelesen werden. Ändern Sie den Backend- oder UI-Port, indem Sie die Variable festlegen und VoiceStudio neu starten.",
     "backend_port": "Backend-Port",
     "ui_port": "UI-Port",
     "lan_share_port": "LAN-Freigabeport",
@@ -1854,9 +1854,9 @@
     "ports_note": "Backend- und UI-Ports werden beim Neustart angewendet. Der LAN-Freigabeport wird angewendet, wenn Sie das nächste Mal die Freigabe aktivieren.",
     "tailscale_title": "Tailscale (privater Fernzugriff)",
     "tailscale_checking": "Suche nach Tailscale…",
-    "tailscale_absent": "Tailscale nicht erkannt. Installieren Sie es, um von überall in Ihrem privaten Tailnet sicher auf OmniVoice zuzugreifen.",
+    "tailscale_absent": "Tailscale nicht erkannt. Installieren Sie es, um von überall in Ihrem privaten Tailnet sicher auf VoiceStudio zuzugreifen.",
     "tailscale_install": "Tailscale installieren",
-    "tailscale_running": "Tailscale läuft. Bedienen Sie OmniVoice über Ihr privates Tailnet.",
+    "tailscale_running": "Tailscale läuft. Bedienen Sie VoiceStudio über Ihr privates Tailnet.",
     "tailscale_not_logged_in": "Tailscale ist installiert, aber nicht angemeldet. Starten Sie zunächst Tailscale und melden Sie sich an.",
     "tailscale_enabled": "Tailscale-Aufschlag aktiviert",
     "tailscale_enable_failed": "Tailscale konnte nicht aktiviert werden",
@@ -1912,7 +1912,7 @@
     "failed": "Update fehlgeschlagen",
     "retry": "Versuchen Sie es noch einmal",
     "dismiss": "Schließen",
-    "toast_available": "OmniVoice Studio {{version}} ist verfügbar",
+    "toast_available": "VoiceStudio {{version}} ist verfügbar",
     "toast_install": "Installieren und neu starten",
     "toast_whats_new": "Neuerungen",
     "toast_later": "Später"
@@ -1956,7 +1956,7 @@
   },
   "firstrun": {
     "loading": "Einrichtung wird vorbereitet…",
-    "title": "OmniVoice Studio einrichten",
+    "title": "VoiceStudio einrichten",
     "subtitle": "Noch ist nichts installiert – prüfe, wo alles gespeichert wird, und starte dann. Später in den Einstellungen änderbar.",
     "language": "Sprache",
     "mode_title": "Installationsmodus",
@@ -2165,7 +2165,7 @@
     "lex_add": "Wort hinzufügen",
     "lex_remove": "Entfernen",
     "markup_help": "Markup-Referenz",
-    "markup_hint": "# Kapiteltitel · [voice:NAME] Stimme wechseln · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Reaktionen (OmniVoice): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
+    "markup_hint": "# Kapiteltitel · [voice:NAME] Stimme wechseln · [pause 500ms] / [pause 1s] · [slow]…[/slow] · [fast]…[/fast] · [emphasis]…[/emphasis] · [spell]…[/spell] · Reaktionen (VoiceStudio): [laughter] [sigh] [confirmation-en] [question-en] [question-ah] [question-oh] [question-ei] [question-yi] [surprise-ah] [surprise-oh] [surprise-wa] [surprise-yo] [dissatisfaction-hnn]",
     "language": "Sprache",
     "expressive": "Produktionsübersteuerungen",
     "reset": "Zurücksetzen",
@@ -2257,7 +2257,7 @@
   },
   "remote_gate": {
     "title": "Zugangs-PIN eingeben",
-    "body": "Diese OmniVoice-Instanz wird im Netzwerk freigegeben. Geben Sie die auf dem Host angezeigte PIN ein.",
+    "body": "Diese VoiceStudio-Instanz wird im Netzwerk freigegeben. Geben Sie die auf dem Host angezeigte PIN ein.",
     "label": "Zugangs-PIN",
     "connect": "Verbinden"
   },
@@ -2280,7 +2280,7 @@
   },
   "permissions": {
     "title": "Berechtigungen",
-    "desc": "OmniVoice läuft vollständig auf Ihrem Gerät — diese Systemberechtigungen werden nur für die hier aufgeführten Funktionen genutzt, Audio verlässt Ihren Rechner nie.",
+    "desc": "VoiceStudio läuft vollständig auf Ihrem Gerät — diese Systemberechtigungen werden nur für die hier aufgeführten Funktionen genutzt, Audio verlässt Ihren Rechner nie.",
     "microphone": "Mikrofon",
     "microphone_why": "Wird für Diktat und Sprachaufnahmen genutzt. Audio wird lokal verarbeitet.",
     "accessibility": "Bedienungshilfen",
@@ -2299,7 +2299,7 @@
     "install_failed": "Download konnte nicht gestartet werden: {{message}}"
   },
   "backend_start_failure": {
-    "notice": "Das OmniVoice-Backend konnte nicht starten — bis dahin funktioniert nichts.",
+    "notice": "Das VoiceStudio-Backend konnte nicht starten — bis dahin funktioniert nichts.",
     "view": "Ursache anzeigen",
     "title": "Das Backend konnte nicht starten",
     "intro": "Die App hat dies beim Startversuch des Backends aufgezeichnet. Diese Ausgabe in einem Bericht hilft uns bei der Behebung.",
@@ -2308,7 +2308,7 @@
   },
   "crash": {
     "notice_unclean": "Die vorherige Sitzung wurde vor {{ago}} nicht sauber beendet. Das ist oft harmlos — Ruhezustand, erzwungenes Beenden oder eine gestoppte VM/Container.",
-    "details_intro_unclean": "Die Abschlussmarkierung des vorherigen Laufs wurde vor {{ago}} nicht gelöscht. OmniVoice kann nicht erkennen, ob es ein Absturz oder nur eine Unterbrechung war — Ruhezustand, erzwungenes Beenden oder das Stoppen einer VM/eines Containers hinterlassen dieselbe Spur. Wenn jetzt alles funktioniert, ist nichts zu tun.",
+    "details_intro_unclean": "Die Abschlussmarkierung des vorherigen Laufs wurde vor {{ago}} nicht gelöscht. VoiceStudio kann nicht erkennen, ob es ein Absturz oder nur eine Unterbrechung war — Ruhezustand, erzwungenes Beenden oder das Stoppen einer VM/eines Containers hinterlassen dieselbe Spur. Wenn jetzt alles funktioniert, ist nichts zu tun.",
     "report_needs_log": "Für dieses Ereignis wurde keine Fehlerausgabe erfasst, ein Ein-Klick-Report wäre leer. Falls wirklich etwas nicht stimmt, hängen Sie bitte die letzten Zeilen aus Einstellungen → Protokolle → Backend an ein neues Issue an."
   }
 }

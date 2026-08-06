@@ -1,4 +1,4 @@
-"""Alembic environment for OmniVoice Studio.
+"""Alembic environment for VoiceStudio.
 
 DB URL is computed from `core.config.DB_PATH` at runtime so Alembic honours
 the same `OMNIVOICE_DATA_DIR` override the app does. We use SQLite, so both

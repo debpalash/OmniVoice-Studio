@@ -10,7 +10,7 @@
 ## 1. Goal
 
 A browsable library of **designed voice archetypes** — hundreds of ready-to-use
-voices generated entirely by OmniVoice's own voice-design engine — organized
+voices generated entirely by VoiceStudio's own voice-design engine — organized
 ElevenLabs-style (featured cards up top, facet filters to explore the rest),
 plus a **neutral URL/file importer** for users to bring their own source audio.
 

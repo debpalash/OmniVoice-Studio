@@ -1,6 +1,6 @@
 # OmniVoice (subprocess-isolated) Engine
 
-The `omnivoice-subprocess` engine runs the **same resident OmniVoice model** as
+The `omnivoice-subprocess` engine runs the **same resident VoiceStudio model** as
 the default `omnivoice` engine, but in a **crash-isolated child process** so a
 wedged generation can be hard-killed and its VRAM/device reclaimed.
 
@@ -40,9 +40,9 @@ see no change.
 
 ## Platform support
 
-- **CUDA, MPS, and CPU** (same as the in-process OmniVoice engine).
+- **CUDA, MPS, and CPU** (same as the in-process VoiceStudio engine).
 - **No extra install.** Unlike IndexTTS / dots.tts / Supertonic-3, this sidecar
-  runs under OmniVoice's own interpreter, because the goal here is crash
+  runs under VoiceStudio's own interpreter, because the goal here is crash
   isolation, not dependency isolation. If the default `omnivoice` engine works
   for you, this one is ready too.
 

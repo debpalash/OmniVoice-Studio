@@ -4,7 +4,7 @@
 
 ## Why
 
-Dictating prompts to AI agents is the fastest-growing text-input workload (Claude Code shipped built-in `/voice`; Wispr Flow raised at ~$2B on it) — and every polished option is **cloud** (Wispr: cloud-only, no Linux, one privacy scandal already; Claude Code voice: cloud-only, no SSH). The best open competitor, **jamiepine/voicebox** (41.7k★, MIT — our refinement layer is already adapted from it), only ships reliable auto-paste on macOS. OmniVoice already has the hard parts: a Wispr-style pill, global hotkey, sherpa-onnx streaming WS, **Parakeet TDT v3 int8 as the shipped default**, clipboard-restoring paste, and local-LLM refinement. A local, cross-platform, private flow-dictation experience is reachable and strategically differentiating — the wedge is **local + Linux/Wayland + agent-prompting**, where nobody credible plays.
+Dictating prompts to AI agents is the fastest-growing text-input workload (Claude Code shipped built-in `/voice`; Wispr Flow raised at ~$2B on it) — and every polished option is **cloud** (Wispr: cloud-only, no Linux, one privacy scandal already; Claude Code voice: cloud-only, no SSH). The best open competitor, **jamiepine/voicebox** (41.7k★, MIT — our refinement layer is already adapted from it), only ships reliable auto-paste on macOS. VoiceStudio already has the hard parts: a Wispr-style pill, global hotkey, sherpa-onnx streaming WS, **Parakeet TDT v3 int8 as the shipped default**, clipboard-restoring paste, and local-LLM refinement. A local, cross-platform, private flow-dictation experience is reachable and strategically differentiating — the wedge is **local + Linux/Wayland + agent-prompting**, where nobody credible plays.
 
 ## Current state (verified in-repo)
 
@@ -29,7 +29,7 @@ Every phase: cross-platform default parity (CPU int8 everywhere; platform-specif
 
 ### Phase 2 — personal dictionary & technical vocabulary (highest leverage)
 Parakeet's one real weakness is OOV technical terms — and the dictionary is Wispr's most-loved feature; no OSS app ships the full version.
-- **Deterministic replacement engine** (post-STT, case-aware, engine-agnostic): user terms + corrections ("omni voice"→"OmniVoice", "cube control"→"kubectl"). Settings → Dictation UI; stored in prefs; applies before polish/refinement.
+- **Deterministic replacement engine** (post-STT, case-aware, engine-agnostic): user terms + corrections ("omni voice"→"VoiceStudio", "cube control"→"kubectl"). Settings → Dictation UI; stored in prefs; applies before polish/refinement.
 - **Opt-in hotword biasing** for offline Parakeet: sherpa-onnx `modified_beam_search` + hotwords file (upstream PR #3077, ≥v1.12.24). Strictly opt-in — greedy stays default due to the known ~20% TDT beam-search hallucination bug (#3267); regression-test with silence + short clips; flip to default when upstream fixes. (Streaming Nemotron hotwords not yet upstream — #3572.)
 - **Refinement fidelity**: extend the prompt with verbatim-span protection (code identifiers, paths, quoted error text untouched) and a "transcribe, don't improve" default — over-editing is Wispr's top accuracy complaint.
 - Stretch (v2): auto-learn dictionary candidates from user corrections in the pill.

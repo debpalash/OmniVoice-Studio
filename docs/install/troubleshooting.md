@@ -1,4 +1,4 @@
-# OmniVoice Studio — Install Troubleshooting
+# VoiceStudio — Install Troubleshooting
 
 The top 10 errors users have actually hit on `v0.2.x`, with their causes and
 fixes. Most have a deeplink anchor that the in-app error UI's "Open docs for
@@ -58,8 +58,8 @@ backend **`.venv`** folder to its exclusions (Windows Security → Virus & threa
 protection → Exclusions). The app's auto-repair now uses `--reinstall` too, so a
 fresh install heals itself.
 
-**Linked issues:** [#58](https://github.com/debpalash/OmniVoice-Studio/issues/58),
-[#248](https://github.com/debpalash/OmniVoice-Studio/issues/248)
+**Linked issues:** [#58](https://github.com/debpalash/VoiceStudio/issues/58),
+[#248](https://github.com/debpalash/VoiceStudio/issues/248)
 
 ### 1a. Model load fails: `[Errno 2] No such file or directory: '…/transformers/…/modeling_*.py'`
 
@@ -98,7 +98,7 @@ and transformers itself is fine.
 
 **Fix:** reinstall the trio **together, at the pinned versions** — a plain
 unpinned reinstall can itself resolve a drifted pair
-([#1357](https://github.com/debpalash/OmniVoice-Studio/issues/1357)):
+([#1357](https://github.com/debpalash/VoiceStudio/issues/1357)):
 
 ```
 uv pip install --python .venv --reinstall torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 transformers
@@ -110,8 +110,8 @@ desktop installs don't ship that file, which is why the literal pins are shown).
 They carry no `+cu128`/`+rocm` suffix on purpose — vendor GPU builds match the
 pins rather than being replaced.
 
-**Linked issues:** [#1357](https://github.com/debpalash/OmniVoice-Studio/issues/1357),
-[#1376](https://github.com/debpalash/OmniVoice-Studio/issues/1376)
+**Linked issues:** [#1357](https://github.com/debpalash/VoiceStudio/issues/1357),
+[#1376](https://github.com/debpalash/VoiceStudio/issues/1376)
 
 ### 1b. Dubbing: `ASR backend initialization failed: No module named 'lightning_fabric'`
 
@@ -136,7 +136,7 @@ marked unavailable (Settings → Engines shows why, with this repair command)
 and dubbing automatically falls through to **faster-whisper** instead of
 failing outright.
 
-**Linked issue:** [#1185](https://github.com/debpalash/OmniVoice-Studio/issues/1185)
+**Linked issue:** [#1185](https://github.com/debpalash/VoiceStudio/issues/1185)
 
 ## 2. HF 401 / pyannote license not accepted
 
@@ -157,11 +157,11 @@ before the token works for downloads.
 3. Retry the job. The token state in **Settings → API Keys** should now show
    the "App" row with a green check next to your username.
 
-**Linked issue:** [#35](https://github.com/debpalash/OmniVoice-Studio/issues/35)
+**Linked issue:** [#35](https://github.com/debpalash/VoiceStudio/issues/35)
 
 ## 3. Gatekeeper quarantine on macOS
 
-**Symptom:** "OmniVoice Studio.app is damaged and can't be opened."
+**Symptom:** "VoiceStudio.app is damaged and can't be opened."
 
 **Cause:** the app is not yet notarised (signing is wired in `release.yml` and
 activates once the maintainer adds the Apple cert secrets) — until then macOS
@@ -183,8 +183,8 @@ EGL error), then `WEBKIT_DISABLE_COMPOSITING_MODE=1` — full walkthrough incl.
 the software-rendering last resort:
 [linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404](linux.md#appimage-white-screen-on-fedora-44--ubuntu-2404).
 
-**Linked issues:** [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
-[#961](https://github.com/debpalash/OmniVoice-Studio/issues/961)
+**Linked issues:** [#62](https://github.com/debpalash/VoiceStudio/issues/62),
+[#961](https://github.com/debpalash/VoiceStudio/issues/961)
 
 ## 5. Windows Triton / torch.compile OOM
 
@@ -197,7 +197,7 @@ peak memory footprint that exceeds free VRAM. Windows-only quirk.
 
 **Fix:** see [windows.md#torch-compile-oom](windows.md#torch-compile-oom).
 
-**Linked issue:** [#65](https://github.com/debpalash/OmniVoice-Studio/issues/65)
+**Linked issue:** [#65](https://github.com/debpalash/VoiceStudio/issues/65)
 
 ## 6. `uv venv` Python download fails (restricted network)
 
@@ -210,20 +210,20 @@ Russia, sometimes on corporate proxies.
 `UV_HTTP_TIMEOUT=120`, `UV_HTTP_RETRIES=5`, `UV_PYTHON_PREFERENCE=only-system`).
 
 **Linked issues:**
-[#57](https://github.com/debpalash/OmniVoice-Studio/issues/57),
-[#60](https://github.com/debpalash/OmniVoice-Studio/issues/60).
+[#57](https://github.com/debpalash/VoiceStudio/issues/57),
+[#60](https://github.com/debpalash/VoiceStudio/issues/60).
 
 ## 7. `.deb` ffprobe path conflict on upgrade
 
 **Symptom:** after upgrading from a pre-v0.3 .deb, `ffprobe -version` reports
-"OmniVoice bundled ffprobe" instead of the system ffmpeg, breaking other apps
+"VoiceStudio bundled ffprobe" instead of the system ffmpeg, breaking other apps
 that rely on `/usr/bin/ffprobe`.
 
 **Fix:** see [linux.md#deb-ffprobe-conflict](linux.md#deb-ffprobe-conflict).
 
 ## 7b. "Media engine unavailable" / FFmpeg questions
 
-FFmpeg, FFprobe, and yt-dlp are **not** things you install for OmniVoice.
+FFmpeg, FFprobe, and yt-dlp are **not** things you install for VoiceStudio.
 The app resolves them itself, in order: a path provided by the desktop shell →
 the static build shipped with the Python environment → the app's own
 downloaded build → whatever is on your PATH. When nothing resolves at all
@@ -249,7 +249,7 @@ version** reverts to the build the app shipped with.
 
 ## 8. Docker LAN access — media preview 404
 
-**Symptom:** OmniVoice loads on `http://<lan-ip>:3900` but the audio preview
+**Symptom:** VoiceStudio loads on `http://<lan-ip>:3900` but the audio preview
 pane shows 404s for `/media/...`.
 
 **Cause:** pre-v0.3, the frontend hardcoded `localhost:3900` for media-preview
@@ -263,7 +263,7 @@ prebuilt image via `docker run -e`) — see
 
 ## 9. Apple Silicon `mlx-whisper` unavailable on Intel mac
 
-**Symptom:** on an Intel mac, OmniVoice logs `mlx-whisper backend unavailable;
+**Symptom:** on an Intel mac, VoiceStudio logs `mlx-whisper backend unavailable;
 falling back to faster-whisper`.
 
 **Cause:** `mlx-whisper` and `mlx-audio` only build for arm64 (Apple Silicon).
@@ -272,7 +272,7 @@ falling back to faster-whisper`.
 that Intel Macs can no longer run the local backend at all — PyTorch dropped
 Intel-Mac wheels, so this entry only applies to historical installs (see
 [macos.md](macos.md) and
-[#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)).
+[#889](https://github.com/debpalash/VoiceStudio/issues/889)).
 
 ## 10. Windows: `Could not locate cudnn_ops_infer64_8.dll` during transcription
 
@@ -281,15 +281,15 @@ log shows `Could not locate cudnn_ops_infer64_8.dll`. Settings → Models shows
 WhisperX or faster-whisper selected.
 
 **Cause:** WhisperX and faster-whisper run on **CTranslate2**, which needs
-**cuDNN 8**, but PyTorch 2.8 ships cuDNN 9. OmniVoice side-loads a cuDNN-8 copy
+**cuDNN 8**, but PyTorch 2.8 ships cuDNN 9. VoiceStudio side-loads a cuDNN-8 copy
 from `.venv\Lib\site-packages\cudnn8_compat\` — but the step that installs that
 folder only ever lived in the dev-loop setup script, which isn't bundled into
 the packaged app. **Packaged installs never had these libraries at all**, so
-reinstalling never fixed it ([#827](https://github.com/debpalash/OmniVoice-Studio/issues/827)).
+reinstalling never fixed it ([#827](https://github.com/debpalash/VoiceStudio/issues/827)).
 
 **Fix:** update to the latest build and relaunch — the app's bootstrap now
 detects a CUDA machine and installs the cuDNN-8 libraries into the backend venv
-automatically at launch ([#869](https://github.com/debpalash/OmniVoice-Studio/pull/869)).
+automatically at launch ([#869](https://github.com/debpalash/VoiceStudio/pull/869)).
 (The check is skipped — and its negative result cached — on CPU/AMD/Apple
 machines, so non-NVIDIA launches stay instant.)
 
@@ -317,19 +317,19 @@ their own engine venvs. Pre-v0.3 they shared a single venv.
 
 **Fix:** Phase 2 ships subprocess isolation per engine (each engine runs in
 its own venv). For v0.3, workaround: install only one of the conflicting
-engines per OmniVoice copy. See [docs/engines/cosyvoice.md](../engines/cosyvoice.md)
+engines per VoiceStudio copy. See [docs/engines/cosyvoice.md](../engines/cosyvoice.md)
 for the dedicated CosyVoice path.
 
-**Linked issue:** [#55](https://github.com/debpalash/OmniVoice-Studio/issues/55)
+**Linked issue:** [#55](https://github.com/debpalash/VoiceStudio/issues/55)
 
 **Same class, ASR side:** the `nemo-parakeet` ASR engine has the identical
 problem and currently has **no safe install path** at all — `nemo_toolkit[asr]`
 hard-pins `transformers>=4.57,<4.58`, which is unsatisfiable alongside
-OmniVoice's own `transformers>=5.3` requirement. Installing it into the
+VoiceStudio's own `transformers>=5.3` requirement. Installing it into the
 shared venv breaks the backend outright. Do not `pip install nemo_toolkit`
-into OmniVoice's environment; if you want to try it, use a separate Python
+into VoiceStudio's environment; if you want to try it, use a separate Python
 environment. Isolated-venv support for this engine (matching CosyVoice/
-dots-tts) is tracked in [#974](https://github.com/debpalash/OmniVoice-Studio/issues/974).
+dots-tts) is tracked in [#974](https://github.com/debpalash/VoiceStudio/issues/974).
 
 ## 12. CUDA PyTorch wheel download fails on first run
 
@@ -338,24 +338,24 @@ that mentions `torch` and a `download.pytorch.org` (or `download-r2.pytorch.org`
 URL — e.g. `Failed to download torch==2.8.0+cu128 …win_amd64.whl`. The app then
 won't launch.
 
-**Cause:** on Windows/Linux NVIDIA machines, OmniVoice installs the CUDA PyTorch
+**Cause:** on Windows/Linux NVIDIA machines, VoiceStudio installs the CUDA PyTorch
 build (`torch` + `torchaudio`) from PyTorch's own index. That CUDA wheel is
 large (~2.5 GB), so a flaky or restricted network drops it partway. This is a
-download/network problem, **not** a bug in OmniVoice — but the CUDA wheels come
+download/network problem, **not** a bug in VoiceStudio — but the CUDA wheels come
 from a *named, explicit* index that a PyPI mirror (`UV_DEFAULT_INDEX`) cannot
 redirect, so the generic mirror trick doesn't help here.
 
 **Fix, in order:**
 
 1. **Clean & Retry.** Large downloads frequently succeed on a second attempt —
-   OmniVoice already retries each request 5× with long timeouts, and a fresh
+   VoiceStudio already retries each request 5× with long timeouts, and a fresh
    attempt restarts cleanly.
 2. **Use a VPN** if your network throttles or blocks the PyTorch CDN.
 3. **Provide the wheels manually (offline path).** Download the two wheels that
    match your machine from a source you *can* reach (the official
    [pytorch.org](https://pytorch.org/get-started/locally/) wheel index or a
    regional mirror), then drop them in the wheel folder and **Clean & Retry** —
-   OmniVoice will install from your local copies instead of the network:
+   VoiceStudio will install from your local copies instead of the network:
    - Folder: **`<env dir>/wheels`** (the exact path is printed in the error
      message and in the setup log; `<env dir>` is your chosen install/storage
      location).
@@ -363,19 +363,19 @@ redirect, so the generic mirror trick doesn't help here.
      — e.g. `torch-2.8.0+cu128-cp311-cp311-win_amd64.whl` and the matching
      `torchaudio-2.8.0+cu128-cp311-cp311-win_amd64.whl`. They must match the
      pinned versions (shown in the failing URL).
-   - On retry, OmniVoice re-resolves the install using those local wheels; the
+   - On retry, VoiceStudio re-resolves the install using those local wheels; the
      rest of the (small) dependencies still come from PyPI/your mirror.
 
 If you don't have an NVIDIA GPU, you don't need the CUDA build at all — a CPU /
 Apple-Silicon install skips this index entirely.
 
-**Linked issue:** [#569](https://github.com/debpalash/OmniVoice-Studio/issues/569)
+**Linked issue:** [#569](https://github.com/debpalash/VoiceStudio/issues/569)
 
 ## 13. Stuck on the download page / incomplete model cache ("only `refs/`")
 
 **Symptom:** the setup screen never finishes the model download and you can't
 reach the main app. Looking in the HF cache, a model folder
-(`models--k2-fsa--OmniVoice`, `models--Systran--faster-whisper-large-v3`) has
+(`models--k2-fsa--VoiceStudio`, `models--Systran--faster-whisper-large-v3`) has
 `refs/` and maybe `config.json` but **no weight files** (`blobs/` empty or tiny).
 
 **Cause:** the download started but the large weight shards never finished —
@@ -387,12 +387,12 @@ time.
 
 **Fix — force a clean re-download:**
 
-1. **Fully quit OmniVoice.** Check Task Manager (Windows) / Activity Monitor
+1. **Fully quit VoiceStudio.** Check Task Manager (Windows) / Activity Monitor
    (macOS) and end any leftover `omnivoice` / `python` process — a half-running
    one keeps the cache locked.
 2. **Delete the incomplete model folder(s) entirely** from the HF cache (the
    whole `models--…` folder, not just `refs/`). Leave other models alone:
-   - `models--k2-fsa--OmniVoice`
+   - `models--k2-fsa--VoiceStudio`
    - `models--Systran--faster-whisper-large-v3`
 3. **Relaunch** — the download page re-pulls from scratch.
 
@@ -404,7 +404,7 @@ order:
 - **Connection** — use a stable, direct connection; pause any VPN; avoid
   corporate/school networks.
 - **Region mirror** — if `huggingface.co` is slow/blocked where you are,
-  OmniVoice normally handles this automatically: with no endpoint explicitly
+  VoiceStudio normally handles this automatically: with no endpoint explicitly
   configured it probes both the official endpoint and the `hf-mirror.com`
   community mirror and downloads from whichever works (downloads are
   checksum-verified either way; see
@@ -425,13 +425,13 @@ huggingface-cli download k2-fsa/OmniVoice
 huggingface-cli download Systran/faster-whisper-large-v3
 ```
 
-(If OmniVoice uses a custom models directory, set `HF_HOME` to it first so the
+(If VoiceStudio uses a custom models directory, set `HF_HOME` to it first so the
 files land where the app looks.)
 
 > Newer builds detect an incomplete cache and re-offer the download instead of
 > stranding you on this page — update once the fix is in your channel.
 
-**Linked issue:** [#622](https://github.com/debpalash/OmniVoice-Studio/issues/622)
+**Linked issue:** [#622](https://github.com/debpalash/VoiceStudio/issues/622)
 
 ## 14. "Can't reach the local backend" *during* generation / transcription / dubbing
 
@@ -479,7 +479,7 @@ and `OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300
 default 120). **Raise** them for very long single files/generations, **lower**
 them to fail faster on a small machine.
 
-**Two things changed here** ([#1190](https://github.com/debpalash/OmniVoice-Studio/issues/1190)):
+**Two things changed here** ([#1190](https://github.com/debpalash/VoiceStudio/issues/1190)):
 
 - **Waiting in line is no longer counted as compute.** The generate budget used
   to start the moment a job was *queued*, so on a 1-worker machine a request
@@ -508,7 +508,7 @@ of going quiet: a **429** with a `Retry-After` header means the request was
 *refused before it started* because the worker pool is already backed up (safe
 to retry verbatim — nothing ran), and a **503** with `Retry-After` means the
 job was accepted but hit its bound. Both carry
-`X-OmniVoice-Retryable: true`, and the streaming NDJSON error frame carries
+`X-VoiceStudio-Retryable: true`, and the streaming NDJSON error frame carries
 `"retryable": true` with `retry_after`. Back off on those rather than
 hammering — on a 1-worker machine, concurrent requests serialize by design.
 
@@ -519,7 +519,7 @@ exits. The error message will then recommend switching the ASR engine to
 **Settings → Engines**: it runs transcription in a separate process that can be
 force-killed to reclaim a hung transcribe *and* its VRAM, at a small per-call
 overhead. It reuses your existing faster-whisper install (nothing extra to
-download). OmniVoice never switches engines automatically — this stays your
+download). VoiceStudio never switches engines automatically — this stays your
 call.
 
 > **Seeing "The backend crashed (exit code …)" instead?** That's the other
@@ -537,11 +537,11 @@ call.
 > Outside the desktop app (browser dev, Docker, LAN share) the same notice is
 > raised by the **backend itself** on its next start — see **section 14c**.
 
-## 14b. "Can't reach the local OmniVoice backend" flashing during startup or an automatic restart
+## 14b. "Can't reach the local VoiceStudio backend" flashing during startup or an automatic restart
 
 **Symptom (older builds):** while the backend was still starting — or while the
 desktop shell was auto-restarting a crashed backend — every click produced a
-**"Can't reach the local OmniVoice backend"** toast, over and over, even though
+**"Can't reach the local VoiceStudio backend"** toast, over and over, even though
 the backend came back on its own a few seconds later.
 
 **Cause:** a real backend start/restart takes **10–20+ seconds** (Python venv
@@ -562,7 +562,7 @@ not this window.
 
 ## 14c. "Can't reach the backend" in a browser — `bun run dev`, Docker, or LAN share
 
-**Symptom:** you're using OmniVoice **outside the desktop app** — the dev
+**Symptom:** you're using VoiceStudio **outside the desktop app** — the dev
 stack (`bun run dev`), a Docker deployment, or a shared/remote backend — and
 requests fail with a "can't reach the backend" error.
 
@@ -601,10 +601,10 @@ Where the forensics live: `omnivoice.log`, `run_sentinel.json`, and
 Windows, `~/.omnivoice` on Linux, or `$OMNIVOICE_DATA_DIR` — the Docker image
 mounts it as the `omnivoice_data` volume).
 
-## 14d. "Can't reach the local OmniVoice backend" when the backend never started
+## 14d. "Can't reach the local VoiceStudio backend" when the backend never started
 
 **Symptom (older builds):** the app opened, but every action failed with
-**"Can't reach the local OmniVoice backend — it may still be starting up, or it
+**"Can't reach the local VoiceStudio backend — it may still be starting up, or it
 stopped."** Waiting and retrying never helped, and the message gave you nothing
 to act on or to put in a bug report.
 
@@ -633,7 +633,7 @@ later attempt can't erase the diagnosis of the first one.
 
 **From source (`bun desktop`)?** If the app builds but the window never comes
 up, the shell now prints the exit code and where to look (the cargo/tauri
-output above it, plus `omnivoice.log` and `backend_err.log` in your OmniVoice
+output above it, plus `omnivoice.log` and `backend_err.log` in your VoiceStudio
 data folder) instead of exiting silently.
 
 **Still stuck?** Open the details, copy the output, and file it with **Report**
@@ -665,18 +665,18 @@ Your voices, projects, and settings are not touched — only browser display dat
 is cleared.
 
 On older builds (≤ 0.3.8), or if the automatic repair fails, do it manually:
-quit OmniVoice Studio, delete the folder below, then start the app again.
+quit VoiceStudio, delete the folder below, then start the app again.
 
 <!-- validate: skip -->
 ```powershell
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
 ```
 
-## 16. macOS: microphone permission never prompts, OmniVoice never appears in System Settings
+## 16. macOS: microphone permission never prompts, VoiceStudio never appears in System Settings
 
 **Symptom:** clicking record shows "Microphone access denied. macOS: open
-System Settings → Privacy & Security → Microphone and enable OmniVoice" —
-but OmniVoice never appears in that list, so there's nothing to enable.
+System Settings → Privacy & Security → Microphone and enable VoiceStudio" —
+but VoiceStudio never appears in that list, so there's nothing to enable.
 `NSMicrophoneUsageDescription` is present in the app's `Info.plist`, and
 resetting the permission (`tccutil reset Microphone
 com.debpalash.omnivoice-studio`) followed by a relaunch changes nothing — no
@@ -696,16 +696,16 @@ Without the entitlement, macOS's TCC layer never registers a request, which
 is exactly why the app never appears in the System Settings list.
 
 **Fix:** ships in the release after v0.3.12 (the bundle now carries
-`src-tauri/entitlements.plist` — [#1016](https://github.com/debpalash/OmniVoice-Studio/pull/1016),
+`src-tauri/entitlements.plist` — [#1016](https://github.com/debpalash/VoiceStudio/pull/1016),
 contributed by the same person who diagnosed it). Update and live recording
 works, with a normal macOS permission prompt on first use.
 
 **Workaround on older builds (≤ v0.3.12):** record your voice sample in any
 other app (Voice Memos, QuickTime, etc.) and upload the resulting file in
-OmniVoice instead of using live recording — upload-based cloning is
+VoiceStudio instead of using live recording — upload-based cloning is
 unaffected and works normally.
 
-**Linked issue:** [#1013](https://github.com/debpalash/OmniVoice-Studio/issues/1013)
+**Linked issue:** [#1013](https://github.com/debpalash/VoiceStudio/issues/1013)
 
 > **Tip:** current builds surface the live OS grant state in-app — **Settings →
 > Permissions** shows whether the microphone (and, on macOS, Accessibility) is
@@ -737,11 +737,11 @@ Full guide: [dubbing/translation-engines.md](../dubbing/translation-engines.md#i
 
 On networks that block or can't resolve **GitHub**, the first-run bootstrap may
 fail to download the managed Python (`uv venv ... failed`, often a DNS error).
-OmniVoice now tries, in order: the default GitHub host → a gh-proxy mirror → your
+VoiceStudio now tries, in order: the default GitHub host → a gh-proxy mirror → your
 **system Python** (if 3.11+ is installed). If all three fail:
 
 1. **Install Python 3.11+** from <https://www.python.org/downloads/> (on Windows,
-   tick *"Add Python to PATH"*), then relaunch — OmniVoice will use it.
+   tick *"Add Python to PATH"*), then relaunch — VoiceStudio will use it.
 2. **Point at a reachable mirror** for the Python download:
    - `UV_PYTHON_INSTALL_MIRROR=https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download`
 3. **Point at a PyPI mirror** for the dependency install (`uv sync`):
@@ -752,13 +752,13 @@ OmniVoice now tries, in order: the default GitHub host → a gh-proxy mirror →
    (`UV_HTTP_TIMEOUT=120`, `UV_HTTP_CONNECT_TIMEOUT=30`, `UV_HTTP_RETRIES=5`);
    you can raise them further in the environment if a mirror is very slow.
 
-**Linked issues:** [#130](https://github.com/debpalash/OmniVoice-Studio/issues/130), [#60](https://github.com/debpalash/OmniVoice-Studio/issues/60), [#57](https://github.com/debpalash/OmniVoice-Studio/issues/57)
+**Linked issues:** [#130](https://github.com/debpalash/VoiceStudio/issues/130), [#60](https://github.com/debpalash/VoiceStudio/issues/60), [#57](https://github.com/debpalash/VoiceStudio/issues/57)
 
-## Uninstalling / removing all of OmniVoice's data
+## Uninstalling / removing all of VoiceStudio's data
 
-OmniVoice is fully local — no accounts, no services, nothing to deactivate. To
+VoiceStudio is fully local — no accounts, no services, nothing to deactivate. To
 reclaim disk space or fully remove it, run the uninstaller, which lists every
-OmniVoice folder with its size (dry-run first) and deletes on `--yes`:
+VoiceStudio folder with its size (dry-run first) and deletes on `--yes`:
 
 ```bash
 scripts/uninstall.sh            # macOS/Linux — dry-run
@@ -776,4 +776,4 @@ per-platform path list, env-var overrides, portable-mode note, and the steps to
 remove the app binary itself are in
 [docs/install/uninstall.md](uninstall.md).
 
-**Linked issue:** [#1089](https://github.com/debpalash/OmniVoice-Studio/issues/1089)
+**Linked issue:** [#1089](https://github.com/debpalash/VoiceStudio/issues/1089)

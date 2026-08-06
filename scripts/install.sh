@@ -1,11 +1,11 @@
 #!/bin/sh
-# OmniVoice Studio — universal installer.
+# VoiceStudio — universal installer.
 #
 # Works on macOS (ARM + Intel), Linux (Debian/Ubuntu, Fedora, Arch), and WSL.
 # Run once, then `./run.sh` each time you want to use the app.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/debpalash/OmniVoice-Studio/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/debpalash/VoiceStudio/main/install.sh | sh
 #   # or locally:
 #   sh install.sh
 #   sh install.sh --verbose        # show all subcommand output
@@ -111,14 +111,14 @@ esac
 
 if [ "$OS" = "windows" ]; then
     echo "⚠  This source installer is for macOS / Linux (it installs system deps via brew/apt)."
-    echo "   On Windows: download the OmniVoice Studio installer (.msi) from the Releases page,"
+    echo "   On Windows: download the VoiceStudio installer (.msi) from the Releases page,"
     echo "   or run this script inside WSL (Windows Subsystem for Linux)."
     exit 0
 fi
 ARCH=$(uname -m)
 
 echo ""
-printf "  ${C_TITLE}%s${C_RST}\n" "🎙 OmniVoice Studio Installer"
+printf "  ${C_TITLE}%s${C_RST}\n" "🎙 VoiceStudio Installer"
 printf "  ${C_DIM}%s${C_RST}\n" "$RULE"
 echo ""
 
@@ -143,14 +143,14 @@ fi
 
 # If run via curl pipe, clone the repo first
 if [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
-    step "clone" "downloading OmniVoice Studio..."
-    INSTALL_DIR="$HOME/OmniVoice"
+    step "clone" "downloading VoiceStudio..."
+    INSTALL_DIR="$HOME/VoiceStudio"
     if [ -d "$INSTALL_DIR/.git" ]; then
         note "Updating existing clone at $INSTALL_DIR"
         (cd "$INSTALL_DIR" && git pull --ff-only 2>/dev/null || true)
     else
         if have git; then
-            git clone --depth 1 https://github.com/debpalash/OmniVoice-Studio.git "$INSTALL_DIR"
+            git clone --depth 1 https://github.com/debpalash/VoiceStudio.git "$INSTALL_DIR"
         else
             die "git is required. Install git and re-run."
         fi
@@ -370,7 +370,7 @@ step "frontend" "OK — output at frontend/dist/"
 # ── Log directory ──────────────────────────────────────────────────────────
 case "$OS" in
     macos) LOG_DIR="$HOME/Library/Application Support/OmniVoice" ;;
-    *)     LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/OmniVoice" ;;
+    *)     LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/VoiceStudio" ;;
 esac
 mkdir -p "$LOG_DIR"
 
@@ -379,9 +379,9 @@ echo ""
 printf "  ${C_TITLE}%s${C_RST}\n" "✓ Install complete!"
 printf "  ${C_DIM}%s${C_RST}\n" "$RULE"
 echo ""
-step "next" "Run ./run.sh to start OmniVoice Studio"
+step "next" "Run ./run.sh to start VoiceStudio"
 echo ""
-note "First launch downloads ~5 GB of ML model weights (OmniVoice TTS + Whisper)."
+note "First launch downloads ~5 GB of ML model weights (VoiceStudio TTS + Whisper)."
 note "After that, launches are instant."
 echo ""
 note "GPU: $GPU_INFO"

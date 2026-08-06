@@ -953,7 +953,7 @@ describe('EngineCompatibilityMatrix', () => {
   // ── `hint` — available-but-has-advice rows ──────────────────────────────
   function hintResponse() {
     const resp = makeEnginesResponse();
-    // OmniVoice: available with advice (the VoxCPM2 ">=2.0.3" shape).
+    // VoiceStudio: available with advice (the VoxCPM2 ">=2.0.3" shape).
     resp.tts.backends[0].hint =
       'installed voxcpm 2.0.1 is older than 2.0.3 — upgrading is recommended';
     return resp;

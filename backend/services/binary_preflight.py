@@ -8,7 +8,7 @@ failure shape exists for any managed executable: a truncated download, a
 git-lfs pointer checked out without ``git lfs pull``, an HTML error page
 saved as a binary, or a half-installed engine venv interpreter.
 
-Contract: every code path that spawns an executable OmniVoice *manages*
+Contract: every code path that spawns an executable VoiceStudio *manages*
 (bundled runtimes in ``bin/``, per-engine venv interpreters, downloaded
 tools) validates it here **before** exec, so the failure surfaces as a
 typed, user-actionable :class:`InvalidBinaryError` instead of an OSError

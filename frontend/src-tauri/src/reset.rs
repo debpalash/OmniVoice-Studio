@@ -5,7 +5,7 @@
 //! gone wrong in any deeper way (a half-downloaded model, a wedged sidecar
 //! engine, settings they could no longer find) had exactly two options — live
 //! with it, or delete everything and start over. This module fills the gap with
-//! a scope registry: every distinct thing OmniVoice writes to disk, sized, and
+//! a scope registry: every distinct thing VoiceStudio writes to disk, sized, and
 //! individually removable.
 //!
 //! **Why the shell and not the backend.** Two reasons the backend cannot do
@@ -29,8 +29,8 @@
 //! Safety: every target is resolved from the same single source of truth the
 //! rest of the app uses (`setup::{resolved,default}_{data,models}_dir`,
 //! `backend::backend_log_path`), and nothing is removed unless it sits inside a
-//! *validated* root — one that either carries an OmniVoice-owned path component
-//! or holds an actual OmniVoice signature file. A custom data dir on an external
+//! *validated* root — one that either carries a VoiceStudio-owned path component
+//! or holds an actual VoiceStudio signature file. A custom data dir on an external
 //! volume passes on the signature; a mis-set `data_dir: "/"` passes on neither.
 
 use std::fs;
@@ -152,9 +152,9 @@ pub fn models_are_shared(models: &Path, data: &Path) -> bool {
     !app_private
 }
 
-/// Does this directory actually look like OmniVoice's? Used to clear a *custom*
+/// Does this directory actually look like VoiceStudio's? Used to clear a *custom*
 /// data or model dir — one the user pointed us at, whose path carries no
-/// OmniVoice-ish name — without also clearing whatever else a mis-configured
+/// VoiceStudio-ish name — without also clearing whatever else a mis-configured
 /// path might point at. Presence of our own files is the proof of ownership.
 fn has_app_signature(dir: &Path) -> bool {
     for marker in ["omnivoice.db", "prefs.json", "voices", "outputs", "engines"] {
@@ -335,7 +335,7 @@ pub async fn reset_scan(app: tauri::AppHandle) -> Vec<ResetScope> {
 /// The destructive core: delete every target of every wanted scope, guarding
 /// each path against the validated roots. Pure over the filesystem — no
 /// `AppHandle`, no backend — so it can be exercised end-to-end against a real
-/// on-disk OmniVoice tree in a test. `reset_purge` is this plus stop-backend
+/// on-disk VoiceStudio tree in a test. `reset_purge` is this plus stop-backend
 /// before and restart-backend after.
 ///
 /// `wanted` is assumed already filtered to `DISK_SCOPES`; unknown names yield no
@@ -494,7 +494,7 @@ mod tests {
         // Windows: redirected into our own dir to dodge MAX_PATH → app-private.
         assert!(!models_are_shared(
             Path::new("C:/Users/me/AppData/Local/OmniVoice/hf_cache"),
-            Path::new("C:/Users/me/AppData/Roaming/OmniVoice")
+            Path::new("C:/Users/me/AppData/Roaming/VoiceStudio")
         ));
         // Portable: models live under the portable data dir → app-private.
         assert!(!models_are_shared(
@@ -508,7 +508,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let custom = dir.path().join("my stuff");
         fs::create_dir_all(&custom).unwrap();
-        // Nothing OmniVoice-ish in the name and no signature yet → refuse.
+        // Nothing VoiceStudio-ish in the name and no signature yet → refuse.
         assert!(!is_valid_root(&custom, None));
         // The app's own database is proof enough that this dir is ours.
         fs::write(custom.join("omnivoice.db"), b"x").unwrap();
@@ -554,7 +554,7 @@ mod tests {
     // the destructive path is exercised for real (not mocked) before it ever
     // touches a user's machine.
 
-    /// Build a tree that mirrors a lived-in OmniVoice install and return `Roots`.
+    /// Build a tree that mirrors a lived-in VoiceStudio install and return `Roots`.
     fn seed_install(base: &Path) -> Roots {
         let data = base.join("OmniVoice");
         let models = base.join(".cache").join("huggingface");
@@ -609,7 +609,7 @@ mod tests {
         let env = dir.path().join("com.debpalash.omnivoice-studio");
         fs::create_dir_all(env.join("project").join(".venv")).unwrap();
 
-        // "Everything OmniVoice did" minus the frontend-only scopes.
+        // "Everything VoiceStudio did" minus the frontend-only scopes.
         let wanted: Vec<String> =
             ["settings", "content", "engines", "tools", "models", "caches", "logs"]
                 .iter()

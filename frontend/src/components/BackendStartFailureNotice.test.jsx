@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 // #1177: the shell's `Failed { message }` diagnosis must reach the user AFTER
 // the bootstrap splash is gone — the window in which a start failure used to
-// collapse into the evidence-free "Can't reach the local OmniVoice backend".
+// collapse into the evidence-free "Can't reach the local VoiceStudio backend".
 vi.mock('../utils/bugReport', () => ({
   buildBugReportUrl: vi.fn().mockResolvedValue('https://example.test/issues/new'),
 }));

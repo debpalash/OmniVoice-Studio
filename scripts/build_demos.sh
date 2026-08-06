@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build all demo assets for OmniVoice Studio v0.3.0.
+# Build all demo assets for VoiceStudio v0.3.0.
 #
 # Two render paths:
 #   1. macOS `say` (default) — fast, deterministic, ships immediately.
 #      Used to bootstrap the demo bundle so v0.3.0 has working demos on day one.
-#   2. OmniVoice engine (--engine omnivoice) — production-quality re-render
+#   2. VoiceStudio engine (--engine omnivoice) — production-quality re-render
 #      once model weights are cached. Recipes documented but not executed
 #      until the user opts in.
 #
@@ -23,7 +23,7 @@
 #   backend/assets/samples/dictation/{en_conversational,en_technical,fr_reservation}.wav
 #
 # License: all `say`-rendered output is synthetic speech from Apple's bundled
-# TTS voices, redistributable under the OmniVoice MIT license per Apple's
+# TTS voices, redistributable under the VoiceStudio MIT license per Apple's
 # Voices for Accessibility EULA. No third-party voice IP is used.
 
 set -e
@@ -51,7 +51,7 @@ if [ "$ENGINE" = "omnivoice" ]; then
   # Delegate to the Python script that talks to the real engine.
   PY_ARGS=""
   [ "$SKIP_EXISTING" = 1 ] && PY_ARGS="--skip-existing"
-  echo "Rendering cloning + voice-design demos via OmniVoice engine…"
+  echo "Rendering cloning + voice-design demos via VoiceStudio engine…"
   if [ -d "${REPO_ROOT}/.venv" ]; then
     "${REPO_ROOT}/.venv/bin/python" "${REPO_ROOT}/scripts/render_demos_omnivoice.py" $PY_ARGS
   else
@@ -61,7 +61,7 @@ if [ "$ENGINE" = "omnivoice" ]; then
   echo ""
   echo "Note: dictation samples are still rendered via 'say' — re-running for them now."
   # Fall through to render dictation; --skip-existing will preserve the
-  # OmniVoice-rendered cloning + design outputs we just produced.
+  # VoiceStudio-rendered cloning + design outputs we just produced.
   SKIP_EXISTING=1
   ENGINE="say"
 fi
@@ -102,7 +102,7 @@ echo "── Voice cloning demo (24kHz mono 16-bit) ─────────�
 # Voice: Samantha (en_US adult female, the macOS default — clean, neutral,
 # warm). Reference text from the cloning spec.
 render "Samantha" \
-  "Hi, I'm the OmniVoice demo voice. Everything you hear me say from now on was synthesized on your own machine. No cloud, no account, just you and the model." \
+  "Hi, I'm the VoiceStudio demo voice. Everything you hear me say from now on was synthesized on your own machine. No cloud, no account, just you and the model." \
   "${SAMPLES_DIR}/demo_voice.wav" 24000
 
 # Pre-rendered clone output — same voice, different text. Used when the user
@@ -128,7 +128,7 @@ render "Ralph" \
   "${DESIGN_DIR}/demo_voice_design_us_news_anchor.wav" 24000
 
 render "Rishi" \
-  "Thank you for calling OmniVoice support. I can see your account here. Let's get this sorted out together." \
+  "Thank you for calling VoiceStudio support. I can see your account here. Let's get this sorted out together." \
   "${DESIGN_DIR}/demo_voice_design_indian_support_agent.wav" 24000
 
 # Captain Crusty — gravelly cartoon-sailor villain. Inspired by the "tough old
@@ -252,5 +252,5 @@ echo "── Totals ────────────────────
 du -sh "${SAMPLES_DIR}" | awk '{print "  Bundle size: " $1}'
 find "${SAMPLES_DIR}" -name "*.wav" | wc -l | awk '{print "  WAV count:   " $1}'
 echo ""
-echo "Done. To re-render with the OmniVoice engine later:"
+echo "Done. To re-render with the VoiceStudio engine later:"
 echo "  scripts/build_demos.sh --engine omnivoice"

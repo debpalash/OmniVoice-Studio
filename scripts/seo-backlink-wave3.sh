@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVoice Studio — Wave 3: Security Scanners & Deep Indexing
+# VoiceStudio — Wave 3: Security Scanners & Deep Indexing
 # Submits to public security scanners, performance tools, and deep analyzers
 # which create publicly indexed report pages for your URL.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SITE_URL="https://github.com/debpalash/OmniVoice-Studio"
+SITE_URL="https://github.com/debpalash/VoiceStudio"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -34,7 +34,7 @@ EU=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$SITE_URL', safe
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║  OmniVoice Studio — Wave 3: Scanners & Public Reports          ║"
+echo "║  VoiceStudio — Wave 3: Scanners & Public Reports          ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 

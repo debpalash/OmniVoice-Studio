@@ -2,7 +2,7 @@
 Plugin SDK — abstract interface for third-party TTS engines.
 
 Allows community contributors to add support for ElevenLabs, XTTS, Bark,
-Fish TTS, etc. without modifying core OmniVoice code.
+Fish TTS, etc. without modifying core VoiceStudio code.
 
 Usage:
     1. Create a Python file in backend/plugins/  (e.g. elevenlabs.py)

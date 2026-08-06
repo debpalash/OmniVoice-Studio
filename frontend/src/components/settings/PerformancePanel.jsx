@@ -118,7 +118,7 @@ export default function PerformancePanel() {
               // Trans injects the link text ("#65") from the translation string.
               issueLink: (
                 <a
-                  href="https://github.com/debpalash/OmniVoice-Studio/issues/65"
+                  href="https://github.com/debpalash/VoiceStudio/issues/65"
                   target="_blank"
                   rel="noopener noreferrer"
                 />

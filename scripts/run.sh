@@ -1,5 +1,5 @@
 #!/bin/sh
-# OmniVoice Studio — universal launcher.
+# VoiceStudio — universal launcher.
 #
 # Works on macOS, Linux, and WSL. Starts the FastAPI backend, waits for it
 # to become healthy, then opens the web UI in the default browser.
@@ -62,8 +62,8 @@ fi
 # ── Log directory (platform-aware) ─────────────────────────────────────────
 case "$OS" in
     macos)   LOG_DIR="$HOME/Library/Application Support/OmniVoice" ;;
-    windows) LOG_DIR="${LOCALAPPDATA:-$HOME/AppData/Local}/OmniVoice" ;;
-    *)       LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/OmniVoice" ;;
+    windows) LOG_DIR="${LOCALAPPDATA:-$HOME/AppData/Local}/VoiceStudio" ;;
+    *)       LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/VoiceStudio" ;;
 esac
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/omnivoice-run.log"
@@ -147,7 +147,7 @@ if [ "$NO_OPEN" != true ]; then
 fi
 
 echo ""
-echo "OmniVoice Studio is running."
+echo "VoiceStudio is running."
 echo "Press Ctrl+C to shut down."
 
 # Block until user hits Ctrl+C or backend exits.

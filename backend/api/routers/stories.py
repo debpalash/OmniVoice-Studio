@@ -39,7 +39,7 @@ async def stories_encode(
     synthesis producer — it never calls a TTS engine, so it must not call
     mark_synthetic (the upload may be arbitrary user audio, and marking human
     speech as synthetic would be wrong). Audio the Stories Editor stitched
-    from OmniVoice generations is already marked at its producing route, and
+    from VoiceStudio generations is already marked at its producing route, and
     the AudioSeal mark survives the lossy encode here.
     """
     fmt = (format or "mp3").lower()

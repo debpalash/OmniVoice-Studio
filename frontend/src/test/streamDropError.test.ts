@@ -173,7 +173,7 @@ describe('crashCauseHint', () => {
   it('offers the isolated engine for synthesis AND for transcription', async () => {
     const { crashCauseHint } = await import('../utils/backendCrash');
     const hint = crashCauseHint({ exit_code: null, signal: 11 });
-    expect(hint).toMatch(/OmniVoice \(subprocess\)/);
+    expect(hint).toMatch(/VoiceStudio \(subprocess\)/);
     expect(hint).toMatch(/Faster-Whisper/);
   });
 

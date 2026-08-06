@@ -7,7 +7,7 @@ Owned by Plan 01-02 (checker B-6 resolution). Read by:
 Resolution order (highest → lowest):
   1. `frontend/src-tauri/tauri.conf.json` `plugins.updater.endpoints[0]`
      — this points at the desktop app fork (e.g. github.com/debpalash/
-     OmniVoice-Studio), which is where docs deeplinks should resolve.
+     VoiceStudio), which is where docs deeplinks should resolve.
   2. `pyproject.toml [project.urls].Repository` — fallback to the upstream
      model repo URL when the Tauri config is unreadable.
 
@@ -94,7 +94,7 @@ def _resolve() -> str:
     return (
         _from_tauri()
         or _from_pyproject()
-        or "https://github.com/debpalash/OmniVoice-Studio"
+        or "https://github.com/debpalash/VoiceStudio"
     )
 
 

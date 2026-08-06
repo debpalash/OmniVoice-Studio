@@ -19,11 +19,11 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 
 const STABLE_MANIFEST: &str =
-    "https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json";
+    "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json";
 const PREVIEW_MANIFEST: &str =
-    "https://github.com/debpalash/OmniVoice-Studio/releases/download/preview/latest.json";
+    "https://github.com/debpalash/VoiceStudio/releases/download/preview/latest.json";
 
-/// Cross-channel ordering of OmniVoice build versions (#326).
+/// Cross-channel ordering of VoiceStudio build versions (#326).
 ///
 /// Preview builds are published as `X.Y.Z-N` (e.g. `0.3.5-41`): base `X.Y.Z`
 /// is the latest stable tag at build time and `-N` counts `main` builds
@@ -189,7 +189,7 @@ pub async fn install_update(app: AppHandle, channel: String) -> Result<(), Strin
 // ── GitHub releases (changelog/history panel) ─────────────────────────────
 
 const RELEASES_API: &str =
-    "https://api.github.com/repos/debpalash/OmniVoice-Studio/releases?per_page=30";
+    "https://api.github.com/repos/debpalash/VoiceStudio/releases?per_page=30";
 
 #[derive(Serialize)]
 pub struct ReleaseInfo {
@@ -211,7 +211,7 @@ pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String>
         .unwrap_or_default();
     let resp = client
         .get(RELEASES_API)
-        .header("User-Agent", "OmniVoice-Studio")
+        .header("User-Agent", "VoiceStudio")
         .header("Accept", "application/vnd.github+json")
         .send()
         .await

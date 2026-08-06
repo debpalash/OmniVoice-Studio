@@ -30,7 +30,7 @@ pub fn port_in_use(port: u16) -> bool {
 }
 
 /// Full health check — returns true only if the responder at :port is
-/// actually our OmniVoice backend.
+/// actually our VoiceStudio backend.
 pub fn backend_healthy(port: u16) -> bool {
     let url = format!("http://127.0.0.1:{}/system/info", port);
     match ureq_get_with_timeout(&url, Duration::from_millis(500)) {
@@ -43,8 +43,8 @@ fn is_omnivoice_body(body: &str) -> bool {
     body.contains("\"model_checkpoint\"") || body.contains("\"data_dir\"")
 }
 
-/// The `app_version` reported by the OmniVoice backend at :port.
-/// `None` when nothing OmniVoice answers there (port free, or a foreign
+/// The `app_version` reported by the VoiceStudio backend at :port.
+/// `None` when nothing VoiceStudio answers there (port free, or a foreign
 /// process). `Some("")` when it IS our backend but predates the
 /// `app_version` field — callers treat that as stale.
 pub fn running_backend_version(port: u16) -> Option<String> {
@@ -74,7 +74,7 @@ fn parse_app_version(body: &str) -> Option<String> {
 /// orphaned backend from a *previous* version keeps answering health checks
 /// after an update, so "healthy" alone made the new UI silently attach to old
 /// backend code — every fix in the update appeared to change nothing. A
-/// version-mismatched (or unversioned) OmniVoice responder is stale by
+/// version-mismatched (or unversioned) VoiceStudio responder is stale by
 /// definition; callers kill it and spawn the bundled backend instead.
 pub fn same_app_version(running: &str) -> bool {
     fn base(v: &str) -> &str {
@@ -250,12 +250,12 @@ pub fn backend_log_path() -> PathBuf {
         let base = std::env::var("LOCALAPPDATA")
             .or_else(|_| std::env::var("USERPROFILE").map(|u| format!("{}\\AppData\\Local", u)))
             .unwrap_or_else(|_| "C:\\Temp".to_string());
-        PathBuf::from(base).join("OmniVoice").join("Logs")
+        PathBuf::from(base).join("VoiceStudio").join("Logs")
     } else {
         let base = std::env::var("XDG_STATE_HOME")
             .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.local/state", h)))
             .unwrap_or_else(|_| "/tmp".to_string());
-        PathBuf::from(base).join("OmniVoice")
+        PathBuf::from(base).join("VoiceStudio")
     };
     let _ = fs::create_dir_all(&log_dir);
     log_dir.join("backend.log")

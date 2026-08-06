@@ -93,7 +93,7 @@ Tauri's `bundle_dmg.sh` runs `hdiutil` to convert the intermediate RW DMG → co
 
 **Verification target:**
 ```bash
-open frontend/src-tauri/target/release/bundle/macos/"OmniVoice Studio.app"
+open frontend/src-tauri/target/release/bundle/macos/"VoiceStudio.app"
 # The window should open, segment table should render from a fresh drop.
 ```
 
@@ -136,7 +136,7 @@ mv /tmp/hf-hub.bak ~/.cache/huggingface/hub  # restore
 
 - [ ] `frontend/src-tauri/tauri.conf.json` `bundle.targets = ["dmg", "app"]`
 - [ ] `scripts/build_desktop.sh` — one-shot: PyInstaller → Tauri build → DMG
-- [ ] Build produces `OmniVoice Studio_0.1.0_aarch64.dmg`
+- [ ] Build produces `VoiceStudio_0.1.0_aarch64.dmg`
 - [ ] DMG size ≤600 MB
 - [ ] DMG runs on a fresh macOS user account (no brew/uv/bun present)
   - [ ] Mount → drag to Applications → right-click → Open (Gatekeeper override)

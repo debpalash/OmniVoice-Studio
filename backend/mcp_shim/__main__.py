@@ -5,7 +5,7 @@ Copyright (c) voicebox contributors.
 
 Some MCP clients only speak stdio. They spawn this binary; we pipe each
 JSON-RPC message to ``http://127.0.0.1:<port>/mcp/`` (the FastMCP app mounted
-on the running OmniVoice backend) and stream the server's response back.
+on the running VoiceStudio backend) and stream the server's response back.
 
 Environment variables:
   OMNIVOICE_PORT       backend port (default 3900).
@@ -113,7 +113,7 @@ async def _handle_request(
             _write_stdout({
                 "jsonrpc": "2.0",
                 "id": message.get("id"),
-                "error": {"code": -32000, "message": f"OmniVoice MCP proxy got HTTP {response.status_code}"},
+                "error": {"code": -32000, "message": f"VoiceStudio MCP proxy got HTTP {response.status_code}"},
             })
             return
 
@@ -147,7 +147,7 @@ async def _run() -> int:
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
         if not await _wait_for_backend(client, health_url):
-            _err(f"timed out waiting for OmniVoice at {health_url} — is the app running?")
+            _err(f"timed out waiting for VoiceStudio at {health_url} — is the app running?")
             return 2
         try:
             while True:

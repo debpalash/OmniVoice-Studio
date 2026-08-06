@@ -14,7 +14,7 @@ vi.mock('../api/external', () => ({ openExternal }));
 import ContactPage from '../pages/ContactPage';
 import { useAppStore } from '../store';
 
-const REPO = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO = 'https://github.com/debpalash/VoiceStudio';
 
 beforeEach(() => {
   openExternal.mockClear();
@@ -48,7 +48,7 @@ describe('ContactPage', () => {
     expect(href('Join the Discord')).toBe('https://discord.gg/bzQavDfVV9');
     expect(href('Follow on X')).toBe('https://x.com/idebpalash');
     expect(href('Report privately')).toBe(`${REPO}/security/advisories/new`);
-    expect(href(/licensing/i)).toBe(`mailto:OmniVoice@palash.dev`);
+    expect(href(/licensing/i)).toBe(`mailto:VoiceStudio@palash.dev`);
     expect(href(/more about the project/i)).toBe('https://palash.dev');
   });
 

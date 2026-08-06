@@ -1,12 +1,12 @@
 # Downloading models — speed & troubleshooting
 
-OmniVoice downloads models from the Hugging Face Hub on first use. This page
+VoiceStudio downloads models from the Hugging Face Hub on first use. This page
 explains how downloads are made fast, how to read the progress, and what to do
 on slow or restricted networks.
 
 ## Download backend: legacy LFS by default (accurate progress)
 
-OmniVoice ships `hf_xet` (Hugging Face's chunked, parallel, dedup transfer
+VoiceStudio ships `hf_xet` (Hugging Face's chunked, parallel, dedup transfer
 backend — the IDM/uGet-style fast path), **but currently runs with Xet
 disabled** (`HF_HUB_DISABLE_XET=1`, set by the app). Reason: Xet's transfer
 reports progress out-of-band and bypasses the byte-level progress hook, so the
@@ -40,7 +40,7 @@ Power users who want Xet's speed and don't mind coarser progress can set
 `HF_HUB_DISABLE_XET=0`. With Xet active, the overall bar advances by file and
 snaps to the exact total on completion (per-file *byte* speed isn't shown,
 which is exactly why it's off by default). Xet needs a 64-bit OS (all supported
-OmniVoice platforms).
+VoiceStudio platforms).
 
 ## Reading the progress
 
@@ -77,7 +77,7 @@ default** (set its var to `0` to disable); the rest default **off**.
 ## Restricted networks / mirrors (e.g. China)
 
 **Automatic (the default).** When no endpoint is explicitly configured,
-OmniVoice picks one for you: it probes `huggingface.co` and the community
+VoiceStudio picks one for you: it probes `huggingface.co` and the community
 mirror `hf-mirror.com` in parallel (short HTTPS reachability + latency
 checks — no geo-IP lookups, no third-party services; your device
 language/timezone only decides which endpoint is probed *first*), prefers the

@@ -1,7 +1,11 @@
 [package]
+# NOT renamed with the product (VoiceStudio). This is the BINARY name, and
+# scripts/desktop-common.mjs keys its dev-vs-release distinction on it: the dev
+# launcher's pkill matches `omnivoice-studio` and must never match a user's
+# installed app. Renaming it would collapse that distinction.
 name = "omnivoice-studio"
 version = "0.4.2"
-description = "OmniVoice Studio – AI voice cloning & dubbing desktop app"
+description = "VoiceStudio – AI voice cloning & dubbing desktop app"
 authors = ["Debpalash"]
 license = "AGPL-3.0-only"
 repository = ""

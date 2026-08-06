@@ -1,7 +1,7 @@
 /**
  * LanguageSwitchPrompt — first-run-only offer to switch the UI to English.
  *
- * OmniVoice opens in the user's OS/browser language when it's one of the
+ * VoiceStudio opens in the user's OS/browser language when it's one of the
  * shipped locales (i18n LanguageDetector → navigator). Some users on a
  * non-English OS still prefer the English UI (it matches the docs and the
  * community). On the FIRST run only, if the auto-detected UI language isn't

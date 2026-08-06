@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
  * SettingsToggle — a token-styled accessible switch.
  *
  * FAST-mode shadcn migration: the track + knob are Tailwind utilities on the
- * OmniVoice `--chrome-*` token bridge (palette preserved exactly); the old
+ * VoiceStudio `--chrome-*` token bridge (palette preserved exactly); the old
  * `.st-toggle*` rules in primitives.css are gone. Still renders a real
  * `<input type="checkbox" role="switch">` (visually hidden) so label/role-based
  * queries and keyboard focus work; the visible track + knob is a sibling. The

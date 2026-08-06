@@ -5,9 +5,9 @@ import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Dialog — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Dialog — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). `bg-background`/`border`/`ring-ring` resolve to the
- * OmniVoice palette and the enter/exit transitions use tw-animate-css
+ * VoiceStudio palette and the enter/exit transitions use tw-animate-css
  * `animate-in`/`animate-out` keyed off Radix `data-[state]`.
  *
  * The app-facing primitive `src/ui/Dialog.jsx` wraps these parts, layering the

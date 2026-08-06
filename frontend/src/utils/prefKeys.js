@@ -1,5 +1,5 @@
 /**
- * Registry of every localStorage key OmniVoice uses, split into the
+ * Registry of every localStorage key VoiceStudio uses, split into the
  * preferences that Settings → Factory reset clears and the keys it must
  * preserve. Factory reset promises "reset ALL in-app preferences" — before
  * this registry it only removed the zustand blob ('omnivoice.app'), leaving

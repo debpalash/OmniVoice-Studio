@@ -4,10 +4,10 @@ import * as SliderPrimitive from '@radix-ui/react-slider';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Slider — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Slider — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). `bg-muted` track + `bg-primary` range + `border-primary`
- * thumb resolve to the OmniVoice palette (brand-pink fill), recoloring with
- * every [data-theme]. The OmniVoice `Slider` primitive (src/ui/Slider.jsx)
+ * thumb resolve to the VoiceStudio palette (brand-pink fill), recoloring with
+ * every [data-theme]. The VoiceStudio `Slider` primitive (src/ui/Slider.jsx)
  * wraps this and adds the label + value bubble chrome and its number-based
  * `onChange` API; track/thumb sizing is tuned from the wrapper via the
  * `data-slot` selectors below.

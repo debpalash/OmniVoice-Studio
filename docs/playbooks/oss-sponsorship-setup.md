@@ -2,7 +2,7 @@
 
 > A portable, copy-to-another-repo guide for adding a tasteful sponsorship
 > system to a free/local-first OSS project. This is the exact setup shipped
-> in OmniVoice Studio (PRs #923 + #924); lift the files, swap the names, and
+> in VoiceStudio (PRs #923 + #924); lift the files, swap the names, and
 > you have the same system in an afternoon.
 
 ## Philosophy (decide this first — it shapes everything)
@@ -13,7 +13,7 @@
    — it's what keeps the community's trust and separates you from a freemium
    bait-and-switch.
 2. **Tell the honest funding story.** People sponsor a *reason*, not a tip
-   jar. OmniVoice's is "one developer, in the open, and the AI-agent bills
+   jar. VoiceStudio's is "one developer, in the open, and the AI-agent bills
    are real." Whatever yours is (server costs, your time, signing certs),
    state it plainly and specifically. Vague "support us" underperforms a
    concrete "here's what the money pays for."
@@ -158,7 +158,7 @@ in lockstep; a test can assert they match).
 
 ---
 
-*Provenance: this is the system shipped in OmniVoice Studio — `SPONSORS.md`,
+*Provenance: this is the system shipped in VoiceStudio — `SPONSORS.md`,
 the README Sponsors section, `.github/FUNDING.yml`, `.github/ISSUE_TEMPLATE/
 sponsor.yml`, `frontend/src/config/sponsors.js`, the Support-page Sponsors
 section, and the footer link. Copy them and adapt.*

@@ -6,7 +6,7 @@ surfaces as an honest "the backend crashed (exit code X)" notice. But that
 forensics lives in the SHELL — a ``bun run dev`` browser session, a Docker
 deployment, or a LAN-share client has no shell, so when the backend process
 dies there (OOM kill, shutdown race, native abort) the only user-visible
-signal is "Can't reach the local OmniVoice backend" with ZERO diagnostics —
+signal is "Can't reach the local VoiceStudio backend" with ZERO diagnostics —
 exactly the shape of issue #1164.
 
 This module is the backend-side equivalent, watcher-free by design (a dead
@@ -336,7 +336,7 @@ def detect_unclean_shutdown(now: float | None = None) -> Optional[dict]:
             if pid and pid != os.getpid() and _previous_run_alive(
                 pid, sentinel.get("started_at")
             ):
-                # Another OmniVoice backend is live against this DATA_DIR
+                # Another VoiceStudio backend is live against this DATA_DIR
                 # (second --reload worker, second container on a shared
                 # volume). Its sentinel is not evidence of anything — leave
                 # it alone and don't write ours over it.

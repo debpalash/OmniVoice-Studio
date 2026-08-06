@@ -1,4 +1,4 @@
-//! In-app uninstall — "remove all OmniVoice data" (#1089).
+//! In-app uninstall — "remove all VoiceStudio data" (#1089).
 //!
 //! Why this lives in the Rust shell and not the backend: the biggest thing to
 //! remove is the **managed Python environment**, and the backend is *running
@@ -12,7 +12,7 @@
 //! portable install is cleaned correctly instead of the defaults being assumed.
 //!
 //! Safety: nothing is deleted that doesn't pass `is_recognizably_ours()` (an
-//! absolute path, not `/` or `$HOME`, carrying an OmniVoice-owned component).
+//! absolute path, not `/` or `$HOME`, carrying a VoiceStudio-owned component).
 //! The shared Hugging Face cache is reported separately and is **opt-in** — it
 //! is the standard HF cache other ML tools share, so sweeping it up silently
 //! would delete models this app never downloaded.
@@ -61,7 +61,7 @@ fn dir_size(path: &Path) -> u64 {
 
 /// The backend's own log directory (`backend.log` / `backend_err.log`).
 /// `backend_log_path()` returns the FILE; we remove the directory it lives in,
-/// which is OmniVoice-owned on every platform:
+/// which is VoiceStudio-owned on every platform:
 ///   macOS   ~/Library/Logs/OmniVoice
 ///   Windows %LOCALAPPDATA%\OmniVoice\Logs
 ///   Linux   ~/.local/state/OmniVoice
@@ -233,7 +233,7 @@ mod tests {
             "/Users/someone/.cache/huggingface",
             // The durable per-user env dir — must clear the same guard as the rest.
             "/Users/someone/.config/omnivoice",
-            "C:\\Users\\someone\\AppData\\Roaming\\OmniVoice",
+            "C:\\Users\\someone\\AppData\\Roaming\\VoiceStudio",
         ] {
             let path = PathBuf::from(p);
             // Windows-style paths aren't absolute on unix; only assert the ones that are.

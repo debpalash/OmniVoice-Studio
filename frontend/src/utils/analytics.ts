@@ -7,7 +7,7 @@
  *
  * That is wrong for this app, twice over, and the reasons are not theoretical:
  *
- * 1. **It would track everyone immediately, before consent.** OmniVoice's whole
+ * 1. **It would track everyone immediately, before consent.** VoiceStudio's whole
  *    promise is that a default install sends nothing (Settings → Privacy is OFF
  *    until you turn it on; see backend/core/analytics.py). Initialising at load
  *    would make the app's own README a lie. So init happens ONLY after the user

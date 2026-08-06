@@ -5,10 +5,10 @@
 **Owner:** debpalash
 **Spec #:** 02
 
-A fully-offline, low-latency full-duplex voice assistant for OmniVoice Studio:
+A fully-offline, low-latency full-duplex voice assistant for VoiceStudio:
 **VAD → streaming STT → local LLM (streaming tokens) → streaming TTS**, with
 barge-in / turn-taking and echo cancellation so the agent never hears itself.
-Opt-in, heavier "Conversation" mode. Composes components OmniVoice already ships
+Opt-in, heavier "Conversation" mode. Composes components VoiceStudio already ships
 (sub-second streaming ASR, sentence-chunked streaming TTS, an NLMS echo
 canceller, an OpenAI-compatible local LLM adapter, far-end audio bus) rather
 than introducing a parallel stack.
@@ -27,9 +27,9 @@ Every production stack today is **cloud-tethered** — the STT, the LLM, and oft
 the TTS are remote API calls, which means an account, an API key, per-minute
 billing, and your microphone audio leaving the machine.
 
-### Why OmniVoice is uniquely positioned
+### Why VoiceStudio is uniquely positioned
 
-OmniVoice already has **every pipeline stage** of a voice agent, running locally,
+VoiceStudio already has **every pipeline stage** of a voice agent, running locally,
 and they were each built (and hardened) for the live-dictation feature that just
 landed:
 
@@ -43,12 +43,12 @@ landed:
 | Tool surface | FastMCP server (`generate_speech`, `list_voices`, `transcribe`, …) | `backend/mcp_server.py:101-246` |
 
 No competitor can offer **"voice agent, zero cloud, your voice never leaves the
-box, runs on a CPU laptop."** OmniVoice can, because the parts are already here
+box, runs on a CPU laptop."** VoiceStudio can, because the parts are already here
 and already cross-platform. This spec wires them into one full-duplex loop.
 
 ### The problem this solves for users
 
-Today a user can *dictate* to OmniVoice and *generate speech* from OmniVoice, but
+Today a user can *dictate* to VoiceStudio and *generate speech* from VoiceStudio, but
 the two are disconnected. They cannot **talk to** it. The asks already arriving in
 Issues/Discord — "local Alexa", "offline ChatGPT voice mode", "talk to my docs
 without an API key" — all reduce to the same missing primitive: a turn-taking
@@ -340,7 +340,7 @@ server — recommend Ollama as the default local runtime, llama.cpp's
   CPU or GPU, auto-detects, streams over SSE with consistent inter-token latency
   — same default behavior everywhere, which the parity rule demands.
 - **No weights in our installer.** Model is a guided first-use pull (e.g.
-  `ollama pull llama3.2:3b`), matching how OmniVoice already does models.
+  `ollama pull llama3.2:3b`), matching how VoiceStudio already does models.
 - **Recommended default model:** a small instruct model (~3B, 4-bit) for the GPU
   path; a ~1–1.5B for the CPU path. Selectable in Settings; we ship *guidance*,
   not weights.

@@ -31,7 +31,9 @@ describe('LanguageSwitchPrompt — first-run offer to switch the UI to English',
     render(withI18n(<LanguageSwitchPrompt />));
     expect(await screen.findByTestId('language-switch-prompt')).toBeInTheDocument();
     // Bilingual: the English offer line is always present (native name = Deutsch).
-    expect(screen.getByText(/OmniVoice opened in Deutsch\. Prefer English\?/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/VoiceStudio opened in Deutsch\. Prefer English\?/),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('language-switch-english')).toBeInTheDocument();
   });
 

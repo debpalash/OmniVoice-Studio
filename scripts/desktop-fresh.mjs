@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ──────────────────────────────────────────────────────────────────────────
-// desktop-fresh.mjs — true NEW-USER emulation for OmniVoice Studio (macOS)
+// desktop-fresh.mjs — true NEW-USER emulation for VoiceStudio (macOS)
 //
 // Stricter sibling of `bun desktop-prod`. Two things beyond what prod does:
 //
@@ -30,7 +30,7 @@
 //
 // The shared global HF cache (~/.cache/huggingface — what the app resolves
 // on macOS, see backend/core/config.py) is NEVER wiped by default: it holds
-// models unrelated to OmniVoice. Set FRESH_NUKE_HF=1 to opt in.
+// models unrelated to VoiceStudio. Set FRESH_NUKE_HF=1 to opt in.
 //
 // Usage:
 //   bun desktop-fresh              # wipe traces + build + launch camouflaged
@@ -88,7 +88,7 @@ const HELP = `Usage: bun desktop-fresh [--skip-build] [--dry-run] [--pill]
 Environment:
   FRESH_NUKE_HF=1   Also wipe the SHARED global Hugging Face cache
                     (~/.cache/huggingface). Off by default because it holds
-                    models unrelated to OmniVoice.`;
+                    models unrelated to VoiceStudio.`;
 
 let skipBuild = false;
 let dryRun = false;
@@ -178,7 +178,7 @@ function sizeOf(p) {
 }
 
 // ── 1. Blank slate: remove every install trace ─────────────────────────────
-console.log(`🧹 Wiping every OmniVoice trace for new-user emulation${WOULD}...\n`);
+console.log(`🧹 Wiping every VoiceStudio trace for new-user emulation${WOULD}...\n`);
 
 /** Expand a trace entry into concrete existing paths. */
 function expandTrace(trace) {
@@ -241,7 +241,7 @@ if (!existsSync(hfCache)) {
   console.log("     ↳ that was the machine-wide Hugging Face cache: ALL HF models are gone.");
 } else {
   console.log(`   ◆ kept          HF model cache: ${hfCache}${sizeOf(hfCache)} — SHARED global cache`);
-  console.log("     ↳ Not OmniVoice-scoped; wiping it would delete models unrelated to this app.");
+  console.log("     ↳ Not VoiceStudio-scoped; wiping it would delete models unrelated to this app.");
   console.log("       Models will be REUSED (not re-downloaded). For a true cold first run:");
   console.log("       FRESH_NUKE_HF=1 bun desktop-fresh");
 }

@@ -1,4 +1,4 @@
-# Desktop release plan — OmniVoice Studio
+# Desktop release plan — VoiceStudio
 
 A shippable macOS (and eventually cross-platform) desktop release where the user drags the `.app` to `Applications`, double-clicks once, and does **everything else from the UI** — dependency runtime, model weights, first-run consent, all inside the app.
 
@@ -14,7 +14,7 @@ Stack: Tauri v2 + FastAPI sidecar + PyInstaller. Target: ~500 MB signed + notari
 | Frontend bundle | React/Vite build in `.app/Contents/Resources/dist/` | Yes |
 | **FastAPI sidecar binary** | **PyInstaller-frozen** `omnivoice-backend` with Python + torch + mlx + soundfile + demucs + yt_dlp + omnivoice TTS | Yes (~400–500 MB bundle) |
 | ffmpeg | arm64 binary in `.app/Contents/Resources/bin/` | Yes (~20 MB) |
-| Model weights (OmniVoice TTS, MLX Whisper) | `~/Library/Application Support/OmniVoice/models/` | **No — first-run download** |
+| Model weights (VoiceStudio TTS, MLX Whisper) | `~/Library/Application Support/OmniVoice/models/` | **No — first-run download** |
 | Optional engine packs (VoxCPM2 CUDA, pyannote, MOSS-TTS) | Separate `.tar.gz` via GitHub Releases manifest | **No — first-run download if user opts in** |
 
 Target DMG size: **~500 MB**.
@@ -164,7 +164,7 @@ Each phase produces a testable artifact. Don't proceed to the next phase until t
 **Deliverable:** signed-but-not-notarized DMG that works on a virgin Mac after right-click → Open.
 
 1. `bun run tauri build` (via `scripts/build_desktop.sh` we'll add).
-2. Artifact: `frontend/src-tauri/target/release/bundle/dmg/OmniVoice Studio_0.1.0_aarch64.dmg`.
+2. Artifact: `frontend/src-tauri/target/release/bundle/dmg/VoiceStudio_0.1.0_aarch64.dmg`.
 3. Copy to a fresh macOS user account (or a second Mac).
 4. Right-click → Open once, walk the wizard, dub the Fireship fixture.
 5. Fix whatever breaks.

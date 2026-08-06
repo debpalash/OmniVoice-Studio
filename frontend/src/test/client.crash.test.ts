@@ -3,7 +3,7 @@ import { apiFetch } from '../api/client';
 import { getUnacknowledgedBackendCrash } from '../utils/backendCrash';
 
 // #941: when the transport failure coincides with a recorded backend crash,
-// the vague "Can't reach the local OmniVoice backend" must become the honest
+// the vague "Can't reach the local VoiceStudio backend" must become the honest
 // story — exit code + how long ago — and the crash-notice event must fire so
 // the UI can offer "View crash details".
 vi.mock('../utils/backendCrash', async (importOriginal) => {
@@ -70,7 +70,7 @@ describe('apiFetch — crash-marker honesty (#941)', () => {
     const p = apiFetch('/generate');
     const assertion = expect(p).rejects.toMatchObject({
       status: 0,
-      message: expect.stringContaining("Can't reach the local OmniVoice backend"),
+      message: expect.stringContaining("Can't reach the local VoiceStudio backend"),
     });
     await vi.advanceTimersByTimeAsync(400 + 900 + 1600 + 100);
     await assertion;

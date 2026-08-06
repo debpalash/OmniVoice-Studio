@@ -133,7 +133,7 @@ is circular and is not an option.)
 
 **Optionally, later:** add `--spacing` to `@theme` so `p-*`/`gap-*`/`m-*` map onto
 the existing 4px scale (`--space-1 = 2px` … `--space-9 = 44px`). Tailwind's default
-spacing is a 0.25rem multiplier; OmniVoice's scale is custom, so without this,
+spacing is a 0.25rem multiplier; VoiceStudio's scale is custom, so without this,
 `gap-3` ≠ `var(--space-3)`. Two choices, decide in P0:
   - **Map to the scale:** set `--spacing: 2px` won't reproduce the non-linear steps;
     instead define explicit `--spacing-1..9` in `@theme` mirroring `--space-1..9`,
@@ -175,7 +175,7 @@ spacing is a 0.25rem multiplier; OmniVoice's scale is custom, so without this,
   (all of `themes.css` + scattered overrides), **`!important` blocks** (14 files,
   e.g. `DubTab.css` `.dub-footer-panel::before { display:none !important; }`).
 - **Media queries** (25 files): convertible to `sm:`/`md:`/`lg:` **only** if the
-  breakpoints match Tailwind's; OmniVoice's are custom, so leave responsive blocks in
+  breakpoints match Tailwind's; VoiceStudio's are custom, so leave responsive blocks in
   CSS unless a component's breakpoints are first added to `@theme`. Low priority.
 
 Rule of thumb for a reviewer: *if a declaration reads a single token and sets one

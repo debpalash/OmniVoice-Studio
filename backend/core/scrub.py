@@ -1,6 +1,6 @@
 """Privacy scrubber for diagnostic text that may leave the machine.
 
-Everything OmniVoice renders into a bug report or diagnostic dump goes
+Everything VoiceStudio renders into a bug report or diagnostic dump goes
 through ``scrub_text()`` before it can reach a prefilled GitHub Issues URL
 (the only outbound path — see CLAUDE.md Capability 2). The scrubber is the
 backend twin of ``frontend/src/utils/bugReport.js``'s ``scrubText`` and

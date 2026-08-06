@@ -1,6 +1,6 @@
 # Update channels (Stable / Preview)
 
-OmniVoice Studio auto-updates itself in the background. You choose **which
+VoiceStudio auto-updates itself in the background. You choose **which
 builds** it offers you with the update channel in **Settings → Updates →
 Update channel**.
 
@@ -30,7 +30,7 @@ rejected regardless of channel.
 Your voices, projects, history, and settings live in a SQLite database
 (`omnivoice.db`) outside the app bundle, so replacing the app never touches
 them. On the **first launch of an updated build**, if the new version needs a
-database schema upgrade, OmniVoice:
+database schema upgrade, VoiceStudio:
 
 1. **Backs up the database first** — a consistent snapshot is written next to
    it as `omnivoice.db.backup-<version>-<n>` before any migration runs. The

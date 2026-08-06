@@ -1,5 +1,5 @@
 /**
- * Settings → Privacy → "Help improve OmniVoice" — the opt-in analytics control.
+ * Settings → Privacy → "Help improve VoiceStudio" — the opt-in analytics control.
  *
  * Local-first means **silence is not consent**: this is OFF until the user turns
  * it on, so a default install still transmits nothing. The panel tells the truth
@@ -85,7 +85,7 @@ export default function AnalyticsOptIn() {
   return (
     <>
       <SettingRow
-        title={t('privacy.analytics_title', { defaultValue: 'Help improve OmniVoice' })}
+        title={t('privacy.analytics_title', { defaultValue: 'Help improve VoiceStudio' })}
         subtitle={t('privacy.analytics_subtitle', {
           defaultValue: 'Off by default. Anonymous usage stats — never your content.',
         })}
@@ -94,7 +94,7 @@ export default function AnalyticsOptIn() {
             checked={!!state.opted_in}
             disabled={busy}
             onChange={toggle}
-            aria-label={t('privacy.analytics_title', { defaultValue: 'Help improve OmniVoice' })}
+            aria-label={t('privacy.analytics_title', { defaultValue: 'Help improve VoiceStudio' })}
             data-testid="analytics-optin"
           />
         }

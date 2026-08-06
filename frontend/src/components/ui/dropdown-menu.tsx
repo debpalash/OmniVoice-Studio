@@ -4,9 +4,9 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui DropdownMenu — new-york style, themed through the OmniVoice token
+ * shadcn/ui DropdownMenu — new-york style, themed through the VoiceStudio token
  * bridge (see index.css). `src/ui/Menu.jsx` wraps `DropdownMenu` + `Trigger` +
- * `Content` + `Item` + `Separator`, layering the OmniVoice glass surface +
+ * `Content` + `Item` + `Separator`, layering the VoiceStudio glass surface +
  * destructive/disabled item states via className while keeping its
  * `items`/`placement`/`open`/`onOpenChange`/`width` prop API. Keyboard nav,
  * collision-aware positioning, and ARIA come from Radix; enter/exit transitions

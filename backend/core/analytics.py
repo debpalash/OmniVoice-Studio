@@ -1,6 +1,6 @@
 """Opt-in product analytics — hardened.
 
-OmniVoice is local-first, so analytics here is held to a higher bar than the
+VoiceStudio is local-first, so analytics here is held to a higher bar than the
 usual SDK drop-in. Three rules, each enforced in code below and pinned by tests:
 
 1. **Off unless the user says yes.** Two independent gates must BOTH be true:

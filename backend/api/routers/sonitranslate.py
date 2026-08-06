@@ -81,7 +81,7 @@ async def sonitranslate_dub(body: DubRequest):
     KNOWN PROVENANCE GAP (#1169, documented — not silently ignored): the
     dubbed audio is synthesized and muxed entirely inside the external
     SoniTranslate sidecar (its own venv + gradio pipeline, Edge-TTS voices),
-    which hands back a finished video file. OmniVoice's tensor-stage
+    which hands back a finished video file. VoiceStudio's tensor-stage
     mark_synthetic chokepoint never sees that audio; marking it would require
     a demux → embed → re-mux post-pass on the sidecar's output, which is a
     lossy re-encode of a pipeline we don't control. This opt-in engine

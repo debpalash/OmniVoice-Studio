@@ -376,7 +376,7 @@ export default function Header({
                             <div className="flex flex-col gap-[1px] min-w-0">
                               <span className="text-[12px] text-[var(--color-fg)] font-medium">
                                 {m.name}
-                                {/* Resident-but-not-routed engine (e.g. OmniVoice still in
+                                {/* Resident-but-not-routed engine (e.g. VoiceStudio still in
                                     VRAM after switching to another backend) — say so. */}
                                 {m.is_active_engine === false && (
                                   <span className="ml-[6px] text-[10px] font-normal text-[var(--color-fg-subtle)] [font-family:var(--font-mono)]">

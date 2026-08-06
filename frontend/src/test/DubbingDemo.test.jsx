@@ -12,7 +12,7 @@ const MOCK_MANIFEST = {
     label: 'English',
     video: 'source.mp4',
     srt: 'source.srt',
-    script: 'OmniVoice runs entirely on your machine.',
+    script: 'VoiceStudio runs entirely on your machine.',
   },
   dubbed: [
     {

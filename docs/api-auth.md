@@ -1,6 +1,6 @@
 # Authenticating the local API
 
-OmniVoice's backend is **loopback-only and unauthenticated by default** — a
+VoiceStudio's backend is **loopback-only and unauthenticated by default** — a
 script running on the same machine as `http://localhost:3900` needs no key, no
 PIN, no header. Everything on this page only matters once you reach the backend
 from **another device** (a phone on your LAN, a laptop over Tailscale, a client
@@ -18,7 +18,7 @@ env var that exempts trusted callers:
 Loopback traffic (`127.0.0.1`, `::1`, `localhost`) is **never** gated — local
 tools keep working unchanged whichever gate is set.
 
-> OmniVoice separates **consumption** (TTS, dictation, voices) from
+> VoiceStudio separates **consumption** (TTS, dictation, voices) from
 > **administration** (`/system/*`, `/api/settings/*` — RCE-class). The PIN and
 > trusted networks are *consumption* credentials; the **admin surface is only
 > ever reached from loopback or with the API key** (see [Admin routes](#admin-routes-and-server-mode)).
@@ -41,14 +41,14 @@ present it. Supply it any one of three ways:
 
 | Where | How |
 |---|---|
-| Header | `X-OmniVoice-Pin: <pin>` |
+| Header | `X-VoiceStudio-Pin: <pin>` |
 | Query param | `?pin=<pin>` |
 | Cookie | `ov_pin=<pin>` — the backend sets this automatically after the first valid PIN, so browser sessions only prove it once |
 
 ```bash
 # From another device on the LAN — with the PIN
 curl http://<host>:3900/v1/audio/voices \
-  -H "X-OmniVoice-Pin: 123456"
+  -H "X-VoiceStudio-Pin: 123456"
 ```
 
 A missing or wrong PIN returns:
@@ -254,7 +254,7 @@ same origin.) If you only moved the Vite dev server's port, set
 |---|---|---|
 | **401** | Consumption auth failed — `{"detail": "PIN required"}` or `{"detail": "API key required"}`. | Supply the PIN / key (header, cookie, or query param above). A WebSocket surfaces this as close code **1008**. |
 | **403** | `{"detail": "loopback origin required"}` — you reached a **loopback-gated** route (admin: `/system/*`, `/api/settings/*`; or a `require_local` route from outside a trusted network) from a non-loopback origin. | A PIN won't help. Run the request from the box itself; for `require_local` routes add the caller to `OMNIVOICE_TRUSTED_NETWORKS`; for **admin** routes use `OMNIVOICE_SERVER_MODE=1` **and** present the **API key** (the PIN/trusted-network don't reach admin). |
-| **429** | **Not an auth failure.** The GPU pool is saturated (admission control) or a model download is rate-limited. Ships with `Retry-After` and `X-OmniVoice-Retryable: true`. | Back off for `Retry-After` seconds and retry the identical request. |
+| **429** | **Not an auth failure.** The GPU pool is saturated (admission control) or a model download is rate-limited. Ships with `Retry-After` and `X-VoiceStudio-Retryable: true`. | Back off for `Retry-After` seconds and retry the identical request. |
 
 ---
 
@@ -264,5 +264,5 @@ same origin.) If you only moved the Vite dev server's port, set
   Tailscale, with the API key.
 - [docs/sharing.md](sharing.md) — the in-app LAN share + PIN flow.
 - [docs/agentic-voice.md](agentic-voice.md) — pointing OpenAI-compatible agent
-  frameworks at OmniVoice.
+  frameworks at VoiceStudio.
 - [docs/mcp.md](mcp.md) — the MCP server for AI agents.

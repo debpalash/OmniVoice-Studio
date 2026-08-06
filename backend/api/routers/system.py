@@ -288,7 +288,7 @@ def _tauri_log_candidates():
       `com.debpalash.omnivoice-studio` (frontend/src-tauri/tauri.conf.json).
     - backend.rs::backend_log_path() redirects the spawned backend's
       stdout/stderr to `backend.log` / `backend_err.log` under
-      `~/Library/Logs/OmniVoice` (macOS), `$XDG_STATE_HOME/OmniVoice` falling
+      `~/Library/Logs/OmniVoice` (macOS), `$XDG_STATE_HOME/VoiceStudio` falling
       back to `~/.local/state/OmniVoice` (Linux), and
       `%LOCALAPPDATA%\\OmniVoice\\Logs` (Windows). This is where uvicorn
       startup banners and hard-crash tracebacks land — keep all three OS
@@ -299,7 +299,7 @@ def _tauri_log_candidates():
     if sys.platform == "darwin":
         return [
             os.path.join(home, "Library/Logs", bid, "tauri.log"),
-            os.path.join(home, "Library/Logs", bid, "OmniVoice Studio.log"),
+            os.path.join(home, "Library/Logs", bid, "VoiceStudio.log"),
             os.path.join(home, "Library/Logs/OmniVoice/backend.log"),
             os.path.join(home, "Library/Logs/OmniVoice/backend_err.log"),
         ]
@@ -652,7 +652,7 @@ def system_notifications():
                 "id": "disk-low",
                 "level": "warn",
                 "title": f"Low disk space ({free_gb:.1f} GB free)",
-                "message": "OmniVoice needs disk space for models, audio, and temp files.",
+                "message": "VoiceStudio needs disk space for models, audio, and temp files.",
                 "action": None,
             })
     except Exception:

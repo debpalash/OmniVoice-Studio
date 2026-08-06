@@ -24,7 +24,7 @@ The #1 perceived-quality gap users report vs ElevenLabs is **expressive delivery
 
 **What's missing / the gap:**
 
-- No way to direct **emotion** at all from the Studio generate path. The only "style" the **OmniVoice base model** accepts is the validated `instruct` taxonomy (Gender/Age/Pitch/**Style=whisper only**/Accent/Dialect) — confirmed in `core/describe_voice.py` and the engine's `omnivoice/utils/voice_design.py` validator. The base model **does not** take `[happy]`/`[sad]` ([k2-fsa/OmniVoice issue #78 — Emotion/Tone](https://github.com/k2-fsa/OmniVoice/issues/78)); only a finetune does.
+- No way to direct **emotion** at all from the Studio generate path. The only "style" the **VoiceStudio base model** accepts is the validated `instruct` taxonomy (Gender/Age/Pitch/**Style=whisper only**/Accent/Dialect) — confirmed in `core/describe_voice.py` and the engine's `omnivoice/utils/voice_design.py` validator. The base model **does not** take `[happy]`/`[sad]` ([k2-fsa/OmniVoice issue #78 — Emotion/Tone](https://github.com/k2-fsa/OmniVoice/issues/78)); only a finetune does.
 - The capable engines express emotion **very differently**: CosyVoice 3 via natural-language instruct `…<|endofprompt|>` + inline `[laughter]`/`[breath]`/`<strong>` ([CosyVoice 3 paper](https://arxiv.org/html/2505.17589v1)); IndexTTS2 via an **8-dim emotion vector** `[happy,angry,sad,afraid,disgusted,melancholic,surprised,calm]` or an emotion-reference clip ([IndexTTS2](https://indextts.ai/), [arXiv 2506.21619](https://arxiv.org/html/2506.21619v2)); VoxCPM2 via a `(instruct)text` prefix (`tts_backend.py:423`).
 - The lexicon is project-local JSON only — no global, no per-language, no DB persistence, no UI, no IPA/phoneme path, no inline one-off override.
 
@@ -46,7 +46,7 @@ The #1 perceived-quality gap users report vs ElevenLabs is **expressive delivery
 **Non-goals**
 
 - N1. Per-phoneme prosody curves / full SSML (`<prosody>`/`<break>` trees). SSML-lite + `[pause]` stay our prosody surface.
-- N2. Training/finetuning an emotion model. We expose what shipped engines already do; the OmniVoice base model's emotion ceiling is its instruct taxonomy, and we say so.
+- N2. Training/finetuning an emotion model. We expose what shipped engines already do; the VoiceStudio base model's emotion ceiling is its instruct taxonomy, and we say so.
 - N3. A learned text→emotion classifier in the base path (IndexTTS2's own T2E module is used when *that* engine is active; we don't build a global one).
 - N4. Auto-generating IPA from spelling (no g2p engine bundled in this spec — see Open Questions Q4).
 
@@ -64,14 +64,14 @@ In the Studio / generate text box the user writes:
 
 - Tags are stripped from spoken text and turned into per-span intent.
 - Tags compose with multi-voice stories: `[voice:Morgan] [angry] Get out. [voice:Sam] [nervous] O-okay.` — `[voice:]` switches narrator (existing), `[angry]`/`[nervous]` set that span's emotion.
-- An **"⊕ Insert"** popover (reusing the existing clone-tab insert popover pattern, #672) lists available tags **filtered to what the active engine supports**, with a tooltip showing the lowering ("`[excited]` → CosyVoice instruct / IndexTTS2 emo-vector / OmniVoice: not supported, ignored").
-- Unsupported-on-this-engine tags render with a subtle strikethrough chip and a one-line banner: *"OmniVoice ignores emotion tags — switch to CosyVoice 3 or IndexTTS2 for emotional delivery."* (never silent; mirrors the routing-banner convention from `engine_routing.py`).
+- An **"⊕ Insert"** popover (reusing the existing clone-tab insert popover pattern, #672) lists available tags **filtered to what the active engine supports**, with a tooltip showing the lowering ("`[excited]` → CosyVoice instruct / IndexTTS2 emo-vector / VoiceStudio: not supported, ignored").
+- Unsupported-on-this-engine tags render with a subtle strikethrough chip and a one-line banner: *"VoiceStudio ignores emotion tags — switch to CosyVoice 3 or IndexTTS2 for emotional delivery."* (never silent; mirrors the routing-banner convention from `engine_routing.py`).
 
 ### 3.2 Expression panel (no-tags path)
 
 A collapsible **Expression** section under the generate controls:
 
-- **Emotion** dropdown: Neutral (default) / Happy / Sad / Angry / Afraid / Surprised / Calm / Whisper / Shout. Maps to the engine's mechanism (sliders for IndexTTS2; instruct phrase for CosyVoice/VoxCPM; whisper-only for OmniVoice).
+- **Emotion** dropdown: Neutral (default) / Happy / Sad / Angry / Afraid / Surprised / Calm / Whisper / Shout. Maps to the engine's mechanism (sliders for IndexTTS2; instruct phrase for CosyVoice/VoxCPM; whisper-only for VoiceStudio).
 - **Intensity** slider 0–100 (default 50). Only enabled when the active engine supports graded intensity (IndexTTS2 emo-vector magnitude); otherwise greyed with a tooltip.
 - **Emotion reference** (optional): pick a short clip whose *delivery* (not timbre) is mimicked. Enabled only for engines with an emotion-ref path (IndexTTS2). This is **separate** from the voice-clone `ref_audio` — same control style, different slot.
 - A live **"This engine will: …"** line shows the resolved lowering, so the panel doubles as the capability disclosure.
@@ -128,7 +128,7 @@ TTSBackend.generate(text, instruct=…, **expression_kwargs)
 **Add**
 
 - `backend/services/expression.py` — the expression vocabulary + lowering. Pure, model-free. Defines:
-  - `EXPRESSIONS` — canonical emotion set `{neutral, happy, sad, angry, afraid, surprised, calm, whisper, shout, laugh, sigh}` (the cross-engine intersection; superset of OmniVoice's `whisper`).
+  - `EXPRESSIONS` — canonical emotion set `{neutral, happy, sad, angry, afraid, surprised, calm, whisper, shout, laugh, sigh}` (the cross-engine intersection; superset of VoiceStudio's `whisper`).
   - `Expression` dataclass `{emotion: str, intensity: float, ref_audio: str|None}`.
   - `parse_expression_tags(text) -> list[(text, Expression|None)]` — splits a line on `[emotion]`/`[/emotion]` tags using the **same fixed-alternation, ReDoS-safe regex shape** as `ssml_lite.py` (`_TAG_RE`), tags drawn from `EXPRESSIONS`. Unknown bracket tokens are left **untouched** so they pass through to SSML-lite / `[voice:]` / `[pause]` — no grammar overlap.
   - `lower(expr, engine_id) -> dict` — the capability matrix in code (see 4.4). Returns kwargs to merge into `generate()`; returns `{}` + a `degraded` note for engines that can't honor it.
@@ -255,7 +255,7 @@ def downgrade():
 
 - **Phase 1 — Pronunciation dictionary (DB + UI).** Migration 0008 + `_BASE_SCHEMA` row + `pronunciation.py` extensions (`apply_pronunciation`, DB load/save, per-language) + `/pronunciation` router + `PronunciationPanel`. Wires into `/generate` (`pronounce` toggle) and reuses the existing audiobook apply-site. **Respelling rows only** in this phase (alias rules work on every engine). Ships value immediately, zero engine risk.
 - **Phase 2 — Inline `[[pronounce]]` overrides + IPA/CMU rows.** Phoneme validation + engine-markup lowering for the engines that have a phoneme front-end; respelling fallback elsewhere. Widen `chunked_tts` bracket guard for `[[…]]`.
-- **Phase 3 — Expression engine + lowering.** `services/expression.py` + `expression_caps` on backends + `lower()` for CosyVoice/VoxCPM2/IndexTTS2/OmniVoice-whisper. `/generate` Form fields + `_run_*_inference` threading. No UI yet (API + tags usable headless/MCP).
+- **Phase 3 — Expression engine + lowering.** `services/expression.py` + `expression_caps` on backends + `lower()` for CosyVoice/VoxCPM2/IndexTTS2/VoiceStudio-whisper. `/generate` Form fields + `_run_*_inference` threading. No UI yet (API + tags usable headless/MCP).
 - **Phase 4 — Inline emotion tags in the grammar.** Extend `longform_parser` + JS twin + golden corpus; `[emotion]` spans flow through audiobook/story/Studio. This is the collision-sensitive change, landed only after Phase 3's vocabulary is stable.
 - **Phase 5 — Expression panel UI** (dropdown + intensity + emo-ref picker + "this engine will…" line + per-engine tag filtering in the Insert popover).
 
@@ -275,7 +275,7 @@ Phases 1–2 (pronunciation) and 3–5 (expression) are independent tracks; eith
 **API:**
 
 - `tests/test_pronunciation_api.py` — CRUD round-trip; IPA/CMU validation rejects garbage with 400; `/pronunciation/test` returns substituted text with no model loaded.
-- `tests/test_generate_expression.py` — `/generate` with `expression=excited` on OmniVoice returns 200 + an `X-OmniVoice-Expression: degraded` header (visible degradation, never silent); on a mock CosyVoice backend, asserts the instruct phrase was injected.
+- `tests/test_generate_expression.py` — `/generate` with `expression=excited` on VoiceStudio returns 200 + an `X-VoiceStudio-Expression: degraded` header (visible degradation, never silent); on a mock CosyVoice backend, asserts the instruct phrase was injected.
 
 **Migration:**
 
@@ -291,7 +291,7 @@ Phases 1–2 (pronunciation) and 3–5 (expression) are independent tracks; eith
 ## 9. Risks & mitigations
 
 - **R1 — tag/grammar collision** (emotion tag eats a `[voice:]` or a literal `[bracketed]` word). *Mitigation:* closed-vocabulary matching + the shared golden corpus asserting passthrough of unknown tokens against both parsers. This is the single highest-risk change → isolated to Phase 4, after the vocab is frozen.
-- **R2 — silent degradation** (user picks `[excited]` on OmniVoice, hears neutral, blames us). *Mitigation:* strikethrough chips, banner, and an `X-OmniVoice-Expression: degraded` response header — parity with the no-silent-CPU-fallback rule. Capability matrix shown *before* generate.
+- **R2 — silent degradation** (user picks `[excited]` on VoiceStudio, hears neutral, blames us). *Mitigation:* strikethrough chips, banner, and an `X-VoiceStudio-Expression: degraded` response header — parity with the no-silent-CPU-fallback rule. Capability matrix shown *before* generate.
 - **R3 — IPA/CMU garbage → engine crash.** *Mitigation:* validate on save (400), fall back to respelling/literal at synth, never pass unvalidated phoneme strings to a model. Worst case = spoken as written.
 - **R4 — IndexTTS2 emo-vector API drift** (it's subprocess-isolated, own venv). *Mitigation:* lowering for IndexTTS2 lives behind its `engines/indextts/` adapter; a contract test pins the kwarg names; if the kwarg is absent the adapter degrades to neutral (existing `**extras` ignore idiom).
 - **R5 — lexicon/dictionary double-apply** (project JSON + DB). *Mitigation:* single merge point, project-wins ordering, idempotency test; respelling pass is already idempotent by construction (`pronunciation.py` single-pass `re.sub`).
@@ -303,6 +303,6 @@ Phases 1–2 (pronunciation) and 3–5 (expression) are independent tracks; eith
 
 - Q1. **Tag vocabulary:** adopt ElevenLabs' exact tag names (`[excited]`, `[whispers]`, `[sighs]`) for muscle-memory parity, or a neutral set? (Recommendation: alias the common ElevenLabs names to our canonical set so pasted ElevenLabs scripts "just work.")
 - Q2. **Reaction tags** (`[laughs]`, `[sigh]`, `[gasp]`): treat as emotion spans, or as literal text injected for engines that support them (CosyVoice `[laughter]`/`[breath]`)? (Recommendation: a third tag class "sound" lowered per-engine; out of scope for Phase 3, note for later.)
-- Q3. **OmniVoice base-model emotion:** ship as whisper-only with honest degradation (this spec), or also wire the `ModelsLab/omnivoice-singing` finetune as an opt-in engine variant that *does* take `[happy]`/`[sad]`? (Recommendation: ship honest degradation now; the finetune is a separate engine-registry entry, a clean follow-up.)
+- Q3. **VoiceStudio base-model emotion:** ship as whisper-only with honest degradation (this spec), or also wire the `ModelsLab/omnivoice-singing` finetune as an opt-in engine variant that *does* take `[happy]`/`[sad]`? (Recommendation: ship honest degradation now; the finetune is a separate engine-registry entry, a clean follow-up.)
 - Q4. **g2p for IPA generation:** bundle a small grapheme→IPA helper (e.g. `g2p-en` for English, ARPABET) so users get a suggested phoneme string, or keep this spec validation-only (user supplies IPA/CMU)? (Recommendation: validation-only now; g2p is a per-language native-dep rabbit hole — defer, document.)
 - Q5. **Docs-sync:** this adds inline-tag and pronunciation surfaces → `docs/voice-design.md`, `docs/generation-parameters.md`, and `docs/features.yaml` must update in the same PRs (hard rule). Confirm whether a dedicated `docs/expressive-tts.md` page is wanted.

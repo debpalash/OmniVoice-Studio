@@ -65,7 +65,7 @@ export default function AnalyticsConsentCard({ onDone, compact = false }) {
     <div className={compact ? 'flex min-w-0 flex-col gap-2' : 'flex max-w-[62ch] flex-col gap-3'}>
       {!compact && (
         <h3 className="m-0 text-base font-semibold text-fg">
-          {t('consent.title', 'Help improve OmniVoice?')}
+          {t('consent.title', 'Help improve VoiceStudio?')}
         </h3>
       )}
       <p className="m-0 text-sm leading-relaxed text-fg-muted">

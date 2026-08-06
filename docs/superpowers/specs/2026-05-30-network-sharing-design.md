@@ -7,7 +7,7 @@
 
 ## 1. Goal
 
-Let a user **see and access the same running OmniVoice instance from their other machines** — without losing the loaded model or interrupting in-flight jobs, and without weakening the local-first default. Two complementary capabilities:
+Let a user **see and access the same running VoiceStudio instance from their other machines** — without losing the loaded model or interrupting in-flight jobs, and without weakening the local-first default. Two complementary capabilities:
 
 - **A. LAN sharing** — expose the *same* backend to devices on the same network (Wi-Fi/Ethernet), gated by a short access **PIN**, with a polished footer panel: all LAN addresses, copy/open link, and a **QR code** for phones.
 - **B. Tailscale remote access** — for secure, private access from *anywhere*, a Settings toggle that drives `tailscale serve` to publish the WebUI over the user's tailnet at an HTTPS `*.ts.net` URL (TLS + identity handled by Tailscale; no open ports, no PIN).
@@ -61,7 +61,7 @@ No *new* Rust/Tauri commands are required — the feature is backend-driven and 
 - When active:
   - **Loopback clients always bypass** (`127.0.0.1`, `::1`). This includes Tailscale-`serve`-proxied requests, which arrive from loopback — so the Tailscale path correctly needs no PIN.
   - **SPA shell always served** without PIN so the gate UI can load: `GET /`, `/assets/*`, `/favicon*`, `/index.html`, and the `/health` healthcheck.
-  - **All other routes from non-loopback clients require the PIN**, accepted via `X-OmniVoice-Pin` header, `?pin=` query, or `ov_pin` cookie. A valid PIN response sets the `ov_pin` cookie so subsequent media/SSE/`<audio>`/`<img>` GETs (which can't send custom headers) authenticate automatically. Invalid/absent → `401`.
+  - **All other routes from non-loopback clients require the PIN**, accepted via `X-VoiceStudio-Pin` header, `?pin=` query, or `ov_pin` cookie. A valid PIN response sets the `ov_pin` cookie so subsequent media/SSE/`<audio>`/`<img>` GETs (which can't send custom headers) authenticate automatically. Invalid/absent → `401`.
 
 ### 4.2 Tailscale (`backend/services/tailscale.py` + endpoints)
 
@@ -73,19 +73,19 @@ No *new* Rust/Tauri commands are required — the feature is backend-driven and 
 ### 4.3 Frontend
 
 - **`frontend/src/components/NetworkToggle.jsx`** (mounted in `LogsFooter.jsx`): a pill showing the current state (`● Local` / `● Network`) and a toggle.
-  - Local→Network: confirm dialog ("Other devices on your network will be able to reach OmniVoice with the access PIN"), then `POST /system/network/enable`; a "switching…" state covers the call.
+  - Local→Network: confirm dialog ("Other devices on your network will be able to reach VoiceStudio with the access PIN"), then `POST /system/network/enable`; a "switching…" state covers the call.
   - Network→Local: immediate (going safer), `POST /system/network/disable`.
   - Expandable panel when enabled: **every LAN address** with per-row **copy** + **open-in-browser**, a **QR** encoding `http://<ip>:<share_port>/?pin=<pin>`, and the **PIN** shown for manual entry.
   - **Visibility:** the toggle is shown when the backend is loopback-bound (the desktop app and local runs — `/system/info.bind_host == 127.0.0.1`). In a server deployment where the operator already bound the backend to `0.0.0.0` (`OMNIVOICE_BIND_HOST=0.0.0.0`), the toggle is hidden because exposure is already the operator's concern. The default Local behavior remains identical on every platform.
 - **Settings → "Sharing & Remote Access" panel** (`frontend/src/components/settings/SharingPanel.jsx`): the full surface — the LAN toggle (mirrors the footer), plus the **Tailscale** section (status, enable/disable, the `*.ts.net` URL with copy/open/QR, and an install link when the CLI is absent).
 - **Remote PIN gate** (`frontend/src/components/RemoteAuthGate.jsx`): when the SPA is loaded from a non-loopback origin and an API call returns `401`, show a PIN entry screen. On mount, read `?pin=` from the URL (populated by the QR) to auto-authenticate. The PIN is held in `sessionStorage` and attached by the api client.
-- **API client header injection:** the shared fetch wrapper (`frontend/src/api/client.*`) attaches `X-OmniVoice-Pin` from `sessionStorage` when present. Loopback (the desktop app) never sets it and never needs it.
+- **API client header injection:** the shared fetch wrapper (`frontend/src/api/client.*`) attaches `X-VoiceStudio-Pin` from `sessionStorage` when present. Loopback (the desktop app) never sets it and never needs it.
 
 ## 5. Data flow
 
 **Enable LAN share (desktop):** footer toggle → confirm → `POST /system/network/enable` (loopback) → backend starts `0.0.0.0:P+1` listener (same app), generates PIN → returns `{share_port, pin, lan_addresses}` → panel renders addresses + QR(`http://<ip>:<P+1>/?pin=<pin>`) + PIN.
 
-**Remote device:** scans QR → loads SPA from `http://<ip>:<P+1>/?pin=<pin>` (SPA shell served PIN-free) → SPA reads `?pin=`, stores it, sends `X-OmniVoice-Pin` (and gets `ov_pin` cookie) → middleware validates against the same running backend → user sees the **same projects, voices, jobs, loaded model**.
+**Remote device:** scans QR → loads SPA from `http://<ip>:<P+1>/?pin=<pin>` (SPA shell served PIN-free) → SPA reads `?pin=`, stores it, sends `X-VoiceStudio-Pin` (and gets `ov_pin` cookie) → middleware validates against the same running backend → user sees the **same projects, voices, jobs, loaded model**.
 
 **Tailscale:** Settings → enable → `POST /system/tailscale/enable` → `tailscale serve` proxies `127.0.0.1:P` → returns `https://<machine>.<tailnet>.ts.net` → user opens it from any tailnet device; requests arrive at the backend from loopback (via Tailscale's proxy) → PIN bypassed → identity enforced by Tailscale.
 
@@ -115,7 +115,7 @@ No *new* Rust/Tauri commands are required — the feature is backend-driven and 
   - Middleware: pass-through when no PIN set; loopback bypass; non-loopback + no PIN → 401; non-loopback + valid PIN (header/query/cookie) → 200 and sets cookie; SPA shell + `/health` open; `access_pin` present only for loopback callers.
   - Control endpoints reject non-loopback callers with 403.
   - Tailscale module: parse `tailscale status --json` fixtures; graceful `installed:false` when CLI absent (mock subprocess).
-- **Frontend (Vitest):** `NetworkToggle` defaults to Local; disabled outside desktop context; panel renders addresses + QR + PIN when enabled; `RemoteAuthGate` shows on 401 and auto-fills from `?pin=`; api client attaches `X-OmniVoice-Pin` only when set.
+- **Frontend (Vitest):** `NetworkToggle` defaults to Local; disabled outside desktop context; panel renders addresses + QR + PIN when enabled; `RemoteAuthGate` shows on 401 and auto-fills from `?pin=`; api client attaches `X-VoiceStudio-Pin` only when set.
 
 ## 9. Dependencies
 

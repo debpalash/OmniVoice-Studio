@@ -1,4 +1,4 @@
-"""Single audited audio-write path for OmniVoice — closes BUG-01 / issue #48.
+"""Single audited audio-write path for VoiceStudio — closes BUG-01 / issue #48.
 
 All in-tree audio-write call sites in ``backend/api/routers/`` converge on
 the helpers in this module:
@@ -201,7 +201,7 @@ def _safe_torchaudio_save(
         # #1221: libsndfile reports OS-level write failures as a bare
         # "LibsndfileError: System error." — no path, no errno, nothing the
         # user can act on, and it fell through generation.py's classifier to
-        # "an error OmniVoice doesn't recognize". Name the target and what we
+        # "an error VoiceStudio doesn't recognize". Name the target and what we
         # can observe about it (exists / writable / free space) so the message
         # points at the actual problem: a full disk, a read-only or
         # antivirus-locked output folder, or a removed drive.
@@ -247,7 +247,7 @@ def _describe_write_failure(e: Exception, path_or_buf: PathOrBuf) -> Exception:
             f"{AUDIO_WRITE_FAILED_MARKER}: {type(e).__name__}: {e} — target "
             f"{path} ({'; '.join(facts)}). An audio write failing at the OS "
             f"level is usually a full drive, a read-only or removed folder, or "
-            f"antivirus/OneDrive locking the file; add an OmniVoice exclusion "
+            f"antivirus/OneDrive locking the file; add a VoiceStudio exclusion "
             f"if you use one."
         )
     except Exception:

@@ -18,7 +18,7 @@ export const COMPONENTS = [
   'Table',
   'Tabs',
   'Input',
-  // shadcn/ui proof components (themed via the OmniVoice token bridge).
+  // shadcn/ui proof components (themed via the VoiceStudio token bridge).
   'ShadcnButton',
   'ShadcnInput',
   // Provider-wrapped PANEL specs — rendered with a seeded store / i18n /

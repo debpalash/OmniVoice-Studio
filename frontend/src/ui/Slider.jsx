@@ -6,7 +6,7 @@ import { Slider as ShadcnSlider } from '@/components/ui/slider.tsx';
  * Slider — styled horizontal range input.
  * Backed by the shadcn <Slider> (which wraps @radix-ui/react-slider for full
  * keyboard accessibility — arrow keys, Home/End — and ARIA value announcements),
- * with the OmniVoice label + value-bubble chrome around it. Prop API unchanged.
+ * with the VoiceStudio label + value-bubble chrome around it. Prop API unchanged.
  *
  * @param value       controlled number
  * @param onChange    receives the new number (not the event)
@@ -49,7 +49,7 @@ const Slider = forwardRef(function Slider(
         <ShadcnSlider
           ref={ref}
           id={id}
-          // Tighten the shadcn track to the OmniVoice scale via the data-slot
+          // Tighten the shadcn track to the VoiceStudio scale via the data-slot
           // selectors the component exposes; keeps the thin-track look.
           className={cn(
             'flex-1 cursor-pointer',

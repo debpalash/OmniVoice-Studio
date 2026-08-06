@@ -10,7 +10,7 @@ Scope: the `studio` workspace only (CloneDesignTab + right rail). No backend cha
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ◉ Voice                          ⊙ OmniVoice                            🔔2  ● Idle  ⚡Flush │
+│ ◉ Voice                          ⊙ VoiceStudio                            🔔2  ● Idle  ⚡Flush │
 ├──┬──────────────────────────────────────────────────────┬──────────────────────────────────┤
 │  │  SCRIPT                                              │ ┌─ ACTIVE VOICE ───────────────┐ │
 │◉ │ ┌──────────────────────────────────────────────────┐ │ │ ◉ Maya — designed            │ │

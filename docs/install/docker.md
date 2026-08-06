@@ -1,10 +1,10 @@
-# OmniVoice Studio — Install with Docker
+# VoiceStudio — Install with Docker
 
 For headless servers, dedicated GPUs, or "I want one command" deployments.
 The docker image bundles the backend; the UI is served over HTTP and you open
 it in a normal browser.
 
-**Official images:** [`ghcr.io/debpalash/omnivoice-studio`](https://github.com/debpalash/OmniVoice-Studio/pkgs/container/omnivoice-studio)
+**Official images:** [`ghcr.io/debpalash/omnivoice-studio`](https://github.com/debpalash/VoiceStudio/pkgs/container/omnivoice-studio)
 and [`palashdeb/omnivoice-studio` on Docker Hub](https://hub.docker.com/r/palashdeb/omnivoice-studio) — same images, same tags.
 
 > **Image ↔ version mapping**
@@ -115,7 +115,7 @@ docker exec omnivoice python3 -c \
 
 (ROCm-built PyTorch reports through `torch.cuda.*` — `True` plus your card's
 name means torch can see the GPU.) That check alone isn't proof the app is
-using it: **Settings → System** shows the device OmniVoice actually resolved.
+using it: **Settings → System** shows the device VoiceStudio actually resolved.
 If it reads `cpu` while the command above prints `True`, the backend log line
 starting `Falling back to CPU:` names the architecture mismatch it hit.
 
@@ -141,7 +141,7 @@ enforces loopback-only.
 
 <a id="lan-access"></a>
 
-To expose OmniVoice on your LAN (e.g. you're running it on a homelab box and
+To expose VoiceStudio on your LAN (e.g. you're running it on a homelab box and
 opening the UI from a laptop), change the host port mapping:
 
 ```yaml
@@ -152,7 +152,7 @@ services:
       - "0.0.0.0:3900:3900"   # ← was 127.0.0.1:3900:3900
 ```
 
-The OmniVoice frontend defaults to the **same origin** the page was served
+The VoiceStudio frontend defaults to the **same origin** the page was served
 from, so opening the UI from `http://<lan-ip>:3900` Just Works for both the
 page load *and* the API/media requests it makes afterwards.
 
@@ -173,7 +173,7 @@ docker run -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
 > may instead bake `VITE_OMNIVOICE_API` at build time, but the runtime var above
 > is simpler and image-agnostic.
 
-> **Security:** OmniVoice ships no authentication. Anything on your LAN with
+> **Security:** VoiceStudio ships no authentication. Anything on your LAN with
 > the URL can use the app. Put it behind a reverse proxy with `basic_auth`
 > (Caddy / nginx + htpasswd) or a private network overlay (Tailscale, ZeroTier)
 > before exposing publicly.

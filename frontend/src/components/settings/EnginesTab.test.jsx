@@ -51,7 +51,7 @@ function entry(id, name) {
 }
 
 const ENGINES = {
-  tts: { active: 'omnivoice', backends: [entry('omnivoice', 'OmniVoice (test)')] },
+  tts: { active: 'omnivoice', backends: [entry('omnivoice', 'VoiceStudio (test)')] },
   asr: {
     active: 'whisperx',
     backends: [
@@ -82,7 +82,7 @@ describe('EnginesTab', () => {
 
   it('renders ONE tabbed section — TTS/ASR/LLM tab strip, one family at a time', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     // One settings card, not three stacked per-family matrices.
     expect(document.querySelectorAll('[data-slot="settings-section"]').length).toBe(1);
@@ -95,25 +95,25 @@ describe('EnginesTab', () => {
 
   it('switching to the ASR tab shows ASR engines without refetching /engines', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     clickFamilyTab('ASR');
     await waitFor(() => screen.getByText('WhisperX (test)'));
     expect(screen.getByText('OpenAI-compatible ASR (test)')).toBeInTheDocument();
-    expect(screen.queryByText('OmniVoice (test)')).not.toBeInTheDocument();
+    expect(screen.queryByText('VoiceStudio (test)')).not.toBeInTheDocument();
     // Tab switches re-slice the already-fetched payload — no second request.
     expect(listEngines).toHaveBeenCalledTimes(1);
   });
 
   it('fetches GET /engines exactly once on mount', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
     expect(listEngines).toHaveBeenCalledTimes(1);
   });
 
   it('probes GET /model/loaded exactly once on mount', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
     await waitFor(() => expect(listLoadedModels).toHaveBeenCalled());
     expect(listLoadedModels).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +128,7 @@ describe('EnginesTab', () => {
       routing_reason: null,
     });
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     clickFamilyTab('ASR');
     await waitFor(() => screen.getByText('OpenAI-compatible ASR (test)'));
@@ -141,7 +141,7 @@ describe('EnginesTab', () => {
 
   it('mounts the OpenAI-compatible ASR config panel on the ASR tab only', async () => {
     render(<EnginesTab />);
-    await waitFor(() => screen.getByText('OmniVoice (test)'));
+    await waitFor(() => screen.getByText('VoiceStudio (test)'));
     // TTS tab: no ASR config panel.
     expect(screen.queryByTestId('asr-openai-compat-base-url')).not.toBeInTheDocument();
 

@@ -3,10 +3,10 @@
 A **`.ovsvoice`** file is a portable voice persona: a single ZIP that packages a
 voice profile's identity, an optional reference clip, a consent attestation, an
 SPDX license tag, and a **watermarked preview**. You can export one from any
-voice and import it back into another OmniVoice install — fully local, no
+voice and import it back into another VoiceStudio install — fully local, no
 account, no upload to anyone.
 
-It supersedes the older `.omnivoice` share bundle. OmniVoice still imports
+It supersedes the older `.omnivoice` share bundle. VoiceStudio still imports
 `.omnivoice` files (they just carry no consent / license / preview).
 
 ## Export
@@ -20,7 +20,7 @@ It supersedes the older `.omnivoice` share bundle. OmniVoice still imports
     raw recording of your voice leaves the machine. The imported persona is still
     usable (the preview becomes its reference clip).
 - A short **preview** is always generated and, when AudioSeal is installed,
-  **watermarked** so the audio can be attributed back to OmniVoice. Behaviour is
+  **watermarked** so the audio can be attributed back to VoiceStudio. Behaviour is
   identical on macOS, Windows, and Linux; without AudioSeal the preview is still
   written, just flagged un-watermarked.
 - The file downloads as `<voice name>.ovsvoice`.
@@ -34,7 +34,7 @@ list.
 ### Consent & verification
 
 A persona's **verified-own-voice** status can't be forged by hand-editing the
-bundle. On import, OmniVoice marks a persona verified **only** when all three
+bundle. On import, VoiceStudio marks a persona verified **only** when all three
 hold: a real consent recording is present (above the minimum length), the
 consent statement text is non-empty, and a `consent.json` attestation is
 included. Otherwise it imports **unverified** — still usable for local
@@ -47,7 +47,7 @@ afterwards.
 | Member | Purpose | Presence |
 |--------|---------|----------|
 | `manifest.json` | format + schema version, persona identity, engine/design params, license, tags, preview metadata | required |
-| `metadata.json` | legacy-shaped copy so older OmniVoice can still read the ref audio | always written |
+| `metadata.json` | legacy-shaped copy so older VoiceStudio can still read the ref audio | always written |
 | `preview.wav` | watermarked preview (24 kHz mono) | required |
 | `consent.json` | attestation: method, statement text, verified flag, timestamp | optional |
 | `ref_audio.*` / `locked_audio.*` | the reference / locked clip | omitted when "Include voice clip" is off |
@@ -55,7 +55,7 @@ afterwards.
 
 The manifest's `license.spdx` is validated against an allowlist (plus
 `LicenseRef-` custom ids); anything unrecognised normalises to
-`LicenseRef-OmniVoice-Personal`. The license is **metadata only** — OmniVoice
+`LicenseRef-VoiceStudio-Personal`. The license is **metadata only** — VoiceStudio
 does not enforce it.
 
 ## Privacy & local-first

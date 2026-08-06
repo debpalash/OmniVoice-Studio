@@ -1,4 +1,4 @@
-"""LLM provider registry — the OpenAI-compatible providers OmniVoice can use
+"""LLM provider registry — the OpenAI-compatible providers VoiceStudio can use
 for Cinematic / Autofit translation (and any future LLM feature).
 
 Every provider here speaks the OpenAI chat-completions shape, so a single
@@ -217,7 +217,7 @@ def resolve_base_url(p: Provider, *, substitute: bool = True) -> str:
 
 #: How long a discovered model id is trusted. Bounded rather than permanent
 #: because the user can swap the loaded model inside LM Studio without touching
-#: OmniVoice at all — an unbounded cache would keep sending the unloaded name
+#: VoiceStudio at all — an unbounded cache would keep sending the unloaded name
 #: and 404 every translation until a restart (greptile).
 DISCOVERY_TTL_S = 300.0
 

@@ -5,11 +5,11 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * shadcn/ui Select — new-york style, themed through the OmniVoice token bridge
+ * shadcn/ui Select — new-york style, themed through the VoiceStudio token bridge
  * (see index.css). This is the Radix custom-dropdown Select (no native <select>,
  * so no native caret) and is provided as part of the shadcn foundation.
  *
- * NOTE: the OmniVoice `Select` primitive in src/ui/Input.jsx deliberately stays
+ * NOTE: the VoiceStudio `Select` primitive in src/ui/Input.jsx deliberately stays
  * a NATIVE <select> (it backs many `onChange={(e) => …e.target.value}` call
  * sites — DubSegmentTable, CompareModal, GeneralTab — whose event shape Radix's
  * value-only `onValueChange` would break). Reach for THIS component only for new

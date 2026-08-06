@@ -2,7 +2,7 @@
 
 *Compiled 2026-06-11 from four parallel research passes (one per competitor repo + a
 full feature-surface inventory of this codebase). Star counts and versions are
-as-of-date snapshots. OmniVoice grades (A–D) come from the self-inventory: code
+as-of-date snapshots. VoiceStudio grades (A–D) come from the self-inventory: code
 signals, test coverage, TODO density, and open-issue mentions — not marketing.*
 
 *Expanded 2026-06-11 (second pass, six additional research agents): second-tier
@@ -37,7 +37,7 @@ GPL-3.0 → study-only. Full profile in the [second-tier landscape](#second-tier
 below; it has not been folded into the per-capability matrix because we have not done
 a capability-by-capability source pass on it yet.
 
-**License ground rule.** OmniVoice Studio is **AGPL-3.0-only with a commercial
+**License ground rule.** VoiceStudio is **AGPL-3.0-only with a commercial
 dual-license offering**. MIT code can be incorporated (attribution preserved) and
 stays compatible with selling commercial exceptions. GPL-3.0 code is technically
 combinable with AGPL-3.0 (GPLv3 §13), **but** copied GPL files stay GPL-3.0 forever
@@ -48,7 +48,7 @@ The same logic applies to **third-party AGPL code** (e.g. alltalk_tts): even tho
 we are AGPL ourselves, we cannot sublicense someone else's AGPL code under our
 commercial exception — study-only, same as GPL.
 
-Fun fact discovered en route: **pyvideotrans already integrates OmniVoice Studio as
+Fun fact discovered en route: **pyvideotrans already integrates VoiceStudio as
 a first-class TTS/clone backend** (`videotrans/tts/_omnivoice.py`, via our Gradio
 API). We are upstream for 17.9k-star project users. **Second-pass update: the
 integration is verified broken** — it speaks Gradio to an endpoint we never exposed.
@@ -118,7 +118,7 @@ the self-inventory missed `scripts/validate-install-docs.py`, the probe-judge +
 ### Where we are unique (defend these)
 
 - **Incremental re-dub** with fingerprint tracking — nobody else has it.
-- **646-language claim** via OmniVoice model — voicebox tops out at 23, pyvideotrans is engine-dependent.
+- **646-language claim** via VoiceStudio model — voicebox tops out at 23, pyvideotrans is engine-dependent.
 - **AudioSeal watermarking + detection** — unique among all three.
 - **Cross-platform dictation as a default** (their auto-paste is macOS-only).
 - **3-step LLM translation chain (translate → reflect → adapt) + glossary** — deeper than anyone's single-pass.
@@ -200,7 +200,7 @@ feature. New Action 12.
 ### Watch items (not competitors)
 
 - **[TTS-WebUI](https://github.com/rsxdalv/TTS-WebUI)** (MIT, 3.2k★, active) — a
-  40+-model local audio hub whose repo description **already advertises an OmniVoice
+  40+-model local audio hub whose repo description **already advertises an VoiceStudio
   extension**. Verify what that extension wraps and that AGPL terms are respected.
   Its per-extension `uv` venv isolation parallels our sidecar approach.
 - **[F5-TTS](https://github.com/SWivid/F5-TTS)** (14.7k★) — engine candidate, not an
@@ -540,16 +540,16 @@ default 1); per-line errors are collected and a job fails only if zero lines suc
 Stage workers convert any exception into a stage-prefixed UI error and mark the task
 ended, so a wave can never hang on a failed member.
 
-#### 7. Fact-check: the pyvideotrans ↔ OmniVoice integration
+#### 7. Fact-check: the pyvideotrans ↔ VoiceStudio integration
 
 `videotrans/tts/_omnivoice.py` (~12–77) speaks **Gradio, not REST**: it builds a
 `gradio_client.Client` against a user-pasted URL and calls the named endpoint
 **`/_clone_fn`** with text, a natural-language language name (~35 ISO codes mapped),
 a per-line reference wav + transcript, and a knob set (steps/guidance/denoise/
 duration/post-process flags) that matches a 12-input Gradio clone function from an
-older or forked OmniVoice build. It expects a filesystem path to a wav back.
+older or forked VoiceStudio build. It expects a filesystem path to a wav back.
 
-**Verdict: broken against current OmniVoice Studio.** Our backend is FastAPI on
+**Verdict: broken against current VoiceStudio.** Our backend is FastAPI on
 :3900 (`backend/main.py`) with REST routers; we expose no Gradio app and no
 `/_clone_fn` (our only Gradio surface is the optional SoniTranslate *subprocess* on
 :7860 — a different application). A gradio client pointed at :3900 fails fetching
@@ -723,7 +723,7 @@ binding + stdio shim (ported from voicebox, MIT attribution).
 - **Files:** `backend/mcp_server.py` (existing FastMCP: keep tools, add
   `transcribe`); mount on the main app in `backend/main.py` with lifespan
   composition (wrap existing startup hooks via AsyncExitStack — do not replace);
-  new middleware + `ContextVar` for `X-OmniVoice-Client-Id`; new alembic migration
+  new middleware + `ContextVar` for `X-VoiceStudio-Client-Id`; new alembic migration
   for `mcp_client_bindings {client_id, label, profile_id, default_engine,
   last_seen_at}` (additive — satisfies the backward-compat constraint); REST CRUD
   router `backend/api/routers/mcp_bindings.py`; new `backend/mcp_shim/` (port
@@ -928,7 +928,7 @@ content is in [positioning moves](#positioning-moves).*
 ## Roadmap directions (community discussion #346)
 
 *Researched 2026-06-12 (third pass, four research agents + five verification
-sub-agents). The maintainer's [discussion #346](https://github.com/debpalash/OmniVoice-Studio/discussions/346)
+sub-agents). The maintainer's [discussion #346](https://github.com/debpalash/VoiceStudio/discussions/346)
 announced a feature roadmap toward full ElevenLabs feature-parity. This section
 grounds each direction in the landscape: what exists, what's license-clean, what
 the honest constraints are, and a scope ladder per direction.*
@@ -1295,7 +1295,7 @@ DirectML; Linux support.
 | Install failures, especially macOS (source-only; Windows gets a praised .exe) | ~6 recent cluster; all-time #2 most-commented issue is literally "Installation tutorial" ([#193](https://github.com/jianchang512/pyvideotrans/issues/193), 67 comments) | [#950](https://github.com/jianchang512/pyvideotrans/issues/950), [#952](https://github.com/jianchang512/pyvideotrans/issues/952) | **Opportunity.** macOS/Linux users are second-class there; a signed mac installer with a working first run is a direct wedge |
 | CUDA errors (GPU fails, silently falls back to CPU) | steady trickle; [#287](https://github.com/jianchang512/pyvideotrans/issues/287) 22 comments | [#177](https://github.com/jianchang512/pyvideotrans/issues/177), [#980](https://github.com/jianchang512/pyvideotrans/issues/980) | **Warning** — though notably smaller than voicebox's, because they treat CPU as the default path and GPU as opt-in |
 | LLM translation plumbing (thinking-tags leaking into subtitles, stripped punctuation, merged lines) | ~8 | [#921](https://github.com/jianchang512/pyvideotrans/issues/921), [#979](https://github.com/jianchang512/pyvideotrans/issues/979) | **Opportunity (partial).** LLM-output sanitization is cheap, testable hygiene that visibly differentiates output quality |
-| **Their OmniVoice integration is reported broken by users** | open | [#1124](https://github.com/jianchang512/pyvideotrans/issues/1124) | Confirms the Spec 11 finding from their side of the bridge |
+| **Their VoiceStudio integration is reported broken by users** | open | [#1124](https://github.com/jianchang512/pyvideotrans/issues/1124) | Confirms the Spec 11 finding from their side of the bridge |
 
 **Praise:** the packaged Windows .exe needing zero Python setup; completely free
 with no login/registration/gates; breadth of integrations; responsive maintainer.
@@ -1367,13 +1367,13 @@ clones) · Business $990 (10 pro clones). The complaints that push users local:
   being set high with no third-party validation behind them.
 - **Hacker News: effectively absent.** No submission with traction; every
   comparable tool got its bump there. An unclaimed opportunity.
-- **Name collision (the big misconception risk):** three entities share "OmniVoice"
-  — (1) the k2-fsa OmniVoice *model* (our default engine; their community-projects
+- **Name collision (the big misconception risk):** three entities share "VoiceStudio"
+  — (1) the k2-fsa VoiceStudio *model* (our default engine; their community-projects
   page lists us, underselling us as "desktop application for voice generation");
-  (2) omnivoice.app, an unrelated commercial cloud product; (3) us. Most "OmniVoice"
-  YouTube traffic and the pyvideotrans OmniVoice docs page are about the *model* —
+  (2) omnivoice.app, an unrelated commercial cloud product; (3) us. Most "VoiceStudio"
+  YouTube traffic and the pyvideotrans VoiceStudio docs page are about the *model* —
   search demand is being split three ways and both competitor trackers contain
-  "support OmniVoice" requests that mean the model, not us.
+  "support VoiceStudio" requests that mean the model, not us.
 
 ### Positioning moves
 
@@ -1389,12 +1389,12 @@ clones) · Business $990 (10 pro clones). The complaints that push users local:
    GPU auto-detect + 646 languages answer both. Title shape: "Show HN: Local
    ElevenLabs alternative — dub, clone, dictate on your own GPU, one installer."
 3. **Claim the name before the collision hardens:** README/FAQ disambiguation
-   ("OmniVoice **Studio**, the desktop app built on the k2-fsa OmniVoice engine —
+   ("VoiceStudio **Studio**, the desktop app built on the k2-fsa VoiceStudio engine —
    not omnivoice.app"); ask k2-fsa to upgrade our one-line community listing to
-   mention dubbing/dictation; get the pyvideotrans OmniVoice docs page pointing at
+   mention dubbing/dictation; get the pyvideotrans VoiceStudio docs page pointing at
    Studio as the GUI path (pairs with Spec 11 — arrive with the fixed integration).
 4. **A discoverable dictation entry point:** a docs/landing section "open-source
-   WisprFlow alternative for Mac, Windows, and Linux (built into OmniVoice
+   WisprFlow alternative for Mac, Windows, and Linux (built into VoiceStudio
    Studio)" + PRs to the alternative-list aggregators. Proven, high-conversion
    query pool; no incumbent covers Linux well.
 
@@ -1412,7 +1412,7 @@ GitHub pyproject, and PyPI (0.1.7, 2026-03-26).
   `[chuckle]`) and the single-knob `exaggeration` expressiveness control — genuinely
   unique in our roster. Fast English cloning (cloning + speed is a gap; KittenTTS is
   fast but can't clone). The 23-lang multilingual cloning is **not** differentiating
-  for us (OmniVoice 646, VoxCPM2 30 @ 48 kHz).
+  for us (VoiceStudio 646, VoxCPM2 30 @ 48 kHz).
 - **Why not now:**
   1. `chatterbox-tts` hard-pins `torch==2.6.0` + `transformers==5.2.0`; we constrain
      `torch==2.8.0` and require `transformers>=5.3.0` — **unresolvable in the parent

@@ -1,7 +1,7 @@
 //! Backend crash forensics (#941).
 //!
 //! When the backend PROCESS dies (native CUDA abort, OOM kill, DLL crash),
-//! the user used to see only "Can't reach the local OmniVoice backend" — and
+//! the user used to see only "Can't reach the local VoiceStudio backend" — and
 //! the evidence (exit code, stderr tail) evaporated with the process. Every
 //! such report was undiagnosable without asking for logs nobody sends.
 //!

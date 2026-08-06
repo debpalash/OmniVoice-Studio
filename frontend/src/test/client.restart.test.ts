@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { apiFetch } from '../api/client';
 import { backendLifecycleStage, classifyBootstrapStage } from '../utils/backendLifecycle';
 
-// The recurring "Can't reach the local OmniVoice backend" class: a REAL
+// The recurring "Can't reach the local VoiceStudio backend" class: a REAL
 // backend start/restart takes 10–20+ s (venv spawn + torch import), but the
 // transport cascade used to give up after ~2.9 s — every request landing in a
 // restart window dead-ended with the scary toast. apiFetch must now keep
@@ -63,7 +63,7 @@ describe('apiFetch — lifecycle-aware restart wait', () => {
     const p = apiFetch('/model/status');
     const assertion = expect(p).rejects.toMatchObject({
       status: 0,
-      message: expect.stringContaining("Can't reach the local OmniVoice backend"),
+      message: expect.stringContaining("Can't reach the local VoiceStudio backend"),
     });
     await vi.advanceTimersByTimeAsync(CASCADE_MS + 100);
     await assertion;
@@ -186,7 +186,7 @@ describe('apiFetch — an alive-but-unresponsive backend says so (#1113)', () =>
 
     const p = apiFetch('/model/status');
     const assertion = expect(p).rejects.toMatchObject({
-      message: expect.stringContaining("Can't reach the local OmniVoice backend"),
+      message: expect.stringContaining("Can't reach the local VoiceStudio backend"),
     });
     await vi.advanceTimersByTimeAsync(CASCADE_MS + 100);
     await assertion;

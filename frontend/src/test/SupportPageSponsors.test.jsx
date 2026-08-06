@@ -44,7 +44,7 @@ describe('SupportPage — Sponsors', () => {
   it('renders the outlined "be the first" placeholder when the roster is empty', async () => {
     renderSupport();
     expect(await screen.findByTestId('sponsors-empty')).toBeInTheDocument();
-    expect(screen.getByText(/Be the first to sponsor OmniVoice/i)).toBeInTheDocument();
+    expect(screen.getByText(/Be the first to sponsor VoiceStudio/i)).toBeInTheDocument();
     expect(screen.getByText(/Your logo here/i)).toBeInTheDocument();
   });
 
@@ -78,8 +78,8 @@ describe('SupportPage — Sponsors', () => {
     // No placeholder once sponsors exist.
     expect(screen.queryByTestId('sponsors-empty')).toBeNull();
 
-    const acme = await screen.findByLabelText('Visit Acme Corp, an OmniVoice sponsor');
-    const globex = screen.getByLabelText('Visit Globex, an OmniVoice sponsor');
+    const acme = await screen.findByLabelText('Visit Acme Corp, a VoiceStudio sponsor');
+    const globex = screen.getByLabelText('Visit Globex, a VoiceStudio sponsor');
 
     // Real hrefs (accessibility / right-click) + rel="noreferrer" + lazy logos.
     expect(acme).toHaveAttribute('href', 'https://acme.example');

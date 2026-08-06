@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="docs/logo.png" alt="OmniVoice Logo" width="96" />
-  <h1>Sponsor OmniVoice Studio</h1>
+  <img src="docs/logo.png" alt="VoiceStudio Logo" width="96" />
+  <h1>Sponsor VoiceStudio</h1>
   <p><b>Keep the open-source ElevenLabs alternative free, local, and shipping.</b></p>
 </div>
 
@@ -8,15 +8,15 @@
 
 ## Why sponsor?
 
-OmniVoice Studio is built by one developer, in the open, using Claude Code and AI agents — and the agent bills are real. Over the last few months I've spent thousands of dollars on Claude subscriptions to keep features shipping, bugs fixed, and your issues answered.
+VoiceStudio is built by one developer, in the open, using Claude Code and AI agents — and the agent bills are real. Over the last few months I've spent thousands of dollars on Claude subscriptions to keep features shipping, bugs fixed, and your issues answered.
 
-OmniVoice is **free**, **fully local**, and **AGPL-3.0**. There's no paid tier, no accounts, no cloud, and no SaaS revenue — nothing runs on a server we bill you for, because nothing runs on a server at all. That's the whole point, and it's also why there's no recurring revenue to fund development. Sponsorship is what makes continued full-time work possible.
+VoiceStudio is **free**, **fully local**, and **AGPL-3.0**. There's no paid tier, no accounts, no cloud, and no SaaS revenue — nothing runs on a server we bill you for, because nothing runs on a server at all. That's the whole point, and it's also why there's no recurring revenue to fund development. Sponsorship is what makes continued full-time work possible.
 
-If OmniVoice has created value for you or your company, sponsoring means the next release keeps coming — and you get a thank-you (and, at most tiers, a logo slot) in return.
+If VoiceStudio has created value for you or your company, sponsoring means the next release keeps coming — and you get a thank-you (and, at most tiers, a logo slot) in return.
 
 ### Where your money goes
 
-Every dollar goes to the cost of building OmniVoice — chiefly the **AI agent bills that keep it shipping** (Claude subscriptions and API usage), plus the occasional signing certificate, test hardware, and model-hosting costs. It is not a salary top-up; it's what keeps the lights on for continuous development.
+Every dollar goes to the cost of building VoiceStudio — chiefly the **AI agent bills that keep it shipping** (Claude subscriptions and API usage), plus the occasional signing certificate, test hardware, and model-hosting costs. It is not a salary top-up; it's what keeps the lights on for continuous development.
 
 ---
 
@@ -41,7 +41,7 @@ Placements marked "as that page ships" (the in-app Sponsors page and the project
 
 **1. Open a sponsorship inquiry (recommended).** This opens a short GitHub form (name/org, logo, tier, contact) so we can get you set up:
 
-> **[→ Open a sponsorship inquiry](https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml)**
+> **[→ Open a sponsorship inquiry](https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml)**
 
 **2. Or start recurring support directly:**
 
@@ -70,16 +70,16 @@ To make your logo look sharp everywhere (README on GitHub, the in-app page, the 
 
 **How your logo gets added:**
 
-- **Easiest:** attach the asset and link in your [sponsorship inquiry](https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml) — the maintainer places it.
+- **Easiest:** attach the asset and link in your [sponsorship inquiry](https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml) — the maintainer places it.
 - **Or open a PR:** add your asset under `docs/sponsors/` and an entry to the tables in this file. Silver/Gold logos are also wired into the app's in-app Sponsors page (via the `sponsors.js` manifest) and the project website as those surfaces ship.
 
-By sponsoring you confirm you have the right to use the submitted logo and grant OmniVoice permission to display it in the contexts above. We won't alter your logo beyond scaling, and we'll remove it promptly on request.
+By sponsoring you confirm you have the right to use the submitted logo and grant VoiceStudio permission to display it in the contexts above. We won't alter your logo beyond scaling, and we'll remove it promptly on request.
 
 ---
 
 ## Current sponsors
 
-OmniVoice doesn't have any sponsors yet — **you could be the first.** These slots fill in as sponsors come aboard.
+VoiceStudio doesn't have any sponsors yet — **you could be the first.** These slots fill in as sponsors come aboard.
 
 ### 🥇 Gold
 
@@ -107,13 +107,13 @@ _Open — [become a Backer](#how-to-become-a-sponsor)._
 
 Sponsorship is a **thank-you, never a paywall.**
 
-Every feature of OmniVoice Studio is and will remain **free** and **open-source under [AGPL-3.0](LICENSE)**. Sponsors do **not** get private builds, gated features, license exceptions, or anything that degrades the experience for people who don't (or can't) pay. What sponsors get is **visibility and our gratitude** — and the knowledge that they're directly funding the next release.
+Every feature of VoiceStudio is and will remain **free** and **open-source under [AGPL-3.0](LICENSE)**. Sponsors do **not** get private builds, gated features, license exceptions, or anything that degrades the experience for people who don't (or can't) pay. What sponsors get is **visibility and our gratitude** — and the knowledge that they're directly funding the next release.
 
-OmniVoice stays local-first and fully functional with zero dollars spent. Sponsoring just helps it keep getting better, faster.
+VoiceStudio stays local-first and fully functional with zero dollars spent. Sponsoring just helps it keep getting better, faster.
 
 ---
 
 <div align="center">
 <sub>Thank you for keeping local-first voice AI alive and free. ❤️</sub><br/>
-<sub>Questions? <a href="https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml">Open an inquiry</a> · <a href="https://discord.gg/bzQavDfVV9">Discord</a></sub>
+<sub>Questions? <a href="https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml">Open an inquiry</a> · <a href="https://discord.gg/bzQavDfVV9">Discord</a></sub>
 </div>

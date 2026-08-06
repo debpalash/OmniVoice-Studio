@@ -25,11 +25,16 @@ import datetime
 import re
 
 #: The two version-less macOS updater bundles, clobbered on every run.
-MAC_AARCH64 = "OmniVoice.Studio_aarch64.app.tar.gz"
-MAC_X86_64 = "OmniVoice.Studio_x64.app.tar.gz"
+#:
+#: These follow ``productName`` in tauri.conf.json. It became "VoiceStudio"
+#: (previously "VoiceStudio") — and because the new name has no SPACE,
+#: GitHub's space-to-dot asset mangling no longer applies: the old names were
+#: stored as ``VoiceStudio.Studio_…`` and the new ones need no such translation.
+MAC_AARCH64 = "VoiceStudio_aarch64.app.tar.gz"
+MAC_X86_64 = "VoiceStudio_x64.app.tar.gz"
 
-_APPIMAGE_RE = r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_amd64\.AppImage"
-_MSI_RE = r"OmniVoice\.Studio_[\d.]+-(?P<n>\d+)_x64_en-US\.msi"
+_APPIMAGE_RE = r"VoiceStudio_[\d.]+-(?P<n>\d+)_amd64\.AppImage"
+_MSI_RE = r"VoiceStudio_[\d.]+-(?P<n>\d+)_x64_en-US\.msi"
 
 #: Fallback only (no ``run_started_at`` given): how far a darwin bundle's
 #: upload time may precede the versioned artifacts of the same run. This

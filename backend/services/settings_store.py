@@ -1,4 +1,4 @@
-"""Encrypted settings store for OmniVoice — AUTH-02 + threat T-01-01.
+"""Encrypted settings store for VoiceStudio — AUTH-02 + threat T-01-01.
 
 Persists small key/value rows in the SQLite `settings` table. The `hf_token`
 row is encrypted at rest via Fernet (symmetric AEAD). The Fernet key itself

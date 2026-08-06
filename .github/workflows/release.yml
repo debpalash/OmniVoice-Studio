@@ -531,8 +531,8 @@ jobs:
       # The rolling `preview` release is REUSED every night, and macOS updater
       # artifacts are the only ones Tauri names WITHOUT the version:
       #
-      #   OmniVoice Studio_0.4.1-103_x64.dmg     <- unique per run, uploads fine
-      #   OmniVoice Studio_x64.app.tar.gz        <- constant, collides
+      #   VoiceStudio_0.4.1-103_x64.dmg     <- unique per run, uploads fine
+      #   VoiceStudio_x64.app.tar.gz        <- constant, collides
       #
       # So every preview build after the first failed the macOS legs with
       # `Validation Failed: {"resource":"ReleaseAsset","code":"already_exists"}`
@@ -566,10 +566,12 @@ jobs:
             x86_64-*)  SUFFIX=x64 ;;
             *) echo "::error::unexpected arch ${{ matrix.arch }}"; exit 1 ;;
           esac
-          # Match the STORED name, not the uploaded one: GitHub rewrites spaces
-          # to dots, so "OmniVoice Studio_x64.app.tar.gz" is stored as
-          # "OmniVoice.Studio_x64.app.tar.gz". Query the release and filter,
-          # rather than guessing which spelling to pass.
+          # Match the STORED name, not the uploaded one. GitHub rewrites
+          # spaces to dots, which is why the pre-rename product ("OmniVoice
+          # Studio") was stored as "OmniVoice.Studio_x64.app.tar.gz".
+          # "VoiceStudio" has no space and so needs no translation — the
+          # pattern below matches both, so a preview release still holding
+          # pre-rename assets is still cleaned up.
           if ! gh release view preview --json assets -q '.assets[].name' \
                  > /tmp/preview-assets.txt 2> /tmp/gh-view-err.txt; then
             if grep -qiE 'not found|HTTP 404' /tmp/gh-view-err.txt; then
@@ -581,7 +583,7 @@ jobs:
             cat /tmp/gh-view-err.txt
             exit 1
           fi
-          grep -E "[ .]Studio_${SUFFIX}\.app\.tar\.gz(\.sig)?$" /tmp/preview-assets.txt \
+          grep -E "(^VoiceStudio|[ .]Studio)_${SUFFIX}\.app\.tar\.gz(\.sig)?$" /tmp/preview-assets.txt \
             > /tmp/stale.txt || true
           if [ ! -s /tmp/stale.txt ]; then
             echo "No stale ${SUFFIX} updater bundle on preview — nothing to clear."
@@ -640,7 +642,7 @@ jobs:
           tagName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
           # Version-first so the tag is readable in GitHub's truncated
           # release-list sidebar (which clips the title mid-string).
-          releaseName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'Preview — OmniVoice Studio' || format('{0} — OmniVoice Studio', github.ref_name) }}
+          releaseName: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'Preview — VoiceStudio' || format('{0} — VoiceStudio', github.ref_name) }}
           releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'false' || (inputs.draft || 'true') }}
           prerelease: ${{ needs.preview-gate.outputs.is_preview == 'true' }}
@@ -663,8 +665,10 @@ jobs:
           set -euo pipefail
           DMG=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg -name "*.dmg" | head -1)
           echo "Smoke-testing DMG: $DMG"
-          # Grab the full mount path — the volume name has a space ("OmniVoice
-          # Studio"), so `awk '{print $3}'` would truncate it to /Volumes/OmniVoice.
+          # Grab the full mount path with a grep rather than `awk '{print $3}'`.
+          # The volume name used to contain a space ("OmniVoice Studio"), which
+          # awk truncated to /Volumes/OmniVoice; "VoiceStudio" has no space, so
+          # this is now belt-and-braces rather than load-bearing.
           MOUNT=$(hdiutil attach -nobrowse -readonly "$DMG" | tail -1 | grep -oE '/Volumes/.*$')
           APP=$(find "$MOUNT" -maxdepth 2 -name "*.app" | head -1)
           fail() { echo "FAIL — $1"; find "$APP/Contents" -maxdepth 4 -type f 2>/dev/null | head -40; hdiutil detach "$MOUNT" || true; exit 1; }
@@ -717,7 +721,7 @@ jobs:
           echo "Smoke-testing MSI: $MSI"
           # /quiet = no UI, /norestart = don't reboot the runner if a dep asks
           msiexec.exe //i "$(cygpath -w "$MSI")" //quiet //norestart
-          INSTALL="/c/Program Files/OmniVoice Studio"
+          INSTALL="/c/Program Files/VoiceStudio"
           fail() { echo "FAIL — $1. Contents:"; find "$INSTALL" -maxdepth 4 -type f 2>/dev/null | head -40; exit 1; }
           # Thin uv-venv installer ships no frozen backend .exe — verify the
           # install is complete: shell exe + bundled uv + backend source resources.
@@ -749,7 +753,7 @@ jobs:
           fail() { echo "FAIL — $1"; find "$ROOT" -maxdepth 5 -type f 2>/dev/null | head -40; exit 1; }
           # Thin uv-venv installer: verify the AppImage carries the shell binary,
           # the bundled uv sidecar, and the backend source resources.
-          { [ -f "$ROOT/AppRun" ] || find "$ROOT" -type f \( -name "OmniVoice Studio" -o -name "omnivoice-studio" \) | grep -q .; } || fail "shell binary / AppRun missing"
+          { [ -f "$ROOT/AppRun" ] || find "$ROOT" -type f \( -name "VoiceStudio" -o -name "omnivoice-studio" \) | grep -q .; } || fail "shell binary / AppRun missing"
           find "$ROOT" -type f -name 'uv' | grep -q . || fail "bundled uv sidecar missing"
           find "$ROOT" -type f -name 'pyproject.toml' | grep -q . || fail "backend resource pyproject.toml missing"
           find "$ROOT" -type f -path '*/backend/main.py' | grep -q . || fail "backend source backend/main.py missing"
