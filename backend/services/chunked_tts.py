@@ -126,7 +126,49 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
             chunks.append(chunk)
         remaining = remaining[split_pos + 1:]
 
-    return chunks
+    return _merge_unspeakable(chunks)
+
+
+#: A character that can actually be voiced — any letter or digit, in any
+#: script. Punctuation, brackets, quotes and dashes are not speech on their own.
+_SPEAKABLE_RE = re.compile(r"[^\W_]", re.UNICODE)
+
+
+def _merge_unspeakable(chunks: List[str]) -> List[str]:
+    """Fold chunks with nothing to say into their neighbour (#1330).
+
+    A boundary can land so that the tail becomes a chunk of pure punctuation —
+    ``'.'``, ``'"'``, ``'—'``, ``'...'``. Measured: text of 799 filler chars
+    plus ``' ...'`` splits into ``['aaa…', '...']``.
+
+    Sending that to an engine is at best a wasted GPU job, and at worst the
+    engine returns no audio for it — which is indistinguishable from the
+    silent-truncation bug this module now reports out loud. Users would get
+    "part of your text produced no audio — '...'" for a chunk that never
+    carried any speech, which teaches them to ignore a warning that exists to
+    catch real data loss.
+
+    The punctuation is not dropped: it is appended to the previous chunk (or
+    prepended to the next, when it comes first), so the text the engine sees is
+    unchanged in content and the join still covers every character.
+    """
+    if len(chunks) < 2:
+        return chunks
+    out: List[str] = []
+    for chunk in chunks:
+        if _SPEAKABLE_RE.search(chunk) or not out:
+            out.append(chunk)
+        else:
+            # Rejoin with a space: these were separated by whitespace the
+            # splitter stripped, and gluing "word" to "..." would change the
+            # token the engine sees.
+            out[-1] = f"{out[-1]} {chunk}"
+    # A leading unspeakable chunk had nothing before it to merge into; fold it
+    # forward instead so it still never renders alone.
+    if len(out) > 1 and not _SPEAKABLE_RE.search(out[0]):
+        out[1] = f"{out[0]} {out[1]}"
+        out.pop(0)
+    return out
 
 
 def _find_last_sentence_end(text: str) -> int:

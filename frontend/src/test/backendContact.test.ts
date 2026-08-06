@@ -84,9 +84,9 @@ describe('desktop unreachable copy tells the last-contact story (#1337)', () => 
   });
 
   it("names the recovery buttons in the user's own language", async () => {
-    // The buttons are translated ("Réessayer", "クリーンアップして再試行"), so
-    // quoting the English labels would send a non-English user hunting for a
-    // button that says something else (CodeRabbit).
+    // The buttons are translated per locale (French: "Réessayer" /
+    // "Nettoyer et réessayer"), so quoting the English labels would send a
+    // non-English user hunting for a button that says something else.
     const mod = await withContact(2);
     const msg = mod.unreachableBackendMessage('desktop');
     // Interpolated, not left as raw placeholders.
