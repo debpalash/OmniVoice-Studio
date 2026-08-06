@@ -961,6 +961,15 @@ jobs:
           gh release view preview --repo "$REPO" --json assets \
             -q '[.assets[] | {name, updatedAt}]' > /tmp/assets.json
 
+          # `created_at`, NOT `run_started_at`: the latter RESETS on every
+          # re-run, so re-running just this job would judge the macOS bundles
+          # its own earlier attempt uploaded as stale and refuse a healthy
+          # build. `created_at` is the first attempt and never moves.
+          RUN_CREATED_AT=$(gh api "repos/$REPO/actions/runs/${{ github.run_id }}" \
+            --jq '.created_at')
+          echo "This run was created at $RUN_CREATED_AT"
+          export RUN_CREATED_AT
+
           WORK=$(mktemp -d)
           python3 - "$WORK" <<'PY'
           import base64, hashlib, json, os, subprocess, sys
@@ -983,7 +992,10 @@ jobs:
               signatures[name] = open(os.path.join(work, name + ".sig")).read()
 
           try:
-              manifest = build_manifest(assets, repo, signatures=signatures)
+              manifest = build_manifest(
+                  assets, repo, signatures=signatures,
+                  run_started_at=os.environ.get("RUN_CREATED_AT") or None,
+              )
           except ManifestRefused as e:
               sys.exit(f"Refusing to publish a preview manifest: {e}")
           print(f"Built preview latest.json: version={manifest['version']}")

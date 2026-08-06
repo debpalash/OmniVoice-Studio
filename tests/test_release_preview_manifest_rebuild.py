@@ -119,6 +119,68 @@ def test_macos_bundles_uploaded_later_are_fine():
     assert _build(_assets(mac_offset=5))["version"] == "0.4.3-7"
 
 
+class TestBindingByRunStart:
+    """Tying the darwin tarballs to the RUN rather than to their siblings.
+
+    The 2026-08-05 nightly refused its own healthy build: all four matrix legs
+    were green, but the macOS bundles had uploaded ~3 minutes before the last
+    versioned artifact, and the leg-to-leg comparison reads that as "from an
+    earlier build". Legs finishing minutes apart is normal — the fast
+    Apple-Silicon leg routinely beats a slow Windows leg by more than any
+    slack worth allowing — so the comparison itself was the bug. Everything
+    uploaded after the run began is this run's.
+    """
+
+    def test_a_healthy_build_whose_mac_legs_finished_early_is_accepted(self):
+        # Exactly the 2026-08-05 shape: mac legs 3 minutes ahead of the
+        # slowest versioned leg, both well after the run started.
+        assets = _assets(mac_offset=0, versioned_offset=3)
+        manifest = _build(assets, run_started_at=_iso(-20))
+        assert manifest["version"] == "0.4.3-7"
+
+    def test_the_genuinely_stale_case_is_still_refused(self):
+        # macOS legs never uploaded: their bundles are last night's, i.e.
+        # from before this run existed. This is what the check is for.
+        assets = _assets(mac_offset=-600, versioned_offset=0)
+        with pytest.raises(ManifestRefused, match="EARLIER build"):
+            _build(assets, run_started_at=_iso(-20))
+
+    def test_clock_skew_at_the_boundary_does_not_refuse(self):
+        # Asset timestamps and run timestamps come from different services;
+        # a bundle stamped a minute "before" the run started is skew, not a
+        # stale artifact from a run that would have been hours earlier.
+        assets = _assets(mac_offset=-1, versioned_offset=0)
+        assert _build(assets, run_started_at=_iso(0))["version"] == "0.4.3-7"
+
+    def test_without_a_run_timestamp_the_old_comparison_still_applies(self):
+        # Direct/manual invocation has no run context; the fallback must keep
+        # catching the stale case rather than silently accepting anything.
+        with pytest.raises(ManifestRefused, match="EARLIER build"):
+            _build(_assets(mac_offset=-90, versioned_offset=0))
+
+    def test_an_unreadable_run_timestamp_is_refused_not_ignored(self):
+        # Falling back silently would hide that the binding never ran.
+        with pytest.raises(ManifestRefused, match="upload times"):
+            _build(_assets(), run_started_at="not-a-timestamp")
+
+
+def test_the_workflow_binds_the_manifest_to_the_run_that_built_it():
+    """The rule above is only worth having if release.yml actually passes the
+    timestamp — and passes `created_at`, not `run_started_at`: the latter
+    resets on re-run, so re-running this job alone would judge the bundles its
+    own earlier attempt uploaded as stale and refuse a healthy build."""
+    body = _preview_step()["run"]
+    assert "run_started_at=" in body, (
+        "release.yml no longer passes a run timestamp to build_manifest, so the "
+        "darwin bundles fall back to the leg-to-leg comparison that refused a "
+        "healthy nightly"
+    )
+    assert "'.created_at'" in body, (
+        "release.yml must read the run's `created_at` (first attempt), not "
+        "`run_started_at`, which resets on every re-run"
+    )
+
+
 def test_unreadable_timestamps_are_refused_not_ignored():
     """Missing `updatedAt` means the freshness check cannot run. Proceeding
     would silently drop the only thing tying the darwin bundles to this run."""
