@@ -1453,7 +1453,8 @@
     "report_failed": "No se pudo abrir el informe de error. Inténtalo de nuevo o copia los detalles anteriores en una incidencia nueva.",
     "searchIssues": "Buscar problemas similares",
     "unexpected": "Error inesperado: {{message}}",
-    "backend_shutting_down": "OmniVoice se está cerrando. Vuelve a abrir la aplicación e inténtalo de nuevo."
+    "backend_shutting_down": "OmniVoice se está cerrando. Vuelve a abrir la aplicación e inténtalo de nuevo.",
+    "crash_broken_env": "Murió mientras cargaba sus propias dependencias de Python, así que no es cuestión de memoria ni de tu GPU: el entorno está incompleto o quedó a medio actualizar. Usa «Clean & Retry» en Configuración → Registros → Backend, que lo reconstruye desde cero y lo repara sin tocar tus voces ni tus proyectos. Si sigue fallando, los detalles del fallo indican el paquete exacto que no se pudo importar."
   },
   "keyboard": {
     "title": "Atajos de teclado",

@@ -255,7 +255,60 @@ export function isNativeFault(marker: Pick<BackendCrashMarker, 'exit_code' | 'si
   return marker.exit_code != null && NT_FAULT_EXIT_CODES.has(marker.exit_code);
 }
 
-export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'>): string {
+/**
+ * True when the captured stderr shows the backend dying while IMPORTING its
+ * own dependencies — a broken/incomplete Python environment, not a workload.
+ *
+ * Reported repeatedly (#1282: `import torchaudio` → `from torch.hub import …`
+ * exploding 4 s after launch; #1376: transformers' lazy module raising
+ * `ModuleNotFoundError: Could not import module 'GenerationMixin'` 28 s in).
+ * Both fell through to the VRAM default, which told users whose venv was
+ * half-installed to go flush a TTS model. Nothing about the exit code
+ * distinguishes these — the traceback is the only evidence, and it was sitting
+ * unread in the marker.
+ *
+ * Deliberately narrow: an ImportError *plus* one of the packages the app
+ * cannot run without. A model file that fails to import mid-request is a
+ * different animal, and a generic "ImportError" match would swallow it.
+ */
+const _IMPORT_FAILURE_MARKERS = [
+  'modulenotfounderror',
+  'importerror',
+  'dll load failed',
+  'undefined symbol',
+];
+const _CORE_DEPENDENCIES = [
+  'torch',
+  'torchaudio',
+  'torchvision',
+  'transformers',
+  'soundfile',
+  'numpy',
+];
+
+// How much of the captured tail is treated as "this run". backend_err.log is
+// appended across runs and the shell captures its last ~40 lines, so a process
+// that died before writing 40 lines of its own carries the PREVIOUS run's
+// output above its own (greptile). An import traceback stranded up there must
+// not diagnose the crash that happened after it — restricting the match to the
+// most recent lines means a stale one only counts when the current run wrote
+// almost nothing, which is itself the startup death this classifies.
+const _RECENT_TAIL_LINES = 20;
+
+export function isBrokenEnvironmentCrash(
+  marker: Partial<Pick<BackendCrashMarker, 'last_stderr'>>,
+): boolean {
+  const raw = (marker.last_stderr || '').trim();
+  if (!raw) return false;
+  const tail = raw.split('\n').slice(-_RECENT_TAIL_LINES).join('\n').toLowerCase();
+  if (!_IMPORT_FAILURE_MARKERS.some((m) => tail.includes(m))) return false;
+  return _CORE_DEPENDENCIES.some((d) => tail.includes(d));
+}
+
+export function crashCauseHint(
+  marker: Pick<BackendCrashMarker, 'exit_code' | 'signal'> &
+    Partial<Pick<BackendCrashMarker, 'last_stderr'>>,
+): string {
   // #1223: the backend exits 78 (EX_CONFIG) when it could not bind its port.
   // That is not a crash and has nothing to do with memory — the old message
   // sent a user whose real problem was a leftover process off to shrink their
@@ -275,6 +328,25 @@ export function crashCauseHint(marker: Pick<BackendCrashMarker, 'exit_code' | 's
         'It was force-killed (signal 9), which usually means the operating system ran out of ' +
         'memory (RAM) and stopped it. Close memory-heavy apps, pick a smaller ASR model in ' +
         'Settings → Models, or flush the TTS model before transcribing.',
+    });
+  }
+  // Ordered deliberately, between the two explicit-fact branches.
+  //
+  // AFTER signal 9: an OOM kill is an unambiguous fact about THIS process, and
+  // a failed import never produces one — so a stale traceback in the captured
+  // tail must never outrank it (greptile).
+  //
+  // BEFORE the native-fault branch: a dependency that will not load takes the
+  // process down as an access violation on Windows (a missing dependent DLL),
+  // where "update your GPU driver" is just as wrong as the VRAM advice.
+  if (isBrokenEnvironmentCrash(marker)) {
+    return i18next.t('errors.crash_broken_env', {
+      defaultValue:
+        'It died while loading its own Python dependencies, so this is not about memory or ' +
+        'your GPU — the environment is incomplete or was left half-updated. Use "Clean & Retry" ' +
+        'in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in ' +
+        'place, without touching your voices or projects. If it still fails afterwards, the ' +
+        'crash details name the exact package that would not import.',
     });
   }
   // A native crash inside the compute stack — the process was executing bad

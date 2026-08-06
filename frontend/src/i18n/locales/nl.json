@@ -1453,7 +1453,8 @@
     "report_failed": "Kon het bugrapport niet openen. Probeer het opnieuw of kopieer de details hierboven naar een nieuwe issue.",
     "searchIssues": "Vergelijkbare problemen zoeken",
     "unexpected": "Onverwachte fout: {{message}}",
-    "backend_shutting_down": "OmniVoice wordt afgesloten. Open de app opnieuw en probeer het nog eens."
+    "backend_shutting_down": "OmniVoice wordt afgesloten. Open de app opnieuw en probeer het nog eens.",
+    "crash_broken_env": "Hij stierf tijdens het laden van zijn eigen Python-afhankelijkheden, dus dit gaat niet over geheugen of je GPU — de omgeving is onvolledig of half bijgewerkt blijven staan. Gebruik \"Clean & Retry\" bij Instellingen → Logs → Backend: dat bouwt hem helemaal opnieuw op en repareert hem ter plekke, zonder je stemmen of projecten aan te raken. Blijft het misgaan, dan noemen de crashdetails het pakket dat niet te importeren was."
   },
   "keyboard": {
     "title": "Sneltoetsen",
