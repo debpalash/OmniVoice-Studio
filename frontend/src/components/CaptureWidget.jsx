@@ -1281,7 +1281,14 @@ export default function CaptureWidget({ onDismiss }) {
         // Only the standalone widget window owns its own visibility; the
         // in-app pill is just a DOM node in the main window.
         if (cancelled || win.label !== 'widget') return;
-        if (!(await win.isVisible())) {
+        const visible = await win.isVisible();
+        // Re-check AFTER the IPC. The thing that tears this effect down is
+        // recording starting — so a continuation resuming here is, precisely,
+        // the case where hiding would take the pill off screen at the moment
+        // the user began speaking. One check covers the rest of the function:
+        // nothing below awaits again before `hide()` (CodeRabbit, #1399).
+        if (cancelled) return;
+        if (!visible) {
           visibleSince = 0;
           return;
         }

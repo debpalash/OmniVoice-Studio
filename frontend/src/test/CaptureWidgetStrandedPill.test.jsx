@@ -242,6 +242,41 @@ describe('the widget window never strands empty', () => {
     expect(mocks.holder.hide).not.toHaveBeenCalled();
   });
 
+  it('does not hide the widget when the effect is torn down mid-check', async () => {
+    // `isVisible()` is an IPC round-trip. The thing that tears this effect down
+    // is recording STARTING — so a continuation that resumes after the await is
+    // exactly the case where hiding would take the pill off screen at the
+    // instant the user began speaking (CodeRabbit, #1399).
+    vi.useFakeTimers();
+    const { unmount } = renderWidget();
+
+    // Get past the grace period so the next tick is the one that would hide.
+    await settle(700);
+    await settle(700);
+
+    let release;
+    mocks.holder.isVisible.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    // Fire a tick; it parks on the pending isVisible().
+    await settle(700);
+    expect(release).toBeTypeOf('function');
+
+    // Recording starts — the effect is cleaned up while the IPC is in flight.
+    unmount();
+
+    // Now the IPC answers "yes, visible". The stale continuation must stop.
+    await act(async () => {
+      release(true);
+      for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    });
+
+    expect(mocks.holder.hide).not.toHaveBeenCalled();
+  });
+
   it('never hides the main window — only the standalone widget owns visibility', async () => {
     // The same component also renders as an in-app pill inside the main
     // window, where hiding the window would take the whole app off screen.
