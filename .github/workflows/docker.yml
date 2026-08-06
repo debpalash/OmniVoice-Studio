@@ -48,7 +48,16 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # PINNED, not ${{ github.repository }}. The repository was renamed to
+  # `VoiceStudio`, and deriving the image path from it would have silently
+  # moved published images to ghcr.io/debpalash/voicestudio — while Docker Hub
+  # (a hardcoded literal below) stayed put. Everyone pulling the documented
+  # GHCR path would have kept getting the last pre-rename image forever: no
+  # error, no warning, just a channel that quietly stopped updating. A
+  # published image path is a promise to users, not a mirror of the repo name.
+  # Renaming it is a deliberate migration (publish to both, document the move,
+  # then retire the old), not a side effect of renaming the repo.
+  IMAGE_NAME: debpalash/omnivoice-studio
   DOCKERHUB_IMAGE: palashdeb/omnivoice-studio
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 

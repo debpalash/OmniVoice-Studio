@@ -85,7 +85,7 @@ Cached on subsequent boots.
 | MCP tool returns connection error | Backend not running | `scripts/start-backend.sh` |
 | `address already in use` | Stale uvicorn on 3900 | `lsof -nP -iTCP:3900 -sTCP:LISTEN` → `kill -TERM <pid>` |
 | `FastMCP.__init__() got unexpected keyword argument 'version'` | mcp SDK ≥ 1.10 dropped `version`/`description`, checkout pre-dates [#112](https://github.com/debpalash/VoiceStudio/pull/112) | Update the checkout or apply the 3-line patch manually |
-| First call hangs 5-10 min | Model download from HuggingFace | Watch `~/.cache/huggingface/hub/models--k2-fsa--VoiceStudio/` grow |
+| First call hangs 5-10 min | Model download from HuggingFace | Watch `~/.cache/huggingface/hub/models--k2-fsa--OmniVoice/` grow |
 | `/health` returns 500 | Alembic migration failed | Inspect `<data_dir>/crash_log.txt` |
 | Voice profile not found | `profile_id` invalid or profile not yet created | `list_voices` first to get valid IDs |
 | `pyannote.audio` errors at startup | Missing `HF_TOKEN` for diarization | Only matters for dub pipeline; basic TTS unaffected |
@@ -95,7 +95,7 @@ Cached on subsequent boots.
 
 ```bash
 scripts/stop-backend.sh                                   # graceful shutdown
-# Uninstall: rm -rf "$OMNIVOICE_HOME" ~/.cache/huggingface/hub/models--k2-fsa--VoiceStudio
+# Uninstall: rm -rf "$OMNIVOICE_HOME" ~/.cache/huggingface/hub/models--k2-fsa--OmniVoice
 # Remove the `omnivoice` entry from your MCP client config
 ```
 

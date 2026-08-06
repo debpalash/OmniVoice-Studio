@@ -375,7 +375,7 @@ Apple-Silicon install skips this index entirely.
 
 **Symptom:** the setup screen never finishes the model download and you can't
 reach the main app. Looking in the HF cache, a model folder
-(`models--k2-fsa--VoiceStudio`, `models--Systran--faster-whisper-large-v3`) has
+(`models--k2-fsa--OmniVoice`, `models--Systran--faster-whisper-large-v3`) has
 `refs/` and maybe `config.json` but **no weight files** (`blobs/` empty or tiny).
 
 **Cause:** the download started but the large weight shards never finished —
@@ -392,7 +392,7 @@ time.
    one keeps the cache locked.
 2. **Delete the incomplete model folder(s) entirely** from the HF cache (the
    whole `models--…` folder, not just `refs/`). Leave other models alone:
-   - `models--k2-fsa--VoiceStudio`
+   - `models--k2-fsa--OmniVoice`
    - `models--Systran--faster-whisper-large-v3`
 3. **Relaunch** — the download page re-pulls from scratch.
 

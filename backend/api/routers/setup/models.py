@@ -228,7 +228,7 @@ def disk_space_error(to_download_bytes: "int | None", *, cache_dir: "str | None"
 
 
 def _repo_dir_name(repo_id: str) -> str:
-    """HF cache dir name for a repo: 'k2-fsa/OmniVoice' → 'models--k2-fsa--VoiceStudio'."""
+    """HF cache dir name for a repo: 'k2-fsa/OmniVoice' → 'models--k2-fsa--OmniVoice'."""
     return "models--" + repo_id.replace("/", "--")
 
 

@@ -9,7 +9,7 @@ body:
         Thanks for considering sponsoring **OmniVoice Studio** 💛
 
         OmniVoice is free, local-first, and AGPL-3.0 — sponsorship keeps development going.
-        See **[SPONSORS.md](https://github.com/debpalash/OmniVoice-Studio/blob/main/SPONSORS.md)** for tiers, placements, and logo guidelines.
+        See **[SPONSORS.md](https://github.com/debpalash/VoiceStudio/blob/main/SPONSORS.md)** for tiers, placements, and logo guidelines.
         Prefer to just donate? [Ko-fi](https://ko-fi.com/debpalash) (recurring) or [PayPal](https://paypal.me/palashCoder) (one-time) — you don't need this form for that.
   - type: input
     id: name
