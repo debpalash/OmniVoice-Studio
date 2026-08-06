@@ -88,8 +88,8 @@ const EN = {
     "Can't reach the OmniVoice backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",
   desktop:
     "Can't reach the local OmniVoice backend. {{contact}} Open the crash notice if one appeared, " +
-    'or Settings → Logs → Backend for the last thing it logged — "Retry" restarts it, and ' +
-    '"Clean & Retry" rebuilds its environment if it will not come back.',
+    'or Settings → Logs → Backend for the last thing it logged — "{{retry}}" restarts it, and ' +
+    '"{{cleanRetry}}" rebuilds its environment if it will not come back.',
   misrouted:
     'The server answering {{url}} is not an OmniVoice backend — it returned its own 404 page. ' +
     'API requests are landing on the wrong host: check the Backend URL in Settings → Sharing, ' +
@@ -136,7 +136,21 @@ export function unreachableBackendMessage(
 ): string {
   const m = mode ?? deploymentMode();
   const contact = describeLastContact(nowMs);
-  if (m === 'desktop') return tr('backendUnreachable.desktop', { contact }, EN.desktop);
+  if (m === 'desktop') {
+    // The buttons this names are themselves translated ("Réessayer",
+    // "クリーンアップして再試行"), so quoting the English labels would send a
+    // non-English user hunting for a button that says something else
+    // (CodeRabbit). Resolve them through the same i18n layer.
+    return tr(
+      'backendUnreachable.desktop',
+      {
+        contact,
+        retry: tr('bootstrap.retry', {}, 'Retry'),
+        cleanRetry: tr('bootstrap.clean_retry', {}, 'Clean & Retry'),
+      },
+      EN.desktop,
+    );
+  }
   if (m === 'dev') return tr('backendUnreachable.dev', { contact }, EN.dev);
   return tr('backendUnreachable.server', { contact }, EN.server);
 }

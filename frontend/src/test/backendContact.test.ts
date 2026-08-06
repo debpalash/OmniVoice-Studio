@@ -83,6 +83,17 @@ describe('desktop unreachable copy tells the last-contact story (#1337)', () => 
     expect(msg).not.toMatch(/crashed or was killed/i);
   });
 
+  it("names the recovery buttons in the user's own language", async () => {
+    // The buttons are translated ("Réessayer", "クリーンアップして再試行"), so
+    // quoting the English labels would send a non-English user hunting for a
+    // button that says something else (CodeRabbit).
+    const mod = await withContact(2);
+    const msg = mod.unreachableBackendMessage('desktop');
+    // Interpolated, not left as raw placeholders.
+    expect(msg).not.toMatch(/\{\{retry\}\}|\{\{cleanRetry\}\}/);
+    expect(msg).toMatch(/Retry/);
+  });
+
   it('keeps the desktop-only forensics, which the other modes do not have', async () => {
     // The point is to ADD the honest cause, not to lose the shell's own next
     // steps — a dev/server message here would send desktop users to a

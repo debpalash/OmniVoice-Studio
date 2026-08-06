@@ -5,7 +5,7 @@
     "dev": "Impossible de joindre le backend OmniVoice local. {{contact}} Avec `bun run dev`, le backend tourne en rechargement automatique : toute modification de fichier — y compris une sauvegarde pendant une requête en cours — le redémarre et coupe la connexion. Réessayez d'abord l'action ; s'il s'agissait d'un rechargement, cela fonctionnera. Si l'échec persiste, consultez le terminal exécutant `bun run dev` pour un traceback Python ou un message de sortie, et omnivoice.log dans votre dossier de données OmniVoice.",
     "server": "Impossible de joindre le serveur backend OmniVoice. {{contact}} Consultez les journaux du serveur pour en trouver la cause (p. ex. `docker logs <conteneur>` ou `journalctl`) — et notez que si Docker sert cette page, la page elle-même peut tomber avec le backend.",
     "misrouted": "Le serveur qui répond à {{url}} n'est pas un backend OmniVoice — il a renvoyé sa propre page 404. Les requêtes API arrivent sur le mauvais hôte : vérifiez l'URL du backend dans Paramètres → Partage ou, si un proxy inverse sert cette interface, sa route pour les chemins d'API.",
-    "desktop": "Impossible de joindre le backend OmniVoice local. {{contact}} Ouvrez l'avis de plantage s'il y en a eu un, ou Paramètres → Journaux → Backend pour la dernière chose qu'il a enregistrée — « Retry » le redémarre, et « Clean & Retry » reconstruit son environnement s'il ne revient pas."
+    "desktop": "Impossible de joindre le backend OmniVoice local. {{contact}} Ouvrez l'avis de plantage s'il y en a eu un, ou Paramètres → Journaux → Backend pour la dernière chose qu'il a enregistrée — « {{retry}} » le redémarre, et « {{cleanRetry}} » reconstruit son environnement s'il ne revient pas."
   },
   "nav": {
     "clone": "Cloner",
