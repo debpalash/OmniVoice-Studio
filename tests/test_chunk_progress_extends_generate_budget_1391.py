@@ -23,6 +23,7 @@ import asyncio
 import importlib
 import os
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -48,10 +49,30 @@ def mm(monkeypatch):
 
 
 @pytest.fixture
-def pool():
+def release():
+    """Set to let a deliberately-wedged worker return.
+
+    Sleeping a wedged job for a fixed 30s and walking away leaks the thread
+    past its own test: it keeps running, keeps writing to the shared
+    heartbeat registry, and delays interpreter shutdown (CodeRabbit). That is
+    the exact shape of the suite-wide flake #1390 fixed — a background thread
+    scribbling into a finished test's state — so it does not get to be
+    reintroduced here.
+    """
+    ev = threading.Event()
+    yield ev
+    ev.set()
+
+
+@pytest.fixture
+def pool(release):
     ex = ThreadPoolExecutor(max_workers=1, thread_name_prefix="test-pool")
     yield ex
-    ex.shutdown(wait=False)
+    # Release first, then wait: every worker this file starts observes the
+    # event, so shutdown really does join them instead of returning while
+    # they run on.
+    release.set()
+    ex.shutdown(wait=True)
 
 
 async def _run(mm, pool, fn, timeout):
@@ -104,15 +125,12 @@ async def test_chunks_may_be_far_slower_than_a_load_heartbeat(mm, pool, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_the_extension_is_still_capped(mm, pool):
+async def test_the_extension_is_still_capped(mm, pool, release):
     """A render that heartbeats forever must not hold a worker forever."""
     def never_ends():
-        # Bounded so the worker thread cannot outlive the test run — but far
-        # longer than budget + cap, which is what the assertion turns on. An
-        # unbounded loop here would hang the suite at interpreter exit rather
-        # than test the cap.
-        for _ in range(400):  # ~20s of heartbeats vs a 0.3s budget + 2.0s cap
-            time.sleep(0.05)
+        # Heartbeats until the test releases it — no fixed iteration count to
+        # tune, and no thread left running afterwards.
+        while not release.wait(0.05):
             mm.report_generate_progress()
 
     t0 = time.monotonic()
@@ -126,11 +144,11 @@ async def test_the_extension_is_still_capped(mm, pool):
 
 
 @pytest.mark.asyncio
-async def test_a_wedged_render_still_dies_on_time(mm, pool):
+async def test_a_wedged_render_still_dies_on_time(mm, pool, release):
     """No chunk ever completes: exactly what the deadline is for. It must not
     have become survivable just because SOME jobs can now prove liveness."""
     def wedged():
-        time.sleep(30)
+        release.wait(30)
 
     t0 = time.monotonic()
     with pytest.raises(mm.GpuJobTimeoutError):
@@ -140,12 +158,12 @@ async def test_a_wedged_render_still_dies_on_time(mm, pool):
 
 
 @pytest.mark.asyncio
-async def test_a_render_that_stops_completing_chunks_dies(mm, pool):
+async def test_a_render_that_stops_completing_chunks_dies(mm, pool, release):
     """Started fine, then hung — the half-wedged case. The last heartbeat must
     expire rather than vouch for the job indefinitely."""
     def stalls():
         mm.report_generate_progress()
-        time.sleep(30)
+        release.wait(30)
 
     t0 = time.monotonic()
     with pytest.raises(mm.GpuJobTimeoutError):
@@ -155,13 +173,13 @@ async def test_a_render_that_stops_completing_chunks_dies(mm, pool):
 
 
 @pytest.mark.asyncio
-async def test_load_heartbeats_keep_their_own_shorter_grace(mm, pool):
+async def test_load_heartbeats_keep_their_own_shorter_grace(mm, pool, release):
     """The two signals must not collapse into one window: a load that stops
     reporting is wedged after 0.5s, and giving it synthesis's 1.0s grace would
     weaken the #1367 guard."""
     def load_then_hang():
         mm.report_model_load_activity()
-        time.sleep(30)
+        release.wait(30)
 
     t0 = time.monotonic()
     with pytest.raises(mm.GpuJobTimeoutError):
@@ -171,7 +189,7 @@ async def test_load_heartbeats_keep_their_own_shorter_grace(mm, pool):
 
 
 @pytest.mark.asyncio
-async def test_a_stale_ident_cannot_vouch_for_the_next_job(mm, pool):
+async def test_a_stale_ident_cannot_vouch_for_the_next_job(mm, pool, release):
     """Thread idents are reused. A heartbeat left behind by a finished render
     must not buy time for whatever runs next on that worker."""
     def quick():
@@ -181,7 +199,7 @@ async def test_a_stale_ident_cannot_vouch_for_the_next_job(mm, pool):
     assert await _run(mm, pool, quick, 5.0) == "done"
 
     def wedged():
-        time.sleep(30)
+        release.wait(30)
 
     t0 = time.monotonic()
     with pytest.raises(mm.GpuJobTimeoutError):
