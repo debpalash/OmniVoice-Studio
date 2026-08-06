@@ -22,6 +22,7 @@ crash it set out to fix.
 
 import importlib
 import importlib.util
+import os
 import sys
 
 import pytest
@@ -207,3 +208,34 @@ def test_the_asr_sidecar_preloads_cudnn8(monkeypatch, ab, cudnn8):
     finally:
         sys.path[:] = saved
     assert called, "the sidecar did not preload cuDNN 8 on startup"
+
+
+def test_the_windows_dll_directory_handle_is_retained(monkeypatch, tmp_path, cudnn8):
+    """`os.add_dll_directory` returns a context-manager cookie whose close (or
+    garbage collection) UN-registers the directory again.
+
+    Discarding it therefore makes the call a silent no-op — reintroducing, one
+    line lower, the exact failure this module exists to prevent: CTranslate2
+    does a bare-name LoadLibrary, misses, and aborts the process
+    (CodeRabbit, #1401).
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(cudnn8, "compat_dirs", lambda: [str(tmp_path)])
+    monkeypatch.setattr(cudnn8, "_dll_dir_cookies", [])
+
+    class Cookie:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    cookie = Cookie()
+    monkeypatch.setattr(os, "add_dll_directory", lambda d: cookie, raising=False)
+
+    cudnn8.preload()
+
+    assert cookie in cudnn8._dll_dir_cookies, (
+        "the add_dll_directory cookie was dropped, so the directory is "
+        "un-registered as soon as it is collected and the call does nothing"
+    )
+    assert cookie.closed is False

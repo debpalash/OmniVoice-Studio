@@ -50,6 +50,9 @@ _LIB_GLOB = "cudnn*64_8.dll" if sys.platform == "win32" else "libcudnn*.so.8"
 
 _preloaded: bool = False
 _status: tuple[bool, str] | None = None
+# Handles from os.add_dll_directory (Windows). Held for the process lifetime —
+# dropping one un-registers its directory. See preload().
+_dll_dir_cookies: list = []
 
 
 def _project_root() -> str:
@@ -106,10 +109,16 @@ def preload() -> None:
             # Make the directory searchable by *name* as well, so a CTranslate2
             # LoadLibrary for a dependent library we did not preload explicitly
             # still resolves instead of aborting the process.
+            #
+            # The returned cookie must be KEPT: it is a context manager whose
+            # close/__del__ removes the directory again, so discarding it makes
+            # the call a silent no-op — the exact failure this module exists to
+            # prevent, reintroduced one line lower (CodeRabbit, #1401). Hold it
+            # for the life of the process.
             try:
-                os.add_dll_directory(lib_dir)
-            except (OSError, AttributeError):
-                pass
+                _dll_dir_cookies.append(os.add_dll_directory(lib_dir))
+            except (OSError, AttributeError) as e:
+                logger.debug("cuDNN 8 DLL directory not added (%s): %s", lib_dir, e)
         for so in sorted(glob.glob(os.path.join(lib_dir, _LIB_GLOB))):
             try:
                 ctypes.CDLL(so, mode=mode)
