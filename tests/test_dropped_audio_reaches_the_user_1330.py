@@ -169,3 +169,108 @@ def test_the_warning_frame_is_not_an_error_frame():
     frame = frame[:frame.index("})")]
     assert '"count"' in frame and '"text"' in frame
     assert "retryable" not in frame
+
+
+# ── driven through the real endpoint ───────────────────────────────────────
+
+
+def test_the_generate_response_actually_carries_the_loss(monkeypatch):
+    """End to end on the classic path: an engine that renders one chunk to
+    nothing, through POST /generate, must come back with the headers that
+    tell the user (CodeRabbit — the assertions above only prove the literals
+    exist, not that they are ever set, or set to anything parseable).
+    """
+    import importlib
+
+    from fastapi.testclient import TestClient
+
+    tts = importlib.import_module("services.tts_backend")
+    main = importlib.import_module("main")
+
+    dropped_text = "the tail that vanished."
+
+    class _HalfMuteEngine(tts.TTSBackend):
+        id = "half-mute-engine"
+        display_name = "Half-mute Engine (test)"
+        gpu_compat = ("cpu",)
+
+        @property
+        def sample_rate(self) -> int:
+            return 24000
+
+        @property
+        def supported_languages(self) -> list[str]:
+            return ["multi"]
+
+        @classmethod
+        def is_available(cls):
+            return True, "ready"
+
+        def generate(self, text, **kw):
+            # The reported failure mode: SOME chunk renders to nothing while
+            # the rest of the take is fine.
+            if dropped_text in text:
+                return torch.zeros(1, 0)
+            return torch.zeros(1, 24000)
+
+    monkeypatch.setitem(tts._REGISTRY, "half-mute-engine", _HalfMuteEngine)
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND", raising=False)
+    # Force multi-chunk rendering with a tiny chunk limit so the two sentences
+    # become two chunks without needing a wall of text.
+    client = TestClient(main.app, client=("127.0.0.1", 50000))
+    res = client.post(
+        "/generate",
+        data={
+            "text": f"A sentence that renders fine. {dropped_text}",
+            "engine": "half-mute-engine",
+            "max_chunk_chars": "31",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert res.headers.get("X-OmniVoice-Dropped-Chunks") == "1"
+    # ...and the lost text itself, so the user knows what to re-render.
+    assert dropped_text in (res.headers.get("X-OmniVoice-Dropped-Text") or "")
+
+
+def test_a_complete_generate_carries_no_such_headers(monkeypatch):
+    """The counterpart: a healthy render must not warn about nothing."""
+    import importlib
+
+    from fastapi.testclient import TestClient
+
+    tts = importlib.import_module("services.tts_backend")
+    main = importlib.import_module("main")
+
+    class _HealthyEngine(tts.TTSBackend):
+        id = "healthy-engine"
+        display_name = "Healthy Engine (test)"
+        gpu_compat = ("cpu",)
+
+        @property
+        def sample_rate(self) -> int:
+            return 24000
+
+        @property
+        def supported_languages(self) -> list[str]:
+            return ["multi"]
+
+        @classmethod
+        def is_available(cls):
+            return True, "ready"
+
+        def generate(self, text, **kw):
+            return torch.zeros(1, 24000)
+
+    monkeypatch.setitem(tts._REGISTRY, "healthy-engine", _HealthyEngine)
+    monkeypatch.delenv("OMNIVOICE_TTS_BACKEND", raising=False)
+    client = TestClient(main.app, client=("127.0.0.1", 50000))
+    res = client.post(
+        "/generate",
+        data={
+            "text": "One sentence. Another sentence.",
+            "engine": "healthy-engine",
+            "max_chunk_chars": "15",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert "X-OmniVoice-Dropped-Chunks" not in res.headers
