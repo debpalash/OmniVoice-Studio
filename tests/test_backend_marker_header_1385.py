@@ -70,6 +70,12 @@ def test_the_marker_survives_the_auth_gates(monkeypatch, tmp_path):
     try:
         c = TestClient(main.app)
         res = c.get("/system/info", headers={"x-forwarded-for": "203.0.113.9"})
+        # Assert the rejection first (CodeRabbit): a 200 here would mean the
+        # gate never ran, and the test would prove nothing about middleware-
+        # generated responses — the only kind that bypass every route.
+        assert res.status_code == 401, (
+            f"expected the API-key gate to reject this request, got {res.status_code}"
+        )
         assert res.headers.get(MARKER), "auth-gate rejection lost the marker"
     finally:
         monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)

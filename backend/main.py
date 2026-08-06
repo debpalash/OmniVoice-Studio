@@ -1084,11 +1084,14 @@ class BackendMarkerMiddleware:
 
 
 def _backend_marker_value() -> str:
+    # ImportError only: the marker's JOB is to be present, so a frozen build
+    # that cannot import the version module still answers "yes, a backend".
+    # Anything else is a real defect and should surface, not be masked.
     try:
         from core.version import APP_VERSION
 
         return str(APP_VERSION)
-    except Exception:
+    except ImportError:
         return "unknown"
 
 
