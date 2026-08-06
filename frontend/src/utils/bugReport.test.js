@@ -217,15 +217,44 @@ describe('clampCrashTail / rootCauseLine (#1376)', () => {
   });
 
   it('does not repeat a root cause that survived inside the kept tail', () => {
-    const text = [
-      'ValueError: the original',
-      '',
-      'The above exception was the direct cause of the following exception:',
-      '',
-      'RuntimeError: the wrapper',
-    ].join('\n');
-    const out = clampCrashTail(text, text.length - 1);
+    // Boot noise first, so a budget exists that keeps the root cause inside the
+    // tail — that is the case where prepending it would duplicate the line.
+    const text =
+      'boot\n'.repeat(200) +
+      'ValueError: the original\n\n' +
+      'The above exception was the direct cause of the following exception:\n\n' +
+      '  frame\n'.repeat(40) +
+      'RuntimeError: the wrapper';
+    const out = clampCrashTail(text, 600);
+    expect(out).toContain('ValueError: the original');
     expect(out.match(/ValueError: the original/g)).toHaveLength(1);
+  });
+
+  it('never returns more than the budget, chained or not', () => {
+    const chained = [
+      'ImportError: a fairly long original cause line to eat into the budget',
+      '',
+      'During handling of the above exception, another exception occurred:',
+      '',
+      `${'  frame line\n'.repeat(500)}`,
+      'RuntimeError: wrapper',
+    ].join('\n');
+    for (const max of [300, 600, 1200]) {
+      expect(clampCrashTail(chained, max).length).toBeLessThanOrEqual(max);
+      expect(clampCrashTail('x'.repeat(9000), max).length).toBeLessThanOrEqual(max);
+    }
+  });
+
+  it('ignores a marker that is only QUOTED inside an error message', () => {
+    // stderr routinely quotes tracebacks (a logged exception, a subprocess's
+    // captured output). A substring match would treat the quotation as a real
+    // chain and attribute a root cause from the wrong exception.
+    const text = [
+      `${'noise\n'.repeat(300)}`,
+      'RuntimeError: parser saw "The above exception was the direct cause of the following exception" in the input',
+    ].join('\n');
+    expect(rootCauseLine(text)).toBe('');
+    expect(clampCrashTail(text, 400).startsWith('… (truncated)')).toBe(true);
   });
 
   it('picks the exception line, not an indented frame', () => {
