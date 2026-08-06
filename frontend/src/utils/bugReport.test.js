@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { scrubText, buildBugReportUrl, ISSUES_URL, REDACTED } from './bugReport';
+import {
+  scrubText,
+  buildBugReportUrl,
+  ISSUES_URL,
+  REDACTED,
+  clampCrashTail,
+  rootCauseLine,
+} from './bugReport';
 import { getLastBackendCrash } from './backendCrash';
 
 // #941: keep the real crashAge/describeCrashExit helpers; only the shell
@@ -162,6 +169,81 @@ describe('buildBugReportUrl — crash-marker enrichment (#941)', () => {
     const body = decodeURIComponent(url);
     expect(body).toContain('THE REAL TRACEBACK LINE'); // tail kept, head dropped
     expect(url.length).toBeLessThan(8000);
+  });
+
+  it('rescues the root cause of a chained traceback from the dropped head (#1376)', async () => {
+    // The #1376 shape: transformers' lazy-import wrapper is what survives at
+    // the END of stderr, and it says nothing. The real cause is at the TOP,
+    // which is exactly what a tail-only clamp discards — so the report arrived
+    // with the useless half and triage had to guess the useful one.
+    const stderr = [
+      'Traceback (most recent call last):',
+      '  File "transformers/utils/import_utils.py", line 2184, in __getattr__',
+      'ImportError: operator torchvision::nms does not exist',
+      '',
+      'The above exception was the direct cause of the following exception:',
+      '',
+      `${'  frame noise\n'.repeat(400)}`,
+      "ModuleNotFoundError: Could not import module 'GenerationMixin'.",
+    ].join('\n');
+    getLastBackendCrash.mockResolvedValue({
+      ts: Math.floor(Date.now() / 1000),
+      exit_code: 1,
+      signal: null,
+      exit_desc: 'exit status: 1',
+      backend_version: '0.4.2',
+      uptime_s: 28,
+      last_stderr: stderr,
+      acknowledged: false,
+    });
+    const url = await buildBugReportUrl();
+    const body = decodeURIComponent(url);
+    expect(body).toContain('operator torchvision::nms does not exist');
+    expect(body).toContain('the line above is the original cause');
+    expect(body).toContain("Could not import module 'GenerationMixin'"); // tail still kept
+    expect(url.length).toBeLessThan(8000);
+  });
+});
+
+describe('clampCrashTail / rootCauseLine (#1376)', () => {
+  it('leaves a tail that fits completely alone', () => {
+    expect(clampCrashTail('short traceback', 100)).toBe('short traceback');
+  });
+
+  it('falls back to plain tail-keeping when there is no chain', () => {
+    const out = clampCrashTail(`${'x'.repeat(500)}\nRuntimeError: boom`, 40);
+    expect(out.startsWith('… (truncated)')).toBe(true);
+    expect(out).toContain('RuntimeError: boom');
+  });
+
+  it('does not repeat a root cause that survived inside the kept tail', () => {
+    const text = [
+      'ValueError: the original',
+      '',
+      'The above exception was the direct cause of the following exception:',
+      '',
+      'RuntimeError: the wrapper',
+    ].join('\n');
+    const out = clampCrashTail(text, text.length - 1);
+    expect(out.match(/ValueError: the original/g)).toHaveLength(1);
+  });
+
+  it('picks the exception line, not an indented frame', () => {
+    const text = [
+      'Traceback (most recent call last):',
+      '  File "a.py", line 1, in <module>',
+      '    import thing',
+      'ImportError: no thing',
+      '',
+      'During handling of the above exception, another exception occurred:',
+      '',
+      'RuntimeError: wrapper',
+    ].join('\n');
+    expect(rootCauseLine(text)).toBe('ImportError: no thing');
+  });
+
+  it('returns nothing for an unchained traceback', () => {
+    expect(rootCauseLine('Traceback…\nValueError: solo')).toBe('');
   });
 });
 

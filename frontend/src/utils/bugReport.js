@@ -115,6 +115,54 @@ async function captureContext() {
   return lines.join('\n');
 }
 
+// Python prints a CHAINED traceback root-cause-FIRST: the original error, then
+// "The above exception was the direct cause of…", then the wrapper. So keeping
+// only the newest end of stderr — right for a plain log — throws away the one
+// line that explains the crash and keeps the least informative one.
+//
+// #1376 is the case in point. The report arrived carrying
+//
+//     ModuleNotFoundError: Could not import module 'GenerationMixin'.
+//     Are this object's requirements defined correctly?
+//
+// which is transformers' lazy-import wrapper and says nothing about what
+// actually failed; the real cause had been cut. Triage had to guess it from
+// the shape of the pair. The whole point of auto-capturing stderr is to avoid
+// that round-trip, so recover the root-cause line out of the discarded head.
+const CHAIN_MARKERS = [
+  'The above exception was the direct cause of the following exception',
+  'During handling of the above exception, another exception occurred',
+];
+
+/** The error line that ends the FIRST block of a chained traceback — i.e. the
+ *  original cause. Empty string when `text` is not a chained traceback. */
+export function rootCauseLine(text) {
+  const idx = CHAIN_MARKERS.map((m) => text.indexOf(m))
+    .filter((i) => i > 0)
+    .sort((a, b) => a - b)[0];
+  if (idx === undefined) return '';
+  const before = text.slice(0, idx).trimEnd().split('\n');
+  // Walk back past the marker's blank line to the last non-indented line —
+  // traceback frames are indented, the exception line is not.
+  for (let i = before.length - 1; i >= 0; i -= 1) {
+    const line = before[i];
+    if (line.trim() && !/^\s/.test(line)) return line.trim();
+  }
+  return '';
+}
+
+/** Bound the crash stderr to its budget, keeping the newest end AND — for a
+ *  chained traceback — the root cause that would otherwise be cut. */
+export function clampCrashTail(text, max = MAX_CRASH_TAIL_CHARS) {
+  if (text.length <= max) return text;
+  const root = rootCauseLine(text);
+  const kept = text.slice(-max);
+  // Only prepend when the root cause is genuinely among the discarded head;
+  // if it survived in `kept`, repeating it is noise.
+  if (!root || kept.includes(root)) return `… (truncated)\n${kept}`;
+  return `${root}\n… (truncated — chained traceback; the line above is the original cause)\n${kept}`;
+}
+
 /** "## Last backend crash" section from the desktop shell's crash marker
  * (#941): exit code/signal + scrubbed stderr tail, so a "backend became
  * unreachable" report arrives WITH the evidence instead of needing a
@@ -129,10 +177,7 @@ async function captureCrashSection() {
     /* shell forensics unavailable */
   }
   if (!marker) return [];
-  let tail = scrubText(marker.last_stderr || '').trim();
-  if (tail.length > MAX_CRASH_TAIL_CHARS) {
-    tail = `… (truncated)\n${tail.slice(-MAX_CRASH_TAIL_CHARS)}`;
-  }
+  const tail = clampCrashTail(scrubText(marker.last_stderr || '').trim());
   return [
     '## Last backend crash (auto-captured — may predate this bug)',
     '',

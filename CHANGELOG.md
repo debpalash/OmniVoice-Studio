@@ -31,6 +31,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- An auto-captured crash report now keeps the error that actually caused the crash. Python prints a chained traceback oldest-first, so trimming the log to its newest end kept the generic wrapper and cut the real cause — the reports that needed the detail most were the ones that arrived without it. (#1376)
 - Text ending in punctuation no longer wastes a whole synthesis pass on it. A chunk boundary could leave a trailing fragment with nothing speakable in it, which the engine renders as nothing at all. (#1330)
 - A take that is missing part of your text now says so instead of coming back quietly short. When the engine renders a sentence to nothing, the app names the missing text and suggests re-generating — until now the only way to notice was to read along. (#1330)
 - A long render on modest hardware is no longer abandoned as "too heavy for the available compute" while it is visibly working. A generate that keeps finishing chunks now extends its own deadline (bounded), the way a model download already could; one that stops producing anything still fails on time. (#1338, #1348, #1391)
