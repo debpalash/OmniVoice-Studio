@@ -51,6 +51,19 @@ on:
 permissions:
   contents: write    # needed to attach artifacts + updater manifest to GH Release
 
+# Every preview build publishes to the SAME rolling `preview` release, and the
+# updater manifest is rebuilt from whatever assets are on it. Two overlapping
+# preview runs (the nightly schedule and a manual dispatch, say) would upload
+# into each other's asset set, and the version-less macOS tarballs carry
+# nothing saying which run produced them — so one run could publish a manifest
+# advertising its own version while serving the other run's macOS binaries
+# (greptile). Serialize instead. Keyed on the ref, so a `v*` tag push (which
+# builds its own release and never touches `preview`) is never queued behind a
+# nightly.
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   # Run all JavaScript actions on Node 24 (GH deprecates Node 20 in Sep 2026).
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -918,6 +931,11 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      # The manifest rebuild reads this run's `created_at` from the Actions
+      # Runs API to tie the version-less macOS bundles to this build. Without
+      # this scope the call 403s and, under `set -e`, takes the whole publish
+      # down (greptile).
+      actions: read
     steps:
       # Needed by the manifest rebuild + signature check below: the updater
       # pubkey lives in frontend/src-tauri/tauri.conf.json.
@@ -961,6 +979,39 @@ jobs:
           gh release view preview --repo "$REPO" --json assets \
             -q '[.assets[] | {name, updatedAt}]' > /tmp/assets.json
 
+          # The anchor for "this upload belongs to this run" is the moment this
+          # run's FIRST JOB began executing. Two wrong answers were considered:
+          #
+          #   * `run_started_at` RESETS on re-run — re-running just this job
+          #     would judge the macOS bundles its own earlier attempt uploaded
+          #     as stale, and refuse a healthy build.
+          #   * the run's `created_at` is stamped when the run is QUEUED. With
+          #     the concurrency group above, a run can sit queued while the
+          #     previous one uploads — so the queued run's created_at predates
+          #     the OTHER run's macOS bundles and would accept them as its own
+          #     (coderabbit).
+          #
+          # The earliest job start is after the queue wait (concurrency holds
+          # the whole run, so no job of ours has started) and before any of our
+          # own uploads. Jobs that were not re-run keep their original
+          # timestamps, so taking the MINIMUM stays correct across partial
+          # re-runs too.
+          #
+          # Needs the job's `actions: read` scope. If it ever 403s anyway, do
+          # not take the whole publish down with `set -e`: warn loudly and let
+          # build_manifest fall back to its leg-to-leg comparison, which is
+          # merely stricter than it should be, never laxer.
+          if ! RUN_CREATED_AT=$(gh api --paginate \
+                 "repos/$REPO/actions/runs/${{ github.run_id }}/jobs?filter=latest" \
+                 --jq '[.jobs[].started_at] | map(select(. != null)) | min // empty' \
+                 2> /tmp/gh-run-err.txt); then
+            echo "::warning::Could not read this run's job start times (needs actions: read) — falling back to the stricter sibling-timestamp check, which can refuse a healthy build."
+            cat /tmp/gh-run-err.txt
+            RUN_CREATED_AT=""
+          fi
+          echo "This run began executing at ${RUN_CREATED_AT:-<unknown>}"
+          export RUN_CREATED_AT
+
           WORK=$(mktemp -d)
           python3 - "$WORK" <<'PY'
           import base64, hashlib, json, os, subprocess, sys
@@ -983,7 +1034,10 @@ jobs:
               signatures[name] = open(os.path.join(work, name + ".sig")).read()
 
           try:
-              manifest = build_manifest(assets, repo, signatures=signatures)
+              manifest = build_manifest(
+                  assets, repo, signatures=signatures,
+                  run_started_at=os.environ.get("RUN_CREATED_AT") or None,
+              )
           except ManifestRefused as e:
               sys.exit(f"Refusing to publish a preview manifest: {e}")
           print(f"Built preview latest.json: version={manifest['version']}")
