@@ -175,10 +175,19 @@ def test_the_workflow_binds_the_manifest_to_the_run_that_built_it():
         "darwin bundles fall back to the leg-to-leg comparison that refused a "
         "healthy nightly"
     )
-    assert "'.created_at'" in body, (
-        "release.yml must read the run's `created_at` (first attempt), not "
-        "`run_started_at`, which resets on every re-run"
+    # The API field `run_started_at` RESETS on re-run; reading it would make a
+    # re-run of this job alone judge its own earlier attempt's uploads stale.
+    assert ".run_started_at" not in body, (
+        "release.yml must not read the API's `run_started_at`, which resets on "
+        "every re-run"
     )
+    assert "/jobs?filter=latest" in body and ".started_at" in body, (
+        "the anchor must be this run's earliest JOB start: the run's own "
+        "`created_at` is stamped while it is still QUEUED, so a run waiting on "
+        "the concurrency group would accept the run ahead of it uploading macOS "
+        "bundles as its own"
+    )
+    assert "| min" in body, "taking anything but the earliest job start reintroduces the false refusal"
 
 
 def test_the_preview_job_can_actually_read_its_run_metadata():
@@ -209,6 +218,12 @@ def test_preview_runs_cannot_overlap():
     with open(os.path.join(root, ".github", "workflows", "release.yml"), encoding="utf-8") as fh:
         wf = yaml.safe_load(fh)
     assert "concurrency" in wf, "release.yml has no concurrency group — preview runs can overlap"
+    # Per-REF, or a `v*` tag release queues behind a nightly (and a group that
+    # lost its ref scoping would still pass a bare existence check).
+    assert "${{ github.ref }}" in wf["concurrency"]["group"], (
+        "the concurrency group must be scoped per ref, or unrelated releases "
+        "serialize against each other"
+    )
     assert wf["concurrency"].get("cancel-in-progress") is False, (
         "cancelling an in-flight preview mid-upload would leave a half-uploaded "
         "asset set for the next run to describe"

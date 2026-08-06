@@ -979,22 +979,37 @@ jobs:
           gh release view preview --repo "$REPO" --json assets \
             -q '[.assets[] | {name, updatedAt}]' > /tmp/assets.json
 
-          # `created_at`, NOT `run_started_at`: the latter RESETS on every
-          # re-run, so re-running just this job would judge the macOS bundles
-          # its own earlier attempt uploaded as stale and refuse a healthy
-          # build. `created_at` is the first attempt and never moves.
+          # The anchor for "this upload belongs to this run" is the moment this
+          # run's FIRST JOB began executing. Two wrong answers were considered:
+          #
+          #   * `run_started_at` RESETS on re-run — re-running just this job
+          #     would judge the macOS bundles its own earlier attempt uploaded
+          #     as stale, and refuse a healthy build.
+          #   * the run's `created_at` is stamped when the run is QUEUED. With
+          #     the concurrency group above, a run can sit queued while the
+          #     previous one uploads — so the queued run's created_at predates
+          #     the OTHER run's macOS bundles and would accept them as its own
+          #     (coderabbit).
+          #
+          # The earliest job start is after the queue wait (concurrency holds
+          # the whole run, so no job of ours has started) and before any of our
+          # own uploads. Jobs that were not re-run keep their original
+          # timestamps, so taking the MINIMUM stays correct across partial
+          # re-runs too.
           #
           # Needs the job's `actions: read` scope. If it ever 403s anyway, do
           # not take the whole publish down with `set -e`: warn loudly and let
           # build_manifest fall back to its leg-to-leg comparison, which is
           # merely stricter than it should be, never laxer.
-          if ! RUN_CREATED_AT=$(gh api "repos/$REPO/actions/runs/${{ github.run_id }}" \
-                 --jq '.created_at' 2> /tmp/gh-run-err.txt); then
-            echo "::warning::Could not read this run's created_at (needs actions: read) — falling back to the stricter sibling-timestamp check, which can refuse a healthy build."
+          if ! RUN_CREATED_AT=$(gh api --paginate \
+                 "repos/$REPO/actions/runs/${{ github.run_id }}/jobs?filter=latest" \
+                 --jq '[.jobs[].started_at] | map(select(. != null)) | min // empty' \
+                 2> /tmp/gh-run-err.txt); then
+            echo "::warning::Could not read this run's job start times (needs actions: read) — falling back to the stricter sibling-timestamp check, which can refuse a healthy build."
             cat /tmp/gh-run-err.txt
             RUN_CREATED_AT=""
           fi
-          echo "This run was created at ${RUN_CREATED_AT:-<unknown>}"
+          echo "This run began executing at ${RUN_CREATED_AT:-<unknown>}"
           export RUN_CREATED_AT
 
           WORK=$(mktemp -d)
