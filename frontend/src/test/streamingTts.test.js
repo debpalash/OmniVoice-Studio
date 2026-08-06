@@ -294,6 +294,46 @@ describe('streamGenerateSpeech', () => {
     apiFetch.mockRejectedValue(apiErr);
     await expect(streamGenerateSpeech(new FormData(), {})).rejects.toBe(apiErr);
   });
+
+  // #1330 — the take is real, but part of the text produced no audio. Driven
+  // through the actual NDJSON reader rather than by matching source text
+  // (CodeRabbit): a serialization the client cannot parse would pass the
+  // literal check and still leave the user with a silently short take.
+  it('forwards a warning frame to onWarning and still resolves with done', async () => {
+    const warned = [];
+    apiFetch.mockResolvedValue(
+      ndjsonResponse([
+        startEvent(3),
+        chunkEvent(0),
+        chunkEvent(1),
+        { type: 'warning', code: 'dropped_chunks', count: 1, text: ['the tail that vanished.'] },
+        doneEvent,
+      ]),
+    );
+    const meta = await streamGenerateSpeech(new FormData(), {
+      onWarning: (ev) => warned.push(ev),
+    });
+    // Not an error: the stream completed and the caller got its metadata.
+    expect(meta.id).toBe('abc12345');
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toMatchObject({ code: 'dropped_chunks', count: 1 });
+    expect(warned[0].text).toEqual(['the tail that vanished.']);
+  });
+
+  it('does not require the caller to handle warnings', async () => {
+    // A consumer that never passes onWarning must not crash on the new frame.
+    apiFetch.mockResolvedValue(
+      ndjsonResponse([
+        startEvent(1),
+        chunkEvent(0),
+        { type: 'warning', code: 'dropped_chunks', count: 2, text: [] },
+        doneEvent,
+      ]),
+    );
+    await expect(streamGenerateSpeech(new FormData(), {})).resolves.toMatchObject({
+      id: 'abc12345',
+    });
+  });
 });
 
 // ── createStreamingChunkPlayer transport ────────────────────────────────────

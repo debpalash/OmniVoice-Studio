@@ -2234,8 +2234,10 @@
   "tts": {
     "routingFallback": "CPU에서 실행 — 이 엔진은 컴퓨터에 GPU 경로가 없으므로 생성 속도가 느려집니다. {{reason}}",
     "routingCaveat": "GPU를 사용하지만: {{reason}}",
-    "droppedChunks": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다. 다시 생성해 보세요 — 보통 다른 시드로 해결됩니다.",
-    "droppedChunksWithText": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다 — “{{text}}”. 다시 생성해 보세요. 보통 다른 시드로 해결됩니다."
+    "droppedChunks_one": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다. 다시 생성해 보세요 — 보통 다른 시드로 해결됩니다.",
+    "droppedChunks_other": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다. 다시 생성해 보세요 — 보통 다른 시드로 해결됩니다.",
+    "droppedChunksWithText_one": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다 — “{{text}}”. 다시 생성해 보세요. 보통 다른 시드로 해결됩니다.",
+    "droppedChunksWithText_other": "알림: 텍스트 중 {{count}}개 부분이 오디오로 생성되지 않아 이 테이크에서 빠졌습니다 — “{{text}}”. 다시 생성해 보세요. 보통 다른 시드로 해결됩니다."
   },
   "voiceSelector": {
     "engineDefault": "엔진 기본값",

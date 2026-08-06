@@ -2234,8 +2234,10 @@
   "tts": {
     "routingFallback": "Fonctionnant sur CPU : ce moteur n'a pas de chemin GPU sur votre machine, la génération sera donc plus lente. {{reason}}",
     "routingCaveat": "Utilisation du GPU, mais : {{reason}}",
-    "droppedChunks": "Attention : {{count}} partie de votre texte n'a produit aucun audio, elle manque donc dans cette prise. Relancez la génération — une autre graine suffit généralement.",
-    "droppedChunksWithText": "Attention : {{count}} partie de votre texte n'a produit aucun audio et manque dans cette prise — « {{text}} ». Relancez la génération ; une autre graine suffit généralement."
+    "droppedChunks_one": "Attention : {{count}} partie de votre texte n'a produit aucun audio, elle manque donc dans cette prise. Relancez la génération — une autre graine suffit généralement.",
+    "droppedChunks_other": "Attention : {{count}} parties de votre texte n'ont produit aucun audio, elles manquent donc dans cette prise. Relancez la génération — une autre graine suffit généralement.",
+    "droppedChunksWithText_one": "Attention : {{count}} partie de votre texte n'a produit aucun audio et manque dans cette prise — « {{text}} ». Relancez la génération ; une autre graine suffit généralement.",
+    "droppedChunksWithText_other": "Attention : {{count}} parties de votre texte n'ont produit aucun audio et manquent dans cette prise — « {{text}} ». Relancez la génération ; une autre graine suffit généralement."
   },
   "voiceSelector": {
     "engineDefault": "Moteur par défaut",

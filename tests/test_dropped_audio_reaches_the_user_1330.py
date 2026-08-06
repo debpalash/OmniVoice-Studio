@@ -23,13 +23,19 @@ sys.path.insert(0, os.path.join(REPO, "backend"))
 
 torch = pytest.importorskip("torch")
 
-from services.chunked_tts import (  # noqa: E402
-    concatenate_audio_chunks,
-    join_rendered_chunks,
-    report_dropped_chunks,
-)
-
 SR = 24_000
+
+
+@pytest.fixture()
+def ct():
+    """Resolve the module per test rather than at collection.
+
+    A module-level import binds whatever ``sys.modules`` held when this file
+    was collected, which an earlier test may have replaced (CodeRabbit).
+    """
+    import importlib
+
+    return importlib.import_module("services.chunked_tts")
 
 
 def _tone(n=2400):
@@ -43,10 +49,10 @@ def _empty():
 # ── the render collects what it lost ────────────────────────────────────────
 
 
-def test_concatenate_records_the_text_of_every_dropped_chunk():
+def test_concatenate_records_the_text_of_every_dropped_chunk(ct):
     sink = []
     texts = ["first sentence.", "the tail that vanished.", "third."]
-    out = concatenate_audio_chunks(
+    out = ct.concatenate_audio_chunks(
         [_tone(), _empty(), _tone()], SR, 0, texts=texts, sink=sink
     )
     assert sink == ["the tail that vanished."]
@@ -55,62 +61,62 @@ def test_concatenate_records_the_text_of_every_dropped_chunk():
     assert out.shape[-1] == 4800
 
 
-def test_a_dropped_final_chunk_is_recorded_even_when_it_is_the_only_loss():
+def test_a_dropped_final_chunk_is_recorded_even_when_it_is_the_only_loss(ct):
     # The reported shape exactly: the tail is what goes missing.
     sink = []
-    concatenate_audio_chunks(
+    ct.concatenate_audio_chunks(
         [_tone(), _tone(), _empty()], SR, 0,
         texts=["a.", "b.", "the last few sentences."], sink=sink,
     )
     assert sink == ["the last few sentences."]
 
 
-def test_none_chunks_count_as_losses_too():
+def test_none_chunks_count_as_losses_too(ct):
     sink = []
-    concatenate_audio_chunks([_tone(), None], SR, 0, texts=["a.", "b."], sink=sink)
+    ct.concatenate_audio_chunks([_tone(), None], SR, 0, texts=["a.", "b."], sink=sink)
     assert sink == ["b."]
 
 
-def test_join_rendered_chunks_records_through_every_one_of_its_branches():
+def test_join_rendered_chunks_records_through_every_one_of_its_branches(ct):
     # join_rendered_chunks has three exits — nothing kept, exactly one kept
     # (which bypasses the concat), and the normal join. The single-kept branch
     # is the one that shipped silent once already.
     nothing = []
-    assert join_rendered_chunks([None, None], SR, texts=["a.", "b."], sink=nothing) is None
+    assert ct.join_rendered_chunks([None, None], SR, texts=["a.", "b."], sink=nothing) is None
     assert nothing == ["a.", "b."]
 
     one = []
-    kept = join_rendered_chunks([_tone(), _empty()], SR, texts=["a.", "b."], sink=one)
+    kept = ct.join_rendered_chunks([_tone(), _empty()], SR, texts=["a.", "b."], sink=one)
     assert kept is not None and one == ["b."]
 
     many = []
-    join_rendered_chunks(
+    ct.join_rendered_chunks(
         [_tone(), _empty(), _tone()], SR, texts=["a.", "b.", "c."], sink=many
     )
     assert many == ["b."]
 
 
-def test_a_complete_render_records_nothing():
+def test_a_complete_render_records_nothing(ct):
     sink = []
-    concatenate_audio_chunks([_tone(), _tone()], SR, 0, texts=["a.", "b."], sink=sink)
+    ct.concatenate_audio_chunks([_tone(), _tone()], SR, 0, texts=["a.", "b."], sink=sink)
     assert sink == []
 
 
-def test_the_count_survives_when_the_text_is_unavailable():
+def test_the_count_survives_when_the_text_is_unavailable(ct):
     # Callers that never had per-chunk text still must not under-report: the
     # user needs to know something was lost even if we cannot quote it.
     sink = []
-    concatenate_audio_chunks([_tone(), _empty(), None], SR, 0, sink=sink)
+    ct.concatenate_audio_chunks([_tone(), _empty(), None], SR, 0, sink=sink)
     assert len(sink) == 2
 
 
-def test_a_broken_sink_cannot_break_the_render():
+def test_a_broken_sink_cannot_break_the_render(ct):
     # A diagnostic must never be able to turn a working render into a failure.
     class Hostile:
         def extend(self, _):
             raise RuntimeError("nope")
 
-    report_dropped_chunks([0], 2, ["a."], Hostile())
+    ct.report_dropped_chunks([0], 2, ["a."], Hostile())
 
 
 # ── both response carriers exist ────────────────────────────────────────────
@@ -120,7 +126,7 @@ def _generation_src():
     return open(os.path.join(REPO, "backend/api/routers/generation.py"), encoding="utf-8").read()
 
 
-def test_every_inference_entry_point_accepts_the_sink():
+def test_every_inference_entry_point_accepts_the_sink(ct):
     # If a path forgets the parameter, that path silently truncates again —
     # with the collection code right next to it looking correct.
     tree = ast.parse(_generation_src())

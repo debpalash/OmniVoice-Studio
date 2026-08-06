@@ -73,11 +73,19 @@ describe('the copy exists in every locale', () => {
     expect(locales.length).toBeGreaterThanOrEqual(21);
     for (const f of locales) {
       const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      expect(j.tts?.droppedChunks, f).toBeTruthy();
-      expect(j.tts?.droppedChunksWithText, f).toBeTruthy();
-      expect(j.tts.droppedChunks, f).toContain('{{count}}');
-      expect(j.tts.droppedChunksWithText, f).toContain('{{count}}');
-      expect(j.tts.droppedChunksWithText, f).toContain('{{text}}');
+      // i18next plural forms: the message counts parts, so a bare
+      // "{{count}} part" reads wrong the moment two are dropped (CodeRabbit).
+      for (const suffix of ['_one', '_other']) {
+        expect(j.tts?.[`droppedChunks${suffix}`], `${f} ${suffix}`).toBeTruthy();
+        expect(j.tts?.[`droppedChunksWithText${suffix}`], `${f} ${suffix}`).toBeTruthy();
+        expect(j.tts[`droppedChunks${suffix}`], `${f} ${suffix}`).toContain('{{count}}');
+        expect(j.tts[`droppedChunksWithText${suffix}`], `${f} ${suffix}`).toContain('{{count}}');
+        expect(j.tts[`droppedChunksWithText${suffix}`], `${f} ${suffix}`).toContain('{{text}}');
+      }
+      // The unsuffixed keys must be gone, or i18next resolves those instead
+      // and the plural forms are dead weight.
+      expect(j.tts?.droppedChunks, f).toBeUndefined();
+      expect(j.tts?.droppedChunksWithText, f).toBeUndefined();
     }
   });
 });

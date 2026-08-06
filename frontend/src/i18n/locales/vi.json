@@ -2234,8 +2234,10 @@
   "tts": {
     "routingFallback": "Chạy trên CPU - công cụ này không có đường dẫn GPU trên máy của bạn, do đó quá trình tạo sẽ chậm hơn. {{reason}}",
     "routingCaveat": "Sử dụng GPU nhưng: {{reason}}",
-    "droppedChunks": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh, nên bản thu này bị thiếu phần đó. Hãy thử tạo lại — thường chỉ cần một seed khác.",
-    "droppedChunksWithText": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh và bị thiếu trong bản thu này — “{{text}}”. Hãy thử tạo lại; thường chỉ cần một seed khác."
+    "droppedChunks_one": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh, nên bản thu này bị thiếu phần đó. Hãy thử tạo lại — thường chỉ cần một seed khác.",
+    "droppedChunks_other": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh, nên bản thu này bị thiếu các phần đó. Hãy thử tạo lại — thường chỉ cần một seed khác.",
+    "droppedChunksWithText_one": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh và bị thiếu trong bản thu này — “{{text}}”. Hãy thử tạo lại; thường chỉ cần một seed khác.",
+    "droppedChunksWithText_other": "Lưu ý: {{count}} phần trong văn bản của bạn không tạo ra âm thanh và bị thiếu trong bản thu này — “{{text}}”. Hãy thử tạo lại; thường chỉ cần một seed khác."
   },
   "voiceSelector": {
     "engineDefault": "Mặc định công cụ",

@@ -2234,8 +2234,10 @@
   "tts": {
     "routingFallback": "In esecuzione su CPU: questo motore non ha un percorso GPU sul tuo computer, quindi la generazione sarà più lenta. {{reason}}",
     "routingCaveat": "Utilizzando la GPU, ma: {{reason}}",
-    "droppedChunks": "Attenzione: {{count}} parte del testo non ha prodotto audio, quindi manca in questa registrazione. Riprova a generare: di solito basta un seed diverso.",
-    "droppedChunksWithText": "Attenzione: {{count}} parte del testo non ha prodotto audio e manca in questa registrazione — «{{text}}». Riprova a generare; di solito basta un seed diverso."
+    "droppedChunks_one": "Attenzione: {{count}} parte del testo non ha prodotto audio, quindi manca in questa registrazione. Riprova a generare: di solito basta un seed diverso.",
+    "droppedChunks_other": "Attenzione: {{count}} parti del testo non hanno prodotto audio, quindi mancano in questa registrazione. Riprova a generare: di solito basta un seed diverso.",
+    "droppedChunksWithText_one": "Attenzione: {{count}} parte del testo non ha prodotto audio e manca in questa registrazione — «{{text}}». Riprova a generare; di solito basta un seed diverso.",
+    "droppedChunksWithText_other": "Attenzione: {{count}} parti del testo non hanno prodotto audio e mancano in questa registrazione — «{{text}}». Riprova a generare; di solito basta un seed diverso."
   },
   "voiceSelector": {
     "engineDefault": "Motore difettoso",
