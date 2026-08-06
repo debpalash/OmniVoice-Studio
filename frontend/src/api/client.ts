@@ -22,6 +22,7 @@ import { scrubText } from '../utils/scrub.js';
 import { deploymentMode } from '../utils/deploymentMode.ts';
 import {
   lastBackendContact,
+  misroutedBackendMessage,
   recordBackendContact,
   unreachableBackendMessage,
 } from '../utils/backendContact.ts';
@@ -172,13 +173,34 @@ export function apiUrl(path?: string): string {
   return path.startsWith('http') ? path : `${API}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
-async function readError(res: Response): Promise<string> {
+// Stamped on EVERY response by the backend's BackendMarkerMiddleware and
+// exposed cross-origin, so its presence is AUTHORITATIVE: this really is an
+// OmniVoice backend answering, whatever the body looks like (#1385).
+const BACKEND_MARKER_HEADER = 'x-omnivoice-backend';
+
+// `backendShaped` — did this response come from an OmniVoice backend?
+//
+// The marker header settles it outright. Body shape is the fallback for a
+// backend older than the header (a desktop app pointed at a remote box that
+// hasn't been updated): every backend error route answers JSON with
+// `detail`/`error`, and Starlette's mounted StaticFiles answer plain-text
+// "Not Found" — the one non-JSON backend voice. That fallback is a heuristic,
+// which is exactly why the header exists: a proxy CAN return
+// `{"error":"Not Found"}` and impersonate the shape.
+async function readError(res: Response): Promise<{ detail: unknown; backendShaped: boolean }> {
+  const marked = Boolean(res.headers?.get?.(BACKEND_MARKER_HEADER));
   const text = await res.text().catch(() => '');
   try {
     const j = JSON.parse(text);
-    return j.detail || j.error || text || res.statusText;
+    // `detail` is FastAPI/Starlette's own error key — including the
+    // `{"detail":"Not Found"}` an unrouted path produces. `error` is used by
+    // a few 4xx/5xx handlers but never for a 404, so an unmarked
+    // `{"error":…}` 404 is a foreign server, not an old backend.
+    if (j.detail) return { detail: j.detail, backendShaped: true };
+    if (j.error) return { detail: j.error, backendShaped: marked };
+    return { detail: text || res.statusText, backendShaped: marked };
   } catch {
-    return text || res.statusText;
+    return { detail: text || res.statusText, backendShaped: marked || text.trim() === 'Not Found' };
   }
 }
 
@@ -392,7 +414,18 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
     }
     if (!res.ok) {
       // An HTTP error means the backend *did* respond — never retry it.
-      const detail = await readError(res);
+      const { detail, backendShaped } = await readError(res);
+      // #1385: a 404 in some other server's voice means the request never
+      // reached an OmniVoice backend at all — a static host's catch-all page
+      // or a reverse proxy with no route for this path. Echoing that page
+      // ("NOT_FOUND bom1::…") sends the user chasing a page that never
+      // existed; name the actual problem instead: where requests are going.
+      if (res.status === 404 && !backendShaped) {
+        throw new ApiError(misroutedBackendMessage(apiUrl(path)), {
+          status: res.status,
+          detail,
+        });
+      }
       // 401 on a remote device: route to the right gate by reading the detail.
       // "API key required" (BearerKeyMiddleware, OMNIVOICE_API_KEY) vs anything
       // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
