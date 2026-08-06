@@ -928,7 +928,7 @@ content is in [positioning moves](#positioning-moves).*
 ## Roadmap directions (community discussion #346)
 
 *Researched 2026-06-12 (third pass, four research agents + five verification
-sub-agents). The maintainer's [discussion #346](https://github.com/debpalash/OmniVoice-Studio/discussions/346)
+sub-agents). The maintainer's [discussion #346](https://github.com/debpalash/VoiceStudio/discussions/346)
 announced a feature roadmap toward full ElevenLabs feature-parity. This section
 grounds each direction in the landscape: what exists, what's license-clean, what
 the honest constraints are, and a scope ladder per direction.*

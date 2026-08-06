@@ -14,7 +14,7 @@ Generate audio locally via the OmniVoice Studio MCP server. Tools: `generate_spe
 The MCP tools all hit `$OMNIVOICE_API_URL` (default `http://localhost:3900`). If the backend is down, every tool returns a connection error. Install + boot:
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git "$OMNIVOICE_HOME"
+git clone https://github.com/debpalash/VoiceStudio.git "$OMNIVOICE_HOME"
 cd "$OMNIVOICE_HOME"
 uv sync
 VIRTUAL_ENV="$(pwd)/.venv" uv pip install 'mcp[cli]'
@@ -166,4 +166,4 @@ The MCP server does not expose the dubbing endpoint. The full transcribe → tra
 
 Backend Swagger / OpenAPI: `http://127.0.0.1:3900/docs` (when backend is up).
 
-Upstream: github.com/debpalash/OmniVoice-Studio — FSL-1.1-ALv2 (free for personal/internal/non-commercial; auto-converts to Apache-2.0 two years after each release).
+Upstream: github.com/debpalash/VoiceStudio — FSL-1.1-ALv2 (free for personal/internal/non-commercial; auto-converts to Apache-2.0 two years after each release).

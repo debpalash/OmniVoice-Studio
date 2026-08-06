@@ -23,7 +23,7 @@ import { askConfirm } from './native';
 import { SettingsSection, SettingRow, SettingsInput, InfoHint } from './primitives';
 import { Button, Badge, Select } from '../../ui';
 
-const MCP_DOCS_URL = 'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/mcp.md';
+const MCP_DOCS_URL = 'https://github.com/debpalash/VoiceStudio/blob/main/docs/mcp.md';
 
 export default function MCPBindingsPanel() {
   const { t } = useTranslation();

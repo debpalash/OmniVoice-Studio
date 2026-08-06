@@ -6,7 +6,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SITE_URL="https://github.com/debpalash/OmniVoice-Studio"
+SITE_URL="https://github.com/debpalash/VoiceStudio"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

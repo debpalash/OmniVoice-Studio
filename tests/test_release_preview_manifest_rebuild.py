@@ -39,7 +39,7 @@ from build_preview_manifest import (  # noqa: E402
     required_assets,
 )
 
-REPO = "debpalash/OmniVoice-Studio"
+REPO = "debpalash/VoiceStudio"
 _T0 = datetime.datetime(2026, 8, 4, 12, 0, tzinfo=datetime.timezone.utc)
 
 

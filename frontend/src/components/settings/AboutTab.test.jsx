@@ -35,7 +35,7 @@ describe('AboutTab — external links', () => {
     expect(openExternal).toHaveBeenCalledWith(REPO_URL);
     // Belt-and-braces: the constant itself must point at this project, not a
     // lookalike (the original bug linked github.com/k2-fsa/OmniVoice).
-    expect(REPO_URL).toBe('https://github.com/debpalash/OmniVoice-Studio');
+    expect(REPO_URL).toBe('https://github.com/debpalash/VoiceStudio');
   });
 
   it('has no "Model card" link — the app is multi-engine with no single model card', () => {

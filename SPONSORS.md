@@ -41,7 +41,7 @@ Placements marked "as that page ships" (the in-app Sponsors page and the project
 
 **1. Open a sponsorship inquiry (recommended).** This opens a short GitHub form (name/org, logo, tier, contact) so we can get you set up:
 
-> **[→ Open a sponsorship inquiry](https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml)**
+> **[→ Open a sponsorship inquiry](https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml)**
 
 **2. Or start recurring support directly:**
 
@@ -70,7 +70,7 @@ To make your logo look sharp everywhere (README on GitHub, the in-app page, the 
 
 **How your logo gets added:**
 
-- **Easiest:** attach the asset and link in your [sponsorship inquiry](https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml) — the maintainer places it.
+- **Easiest:** attach the asset and link in your [sponsorship inquiry](https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml) — the maintainer places it.
 - **Or open a PR:** add your asset under `docs/sponsors/` and an entry to the tables in this file. Silver/Gold logos are also wired into the app's in-app Sponsors page (via the `sponsors.js` manifest) and the project website as those surfaces ship.
 
 By sponsoring you confirm you have the right to use the submitted logo and grant OmniVoice permission to display it in the contexts above. We won't alter your logo beyond scaling, and we'll remove it promptly on request.
@@ -115,5 +115,5 @@ OmniVoice stays local-first and fully functional with zero dollars spent. Sponso
 
 <div align="center">
 <sub>Thank you for keeping local-first voice AI alive and free. ❤️</sub><br/>
-<sub>Questions? <a href="https://github.com/debpalash/OmniVoice-Studio/issues/new?template=sponsor.yml">Open an inquiry</a> · <a href="https://discord.gg/bzQavDfVV9">Discord</a></sub>
+<sub>Questions? <a href="https://github.com/debpalash/VoiceStudio/issues/new?template=sponsor.yml">Open an inquiry</a> · <a href="https://discord.gg/bzQavDfVV9">Discord</a></sub>
 </div>

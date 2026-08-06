@@ -221,7 +221,7 @@ describe('buildIssueSearchUrl', () => {
       new Error('CUDA error 700 at /home/eve/cache: illegal memory access'),
     );
     const q = decodeURIComponent(url.split('q=')[1]);
-    expect(url).toContain('github.com/debpalash/OmniVoice-Studio/issues?q=');
+    expect(url).toContain('github.com/debpalash/VoiceStudio/issues?q=');
     expect(q).toContain('CUDA error');
     expect(q).not.toContain('700'); // machine-specific noise stripped
     expect(q).not.toContain('/home/eve'); // scrubbed + punctuation-stripped

@@ -5,7 +5,7 @@
 # Run once, then `./run.sh` each time you want to use the app.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/debpalash/OmniVoice-Studio/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/debpalash/VoiceStudio/main/install.sh | sh
 #   # or locally:
 #   sh install.sh
 #   sh install.sh --verbose        # show all subcommand output
@@ -150,7 +150,7 @@ if [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
         (cd "$INSTALL_DIR" && git pull --ff-only 2>/dev/null || true)
     else
         if have git; then
-            git clone --depth 1 https://github.com/debpalash/OmniVoice-Studio.git "$INSTALL_DIR"
+            git clone --depth 1 https://github.com/debpalash/VoiceStudio.git "$INSTALL_DIR"
         else
             die "git is required. Install git and re-run."
         fi

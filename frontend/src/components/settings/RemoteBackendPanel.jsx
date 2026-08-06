@@ -23,8 +23,7 @@ import { askConfirm } from '../../utils/dialog';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
 import { Button, Badge } from '../../ui';
 
-const REMOTE_GPU_DOCS_URL =
-  'https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/remote-gpu.md';
+const REMOTE_GPU_DOCS_URL = 'https://github.com/debpalash/VoiceStudio/blob/main/docs/remote-gpu.md';
 
 /** A saved backend base must be a parseable absolute http(s) URL. */
 export function isValidBackendUrl(value) {

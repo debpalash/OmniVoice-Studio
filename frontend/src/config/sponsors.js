@@ -9,7 +9,7 @@
 
 import { KOFI_URL } from '../utils/donateLinks';
 
-const REPO = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO = 'https://github.com/debpalash/VoiceStudio';
 
 /**
  * Active sponsors. EMPTY until the first sponsor signs on — the Support page

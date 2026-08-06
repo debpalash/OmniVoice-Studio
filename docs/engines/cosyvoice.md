@@ -43,7 +43,7 @@ apps, or pick a smaller variant (CosyVoice-300M without instruct).
 
 ## Troubleshooting
 
-- **Issue [#55](https://github.com/debpalash/OmniVoice-Studio/issues/55):**
+- **Issue [#55](https://github.com/debpalash/VoiceStudio/issues/55):**
   CosyVoice install clashing with IndexTTS — fixed in v0.3+ via per-engine
   venvs.
 - For other errors, capture the splash-screen log (Settings → Logs → Backend)

@@ -34,9 +34,11 @@ def test_sanitize_strips_home_and_secrets():
 
 
 def test_detect_repo_from_origin():
-    # detect_repo() parses owner/repo from the real git origin. The repo name is
-    # stable across upstream and forks; the owner is not, so assert the shape and
-    # the repo name rather than a hardcoded owner (the test ran only on upstream).
+    # detect_repo() parses owner/repo from the real git origin. Neither half is
+    # a constant: the owner varies across forks, and the NAME turned out to vary
+    # too — the repository was renamed, and this test failed on every PR while
+    # detect_repo() was working perfectly. Assert the SHAPE, which is the whole
+    # contract; a literal here only pins today's branding.
     #
     # It also documents its own None case — "the harness works without a GitHub
     # remote, the report just omits the link" — which is a real checkout shape,
@@ -48,7 +50,11 @@ def test_detect_repo_from_origin():
         pytest.skip("no GitHub origin remote here (tarball/archive checkout)")
     owner, name = repo
     assert isinstance(owner, str) and owner
-    assert name == "OmniVoice-Studio"
+    assert isinstance(name, str) and name
+    # Parsed, not echoed: neither half may keep the URL's punctuation or the
+    # `.git` suffix, which is what a broken parse would leave behind.
+    for part in (owner, name):
+        assert "/" not in part and not part.endswith(".git")
 
 
 def test_clustering_dedupes_and_excludes_nonblocking():
@@ -71,11 +77,11 @@ def test_triage_builds_github_url(monkeypatch):
     # Pin detect_repo so the URL is deterministic on every fork: this test
     # exercises URL construction, not the git origin (which is the fork owner on
     # a contributor's checkout, not the upstream "debpalash").
-    monkeypatch.setattr(T, "detect_repo", lambda cwd=None: ("debpalash", "OmniVoice-Studio"))
+    monkeypatch.setattr(T, "detect_repo", lambda cwd=None: ("debpalash", "VoiceStudio"))
     res = T.triage(_failing_report())
-    assert res.owner == "debpalash" and res.repo == "OmniVoice-Studio"
+    assert res.owner == "debpalash" and res.repo == "VoiceStudio"
     assert res.url and res.url.startswith(
-        "https://github.com/debpalash/OmniVoice-Studio/issues/new?"
+        "https://github.com/debpalash/VoiceStudio/issues/new?"
     )
     q = urllib.parse.parse_qs(urllib.parse.urlparse(res.url).query)
     assert q["title"][0] == res.title
@@ -93,7 +99,7 @@ def test_report_renders_issue_button_on_failure():
     from . import report as R
 
     rep = _failing_report()
-    rep.issue_url = "https://github.com/debpalash/OmniVoice-Studio/issues/new?title=x"
+    rep.issue_url = "https://github.com/debpalash/VoiceStudio/issues/new?title=x"
     html = R.render_html(rep)
     assert "Draft GitHub issue" in html
     assert rep.issue_url in html

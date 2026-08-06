@@ -8,7 +8,7 @@ body:
     attributes:
       label: Before filing
       options:
-        - label: I searched [existing issues](https://github.com/debpalash/OmniVoice-Studio/issues?q=is%3Aissue) and [discussions](https://github.com/debpalash/OmniVoice-Studio/discussions) for this idea.
+        - label: I searched [existing issues](https://github.com/debpalash/VoiceStudio/issues?q=is%3Aissue) and [discussions](https://github.com/debpalash/VoiceStudio/discussions) for this idea.
           required: true
   - type: textarea
     id: problem

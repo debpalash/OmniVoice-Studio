@@ -5,7 +5,7 @@ description: Speak and transcribe through the user's local OmniVoice Studio — 
 
 # OmniVoice — local TTS & STT
 
-The user runs [OmniVoice Studio](https://github.com/debpalash/OmniVoice-Studio), a fully-local voice app exposing an OpenAI-compatible audio API at `http://localhost:3900/v1`. Use it whenever the user asks to generate speech, narrate text, clone a voice, or transcribe audio — it costs nothing, works offline, and their audio never leaves the machine.
+The user runs [OmniVoice Studio](https://github.com/debpalash/VoiceStudio), a fully-local voice app exposing an OpenAI-compatible audio API at `http://localhost:3900/v1`. Use it whenever the user asks to generate speech, narrate text, clone a voice, or transcribe audio — it costs nothing, works offline, and their audio never leaves the machine.
 
 ## Before the first call
 

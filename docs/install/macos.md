@@ -9,7 +9,7 @@ working OmniVoice Studio install on macOS (Apple Silicon).
 > (macOS x86_64) wheels after 2.2.x, and OmniVoice's dependencies require a
 > newer torch — so the first-run dependency install can never succeed, from
 > the DMG *or* from source
-> ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The app
+> ([#889](https://github.com/debpalash/VoiceStudio/issues/889)). The app
 > detects this at first launch and tells you directly instead of failing with
 > a raw installer error. Your options on an Intel Mac: point the UI at a
 > remote backend running on another machine (**Settings → Sharing → Remote
@@ -52,7 +52,7 @@ Optional but recommended:
 ## Install (from source)
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
+git clone https://github.com/debpalash/VoiceStudio.git
 cd OmniVoice-Studio
 bun install
 bun run desktop-prod
@@ -65,7 +65,7 @@ live progress for every step.
 ## Install (pre-built `.app`)
 
 Download the latest DMG from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
 double-click to mount, drag **OmniVoice Studio.app** into `/Applications`.
 
 Pick the DMG that matches your Mac (check **Apple menu → About This Mac → Chip/Processor**):
@@ -73,7 +73,7 @@ Pick the DMG that matches your Mac (check **Apple menu → About This Mac → Ch
 | Mac | DMG to download |
 |-----|-----------------|
 | Apple Silicon (M1/M2/M3/M4…) | `OmniVoice.Studio_<version>_aarch64.dmg` |
-| Intel | `OmniVoice.Studio_<version>_x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)) |
+| Intel | `OmniVoice.Studio_<version>_x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/VoiceStudio/issues/889)) |
 
 The architectures are **not** interchangeable: an Intel Mac cannot run the
 `aarch64` build (Rosetta 2 only translates the other direction — it lets Apple
@@ -158,7 +158,7 @@ without the quarantine step.
   never regresses; pin `ASR_MODEL_PARAKEET_MLX` to force it).
 - **Intel Macs:** the local backend is **unsupported** — PyTorch no longer
   ships Intel-Mac wheels, so the Python environment can never install
-  ([#889](https://github.com/debpalash/OmniVoice-Studio/issues/889)). The UI
+  ([#889](https://github.com/debpalash/VoiceStudio/issues/889)). The UI
   works only when pointed at a remote backend (**Settings → Sharing → Remote
   backend**).
 

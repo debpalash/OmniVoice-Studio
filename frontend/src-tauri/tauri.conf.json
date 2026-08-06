@@ -93,7 +93,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json"
+        "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhFMDQ1QkZCQ0I4RDlCQkYKUldTL200M0wrMXNFamdPSGF3VkUzVjBRY1FFOE0yTkxSMVZKNUowL2wyZEw2OG1TWXNLMDlSeTQK",
       "dialog": false

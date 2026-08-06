@@ -48,7 +48,7 @@ Everything above, plus the toolchain:
 ## Install (from source)
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
+git clone https://github.com/debpalash/VoiceStudio.git
 cd OmniVoice-Studio
 bun install
 bun run desktop-prod
@@ -60,7 +60,7 @@ model weights (~2.4 GB). Subsequent launches start in seconds.
 ## Install (AppImage)
 
 Download the latest AppImage from the
-[Releases page](https://github.com/debpalash/OmniVoice-Studio/releases/latest),
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
 make it executable, and run:
 
 ```bash
@@ -170,15 +170,15 @@ older than ours and you'd rather keep the newer bundled one.)
 If you are on v0.4.0 or older, either update or build from source:
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
+git clone https://github.com/debpalash/VoiceStudio.git
 cd OmniVoice-Studio
 bun install
 bun run desktop-prod
 ```
 
-Tracking issues: [#62](https://github.com/debpalash/OmniVoice-Studio/issues/62),
-[#961](https://github.com/debpalash/OmniVoice-Studio/issues/961),
-[#1258](https://github.com/debpalash/OmniVoice-Studio/issues/1258).
+Tracking issues: [#62](https://github.com/debpalash/VoiceStudio/issues/62),
+[#961](https://github.com/debpalash/VoiceStudio/issues/961),
+[#1258](https://github.com/debpalash/VoiceStudio/issues/1258).
 
 ## AppImage: "No microphone found" while the raw binary records fine
 
@@ -234,7 +234,7 @@ If you set `XDG_CACHE_HOME`, the path follows it
 (`$XDG_CACHE_HOME/OmniVoice/gstreamer-registry.bin`); `~/.cache` is the default
 when it is unset.
 
-Tracking issue: [#1333](https://github.com/debpalash/OmniVoice-Studio/issues/1333).
+Tracking issue: [#1333](https://github.com/debpalash/VoiceStudio/issues/1333).
 
 ## .deb ffprobe conflict
 
@@ -349,7 +349,7 @@ Notes:
 - ZLUDA (CUDA-on-ROCm translation) can work but is unsupported here — prefer a
   native ROCm wheel.
 
-Tracking issue: [#124](https://github.com/debpalash/OmniVoice-Studio/issues/124).
+Tracking issue: [#124](https://github.com/debpalash/VoiceStudio/issues/124).
 
 ## Hugging Face token (optional but recommended)
 

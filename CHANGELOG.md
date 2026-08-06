@@ -19,6 +19,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
+- The repository moved to github.com/debpalash/VoiceStudio. Every link in the app, docs and scripts now points there; GitHub redirects the old URLs, and the Docker image paths, the app bundle identifier and your data folder are all deliberately unchanged, so nothing on your machine needs to move.
 - macOS floor raised to 13.3 (Ventura) — the frontend has required Safari 16.4 for some time, so macOS 12 was a promise the stack could not keep (#1268)
 
 ### Added
@@ -1683,4 +1684,4 @@ Region selector, realtime download speed, retry buttons, recheck top-right, HF m
 
 ## Earlier releases
 
-See [GitHub Releases](https://github.com/debpalash/OmniVoice-Studio/releases) for prior versions.
+See [GitHub Releases](https://github.com/debpalash/VoiceStudio/releases) for prior versions.

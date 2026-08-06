@@ -43,7 +43,7 @@ def test_prefers_tauri_config_when_present(monkeypatch, tmp_path):
         "plugins": {
             "updater": {
                 "endpoints": [
-                    "https://github.com/debpalash/OmniVoice-Studio/releases/latest/download/latest.json"
+                    "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json"
                 ]
             }
         }
@@ -55,7 +55,7 @@ def test_prefers_tauri_config_when_present(monkeypatch, tmp_path):
     import json
     (tmp_path / "tauri.conf.json").write_text(json.dumps(fake_conf), encoding="utf-8")
     url = links._from_tauri()
-    assert url == "https://github.com/debpalash/OmniVoice-Studio"
+    assert url == "https://github.com/debpalash/VoiceStudio"
 
 
 def test_falls_back_to_pyproject_when_tauri_unreadable(monkeypatch, tmp_path):

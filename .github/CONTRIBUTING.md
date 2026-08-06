@@ -7,8 +7,8 @@ Thanks for your interest in improving OmniVoice Studio! This guide covers everyt
 | | |
 |---|---|
 | 💬 **Chat** | [Discord](https://discord.gg/bzQavDfVV9) |
-| 🐛 **Bugs** | [GitHub Issues](https://github.com/debpalash/OmniVoice-Studio/issues) |
-| 🏷️ **Good First Issues** | [Filtered list](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue) |
+| 🐛 **Bugs** | [GitHub Issues](https://github.com/debpalash/VoiceStudio/issues) |
+| 🏷️ **Good First Issues** | [Filtered list](https://github.com/debpalash/VoiceStudio/labels/good%20first%20issue) |
 | 📋 **Roadmap** | [README → Roadmap](README.md#roadmap) |
 
 ---
@@ -33,7 +33,7 @@ Read it before opening a proposal; the licence check in particular ends most of 
 ### Clone & Run
 
 ```bash
-git clone https://github.com/debpalash/OmniVoice-Studio.git
+git clone https://github.com/debpalash/VoiceStudio.git
 cd OmniVoice-Studio
 bun install
 bun run dev
@@ -102,7 +102,7 @@ OmniVoice-Studio/
 
 ### Bug Reports
 
-Open an [issue](https://github.com/debpalash/OmniVoice-Studio/issues/new) with:
+Open an [issue](https://github.com/debpalash/VoiceStudio/issues/new) with:
 
 1. **What happened** vs **what you expected**
 2. **Steps to reproduce**
@@ -323,7 +323,7 @@ appreciated but not required.
 ## Need Help?
 
 - **Stuck on setup?** Ask in [Discord #help](https://discord.gg/bzQavDfVV9)
-- **Not sure where to start?** Check [good first issues](https://github.com/debpalash/OmniVoice-Studio/labels/good%20first%20issue)
-- **Want to discuss a big change?** Open a [discussion](https://github.com/debpalash/OmniVoice-Studio/discussions) or Discord thread before coding
+- **Not sure where to start?** Check [good first issues](https://github.com/debpalash/VoiceStudio/labels/good%20first%20issue)
+- **Want to discuss a big change?** Open a [discussion](https://github.com/debpalash/VoiceStudio/discussions) or Discord thread before coding
 
 Thank you for contributing! 🎙️

@@ -14,7 +14,7 @@ vi.mock('../api/external', () => ({ openExternal }));
 import ContactPage from '../pages/ContactPage';
 import { useAppStore } from '../store';
 
-const REPO = 'https://github.com/debpalash/OmniVoice-Studio';
+const REPO = 'https://github.com/debpalash/VoiceStudio';
 
 beforeEach(() => {
   openExternal.mockClear();
