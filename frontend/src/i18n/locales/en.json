@@ -1928,7 +1928,8 @@
     "report_failed": "Couldn't open the bug report. Please try again, or copy the details above into a new issue.",
     "searchIssues": "Search similar issues",
     "unexpected": "Unexpected error: {{message}}",
-    "backend_shutting_down": "OmniVoice is shutting down. Reopen the app and try again."
+    "backend_shutting_down": "OmniVoice is shutting down. Reopen the app and try again.",
+    "crash_broken_env": "It died while loading its own Python dependencies, so this is not about memory or your GPU — the environment is incomplete or was left half-updated. Use \"Clean & Retry\" in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in place, without touching your voices or projects. If it still fails afterwards, the crash details name the exact package that would not import."
   },
   "crash": {
     "notice": "The voice backend crashed ({{exit}}) {{ago}} ago and is being restarted automatically.",

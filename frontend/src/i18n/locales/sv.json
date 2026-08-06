@@ -1453,7 +1453,8 @@
     "report_failed": "Det gick inte att öppna felrapporten. Försök igen, eller kopiera detaljerna ovan till ett nytt ärende.",
     "searchIssues": "Sök liknande problem",
     "unexpected": "Oväntat fel: {{message}}",
-    "backend_shutting_down": "OmniVoice stängs av. Öppna appen igen och försök på nytt."
+    "backend_shutting_down": "OmniVoice stängs av. Öppna appen igen och försök på nytt.",
+    "crash_broken_env": "Den dog när den läste in sina egna Python-beroenden, så det handlar varken om minne eller om din GPU — miljön är ofullständig eller halvuppdaterad. Använd ”Clean & Retry” under Inställningar → Loggar → Backend, som bygger om den från grunden och reparerar den på plats utan att röra dina röster eller projekt. Misslyckas det ändå anger kraschdetaljerna exakt vilket paket som inte gick att importera."
   },
   "keyboard": {
     "title": "Kortkommandon",
