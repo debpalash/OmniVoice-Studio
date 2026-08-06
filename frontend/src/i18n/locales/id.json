@@ -4,7 +4,8 @@
     "contact_never": "Backend sama sekali belum merespons pada sesi ini — mungkin tidak pernah berhasil dijalankan.",
     "dev": "Tidak dapat menghubungi backend VoiceStudio lokal. {{contact}} Pada `bun run dev` backend berjalan dengan muat-ulang otomatis: setiap perubahan berkas — termasuk menyimpan saat ada permintaan berjalan — membuatnya dimulai ulang dan memutus koneksi. Coba ulangi tindakan dulu; jika itu muat-ulang, akan langsung berhasil. Jika terus gagal, periksa terminal `bun run dev` untuk traceback Python atau pesan keluar, dan omnivoice.log di folder data VoiceStudio Anda.",
     "server": "Tidak dapat menghubungi server backend VoiceStudio. {{contact}} Periksa log server untuk penyebabnya (mis. `docker logs <container>` atau `journalctl`) — dan perlu diketahui, jika Docker menyajikan halaman ini, halaman ini sendiri bisa ikut mati bersama backend.",
-    "misrouted": "Server yang menjawab {{url}} bukan backend VoiceStudio — ia mengembalikan halaman 404 miliknya sendiri. Permintaan API mendarat di host yang salah: periksa URL Backend di Pengaturan → Berbagi, atau, jika reverse proxy menyajikan UI ini, rutenya untuk jalur API."
+    "misrouted": "Server yang menjawab {{url}} bukan backend VoiceStudio — ia mengembalikan halaman 404 miliknya sendiri. Permintaan API mendarat di host yang salah: periksa URL Backend di Pengaturan → Berbagi, atau, jika reverse proxy menyajikan UI ini, rutenya untuk jalur API.",
+    "desktop": "Tidak dapat menjangkau backend VoiceStudio lokal. {{contact}} Buka pemberitahuan crash jika muncul, atau Pengaturan → Log → Backend untuk hal terakhir yang dicatatnya — \"{{retry}}\" memulainya ulang, dan \"{{cleanRetry}}\" membangun ulang lingkungannya jika tidak kunjung kembali."
   },
   "nav": {
     "clone": "Kloning",

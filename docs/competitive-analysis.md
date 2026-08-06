@@ -200,7 +200,7 @@ feature. New Action 12.
 ### Watch items (not competitors)
 
 - **[TTS-WebUI](https://github.com/rsxdalv/TTS-WebUI)** (MIT, 3.2k★, active) — a
-  40+-model local audio hub whose repo description **already advertises an VoiceStudio
+  40+-model local audio hub whose repo description **already advertises a VoiceStudio
   extension**. Verify what that extension wraps and that AGPL terms are respected.
   Its per-extension `uv` venv isolation parallels our sidecar approach.
 - **[F5-TTS](https://github.com/SWivid/F5-TTS)** (14.7k★) — engine candidate, not an

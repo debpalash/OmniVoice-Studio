@@ -4,7 +4,8 @@
     "contact_never": "本次工作階段中它從未回應——可能根本沒有啟動。",
     "dev": "無法連線本機 VoiceStudio 後端。{{contact}} 在 `bun run dev` 下後端以自動重新載入方式執行，任何檔案變動（包括請求進行中的儲存）都會重啟它並中斷連線。請先重試該操作；若是重新載入造成的，重試即可成功。若仍然失敗，請查看執行 `bun run dev` 的終端機是否有 Python 追蹤訊息或結束訊息，以及 VoiceStudio 資料夾中的 omnivoice.log。",
     "server": "無法連線 VoiceStudio 後端伺服器。{{contact}} 請查看伺服器日誌以找出原因（例如 `docker logs <容器>` 或 `journalctl`）——另請注意：如果此頁面由 Docker 提供，頁面本身也可能隨後端一起停止運作。",
-    "misrouted": "回應 {{url}} 的伺服器並非 VoiceStudio 後端——它回傳了自己的 404 頁面。API 請求送到了錯誤的主機：請在 設定 → 網路共享 中檢查後端 URL；若此介面由反向代理提供，請檢查它對 API 路徑的路由設定。"
+    "misrouted": "回應 {{url}} 的伺服器並非 VoiceStudio 後端——它回傳了自己的 404 頁面。API 請求送到了錯誤的主機：請在 設定 → 網路共享 中檢查後端 URL；若此介面由反向代理提供，請檢查它對 API 路徑的路由設定。",
+    "desktop": "無法連線到本機 VoiceStudio 後端。{{contact}} 若出現當機通知請開啟它，或在 設定 → 記錄 → 後端 中查看它最後記錄的內容——「{{retry}}」會重新啟動它，若仍無法恢復，「{{cleanRetry}}」會重建它的執行環境。"
   },
   "nav": {
     "clone": "複製聲音",

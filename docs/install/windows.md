@@ -85,7 +85,7 @@ The wizard's **directory picker** lets you install the app to any **local**
 drive (D:, E:, …). Two caveats:
 
 - **Mapped network drives (Z: → a share) are not supported** — this is a
-  Windows Installer limitation, not an VoiceStudio bug: MSI custom actions run
+  Windows Installer limitation, not a VoiceStudio bug: MSI custom actions run
   as a service account that doesn't see per-user drive mappings, so the
   install fails or rolls back. Install to a local drive instead.
 - The install location only moves the ~200 MB app itself. The big data

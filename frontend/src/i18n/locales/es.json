@@ -4,7 +4,8 @@
     "contact_never": "No ha respondido en toda esta sesión — puede que nunca haya llegado a iniciarse.",
     "dev": "No se puede contactar con el backend local de VoiceStudio. {{contact}} Con `bun run dev` el backend se ejecuta con recarga automática: cualquier cambio de archivo — incluido guardar mientras había una petición en curso — lo reinicia y corta la conexión. Reintente la acción primero; si fue una recarga, funcionará. Si sigue fallando, revise la terminal con `bun run dev` por un traceback de Python o un mensaje de salida, y omnivoice.log en su carpeta de datos de VoiceStudio.",
     "server": "No se puede conectar con el servidor backend de VoiceStudio. {{contact}} Revisa los registros del servidor para encontrar la causa (p. ej. `docker logs <contenedor>` o `journalctl`) — y ten en cuenta que si Docker sirve esta página, la propia página puede caerse junto con el backend.",
-    "misrouted": "El servidor que responde en {{url}} no es un backend de VoiceStudio: devolvió su propia página 404. Las solicitudes de la API están llegando al host equivocado: revisa la URL del backend en Configuración → Compartir o, si un proxy inverso sirve esta interfaz, su ruta para las rutas de la API."
+    "misrouted": "El servidor que responde en {{url}} no es un backend de VoiceStudio: devolvió su propia página 404. Las solicitudes de la API están llegando al host equivocado: revisa la URL del backend en Configuración → Compartir o, si un proxy inverso sirve esta interfaz, su ruta para las rutas de la API.",
+    "desktop": "No se puede conectar con el backend local de VoiceStudio. {{contact}} Abre el aviso de fallo si apareció, o Configuración → Registros → Backend para ver lo último que registró: «{{retry}}» lo reinicia y «{{cleanRetry}}» reconstruye su entorno si no vuelve."
   },
   "nav": {
     "clone": "Clonar",

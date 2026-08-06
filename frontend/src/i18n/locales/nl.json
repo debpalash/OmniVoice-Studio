@@ -4,7 +4,8 @@
     "contact_never": "Het heeft deze sessie helemaal niet gereageerd — mogelijk is het nooit gestart.",
     "dev": "Kan de lokale VoiceStudio-backend niet bereiken. {{contact}} Bij `bun run dev` draait de backend met automatisch herladen: elke bestandswijziging — ook opslaan terwijl er een verzoek liep — herstart hem en verbreekt de verbinding. Probeer de actie eerst opnieuw; als het een herlaad was, werkt het gewoon. Blijft het mislukken, kijk dan in de terminal met `bun run dev` naar een Python-traceback of een exit-melding, en in omnivoice.log in uw VoiceStudio-gegevensmap.",
     "server": "Kan de VoiceStudio-backendserver niet bereiken. {{contact}} Controleer de serverlogs voor de oorzaak (bijv. `docker logs <container>` of `journalctl`) — en let op: als Docker deze pagina serveert, kan de pagina zelf samen met de backend uitvallen.",
-    "misrouted": "De server die {{url}} beantwoordt is geen VoiceStudio-backend — hij gaf zijn eigen 404-pagina terug. API-verzoeken komen bij de verkeerde host terecht: controleer de Backend-URL in Instellingen → Delen of, als een reverse proxy deze interface serveert, de route voor API-paden."
+    "misrouted": "De server die {{url}} beantwoordt is geen VoiceStudio-backend — hij gaf zijn eigen 404-pagina terug. API-verzoeken komen bij de verkeerde host terecht: controleer de Backend-URL in Instellingen → Delen of, als een reverse proxy deze interface serveert, de route voor API-paden.",
+    "desktop": "Kan de lokale VoiceStudio-backend niet bereiken. {{contact}} Open de crashmelding als die verscheen, of Instellingen → Logs → Backend voor het laatste dat hij logde — \"{{retry}}\" start hem opnieuw en \"{{cleanRetry}}\" bouwt zijn omgeving opnieuw op als hij niet terugkomt."
   },
   "nav": {
     "clone": "Klonen",

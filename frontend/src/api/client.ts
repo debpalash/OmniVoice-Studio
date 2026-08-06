@@ -395,22 +395,20 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
           { status: 0, detail: { ...failureDetail, startFailure: diagnosis } },
         );
       }
-      // #1164: outside the desktop shell there is no supervisor and no
-      // "restart the app" — the old desktop-shaped copy sent dev/Docker
-      // users chasing advice that doesn't exist in their deployment. Say
-      // where THEIR forensics live, and whether the backend ever answered
-      // this session (crashed mid-session vs never started).
-      if (mode !== 'desktop') {
-        throw new ApiError(unreachableBackendMessage(mode), {
-          status: 0,
-          detail: failureDetail,
-        });
-      }
-      throw new ApiError(
-        "Can't reach the local VoiceStudio backend — it may still be starting up, or it stopped. " +
-          'Wait a few seconds and try again; if it persists, restart the app (or check Settings → Logs → Backend).',
-        { status: 0, detail: failureDetail },
-      );
+      // #1164: every deployment gets forensics that exist in ITS world — the
+      // old desktop-shaped copy sent dev/Docker users chasing a "restart the
+      // app" they don't have.
+      //
+      // #1337: and desktop now gets the same honesty it was giving everyone
+      // else. Its copy used to say "it may still be starting up, or it
+      // stopped" regardless of what we knew — while #1337 and #1378 both
+      // recorded the backend answering 2 SECONDS before the failure. A
+      // backend that answered 2s ago is not starting up, and telling those
+      // users to wait and retry sent them away from the crash forensics.
+      throw new ApiError(unreachableBackendMessage(mode), {
+        status: 0,
+        detail: failureDetail,
+      });
     }
     if (!res.ok) {
       // An HTTP error means the backend *did* respond — never retry it.
