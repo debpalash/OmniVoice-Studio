@@ -125,18 +125,19 @@ describe('apiFetch 404 from a non-OmniVoice server (#1385)', () => {
     globalThis.fetch = realFetch;
   });
 
-  const stub404 = (body: string) =>
+  const stub404 = (body: string, headers: Record<string, string> = {}) =>
     vi.fn(() =>
       Promise.resolve({
         ok: false,
         status: 404,
         statusText: 'Not Found',
+        headers: { get: (k: string) => headers[k.toLowerCase()] ?? null },
         text: async () => body,
       }),
     ) as any;
 
-  const thrownBy = async (body: string) => {
-    globalThis.fetch = stub404(body);
+  const thrownBy = async (body: string, headers?: Record<string, string>) => {
+    globalThis.fetch = stub404(body, headers);
     const { apiFetch } = await import('./client');
     try {
       await apiFetch('/generate');
@@ -166,6 +167,23 @@ describe('apiFetch 404 from a non-OmniVoice server (#1385)', () => {
     // non-JSON 404 the backend itself produces. Not a routing problem.
     const err = await thrownBy('Not Found');
     expect(err.message).not.toMatch(/not an OmniVoice backend/);
+  });
+
+  it("believes the backend's marker header over any body shape", async () => {
+    // The header is what makes this authoritative rather than a guess: a
+    // backend 404 whose body looks like nothing we recognise is still a
+    // backend 404.
+    const err = await thrownBy('<html>weird proxy rewrite</html>', {
+      'x-omnivoice-backend': '0.4.3',
+    });
+    expect(err.message).not.toMatch(/not an OmniVoice backend/);
+  });
+
+  it('is not fooled by a proxy that imitates a JSON error body', async () => {
+    // CodeRabbit: an unmarked `{"error": …}` 404 is a foreign server — the
+    // backend never answers 404 with an `error` key, only `detail`.
+    const err = await thrownBy(JSON.stringify({ error: 'Not Found' }));
+    expect(err.message).toMatch(/not an OmniVoice backend/);
   });
 });
 
