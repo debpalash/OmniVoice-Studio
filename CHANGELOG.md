@@ -29,6 +29,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- A long render on modest hardware is no longer abandoned as "too heavy for the available compute" while it is visibly working. A generate that keeps finishing chunks now extends its own deadline (bounded), the way a model download already could; one that stops producing anything still fails on time. (#1338, #1348, #1391)
 - Building the GGUF engine from source produced a binary that died on its very first spawn ("libggml.so.0: cannot open shared object file") — the build script deleted the shared libraries it had just linked against. It now ships them next to the binary on every platform, and the backend puts that folder on the loader path — thanks @vanderlpp! (#1348)
 - The GGUF engine's hard 120-second per-render kill switch — which was reaping legitimate CPU-only renders mid-synthesis — is now 600s, tunable via `OMNIVOICE_GGUF_GENERATE_TIMEOUT_S`, and the timeout error names that setting — thanks @vanderlpp! (#1348)
 - Every subprocess TTS engine would have turned a stereo render into noise: the mono downmix always averaged axis 0, which is time rather than channels for channels-last audio. Unreachable today since every engine returns mono, fixed in all five before it isn't. (#1328)
