@@ -1049,6 +1049,52 @@ class NetworkAccessMiddleware:
         return await self.app(scope, receive, send)
 
 
+#: Header stamped on EVERY response so a client can tell this backend apart
+#: from whatever else might answer at the same URL (#1385). A rehosted UI
+#: whose API requests land on a static host or a proxy with no API route gets
+#: that host's 404 page; the frontend needs an authoritative "this really is
+#: an OmniVoice backend" signal rather than guessing from the body shape,
+#: since a proxy can return JSON too. Value is the version, which is also
+#: useful when a desktop app talks to an older remote backend.
+BACKEND_MARKER_HEADER = "x-omnivoice-backend"
+
+
+class BackendMarkerMiddleware:
+    """Stamp ``x-omnivoice-backend: <version>`` on every response.
+
+    Pure ASGI, same reasoning as the gates below it: wrapping only the
+    ``http.response.start`` message keeps streaming bodies streaming.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def send_with_marker(message):
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message).setdefault(
+                    BACKEND_MARKER_HEADER, _backend_marker_value()
+                )
+            await send(message)
+
+        return await self.app(scope, receive, send_with_marker)
+
+
+def _backend_marker_value() -> str:
+    # ImportError only: the marker's JOB is to be present, so a frozen build
+    # that cannot import the version module still answers "yes, a backend".
+    # Anything else is a real defect and should surface, not be masked.
+    try:
+        from core.version import APP_VERSION
+
+        return str(APP_VERSION)
+    except ImportError:
+        return "unknown"
+
+
 class BearerKeyMiddleware:
     """When OMNIVOICE_API_KEY is set, non-loopback clients must present it on
     every HTTP + WebSocket request: ``Authorization: Bearer <key>``,
@@ -1135,7 +1181,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    # The marker must be readable cross-origin too — a browser UI served from
+    # another origin is exactly the deployment that needs to tell "the backend
+    # answered 404" from "something else answered 404" (#1385).
+    expose_headers=["Content-Disposition", BACKEND_MARKER_HEADER],
 )
 
 # Registered AFTER CORS so CORS remains the outermost layer (CORS headers are
@@ -1150,6 +1199,12 @@ app.add_middleware(NetworkAccessMiddleware)
 # carried its own loopback guard; remote mode is exactly the case where a
 # keyed non-loopback client must reach them.
 app.add_middleware(BearerKeyMiddleware)
+
+# Registered LAST, which in Starlette means OUTERMOST — so the marker lands on
+# every response, including the two gates' 401s above and StaticFiles' bare
+# "Not Found". Its absence is what lets a client conclude "whatever answered
+# me is not an OmniVoice backend" (#1385).
+app.add_middleware(BackendMarkerMiddleware)
 
 # Register canonical audio MIME types before any StaticFiles mount.
 # Python's `mimetypes.guess_type()` returns `audio/x-wav` for `.wav` and

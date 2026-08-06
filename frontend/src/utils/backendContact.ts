@@ -86,6 +86,10 @@ const EN = {
     'thing the backend logged.',
   server:
     "Can't reach the OmniVoice backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",
+  misrouted:
+    'The server answering {{url}} is not an OmniVoice backend — it returned its own 404 page. ' +
+    'API requests are landing on the wrong host: check the Backend URL in Settings → Sharing, ' +
+    'or, if a reverse proxy serves this UI, its route for API paths.',
 } as const;
 
 function tr(key: string, vars: Record<string, string>, fallback: string): string {
@@ -124,4 +128,15 @@ export function unreachableBackendMessage(
   const contact = describeLastContact(nowMs);
   if (m === 'dev') return tr('backendUnreachable.dev', { contact }, EN.dev);
   return tr('backendUnreachable.server', { contact }, EN.server);
+}
+
+/**
+ * A 404 answered by something that is not this backend (#1385): a rehosted UI
+ * whose API requests land on its own static host, or a reverse proxy with no
+ * route for API paths. Echoing that server's 404 page ("NOT_FOUND bom1::…")
+ * sends the user chasing a page that never existed — name the routing problem
+ * instead, and where to fix it.
+ */
+export function misroutedBackendMessage(url: string): string {
+  return tr('backendUnreachable.misrouted', { url }, EN.misrouted);
 }
