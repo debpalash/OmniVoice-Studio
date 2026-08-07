@@ -86,10 +86,10 @@ dependencies = [
     "parakeet-mlx>=0.5.2 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "demucs>=4.0.1",
     "yt-dlp>=2024.12.13",
-    # >=1.15: alembic.ini relies on path_separator=os, which older alembic
-    # silently ignores and then colon-splits C:\ paths / space-splits POSIX
-    # paths containing spaces.
-    "alembic>=1.15",
+    # >=1.16: alembic.ini relies on path_separator=os (new in 1.16.0), which
+    # older alembic silently ignores and then colon-splits C:\ paths /
+    # space-splits POSIX paths containing spaces.
+    "alembic>=1.16",
     # Lightweight English TTS "Turbo" tier — 25-80 MB ONNX model, 8 preset
     # voices (Bella, Jasper, Luna, Bruno, Rosie, Hugo, Kiki, Leo), CPU
     # realtime on any platform. Complements OmniVoice's 2.4 GB multilingual
