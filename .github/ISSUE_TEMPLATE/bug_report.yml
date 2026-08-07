@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve OmniVoice Studio! 🎙️
+        Thanks for helping improve VoiceStudio! 🎙️
 
         **Fastest path to a fix:** **Settings → About → "Save diagnostic bundle"** makes a
         zip (self-check + recent errors + scrubbed log tails) — drag it onto this issue and

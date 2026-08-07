@@ -1,5 +1,5 @@
 #!/bin/sh
-# OmniVoice Studio — .deb pre-install hook.
+# VoiceStudio — .deb pre-install hook.
 #
 # Ensure the target directory exists before dpkg writes the bundled ffprobe to
 # /usr/lib/omnivoice-studio/bin/. dpkg creates parent dirs for files in the

@@ -170,3 +170,32 @@ def test_shellcheck_clean_if_available():
         ["shellcheck", "-S", "error", SH], capture_output=True, text=True
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_shipped_powershell_scripts_with_non_ascii_carry_a_utf8_bom():
+    """A BOM-less UTF-8 .ps1 is decoded with the ANSI code page by Windows
+    PowerShell 5.1 — still the default shell on Windows 10/11.
+
+    `uninstall.ps1` prints em-dashes in `Write-Host` output ("Model cache
+    (Hugging Face weights — SHARED …)"), so without a BOM the user running the
+    uninstaller sees mojibake in the very messages that explain what is about
+    to be deleted. Pinned rather than left to review: the BOM is invisible in a
+    diff, so an editor that "helpfully" strips it would go unnoticed until a
+    Windows user reported garbled output (CodeRabbit, #1399).
+
+    Scoped to `scripts/` — the vendored trees under `research/` are not ours.
+    """
+    scripts_dir = os.path.join(REPO, "scripts")
+    offenders = []
+    for name in sorted(os.listdir(scripts_dir)):
+        if not name.endswith(".ps1"):
+            continue
+        raw = open(os.path.join(scripts_dir, name), "rb").read()
+        if raw.startswith(b"\xef\xbb\xbf"):
+            continue
+        if any(ord(ch) > 127 for ch in raw.decode("utf-8")):
+            offenders.append(name)
+    assert not offenders, (
+        f"these shipped PowerShell scripts contain non-ASCII text but have no "
+        f"UTF-8 BOM, so Windows PowerShell 5.1 will mis-decode them: {offenders}"
+    )

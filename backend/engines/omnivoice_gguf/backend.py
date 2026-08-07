@@ -172,7 +172,7 @@ def _binary_repair_hint() -> str:
     return (
         f"the bundled GGUF runtime is not usable on this machine — build it "
         f"with `scripts/build-omnivoice-tts.sh --platform {_platform_slug()}`, "
-        f"reinstall OmniVoice Studio, or switch to the default in-process "
+        f"reinstall VoiceStudio, or switch to the default in-process "
         f"OmniVoice engine (Settings → Engines)"
     )
 
@@ -405,7 +405,7 @@ def _make_backend_class():
                         f"zero-byte placeholders until a real binary is "
                         f"built — run `scripts/build-omnivoice-tts.sh "
                         f"--platform {_platform_slug()}`, reinstall "
-                        f"OmniVoice Studio, or use the default in-process "
+                        f"VoiceStudio, or use the default in-process "
                         f"OmniVoice engine (Settings → Engines)."
                     )
                 # Manifest-based SHA-256 verification (T-04-01).
@@ -425,7 +425,7 @@ def _make_backend_class():
                     return False, (
                         f"GGUF binary {bin_path.name} is quarantined by "
                         f"macOS Gatekeeper. Run:\n\n"
-                        f"    xattr -cr '/Applications/OmniVoice Studio.app'\n\n"
+                        f"    xattr -cr '/Applications/VoiceStudio.app'\n\n"
                         f"This clears the quarantine on the .app and its "
                         f"bundled binaries. See docs/install/macos.md."
                     )

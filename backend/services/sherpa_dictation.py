@@ -33,6 +33,31 @@ logger = logging.getLogger("omnivoice.asr.sherpa")
 _PROVIDER = os.environ.get("OMNIVOICE_SHERPA_ASR_PROVIDER", "cpu")
 _NUM_THREADS = int(os.environ.get("OMNIVOICE_SHERPA_ASR_THREADS", "2"))
 
+# The 0.6B models need more than the 2-thread default to hold a comfortable
+# real-time factor. At 2 threads Parakeet measures RTF ~0.33 on older x64 —
+# it keeps up, but with almost no headroom, so a background compile or a
+# browser tab pushes decode behind the speaker and the pill visibly lags.
+# The small zipformers do not need it and are the fallback for exactly the
+# machines where spending cores is a bad trade, so this is per-model rather
+# than a global bump.
+#
+# Capped at the host's core count (and never below the base default) so a
+# 2-core laptop is not told to run 4 ASR threads, which costs more in
+# contention than it buys. This is a PERFORMANCE knob, not behaviour: every
+# platform runs the same models with the same results, so tuning it against
+# the host is inside the parity rule, not an exception to it.
+_LARGE_MODEL_THREADS = 4
+
+
+def _threads_for(spec: "SherpaModelSpec") -> int:
+    """Thread count for this model, honouring the env override verbatim."""
+    if "OMNIVOICE_SHERPA_ASR_THREADS" in os.environ:
+        return _NUM_THREADS
+    if not getattr(spec, "heavy", False):
+        return _NUM_THREADS
+    cores = os.cpu_count() or 1
+    return max(_NUM_THREADS, min(_LARGE_MODEL_THREADS, cores))
+
 
 def _endpoint_rules() -> tuple[float, float]:
     """Trailing-silence endpoint rules (seconds) for streaming recognizers.
@@ -65,10 +90,11 @@ class SherpaModelSpec:
     label: str
     tag: str            # "offline" | "streaming"
     kind: str           # recognizer factory selector
-    size_gb: float
+    size_gb: float     # on-disk download size, measured — see _MODELS header
     languages: str
     files: dict[str, str]
     recommended: bool = False
+    heavy: bool = False             # 0.6B-class: more decode threads (_threads_for)
     model_type: str = ""           # offline transducer only (nemo_transducer)
     extra: dict = field(default_factory=dict)
 
@@ -79,6 +105,21 @@ class SherpaModelSpec:
 
 # ── The 7 models (HF repo ids under csukuangfj/, filenames VERIFIED against the
 #    live HF /api/models/<repo>/tree/main on 2026-06-25; int8 variants pinned).
+#
+#    `size_gb` is the sum of the pinned `files` for each repo, MEASURED from
+#    the same HF tree API on 2026-08-07 — not estimated. Every one of the seven
+#    was wrong before, and in both directions, which is worse than uniformly
+#    optimistic: the two Parakeets under-reported by ~3.8x (0.18 -> 0.67 GB),
+#    so the recommended default quietly downloaded four times what the picker
+#    promised on a metered or small-disk machine; but the two low-RAM
+#    zipformers OVER-reported by ~3x (0.128 -> 0.044), making the fallback
+#    models look bulkier than the heavyweights they exist to rescue users
+#    from. tests/test_sherpa_model_sizes.py pins these against the manifest.
+#
+#    Note this is DISK. Peak RSS is substantially higher for the 0.6B models
+#    because onnxruntime's arena allocator does not return freed blocks
+#    (sherpa-onnx#2626); the picker labels the figure as download size rather
+#    than implying it is the memory cost.
 _MODELS: dict[str, SherpaModelSpec] = {
     "sherpa-parakeet-tdt-v3": SherpaModelSpec(
         id="sherpa-parakeet-tdt-v3",
@@ -86,9 +127,10 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Parakeet TDT v3",
         tag="offline",
         kind="offline-transducer",
-        size_gb=0.18,
+        size_gb=0.67,
         languages="25 European languages",
         recommended=True,
+        heavy=True,
         model_type="nemo_transducer",
         files={
             "encoder": "encoder.int8.onnx",
@@ -103,8 +145,9 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Parakeet TDT v2",
         tag="offline",
         kind="offline-transducer",
-        size_gb=0.17,
+        size_gb=0.66,
         languages="English",
+        heavy=True,
         model_type="nemo_transducer",
         files={
             "encoder": "encoder.int8.onnx",
@@ -119,7 +162,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Zipformer Bilingual",
         tag="streaming",
         kind="online-transducer",
-        size_gb=0.13,
+        size_gb=0.2,
         languages="Chinese + English",
         files={
             "encoder": "encoder-epoch-99-avg-1.int8.onnx",
@@ -134,7 +177,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Paraformer Bilingual",
         tag="streaming",
         kind="online-paraformer",
-        size_gb=0.115,
+        size_gb=0.24,
         languages="Chinese + English",
         files={
             "encoder": "encoder.int8.onnx",
@@ -148,7 +191,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Zipformer Streaming EN",
         tag="streaming",
         kind="online-transducer",
-        size_gb=0.128,
+        size_gb=0.044,
         languages="English",
         files={
             "encoder": "encoder-epoch-99-avg-1.int8.onnx",
@@ -163,7 +206,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Zipformer Streaming ZH",
         tag="streaming",
         kind="online-transducer",
-        size_gb=0.074,
+        size_gb=0.025,
         languages="Chinese",
         files={
             "encoder": "encoder-epoch-99-avg-1.int8.onnx",
@@ -178,7 +221,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         label="Whisper Tiny",
         tag="offline",
         kind="offline-whisper",
-        size_gb=0.116,
+        size_gb=0.104,
         languages="90+ languages (auto-detect)",
         files={
             "encoder": "tiny-encoder.int8.onnx",
@@ -271,7 +314,7 @@ def build_offline_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             decoder=p("decoder"),
             joiner=p("joiner"),
             tokens=p("tokens"),
-            num_threads=_NUM_THREADS,
+            num_threads=_threads_for(spec),
             provider=_PROVIDER,
             decoding_method="greedy_search",
             model_type=spec.model_type or "nemo_transducer",
@@ -281,7 +324,7 @@ def build_offline_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             encoder=p("encoder"),
             decoder=p("decoder"),
             tokens=p("tokens"),
-            num_threads=_NUM_THREADS,
+            num_threads=_threads_for(spec),
             provider=_PROVIDER,
             language="",          # auto-detect
             task="transcribe",
@@ -310,7 +353,7 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             encoder=p("encoder"),
             decoder=p("decoder"),
             joiner=p("joiner"),
-            num_threads=_NUM_THREADS,
+            num_threads=_threads_for(spec),
             provider=_PROVIDER,
             decoding_method="greedy_search",
             enable_endpoint_detection=True,
@@ -323,7 +366,7 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
             tokens=p("tokens"),
             encoder=p("encoder"),
             decoder=p("decoder"),
-            num_threads=_NUM_THREADS,
+            num_threads=_threads_for(spec),
             provider=_PROVIDER,
             decoding_method="greedy_search",
             enable_endpoint_detection=True,

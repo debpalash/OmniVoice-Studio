@@ -32,3 +32,17 @@ Binding for every AI agent (Claude, Codex, Cursor, review bots, …). CLAUDE.md 
 - Versioning: `frontend/package.json` is the single source of truth; never bump without the owner asking.
 - `frontend/package.json` dep changes require regenerating root `bun.lock` (Docker runs `--frozen-lockfile`).
 - Issues: absorb or decline — never defer to a future version. Check the open-PR queue before implementing community-reported fixes.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `debpalash/VoiceStudio`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

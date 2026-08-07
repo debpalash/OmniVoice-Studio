@@ -120,6 +120,43 @@ def test_no_windows_path_fixture_points_at_the_brand():
             assert bad not in rust, f"{rel} fixture points at a brand-named dir. {WHY}"
 
 
+@pytest.mark.parametrize(
+    "rel,var",
+    [
+        ("scripts/smoke-test.sh", "OV_DATA"),
+        ("scripts/desktop-prod.sh", "BACKEND_DATA"),
+    ],
+)
+def test_no_dev_script_resolves_a_brand_named_data_dir(rel, var):
+    """The shell scripts resolve the backend's data dir per platform.
+
+    They were missed by the first pass of this guard and the rename sweep
+    duly repointed the Windows and Linux branches at ``VoiceStudio`` — so
+    ``smoke-test.sh`` verified a directory the backend never writes (a smoke
+    test that passes while nothing was produced) and ``desktop-prod.sh``'s
+    wipe silently stopped clearing backend state on Windows. Both are
+    invisible on macOS, which is where they are usually run.
+
+    Assert on the assignment specifically: these files legitimately mention
+    the brand elsewhere (banners, comments), so a file-wide substring check
+    is exactly the too-weak assertion that let this through before.
+    """
+    src = _read(rel)
+    assignments = re.findall(rf"(?m)^\s*{var}=.*$", src)
+    assert assignments, f"no {var} assignment found in {rel}"
+    for line in assignments:
+        assert "VoiceStudio" not in line, (
+            f"{rel} resolves the backend data dir from the brand name: "
+            f"{line.strip()}. {WHY}"
+        )
+    joined = "\n".join(assignments)
+    for expected in ("Application Support/OmniVoice", "OmniVoice", ".omnivoice"):
+        assert expected in joined, (
+            f"{rel} lost the {expected!r} branch — it no longer agrees with "
+            f"backend/core/config.py. {WHY}"
+        )
+
+
 def test_the_uninstall_allowlist_still_recognises_our_paths():
     # is_recognizably_ours() refuses to delete anything it does not recognise.
     # If the paths were renamed but this list was not, uninstall and reset stop

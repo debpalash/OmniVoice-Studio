@@ -1,5 +1,5 @@
 #!/bin/sh
-# OmniVoice Studio — .deb post-remove hook.
+# VoiceStudio — .deb post-remove hook.
 #
 # Cleans up the relocated ffprobe directory tree on purge/remove. We only
 # remove our own files — never the parent /usr/lib if other packages share it.

@@ -1,4 +1,4 @@
-"""probe — a spec-driven test harness for OmniVoice Studio (and reusable beyond it).
+"""probe — a spec-driven test harness for VoiceStudio (and reusable beyond it).
 
 Design spine: **separate the Actor from the Judge.**
 

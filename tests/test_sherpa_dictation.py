@@ -205,7 +205,12 @@ def test_recognizer_kind_constructs_and_transcribes(
     cls = fake_sherpa.OnlineRecognizer if is_online else fake_sherpa.OfflineRecognizer
     assert cls.factory == factory
     assert cls.last_kwargs["provider"] == "cpu"
-    assert cls.last_kwargs["num_threads"] == 2
+    # The thread count is per-model now (the 0.6B Parakeets get more than the
+    # 2-thread base default, capped at the host's cores). What this test owns
+    # is that the recognizer is built with whatever the policy resolved — the
+    # policy's own rules are pinned in tests/test_sherpa_model_sizes.py.
+    assert cls.last_kwargs["num_threads"] == sd._threads_for(spec)
+    assert cls.last_kwargs["num_threads"] >= 2
     if kind == "offline-transducer":
         assert cls.last_kwargs["model_type"] == "nemo_transducer"
     if kind == "offline-whisper":

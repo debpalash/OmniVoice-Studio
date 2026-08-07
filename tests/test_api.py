@@ -1,5 +1,5 @@
 """
-OmniVoice Studio API — Unit Test Suite
+VoiceStudio API — Unit Test Suite
 Tests all roadmap features: TaskManager, scene detection, lip-sync scoring,
 export endpoints (VTT, SRT, MP3, segments ZIP, stems ZIP), streaming TTS.
 

@@ -58,6 +58,16 @@ async function detectIsWidget() {
 export async function bootstrapApp() {
   const isWidget = await detectIsWidget();
 
+  // The widget window is `transparent: true` (tauri.conf.json), but it loads
+  // the SAME index.html as the main window — so `body { background-color:
+  // var(--chrome-bg) }` painted an opaque rectangle across all 300x64 of it,
+  // defeating the transparency and showing a hard-edged dark square wherever
+  // the pill happened to sit. Mark the document so index.css can scope the
+  // chrome background away for this window only. Set before the first render;
+  // the window is created hidden and only shown on a dictation trigger, so
+  // there is no window in which an unstyled frame can be seen.
+  if (isWidget) document.documentElement.dataset.window = 'widget';
+
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       {/* Root error boundary — the missing layer between App's own render and

@@ -85,6 +85,19 @@ const WAVE_BARS = 12;
 // failed session can't leave the widget parked on screen indefinitely.
 const ERROR_AUTO_DISMISS_MS = 8000;
 
+// How long the widget window may stay visible while the pill is idle before we
+// treat it as stranded and hide it. Long enough that the normal show → emit →
+// startRecording() handshake (a few frames) is never interrupted, short enough
+// that a user who sees an empty capsule does not have to live with it.
+const IDLE_VISIBLE_GRACE_MS = 1200;
+
+// How often we re-check that invariant while idle. The window is shown by the
+// Rust side, so there is no React state change to key off when a press is
+// dropped — only polling catches a window that became visible while we were
+// already idle. One `isVisible()` IPC per tick, skipped entirely whenever the
+// document reports itself hidden (the overwhelmingly common case).
+const IDLE_VISIBLE_POLL_MS = 600;
+
 // A dictation model id is a sherpa-onnx live model when it carries the
 // `sherpa-` prefix the backend assigns (see services/sherpa_dictation.py). Only
 // then do we open the low-latency raw-PCM streaming path; anything else (or no
@@ -299,6 +312,25 @@ export default function CaptureWidget({ onDismiss }) {
   useEffect(() => {
     enabledRef.current = dictationEnabled;
   }, [dictationEnabled]);
+  // `state` follows the same rule, and for a sharper reason than the prefs do.
+  // The tray listener used to depend on [state], so every single state change
+  // tore the Tauri listener down and re-attached it through an `await import()`
+  // + `await listen()` — a gap with NOTHING listening. A shortcut press that
+  // landed in that gap was lost, and because the Rust side shows the widget
+  // window BEFORE it emits `tray-dictate` (lib.rs), a lost press left the
+  // window visible with the pill stuck in `idle` — which renders null, so all
+  // the user saw was an empty square that Esc could not clear (the widget
+  // deliberately never takes focus on macOS/Windows, #287/#982). Reading state
+  // through a ref lets the listener attach exactly once, for the lifetime of
+  // the component, so there is no gap to lose a press in.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  // Same reason: the trigger callbacks are defined further down and change
+  // identity, but the listener must not re-subscribe to follow them.
+  const startRecordingRef = useRef(null);
+  const stopRecordingRef = useRef(null);
 
   // Sherpa live-streaming session refs. `sherpaModeRef` flips on at start when a
   // sherpa model is selected; `committedRef` accumulates per-utterance finals so
@@ -406,35 +438,48 @@ export default function CaptureWidget({ onDismiss }) {
   useEffect(() => {
     if (!inTauri()) return; // browser webui — the keyboard fallback below runs
     let unlistenStart, unlistenStop;
+    let cancelled = false;
     (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
         unlistenStart = await listen('tray-dictate', () => {
-          if (!enabledRef.current) return;
-          if (state === 'setup') {
+          if (!enabledRef.current) {
+            // The hotkey is inert, but Rust has already shown the window.
+            // Put it back rather than leaving an empty capsule on screen.
+            hideWidgetWindow();
+            return;
+          }
+          const s = stateRef.current;
+          if (s === 'setup') {
             // Re-probe on each press — the user may have just granted access
             // in System Settings; if so, flow straight into recording.
             checkAccessibility().then((ok) => {
-              if (ok) startRecording();
+              if (ok) startRecordingRef.current?.();
             });
             return;
           }
-          const idle = state === 'idle' || state === 'done' || state === 'error';
+          const idle = s === 'idle' || s === 'done' || s === 'error';
           if (modeRef.current === 'toggle') {
             // Press once to start, again to stop.
-            if (idle) startRecording();
-            else if (state === 'recording') stopRecording();
+            if (idle) startRecordingRef.current?.();
+            else if (s === 'recording') stopRecordingRef.current?.();
           } else if (idle) {
             // Hold mode: keydown → start.
-            startRecording();
+            startRecordingRef.current?.();
           }
         });
         unlistenStop = await listen('tray-dictate-stop', () => {
           // Only hold mode acts on release; toggle ignores it.
-          if (modeRef.current === 'hold' && state === 'recording') {
-            stopRecording();
+          if (modeRef.current === 'hold' && stateRef.current === 'recording') {
+            stopRecordingRef.current?.();
           }
         });
+        // Unmounted while the dynamic import was in flight — drop the
+        // subscriptions we just created rather than leaking them.
+        if (cancelled) {
+          unlistenStart?.();
+          unlistenStop?.();
+        }
       } catch (err) {
         // Hotkey wiring failed inside Tauri — dictation still works via the
         // in-page shortcut, but say so in the console for bug reports.
@@ -442,10 +487,14 @@ export default function CaptureWidget({ onDismiss }) {
       }
     })();
     return () => {
+      cancelled = true;
       if (unlistenStart) unlistenStart();
       if (unlistenStop) unlistenStop();
     };
-  }, [state]);
+    // Attach ONCE — see stateRef above. Adding a dependency here reintroduces
+    // the dropped-press window that stranded the widget.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keyboard fallback (web UI / Docker — no global tray hotkey). Mirrors the
   // tray semantics so the DEFAULT dictation behaviour is identical with or
@@ -1179,6 +1228,90 @@ export default function CaptureWidget({ onDismiss }) {
       setTranscript('');
     }
   }, [captureMode, applyResult, t]);
+
+  // Keep the trigger refs pointing at the current callbacks. No dep array: it
+  // must run after every render so the once-attached tray listener above never
+  // calls into a stale closure.
+  useEffect(() => {
+    startRecordingRef.current = startRecording;
+    stopRecordingRef.current = stopRecording;
+  });
+
+  // Safety net: the widget window must never sit on screen with nothing in it.
+  //
+  // Visibility is decided in Rust (lib.rs shows the window on the global
+  // shortcut, before emitting `tray-dictate`) but content is decided here, and
+  // nothing kept the two in agreement. Any path that shows the window without
+  // the pill reaching a drawing state — a dropped event, a hotkey pressed
+  // while dictation is disabled, a startRecording() that bails early — left an
+  // empty capsule stranded on the desktop. It could not be dismissed either:
+  // `idle` renders null so there is no X button, and the Esc handler never
+  // fires because the widget deliberately refuses focus on macOS and Windows
+  // (#287, #982).
+  //
+  // Rather than patch each call site, converge on the invariant itself: if we
+  // are idle and the window is still visible a beat later, hide it. One effect
+  // covers every path that exists now and every one added later.
+  // A one-shot timer keyed on the transition into `idle` is not enough: the
+  // window is shown by the Rust side, and `state` does not change when a press
+  // is dropped. So a press arriving while we are ALREADY idle shows the window
+  // without re-running this effect, and the square strands exactly as before —
+  // the same bug, one path over. Poll instead, so the invariant holds no matter
+  // who made the window visible or when (CodeRabbit, #1399).
+  useEffect(() => {
+    if (state !== 'idle' || !inTauri()) return undefined;
+    let cancelled = false;
+    // Grace is measured from when the window was first SEEN visible-while-idle,
+    // not from the effect mounting: a real dictation shows the window a beat
+    // before React flips out of `idle`, and hiding it in that gap would cancel
+    // the very session the user just started.
+    let visibleSince = 0;
+
+    const reconcile = async () => {
+      // A positively-hidden document cannot be a stranded pill, and skipping
+      // the IPC keeps the common case free. Platforms that never report hidden
+      // just pay for the check — correct either way.
+      if (typeof document !== 'undefined' && document.hidden) {
+        visibleSince = 0;
+        return;
+      }
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        // Only the standalone widget window owns its own visibility; the
+        // in-app pill is just a DOM node in the main window.
+        if (cancelled || win.label !== 'widget') return;
+        const visible = await win.isVisible();
+        // Re-check AFTER the IPC. The thing that tears this effect down is
+        // recording starting — so a continuation resuming here is, precisely,
+        // the case where hiding would take the pill off screen at the moment
+        // the user began speaking. One check covers the rest of the function:
+        // nothing below awaits again before `hide()` (CodeRabbit, #1399).
+        if (cancelled) return;
+        if (!visible) {
+          visibleSince = 0;
+          return;
+        }
+        const now = Date.now();
+        if (!visibleSince) {
+          visibleSince = now;
+          return;
+        }
+        if (now - visibleSince < IDLE_VISIBLE_GRACE_MS) return;
+        console.warn('capture: widget window visible while idle — hiding it');
+        await win.hide();
+        visibleSince = 0;
+      } catch (err) {
+        console.warn('capture: idle-visibility reconcile failed:', err);
+      }
+    };
+
+    const id = setInterval(reconcile, IDLE_VISIBLE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [state]);
 
   // Idle: render nothing — pill is hold-to-talk only (Whisper-Flow / Ghost-Pepper
   // style). The tray-dictate listener above stays mounted, so the shortcut still
