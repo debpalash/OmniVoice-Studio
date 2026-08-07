@@ -913,7 +913,21 @@ export function useBootstrapStage(pollMs = 1000) {
     // (stage,message) change resets the clock so a live install never trips it.
     let lastChangeTs = Date.now();
     let lastKey = '';
-    const stallBudgetMs = (stage) => (stage === 'installing_deps' ? 20 * 60 * 1000 : 120 * 1000);
+    // `awaiting_setup` is gated on a HUMAN, not on work. Rust parks there
+    // deliberately ("nothing downloads or installs in this stage —
+    // complete_setup is the only way out of it") and waits for the install
+    // plan: mode, storage locations, region, mirrors. That is a screen built
+    // for deliberation, and a person reading it routinely takes longer than
+    // any machine stage — so a stall budget there fires on a perfectly healthy
+    // first run, replaces the setup screen with "Setup failed", and stops the
+    // IPC poll. Retry re-enters the bootstrap, which parks at awaiting_setup
+    // again, and it fails again on the same clock: an unescapable loop on the
+    // very first thing a new user sees (#1376). No budget for a stage only a
+    // person can leave.
+    const stallBudgetMs = (stage) => {
+      if (stage === 'awaiting_setup') return Infinity;
+      return stage === 'installing_deps' ? 20 * 60 * 1000 : 120 * 1000;
+    };
     const invoke = async () => {
       try {
         const { invoke: tauriInvoke } = await import('@tauri-apps/api/core');
