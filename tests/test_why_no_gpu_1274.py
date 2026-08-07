@@ -77,6 +77,7 @@ def test_rocm_that_cannot_open_the_device_names_the_group_trap(linux, monkeypatc
 
 
 def test_rocm_with_everything_reachable_points_at_the_rocm_version(linux, monkeypatch):
+    monkeypatch.delenv("HSA_OVERRIDE_GFX_VERSION", raising=False)
     monkeypatch.setattr("core.device_caps.os.path.exists", lambda p: True)
     monkeypatch.setattr("core.device_caps.os.access", lambda p, m: True)
     msg = _joined(_torch(hip="6.4.0"))
@@ -85,10 +86,36 @@ def test_rocm_with_everything_reachable_points_at_the_rocm_version(linux, monkey
     assert "rocminfo" in msg
 
 
+def test_an_hsa_override_is_the_first_suspect(linux, monkeypatch):
+    """The #1274 reporter set HSA_OVERRIDE_GFX_VERSION=11.0.0 on a gfx1151
+    card that the shipped ROCm 7.2.4 supports natively. Remapping a card the
+    runtime already handles can leave it with no usable agent at all — which
+    reads as "no GPU", not as a kernel failure. It is both the likelier cause
+    and the cheaper one to test, so it is named before the ROCm version."""
+    monkeypatch.setenv("HSA_OVERRIDE_GFX_VERSION", "11.0.0")
+    monkeypatch.setattr("core.device_caps.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.device_caps.os.access", lambda p, m: True)
+    msg = _joined(_torch(hip="7.2.4"))
+    assert "hsa_override_gfx_version=11.0.0" in msg
+    assert "removing that override first" in msg
+    # Must not send them chasing the ROCm version instead.
+    assert "newer than this build" not in msg
+
+
+def test_no_override_still_points_at_the_rocm_version(linux, monkeypatch):
+    monkeypatch.delenv("HSA_OVERRIDE_GFX_VERSION", raising=False)
+    monkeypatch.setattr("core.device_caps.os.path.exists", lambda p: True)
+    monkeypatch.setattr("core.device_caps.os.access", lambda p, m: True)
+    msg = _joined(_torch(hip="7.2.4"))
+    assert "newer than this build" in msg
+    assert "hsa_override" not in msg
+
+
 def test_rocm_off_linux_does_not_invent_a_device_node_reason(monkeypatch):
     """/dev/kfd is a Linux path; its absence anywhere else says nothing, and a
     confident wrong reason is worse than a vague right one."""
     monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.delenv("HSA_OVERRIDE_GFX_VERSION", raising=False)
     msg = _joined(_torch(hip="6.4.0"))
     assert "/dev/kfd" not in msg
     assert "no gpu was enumerated" in msg

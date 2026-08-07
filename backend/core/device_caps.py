@@ -236,6 +236,26 @@ def why_no_gpu(torch) -> tuple[str, ...]:
                     "--group-add with THAT host's render/video GIDs, which "
                     "differ between machines)",
                 )
+        override = (os.environ.get("HSA_OVERRIDE_GFX_VERSION") or "").strip()
+        if override:
+            # Checked BEFORE blaming the ROCm version, because it is the more
+            # likely cause and the cheaper thing to test. An override remaps
+            # the GPU onto a different architecture, and pointing a natively
+            # supported card at one the runtime cannot match to the physical
+            # agent can leave HSA with no usable agents at all — which is not
+            # "a kernel failed" but "there is no device", exactly what the
+            # #1274 reporter saw. Their card (gfx1151) is natively supported
+            # by the ROCm this image ships, so the override they set is very
+            # likely what hid it.
+            return (
+                f"ROCm {hip} is installed and the device nodes are reachable, "
+                f"but no GPU was enumerated while HSA_OVERRIDE_GFX_VERSION="
+                f"{override} is set. Try removing that override first — this "
+                "ROCm supports most current cards natively, and remapping one "
+                "it already supports can leave the runtime with no usable "
+                "device. VoiceStudio sets the override itself when a card "
+                "genuinely needs it",
+            )
         return (
             f"ROCm {hip} is installed and the device nodes are reachable, but "
             "no GPU was enumerated — most often a card newer than this "
