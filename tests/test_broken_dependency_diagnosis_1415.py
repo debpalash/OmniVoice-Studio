@@ -25,7 +25,14 @@ from __future__ import annotations
 
 import pytest
 
-import services.model_manager as mm
+
+@pytest.fixture
+def mm():
+    """Resolved at run time, not import time: a module-level import of an app
+    module keeps mutable state in sys.modules across test boundaries."""
+    import services.model_manager as _mm
+
+    return _mm
 
 
 # ── which failures are actually "omnivoice is missing"? ───────────────────
@@ -37,17 +44,17 @@ def _mnfe(msg: str, name: str | None = None) -> ModuleNotFoundError:
     return exc
 
 
-def test_a_missing_omnivoice_is_recognised():
+def test_a_missing_omnivoice_is_recognised(mm):
     assert mm._missing_module_is_omnivoice(_mnfe("No module named 'omnivoice'", "omnivoice"))
 
 
-def test_a_missing_omnivoice_submodule_is_recognised():
+def test_a_missing_omnivoice_submodule_is_recognised(mm):
     assert mm._missing_module_is_omnivoice(
         _mnfe("No module named 'omnivoice.models'", "omnivoice.models")
     )
 
 
-def test_the_transformers_lazy_attribute_error_is_not():
+def test_the_transformers_lazy_attribute_error_is_not(mm):
     """The reported failure. It carries no `name` at all, because transformers
     raises it by hand rather than through the import machinery — which is
     precisely what distinguishes it from a real missing module."""
@@ -60,7 +67,7 @@ def test_the_transformers_lazy_attribute_error_is_not():
 
 
 @pytest.mark.parametrize("name", ["torchaudio", "torchvision", "transformers", "torch"])
-def test_a_missing_dependency_of_omnivoice_is_not(name):
+def test_a_missing_dependency_of_omnivoice_is_not(mm, name):
     """A torch/torchvision mismatch fails by name — a real module, just not
     ours. Putting the omnivoice source on sys.path cannot help."""
     assert not mm._missing_module_is_omnivoice(
@@ -68,7 +75,7 @@ def test_a_missing_dependency_of_omnivoice_is_not(name):
     )
 
 
-def test_a_lookalike_package_name_is_not_ours():
+def test_a_lookalike_package_name_is_not_ours(mm):
     assert not mm._missing_module_is_omnivoice(
         _mnfe("No module named 'omnivoiceX'", "omnivoiceX")
     )
@@ -76,7 +83,7 @@ def test_a_lookalike_package_name_is_not_ours():
 
 # ── the fallback fires only when it can help ──────────────────────────────
 
-def test_a_broken_dependency_does_not_trigger_the_source_fallback(monkeypatch):
+def test_a_broken_dependency_does_not_trigger_the_source_fallback(mm, monkeypatch):
     """Fail-before: this called ensure_omnivoice_importable, re-imported from
     the same broken environment, and re-raised having logged the wrong cause."""
     monkeypatch.setattr(mm, "_OmniVoice", None, raising=False)
@@ -110,7 +117,7 @@ def test_a_broken_dependency_does_not_trigger_the_source_fallback(monkeypatch):
     )
 
 
-def test_a_genuinely_missing_omnivoice_still_triggers_the_fallback(monkeypatch):
+def test_a_genuinely_missing_omnivoice_still_triggers_the_fallback(mm, monkeypatch):
     """No weakening of the #564 repair this guard sits in front of."""
     monkeypatch.setattr(mm, "_OmniVoice", None, raising=False)
     called = []
@@ -143,7 +150,7 @@ def test_a_genuinely_missing_omnivoice_still_triggers_the_fallback(monkeypatch):
 
 # ── a non-fatal preload failure is still visible ──────────────────────────
 
-def test_a_failed_preload_shows_up_in_the_status(monkeypatch):
+def test_a_failed_preload_shows_up_in_the_status(mm, monkeypatch):
     """Fail-before: the status stayed "idle" with no error, so the app looked
     healthy and produced nothing until a generation failed much later."""
     import asyncio
@@ -170,8 +177,63 @@ def test_a_failed_preload_shows_up_in_the_status(monkeypatch):
     assert "transformers" in status["error"].lower()
 
 
-def test_a_successful_load_clears_a_previous_failure(monkeypatch):
+def test_a_successful_preload_clears_a_previous_failure(mm, monkeypatch):
+    """Driven through `preload_model()` rather than `_set_loading`, so it can
+    only pass if the real success path actually clears the error a previous
+    failure left behind (CodeRabbit)."""
+    import asyncio
+
     mm._set_loading("failed", "something broke", error="something broke")
     assert mm.get_model_status().get("error")
-    mm._set_loading("ready", "Model ready", progress=100)
-    assert not mm.get_model_status().get("error")
+
+    monkeypatch.setattr(mm, "model", None, raising=False)
+    monkeypatch.setattr(mm, "resolve_omnivoice_checkpoint", lambda: "org/model")
+    monkeypatch.setattr(mm, "_checkpoint_in_local_cache", lambda *a, **kw: True)
+
+    loaded = object()
+
+    async def _ok():
+        mm._set_loading("ready", "Model ready", progress=100)
+        return loaded
+
+    monkeypatch.setattr(mm, "_load_model_with_timeout", _ok)
+    try:
+        asyncio.run(mm.preload_model())
+        assert mm.get_model_status()["status"] == "ready"
+        assert not mm.get_model_status().get("error")
+    finally:
+        monkeypatch.setattr(mm, "model", None, raising=False)
+        mm._set_loading("", "")
+
+
+def test_the_fallback_detail_does_not_leak_a_path(mm, monkeypatch):
+    """If building the classified failure itself fails, what lands on the
+    status must not be the raw exception — those carry absolute paths, i.e.
+    the user's account name, and this string is published through
+    /model/status (CodeRabbit)."""
+    import asyncio
+
+    monkeypatch.setattr(mm, "model", None, raising=False)
+    monkeypatch.setattr(mm, "resolve_omnivoice_checkpoint", lambda: "org/model")
+    monkeypatch.setattr(mm, "_checkpoint_in_local_cache", lambda *a, **kw: True)
+
+    secret = "/Users/somebody/models/OmniVoice/.venv/lib/x.py"
+
+    async def _boom():
+        raise RuntimeError(f"failed at {secret}")
+
+    monkeypatch.setattr(mm, "_load_model_with_timeout", _boom)
+
+    import core.failure as cf
+
+    monkeypatch.setattr(
+        cf, "build_failure",
+        lambda *a, **kw: (_ for _ in ()).throw(ValueError("classifier broke")),
+    )
+
+    asyncio.run(mm.preload_model())
+    error = mm.get_model_status().get("error", "")
+    assert error, "the failure still has to be visible"
+    assert secret not in error
+    assert "somebody" not in error
+    assert "Logs" in error

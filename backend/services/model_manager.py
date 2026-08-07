@@ -2246,7 +2246,15 @@ async def preload_model():
             )
             detail = failure.get("hint") or failure.get("reason") or str(e)
         except Exception:  # noqa: BLE001 — never lose the warning to this
-            detail = str(e)
+            # NOT str(e): the whole point of build_failure is that it sanitizes,
+            # and an exception message routinely carries absolute paths — i.e.
+            # the user's account name — which this string is about to publish
+            # through /model/status (CWE-532; CodeRabbit). A fixed message that
+            # points at the log beats leaking one into the API.
+            detail = (
+                "The TTS model could not be loaded. Settings → Logs → Backend "
+                "has the full error."
+            )
         _set_loading("failed", detail, error=detail)
 
 def get_model_status():
