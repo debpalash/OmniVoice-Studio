@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import asyncio
@@ -849,27 +850,28 @@ def log_gpu_pool_worker_stacks(what: str, timeout: float, executor=None) -> str:
         return ""
 
 
-#: Frames that mean "this thread is waiting, not computing".
-#:
-#: A worker parked on one of these has spent its whole budget doing nothing.
-#: Every entry is a *blocking primitive* — a lock, an event, a future — so a
-#: match cannot be produced by slow work, only by work that never started.
-#: Deliberately not matched on module path alone: `threading.py` also holds
-#: perfectly ordinary frames.
-_WEDGE_FRAME_SIGNATURES = (
-    "waiter.acquire()",
-    "self._block.acquire(",
-    "signaled = waiter.acquire(",
-    "in acquire\n",
-    "in wait\n",
-    "in result\n",
-    "fut = self._get_loop().create_future()",
-    "await fut",
+#: Standard-library modules whose blocking primitives a wedged worker parks in.
+#: Matched on the *file* of the deepest frame, so a user function that happens
+#: to be named ``wait`` or ``result`` cannot be mistaken for one of these.
+_WEDGE_STDLIB_FILES = (
+    "/threading.py", "\\threading.py",
+    "/asyncio/locks.py", "\\asyncio\\locks.py",
+    "/concurrent/futures/_base.py", "\\concurrent\\futures\\_base.py",
+    "/queue.py", "\\queue.py",
 )
+
+#: Blocking entry points within those modules. A thread sitting in one of these
+#: is waiting on another thread, by definition — there is no slow-but-working
+#: interpretation of it.
+_WEDGE_FUNCTIONS = frozenset({
+    "acquire", "wait", "result", "get", "join", "_wait_for_tstate_lock",
+})
+
+_FRAME_HEAD = re.compile(r'^\s*File "(?P<file>.+)", line \d+, in (?P<func>\S+)\s*$')
 
 
 def _stack_shows_a_wedge(stacks: "str | None") -> bool:
-    """True when the abandoned worker's deepest frame is a blocking wait.
+    """True when the abandoned worker's DEEPEST frame is a blocking wait.
 
     The message this feeds is the one users actually read, and for years it
     said the same thing whatever happened: "too heavy for the available
@@ -880,20 +882,36 @@ def _stack_shows_a_wedge(stacks: "str | None") -> bool:
     lock owned by another event loop, #1417), and #1329 is the same wedge seen
     from the dub loop. Every one of them was sent to look at their hardware.
 
+    Only the last frame counts, and it must be a blocking primitive in a
+    standard-library module. Both halves matter (CodeRabbit): a compute job's
+    *callers* routinely include a lock it has already left, so scanning the
+    whole stack would flag nearly everything; and an application function
+    named ``wait`` or ``result`` is not evidence of anything, so the function
+    name alone is not enough either.
+
     Reads the text :func:`log_gpu_pool_worker_stacks` already captured — no
     second stack walk, and no cost at all on the healthy path.
 
-    Conservative: unknown or unreadable stacks return False and keep the old
+    Conservative: unknown or unparseable stacks return False and keep the old
     wording. Claiming a hang we cannot see would be the same mistake pointing
     the other way.
     """
     if not stacks:
         return False
-    # The deepest frame is where the thread actually is; earlier frames are
-    # just how it got there, and a compute job's callers routinely include a
-    # lock acquisition it has already left.
-    tail = stacks[-600:]
-    return any(sig in tail for sig in _WEDGE_FRAME_SIGNATURES)
+    deepest = None
+    for line in str(stacks).splitlines():
+        m = _FRAME_HEAD.match(line)
+        if m:
+            deepest = m
+    if deepest is None:
+        return False
+    func = deepest.group("func")
+    if func not in _WEDGE_FUNCTIONS:
+        return False
+    path = deepest.group("file").replace("\\", "/")
+    return any(
+        path.endswith(tail.replace("\\", "/")) for tail in _WEDGE_STDLIB_FILES
+    )
 
 
 def _timeout_guidance(

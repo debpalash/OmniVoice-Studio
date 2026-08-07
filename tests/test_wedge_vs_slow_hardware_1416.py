@@ -20,7 +20,14 @@ from __future__ import annotations
 
 import pytest
 
-import services.model_manager as mm
+
+@pytest.fixture
+def mm():
+    """Resolved at run time, not import time: a module-level import of an app
+    module keeps mutable state in sys.modules across test boundaries."""
+    import services.model_manager as _mm
+
+    return _mm
 
 
 # Shapes taken from real captures: a thread blocked in a lock/event/future.
@@ -52,11 +59,11 @@ COMPUTING_STACK = (
 
 
 @pytest.mark.parametrize("stack", WEDGED_STACKS)
-def test_a_parked_worker_is_recognised(stack):
+def test_a_parked_worker_is_recognised(mm, stack):
     assert mm._stack_shows_a_wedge(stack)
 
 
-def test_a_computing_worker_is_not():
+def test_a_computing_worker_is_not(mm):
     """The false positive that matters: telling someone with a genuinely slow
     machine that they found a bug would send them to the issue tracker instead
     of to the shorter-text/lighter-engine advice that would actually help."""
@@ -64,13 +71,13 @@ def test_a_computing_worker_is_not():
 
 
 @pytest.mark.parametrize("stack", ["", None])
-def test_no_stack_means_no_claim(stack):
+def test_no_stack_means_no_claim(mm, stack):
     """Unreadable stacks keep the old wording. Claiming a hang we cannot see is
     the same mistake pointing the other way."""
     assert not mm._stack_shows_a_wedge(stack)
 
 
-def test_a_lock_the_worker_already_left_does_not_count():
+def test_a_lock_the_worker_already_left_does_not_count(mm):
     """Only the deepest frames decide. A compute job's callers routinely
     include a lock acquisition it has since returned from — reading the whole
     stack would flag almost every job."""
@@ -83,7 +90,7 @@ def test_a_lock_the_worker_already_left_does_not_count():
 
 # ── the message ────────────────────────────────────────────────────────────
 
-def test_a_wedge_does_not_blame_the_machine():
+def test_a_wedge_does_not_blame_the_machine(mm):
     msg = mm._timeout_guidance("TTS generate", 300.0, wedged=True)
     assert "too heavy for the available compute" not in msg
     assert "not a limit of your machine" in msg
@@ -95,16 +102,58 @@ def test_a_wedge_does_not_blame_the_machine():
     assert "github.com/debpalash/VoiceStudio/issues" in msg
 
 
-def test_a_genuinely_slow_job_keeps_its_advice():
+def test_a_genuinely_slow_job_keeps_its_advice(mm):
     """No regression for the case the message was written for."""
     msg = mm._timeout_guidance("TTS generate", 300.0, wedged=False)
     assert "too heavy for the available compute" in msg
     assert "shorter text" in msg or "lighter engine" in msg
 
 
-def test_the_default_is_the_old_wording():
+def test_the_default_is_the_old_wording(mm):
     """Every existing caller that hasn't been taught about wedges keeps its
     behaviour — the new branch is opt-in from the one site that has evidence."""
     assert mm._timeout_guidance("TTS generate", 300.0) == mm._timeout_guidance(
         "TTS generate", 300.0, wedged=False
     )
+
+
+def test_an_app_function_named_wait_is_not_a_wedge(mm):
+    """`in wait` / `in result` say nothing on their own — plenty of application
+    code has functions by those names, and flagging them would tell a user with
+    a genuinely slow machine that they had found a bug (CodeRabbit)."""
+    stack = (
+        '  File "/app/backend/services/dub_pipeline.py", line 88, in wait\n'
+        "    self.poll_until_done()\n"
+    )
+    assert not mm._stack_shows_a_wedge(stack)
+
+
+def test_a_third_party_result_function_is_not_a_wedge(mm):
+    stack = (
+        '  File "/app/.venv/lib/python3.11/site-packages/somelib/api.py", '
+        'line 12, in result\n'
+        "    return self._compute()\n"
+    )
+    assert not mm._stack_shows_a_wedge(stack)
+
+
+def test_a_stdlib_frame_that_is_not_a_blocking_call_is_not_a_wedge(mm):
+    stack = (
+        '  File "/usr/lib/python3.11/threading.py", line 1002, in _bootstrap\n'
+        "    self._bootstrap_inner()\n"
+    )
+    assert not mm._stack_shows_a_wedge(stack)
+
+
+def test_windows_stdlib_paths_are_recognised(mm):
+    """The reporters are on Windows and macOS; a POSIX-only path match would
+    quietly never fire for half of them."""
+    stack = (
+        '  File "C:\\Python311\\Lib\\threading.py", line 327, in wait\n'
+        "    waiter.acquire()\n"
+    )
+    assert mm._stack_shows_a_wedge(stack)
+
+
+def test_unparseable_text_is_not_a_claim(mm):
+    assert not mm._stack_shows_a_wedge("something that is not a stack at all")
