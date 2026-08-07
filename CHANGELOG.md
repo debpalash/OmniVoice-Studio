@@ -23,6 +23,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - The repository moved to github.com/debpalash/VoiceStudio. Every link in the app, docs and scripts now points there; GitHub redirects the old URLs, and the Docker image paths, the app bundle identifier and your data folder are all deliberately unchanged. (#1394)
 - The app is now **VoiceStudio** (previously OmniVoice-Studio). Only the name you see changes — your data folder, settings and the Docker image paths stay put, so upgrading needs nothing from you. On Linux the .deb is now `voicestudio`; remove the old `omnivoice-studio` package once.
 - macOS floor raised to 13.3 (Ventura) — the frontend has required Safari 16.4 for some time, so macOS 12 was a promise the stack could not keep (#1268)
+- The first-run setup screen no longer overpromises. It claimed "no account, no cloud, no telemetry" without qualification — untrue for anyone who opts into analytics — and now says what actually holds either way: your voices, recordings and projects never leave the machine, and no processing happens in the cloud.
+- Dictation no longer shows a floating pill. The hotkey records, transcribes and pastes with nothing on screen; the tray icon still marks recording, and anything needing your attention (Accessibility, microphone, a failed transcription) now arrives as a notification in the main window.
 
 ### Added
 
@@ -32,13 +34,19 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - A new opt-in crash-isolated TTS engine, so a native crash takes down the sidecar instead of the whole backend — thanks @paoloantinori! (#1292, #1298, #1304)
 - **PocketTTS** (Kyutai), an opt-in CPU-only engine for fast, low-latency renders in six languages (en/fr/de/pt/it/es) with zero-shot cloning from a reference clip. Enable in Settings → Engines — thanks @paoloantinori! (#1306, #1328)
 
+### CI
+
+- The stdio wire protocol every engine sidecar speaks is now tested once across all nine of them, instead of against a single engine — a bug in any one sidecar's copy gets caught — thanks @paoloantinori! (#1408)
+
 ### Fixed
 
+- The voice-design model on Apple Silicon works again. Its description was being dropped before it reached the engine, so every generation failed with a raw 400 no matter what you typed. (#1405)
 - The first-run setup screen no longer times out while it waits for you. Taking more than two minutes to choose an install location, region or mirror made the app declare "Setup failed", and Retry landed back on the same screen with the same clock — so a first install could never be completed. (#1376)
 - Transcription on an NVIDIA machine whose cuDNN 8 libraries are missing no longer kills the backend outright. The app checks the library before picking a transcription engine and falls back to PyTorch Whisper, instead of handing off to a component that aborts the process with no error and restarts into the same crash. (#1371)
 - The dictation model picker now tells the truth about download size. Every one of the seven models was wrong: Parakeet TDT v3, the recommended default, said 180 MB and actually downloads 670 MB, while the small low-RAM fallbacks were advertised as three times bigger than they are. (#1398)
 - Dictation with the 0.6B Parakeet models is steadier under load — they now decode on more threads (still capped by your CPU, still overridable with `OMNIVOICE_SHERPA_ASR_THREADS`). The small models are unchanged. (#1398)
 - The dictation hotkey no longer leaves a blank dark square stuck on your desktop. A press that arrived while the pill was re-arming was dropped, and the window it had already opened had nothing in it and no way to close it. (#1398)
+- The blank dark square is gone for good: the dictation window could mistake itself for the main window when its shell wasn't ready yet, and once it did, nothing in the app could close it again. It now learns which window it is before any of its code runs. (#1398)
 - Dictation is more reliable to trigger: the hotkey listener no longer briefly detaches every time the pill changes state, so a press is never silently lost. (#1398)
 - An auto-captured crash report now keeps the error that actually caused the crash. Python prints a chained traceback oldest-first, so trimming the log to its newest end kept the generic wrapper and cut the real cause — the reports that needed the detail most were the ones that arrived without it. (#1376)
 - Text ending in punctuation no longer wastes a whole synthesis pass on it. A chunk boundary could leave a trailing fragment with nothing speakable in it, which the engine renders as nothing at all. (#1330)

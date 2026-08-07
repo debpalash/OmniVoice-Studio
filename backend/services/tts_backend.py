@@ -1398,6 +1398,19 @@ class MLXAudioBackend(TTSBackend):
         logger.info("Loading mlx-audio model %s", self._model_id)
         self._model = load_model(self._model_id)
 
+    def _is_voice_design(self) -> bool:
+        """Whether the loaded model builds a voice from a text description.
+
+        Asks the model's own config — `tts_model_type`, the exact field
+        mlx-audio branches on — so this cannot drift from the library's own
+        behaviour. Falls back to the model id, which carries `VoiceDesign` by
+        naming convention, when a config doesn't expose the field.
+        """
+        kind = getattr(getattr(self._model, "config", None), "tts_model_type", None)
+        if kind:
+            return kind == "voice_design"
+        return "voicedesign" in (self._model_id or "").lower()
+
     def generate(self, text: str, **kw) -> torch.Tensor:
         import numpy as np
         self._ensure_loaded()
@@ -1406,6 +1419,7 @@ class MLXAudioBackend(TTSBackend):
         ref_audio = kw.get("ref_audio")
         ref_text  = kw.get("ref_text")
         language  = kw.get("language")
+        instruct  = kw.get("instruct")
         speed     = float(kw.get("speed", 1.0))
 
         # mlx-audio's generate(...) returns an iterator of result objects,
@@ -1415,6 +1429,21 @@ class MLXAudioBackend(TTSBackend):
         kwargs = {"text": text, "speed": speed}
         if voice:     kwargs["voice"] = voice
         if ref_audio: kwargs["ref_audio"] = ref_audio
+        # The comment above claimed instruct was passed "for Qwen3"; it never
+        # was. The curated `qwen3-tts` model IS the VoiceDesign variant, which
+        # mlx-audio refuses to run without one — so the engine was unusable no
+        # matter what the user typed, and the reported failure was a bare
+        # 400 quoting a library message (#1405).
+        if instruct:
+            kwargs["instruct"] = instruct
+        elif self._is_voice_design():
+            raise ValueError(
+                "This model builds a voice from a written description, so it "
+                "needs one — for example \"a warm, low-pitched British "
+                "narrator\". Pick a designed voice (those carry a "
+                "description), or choose a cloning model and supply a "
+                "reference clip instead."
+            )
         # CSM (sesame.py) only builds its cloning context when BOTH ref_audio
         # AND ref_text are present — with ref_text missing, its context list
         # stays empty and indexing into it raises an opaque

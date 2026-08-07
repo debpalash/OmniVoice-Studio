@@ -12,6 +12,7 @@ import { checkMicrophone, openMicrophoneSettings } from '../utils/permissions';
 import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
 import { createWaveform } from './captureWaveform';
+import { emitDictationNotice } from '../utils/dictationNotice';
 
 // True inside the Tauri shell (desktop app / widget window); false in the
 // browser webui / Docker, where the native commands don't exist. Gating on
@@ -1312,6 +1313,27 @@ export default function CaptureWidget({ onDismiss }) {
       clearInterval(id);
     };
   }, [state]);
+
+  // The widget window is never shown, so anything this component renders is
+  // invisible by construction. States that need the user to DO something —
+  // grant Accessibility, grant the mic, retry after a failure — would
+  // otherwise be silent: the hotkey would appear to do nothing at all. Hand
+  // those to the main window, which is the only one on screen.
+  useEffect(() => {
+    if (state !== 'error' && state !== 'setup') return;
+    const kind = state === 'setup' ? 'setup' : errorInfo?.kind || 'transcription';
+    emitDictationNotice({
+      kind,
+      // Localize here: this is where the error's context lives, and both
+      // windows share one i18n instance and language.
+      label: state === 'setup' ? t('capture.a11y_setup') : errorLabel(t, errorInfo),
+      // Only an OS-level denial has a settings pane worth opening. A mic that
+      // is merely busy or absent fails with the same kind, and sending that
+      // user to the permissions pane sends them somewhere nothing is wrong —
+      // the same condition the pill's own mic button carried.
+      deniedByOs: !!errorInfo?.deniedByOs,
+    });
+  }, [state, errorInfo, t]);
 
   // Idle: render nothing — pill is hold-to-talk only (Whisper-Flow / Ghost-Pepper
   // style). The tray-dictate listener above stays mounted, so the shortcut still

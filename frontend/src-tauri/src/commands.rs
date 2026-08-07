@@ -624,7 +624,13 @@ pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<()
 pub fn set_tray_recording(
     recording: bool,
     tray_handle: tauri::State<'_, TrayHandle>,
+    flags: tauri::State<'_, AppFlags>,
 ) -> Result<(), String> {
+    // Record the state BEFORE the icon swap: the tray's Start/Stop item reads
+    // this to decide which event to emit, and it must stay correct even if the
+    // icon fails to decode. (It used to read `widget.is_visible()`, which the
+    // permanently-hidden widget made meaningless.)
+    flags.dictating.store(recording, Ordering::SeqCst);
     let bytes = if recording { TRAY_ICON_RECORDING } else { TRAY_ICON_DEFAULT };
     let img = Image::from_bytes(bytes).map_err(|e| format!("decode tray icon: {e}"))?;
     let lock = tray_handle.tray.lock().map_err(|_| "tray lock poisoned")?;

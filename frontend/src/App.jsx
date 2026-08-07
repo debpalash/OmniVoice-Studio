@@ -69,6 +69,7 @@ const LazyFallback = () => <div className="app-lazy-fallback">{i18n.t('app.loadi
 
 import { Toaster, toast } from 'react-hot-toast';
 import { toastErrorWithReport } from './utils/errorToast';
+import { listenDictationNotice, showDictationNotice } from './utils/dictationNotice';
 import { addBreadcrumb } from './utils/breadcrumbs';
 import { appShellClasses } from './utils/appShellClasses';
 import { recordValueMoment } from './utils/donationMoments';
@@ -245,6 +246,26 @@ function App() {
     };
   }, [setMode]);
 
+  // Dictation failures are raised in the widget window, which is never shown —
+  // this is the only place they can reach the user. Without it, a hotkey press
+  // that can't paste (Accessibility ungranted) or can't record (mic denied)
+  // would be indistinguishable from a hotkey that isn't working at all.
+  useEffect(() => {
+    let unlisten;
+    let cancelled = false;
+    (async () => {
+      const stop = await listenDictationNotice(showDictationNotice);
+      // The await above can outlive the effect (StrictMode double-mount, or a
+      // fast unmount) — drop the subscription rather than leaking a listener
+      // that would double every later toast.
+      if (cancelled) stop();
+      else unlisten = stop;
+    })();
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
   const flipNavRailSide = useCallback(() => {
     setNavRailSide((prev) => {
       const next = prev === 'left' ? 'right' : 'left';
