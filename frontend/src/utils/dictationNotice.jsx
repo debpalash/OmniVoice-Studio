@@ -56,7 +56,11 @@ export function showDictationNotice(notice) {
   const opener =
     notice.kind === 'a11y' || notice.kind === 'setup'
       ? openAccessibilitySettings
-      : notice.kind === 'mic'
+      : // A mic error only earns the settings button when the OS actually
+        // denied it. "Busy" and "no device" arrive under the same kind, and
+        // for those the permissions pane shows nothing wrong — which reads as
+        // the app blaming the user for a permission they already granted.
+        notice.kind === 'mic' && notice.deniedByOs
         ? openMicrophoneSettings
         : null;
 

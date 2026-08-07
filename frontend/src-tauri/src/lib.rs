@@ -371,9 +371,17 @@ pub fn run() {
         // Single-instance MUST be registered first.
         .plugin(tauri_plugin_single_instance::init(move |app, _argv, _cwd| {
             log::info!("Second instance attempted — focusing existing window");
-            let target = if pill_mode { "widget" } else { "main" };
-            if let Some(win) = app.get_webview_window(target) {
+            // Always the studio window, never the widget. In pill mode this
+            // used to target "widget" and show() it — which is precisely the
+            // empty rectangle the hidden-host contract exists to prevent, and
+            // relaunching the app is a plausible thing to do when one is stuck
+            // on your desktop. Pill mode hides the studio window rather than
+            // closing it, and a second launch is the user asking for the app,
+            // so show that instead — the same thing the tray's "Open
+            if let Some(win) = app.get_webview_window("main") {
                 let _ = win.show();
+                #[cfg(not(target_os = "macos"))]
+                let _ = win.set_skip_taskbar(false);
                 let _ = win.unminimize();
                 let _ = win.set_focus();
             }

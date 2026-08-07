@@ -67,6 +67,52 @@ def test_nothing_shows_the_widget_window(lib_rs: str) -> None:
     )
 
 
+def test_no_computed_window_target_can_resolve_to_the_widget(lib_rs: str) -> None:
+    """`"widget"` must never be chosen into a variable that is then shown.
+
+    The check above only sees `get_webview_window("widget")` written out
+    literally, and the single-instance handler did not write it that way:
+
+        let target = if pill_mode { "widget" } else { "main" };
+        if let Some(win) = app.get_webview_window(target) { win.show(); ... }
+
+    In pill mode that showed the recorder window on every second launch —
+    exactly the stranded rectangle, and reached by relaunching the app, which
+    is what a user does when one is stuck on their desktop. It passed the
+    literal check untouched, so pin the indirection too: every mention of the
+    label has to be one of the known-safe uses.
+    """
+    allowed = (
+        '&["widget", "main"]',  # window-state persistence denylist
+        'get_webview_window("widget")',  # looked up (only ever to hide it)
+        'window.label() != "main"',  # unrelated label comparison
+        "window.__OV_WINDOW__ = 'widget';",  # the injected identity marker
+        # Media-capture permissions are granted to both windows (#323). It
+        # takes the handle but never shows it.
+        'for label in ["main", "widget"]',
+    )
+    # The builder spells the label on its own line, so it can't be matched by
+    # substring alongside `WebviewWindowBuilder::new(`.
+    allowed_exact = ('"widget",',)
+    offenders = []
+    for lineno, line in enumerate(lib_rs.splitlines(), 1):
+        if '"widget"' not in line:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("//") or stripped.startswith("///"):
+            continue  # prose about the widget is not a call site
+        if stripped in allowed_exact or any(ok in line for ok in allowed):
+            continue
+        offenders.append(f"{lineno}: {stripped}")
+    assert not offenders, (
+        "New use of the \"widget\" window label:\n  "
+        + "\n  ".join(offenders)
+        + "\nThe widget is a hidden recorder host. If this use is safe, add it "
+        "to `allowed` above; if it can lead to show(), it puts an empty "
+        "rectangle back on the user's desktop."
+    )
+
+
 def test_tray_toggle_does_not_infer_recording_from_visibility(lib_rs: str) -> None:
     """A permanently hidden window is never visible, so visibility can't mean
     'recording'. The tray Start/Stop item reads the `dictating` flag that the

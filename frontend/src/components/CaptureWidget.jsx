@@ -1327,6 +1327,11 @@ export default function CaptureWidget({ onDismiss }) {
       // Localize here: this is where the error's context lives, and both
       // windows share one i18n instance and language.
       label: state === 'setup' ? t('capture.a11y_setup') : errorLabel(t, errorInfo),
+      // Only an OS-level denial has a settings pane worth opening. A mic that
+      // is merely busy or absent fails with the same kind, and sending that
+      // user to the permissions pane sends them somewhere nothing is wrong —
+      // the same condition the pill's own mic button carried.
+      deniedByOs: !!errorInfo?.deniedByOs,
     });
   }, [state, errorInfo, t]);
 
