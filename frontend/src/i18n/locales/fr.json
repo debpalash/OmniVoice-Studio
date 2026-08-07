@@ -2019,7 +2019,7 @@
     "lib_active": "actif",
     "lib_in_settings": "installer plus tard dans Réglages",
     "lib_show_all": "Afficher {{count}} modèles optionnels",
-    "trust_line": "La confidentialité d’abord : tout s’exécute et reste sur cette machine — sans compte, sans cloud.",
+    "trust_line": "La confidentialité d’abord : vos voix, enregistrements et projets ne quittent jamais cette machine — sans compte, sans traitement dans le cloud.",
     "resume_note": "Les téléchargements interrompus reprennent automatiquement — fermer l’application est sans risque.",
     "eta_left": "~{{eta}} restantes",
     "first_sound_text": "Bienvenue dans votre studio. Chaque mot que vous entendez vient d’être généré sur cette machine.",

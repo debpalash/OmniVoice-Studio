@@ -2762,7 +2762,7 @@
     "lib_active": "active",
     "lib_in_settings": "install later in Settings",
     "lib_show_all": "Show {{count}} more models",
-    "trust_line": "Privacy first: everything runs and stays on this machine — no account, no cloud.",
+    "trust_line": "Privacy first: your voices, recordings and projects never leave this machine — no account, no cloud processing.",
     "resume_note": "Interrupted downloads resume automatically — closing the app is safe.",
     "eta_left": "~{{eta}} left",
     "size_left": "{{size}} left",

@@ -850,7 +850,7 @@ export default function FirstRunSetup() {
           <p className="m-0 text-xs text-fg-subtle">
             {t(
               'firstrun.trust_line',
-              'Privacy first: everything runs and stays on this machine — no account, no cloud.',
+              'Privacy first: your voices, recordings and projects never leave this machine — no account, no cloud processing.',
             )}
           </p>
         </footer>

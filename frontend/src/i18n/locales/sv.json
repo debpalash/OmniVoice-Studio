@@ -2019,7 +2019,7 @@
     "lib_active": "aktiv",
     "lib_in_settings": "installera senare i Inställningar",
     "lib_show_all": "Visa {{count}} valfria modeller",
-    "trust_line": "Integritet först: allt körs och stannar på den här datorn — inget konto, inget moln.",
+    "trust_line": "Integritet först: dina röster, inspelningar och projekt lämnar aldrig den här datorn — inget konto, ingen molnbearbetning.",
     "resume_note": "Avbrutna nedladdningar återupptas automatiskt — det är säkert att stänga appen.",
     "eta_left": "~{{eta}} kvar",
     "first_sound_text": "Välkommen till din studio. Varje ord du hör genererades på den här datorn, alldeles nyss.",
