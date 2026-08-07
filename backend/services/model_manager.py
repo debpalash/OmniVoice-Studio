@@ -29,7 +29,7 @@ def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
         try:
-            from omnivoice.models.omnivoice import VoiceStudio as _OV
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         except ModuleNotFoundError:
             # The venv's editable install is missing/broken (#564). main.py wires
             # the source fallback at startup, but resolve it here too so the
@@ -37,7 +37,7 @@ def _lazy_omnivoice():
             from core.omnivoice_path import ensure_omnivoice_importable
             _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ensure_omnivoice_importable(_backend_dir, logger)
-            from omnivoice.models.omnivoice import VoiceStudio as _OV
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
@@ -2002,6 +2002,24 @@ async def get_model():
         # roomy machine. Off the event loop because the eviction does gc.collect
         # + cache drop + ASR teardown that can block for hundreds of ms.
         await asyncio.get_running_loop().run_in_executor(None, make_room_before_generate)
+        return model
+
+    if running_on_gpu_pool():
+        # Same reasoning as _heal_tts_placement below, applied to the COLD
+        # path it never covered (#1417). We are on a pool worker, reached from
+        # OmniVoiceBackend._ensure_loaded(), which bootstraps a *fresh* event
+        # loop with asyncio.run(). `_model_lock` is bound to the server loop,
+        # so awaiting it here raises outright:
+        #
+        #   RuntimeError: <asyncio.locks.Lock …> is bound to a different event loop
+        #
+        # which surfaced as a 500 on /v1/audio/speech. Holding the GPU slot is
+        # already the mutual exclusion the lock provides — a second cold load
+        # cannot start while we occupy the pool — so load inline.
+        if model is None:
+            from core.run_sentinel import touch_activity
+            touch_activity("model_load", "omnivoice-tts")
+            model = await _load_model_with_timeout()
         return model
 
     async with _model_lock:
