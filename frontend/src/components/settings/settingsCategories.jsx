@@ -71,6 +71,10 @@ export const GROUPS = [
           'settings.autoplay_preview',
           'settings.header_live_stats',
           'settings.nav_style',
+          // The visible option labels too, so a non-English search for "tabs"
+          // / "Leiste" matches what the user actually sees on screen.
+          'settings.nav_style_rail',
+          'settings.nav_style_tabs',
         ],
       },
       {

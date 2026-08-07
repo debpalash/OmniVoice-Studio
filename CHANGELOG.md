@@ -13,7 +13,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - RTX 40-series GPUs are used again instead of being sent to the CPU
 - A warning before a slow generation, rather than after a five-minute wait
 - The watermark can be turned off in Settings, as the docs always said
-- Workspace tabs in the title bar, if you prefer them to the icon rail
+- Workspace tabs in the title bar, if you prefer them to the icon rail (#1412)
 - macOS support now matches what the app actually delivers
 - Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
 - A failed audiobook chapter says why, instead of turning red and saying nothing
