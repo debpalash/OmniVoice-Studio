@@ -30,6 +30,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from engines._venv_probe import ProbeResult, venv_can_import
+
 logger = logging.getLogger("omnivoice.confucius4.bootstrap")
 
 #: Absolute path to the sidecar entrypoint.
@@ -56,7 +58,6 @@ _IMPORT_PROBE = "confuciustts"
 
 _resolved_python: Optional[Path] = None
 
-_IMPORT_PROBE_TIMEOUT_S = 15
 _UV_VENV_TIMEOUT_S = 120
 _UV_PIP_INSTALL_TIMEOUT_S = 1800
 
@@ -82,18 +83,45 @@ def resolve_confucius4_venv() -> Path:
 
     clone_dir = os.environ.get(_CLONE_DIR_ENV)
 
+    # A candidate whose probe ran out of time (#1414): preferred over
+    # bootstrapping or declaring the engine missing, but only after every
+    # candidate has had its chance to prove itself outright.
+    unproven: Optional[Path] = None
+
     if clone_dir:
         cand = _venv_python_path(Path(clone_dir) / ".venv")
-        if cand.is_file() and _venv_can_import(cand):
-            logger.info("Confucius4 venv resolved from %s: %s", _CLONE_DIR_ENV, cand)
-            _resolved_python = cand
-            return cand
+        if cand.is_file():
+            verdict = _venv_can_import(cand)
+            if verdict == "yes":
+                logger.info("Confucius4 venv resolved from %s: %s", _CLONE_DIR_ENV, cand)
+                _resolved_python = cand
+                return cand
+            if verdict == "unproven":
+                unproven = cand
 
     cand = _venv_python_path(_ENGINES_VENV_DIR)
-    if cand.is_file() and _venv_can_import(cand):
-        logger.info("Confucius4 venv resolved from engines path: %s", cand)
-        _resolved_python = cand
-        return cand
+    if cand.is_file():
+        verdict = _venv_can_import(cand)
+        if verdict == "yes":
+            logger.info("Confucius4 venv resolved from engines path: %s", cand)
+            _resolved_python = cand
+            return cand
+        if verdict == "unproven" and unproven is None:
+            unproven = cand
+
+    if unproven is not None:
+        # Nothing proved itself, but something plausible is installed. Use
+        # it: a venv that really is broken fails the sidecar handshake with
+        # a real error, which beats reinstalling over the top of a working
+        # install or telling the user their engine isn't there.
+        logger.warning(
+            "Confucius4 venv %s could not be verified in time; using it "
+            "anyway rather than treating a slow import as a missing "
+            "install (#1414).",
+            unproven,
+        )
+        _resolved_python = unproven
+        return unproven
 
     if not clone_dir:
         raise RuntimeError(
@@ -132,23 +160,16 @@ def _import_probe_code() -> str:
     return f"import {_IMPORT_PROBE}"
 
 
-def _venv_can_import(python_path: Path) -> bool:
-    """Spawn the candidate python and verify ``import confuciustts`` works."""
-    try:
-        proc = subprocess.run(
-            [str(python_path), "-c", _import_probe_code()],
-            capture_output=True, timeout=_IMPORT_PROBE_TIMEOUT_S,
-        )
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.debug("Confucius4 import probe failed for %s: %s", python_path, exc)
-        return False
-    if proc.returncode != 0:
-        logger.debug(
-            "Confucius4 import probe non-zero for %s: %s",
-            python_path, proc.stderr.decode("utf-8", errors="replace")[:200],
-        )
-        return False
-    return True
+def _venv_can_import(python_path: Path) -> ProbeResult:
+    """Spawn the candidate python and verify the engine imports.
+
+    Tri-state — "yes" / "no" / "unproven". See ``engines._venv_probe``:
+    a probe that runs out of time proves nothing, and treating that as
+    "no" is what discarded working user installs (#1414).
+    """
+    return venv_can_import(
+        python_path, _import_probe_code(), engine="confucius4", logger=logger,
+    )
 
 
 def _locate_uv() -> Optional[str]:
@@ -211,7 +232,10 @@ def _bootstrap_engines_venv(clone_dir: Path) -> Path:
             "See docs/engines/confucius4-tts.md."
         ) from exc
 
-    if not _venv_can_import(python_path):
+    # Only a *proven* failure is fatal: a bootstrap that installed correctly
+    # and is merely slow to import must not be thrown away after spending
+    # minutes on the install (#1414).
+    if _venv_can_import(python_path) == "no":
         raise RuntimeError(
             f"Confucius4 bootstrap completed but `import {_IMPORT_PROBE}` still "
             f"fails from {python_path}. Verify {clone_dir} is a valid clone. "

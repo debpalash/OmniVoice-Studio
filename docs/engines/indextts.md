@@ -120,6 +120,16 @@ priority order (see `backend/engines/indextts/bootstrap.py`):
    on first launch. Requires `OMNIVOICE_INDEXTTS_DIR` to be set;
    raises a clear error otherwise.
 
+Each candidate is confirmed by spawning it and running
+`import indextts.infer_v2`. That import pulls in torch and transformers, so
+on a cold page cache — a first run, a slow disk, Windows with real-time AV
+scanning — it can take much longer than usual. A check that runs out of time
+is treated as **unproven, not failed**: the venv stays in play and is used if
+nothing else proves itself, because a genuinely broken venv then fails at the
+sidecar handshake with a real error rather than being reported as a missing
+install (#1414). Raise `OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S` (default
+60 s) if you want the check to wait longer before falling through.
+
 The cache marker test
 (`tests/backend/services/test_indextts_backward_compat.py::test_hf_home_marker_present_after_bootstrap`)
 proves that the bootstrap path **never** mutates

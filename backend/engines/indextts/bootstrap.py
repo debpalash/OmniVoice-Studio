@@ -45,6 +45,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from engines._venv_probe import ProbeResult, venv_can_import
+
 logger = logging.getLogger("omnivoice.indextts.bootstrap")
 
 # Absolute path to the sidecar entrypoint. ``IndexTTS2Backend.sidecar_script``
@@ -68,10 +70,10 @@ def _uv_env() -> "dict[str, str] | None":
 # Per-process resolution cache. Cleared by :func:`invalidate` for tests.
 _resolved_python: Optional[Path] = None
 
-# Timeouts. ``_venv_can_import_indextts`` is a bounded probe so we never
-# hang waiting on a broken venv; the bootstrap install can take minutes
-# on a cold cache (indextts pulls torch, transformers<5, etc.).
-_IMPORT_PROBE_TIMEOUT_S = 10
+# Timeouts. The import probe's bound lives in ``engines._venv_probe`` (shared
+# with every other subprocess engine, and tunable per host); the bootstrap
+# install can take minutes on a cold cache (indextts pulls torch,
+# transformers<5, etc.).
 _UV_VENV_TIMEOUT_S = 120
 _UV_PIP_INSTALL_TIMEOUT_S = 900
 
@@ -113,23 +115,49 @@ def resolve_indextts_venv() -> Path:
     if _resolved_python is not None:
         return _resolved_python
 
+    # A candidate whose probe ran out of time (#1414). Preferred over
+    # bootstrapping or declaring the engine missing, but only once every
+    # candidate has had its chance to prove itself outright.
+    unproven: Optional[Path] = None
+
     # Probe 1 — user's clone-level venv (highest priority for back-compat).
     omv_dir = os.environ.get("OMNIVOICE_INDEXTTS_DIR")
     if omv_dir:
         cand = _venv_python_path(Path(omv_dir) / ".venv")
-        if cand.is_file() and _venv_can_import_indextts(cand):
-            logger.info(
-                "IndexTTS venv resolved from OMNIVOICE_INDEXTTS_DIR: %s", cand,
-            )
-            _resolved_python = cand
-            return cand
+        if cand.is_file():
+            verdict = _venv_can_import_indextts(cand)
+            if verdict == "yes":
+                logger.info(
+                    "IndexTTS venv resolved from OMNIVOICE_INDEXTTS_DIR: %s", cand,
+                )
+                _resolved_python = cand
+                return cand
+            if verdict == "unproven":
+                unproven = cand
 
     # Probe 2 — this package's own venv.
     cand = _venv_python_path(_ENGINES_VENV_DIR)
-    if cand.is_file() and _venv_can_import_indextts(cand):
-        logger.info("IndexTTS venv resolved from engines path: %s", cand)
-        _resolved_python = cand
-        return cand
+    if cand.is_file():
+        verdict = _venv_can_import_indextts(cand)
+        if verdict == "yes":
+            logger.info("IndexTTS venv resolved from engines path: %s", cand)
+            _resolved_python = cand
+            return cand
+        if verdict == "unproven" and unproven is None:
+            unproven = cand
+
+    if unproven is not None:
+        # Nothing proved itself, but something plausible is installed. Use it:
+        # a venv that really is broken fails the sidecar handshake with a real
+        # error, which beats reinstalling over the top of a working install or
+        # telling the user their engine isn't there.
+        logger.warning(
+            "IndexTTS venv %s could not be verified in time; using it anyway "
+            "rather than treating a slow import as a missing install (#1414).",
+            unproven,
+        )
+        _resolved_python = unproven
+        return unproven
 
     # Probe 3 — bootstrap.
     if not omv_dir:
@@ -171,30 +199,16 @@ def _probe_paths() -> list[Path]:
     return out
 
 
-def _venv_can_import_indextts(python_path: Path) -> bool:
+def _venv_can_import_indextts(python_path: Path) -> ProbeResult:
     """Spawn the candidate python and verify ``import indextts.infer_v2`` works.
 
-    Bounded by ``_IMPORT_PROBE_TIMEOUT_S`` so a wedged venv never hangs
-    the parent. Returns False on any failure (non-zero exit, timeout,
-    OSError).
+    Tri-state — "yes" / "no" / "unproven". See ``engines._venv_probe``: a
+    probe that runs out of time proves nothing, and treating that as "no"
+    is what discarded working OMNIVOICE_INDEXTTS_DIR installs (#1414).
     """
-    try:
-        proc = subprocess.run(
-            [str(python_path), "-c", "import indextts.infer_v2"],
-            capture_output=True,
-            timeout=_IMPORT_PROBE_TIMEOUT_S,
-        )
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.debug("indextts import probe failed for %s: %s", python_path, exc)
-        return False
-    if proc.returncode != 0:
-        logger.debug(
-            "indextts import probe non-zero for %s: %s",
-            python_path,
-            proc.stderr.decode("utf-8", errors="replace")[:200],
-        )
-        return False
-    return True
+    return venv_can_import(
+        python_path, "import indextts.infer_v2", engine="indextts", logger=logger,
+    )
 
 
 def _locate_uv() -> Optional[str]:
@@ -266,7 +280,10 @@ def _bootstrap_engines_venv(indextts_clone: Path) -> Path:
             f"{exc.stderr.decode('utf-8', errors='replace') if exc.stderr else exc}"
         ) from exc
 
-    if not _venv_can_import_indextts(python_path):
+    # Only a *proven* failure is fatal here: a bootstrap that installed
+    # correctly and is merely slow to import must not be thrown away after
+    # spending minutes on the install (#1414).
+    if _venv_can_import_indextts(python_path) == "no":
         raise RuntimeError(
             "IndexTTS bootstrap completed but `import indextts.infer_v2` "
             f"still fails from {python_path}. Verify that "
