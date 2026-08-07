@@ -115,26 +115,31 @@ If an install to a local non-C: drive fails anyway, capture a log with
 
 VoiceStudio has a **Portable** mode: instead of scattering data across
 `%APPDATA%` and `%LOCALAPPDATA%`, the whole install — Python env, model
-weights, voices, projects, settings — lives in a single
-`OmniVoiceStudio-Data` folder created **next to the executable**. Moving or
-copying the app folder (exe + that data folder together) relocates the entire
-install, USB-stick style.
+weights, voices, projects, settings — lives in a single folder. By **default**
+that is `OmniVoiceStudio-Data` next to the executable; you can put it anywhere
+writable from the setup screen (see below). Moving or copying the app folder
+(exe + that data folder together) relocates the entire install, USB-stick
+style.
 
 The first-run setup screen offers Portable, and the folder is **yours to
 choose** — press **Change…** on the Portable folder row and point it at any
 writable location (an external SSD, a second drive, a USB stick).
 
-Where the folder lives changes one thing, and the setup screen says which
-you're getting:
+Where the folder lives decides how far it travels, and the setup screen tells
+you which of these you're getting:
 
-- **App folder writable** (e.g. installed to `D:\Apps\VoiceStudio`) — a small
-  `portable.path` marker is written next to the exe recording the location.
-  The install stays **self-discovering**: move the app and the data folder to
-  another machine and it still finds itself.
-- **App folder read-only** (a default `C:\Program Files` MSI install) — the
-  marker can't be written, so the location is remembered for **your user
-  account only**. Portable still works on this machine, but it will not be
-  found from another one.
+- **Inside the app's own folder** (e.g. `D:\Apps\VoiceStudio\MyData`, with the
+  exe in `D:\Apps\VoiceStudio`) — the `portable.path` marker records it as a
+  **relative** path. Move the app folder as a unit, to another machine or a
+  different drive letter, and the install still finds itself. This is the
+  USB-stick case Portable exists for.
+- **Somewhere else, app folder writable** (e.g. exe in `D:\Apps`, data on
+  `E:\VoiceStudio`) — the marker can only record an **absolute** path, so the
+  install is tied to that exact path. Change the drive letter or the mount
+  point and you'll have to point the app at it again.
+- **App folder read-only** (a default `C:\Program Files` MSI install) — no
+  marker can be written at all, so the location is remembered for **your user
+  account only** on this machine.
 
 That second case used to be a hard block: Portable was greyed out entirely
 after a default install

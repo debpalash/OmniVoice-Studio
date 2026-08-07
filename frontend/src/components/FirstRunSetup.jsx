@@ -316,6 +316,14 @@ export default function FirstRunSetup() {
   const portableRelocated = Boolean(
     portableBase && portableDefault && portableBase !== portableDefault,
   );
+  const portableAnchor = setup?.portable?.anchorDir || '';
+  // A folder INSIDE the app's own directory is recorded as a RELATIVE path, so
+  // app + folder move as a unit and the mount path may change. Anywhere else
+  // only an absolute path can be stored, and the cross-machine promise does not
+  // hold — say so rather than imply it (CodeRabbit, #1404).
+  const portableTravelsWithApp =
+    Boolean(portableAnchor) &&
+    portableBase.startsWith(portableAnchor.endsWith('/') ? portableAnchor : `${portableAnchor}/`);
   const envCheck = useTargetCheck(portable ? null : plan?.envDir);
   const dataCheck = useTargetCheck(portable ? null : plan?.dataDir);
   const modelsCheck = useTargetCheck(portable ? null : plan?.modelsDir);
@@ -626,14 +634,14 @@ export default function FirstRunSetup() {
                     {portableRelocated && (
                       <GroupCaption
                         text={
-                          setup.portable.anchorWritable
+                          setup.portable.anchorWritable && portableTravelsWithApp
                             ? t(
                                 'firstrun.portable_moved',
-                                'A marker beside the app records this location, so the install still finds itself if you move the app and this folder to another machine.',
+                                'Recorded beside the app as a relative path, so moving the app and this folder together — even to another machine or drive letter — keeps the install working.',
                               )
                             : t(
                                 'firstrun.portable_moved_machine_bound',
-                                "The app's own folder is read-only, so this location is remembered for this user account only — the install will not be found from another machine.",
+                                'This exact location is remembered on this machine. If the app or this folder moves, or you use another machine, you will have to point the app at it again.',
                               )
                         }
                       />

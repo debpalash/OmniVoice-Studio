@@ -141,7 +141,16 @@ fn read_portable_pointer() -> Option<PathBuf> {
     if trimmed.is_empty() {
         return None;
     }
-    Some(PathBuf::from(trimmed))
+    let stored = PathBuf::from(trimmed);
+    if stored.is_absolute() {
+        return Some(stored);
+    }
+    // A RELATIVE pointer is the portable one: it is resolved against wherever
+    // the app happens to be right now, so the install survives the mount path
+    // changing — `/Volumes/Stick` on one machine, `E:\` on the next. An
+    // absolute pointer cannot do that, which is why we only write one when the
+    // folder lies outside the app's own directory (see `record_portable_dir`).
+    Some(portable_anchor()?.join(stored))
 }
 
 /// `portable_dir` straight out of the per-user config file.
@@ -186,6 +195,41 @@ pub fn portable_base() -> Option<PathBuf> {
     portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME))
 }
 
+/// What a pointer file should contain for `base`, given the app sits in
+/// `anchor`.
+///
+/// RELATIVE whenever the folder is inside the app's own directory — the
+/// USB-stick case portable mode exists for. App and folder then move as a
+/// unit and the absolute mount path is free to change (`/Volumes/Stick` on
+/// one machine, `E:\` on the next). Anywhere else there is no relocatable
+/// reference to store, so the absolute path is recorded and the install is
+/// tied to it; the UI says so rather than promising portability it cannot
+/// keep (CodeRabbit, #1404).
+///
+/// Pure, so the choice that decides whether the portable promise holds is
+/// testable without an AppHandle or a real filesystem.
+fn pointer_payload(base: &Path, anchor: &Path) -> (String, &'static str) {
+    match base.strip_prefix(anchor) {
+        Ok(rel) if !rel.as_os_str().is_empty() => {
+            (rel.to_string_lossy().into_owned(), "pointer-relative")
+        }
+        _ => (base.to_string_lossy().into_owned(), "pointer-absolute"),
+    }
+}
+
+/// Write the pointer file if the app's folder allows it. `None` when there is
+/// no anchor or it is read-only — the caller falls back to the per-user config.
+fn write_portable_pointer(base: &Path) -> Option<&'static str> {
+    let pointer = portable_pointer_path()?;
+    let anchor = pointer.parent()?.to_path_buf();
+    if !disk::writable(&anchor) {
+        return None;
+    }
+    let (payload, flavour) = pointer_payload(base, &anchor);
+    fs::write(&pointer, payload.as_bytes()).ok()?;
+    Some(flavour)
+}
+
 /// Persist where a relocated portable folder lives, so the next launch finds
 /// it. Prefers the pointer file (portability preserved); falls back to the
 /// per-user config when the app folder is read-only.
@@ -195,12 +239,8 @@ pub fn record_portable_dir<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     base: &Path,
 ) -> Result<&'static str, String> {
-    if let Some(pointer) = portable_pointer_path() {
-        let anchor = pointer.parent().map(Path::to_path_buf).unwrap_or_default();
-        if disk::writable(&anchor) && fs::write(&pointer, base.to_string_lossy().as_bytes()).is_ok()
-        {
-            return Ok("pointer");
-        }
+    if let Some(flavour) = write_portable_pointer(base) {
+        return Ok(flavour);
     }
     // Read-only app folder (a normal macOS /Applications or Windows Program
     // Files install). Record it per-user instead: the install stops being
@@ -220,17 +260,24 @@ pub fn record_portable_dir<R: tauri::Runtime>(
 /// Clear a recorded relocation, so `portable_base()` falls back to the
 /// default folder beside the app. Best-effort on both stores — a stale
 /// pointer left behind would silently outrank a later default install.
-pub fn clear_portable_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+pub fn clear_portable_dir<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) {
     if let Some(pointer) = portable_pointer_path() {
         let _ = fs::remove_file(pointer);
     }
-    let mut cfg = config::load_config(app);
-    if cfg.portable_dir.is_some() {
-        cfg.portable_dir = None;
-        if let Some(path) = config::config_path_for_machine() {
-            let _ = config::save_config_at(&path, &cfg);
-        }
+    // Read and write the MACHINE config directly. Going through
+    // `load_config` would resolve via `config_path` → `portable_config_file`
+    // → `portable_base` → the very `portableDir` we are trying to erase, load
+    // the RELOCATED config (whose own `portable_dir` is None), see nothing to
+    // clear, and leave the machine record intact — so the old folder would
+    // keep winning after the user chose the default (CodeRabbit, #1404).
+    let Some(path) = config::config_path_for_machine() else { return };
+    let Ok(text) = fs::read_to_string(&path) else { return };
+    let Ok(mut cfg) = serde_json::from_str::<config::AppConfig>(&text) else { return };
+    if cfg.portable_dir.is_none() {
+        return;
     }
+    cfg.portable_dir = None;
+    let _ = config::save_config_at(&path, &cfg);
 }
 
 /// Mirror of `backend/core/config.py::get_app_data_dir()` platform defaults —
@@ -593,6 +640,11 @@ pub struct PortableSupport {
     /// The default folder beside the app, so the UI can offer "reset to
     /// default" and tell a relocated install apart from a fresh one.
     pub default_dir: Option<String>,
+    /// The app's own directory. A folder INSIDE it can be recorded relatively
+    /// and therefore survives the mount path changing; anywhere else can only
+    /// be recorded absolutely. The UI uses this to say which of the two the
+    /// user is choosing.
+    pub anchor_dir: Option<String>,
     /// False when the app's own folder is read-only (`/Applications`,
     /// `Program Files`). A relocation is still allowed there — it just falls
     /// back to per-user config, which does not survive moving to another
@@ -761,6 +813,7 @@ pub fn get_setup_state(app: tauri::AppHandle) -> SetupState {
     let default_dir = portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME));
     let anchor_writable = portable_anchor().map(|a| disk::writable(&a)).unwrap_or(false);
     let default_str = default_dir.as_ref().map(|p| p.to_string_lossy().into_owned());
+    let anchor_str = portable_anchor().map(|a| a.to_string_lossy().into_owned());
     let portable = match portable_base() {
         // Portable is available when SOME folder can hold it. A read-only app
         // folder no longer disqualifies it outright: the user can point it at a
@@ -770,6 +823,7 @@ pub fn get_setup_state(app: tauri::AppHandle) -> SetupState {
             base_dir: Some(base.to_string_lossy().into_owned()),
             reason: None,
             default_dir: default_str.clone(),
+            anchor_dir: anchor_str.clone(),
             anchor_writable,
         },
         Some(base) => PortableSupport {
@@ -777,6 +831,7 @@ pub fn get_setup_state(app: tauri::AppHandle) -> SetupState {
             base_dir: Some(base.to_string_lossy().into_owned()),
             reason: Some("not_writable".into()),
             default_dir: default_str.clone(),
+            anchor_dir: anchor_str.clone(),
             anchor_writable,
         },
         None => PortableSupport {
@@ -784,6 +839,7 @@ pub fn get_setup_state(app: tauri::AppHandle) -> SetupState {
             base_dir: None,
             reason: Some("no_anchor".into()),
             default_dir: default_str,
+            anchor_dir: anchor_str,
             anchor_writable,
         },
     };
@@ -951,6 +1007,35 @@ pub fn complete_setup(
 mod tests {
     use super::*;
 
+    /// The relative-vs-absolute choice decides whether the cross-machine
+    /// promise is true, so pin it directly — no AppHandle, no filesystem.
+    #[test]
+    fn pointer_payload_is_relative_only_inside_the_app_folder() {
+        let anchor = Path::new("/Volumes/Stick");
+
+        // Inside the app folder → relative, so a different mount path on the
+        // next machine still resolves.
+        let (payload, flavour) = pointer_payload(&anchor.join("MyVoiceData"), anchor);
+        assert_eq!(payload, "MyVoiceData");
+        assert_eq!(flavour, "pointer-relative");
+
+        // Nested deeper is still inside.
+        let (payload, flavour) = pointer_payload(&anchor.join("data").join("vs"), anchor);
+        assert_eq!(flavour, "pointer-relative");
+        assert!(!Path::new(&payload).is_absolute(), "must not store an absolute path");
+
+        // Outside → absolute, and honestly labelled: nothing relocatable can
+        // be stored, so the install is tied to this exact path.
+        let (payload, flavour) = pointer_payload(Path::new("/Users/x/Elsewhere"), anchor);
+        assert_eq!(payload, "/Users/x/Elsewhere");
+        assert_eq!(flavour, "pointer-absolute");
+
+        // The anchor itself is not a relocation target — an empty relative
+        // path would resolve back to the anchor and lose the folder.
+        let (_, flavour) = pointer_payload(anchor, anchor);
+        assert_eq!(flavour, "pointer-absolute");
+    }
+
     /// Portable-folder relocation (#1403 follow-up). One test fn, not several:
     /// it mutates `APPIMAGE`, which is process-global, and Rust tests run in
     /// parallel — same rationale as the uv-env test below.
@@ -1001,6 +1086,17 @@ mod tests {
             portable_base(),
             Some(default_dir.clone()),
             "an empty pointer must fall through to the default, never to an empty path"
+        );
+
+        // 4b. A RELATIVE pointer resolves against the CURRENT anchor — this is
+        //     what survives the mount path changing between machines. An
+        //     absolute pointer cannot, which is why one is only written for a
+        //     folder outside the app's directory.
+        fs::write(portable_pointer_path().unwrap(), b"MyData").expect("write relative pointer");
+        assert_eq!(
+            portable_base(),
+            Some(tmp.join("MyData")),
+            "a relative pointer must resolve against wherever the app is NOW"
         );
 
         // 5. The plan's pick outranks whatever is currently recorded, so space

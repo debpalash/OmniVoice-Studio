@@ -31,7 +31,8 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({ open: (...a) => openMock(...a) }))
 
 import FirstRunSetup from '../components/FirstRunSetup';
 
-const ANCHOR_DEFAULT = '/Applications/OmniVoiceStudio-Data';
+const ANCHOR = '/Applications';
+const ANCHOR_DEFAULT = `${ANCHOR}/OmniVoiceStudio-Data`;
 
 const setupState = ({ anchorWritable = true, baseDir = ANCHOR_DEFAULT } = {}) => ({
   firstRun: true,
@@ -50,6 +51,7 @@ const setupState = ({ anchorWritable = true, baseDir = ANCHOR_DEFAULT } = {}) =>
     baseDir,
     reason: null,
     defaultDir: ANCHOR_DEFAULT,
+    anchorDir: ANCHOR,
     anchorWritable,
   },
   requirements: { envBytes: 1e9, modelsBytes: 1e9, dataBytes: 1e9 },
@@ -125,27 +127,41 @@ describe('FirstRunSetup — portable folder is choosable', () => {
     });
   });
 
-  it('says a relocation stays portable when the app folder is writable', async () => {
+  it('promises portability only for a folder INSIDE the app directory', async () => {
+    // Only that case can be stored as a relative path, which is what survives
+    // the mount path changing (/Volumes/Stick on one machine, E:\\ on the next).
+    wireInvoke(setupState({ anchorWritable: true, baseDir: `${ANCHOR}/MyVoiceData` }));
+    renderSetup();
+    await waitFor(() => expect(screen.getByText(`${ANCHOR}/MyVoiceData`)).toBeTruthy());
+    expect(screen.getByText(/relative path/i).textContent).toMatch(
+      /another machine or drive letter/i,
+    );
+  });
+
+  it('does NOT promise portability for a folder outside the app directory', async () => {
+    // The overclaim CodeRabbit caught (#1404): an absolute pointer cannot
+    // survive a different mount path, so the cross-machine wording must not
+    // appear here even though the anchor is writable.
     wireInvoke(setupState({ anchorWritable: true, baseDir: '/Volumes/SSD/VoiceStudio' }));
     renderSetup();
     await waitFor(() => expect(screen.getByText('/Volumes/SSD/VoiceStudio')).toBeTruthy());
-    expect(screen.getByText(/another machine/i).textContent).toMatch(/marker beside the app/i);
+    expect(screen.queryByText(/relative path/i)).toBeNull();
+    expect(screen.getByText(/remembered on this machine/i)).toBeTruthy();
   });
 
   it('admits a relocation is machine-bound when the app folder is read-only', async () => {
-    // The honest half: with no writable anchor the location can only be
-    // recorded per-user, so the cross-machine promise does not hold and the
-    // UI must not imply otherwise.
-    wireInvoke(setupState({ anchorWritable: false, baseDir: '/Volumes/SSD/VoiceStudio' }));
+    wireInvoke(setupState({ anchorWritable: false, baseDir: `${ANCHOR}/MyVoiceData` }));
     renderSetup();
-    await waitFor(() => expect(screen.getByText('/Volumes/SSD/VoiceStudio')).toBeTruthy());
-    expect(screen.getByText(/read-only/i).textContent).toMatch(/this user account only/i);
+    await waitFor(() => expect(screen.getByText(`${ANCHOR}/MyVoiceData`)).toBeTruthy());
+    expect(screen.queryByText(/relative path/i)).toBeNull();
+    expect(screen.getByText(/remembered on this machine/i)).toBeTruthy();
   });
 
   it('shows no relocation notice when the default folder is used', async () => {
     wireInvoke(setupState({ baseDir: ANCHOR_DEFAULT }));
     renderSetup();
     await waitFor(() => expect(screen.getByText(ANCHOR_DEFAULT)).toBeTruthy());
-    expect(screen.queryByText(/another machine/i)).toBeNull();
+    expect(screen.queryByText(/remembered on this machine/i)).toBeNull();
+    expect(screen.queryByText(/relative path/i)).toBeNull();
   });
 });
