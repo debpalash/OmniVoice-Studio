@@ -54,6 +54,38 @@ function radioTabIndex(values, current, value) {
   return value === focusable ? 0 : -1;
 }
 
+/**
+ * Miniature of each navigation skin — the tile shows the layout instead of
+ * describing it, because "rail" vs "tabs" is a shape, not a word.
+ */
+function NavStylePreview({ style }) {
+  if (style === 'tabs') {
+    return (
+      <span className="appearance-panel__nav-preview" aria-hidden="true">
+        <span className="appearance-panel__nav-preview-bar">
+          <span className="appearance-panel__nav-preview-tab is-active" />
+          <span className="appearance-panel__nav-preview-tab" />
+          <span className="appearance-panel__nav-preview-tab" />
+        </span>
+        <span className="appearance-panel__nav-preview-plane" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="appearance-panel__nav-preview appearance-panel__nav-preview--rail"
+      aria-hidden="true"
+    >
+      <span className="appearance-panel__nav-preview-rail">
+        <span className="appearance-panel__nav-preview-dot is-active" />
+        <span className="appearance-panel__nav-preview-dot" />
+        <span className="appearance-panel__nav-preview-dot" />
+      </span>
+      <span className="appearance-panel__nav-preview-plane" />
+    </span>
+  );
+}
+
 export default function AppearancePanel() {
   const { t } = useTranslation();
   const uiScale = useAppStore((s) => s.uiScale);
@@ -66,12 +98,20 @@ export default function AppearancePanel() {
   const setAutoPlayPreview = useAppStore((s) => s.setAutoPlayPreview);
   const showHeaderLiveStats = useAppStore((s) => s.showHeaderLiveStats);
   const setShowHeaderLiveStats = useAppStore((s) => s.setShowHeaderLiveStats);
+  const navStyle = useAppStore((s) => s.navStyle);
+  const setNavStyle = useAppStore((s) => s.setNavStyle);
 
   const scaleLabel = t('settings.ui_scale', { defaultValue: 'UI scale' });
   const themeLabel = t('settings.color_theme', { defaultValue: 'Color theme' });
   const fontLabel = t('settings.font', { defaultValue: 'Font' });
   const themeIds = THEMES.map((th) => th.id);
   const fontIds = FONT_OPTIONS.map((f) => f.id);
+  const navStyleLabel = t('settings.nav_style', { defaultValue: 'Navigation style' });
+  const navStyles = [
+    { id: 'rail', label: t('settings.nav_style_rail', { defaultValue: 'Sidebar rail' }) },
+    { id: 'tabs', label: t('settings.nav_style_tabs', { defaultValue: 'Titlebar tabs' }) },
+  ];
+  const navStyleIds = navStyles.map((n) => n.id);
 
   return (
     <SettingsSection
@@ -87,6 +127,43 @@ export default function AppearancePanel() {
         </InfoHint>
       }
     >
+      <SettingRow
+        className="appearance-panel__row--nav-style"
+        stack
+        align="start"
+        title={navStyleLabel}
+        subtitle={t('settings.nav_style_desc', {
+          defaultValue:
+            'Switch workspaces from an icon rail down the window edge, or from tabs across the title bar.',
+        })}
+        control={
+          <div
+            className="flex flex-wrap gap-[var(--space-3)]"
+            role="radiogroup"
+            aria-label={navStyleLabel}
+          >
+            {navStyles.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                role="radio"
+                aria-checked={navStyle === n.id}
+                aria-label={n.label}
+                tabIndex={radioTabIndex(navStyleIds, navStyle, n.id)}
+                data-radio-value={n.id}
+                data-testid={`appearance-nav-style-${n.id}`}
+                className={`appearance-panel__nav-tile ${navStyle === n.id ? 'is-active' : ''}`}
+                onClick={() => setNavStyle(n.id)}
+                onKeyDown={(e) => radioGroupKeyDown(e, navStyleIds, navStyle, setNavStyle)}
+              >
+                <NavStylePreview style={n.id} />
+                <span className="appearance-panel__nav-name">{n.label}</span>
+              </button>
+            ))}
+          </div>
+        }
+      />
+
       <SettingRow
         title={scaleLabel}
         control={

@@ -21,7 +21,8 @@
     "move_rail_left": "將導軌移至左側",
     "flip_rail": "翻轉導軌側",
     "voice": "語音",
-    "audiobook": "有聲書"
+    "audiobook": "有聲書",
+    "workspaces": "工作區"
   },
   "settings": {
     "general": "一般",
@@ -166,6 +167,10 @@
     "review_mode_desc": "在管道階段之間暫停，以便您可以查看 ASR/翻譯輸出。",
     "header_live_stats": "在標題中顯示即時系統指標",
     "header_live_stats_desc": "在頂部欄位新增即時 RAM/CPU/VRAM 監視器（預設為關閉）。",
+    "nav_style": "導覽樣式",
+    "nav_style_desc": "透過視窗邊緣的圖示列或標題列上的分頁切換工作區。",
+    "nav_style_rail": "側邊欄",
+    "nav_style_tabs": "標題列分頁",
     "storage_desc": "VoiceStudio 保存您的資料和輸出的地方。",
     "history_retention": "生成歷史",
     "history_retention_desc": "在清理最舊項目之前保留的生成數量。",

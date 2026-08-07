@@ -59,6 +59,10 @@ export const GROUPS = [
           'auto-play preview',
           'header live stats',
           'system metrics',
+          'navigation style',
+          'sidebar rail',
+          'titlebar tabs',
+          'tabs',
         ],
         keywordKeys: [
           'settings.ui_scale',
@@ -66,6 +70,7 @@ export const GROUPS = [
           'settings.font',
           'settings.autoplay_preview',
           'settings.header_live_stats',
+          'settings.nav_style',
         ],
       },
       {

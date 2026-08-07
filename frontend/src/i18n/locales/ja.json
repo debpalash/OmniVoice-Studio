@@ -21,7 +21,8 @@
     "move_rail_left": "レールを左に移動します",
     "flip_rail": "レール側を反転",
     "voice": "声",
-    "audiobook": "オーディオブック"
+    "audiobook": "オーディオブック",
+    "workspaces": "ワークスペース"
   },
   "settings": {
     "general": "一般",
@@ -166,6 +167,10 @@
     "review_mode_desc": "パイプライン ステージ間で一時停止して、ASR/翻訳出力を確認できるようにします。",
     "header_live_stats": "ライブシステムメトリクスをヘッダーに表示",
     "header_live_stats_desc": "ライブ RAM / CPU / VRAM モニターをトップバーに追加します (デフォルトではオフ)。",
+    "nav_style": "ナビゲーションのスタイル",
+    "nav_style_desc": "ウィンドウ端のアイコンバー、またはタイトルバーのタブでワークスペースを切り替えます。",
+    "nav_style_rail": "サイドバー",
+    "nav_style_tabs": "タイトルバーのタブ",
     "storage_desc": "VoiceStudio がデータと出力を保管する場所。",
     "history_retention": "生成履歴",
     "history_retention_desc": "古いテイクを整理するまでに保持するテイク数。",

@@ -39,6 +39,14 @@ type DefineMethod = 'audio' | 'design';
 
 type SidebarTab = 'projects' | 'history' | 'downloads';
 
+/**
+ * Which navigation skin renders the workspace switcher:
+ *  - 'rail': the vertical icon rail down the window edge (default)
+ *  - 'tabs': browser-style tabs in the title bar
+ * Both render `components/navItems.js`; see `TitleTabs.jsx`.
+ */
+export type NavStyle = 'rail' | 'tabs';
+
 export interface UiSlice {
   mode: AppMode;
   /** Active definition method inside the Voice ('studio') workspace. */
@@ -66,6 +74,7 @@ export interface UiSlice {
   sidebarTab: SidebarTab;
   showCheatsheet: boolean;
   uiScale: number;
+  navStyle: NavStyle;
 
   setMode: (mode: AppMode) => void;
   setDefineMethod: (method: DefineMethod) => void;
@@ -81,6 +90,7 @@ export interface UiSlice {
   setSidebarTab: (tab: SidebarTab) => void;
   setShowCheatsheet: (open: boolean | ((prev: boolean) => boolean)) => void;
   setUiScale: (scale: number) => void;
+  setNavStyle: (style: NavStyle) => void;
 
   /** Jump to the voice-profile page, remembering what mode you were on. */
   openVoiceProfile: (id: string) => void;
@@ -104,6 +114,9 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   // 100% by default — the app renders at native size out of the box; users
   // who prefer larger UI pick their scale in Settings → Appearance (persisted).
   uiScale: 1.0,
+  // The icon rail is the out-of-the-box navigation; titlebar tabs are opt-in
+  // from Settings → Appearance and persist like the other chrome preferences.
+  navStyle: 'rail',
 
   setMode: (mode) => set({ mode }),
   setDefineMethod: (method) => set({ defineMethod: method }),
@@ -122,6 +135,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
         typeof open === 'function' ? (open as (p: boolean) => boolean)(s.showCheatsheet) : open,
     })),
   setUiScale: (scale) => set({ uiScale: scale }),
+  setNavStyle: (style) => set({ navStyle: style }),
 
   openVoiceProfile: (id) => {
     const prev = get().mode;

@@ -21,7 +21,8 @@
     "move_rail_left": "Mova o trilho para a esquerda",
     "flip_rail": "Vire o lado do trilho",
     "voice": "Voz",
-    "audiobook": "Audiolivro"
+    "audiobook": "Audiolivro",
+    "workspaces": "Áreas de trabalho"
   },
   "settings": {
     "general": "Geral",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Faça uma pausa entre os estágios do pipeline para poder revisar a saída de ASR/tradução.",
     "header_live_stats": "Mostrar métricas do sistema ao vivo no cabeçalho",
     "header_live_stats_desc": "Adiciona um monitor RAM/CPU/VRAM ativo à barra superior (desativado por padrão).",
+    "nav_style": "Estilo de navegação",
+    "nav_style_desc": "Alterne entre áreas de trabalho por uma barra de ícones na borda da janela ou por abas na barra de título.",
+    "nav_style_rail": "Barra lateral",
+    "nav_style_tabs": "Abas na barra de título",
     "storage_desc": "Onde VoiceStudio mantém seus dados e resultados.",
     "history_retention": "Histórico de geração",
     "history_retention_desc": "Quantas takes manter antes de limpar as mais antigas.",

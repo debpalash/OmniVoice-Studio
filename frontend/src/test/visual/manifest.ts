@@ -24,6 +24,7 @@ export const COMPONENTS = [
   // Provider-wrapped PANEL specs — rendered with a seeded store / i18n /
   // react-query / fetch (see specs.jsx `providers`). Same snapshot loop.
   'AppearancePanel',
+  'TitleTabs',
   'GeneralTab',
   'StoragePanel',
   'ResetPanel',

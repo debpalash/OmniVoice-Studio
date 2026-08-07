@@ -924,6 +924,178 @@ html[data-zoom-layout='off'] .app-container {
 }
 .header-area p { margin: 0; color: var(--text-secondary); font-size: 0.7rem; }
 
+/* ═══ TITLEBAR TABS ═══
+   The opt-in navigation skin (Settings → Appearance → Navigation style):
+   the workspace switcher leaves the icon rail and becomes browser-style tabs
+   in the title bar. `navStyle: 'tabs'` in the ui store drives both the
+   `.nav-tabs` shell class and `.header-area--tabs` (Header.jsx / TitleTabs.jsx).
+
+   The shape is the point. A tab is the content plane pulled up into the bar:
+   same background, small top radius, and two `box-shadow` corner curls that
+   sweep it back down into the page — so the active workspace reads as one
+   continuous surface with what you're looking at, and the others read as
+   sitting behind it. Radii stay tight (6px against the app's 3px pills) so
+   the browser silhouette doesn't turn soft next to the rest of the chrome. */
+
+/* Grid: no 48px rail column to reserve. */
+.app-container.nav-tabs { grid-template-columns: minmax(180px, 220px) minmax(0, 4fr); }
+.app-container.nav-tabs.sidebar-collapsed { grid-template-columns: 46px minmax(0, 4fr); }
+.app-container.nav-tabs.sidebar-hidden { grid-template-columns: minmax(0, 1fr); }
+.app-container.nav-tabs > .history-panel { grid-column: 1; }
+.app-container.nav-tabs > .main-content { grid-column: 2; }
+.app-container.nav-tabs.sidebar-hidden > .main-content { grid-column: 1; }
+/* Narrow shells drop the projects/history panel; with no rail, main is alone. */
+.app-container.nav-tabs.shell-narrow,
+.app-container.nav-tabs.shell-mini { grid-template-columns: minmax(0, 1fr) !important; }
+.app-container.nav-tabs.shell-narrow > .main-content,
+.app-container.nav-tabs.shell-mini > .main-content { grid-column: 1 !important; }
+
+.header-area.header-area--tabs {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  /* Flush bottom: the tabs themselves have to touch the content plane.
+     The 64px left inset keeps them clear of the macOS traffic lights. */
+  padding: 0 8px 0 64px;
+  /* The shelf lifts AWAY from the page rather than sinking below it: every
+     theme's --chrome-bg is already near-black, so a darker shelf would have
+     no contrast left to spend. Lighter shelf + page-coloured active tab is
+     also exactly the browser's own dark-mode arrangement. */
+  background: color-mix(in srgb, var(--chrome-bg) 90%, #fff);
+  /* No hairline: the active tab has to flow into the page uninterrupted.
+     The shelf's own darker fill draws the line for the rest of the bar. */
+  border-bottom: none;
+  min-height: 34px;
+}
+/* The corner curls hang outside each tab — the default cell clipping eats them. */
+.header-area.header-area--tabs > div { overflow: visible; }
+
+.tabstrip {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  height: 100%;
+  /* Room for the first tab's left curl. */
+  padding-left: 6px;
+}
+
+.tabstrip__gap { flex: 1 1 auto; min-width: 8px; }
+
+.tabstrip__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 190px;
+  height: 27px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--chrome-fg-dim);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+/* Resting tabs read as muted, not as disabled: the shelf is a LIGHTER plane
+   than the page, so --chrome-fg-dim (tuned against the dark page) loses too
+   much contrast here. */
+.tabstrip__tab { color: var(--chrome-fg-muted); }
+
+.tabstrip__tab:hover { background: color-mix(in srgb, var(--chrome-bg) 82%, #fff); color: var(--chrome-fg); }
+.tabstrip__tab:focus-visible {
+  outline: 2px solid var(--tab-accent, var(--chrome-accent));
+  outline-offset: -2px;
+}
+
+.tabstrip__icon { flex-shrink: 0; }
+/* Resting tabs drop their label whole (is-compact) rather than shrinking into
+   stubs, so this ellipsis is a safety net, not the plan: it only shows during
+   the frame between a window drag and the next measurement — and a stub for
+   one frame beats tabs overlapping the status readout for one frame. */
+.tabstrip__label { overflow: hidden; text-overflow: ellipsis; }
+
+.tabstrip__tab.is-active {
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  /* The tab you're in never gives up its name to make room for the others. */
+  flex-shrink: 0;
+  /* Accent rule along the top edge — the same "this one is live" signal the
+     rail spends on its indicator bar. */
+  box-shadow: inset 0 2px 0 var(--tab-accent, var(--chrome-accent));
+  z-index: 1;
+}
+.tabstrip__tab.is-active .tabstrip__icon { color: var(--tab-accent, var(--chrome-accent)); }
+
+/* The curls: a 6px corner nub either side of the active tab, filled with the
+   tab's own colour by an offset+spread shadow and notched by the radius. */
+.tabstrip__tab.is-active::before,
+.tabstrip__tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 6px;
+  height: 6px;
+  pointer-events: none;
+}
+.tabstrip__tab.is-active::before {
+  left: -6px;
+  border-bottom-right-radius: 6px;
+  box-shadow: 3px 3px 0 3px var(--chrome-bg);
+}
+.tabstrip__tab.is-active::after {
+  right: -6px;
+  border-bottom-left-radius: 6px;
+  box-shadow: -3px 3px 0 3px var(--chrome-bg);
+}
+
+/* Hairline between neighbouring resting tabs (TitleTabs decides where one
+   belongs); the whole set fades out while the strip is under the pointer. */
+.tabstrip__tab.has-separator::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--chrome-border-strong);
+  transition: opacity 0.14s ease;
+}
+.tabstrip:hover .tabstrip__tab.has-separator::after { opacity: 0; }
+
+/* Labels are all-or-nothing (TitleTabs measures; see useCompactLabels).
+   `is-compact` — the full set doesn't fit: resting tabs go to icons, and only
+   the tab you're in keeps its word. Nine ellipsised stubs read worse than
+   nine icons, and cost more room doing it. */
+.tabstrip.is-compact .tabstrip__tab:not(.is-active) .tabstrip__label { display: none; }
+.tabstrip.is-compact .tabstrip__tab:not(.is-active) { padding: 0 9px; }
+
+/* `is-measuring` — applied for one synchronous read: force the full layout
+   and stop the tabs shrinking, so scrollWidth reports what the strip WANTS
+   rather than what it was last squeezed into (a measurement that depended on
+   the current state would oscillate). Never painted. */
+/* !important, deliberately: this has to out-rank `.is-compact`'s label rule
+   below. Without it the read inherits the state it is trying to re-decide —
+   once compact, the strip measures its own compact width, agrees with itself
+   and can never expand again (widen the window, turn the metrics cluster off:
+   the labels would never come back). */
+.tabstrip.is-measuring .tabstrip__label { display: inline !important; }
+.tabstrip.is-measuring .tabstrip__tab {
+  flex-shrink: 0;
+  max-width: none;
+  padding: 0 10px;
+}
+/* The spacer that pushes Settings to the tail grows into whatever is left,
+   which would make the strip report "full" at every width. Collapse it for
+   the read: what's being measured is the TABS, not the slack. */
+.tabstrip.is-measuring .tabstrip__gap { display: none; }
+
 /* ═══ TABS — migrated to ui/Tabs primitive; legacy .tabs/.tab removed. ═══ */
 
 /* ═══ GRID SYSTEMS ═══ */
@@ -2901,6 +3073,15 @@ html[data-zoom-layout='off'] .app-wizard-wrap {
 .app-container.shell-mini.rail-right .logs-footer {
   grid-column: 1 / -1;
 }
+/* Titlebar tabs: no rail, so nothing owns column 1 and the footer starts
+   there. Leaving it at `2 / -1` doesn't just misalign it — the shell's
+   templates are one column narrower in this mode, so column 2 is IMPLICIT:
+   the grid invents an auto-sized column for the footer and takes that width
+   off the content column. That reads as "the app renders in 65% of the
+   window with a black band", not as a misplaced footer. */
+.app-container.nav-tabs .logs-footer {
+  grid-column: 1 / -1;
+}
 
 /* Global audio mini-player dock — grid row 3, directly above the footer,
    same column recipe as .logs-footer (beside the nav rail; full width when
@@ -2915,6 +3096,10 @@ html[data-zoom-layout='off'] .app-wizard-wrap {
 }
 .app-container.shell-mini .global-audio-dock,
 .app-container.shell-mini.rail-right .global-audio-dock {
+  grid-column: 1 / -1;
+}
+/* Same phantom-column trap as the footer above. */
+.app-container.nav-tabs .global-audio-dock {
   grid-column: 1 / -1;
 }
 
@@ -4501,6 +4686,92 @@ body:has(.capture-pill) {
   text-overflow: ellipsis;
   /* name renders in the tile's font too — keep it the same family */
 }
+
+/* Navigation-style picker: each tile carries a working miniature of the skin
+   it selects (rail down the edge vs tabs across the top), so the choice is
+   read as a shape rather than parsed from a label. */
+.appearance-panel__nav-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 132px;
+  padding: var(--space-3);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--chrome-radius-pill);
+  background: var(--chrome-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.appearance-panel__nav-tile:hover {
+  border-color: var(--chrome-border-strong);
+  background: var(--chrome-hover-bg);
+}
+.appearance-panel__nav-tile.is-active {
+  border-color: var(--chrome-accent);
+  background: color-mix(in srgb, var(--chrome-accent) 6%, var(--chrome-bg));
+  box-shadow: 0 0 0 1px var(--chrome-accent) inset;
+}
+.appearance-panel__nav-name {
+  font-size: var(--text-sm);
+  color: var(--chrome-fg-muted);
+  white-space: nowrap;
+}
+.appearance-panel__nav-tile.is-active .appearance-panel__nav-name { color: var(--chrome-fg); }
+
+.appearance-panel__nav-preview {
+  display: flex;
+  flex-direction: column;
+  height: 52px;
+  border: 1px solid color-mix(in srgb, var(--chrome-fg-muted) 25%, transparent);
+  border-radius: 3px;
+  overflow: hidden;
+  /* The miniature paints the real arrangement: page plane, lighter chrome
+     strip, one accent-marked destination. Both planes are lifted off the
+     settings surface so the miniature reads as a little window, not as a
+     hole in the panel. */
+  background: color-mix(in srgb, var(--chrome-bg) 94%, #fff);
+}
+.appearance-panel__nav-preview--rail { flex-direction: row; }
+.appearance-panel__nav-preview-plane {
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--chrome-bg) 94%, #fff);
+}
+.appearance-panel__nav-preview-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 4px;
+  height: 15px;
+  background: color-mix(in srgb, var(--chrome-bg) 80%, #fff);
+}
+.appearance-panel__nav-preview-tab {
+  width: 24px;
+  height: 9px;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--chrome-fg-muted) 35%, transparent);
+}
+.appearance-panel__nav-preview-tab.is-active {
+  height: 12px;
+  background: color-mix(in srgb, var(--chrome-bg) 94%, #fff);
+  box-shadow: inset 0 2px 0 var(--chrome-accent);
+}
+.appearance-panel__nav-preview-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 15px;
+  padding-top: 6px;
+  background: color-mix(in srgb, var(--chrome-bg) 80%, #fff);
+}
+.appearance-panel__nav-preview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--chrome-fg-muted) 35%, transparent);
+}
+.appearance-panel__nav-preview-dot.is-active { background: var(--chrome-accent); }
 
 /* ═══ from src/components/settings/PerformancePanel.css ═══ */
 /* Settings → Performance panel (Wave 2 INST-12). Matches the API Keys

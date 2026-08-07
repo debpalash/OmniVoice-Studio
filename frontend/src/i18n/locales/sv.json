@@ -21,7 +21,8 @@
     "move_rail_left": "Flytta skenan till vänster",
     "flip_rail": "Flip rail sida",
     "voice": "Röst",
-    "audiobook": "Ljudbok"
+    "audiobook": "Ljudbok",
+    "workspaces": "Arbetsytor"
   },
   "settings": {
     "general": "Allmänt",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Pausa mellan stegen i pipeline så att du kan granska ASR/översättningsutdata.",
     "header_live_stats": "Visa livesystemstatistik i rubriken",
     "header_live_stats_desc": "Lägger till en live RAM/CPU/VRAM-monitor till den övre raden (av som standard).",
+    "nav_style": "Navigeringsstil",
+    "nav_style_desc": "Byt arbetsyta från en ikonrad längs fönsterkanten eller från flikar i namnlisten.",
+    "nav_style_rail": "Sidopanel",
+    "nav_style_tabs": "Flikar i namnlisten",
     "storage_desc": "Där VoiceStudio förvarar dina data och utdata.",
     "history_retention": "Genereringshistorik",
     "history_retention_desc": "Hur många tagningar som behålls innan de äldsta rensas.",

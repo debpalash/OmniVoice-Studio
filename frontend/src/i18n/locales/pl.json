@@ -21,7 +21,8 @@
     "move_rail_left": "Przesuń szynę w lewo",
     "flip_rail": "Odwróć stronę szyny",
     "voice": "Głos",
-    "audiobook": "Książka audio"
+    "audiobook": "Książka audio",
+    "workspaces": "Obszary robocze"
   },
   "settings": {
     "general": "Ogólne",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Wstrzymaj się między etapami potoku, aby móc przejrzeć wyniki ASR/tłumaczenia.",
     "header_live_stats": "Pokaż aktualne dane systemowe w nagłówku",
     "header_live_stats_desc": "Dodaje bieżący monitor RAM/CPU/VRAM do górnego paska (domyślnie wyłączony).",
+    "nav_style": "Styl nawigacji",
+    "nav_style_desc": "Przełączaj obszary robocze paskiem ikon przy krawędzi okna albo kartami na pasku tytułu.",
+    "nav_style_rail": "Pasek boczny",
+    "nav_style_tabs": "Karty na pasku tytułu",
     "storage_desc": "Miejsce, w którym VoiceStudio przechowuje Twoje dane i wyniki.",
     "history_retention": "Historia generowania",
     "history_retention_desc": "Ile nagrań zachować, zanim najstarsze zostaną wyczyszczone.",

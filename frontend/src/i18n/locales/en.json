@@ -156,7 +156,8 @@
     "audiobook": "Audiobook",
     "move_rail_right": "Move rail to the right",
     "move_rail_left": "Move rail to the left",
-    "flip_rail": "Flip rail side"
+    "flip_rail": "Flip rail side",
+    "workspaces": "Workspaces"
   },
   "audiobook": {
     "cast": "Cast",
@@ -635,6 +636,10 @@
     "review_mode_desc": "Pause between pipeline stages so you can review ASR / translation output.",
     "header_live_stats": "Show live system metrics in header",
     "header_live_stats_desc": "Adds a live RAM / CPU / VRAM monitor to the top bar (off by default).",
+    "nav_style": "Navigation style",
+    "nav_style_desc": "Switch workspaces from an icon rail down the window edge, or from tabs across the title bar.",
+    "nav_style_rail": "Sidebar rail",
+    "nav_style_tabs": "Titlebar tabs",
     "storage_desc": "Where VoiceStudio keeps your data and outputs.",
     "uninstall": "Remove all data",
     "uninstall_desc": "Delete everything VoiceStudio has written to this machine, then quit.",

@@ -37,6 +37,7 @@ const AudiobookTab = lazy(() => import('./pages/AudiobookTab'));
 
 import Header from './components/Header';
 import NavRail from './components/NavRail';
+import TitleTabs from './components/TitleTabs';
 import WorkspaceHistory from './components/WorkspaceHistory';
 import WorkspaceVoices from './components/WorkspaceVoices';
 import WorkspaceProjects from './components/WorkspaceProjects';
@@ -69,6 +70,7 @@ const LazyFallback = () => <div className="app-lazy-fallback">{i18n.t('app.loadi
 import { Toaster, toast } from 'react-hot-toast';
 import { toastErrorWithReport } from './utils/errorToast';
 import { addBreadcrumb } from './utils/breadcrumbs';
+import { appShellClasses } from './utils/appShellClasses';
 import { recordValueMoment } from './utils/donationMoments';
 import {
   POPULAR_LANGS,
@@ -198,6 +200,9 @@ function App() {
   useEffect(() => {
     addBreadcrumb(`view:${mode}`);
   }, [mode]);
+  // Navigation skin: the icon rail (default) or titlebar tabs (Settings →
+  // Appearance). Only one of the two renders at a time.
+  const navStyle = useAppStore((s) => s.navStyle);
   const [navRailSide, setNavRailSide] = useState(() => {
     try {
       return localStorage.getItem('omnivoice.navRailSide') || 'left';
@@ -239,6 +244,7 @@ function App() {
       if (unlisten) unlisten();
     };
   }, [setMode]);
+
   const flipNavRailSide = useCallback(() => {
     setNavRailSide((prev) => {
       const next = prev === 'left' ? 'right' : 'left';
@@ -1218,15 +1224,13 @@ function App() {
   return (
     <div
       ref={shellRef}
-      className={[
-        'app-container',
-        isSidebarCollapsed ? 'sidebar-collapsed' : '',
-        hideSidebar ? 'sidebar-hidden' : '',
-        navRailSide === 'right' ? 'rail-right' : '',
+      className={appShellClasses({
+        navStyle,
+        navRailSide,
+        isSidebarCollapsed,
+        hideSidebar,
         shellSizeClass,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      })}
       style={{ '--ui-scale': uiScale }}
     >
       {pendingTrimFile && (
@@ -1291,6 +1295,7 @@ function App() {
       <Header
         mode={mode}
         setMode={setMode}
+        navStyle={navStyle}
         modelStatus={modelStatus}
         doubleClickMaximize={doubleClickMaximize}
         activeProjectName={activeProjectName}
@@ -1310,7 +1315,9 @@ function App() {
         }}
       />
 
-      <NavRail mode={mode} setMode={setMode} side={navRailSide} onFlipSide={flipNavRailSide} />
+      {navStyle === 'tabs' ? null : (
+        <NavRail mode={mode} setMode={setMode} side={navRailSide} onFlipSide={flipNavRailSide} />
+      )}
 
       <div className="main-content">
         {/* ═══ LAUNCHPAD TAB ═══ */}

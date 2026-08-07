@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import NotificationPanel from './NotificationPanel';
+import TitleTabs from './TitleTabs';
 import { useAppStore } from '../store';
 import { useSysinfo } from '../api/hooks';
 
@@ -114,11 +115,16 @@ function WaveBars({ color = '#f3a5b6', active }) {
 export default function Header({
   mode,
   setMode,
+  navStyle = 'rail',
   modelStatus,
   doubleClickMaximize,
   activeProjectName,
   onFlushMemory,
 }) {
+  // Titlebar-tabs mode puts the workspace switcher in this row, where the
+  // breadcrumb + wordmark normally sit — the tabs already say where you are,
+  // and two answers to that question in one bar is one too many.
+  const tabsInTitlebar = navStyle === 'tabs';
   const { t } = useTranslation();
   // Sysinfo is subscribed here (not in App via useAppData) so the 5s poll
   // only re-renders the header chrome, not the whole App tree.
@@ -215,75 +221,87 @@ export default function Header({
   const dotStyle = { background: view.accent, boxShadow: `0 0 10px ${view.accent}90` };
   const labelStyle = { color: view.accent };
   return (
-    <div className="header-area" data-tauri-drag-region onDoubleClick={doubleClickMaximize}>
-      {/* Left: view title + breadcrumb */}
-      <div className="flex items-center gap-[14px] justify-self-start min-w-0">
-        <div className="min-w-[80px] shrink-0" />
-        <div className="inline-flex items-center gap-[6px] h-[var(--chrome-pill-h)] [font-family:var(--font-sans)] max-[961px]:gap-[5px]">
-          <span
-            className="w-[7px] h-[7px] rounded-full shrink-0 [animation:hqPulse_2.4s_ease-in-out_infinite] max-[821px]:hidden"
-            style={dotStyle}
-          />
-          <span className="text-[length:var(--chrome-label-size)] font-semibold tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] max-[1501px]:hidden">
-            {t(view.kickerKey)}
-          </span>
-          <ChevronRight size={10} color="#504945" className="mx-[2px] max-[1501px]:hidden" />
-          <span
-            className="inline-flex items-center gap-1 [font-family:var(--font-sans)] text-[0.72rem] font-semibold tracking-[0.02em] max-[961px]:text-[0.78rem]"
-            style={labelStyle}
-          >
-            <ViewIcon size={12} className="mr-1 align-[-1px]" />
-            {t(view.labelKey)}
-          </span>
-          {activeProjectName ? (
-            <>
-              <ChevronRight size={10} color="#504945" className="mx-[2px]" />
-              <span
-                className="[font-family:var(--font-sans)] text-[0.68rem] font-medium text-[var(--chrome-fg-muted)] max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap max-[1201px]:hidden"
-                title={activeProjectName}
-              >
-                {activeProjectName}
-              </span>
-            </>
-          ) : null}
+    <div
+      className={`header-area ${tabsInTitlebar ? 'header-area--tabs' : ''}`}
+      data-tauri-drag-region
+      onDoubleClick={doubleClickMaximize}
+    >
+      {tabsInTitlebar ? (
+        <div className="header-area__tabs min-w-0">
+          <TitleTabs mode={mode} setMode={setMode} />
         </div>
-        {import.meta.env.DEV && (
-          <Button
-            variant="ghost"
-            size="sm"
-            title={t('common.reload')}
-            onClick={() => window.location.reload()}
-            leading={<RefreshCw size={9} />}
-            className="shrink-0"
-          >
-            {t('common.reload')}
-          </Button>
-        )}
-      </div>
+      ) : (
+        /* Left: view title + breadcrumb */
+        <div className="flex items-center gap-[14px] justify-self-start min-w-0">
+          <div className="min-w-[80px] shrink-0" />
+          <div className="inline-flex items-center gap-[6px] h-[var(--chrome-pill-h)] [font-family:var(--font-sans)] max-[961px]:gap-[5px]">
+            <span
+              className="w-[7px] h-[7px] rounded-full shrink-0 [animation:hqPulse_2.4s_ease-in-out_infinite] max-[821px]:hidden"
+              style={dotStyle}
+            />
+            <span className="text-[length:var(--chrome-label-size)] font-semibold tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] max-[1501px]:hidden">
+              {t(view.kickerKey)}
+            </span>
+            <ChevronRight size={10} color="#504945" className="mx-[2px] max-[1501px]:hidden" />
+            <span
+              className="inline-flex items-center gap-1 [font-family:var(--font-sans)] text-[0.72rem] font-semibold tracking-[0.02em] max-[961px]:text-[0.78rem]"
+              style={labelStyle}
+            >
+              <ViewIcon size={12} className="mr-1 align-[-1px]" />
+              {t(view.labelKey)}
+            </span>
+            {activeProjectName ? (
+              <>
+                <ChevronRight size={10} color="#504945" className="mx-[2px]" />
+                <span
+                  className="[font-family:var(--font-sans)] text-[0.68rem] font-medium text-[var(--chrome-fg-muted)] max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap max-[1201px]:hidden"
+                  title={activeProjectName}
+                >
+                  {activeProjectName}
+                </span>
+              </>
+            ) : null}
+          </div>
+          {import.meta.env.DEV && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title={t('common.reload')}
+              onClick={() => window.location.reload()}
+              leading={<RefreshCw size={9} />}
+              className="shrink-0"
+            >
+              {t('common.reload')}
+            </Button>
+          )}
+        </div>
+      )}
 
-      {/* Center: logo */}
-      <div className="flex items-center gap-2 justify-self-center pointer-events-none whitespace-nowrap">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#f3a5b6"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 6v12" />
-          <path d="M8 9v6" />
-          <path d="M16 9v6" />
-        </svg>
-        <span className="text-[0.92rem] font-semibold text-[var(--chrome-fg)] tracking-[0.02em] [font-family:var(--font-sans)] not-italic">
-          Omni<span className="text-[var(--chrome-accent)]">Voice</span>
-        </span>
-      </div>
+      {/* Center: logo — the tabs take this room in titlebar-tabs mode. */}
+      {!tabsInTitlebar && (
+        <div className="flex items-center gap-2 justify-self-center pointer-events-none whitespace-nowrap">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#f3a5b6"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v12" />
+            <path d="M8 9v6" />
+            <path d="M16 9v6" />
+          </svg>
+          <span className="text-[0.92rem] font-semibold text-[var(--chrome-fg)] tracking-[0.02em] [font-family:var(--font-sans)] not-italic">
+            Omni<span className="text-[var(--chrome-accent)]">Voice</span>
+          </span>
+        </div>
+      )}
 
       {/* Right: wave + sys stats. UI scale (S/M/L) lives in the bottom
           LogsFooter bar so all app-wide chrome sits together. */}

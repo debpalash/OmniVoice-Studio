@@ -21,7 +21,8 @@
     "move_rail_left": "Di chuyển đường ray sang trái",
     "flip_rail": "Mặt đường ray lật",
     "voice": "Giọng nói",
-    "audiobook": "Sách nói"
+    "audiobook": "Sách nói",
+    "workspaces": "Không gian làm việc"
   },
   "settings": {
     "general": "Chung",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Tạm dừng giữa các giai đoạn quy trình để bạn có thể xem lại đầu ra ASR/bản dịch.",
     "header_live_stats": "Hiển thị số liệu hệ thống trực tiếp trong tiêu đề",
     "header_live_stats_desc": "Thêm màn hình RAM/CPU/VRAM trực tiếp vào thanh trên cùng (tắt theo mặc định).",
+    "nav_style": "Kiểu điều hướng",
+    "nav_style_desc": "Chuyển không gian làm việc bằng thanh biểu tượng ở cạnh cửa sổ hoặc bằng các thẻ trên thanh tiêu đề.",
+    "nav_style_rail": "Thanh bên",
+    "nav_style_tabs": "Thẻ trên thanh tiêu đề",
     "storage_desc": "Nơi VoiceStudio lưu giữ dữ liệu và kết quả đầu ra của bạn.",
     "history_retention": "Lịch sử tạo",
     "history_retention_desc": "Số bản thu được giữ trước khi dọn các bản cũ nhất.",
