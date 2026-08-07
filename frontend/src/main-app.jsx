@@ -45,6 +45,18 @@ const CaptureWidget = lazy(() => import('./components/CaptureWidget.jsx'));
 // create the widget window. So both windows load the same index.html and we
 // differentiate by window label via the Tauri JS API.
 async function detectIsWidget() {
+  // The widget window stamps this from an initialization_script (lib.rs)
+  // before any page script runs, so it is always here and never races.
+  //
+  // It has to be first. Asking `getCurrentWindow()` throws when Tauri's
+  // internals aren't injected yet, and the catch below can only guess — the
+  // URL query it looks for is one Tauri 2 cannot set. A widget window that
+  // guessed "main" rendered <App/>: opaque background, no pill, and no
+  // CaptureWidget to run the hide reconcile, leaving a dark rectangle on the
+  // desktop that nothing but quitting the app could remove.
+  if (typeof window !== 'undefined' && window.__OV_WINDOW__) {
+    return window.__OV_WINDOW__ === 'widget';
+  }
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().label === 'widget';
