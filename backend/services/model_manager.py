@@ -29,6 +29,9 @@ def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
         try:
+            # The class is OmniVoice — a library identifier, not product
+            # branding. The VoiceStudio rename must not touch it (checkpoint
+            # configs reference the class name via transformers architectures).
             from omnivoice.models.omnivoice import OmniVoice as _OV
         except ModuleNotFoundError:
             # The venv's editable install is missing/broken (#564). main.py wires

@@ -40,6 +40,7 @@ import './harness.css';
 // backend. The `providers` key is what flips the harness into wrapped mode —
 // leaf specs without it are byte-for-byte unaffected.
 import AppearancePanel from '../../components/settings/AppearancePanel.jsx';
+import TitleTabs from '../../components/TitleTabs.jsx';
 import GeneralTab from '../../components/settings/GeneralTab.jsx';
 import StoragePanel from '../../components/settings/StoragePanel.jsx';
 import ResetPanel from '../../components/settings/ResetPanel.jsx';
@@ -468,6 +469,37 @@ export const SPECS = {
   },
 
   // ── Panels (provider-wrapped) ────────────────────────────────────────────
+
+  // The titlebar tab strip (Settings → Appearance → Navigation style). Framed
+  // the way it actually ships — recessed shelf above, content plane below —
+  // because the whole point of the skin is the seam between the two: the
+  // active tab has to read as one surface with the page under it.
+  TitleTabs: {
+    width: 1100,
+    providers: {
+      store: ({ theme }) => ({ theme: theme === 'default' ? 'gruvbox' : theme, locale: 'en' }),
+    },
+    render: () => (
+      <div style={{ width: 1100 }}>
+        <div className="header-area header-area--tabs">
+          <div>
+            <TitleTabs mode="dub" setMode={() => {}} />
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--chrome-font-mono)',
+              fontSize: 10.5,
+              color: 'var(--chrome-fg-dim)',
+              paddingBottom: 8,
+            }}
+          >
+            READY
+          </div>
+        </div>
+        <div style={{ height: 72, background: 'var(--chrome-bg)' }} />
+      </div>
+    ),
+  },
 
   // Store + i18n only — the simplest page-level target. Aligns the store's
   // active `theme` with the rendered data-theme variant so the highlighted

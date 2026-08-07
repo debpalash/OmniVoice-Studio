@@ -59,6 +59,10 @@ export const GROUPS = [
           'auto-play preview',
           'header live stats',
           'system metrics',
+          'navigation style',
+          'sidebar rail',
+          'titlebar tabs',
+          'tabs',
         ],
         keywordKeys: [
           'settings.ui_scale',
@@ -66,6 +70,11 @@ export const GROUPS = [
           'settings.font',
           'settings.autoplay_preview',
           'settings.header_live_stats',
+          'settings.nav_style',
+          // The visible option labels too, so a non-English search for "tabs"
+          // / "Leiste" matches what the user actually sees on screen.
+          'settings.nav_style_rail',
+          'settings.nav_style_tabs',
         ],
       },
       {

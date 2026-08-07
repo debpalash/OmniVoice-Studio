@@ -116,3 +116,36 @@ describe('AppearancePanel — auto-play preview toggle (#666)', () => {
     useAppStore.getState().setAutoPlayPreview(true);
   });
 });
+
+describe('AppearancePanel — navigation style picker', () => {
+  beforeEach(() => {
+    useAppStore.getState().setNavStyle('rail');
+  });
+
+  it('defaults to the icon rail — titlebar tabs are opt-in', () => {
+    render(<AppearancePanel />);
+    expect(screen.getByTestId('appearance-nav-style-rail')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('appearance-nav-style-tabs')).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  });
+
+  it('picking titlebar tabs updates the store', () => {
+    render(<AppearancePanel />);
+    fireEvent.click(screen.getByTestId('appearance-nav-style-tabs'));
+    expect(useAppStore.getState().navStyle).toBe('tabs');
+    expect(screen.getByTestId('appearance-nav-style-tabs')).toHaveAttribute('aria-checked', 'true');
+    useAppStore.getState().setNavStyle('rail');
+  });
+
+  it('follows the same arrow-key radio-group pattern as the other pickers', () => {
+    render(<AppearancePanel />);
+    const rail = screen.getByTestId('appearance-nav-style-rail');
+    rail.focus();
+    fireEvent.keyDown(rail, { key: 'ArrowRight' });
+    expect(useAppStore.getState().navStyle).toBe('tabs');
+    expect(screen.getByTestId('appearance-nav-style-tabs')).toHaveFocus();
+    useAppStore.getState().setNavStyle('rail');
+  });
+});

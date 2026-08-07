@@ -107,6 +107,8 @@ export const useAppStore = create<AppStore>()(
         isSidebarProjectsCollapsed: s.isSidebarProjectsCollapsed,
         sidebarTab: s.sidebarTab,
         uiScale: s.uiScale,
+        // Rail vs titlebar tabs — a chrome preference, so it sticks like scale.
+        navStyle: s.navStyle,
         locale: s.locale,
         // Explicit-choice + first-run-offer flags must survive restarts, or the
         // one-time "Switch to English?" offer would re-nag on every launch.

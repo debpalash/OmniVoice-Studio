@@ -21,7 +21,8 @@
     "move_rail_left": "Verplaats de rail naar links",
     "flip_rail": "Draai de railzijde om",
     "voice": "Stem",
-    "audiobook": "Audioboek"
+    "audiobook": "Audioboek",
+    "workspaces": "Werkruimtes"
   },
   "settings": {
     "general": "Algemeen",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Pauzeer tussen pijplijnfasen, zodat u de ASR-/vertaaluitvoer kunt bekijken.",
     "header_live_stats": "Toon live systeemstatistieken in de koptekst",
     "header_live_stats_desc": "Voegt een live RAM/CPU/VRAM-monitor toe aan de bovenste balk (standaard uitgeschakeld).",
+    "nav_style": "Navigatiestijl",
+    "nav_style_desc": "Wissel van werkruimte via een pictogrambalk langs de vensterrand of via tabbladen in de titelbalk.",
+    "nav_style_rail": "Zijbalk",
+    "nav_style_tabs": "Tabbladen in de titelbalk",
     "storage_desc": "Waar VoiceStudio uw gegevens en output bewaart.",
     "history_retention": "Generatiegeschiedenis",
     "history_retention_desc": "Hoeveel takes bewaard blijven voordat de oudste worden opgeruimd.",

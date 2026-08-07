@@ -125,7 +125,8 @@
     "move_rail_left": "将导轨移至左侧",
     "flip_rail": "翻转导轨侧",
     "voice": "语音",
-    "audiobook": "有声读物"
+    "audiobook": "有声读物",
+    "workspaces": "工作区"
   },
   "launchpad": {
     "greeting": "你好",
@@ -387,6 +388,10 @@
     "review_mode_desc": "在管道阶段之间暂停，以便您可以查看 ASR/翻译输出。",
     "header_live_stats": "在标题中显示实时系统指标",
     "header_live_stats_desc": "在顶部栏添加实时 RAM/CPU/VRAM 监视器（默认关闭）。",
+    "nav_style": "导航样式",
+    "nav_style_desc": "通过窗口边缘的图标栏或标题栏上的标签页切换工作区。",
+    "nav_style_rail": "侧边栏",
+    "nav_style_tabs": "标题栏标签页",
     "storage_desc": "VoiceStudio 保存您的数据和输出的地方。",
     "history_retention": "生成历史",
     "history_retention_desc": "在清理最旧条目之前保留的生成数量。",

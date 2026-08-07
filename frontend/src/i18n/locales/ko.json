@@ -21,7 +21,8 @@
     "move_rail_left": "레일을 왼쪽으로 이동",
     "flip_rail": "레일 측면 뒤집기",
     "voice": "음성",
-    "audiobook": "Audiobook"
+    "audiobook": "Audiobook",
+    "workspaces": "작업 공간"
   },
   "settings": {
     "general": "일반",
@@ -166,6 +167,10 @@
     "review_mode_desc": "ASR/번역 출력을 검토할 수 있도록 파이프라인 단계 사이에 일시 중지합니다.",
     "header_live_stats": "헤더에 실시간 시스템 측정항목 표시",
     "header_live_stats_desc": "상단 표시줄에 라이브 RAM/CPU/VRAM 모니터를 추가합니다(기본적으로 꺼져 있음).",
+    "nav_style": "탐색 스타일",
+    "nav_style_desc": "창 가장자리의 아이콘 막대나 제목 표시줄의 탭으로 작업 공간을 전환합니다.",
+    "nav_style_rail": "사이드바",
+    "nav_style_tabs": "제목 표시줄 탭",
     "storage_desc": "VoiceStudio가 데이터와 출력을 보관하는 곳입니다.",
     "history_retention": "생성 기록",
     "history_retention_desc": "오래된 테이크를 정리하기 전에 유지할 테이크 수입니다.",

@@ -13,6 +13,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - RTX 40-series GPUs are used again instead of being sent to the CPU
 - A warning before a slow generation, rather than after a five-minute wait
 - The watermark can be turned off in Settings, as the docs always said
+- Workspace tabs in the title bar, if you prefer them to the icon rail (#1412)
 - macOS support now matches what the app actually delivers
 - Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
 - A failed audiobook chapter says why, instead of turning red and saying nothing
@@ -27,6 +28,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- Settings → Appearance → **Navigation style** switches the workspace switcher between the icon rail down the window edge and browser-style tabs across the title bar. Both offer the same workspaces; the choice sticks across launches, and the rail stays the default. Tab labels fold down to icons when the title bar runs out of room — the workspace you're in keeps its name. (#1412)
 - Portable mode lets you choose the folder — press **Change…** on the first-run setup screen and put the whole install on an external drive. It also stops being greyed out after a default Program Files install. (#766)
 - Settings → Privacy now has an **Invisible watermark** toggle. On by default, available to everyone, and it only affects audio generated after the change. (#1308)
 - A new opt-in crash-isolated TTS engine, so a native crash takes down the sidecar instead of the whole backend — thanks @paoloantinori! (#1292, #1298, #1304)
@@ -38,8 +40,9 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
-- Text-to-speech works again on the built-in OmniVoice engine. The rename to VoiceStudio changed one side of an internal import, so the model could never load — and because the failure was treated as non-fatal, the app started normally and simply produced nothing until generation gave up twenty minutes later. (#1417)
-- Generating through the OpenAI-compatible endpoint no longer fails or stalls on the first request after startup, while the model is still loading. (#1417)
+- Generating with the default engine works again on everything built from `main` since the rename — source checkouts, preview builds and Docker `:latest` all run the same backend, whose model import had been rewritten to a class name the library doesn't export, failing every generation with "cannot import name 'VoiceStudio'". The class keeps its library name, and a guard test now pins it. (#1420)
+- Running from source no longer dies at startup when a database migration is pending. Alembic resolved the migrations folder relative to wherever the app was launched from — fine from the repo root, fatal from the desktop shell (`tauri dev`), which reported "Path doesn't exist: backend/migrations" and stopped. The path is now anchored to the repo, wherever you start it. (#1420)
+- The first generation after startup no longer stalls or 500s while the model is still loading. A cold load reached from a worker thread waited on a lock owned by a different event loop, which either errored outright or deadlocked until the job was abandoned. (#1417)
 - The voice-design model on Apple Silicon works again. Its description was being dropped before it reached the engine, so every generation failed with a raw 400 no matter what you typed. (#1405)
 - The first-run setup screen no longer times out while it waits for you. Taking more than two minutes to choose an install location, region or mirror made the app declare "Setup failed", and Retry landed back on the same screen with the same clock — so a first install could never be completed. (#1376)
 - Transcription on an NVIDIA machine whose cuDNN 8 libraries are missing no longer kills the backend outright. The app checks the library before picking a transcription engine and falls back to PyTorch Whisper, instead of handing off to a component that aborts the process with no error and restarts into the same crash. (#1371)

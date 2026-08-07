@@ -21,7 +21,8 @@
     "move_rail_left": "Pindahkan rel ke kiri",
     "flip_rail": "Balik sisi rel",
     "voice": "Suara",
-    "audiobook": "Buku Audio"
+    "audiobook": "Buku Audio",
+    "workspaces": "Ruang kerja"
   },
   "settings": {
     "general": "Umum",
@@ -166,6 +167,10 @@
     "review_mode_desc": "Jeda di antara tahapan alur sehingga Anda dapat meninjau ASR/output terjemahan.",
     "header_live_stats": "Tampilkan metrik sistem langsung di header",
     "header_live_stats_desc": "Menambahkan monitor RAM/CPU/VRAM langsung ke bilah atas (dinonaktifkan secara default).",
+    "nav_style": "Gaya navigasi",
+    "nav_style_desc": "Ganti ruang kerja lewat baris ikon di tepi jendela, atau lewat tab di bilah judul.",
+    "nav_style_rail": "Bilah samping",
+    "nav_style_tabs": "Tab bilah judul",
     "storage_desc": "Tempat VoiceStudio menyimpan data dan keluaran Anda.",
     "history_retention": "Riwayat pembuatan",
     "history_retention_desc": "Berapa banyak take yang disimpan sebelum yang tertua dibersihkan.",
