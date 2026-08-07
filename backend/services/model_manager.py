@@ -719,7 +719,7 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         # Capture the stacks BEFORE reset(): reset() replaces the executor, and
         # once the wedged thread is no longer a pool worker we can no longer
         # tell it apart from any other thread in the process.
-        log_gpu_pool_worker_stacks(what, timeout, executor=ex)
+        stacks = log_gpu_pool_worker_stacks(what, timeout, executor=ex)
         _reset = getattr(ex, "reset", None)
         if callable(_reset):
             try:
@@ -734,7 +734,9 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
                 logger.exception("GPU pool reset after %s timeout failed",
                                  _log_safe(what))
         raise GpuJobTimeoutError(
-            _timeout_guidance(what, timeout, min_vram_gb)
+            _timeout_guidance(
+                what, timeout, min_vram_gb, wedged=_stack_shows_a_wedge(stacks),
+            )
         ) from timeout_exc
 
 
@@ -847,7 +849,56 @@ def log_gpu_pool_worker_stacks(what: str, timeout: float, executor=None) -> str:
         return ""
 
 
-def _timeout_guidance(what: str, timeout: float, min_vram_gb: float = 0.0) -> str:
+#: Frames that mean "this thread is waiting, not computing".
+#:
+#: A worker parked on one of these has spent its whole budget doing nothing.
+#: Every entry is a *blocking primitive* — a lock, an event, a future — so a
+#: match cannot be produced by slow work, only by work that never started.
+#: Deliberately not matched on module path alone: `threading.py` also holds
+#: perfectly ordinary frames.
+_WEDGE_FRAME_SIGNATURES = (
+    "waiter.acquire()",
+    "self._block.acquire(",
+    "signaled = waiter.acquire(",
+    "in acquire\n",
+    "in wait\n",
+    "in result\n",
+    "fut = self._get_loop().create_future()",
+    "await fut",
+)
+
+
+def _stack_shows_a_wedge(stacks: "str | None") -> bool:
+    """True when the abandoned worker's deepest frame is a blocking wait.
+
+    The message this feeds is the one users actually read, and for years it
+    said the same thing whatever happened: "too heavy for the available
+    compute". That is a specific, testable claim, and when the worker is
+    parked on a lock it is simply false — nothing was computed, so nothing was
+    too heavy. #1416 and #1419 both arrived as "my machine is too slow"
+    reports from people whose jobs never ran at all (a cold load waiting on a
+    lock owned by another event loop, #1417), and #1329 is the same wedge seen
+    from the dub loop. Every one of them was sent to look at their hardware.
+
+    Reads the text :func:`log_gpu_pool_worker_stacks` already captured — no
+    second stack walk, and no cost at all on the healthy path.
+
+    Conservative: unknown or unreadable stacks return False and keep the old
+    wording. Claiming a hang we cannot see would be the same mistake pointing
+    the other way.
+    """
+    if not stacks:
+        return False
+    # The deepest frame is where the thread actually is; earlier frames are
+    # just how it got there, and a compute job's callers routinely include a
+    # lock acquisition it has already left.
+    tail = stacks[-600:]
+    return any(sig in tail for sig in _WEDGE_FRAME_SIGNATURES)
+
+
+def _timeout_guidance(
+    what: str, timeout: float, min_vram_gb: float = 0.0, *, wedged: bool = False,
+) -> str:
     """Device-aware timeout message (#896): a CPU-only host must never be told
     to "set the engine to CPU" or blamed on VRAM — on CPU the job is simply
     compute-bound. GPU hosts keep the VRAM-contention guidance.
@@ -869,6 +920,20 @@ def _timeout_guidance(what: str, timeout: float, min_vram_gb: float = 0.0) -> st
         device_name, vram_gb = _caps.device_name, _caps.vram_gb
     except Exception:  # noqa: BLE001 — guidance must never mask the timeout
         pass
+    if wedged:
+        # The worker spent the whole budget parked on a lock. None of the
+        # hardware advice below applies — shorter text and a lighter engine
+        # cannot speed up a job that never started (#1416/#1419/#1329).
+        return (
+            f"{what} was abandoned after {timeout:.0f}s without doing any "
+            "work — it spent the whole time waiting on an internal lock, not "
+            "computing. This is a bug in VoiceStudio, not a limit of your "
+            "machine, so shorter text or a lighter engine won't help. "
+            "Restart the backend to clear it (Settings → Logs → Backend has "
+            "the stack trace that was captured), and please report it with "
+            "that log at https://github.com/debpalash/VoiceStudio/issues — "
+            "the trace names exactly where it stopped."
+        )
     common = (
         f"{what} ran for more than {timeout:.0f}s of actual compute time and "
         "was abandoned — the backend is running, but this job was too heavy "
