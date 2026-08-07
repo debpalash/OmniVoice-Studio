@@ -29,7 +29,10 @@ def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
         try:
-            from omnivoice.models.omnivoice import VoiceStudio as _OV
+            # The class is OmniVoice — a library identifier, not product
+            # branding. The VoiceStudio rename must not touch it (checkpoint
+            # configs reference the class name via transformers architectures).
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         except ModuleNotFoundError:
             # The venv's editable install is missing/broken (#564). main.py wires
             # the source fallback at startup, but resolve it here too so the
@@ -37,7 +40,7 @@ def _lazy_omnivoice():
             from core.omnivoice_path import ensure_omnivoice_importable
             _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ensure_omnivoice_importable(_backend_dir, logger)
-            from omnivoice.models.omnivoice import VoiceStudio as _OV
+            from omnivoice.models.omnivoice import OmniVoice as _OV
         _OmniVoice = _OV
     return _OmniVoice
 
