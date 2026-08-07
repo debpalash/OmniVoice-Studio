@@ -174,6 +174,20 @@ def test_the_python_package_name_is_unchanged():
     assert re.search(r'(?m)^name\s*=\s*"omnivoice"', pyproject), WHY
 
 
+def test_the_model_class_name_is_unchanged():
+    # `OmniVoice` (omnivoice.models.omnivoice) is a transformers PreTrainedModel
+    # — a library identifier baked into checkpoint configs, not product
+    # branding. The 0.4.2 rename sweep rewrote the backend's import to a
+    # nonexistent `VoiceStudio` class, which killed every default-engine
+    # generation with "cannot import name 'VoiceStudio'". Behavioral, not a
+    # source-text grep: the backend's lazy loader must resolve to the very
+    # class the library exports, however either side spells the import.
+    import omnivoice
+    from services.model_manager import _lazy_omnivoice
+
+    assert _lazy_omnivoice() is omnivoice.OmniVoice, WHY
+
+
 @pytest.mark.parametrize("env_var", ["OMNIVOICE_DATA_DIR", "OMNIVOICE_CACHE_DIR"])
 def test_the_public_env_var_prefix_is_unchanged(env_var):
     # ~150 OMNIVOICE_* vars are a public configuration contract: every user's
