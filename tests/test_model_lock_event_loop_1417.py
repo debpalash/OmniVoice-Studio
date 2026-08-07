@@ -57,8 +57,11 @@ class _ServerLoopHoldingTheLock:
         async def hold():
             async with self._mm._model_lock:
                 self._held.set()
-                while not self._release.is_set():
-                    await asyncio.sleep(0.01)
+                # Wait on the Event itself rather than polling — the wait runs
+                # in a worker thread so it never blocks this loop.
+                await asyncio.get_running_loop().run_in_executor(
+                    None, self._release.wait
+                )
 
         loop = asyncio.new_event_loop()
         try:
@@ -82,10 +85,15 @@ def test_cold_load_from_a_pool_thread_does_not_await_the_server_lock(mm, monkeyp
     sentinel = object()
     monkeypatch.setattr(mm, "model", None, raising=False)
 
-    async def _fake_load():
+    # Patch the LEAF loader, not `_load_model_with_timeout`. Faking the latter
+    # is what hid the second deadlock in review: it dispatches back into
+    # `_get_gpu_pool()`, so replacing it meant the test never exercised the
+    # dispatch that a one-worker MPS pool wedges on (CodeRabbit, #1418).
+    def _fake_load_sync():
         return sentinel
 
-    monkeypatch.setattr(mm, "_load_model_with_timeout", _fake_load)
+    monkeypatch.setattr(mm, "_load_model_sync", _fake_load_sync)
+    monkeypatch.setattr(mm, "_make_room_before_tts_load", lambda: None)
 
     result: dict = {}
 
@@ -157,3 +165,54 @@ def test_off_pool_callers_still_take_the_lock(mm, monkeypatch):
     monkeypatch.setattr(mm, "model", None, raising=False)
 
     assert entered == [True], "a non-pool cold load no longer holds _model_lock"
+
+
+def test_the_pool_path_never_resubmits_to_the_pool(mm, monkeypatch):
+    """The inline load must not go through `_get_gpu_pool()`.
+
+    `_load_model_with_timeout` runs `_load_model_sync` *in the pool*. Calling
+    it from a pool worker re-queues work behind the very slot we occupy, and
+    MPS pins that pool to one worker — so it waits on itself. A single-worker
+    pool here reproduces that exactly: if the fix ever routes back through the
+    pool, this test hangs instead of returning, and the join times out.
+    """
+    sentinel = object()
+    monkeypatch.setattr(mm, "model", None, raising=False)
+    monkeypatch.setattr(mm, "_load_model_sync", lambda: sentinel)
+    monkeypatch.setattr(mm, "_make_room_before_tts_load", lambda: None)
+
+    class _PoolThatMustNotBeUsed:
+        """Stands in for the occupied pool.
+
+        A real one-worker executor would reproduce the wedge faithfully, but a
+        regression would then HANG — and a hung pool thread blocks interpreter
+        exit, taking the whole suite down instead of reporting a failure.
+        Refusing the submit outright turns the same defect into an instant,
+        readable failure.
+        """
+
+        def submit(self, *a, **kw):
+            raise AssertionError(
+                "cold load on a pool worker re-submitted to _get_gpu_pool(); "
+                "on a one-worker MPS pool this waits on itself (#1417/#1418)"
+            )
+
+    monkeypatch.setattr(mm, "_get_gpu_pool", _PoolThatMustNotBeUsed)
+
+    result: dict = {}
+
+    def worker():
+        try:
+            result["value"] = asyncio.run(mm.get_model())
+        except BaseException as exc:  # noqa: BLE001 - the failure IS the subject
+            result["error"] = exc
+
+    t = threading.Thread(
+        target=worker, name=f"{mm._GPU_POOL_THREAD_PREFIX}0", daemon=True
+    )
+    t.start()
+    t.join(timeout=30)
+    monkeypatch.setattr(mm, "model", None, raising=False)
+
+    assert "error" not in result, result.get("error")
+    assert result.get("value") is sentinel

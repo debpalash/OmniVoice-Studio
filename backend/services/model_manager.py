@@ -947,6 +947,13 @@ def get_watermark_pool() -> ThreadPoolExecutor:
 
 model = None  # type: ignore
 _model_lock = asyncio.Lock()
+
+#: Process-wide exclusion for a cold load that runs INLINE on a GPU-pool
+#: worker (#1417). `_model_lock` cannot serve there — it is an asyncio.Lock
+#: bound to the server loop, and that path arrives on a bootstrap loop from
+#: another thread. A threading.Lock is loop-agnostic, so the two together
+#: guarantee only one cold load is ever in flight whichever route reached it.
+_model_load_thread_lock = threading.Lock()
 _last_used = time.time()
 # Idle timeout is resolved per-tick in _resolve_idle_timeout() (MM2-05) from
 # prefs/env/core.config — no module-level duplicate of IDLE_TIMEOUT_SECONDS.
@@ -2009,17 +2016,31 @@ async def get_model():
         # path it never covered (#1417). We are on a pool worker, reached from
         # OmniVoiceBackend._ensure_loaded(), which bootstraps a *fresh* event
         # loop with asyncio.run(). `_model_lock` is bound to the server loop,
-        # so awaiting it here raises outright:
+        # so awaiting it here either raises outright:
         #
         #   RuntimeError: <asyncio.locks.Lock …> is bound to a different event loop
         #
-        # which surfaced as a 500 on /v1/audio/speech. Holding the GPU slot is
-        # already the mutual exclusion the lock provides — a second cold load
-        # cannot start while we occupy the pool — so load inline.
+        # (the reported 500 on /v1/audio/speech) or deadlocks, depending on
+        # which loop touched the lock first.
+        #
+        # The load must also run INLINE, in this very thread. Going through
+        # `_load_model_with_timeout()` would hand `_load_model_sync` back to
+        # `_get_gpu_pool()` — the pool we are currently occupying — and MPS
+        # pins that pool to a single worker, so it would wait on itself. That
+        # is the same deadlock wearing a different hat (CodeRabbit, #1418).
+        #
+        # Exclusion comes from `_model_load_thread_lock` rather than the GPU
+        # slot: holding a slot is not exclusion when the pool has more than
+        # one worker, which CUDA hosts do.
         if model is None:
-            from core.run_sentinel import touch_activity
-            touch_activity("model_load", "omnivoice-tts")
-            model = await _load_model_with_timeout()
+            with _model_load_thread_lock:
+                if model is None:  # another thread loaded it while we waited
+                    from core.run_sentinel import touch_activity
+                    touch_activity("model_load", "omnivoice-tts")
+                    # Same reclaim `_load_model_with_timeout` performs; a
+                    # memory-tight machine needs it on this path too.
+                    _make_room_before_tts_load()
+                    model = _load_model_sync()
         return model
 
     async with _model_lock:
