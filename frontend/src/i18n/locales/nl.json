@@ -1969,6 +1969,8 @@
     "storage_title": "Opslag",
     "portable_folder": "Draagbare map",
     "portable_folder_desc": "Omgeving, modellen en je stemdata — één map, volledig verplaatsbaar.",
+    "portable_moved": "Een markeringsbestand naast de app legt deze locatie vast, zodat de installatie zichzelf blijft vinden als je de app en deze map naar een andere machine verplaatst.",
+    "portable_moved_machine_bound": "De map van de app zelf is alleen-lezen, dus deze locatie wordt alleen voor dit gebruikersaccount onthouden — vanaf een andere machine wordt de installatie niet gevonden.",
     "env_dir": "App-omgeving",
     "env_dir_desc": "Python-runtime en AI-bibliotheken.",
     "data_dir": "Stemdata & projecten",

@@ -103,12 +103,13 @@ mod disk {
 
 // ── Path resolution ───────────────────────────────────────────────────────
 
-/// Directory that would hold a portable install: next to the executable —
-/// or next to the `.AppImage` file on Linux (the mounted exe path is an
-/// ephemeral squashfs mount, useless as an anchor).
-pub fn portable_base() -> Option<PathBuf> {
+/// The folder the app sits in — next to the executable, or next to the
+/// `.AppImage` file on Linux (the mounted exe path is an ephemeral squashfs
+/// mount, useless as an anchor). This is where the default portable folder
+/// goes and where the pointer file lives.
+pub fn portable_anchor() -> Option<PathBuf> {
     if let Ok(appimage) = std::env::var("APPIMAGE") {
-        return Path::new(&appimage).parent().map(|p| p.join(PORTABLE_DIR_NAME));
+        return Path::new(&appimage).parent().map(Path::to_path_buf);
     }
     let exe = std::env::current_exe().ok()?;
     let mut anchor = exe.parent()?.to_path_buf();
@@ -120,7 +121,116 @@ pub fn portable_base() -> Option<PathBuf> {
     {
         anchor = app_bundle.parent()?.to_path_buf();
     }
-    Some(anchor.join(PORTABLE_DIR_NAME))
+    Some(anchor)
+}
+
+/// One-line UTF-8 file holding the absolute path of a relocated portable
+/// folder. Sits beside the app so the install stays SELF-DISCOVERING: plug the
+/// drive into another machine and the app still finds its data with no
+/// per-machine state to consult.
+pub const PORTABLE_POINTER_FILE: &str = "portable.path";
+
+/// Path of the pointer file (whether or not it exists).
+pub fn portable_pointer_path() -> Option<PathBuf> {
+    portable_anchor().map(|a| a.join(PORTABLE_POINTER_FILE))
+}
+
+fn read_portable_pointer() -> Option<PathBuf> {
+    let raw = fs::read_to_string(portable_pointer_path()?).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(trimmed))
+}
+
+/// `portable_dir` straight out of the per-user config file.
+///
+/// Deliberately reads the file directly instead of going through
+/// `config::load_config`: that resolves its path via `config_path` →
+/// `portable_config_file` → `portable_base` → here, which would recurse
+/// forever. This fallback only ever consults the PLATFORM config location,
+/// never the portable one, so the cycle cannot form.
+fn portable_dir_from_user_config() -> Option<PathBuf> {
+    let path = dirs_next::data_local_dir()?
+        .join(config::BUNDLE_IDENTIFIER)
+        .join("config.json");
+    let text = fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let dir = value.get("portableDir")?.as_str()?.trim();
+    if dir.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(dir))
+}
+
+/// Directory that holds a portable install.
+///
+/// Resolution order — first hit wins:
+///   1. the pointer file beside the app. This is the one that KEEPS
+///      portability: it travels with the app and needs nothing from the host.
+///   2. `portableDir` in the per-user config — the fallback for app folders
+///      that are not writable (`/Applications`, `Program Files`), where a
+///      pointer cannot be written. Machine-bound by nature, which is why it is
+///      second, not first.
+///   3. `<anchor>/OmniVoiceStudio-Data` — the historical default. Existing
+///      portable installs have neither a pointer nor a config field, so they
+///      keep resolving byte-identically.
+pub fn portable_base() -> Option<PathBuf> {
+    if let Some(p) = read_portable_pointer() {
+        return Some(p);
+    }
+    if let Some(p) = portable_dir_from_user_config() {
+        return Some(p);
+    }
+    portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME))
+}
+
+/// Persist where a relocated portable folder lives, so the next launch finds
+/// it. Prefers the pointer file (portability preserved); falls back to the
+/// per-user config when the app folder is read-only.
+///
+/// Returns which mechanism was used, for the log and for tests.
+pub fn record_portable_dir<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    base: &Path,
+) -> Result<&'static str, String> {
+    if let Some(pointer) = portable_pointer_path() {
+        let anchor = pointer.parent().map(Path::to_path_buf).unwrap_or_default();
+        if disk::writable(&anchor) && fs::write(&pointer, base.to_string_lossy().as_bytes()).is_ok()
+        {
+            return Ok("pointer");
+        }
+    }
+    // Read-only app folder (a normal macOS /Applications or Windows Program
+    // Files install). Record it per-user instead: the install stops being
+    // portable ACROSS machines, but it still works on this one, which beats
+    // refusing the folder the user picked.
+    let mut cfg = config::load_config(app);
+    cfg.portable_dir = Some(base.to_string_lossy().into_owned());
+    let path = config::config_path_for_machine()
+        .ok_or("Could not resolve the per-user config path")?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Could not create {}: {e}", parent.display()))?;
+    }
+    config::save_config_at(&path, &cfg)?;
+    Ok("user-config")
+}
+
+/// Clear a recorded relocation, so `portable_base()` falls back to the
+/// default folder beside the app. Best-effort on both stores — a stale
+/// pointer left behind would silently outrank a later default install.
+pub fn clear_portable_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(pointer) = portable_pointer_path() {
+        let _ = fs::remove_file(pointer);
+    }
+    let mut cfg = config::load_config(app);
+    if cfg.portable_dir.is_some() {
+        cfg.portable_dir = None;
+        if let Some(path) = config::config_path_for_machine() {
+            let _ = config::save_config_at(&path, &cfg);
+        }
+    }
 }
 
 /// Mirror of `backend/core/config.py::get_app_data_dir()` platform defaults —
@@ -480,6 +590,14 @@ pub struct PortableSupport {
     pub base_dir: Option<String>,
     /// Machine-readable reason when unavailable: "not_writable" | "no_anchor".
     pub reason: Option<String>,
+    /// The default folder beside the app, so the UI can offer "reset to
+    /// default" and tell a relocated install apart from a fresh one.
+    pub default_dir: Option<String>,
+    /// False when the app's own folder is read-only (`/Applications`,
+    /// `Program Files`). A relocation is still allowed there — it just falls
+    /// back to per-user config, which does not survive moving to another
+    /// machine. The UI says so rather than silently downgrading the promise.
+    pub anchor_writable: bool,
 }
 
 #[derive(Serialize)]
@@ -504,6 +622,10 @@ pub struct TargetCheck {
 #[serde(rename_all = "camelCase")]
 pub struct InstallPlan {
     pub install_mode: String,
+    /// Chosen portable folder. None → the default beside the app. Only
+    /// meaningful when `install_mode == "portable"`.
+    #[serde(default)]
+    pub portable_dir: Option<String>,
     #[serde(default)]
     pub env_dir: Option<String>,
     #[serde(default)]
@@ -560,10 +682,23 @@ fn valid_mirror(url: &Option<String>) -> Result<Option<String>, String> {
 }
 
 /// (target dir, bytes required there) for the chosen layout.
+/// The portable folder this PLAN would use: the user's pick when they made
+/// one, otherwise whatever `portable_base()` currently resolves to. Space and
+/// writability must be checked against the folder we are about to create, not
+/// the one a previous install left behind.
+fn planned_portable_base(plan: &InstallPlan) -> Option<PathBuf> {
+    plan.portable_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .or_else(portable_base)
+}
+
 fn space_targets(plan: &InstallPlan, env_default: &Path) -> Vec<(PathBuf, u64)> {
     if plan.install_mode == "portable" {
         // Everything shares one folder → one combined requirement.
-        let base = portable_base().unwrap_or_default();
+        let base = planned_portable_base(plan).unwrap_or_default();
         return vec![(base, REQUIRED_ENV_BYTES + REQUIRED_MODELS_BYTES + REQUIRED_DATA_BYTES)];
     }
     let dir_of = |s: &Option<String>, d: &Path| {
@@ -623,18 +758,34 @@ pub fn get_setup_state(app: tauri::AppHandle) -> SetupState {
     let cfg = config::load_config(&app);
     let env_default = app.path().app_local_data_dir().unwrap_or_default();
 
+    let default_dir = portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME));
+    let anchor_writable = portable_anchor().map(|a| disk::writable(&a)).unwrap_or(false);
+    let default_str = default_dir.as_ref().map(|p| p.to_string_lossy().into_owned());
     let portable = match portable_base() {
-        Some(base) if disk::writable(&base) => PortableSupport {
+        // Portable is available when SOME folder can hold it. A read-only app
+        // folder no longer disqualifies it outright: the user can point it at a
+        // writable disk instead, which is the whole point of the picker.
+        Some(base) if disk::writable(&base) || anchor_writable => PortableSupport {
             available: true,
             base_dir: Some(base.to_string_lossy().into_owned()),
             reason: None,
+            default_dir: default_str.clone(),
+            anchor_writable,
         },
         Some(base) => PortableSupport {
-            available: false,
+            available: true,
             base_dir: Some(base.to_string_lossy().into_owned()),
             reason: Some("not_writable".into()),
+            default_dir: default_str.clone(),
+            anchor_writable,
         },
-        None => PortableSupport { available: false, base_dir: None, reason: Some("no_anchor".into()) },
+        None => PortableSupport {
+            available: false,
+            base_dir: None,
+            reason: Some("no_anchor".into()),
+            default_dir: default_str,
+            anchor_writable,
+        },
     };
 
     SetupState {
@@ -683,8 +834,18 @@ pub fn complete_setup(
     if !matches!(plan.install_mode.as_str(), "installed" | "portable") {
         return Err(format!("Unknown install mode: {}", plan.install_mode));
     }
-    if plan.install_mode == "portable" && portable_base().map(|b| disk::writable(&b)) != Some(true) {
-        return Err("Portable mode is unavailable: the folder next to the app is not writable.".into());
+    if plan.install_mode == "portable" {
+        // Check the folder the user actually chose. A custom pick may be
+        // writable where the app's own folder is not (the /Applications case),
+        // so validating the default here would refuse a perfectly good plan.
+        let base = planned_portable_base(&plan)
+            .ok_or("Portable mode is unavailable: could not resolve a folder for it.")?;
+        if !disk::writable(&base) {
+            return Err(format!(
+                "Portable mode is unavailable: {} is not writable.",
+                base.display()
+            ));
+        }
     }
 
     let mirrors = match &plan.mirrors {
@@ -729,8 +890,19 @@ pub fn complete_setup(
         // Create the portable folder and seed config.json INSIDE it first, so
         // `config_path` resolves portable from here on and the whole install
         // (env + data + config) travels as one folder.
-        let base = portable_base().ok_or("Portable anchor disappeared")?;
+        let base = planned_portable_base(&plan).ok_or("Portable anchor disappeared")?;
         fs::create_dir_all(&base).map_err(|e| format!("Could not create {}: {e}", base.display()))?;
+        // Record WHERE it is before seeding it — `portable_base()` has to
+        // resolve to this folder on the next launch, and the config inside it
+        // cannot say so (nothing would know where to look).
+        if base != portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME)).unwrap_or_default() {
+            let how = record_portable_dir(&app, &base)?;
+            log::info!("Portable folder relocated — recorded via {how}");
+        } else {
+            // Back to the default: drop any earlier relocation so a stale
+            // pointer can't outrank it.
+            clear_portable_dir(&app);
+        }
         config::save_config_at(&base.join("config.json"), &cfg)?;
     } else {
         for (dir, _) in &targets {
@@ -778,6 +950,96 @@ pub fn complete_setup(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Portable-folder relocation (#1403 follow-up). One test fn, not several:
+    /// it mutates `APPIMAGE`, which is process-global, and Rust tests run in
+    /// parallel — same rationale as the uv-env test below.
+    ///
+    /// `APPIMAGE` is the anchor seam the resolver already honours, so pointing
+    /// it at a temp dir gives full control of "the folder beside the app"
+    /// without touching the real one.
+    #[test]
+    fn portable_base_resolves_pointer_then_default_and_stays_backward_compatible() {
+        let tmp = std::env::temp_dir().join(format!("ov-portable-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp anchor");
+        let fake_appimage = tmp.join("VoiceStudio.AppImage");
+        fs::write(&fake_appimage, b"x").expect("fake appimage");
+        let prev = std::env::var("APPIMAGE").ok();
+        std::env::set_var("APPIMAGE", &fake_appimage);
+
+        // 1. No pointer, no config field → the historical default beside the
+        //    app. Existing portable installs must keep resolving here.
+        let default_dir = tmp.join(PORTABLE_DIR_NAME);
+        assert_eq!(
+            portable_base(),
+            Some(default_dir.clone()),
+            "a portable install with no relocation must resolve exactly as before"
+        );
+        assert_eq!(portable_anchor(), Some(tmp.clone()));
+
+        // 2. A pointer file wins — this is what keeps the install
+        //    self-discovering after the folder is moved.
+        let elsewhere = tmp.join("on-another-disk");
+        fs::write(portable_pointer_path().unwrap(), elsewhere.to_string_lossy().as_bytes())
+            .expect("write pointer");
+        assert_eq!(portable_base(), Some(elsewhere.clone()));
+
+        // 3. Trailing whitespace/newlines are tolerated — the file is written
+        //    by us but may be hand-edited to move an install.
+        fs::write(
+            portable_pointer_path().unwrap(),
+            format!("  {}  \n", elsewhere.display()).as_bytes(),
+        )
+        .expect("write padded pointer");
+        assert_eq!(portable_base(), Some(elsewhere.clone()));
+
+        // 4. An empty pointer must not resolve to "" — that would silently
+        //    root the whole install at the filesystem root.
+        fs::write(portable_pointer_path().unwrap(), b"   \n").expect("write empty pointer");
+        assert_eq!(
+            portable_base(),
+            Some(default_dir.clone()),
+            "an empty pointer must fall through to the default, never to an empty path"
+        );
+
+        // 5. The plan's pick outranks whatever is currently recorded, so space
+        //    and writability are checked against the folder about to be made.
+        fs::write(portable_pointer_path().unwrap(), elsewhere.to_string_lossy().as_bytes())
+            .expect("rewrite pointer");
+        let chosen = tmp.join("user-pick");
+        let plan = InstallPlan {
+            install_mode: "portable".into(),
+            portable_dir: Some(chosen.to_string_lossy().into_owned()),
+            env_dir: None, data_dir: None, models_dir: None,
+            region: None, locale: None, update_channel: None,
+            torch_variant: None, mirrors: None,
+        };
+        assert_eq!(planned_portable_base(&plan), Some(chosen.clone()));
+        let targets = space_targets(&plan, Path::new("/unused"));
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].0, chosen, "space must be checked on the CHOSEN folder");
+        assert_eq!(
+            targets[0].1,
+            REQUIRED_ENV_BYTES + REQUIRED_MODELS_BYTES + REQUIRED_DATA_BYTES
+        );
+
+        // 6. A blank pick is not a pick — fall back to the resolved base.
+        let blank = InstallPlan {
+            install_mode: "portable".into(),
+            portable_dir: Some("   ".into()),
+            env_dir: None, data_dir: None, models_dir: None,
+            region: None, locale: None, update_channel: None,
+            torch_variant: None, mirrors: None,
+        };
+        assert_eq!(planned_portable_base(&blank), Some(elsewhere));
+
+        match prev {
+            Some(v) => std::env::set_var("APPIMAGE", v),
+            None => std::env::remove_var("APPIMAGE"),
+        }
+        let _ = fs::remove_dir_all(&tmp);
+    }
 
     /// D:-install class (tarbol6457): one test fn (not several) because it
     /// mutates process env vars and Rust tests run in parallel.
@@ -864,6 +1126,7 @@ mod tests {
     fn space_targets_portable_collapses_to_one_combined_requirement() {
         let plan = InstallPlan {
             install_mode: "portable".into(),
+            portable_dir: None,
             env_dir: None, data_dir: None, models_dir: None,
             region: None, locale: None, update_channel: None,
             torch_variant: None, mirrors: None,
@@ -877,6 +1140,7 @@ mod tests {
     fn space_targets_installed_checks_each_location() {
         let plan = InstallPlan {
             install_mode: "installed".into(),
+            portable_dir: None,
             env_dir: Some("/x/env".into()),
             data_dir: Some("/y/data".into()),
             models_dir: None, // default

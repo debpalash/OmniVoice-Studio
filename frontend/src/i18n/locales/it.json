@@ -1969,6 +1969,8 @@
     "storage_title": "Archiviazione",
     "portable_folder": "Cartella portatile",
     "portable_folder_desc": "Ambiente, modelli e i tuoi dati vocali: una sola cartella, completamente spostabile.",
+    "portable_moved": "Un file marcatore accanto all'app registra questa posizione, così l'installazione continuerà a ritrovarsi se sposti l'app e questa cartella su un'altra macchina.",
+    "portable_moved_machine_bound": "La cartella dell'app è di sola lettura, quindi questa posizione viene ricordata solo per questo account utente: l'installazione non verrà trovata da un'altra macchina.",
     "env_dir": "Ambiente dell'app",
     "env_dir_desc": "Runtime Python e librerie IA.",
     "data_dir": "Dati vocali e progetti",

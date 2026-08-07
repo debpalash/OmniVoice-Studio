@@ -65,6 +65,13 @@ pub struct AppConfig {
     /// HF_HUB_CACHE, TORCH_HOME). None → library defaults.
     #[serde(default)]
     pub models_dir: Option<String>,
+    /// Where a RELOCATED portable folder lives, when the pointer file beside
+    /// the app could not be written (a read-only `/Applications` or
+    /// `Program Files` install). Second in `setup::portable_base()`'s
+    /// resolution order — recording it here makes the install machine-bound,
+    /// which is exactly why the pointer file is tried first.
+    #[serde(default)]
+    pub portable_dir: Option<String>,
     /// UI locale chosen on the setup screen, mirrored here so the Rust side
     /// (tray menus, dialogs) can localize in the future. The webview keeps its
     /// own copy in localStorage; this field is informational.
@@ -114,6 +121,7 @@ impl Default for AppConfig {
             env_dir: None,
             data_dir: None,
             models_dir: None,
+            portable_dir: None,
             locale: None,
             torch_variant: default_torch_variant(),
             mirrors: MirrorOverrides::default(),
@@ -159,8 +167,16 @@ pub fn load_config_pre_app() -> AppConfig {
 pub const BUNDLE_IDENTIFIER: &str = "com.debpalash.omnivoice-studio";
 
 fn config_path_pre_app() -> Option<PathBuf> {
-    portable_config_file()
-        .or_else(|| dirs_next::data_local_dir().map(|d| d.join(BUNDLE_IDENTIFIER).join("config.json")))
+    portable_config_file().or_else(config_path_for_machine)
+}
+
+/// The per-user, platform-standard config path — never the portable one.
+///
+/// `setup::record_portable_dir` needs to write specifically HERE: the portable
+/// config lives inside the folder whose location it is trying to record, so
+/// storing the pointer there would be unreadable on the next launch.
+pub fn config_path_for_machine() -> Option<PathBuf> {
+    dirs_next::data_local_dir().map(|d| d.join(BUNDLE_IDENTIFIER).join("config.json"))
 }
 
 pub fn save_config<R: tauri::Runtime>(app: &tauri::AppHandle<R>, cfg: &AppConfig) {

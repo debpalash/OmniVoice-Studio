@@ -286,6 +286,10 @@ export default function FirstRunSetup() {
           envDir: s.defaults.envDir,
           dataDir: s.defaults.dataDir,
           modelsDir: s.defaults.modelsDir,
+          // Where a portable install would go. Seeded from whatever the app
+          // currently resolves (default beside the app, or an earlier
+          // relocation) so the row shows a real path, never "(default)".
+          portableDir: s.portable.baseDir || '',
           region: s.defaults.region,
           updateChannel: s.defaults.updateChannel,
           // Pre-select ROCm only when Rust verified the ROCm userspace is
@@ -307,7 +311,11 @@ export default function FirstRunSetup() {
   const combinedNeed = req ? req.envBytes + req.modelsBytes + req.dataBytes : 0;
 
   // Live target probes — in portable mode only the anchor folder matters.
-  const portableBase = setup?.portable?.baseDir || '';
+  const portableBase = plan?.portableDir || setup?.portable?.baseDir || '';
+  const portableDefault = setup?.portable?.defaultDir || '';
+  const portableRelocated = Boolean(
+    portableBase && portableDefault && portableBase !== portableDefault,
+  );
   const envCheck = useTargetCheck(portable ? null : plan?.envDir);
   const dataCheck = useTargetCheck(portable ? null : plan?.dataDir);
   const modelsCheck = useTargetCheck(portable ? null : plan?.modelsDir);
@@ -377,6 +385,7 @@ export default function FirstRunSetup() {
       await invoke('complete_setup', {
         plan: {
           installMode: plan.installMode,
+          portableDir: clean(plan.portableDir),
           envDir: clean(plan.envDir),
           dataDir: clean(plan.dataDir),
           modelsDir: clean(plan.modelsDir),
@@ -602,16 +611,34 @@ export default function FirstRunSetup() {
 
               <Section title={t('firstrun.storage_title', 'Storage')} delay={2}>
                 {portable ? (
-                  <StorageRow
-                    label={t('firstrun.portable_folder', 'Portable folder')}
-                    desc={t(
-                      'firstrun.portable_folder_desc',
-                      'App environment, models, and your voice data — one folder, fully movable.',
+                  <>
+                    <StorageRow
+                      label={t('firstrun.portable_folder', 'Portable folder')}
+                      desc={t(
+                        'firstrun.portable_folder_desc',
+                        'App environment, models, and your voice data — one folder, fully movable.',
+                      )}
+                      path={portableBase}
+                      need={combinedNeed}
+                      check={portableCheck}
+                      onPick={() => pickDir('portableDir')}
+                    />
+                    {portableRelocated && (
+                      <GroupCaption
+                        text={
+                          setup.portable.anchorWritable
+                            ? t(
+                                'firstrun.portable_moved',
+                                'A marker beside the app records this location, so the install still finds itself if you move the app and this folder to another machine.',
+                              )
+                            : t(
+                                'firstrun.portable_moved_machine_bound',
+                                "The app's own folder is read-only, so this location is remembered for this user account only — the install will not be found from another machine.",
+                              )
+                        }
+                      />
                     )}
-                    path={portableBase}
-                    need={combinedNeed}
-                    check={portableCheck}
-                  />
+                  </>
                 ) : (
                   <>
                     <StorageRow

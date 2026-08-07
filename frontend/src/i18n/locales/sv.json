@@ -1969,6 +1969,8 @@
     "storage_title": "Lagring",
     "portable_folder": "Portabel mapp",
     "portable_folder_desc": "Miljö, modeller och dina röstdata — en mapp, helt flyttbar.",
+    "portable_moved": "En markörfil bredvid appen registrerar den här platsen, så installationen hittar fortfarande sig själv om du flyttar appen och den här mappen till en annan dator.",
+    "portable_moved_machine_bound": "Appens egen mapp är skrivskyddad, så den här platsen kommer bara ihåg för det här användarkontot – installationen hittas inte från en annan dator.",
     "env_dir": "Appmiljö",
     "env_dir_desc": "Python-runtime och AI-bibliotek.",
     "data_dir": "Röstdata & projekt",

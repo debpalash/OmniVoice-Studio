@@ -1969,6 +1969,8 @@
     "storage_title": "Penyimpanan",
     "portable_folder": "Folder portabel",
     "portable_folder_desc": "Lingkungan, model, dan data suara Anda — satu folder, sepenuhnya dapat dipindah.",
+    "portable_moved": "Sebuah berkas penanda di samping aplikasi mencatat lokasi ini, sehingga instalasi tetap dapat menemukan dirinya sendiri jika Anda memindahkan aplikasi dan folder ini ke mesin lain.",
+    "portable_moved_machine_bound": "Folder aplikasi itu sendiri bersifat hanya-baca, sehingga lokasi ini hanya diingat untuk akun pengguna ini — instalasi tidak akan ditemukan dari mesin lain.",
     "env_dir": "Lingkungan aplikasi",
     "env_dir_desc": "Runtime Python dan pustaka AI.",
     "data_dir": "Data suara & proyek",

@@ -1969,6 +1969,8 @@
     "storage_title": "Speicher",
     "portable_folder": "Portabler Ordner",
     "portable_folder_desc": "Laufzeitumgebung, Modelle und deine Sprachdaten – ein Ordner, komplett verschiebbar.",
+    "portable_moved": "Eine Markierungsdatei neben der App speichert diesen Ort, sodass sich die Installation selbst wiederfindet, wenn Sie die App und diesen Ordner auf einen anderen Rechner verschieben.",
+    "portable_moved_machine_bound": "Der Ordner der App selbst ist schreibgeschützt, daher wird dieser Ort nur für dieses Benutzerkonto gespeichert – von einem anderen Rechner aus wird die Installation nicht gefunden.",
     "env_dir": "App-Umgebung",
     "env_dir_desc": "Python-Runtime und KI-Bibliotheken.",
     "data_dir": "Sprachdaten & Projekte",

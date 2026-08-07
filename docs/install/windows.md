@@ -120,20 +120,37 @@ weights, voices, projects, settings — lives in a single
 copying the app folder (exe + that data folder together) relocates the entire
 install, USB-stick style.
 
-The first-run setup screen offers Portable whenever the folder next to
-`VoiceStudio.exe` is writable. A default MSI install goes to
-`C:\Program Files`, which is *not* user-writable — that's why Portable shows
-as greyed out after a default install
-([#766](https://github.com/debpalash/VoiceStudio/issues/766)). To enable
-it, install to a user-writable folder instead:
+The first-run setup screen offers Portable, and the folder is **yours to
+choose** — press **Change…** on the Portable folder row and point it at any
+writable location (an external SSD, a second drive, a USB stick).
+
+Where the folder lives changes one thing, and the setup screen says which
+you're getting:
+
+- **App folder writable** (e.g. installed to `D:\Apps\VoiceStudio`) — a small
+  `portable.path` marker is written next to the exe recording the location.
+  The install stays **self-discovering**: move the app and the data folder to
+  another machine and it still finds itself.
+- **App folder read-only** (a default `C:\Program Files` MSI install) — the
+  marker can't be written, so the location is remembered for **your user
+  account only**. Portable still works on this machine, but it will not be
+  found from another one.
+
+That second case used to be a hard block: Portable was greyed out entirely
+after a default install
+([#766](https://github.com/debpalash/VoiceStudio/issues/766)). It no longer
+is — you just get the machine-bound variant unless the app itself sits
+somewhere writable.
+
+If you want the fully-portable version, install to a user-writable folder:
 
 - Re-run the MSI and choose a custom destination folder in the setup wizard
   (e.g. `D:\Apps\VoiceStudio`), or
 - From a terminal:
   `msiexec /i VoiceStudio.Studio_<version>_x64_en-US.msi INSTALLDIR="D:\Apps\VoiceStudio"`
 
-On the next launch, pick **Portable** on the first-run setup screen. What
-lives next to the exe afterwards:
+On the next launch, pick **Portable** on the first-run setup screen. With the
+default folder, what lives next to the exe afterwards:
 
 <!-- validate: skip -->
 ```

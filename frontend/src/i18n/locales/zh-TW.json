@@ -1969,6 +1969,8 @@
     "storage_title": "儲存",
     "portable_folder": "可攜資料夾",
     "portable_folder_desc": "執行環境、模型與您的語音資料——一個資料夾，可整體搬移。",
+    "portable_moved": "應用程式旁的標記檔會記錄這個位置，因此即使你把應用程式和這個資料夾一起移到另一台機器，安裝仍能找到自己。",
+    "portable_moved_machine_bound": "應用程式自身的資料夾是唯讀的，因此這個位置僅為此使用者帳戶記住——從另一台機器上將無法找到這個安裝。",
     "env_dir": "應用程式環境",
     "env_dir_desc": "Python 執行環境與 AI 函式庫。",
     "data_dir": "語音資料與專案",

@@ -1969,6 +1969,8 @@
     "storage_title": "Armazenamento",
     "portable_folder": "Pasta portátil",
     "portable_folder_desc": "Ambiente, modelos e seus dados de voz — uma pasta, totalmente móvel.",
+    "portable_moved": "Um ficheiro marcador ao lado da aplicação regista esta localização, por isso a instalação continuará a encontrar-se a si própria se mover a aplicação e esta pasta para outra máquina.",
+    "portable_moved_machine_bound": "A pasta da própria aplicação é só de leitura, por isso esta localização é memorizada apenas para esta conta de utilizador — a instalação não será encontrada a partir de outra máquina.",
     "env_dir": "Ambiente do aplicativo",
     "env_dir_desc": "Runtime Python e bibliotecas de IA.",
     "data_dir": "Dados de voz e projetos",

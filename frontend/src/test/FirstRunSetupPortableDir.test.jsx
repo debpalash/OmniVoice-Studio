@@ -1,0 +1,151 @@
+/**
+ * Portable mode must let the user choose the folder.
+ *
+ * Portable used to be pinned to `OmniVoiceStudio-Data` beside the app, with no
+ * picker — the one storage row on the setup screen you could look at but not
+ * change. Installed mode had a picker for all three of its directories.
+ *
+ * The pin existed for a real reason: `portable_base()` is computed from the
+ * executable's location and never read from config, which is what makes a
+ * portable install self-discovering (plug the drive into another machine and
+ * the app finds its data). A user-chosen folder breaks that unless the
+ * location is recorded somewhere findable — a pointer file beside the app,
+ * falling back to the per-user config when the app folder is read-only.
+ *
+ * These tests pin the FRONTEND half of that contract: the row is pickable, the
+ * chosen path reaches `complete_setup` under the key Rust deserializes
+ * (`portableDir` → `InstallPlan::portable_dir`), and the UI tells the truth
+ * about which mechanism a relocation will get.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import { I18nextProvider } from 'react-i18next';
+import i18n from '../i18n';
+
+const invokeMock = vi.fn();
+const openMock = vi.fn();
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a) => invokeMock(...a) }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ open: (...a) => openMock(...a) }));
+
+import FirstRunSetup from '../components/FirstRunSetup';
+
+const ANCHOR_DEFAULT = '/Applications/OmniVoiceStudio-Data';
+
+const setupState = ({ anchorWritable = true, baseDir = ANCHOR_DEFAULT } = {}) => ({
+  firstRun: true,
+  os: 'macos',
+  defaults: {
+    installMode: 'portable',
+    envDir: '/env',
+    dataDir: '/data',
+    modelsDir: '/models',
+    region: 'auto',
+    updateChannel: 'stable',
+    torchVariant: 'auto',
+  },
+  portable: {
+    available: true,
+    baseDir,
+    reason: null,
+    defaultDir: ANCHOR_DEFAULT,
+    anchorWritable,
+  },
+  requirements: { envBytes: 1e9, modelsBytes: 1e9, dataBytes: 1e9 },
+  hardware: { kind: 'apple', name: 'M2' },
+});
+
+const wireInvoke = (state) => {
+  invokeMock.mockImplementation(async (cmd) => {
+    if (cmd === 'get_setup_state') return state;
+    if (cmd === 'check_install_target') return { writable: true, freeBytes: 500e9 };
+    if (cmd === 'complete_setup') return undefined;
+    return undefined;
+  });
+};
+
+const renderSetup = () =>
+  render(
+    <I18nextProvider i18n={i18n}>
+      <FirstRunSetup />
+    </I18nextProvider>,
+  );
+
+beforeEach(() => {
+  invokeMock.mockReset();
+  openMock.mockReset();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('FirstRunSetup — portable folder is choosable', () => {
+  it('sends the chosen folder to complete_setup as portableDir', async () => {
+    wireInvoke(setupState());
+    openMock.mockResolvedValue('/Volumes/SSD/VoiceStudio');
+    renderSetup();
+
+    await waitFor(() => expect(screen.getByText(ANCHOR_DEFAULT)).toBeTruthy());
+
+    // The portable row must offer a picker at all — this is the regression:
+    // it previously rendered read-only while installed mode had three pickers.
+    const pickers = screen.getAllByRole('button', { name: /change|browse|choose|pick|folder/i });
+    expect(pickers.length).toBeGreaterThan(0);
+    await act(async () => {
+      pickers[0].click();
+    });
+
+    await waitFor(() => expect(screen.getByText('/Volumes/SSD/VoiceStudio')).toBeTruthy());
+
+    // The target check is debounced 250 ms, and until it lands the plan counts
+    // as `loading` and the button stays disabled — so wait for it to enable
+    // rather than clicking into a no-op.
+    const startBtn = () =>
+      screen.getAllByRole('button').find((b) => /start installation/i.test(b.textContent || ''));
+    await waitFor(
+      () => {
+        expect(startBtn()).toBeTruthy();
+        expect(startBtn().disabled).toBe(false);
+      },
+      { timeout: 4000 },
+    );
+    await act(async () => {
+      startBtn().click();
+    });
+
+    await waitFor(() => {
+      const call = invokeMock.mock.calls.find(([cmd]) => cmd === 'complete_setup');
+      expect(call).toBeTruthy();
+      // The key name is the wire contract with InstallPlan::portable_dir —
+      // rename either side and the folder is silently ignored.
+      expect(call[1].plan.portableDir).toBe('/Volumes/SSD/VoiceStudio');
+      expect(call[1].plan.installMode).toBe('portable');
+    });
+  });
+
+  it('says a relocation stays portable when the app folder is writable', async () => {
+    wireInvoke(setupState({ anchorWritable: true, baseDir: '/Volumes/SSD/VoiceStudio' }));
+    renderSetup();
+    await waitFor(() => expect(screen.getByText('/Volumes/SSD/VoiceStudio')).toBeTruthy());
+    expect(screen.getByText(/another machine/i).textContent).toMatch(/marker beside the app/i);
+  });
+
+  it('admits a relocation is machine-bound when the app folder is read-only', async () => {
+    // The honest half: with no writable anchor the location can only be
+    // recorded per-user, so the cross-machine promise does not hold and the
+    // UI must not imply otherwise.
+    wireInvoke(setupState({ anchorWritable: false, baseDir: '/Volumes/SSD/VoiceStudio' }));
+    renderSetup();
+    await waitFor(() => expect(screen.getByText('/Volumes/SSD/VoiceStudio')).toBeTruthy());
+    expect(screen.getByText(/read-only/i).textContent).toMatch(/this user account only/i);
+  });
+
+  it('shows no relocation notice when the default folder is used', async () => {
+    wireInvoke(setupState({ baseDir: ANCHOR_DEFAULT }));
+    renderSetup();
+    await waitFor(() => expect(screen.getByText(ANCHOR_DEFAULT)).toBeTruthy());
+    expect(screen.queryByText(/another machine/i)).toBeNull();
+  });
+});

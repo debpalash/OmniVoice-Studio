@@ -1969,6 +1969,8 @@
     "storage_title": "Pamięć",
     "portable_folder": "Folder przenośny",
     "portable_folder_desc": "Środowisko, modele i dane głosowe — jeden folder, w pełni przenośny.",
+    "portable_moved": "Plik znacznika obok aplikacji zapisuje tę lokalizację, dzięki czemu instalacja nadal się odnajdzie, jeśli przeniesiesz aplikację i ten folder na inny komputer.",
+    "portable_moved_machine_bound": "Folder samej aplikacji jest tylko do odczytu, więc ta lokalizacja jest zapamiętywana wyłącznie dla tego konta użytkownika — z innego komputera instalacja nie zostanie odnaleziona.",
     "env_dir": "Środowisko aplikacji",
     "env_dir_desc": "Środowisko Python i biblioteki AI.",
     "data_dir": "Dane głosowe i projekty",

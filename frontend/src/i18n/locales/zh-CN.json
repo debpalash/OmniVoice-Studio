@@ -1976,6 +1976,8 @@
     "storage_title": "存储",
     "portable_folder": "便携文件夹",
     "portable_folder_desc": "运行环境、模型和您的语音数据——一个文件夹，可整体移动。",
+    "portable_moved": "应用旁边的标记文件会记录此位置，因此即使你把应用和该文件夹一起移动到另一台机器，安装仍能找到自己。",
+    "portable_moved_machine_bound": "应用自身的文件夹是只读的，因此此位置仅为该用户账户记住——从另一台机器上将无法找到该安装。",
     "env_dir": "应用环境",
     "env_dir_desc": "Python 运行时与 AI 库。",
     "data_dir": "语音数据与项目",

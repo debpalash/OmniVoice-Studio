@@ -1969,6 +1969,8 @@
     "storage_title": "Depolama",
     "portable_folder": "Taşınabilir klasör",
     "portable_folder_desc": "Çalışma ortamı, modeller ve ses verileriniz — tek klasör, tamamen taşınabilir.",
+    "portable_moved": "Uygulamanın yanındaki bir işaret dosyası bu konumu kaydeder; böylece uygulamayı ve bu klasörü başka bir makineye taşısanız da kurulum kendini bulmaya devam eder.",
+    "portable_moved_machine_bound": "Uygulamanın kendi klasörü salt okunur olduğundan bu konum yalnızca bu kullanıcı hesabı için hatırlanır; kurulum başka bir makineden bulunamaz.",
     "env_dir": "Uygulama ortamı",
     "env_dir_desc": "Python çalışma zamanı ve yapay zekâ kitaplıkları.",
     "data_dir": "Ses verileri ve projeler",
