@@ -3320,7 +3320,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate" },
-    { name = "alembic", specifier = ">=1.13" },
+    { name = "alembic", specifier = ">=1.15" },
     { name = "argostranslate", specifier = ">=1.9.0" },
     { name = "audioseal", specifier = ">=0.1.3" },
     { name = "cryptography", specifier = ">=41" },

@@ -12,6 +12,7 @@
   continue on a half-migrated DB.
 """
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -74,6 +75,60 @@ def test_pending_migrations_snapshot_first_then_upgrade(tmp_path, monkeypatch):
     finally:
         conn.close()
     assert stamped, "upgrade must have stamped the DB at head"
+
+
+def test_pending_migrations_apply_from_any_cwd(tmp_path, monkeypatch):
+    """The dev app launches the backend with cwd=frontend/src-tauri, not the
+    repo root. alembic resolves a bare relative script_location against the
+    CWD, so alembic.ini must use %(here)s — otherwise the first pending
+    migration kills startup with "Path doesn't exist: backend/migrations"."""
+    db = tmp_path / "omnivoice.db"
+    _seed_user_db(db)
+    monkeypatch.setattr(db_module, "DB_PATH", str(db))
+    monkeypatch.chdir(tmp_path)  # anywhere but the repo root
+
+    _run_alembic_upgrade()  # must not raise MigrationError
+
+    conn = sqlite3.connect(str(db))
+    try:
+        stamped = [r[0] for r in conn.execute("SELECT version_num FROM alembic_version")]
+    finally:
+        conn.close()
+    assert stamped, "upgrade must have stamped the DB at head"
+
+
+def test_alembic_ini_paths_survive_spaces_and_drive_letters(tmp_path, monkeypatch):
+    """The other half of the %(here)s fix: path_separator=os. Without it,
+    alembic legacy-splits prepend_sys_path on spaces, commas AND colons —
+    shredding "C:\\..." into ["C", "\\..."] on Windows and any POSIX path
+    containing a space. The cwd-only test above can't see that (core.config
+    is already imported when it runs), so exercise the ini's own resolution
+    from a directory with a space in its name and assert exactly one, intact
+    sys.path entry gets prepended."""
+    import shutil
+    import sys
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    repo = Path(__file__).resolve().parents[1]
+    here = tmp_path / "a b"  # the space is the point
+    (here / "backend").mkdir(parents=True)
+    shutil.copytree(repo / "backend" / "migrations", here / "backend" / "migrations")
+    shutil.copy(repo / "alembic.ini", here / "alembic.ini")
+
+    monkeypatch.chdir(tmp_path)
+    before = list(sys.path)
+    try:
+        script = ScriptDirectory.from_config(Config(str(here / "alembic.ini")))
+        added = [p for p in sys.path if p not in before]
+    finally:
+        sys.path[:] = before
+
+    assert Path(script.dir).resolve() == (here / "backend" / "migrations").resolve()
+    assert len(added) == 1 and Path(added[0]).resolve() == (here / "backend").resolve(), (
+        f"prepend_sys_path was shredded by legacy splitting: {added}"
+    )
 
 
 def test_up_to_date_db_is_not_resnapshotted(tmp_path, monkeypatch):
