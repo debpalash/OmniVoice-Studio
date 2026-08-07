@@ -2019,7 +2019,7 @@
     "lib_active": "aktif",
     "lib_in_settings": "pasang nanti di Pengaturan",
     "lib_show_all": "Tampilkan {{count}} model opsional",
-    "trust_line": "Semuanya berjalan dan tersimpan di mesin ini — tanpa akun, tanpa cloud, tanpa telemetri.",
+    "trust_line": "Privasi utama: semuanya berjalan dan tersimpan di mesin ini — tanpa akun, tanpa cloud.",
     "resume_note": "Unduhan yang terputus dilanjutkan otomatis — menutup aplikasi aman.",
     "eta_left": "sisa ~{{eta}}",
     "first_sound_text": "Selamat datang di studio Anda. Setiap kata yang Anda dengar baru saja dihasilkan di mesin ini.",

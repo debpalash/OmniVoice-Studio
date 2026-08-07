@@ -850,7 +850,7 @@ export default function FirstRunSetup() {
           <p className="m-0 text-xs text-fg-subtle">
             {t(
               'firstrun.trust_line',
-              'Everything runs and stays on this machine — no account, no cloud, no telemetry.',
+              'Privacy first: everything runs and stays on this machine — no account, no cloud.',
             )}
           </p>
         </footer>
