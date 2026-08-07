@@ -86,6 +86,26 @@ def probe_timeout_s(engine: str) -> float:
     return DEFAULT_PROBE_TIMEOUT_S
 
 
+def log_safe(path: "Path | str") -> str:
+    """A candidate interpreter path, safe to log.
+
+    Every one of these paths runs through the user's home directory, so it
+    carries their account name — and these lines land in backend.log, which
+    goes into diagnostic bundles and prefilled bug reports (CWE-532;
+    CodeRabbit). ``core.failure.sanitize`` is the same redaction every other
+    surfaced string in the app gets.
+
+    Falls back to the basename rather than the full path if sanitizing is
+    unavailable: a probe must not fail because logging could not redact.
+    """
+    try:
+        from core.failure import sanitize
+
+        return sanitize(str(path))
+    except Exception:  # noqa: BLE001 — never fail a probe over a log line
+        return os.path.basename(str(path)) or "<path>"
+
+
 def venv_can_import(
     python_path: "Path | str",
     import_stmt: str,
@@ -113,19 +133,22 @@ def venv_can_import(
             "%s import probe for %s did not finish within %.0fs — keeping it "
             "as a fallback rather than treating slow as broken (#1414). Raise "
             "OMNIVOICE_%s_IMPORT_PROBE_TIMEOUT_S if this host is simply slow.",
-            engine, python_path, timeout, engine.upper(),
+            engine, log_safe(python_path), timeout, engine.upper(),
         )
         return "unproven"
     except OSError as exc:
         # The OS refused to execute it at all: not a slow import, a bad path
         # or a binary this machine cannot run. Proven negative.
-        logger.debug("%s import probe could not run %s: %s", engine, python_path, exc)
+        logger.debug(
+            "%s import probe could not run %s: %s",
+            engine, log_safe(python_path), exc,
+        )
         return "no"
     if proc.returncode != 0:
         logger.debug(
             "%s import probe non-zero for %s: %s",
             engine,
-            python_path,
+            log_safe(python_path),
             proc.stderr.decode("utf-8", errors="replace")[:200],
         )
         return "no"

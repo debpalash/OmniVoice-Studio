@@ -45,7 +45,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from engines._venv_probe import ProbeResult, venv_can_import
+from engines._venv_probe import ProbeResult, log_safe, venv_can_import
 
 logger = logging.getLogger("omnivoice.indextts.bootstrap")
 
@@ -154,7 +154,7 @@ def resolve_indextts_venv() -> Path:
         logger.warning(
             "IndexTTS venv %s could not be verified in time; using it anyway "
             "rather than treating a slow import as a missing install (#1414).",
-            unproven,
+            log_safe(unproven),
         )
         _resolved_python = unproven
         return unproven

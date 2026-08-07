@@ -28,29 +28,35 @@ from pathlib import Path
 
 import pytest
 
-from engines import _venv_probe
-from engines._venv_probe import DEFAULT_PROBE_TIMEOUT_S, probe_timeout_s, venv_can_import
-
 logger = logging.getLogger("test.venv_probe")
+
+
+@pytest.fixture
+def probe():
+    """Resolved at run time, not import time: a module-level import of an app
+    module keeps mutable state in sys.modules across test boundaries."""
+    from engines import _venv_probe
+
+    return _venv_probe
 
 
 # ── the probe itself ───────────────────────────────────────────────────────
 
-def test_a_timeout_is_unproven_not_a_failure(monkeypatch):
+def test_a_timeout_is_unproven_not_a_failure(probe, monkeypatch):
     def _raise(*a, **kw):
         raise subprocess.TimeoutExpired(cmd="python", timeout=1)
 
-    monkeypatch.setattr(_venv_probe.subprocess, "run", _raise)
-    verdict = venv_can_import("python", "import anything", engine="indextts", logger=logger)
+    monkeypatch.setattr(probe.subprocess, "run", _raise)
+    verdict = probe.venv_can_import("python", "import anything", engine="indextts", logger=logger)
     assert verdict == "unproven", (
         "a probe that ran out of time proves nothing — reporting 'no' is what "
         "discarded working installs in #1414"
     )
 
 
-def test_a_real_import_failure_is_still_no():
+def test_a_real_import_failure_is_still_no(probe):
     # Proven negative: the interpreter ran and the import raised.
-    verdict = venv_can_import(
+    verdict = probe.venv_can_import(
         sys.executable,
         "import a_module_that_does_not_exist_1414",
         engine="indextts",
@@ -59,16 +65,16 @@ def test_a_real_import_failure_is_still_no():
     assert verdict == "no"
 
 
-def test_a_working_import_is_yes():
-    verdict = venv_can_import(
+def test_a_working_import_is_yes(probe):
+    verdict = probe.venv_can_import(
         sys.executable, "import json", engine="indextts", logger=logger,
     )
     assert verdict == "yes"
 
 
-def test_an_unrunnable_interpreter_is_no(tmp_path):
+def test_an_unrunnable_interpreter_is_no(probe, tmp_path):
     # OSError, not a slow import: nothing to wait for.
-    verdict = venv_can_import(
+    verdict = probe.venv_can_import(
         tmp_path / "does-not-exist", "import json", engine="indextts", logger=logger,
     )
     assert verdict == "no"
@@ -76,24 +82,24 @@ def test_an_unrunnable_interpreter_is_no(tmp_path):
 
 # ── the bound ──────────────────────────────────────────────────────────────
 
-def test_bound_defaults_generously(monkeypatch):
+def test_bound_defaults_generously(probe, monkeypatch):
     monkeypatch.delenv("OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S", raising=False)
     monkeypatch.delenv("OMNIVOICE_ENGINE_IMPORT_PROBE_TIMEOUT_S", raising=False)
-    assert probe_timeout_s("indextts") == DEFAULT_PROBE_TIMEOUT_S
+    assert probe.probe_timeout_s("indextts") == probe.DEFAULT_PROBE_TIMEOUT_S
     # The old per-engine bound. A cold torch import routinely exceeds it, which
     # is the whole of #1414 — if this ever drops back, the bug is back.
-    assert DEFAULT_PROBE_TIMEOUT_S > 15
+    assert probe.DEFAULT_PROBE_TIMEOUT_S > 15
 
 
-def test_per_engine_env_beats_global(monkeypatch):
+def test_per_engine_env_beats_global(probe, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_ENGINE_IMPORT_PROBE_TIMEOUT_S", "30")
     monkeypatch.setenv("OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S", "120")
-    assert probe_timeout_s("indextts") == 120.0
-    assert probe_timeout_s("dots_tts") == 30.0
+    assert probe.probe_timeout_s("indextts") == 120.0
+    assert probe.probe_timeout_s("dots_tts") == 30.0
 
 
 @pytest.mark.parametrize("bad", ["", "  ", "abc", "0", "-5", "inf", "nan", "1e400"])
-def test_a_useless_bound_is_ignored(monkeypatch, bad):
+def test_a_useless_bound_is_ignored(probe, monkeypatch, bad):
     """Never honour 0/negative: an unbounded probe lets one wedged candidate
     hang engine resolution forever, which is the failure the bound exists for.
 
@@ -102,7 +108,7 @@ def test_a_useless_bound_is_ignored(monkeypatch, bad):
     function that promises never to raise (CodeRabbit)."""
     monkeypatch.delenv("OMNIVOICE_ENGINE_IMPORT_PROBE_TIMEOUT_S", raising=False)
     monkeypatch.setenv("OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S", bad)
-    assert probe_timeout_s("indextts") == DEFAULT_PROBE_TIMEOUT_S
+    assert probe.probe_timeout_s("indextts") == probe.DEFAULT_PROBE_TIMEOUT_S
 
 
 # ── resolution order ───────────────────────────────────────────────────────
@@ -181,3 +187,39 @@ def test_every_engine_shares_one_probe(engine):
     assert "_IMPORT_PROBE_TIMEOUT_S" not in text, (
         f"{engine} still carries a private probe bound"
     )
+
+
+def test_probe_logs_do_not_leak_the_users_home_path(probe, monkeypatch, caplog):
+    """These lines land in backend.log, which goes into diagnostic bundles and
+    prefilled bug reports — and every candidate path runs through the user's
+    home directory, i.e. their account name (CodeRabbit)."""
+    import subprocess as sp
+
+    def _timeout(*a, **kw):
+        raise sp.TimeoutExpired(cmd="python", timeout=1)
+
+    monkeypatch.setattr(probe.subprocess, "run", _timeout)
+    home = str(Path.home())
+    candidate = Path(home) / "secret-project" / ".venv" / "bin" / "python"
+
+    with caplog.at_level(logging.DEBUG):
+        assert probe.venv_can_import(
+            candidate, "import x", engine="indextts", logger=logger,
+        ) == "unproven"
+
+    text = caplog.text
+    assert home not in text, "the probe log carries the user's home path"
+    # The log must still be useful — it should name the venv, just not the user.
+    assert "secret-project" in text or "python" in text
+
+
+def test_log_safe_survives_a_broken_sanitizer(probe, monkeypatch):
+    """A probe must not fail because logging could not redact."""
+    import core.failure as cf
+
+    monkeypatch.setattr(
+        cf, "sanitize",
+        lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("nope")),
+    )
+    out = probe.log_safe("/home/someone/.venv/bin/python")
+    assert out == "python"

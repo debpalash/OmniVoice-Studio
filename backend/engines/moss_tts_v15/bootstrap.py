@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from engines._venv_probe import ProbeResult, venv_can_import
+from engines._venv_probe import ProbeResult, log_safe, venv_can_import
 
 logger = logging.getLogger("omnivoice.moss_tts_v15.bootstrap")
 
@@ -149,7 +149,7 @@ def resolve_moss_tts_v15_venv() -> Path:
             "MOSS-TTS-v1.5 venv %s could not be verified in time; using it "
             "anyway rather than treating a slow import as a missing "
             "install (#1414).",
-            unproven,
+            log_safe(unproven),
         )
         _resolved_python = unproven
         return unproven

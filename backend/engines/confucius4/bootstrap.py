@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from engines._venv_probe import ProbeResult, venv_can_import
+from engines._venv_probe import ProbeResult, log_safe, venv_can_import
 
 logger = logging.getLogger("omnivoice.confucius4.bootstrap")
 
@@ -118,7 +118,7 @@ def resolve_confucius4_venv() -> Path:
             "Confucius4 venv %s could not be verified in time; using it "
             "anyway rather than treating a slow import as a missing "
             "install (#1414).",
-            unproven,
+            log_safe(unproven),
         )
         _resolved_python = unproven
         return unproven
