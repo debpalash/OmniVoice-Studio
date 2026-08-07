@@ -17,12 +17,22 @@ Two things are pinned here: the description actually reaches the library, and
 its absence produces an error a user can act on rather than the raw internal
 one.
 """
-import sys
-import types
+import importlib
 
 import pytest
 
-from services import tts_backend
+
+@pytest.fixture
+def tts_backend():
+    """Resolve the app module per test rather than binding it at collection.
+
+    A module-level `from services import tts_backend` keeps whatever object
+    was in `sys.modules` when this file was imported. Other suites in this
+    repo rebind that name, so the binding can go stale and leave these tests
+    exercising a different implementation than the one under test — passing
+    in isolation and quietly proving nothing in the full run.
+    """
+    return importlib.import_module("services.tts_backend")
 
 
 class _FakeConfig:
@@ -50,7 +60,7 @@ class _FakeModel:
 
 
 @pytest.fixture
-def backend(monkeypatch):
+def backend(monkeypatch, tts_backend):
     """An MLXAudioBackend with the model pre-loaded, so no mlx import happens."""
     be = tts_backend.MLXAudioBackend.__new__(tts_backend.MLXAudioBackend)
     be._model_id = "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-4bit"

@@ -1434,7 +1434,8 @@ class MLXAudioBackend(TTSBackend):
         # mlx-audio refuses to run without one — so the engine was unusable no
         # matter what the user typed, and the reported failure was a bare
         # 400 quoting a library message (#1405).
-        if instruct: kwargs["instruct"] = instruct
+        if instruct:
+            kwargs["instruct"] = instruct
         elif self._is_voice_design():
             raise ValueError(
                 "This model builds a voice from a written description, so it "
