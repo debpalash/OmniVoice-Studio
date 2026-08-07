@@ -25,6 +25,36 @@ def _lazy_torch():
     return _torch
 
 
+def _missing_module_is_omnivoice(exc: ModuleNotFoundError) -> bool:
+    """True when *exc* says the ``omnivoice`` package itself is not importable.
+
+    ``ModuleNotFoundError`` is raised for two very different situations along
+    this import, and only one of them is fixable by putting the source tree on
+    ``sys.path`` (#1415):
+
+    * ``omnivoice`` (or a submodule of it) is genuinely absent — a missing or
+      broken editable install, which the #564 fallback repairs; ``exc.name``
+      names the omnivoice package.
+    * something ``omnivoice`` imports is absent or broken — a torch /
+      torchaudio / torchvision mismatch, or transformers' lazy module refusing
+      an attribute whose backing import failed
+      ("Could not import module 'AutoFeatureExtractor'", which carries no
+      ``name`` at all). Nothing about ``sys.path`` is wrong here.
+
+    Treating the second as the first re-imported from the same broken
+    environment, failed identically, and logged that the editable install was
+    missing — a confident diagnosis of the wrong component.
+
+    ``exc.name`` is the authority, and its absence is decisive rather than
+    unknown: the stdlib always sets it, so a ModuleNotFoundError without one
+    was raised by hand — which is exactly what transformers' lazy module does.
+    """
+    name = getattr(exc, "name", None)
+    if not name:
+        return False
+    return name == "omnivoice" or name.startswith("omnivoice.")
+
+
 def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
@@ -33,7 +63,21 @@ def _lazy_omnivoice():
             # branding. The VoiceStudio rename must not touch it (checkpoint
             # configs reference the class name via transformers architectures).
             from omnivoice.models.omnivoice import OmniVoice as _OV
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as exc:
+            if not _missing_module_is_omnivoice(exc):
+                # Something in omnivoice's OWN import chain is missing — not
+                # omnivoice itself (#1415). transformers' lazy module raises
+                # ModuleNotFoundError for any attribute whose backing import
+                # failed ("Could not import module 'AutoFeatureExtractor'"),
+                # and a missing torchaudio/torchvision raises it by name. The
+                # source-tree fallback below cannot fix any of those: it
+                # re-imports from the same broken environment and fails
+                # identically, having logged that the *editable install* is
+                # broken — which sent the reporter, and us, after the wrong
+                # thing. Let it through with its own cause intact; classify()
+                # already names it TRANSFORMERS_IMPORT and hints at the real
+                # remedy.
+                raise
             # The venv's editable install is missing/broken (#564). main.py wires
             # the source fallback at startup, but resolve it here too so the
             # model-load path self-heals and logs the paths it searched.
@@ -2179,6 +2223,31 @@ async def preload_model():
         # distinguishes a real dependency problem from a shutdown-interrupted
         # import.
         logger.warning("Model preload failed (non-fatal): %s", e, exc_info=e)
+        # Non-fatal must not mean invisible (#1415). A broken dependency in the
+        # model's import chain fails here and nowhere else until the user tries
+        # to generate — so the app starts clean, reports itself healthy, and
+        # simply produces nothing, which is how the reporter's environment
+        # looked. Record it on the status the UI already reads, with the
+        # classified remedy attached; the next successful load clears it.
+        try:
+            from core.failure import build_failure
+
+            from core.failure import describe_exception
+
+            # The whole chain, not just the surface: transformers reports a
+            # broken dependency as a lazy-attribute error and keeps the real
+            # cause in __cause__, so classifying the outermost message alone
+            # loses the only part that names a remedy.
+            reason = " | ".join(
+                describe_exception(exc) for exc in _exception_chain(e)
+            ) or describe_exception(e)
+            failure = build_failure(
+                reason, stage="model-preload", include_diagnostic=False,
+            )
+            detail = failure.get("hint") or failure.get("reason") or str(e)
+        except Exception:  # noqa: BLE001 — never lose the warning to this
+            detail = str(e)
+        _set_loading("failed", detail, error=detail)
 
 def get_model_status():
     is_loaded = model is not None
