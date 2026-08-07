@@ -212,6 +212,13 @@ def test_the_pool_path_never_resubmits_to_the_pool(mm, monkeypatch):
     )
     t.start()
     t.join(timeout=30)
+    # Before touching shared module state: a timed-out worker is still running
+    # `get_model()`, and resetting `mm.model` under it leaks a live thread that
+    # would mutate the module while later tests use it.
+    assert not t.is_alive(), (
+        "cold load on a pool worker never returned — it is waiting on the pool "
+        "slot it already occupies"
+    )
     monkeypatch.setattr(mm, "model", None, raising=False)
 
     assert "error" not in result, result.get("error")
