@@ -174,6 +174,81 @@ def gfx_for_hsa_override(value: str) -> str | None:
     return f"gfx{int(major)}{minor}{step}"
 
 
+#: The ROCm kernel driver interface. Its absence, or its presence without
+#: permission, are the two commonest reasons a ROCm host silently runs on CPU.
+_KFD_DEVICE = "/dev/kfd"
+
+
+def why_no_gpu(torch) -> tuple[str, ...]:
+    """Why ``torch.cuda.is_available()`` said no, as user-facing advisories.
+
+    This branch used to produce **nothing** (#1274/#1228). A host with a GPU
+    the app could not use reported "Compute device: cpu / GPU active: no" and
+    stopped there — true, useless, and indistinguishable from a machine that
+    has no GPU at all. Two rounds of back-and-forth per report followed, and
+    the reporter still ended up guessing (numeric ``--group-add`` values
+    copied from another host, an ``HSA_OVERRIDE_GFX_VERSION`` that may or may
+    not have been needed).
+
+    The distinctions worth making are cheap, and the probe already knows them:
+
+    * the wheel has no GPU support compiled in at all — no amount of
+      device-passing or env vars will change that;
+    * it is a ROCm wheel and ``/dev/kfd`` is absent — in a container that is a
+      missing ``--device`` flag, not a driver problem;
+    * ``/dev/kfd`` is there but this process cannot open it — a group
+      membership problem, which is the one that bites hardest in Docker
+      because the ``render``/``video`` GIDs differ between hosts and the
+      numbers are usually copied from somewhere else;
+    * everything is present and the runtime still enumerated nothing — the
+      GPU is likely newer than this build's ROCm.
+
+    Never raises, and returns ``()`` rather than guessing when it cannot tell.
+    """
+    version = getattr(torch, "version", None)
+    hip = getattr(version, "hip", None)
+    cuda = getattr(version, "cuda", None)
+
+    if not hip and not cuda:
+        # A build with no GPU support compiled in. Deliberately silent: this
+        # is also every macOS wheel (MPS is probed separately, below) and
+        # every CPU Docker image, so a note here would fire on hosts that are
+        # working exactly as intended. The situations worth explaining are the
+        # ones where the build clearly meant to use a GPU and could not.
+        return ()
+
+    if hip:
+        # /dev/kfd only exists on Linux; on any other platform its absence
+        # says nothing, so don't invent a reason.
+        if sys.platform.startswith("linux"):
+            if not os.path.exists(_KFD_DEVICE):
+                return (
+                    f"ROCm {hip} is installed but {_KFD_DEVICE} is not "
+                    "present — the amdgpu kernel driver isn't loaded, or (in "
+                    "Docker) the container was started without "
+                    "--device /dev/kfd --device /dev/dri",
+                )
+            if not os.access(_KFD_DEVICE, os.R_OK | os.W_OK):
+                return (
+                    f"ROCm {hip} is installed and {_KFD_DEVICE} exists, but "
+                    "this process cannot open it — add the groups that own "
+                    "it (`ls -l /dev/kfd /dev/dri/render*`; in Docker pass "
+                    "--group-add with THAT host's render/video GIDs, which "
+                    "differ between machines)",
+                )
+        return (
+            f"ROCm {hip} is installed and the device nodes are reachable, but "
+            "no GPU was enumerated — most often a card newer than this "
+            "build's ROCm. Check `rocminfo` on the host",
+        )
+
+    return (
+        f"this is a CUDA {cuda} build but no CUDA device was found — the "
+        "NVIDIA driver is missing or too old, or (in Docker) the container "
+        "was started without --gpus all",
+    )
+
+
 def arch_unsupported(torch) -> tuple[str, tuple[str, ...]] | None:
     """``(device_arch, build_archs)`` when device 0's architecture is absent
     from this torch build's compiled arch list — i.e. kernels cannot launch
@@ -334,6 +409,12 @@ def _probe() -> HostCaps:
                     f"{device_name or 'GPU'} ({device_arch}) not in this torch "
                     f"build's archs ({', '.join(archs)}) — {KERNEL_RISK_MARKER}"
                 )
+
+    else:
+        # A GPU-capable build that found nothing must say why (#1274/#1228).
+        # Silence here is what made "Compute device: cpu" indistinguishable
+        # from a machine with no GPU at all.
+        notes.extend(why_no_gpu(torch))
 
     # ── Intel XPU via IPEX ───────────────────────────────────────────────
     try:
