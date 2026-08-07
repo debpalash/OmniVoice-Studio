@@ -515,5 +515,10 @@ def test_mlx_audio_generate_non_kokoro_model_ignores_kokoro_validation():
         return iter([types.SimpleNamespace(audio=[0.0, 0.0, 0.0, 0.0])])
 
     backend._model = types.SimpleNamespace(generate=_fake_generate)
-    backend.generate("hello", language="Dutch")  # must not raise
+    # The curated qwen3-tts model is the VoiceDesign variant, which cannot
+    # generate without a description — mlx-audio raises outright. This test
+    # passed without one only because `instruct` was being dropped before it
+    # ever reached the library (#1405); supply one so the scenario is real.
+    backend.generate("hello", language="Dutch", instruct="a warm narrator")  # must not raise
     assert seen_kwargs.get("lang_code") == "du"
+    assert seen_kwargs.get("instruct") == "a warm narrator"
