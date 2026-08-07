@@ -92,10 +92,14 @@ def test_per_engine_env_beats_global(monkeypatch):
     assert probe_timeout_s("dots_tts") == 30.0
 
 
-@pytest.mark.parametrize("bad", ["", "  ", "abc", "0", "-5"])
+@pytest.mark.parametrize("bad", ["", "  ", "abc", "0", "-5", "inf", "nan", "1e400"])
 def test_a_useless_bound_is_ignored(monkeypatch, bad):
     """Never honour 0/negative: an unbounded probe lets one wedged candidate
-    hang engine resolution forever, which is the failure the bound exists for."""
+    hang engine resolution forever, which is the failure the bound exists for.
+
+    `inf` needs its own rejection: it parses cleanly and is positive, but
+    `subprocess.run(timeout=inf)` raises OverflowError — from inside the one
+    function that promises never to raise (CodeRabbit)."""
     monkeypatch.delenv("OMNIVOICE_ENGINE_IMPORT_PROBE_TIMEOUT_S", raising=False)
     monkeypatch.setenv("OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S", bad)
     assert probe_timeout_s("indextts") == DEFAULT_PROBE_TIMEOUT_S

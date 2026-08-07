@@ -41,6 +41,7 @@ buys is how long we are willing to wait for a *negative*.
 """
 from __future__ import annotations
 
+import math
 import os
 import subprocess
 from pathlib import Path
@@ -62,9 +63,12 @@ def probe_timeout_s(engine: str) -> float:
     """Resolve the probe bound: per-engine env → global env → default.
 
     ``engine`` is the short slug used in the env var, e.g. ``"indextts"`` →
-    ``OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S``. A malformed or
-    non-positive value is ignored rather than honoured: disabling the bound
-    entirely would let one wedged candidate hang engine resolution forever.
+    ``OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S``. A malformed, non-positive
+    or non-finite value is ignored rather than honoured: disabling the bound
+    would let one wedged candidate hang engine resolution forever, and
+    ``inf`` in particular parses cleanly but makes ``subprocess.run`` raise
+    ``OverflowError``, breaking this module's never-raises contract from the
+    one place a user could reach it (CodeRabbit).
     """
     for name in (
         f"OMNIVOICE_{engine.upper()}_IMPORT_PROBE_TIMEOUT_S",
@@ -77,7 +81,7 @@ def probe_timeout_s(engine: str) -> float:
             value = float(raw)
         except ValueError:
             continue
-        if value > 0:
+        if value > 0 and math.isfinite(value):
             return value
     return DEFAULT_PROBE_TIMEOUT_S
 
