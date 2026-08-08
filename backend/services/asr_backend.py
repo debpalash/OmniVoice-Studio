@@ -1156,8 +1156,20 @@ class MLXWhisperBackend(ASRBackend):
             "MLX Whisper transcribing %s (model=%s, word_timestamps=%s)",
             audio_path, self._model_name, word_timestamps,
         )
+        # Decode once here, rather than handing mlx_whisper a path. Given a
+        # path it calls whisper.audio.load_audio, which shells out to a bare
+        # "ffmpeg" PATH lookup -- the same lookup the WhisperX backend was
+        # moved off in #479, and one that cannot find the bundled
+        # imageio-ffmpeg binary because that is named ffmpeg-<plat>-vN. On a
+        # clean from-source install with no system ffmpeg this fails the whole
+        # request with [Errno 2] No such file or directory: fmpeg\.
+        #
+        # The aligner below already used the validated decoder, so this was one
+        # call site out of two in the same method. Reusing that decode also
+        # stops the file being decoded twice per transcription.
+        audio = _decode_audio_16k_mono(audio_path)
         result = mlx_whisper.transcribe(
-            audio_path,
+            audio,
             path_or_hf_repo=self._model_name,
             word_timestamps=word_timestamps,
         )
@@ -1172,7 +1184,7 @@ class MLXWhisperBackend(ASRBackend):
         if word_timestamps and result.get("segments"):
             result["segments"] = forced_align(
                 result["segments"],
-                _decode_audio_16k_mono(audio_path),
+                audio,
                 result.get("language", "en"),
             )
         # Normalise to the `chunks` shape the rest of the pipeline expects.
