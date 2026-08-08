@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import asyncio
@@ -25,6 +26,36 @@ def _lazy_torch():
     return _torch
 
 
+def _missing_module_is_omnivoice(exc: ModuleNotFoundError) -> bool:
+    """True when *exc* says the ``omnivoice`` package itself is not importable.
+
+    ``ModuleNotFoundError`` is raised for two very different situations along
+    this import, and only one of them is fixable by putting the source tree on
+    ``sys.path`` (#1415):
+
+    * ``omnivoice`` (or a submodule of it) is genuinely absent — a missing or
+      broken editable install, which the #564 fallback repairs; ``exc.name``
+      names the omnivoice package.
+    * something ``omnivoice`` imports is absent or broken — a torch /
+      torchaudio / torchvision mismatch, or transformers' lazy module refusing
+      an attribute whose backing import failed
+      ("Could not import module 'AutoFeatureExtractor'", which carries no
+      ``name`` at all). Nothing about ``sys.path`` is wrong here.
+
+    Treating the second as the first re-imported from the same broken
+    environment, failed identically, and logged that the editable install was
+    missing — a confident diagnosis of the wrong component.
+
+    ``exc.name`` is the authority, and its absence is decisive rather than
+    unknown: the stdlib always sets it, so a ModuleNotFoundError without one
+    was raised by hand — which is exactly what transformers' lazy module does.
+    """
+    name = getattr(exc, "name", None)
+    if not name:
+        return False
+    return name == "omnivoice" or name.startswith("omnivoice.")
+
+
 def _lazy_omnivoice():
     global _OmniVoice
     if _OmniVoice is None:
@@ -33,7 +64,21 @@ def _lazy_omnivoice():
             # branding. The VoiceStudio rename must not touch it (checkpoint
             # configs reference the class name via transformers architectures).
             from omnivoice.models.omnivoice import OmniVoice as _OV
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as exc:
+            if not _missing_module_is_omnivoice(exc):
+                # Something in omnivoice's OWN import chain is missing — not
+                # omnivoice itself (#1415). transformers' lazy module raises
+                # ModuleNotFoundError for any attribute whose backing import
+                # failed ("Could not import module 'AutoFeatureExtractor'"),
+                # and a missing torchaudio/torchvision raises it by name. The
+                # source-tree fallback below cannot fix any of those: it
+                # re-imports from the same broken environment and fails
+                # identically, having logged that the *editable install* is
+                # broken — which sent the reporter, and us, after the wrong
+                # thing. Let it through with its own cause intact; classify()
+                # already names it TRANSFORMERS_IMPORT and hints at the real
+                # remedy.
+                raise
             # The venv's editable install is missing/broken (#564). main.py wires
             # the source fallback at startup, but resolve it here too so the
             # model-load path self-heals and logs the paths it searched.
@@ -719,7 +764,7 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
         # Capture the stacks BEFORE reset(): reset() replaces the executor, and
         # once the wedged thread is no longer a pool worker we can no longer
         # tell it apart from any other thread in the process.
-        log_gpu_pool_worker_stacks(what, timeout, executor=ex)
+        stacks = log_gpu_pool_worker_stacks(what, timeout, executor=ex)
         _reset = getattr(ex, "reset", None)
         if callable(_reset):
             try:
@@ -734,7 +779,9 @@ async def run_on_gpu_pool_guarded(fn, *, what: str = "GPU job",
                 logger.exception("GPU pool reset after %s timeout failed",
                                  _log_safe(what))
         raise GpuJobTimeoutError(
-            _timeout_guidance(what, timeout, min_vram_gb)
+            _timeout_guidance(
+                what, timeout, min_vram_gb, wedged=_stack_shows_a_wedge(stacks),
+            )
         ) from timeout_exc
 
 
@@ -847,7 +894,73 @@ def log_gpu_pool_worker_stacks(what: str, timeout: float, executor=None) -> str:
         return ""
 
 
-def _timeout_guidance(what: str, timeout: float, min_vram_gb: float = 0.0) -> str:
+#: Standard-library modules whose blocking primitives a wedged worker parks in.
+#: Matched on the *file* of the deepest frame, so a user function that happens
+#: to be named ``wait`` or ``result`` cannot be mistaken for one of these.
+_WEDGE_STDLIB_FILES = (
+    "/threading.py", "\\threading.py",
+    "/asyncio/locks.py", "\\asyncio\\locks.py",
+    "/concurrent/futures/_base.py", "\\concurrent\\futures\\_base.py",
+    "/queue.py", "\\queue.py",
+)
+
+#: Blocking entry points within those modules. A thread sitting in one of these
+#: is waiting on another thread, by definition — there is no slow-but-working
+#: interpretation of it.
+_WEDGE_FUNCTIONS = frozenset({
+    "acquire", "wait", "result", "get", "join", "_wait_for_tstate_lock",
+})
+
+_FRAME_HEAD = re.compile(r'^\s*File "(?P<file>.+)", line \d+, in (?P<func>\S+)\s*$')
+
+
+def _stack_shows_a_wedge(stacks: "str | None") -> bool:
+    """True when the abandoned worker's DEEPEST frame is a blocking wait.
+
+    The message this feeds is the one users actually read, and for years it
+    said the same thing whatever happened: "too heavy for the available
+    compute". That is a specific, testable claim, and when the worker is
+    parked on a lock it is simply false — nothing was computed, so nothing was
+    too heavy. #1416 and #1419 both arrived as "my machine is too slow"
+    reports from people whose jobs never ran at all (a cold load waiting on a
+    lock owned by another event loop, #1417), and #1329 is the same wedge seen
+    from the dub loop. Every one of them was sent to look at their hardware.
+
+    Only the last frame counts, and it must be a blocking primitive in a
+    standard-library module. Both halves matter (CodeRabbit): a compute job's
+    *callers* routinely include a lock it has already left, so scanning the
+    whole stack would flag nearly everything; and an application function
+    named ``wait`` or ``result`` is not evidence of anything, so the function
+    name alone is not enough either.
+
+    Reads the text :func:`log_gpu_pool_worker_stacks` already captured — no
+    second stack walk, and no cost at all on the healthy path.
+
+    Conservative: unknown or unparseable stacks return False and keep the old
+    wording. Claiming a hang we cannot see would be the same mistake pointing
+    the other way.
+    """
+    if not stacks:
+        return False
+    deepest = None
+    for line in str(stacks).splitlines():
+        m = _FRAME_HEAD.match(line)
+        if m:
+            deepest = m
+    if deepest is None:
+        return False
+    func = deepest.group("func")
+    if func not in _WEDGE_FUNCTIONS:
+        return False
+    path = deepest.group("file").replace("\\", "/")
+    return any(
+        path.endswith(tail.replace("\\", "/")) for tail in _WEDGE_STDLIB_FILES
+    )
+
+
+def _timeout_guidance(
+    what: str, timeout: float, min_vram_gb: float = 0.0, *, wedged: bool = False,
+) -> str:
     """Device-aware timeout message (#896): a CPU-only host must never be told
     to "set the engine to CPU" or blamed on VRAM — on CPU the job is simply
     compute-bound. GPU hosts keep the VRAM-contention guidance.
@@ -869,6 +982,20 @@ def _timeout_guidance(what: str, timeout: float, min_vram_gb: float = 0.0) -> st
         device_name, vram_gb = _caps.device_name, _caps.vram_gb
     except Exception:  # noqa: BLE001 — guidance must never mask the timeout
         pass
+    if wedged:
+        # The worker spent the whole budget parked on a lock. None of the
+        # hardware advice below applies — shorter text and a lighter engine
+        # cannot speed up a job that never started (#1416/#1419/#1329).
+        return (
+            f"{what} was abandoned after {timeout:.0f}s without doing any "
+            "work — it spent the whole time waiting on an internal lock, not "
+            "computing. This is a bug in VoiceStudio, not a limit of your "
+            "machine, so shorter text or a lighter engine won't help. "
+            "Restart the backend to clear it (Settings → Logs → Backend has "
+            "the stack trace that was captured), and please report it with "
+            "that log at https://github.com/debpalash/VoiceStudio/issues — "
+            "the trace names exactly where it stopped."
+        )
     common = (
         f"{what} ran for more than {timeout:.0f}s of actual compute time and "
         "was abandoned — the backend is running, but this job was too heavy "
@@ -2218,6 +2345,39 @@ async def preload_model():
         # distinguishes a real dependency problem from a shutdown-interrupted
         # import.
         logger.warning("Model preload failed (non-fatal): %s", e, exc_info=e)
+        # Non-fatal must not mean invisible (#1415). A broken dependency in the
+        # model's import chain fails here and nowhere else until the user tries
+        # to generate — so the app starts clean, reports itself healthy, and
+        # simply produces nothing, which is how the reporter's environment
+        # looked. Record it on the status the UI already reads, with the
+        # classified remedy attached; the next successful load clears it.
+        try:
+            from core.failure import build_failure
+
+            from core.failure import describe_exception
+
+            # The whole chain, not just the surface: transformers reports a
+            # broken dependency as a lazy-attribute error and keeps the real
+            # cause in __cause__, so classifying the outermost message alone
+            # loses the only part that names a remedy.
+            reason = " | ".join(
+                describe_exception(exc) for exc in _exception_chain(e)
+            ) or describe_exception(e)
+            failure = build_failure(
+                reason, stage="model-preload", include_diagnostic=False,
+            )
+            detail = failure.get("hint") or failure.get("reason") or str(e)
+        except Exception:  # noqa: BLE001 — never lose the warning to this
+            # NOT str(e): the whole point of build_failure is that it sanitizes,
+            # and an exception message routinely carries absolute paths — i.e.
+            # the user's account name — which this string is about to publish
+            # through /model/status (CWE-532; CodeRabbit). A fixed message that
+            # points at the log beats leaking one into the API.
+            detail = (
+                "The TTS model could not be loaded. Settings → Logs → Backend "
+                "has the full error."
+            )
+        _set_loading("failed", detail, error=detail)
 
 def get_model_status():
     is_loaded = model is not None
