@@ -91,7 +91,7 @@ def _patch_probe_to_use_pythonpath(monkeypatch, venv_dir: Path) -> None:
 
     site_packages = venv_dir / "lib" / "site-packages"
 
-    def wrapped(python_path: Path) -> bool:
+    def wrapped(python_path: Path) -> bootstrap.ProbeResult:
         # Only intercept the matching venv — other paths follow the real
         # probe so we still exercise the failure code path.
         if str(python_path).startswith(str(venv_dir)):
@@ -102,9 +102,9 @@ def _patch_probe_to_use_pythonpath(monkeypatch, venv_dir: Path) -> None:
                     timeout=10,
                     env={**os.environ, "PYTHONPATH": str(site_packages)},
                 )
-                return proc.returncode == 0
+                return "yes" if proc.returncode == 0 else "no"
             except Exception:
-                return False
+                return "no"
         return original(python_path)
 
     monkeypatch.setattr(bootstrap, "_venv_can_import_indextts", wrapped)
@@ -156,7 +156,7 @@ def test_venv_probe_prefers_omnivoice_indextts_dir(
     monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", str(omv_dir))
 
     # Patch probe to honour our PYTHONPATH stubbing.
-    def wrapped(python_path: Path) -> bool:
+    def wrapped(python_path: Path) -> bootstrap.ProbeResult:
         for venv in (user_venv, engines_venv):
             if str(python_path).startswith(str(venv)):
                 site = venv / "lib" / "site-packages"
@@ -166,8 +166,8 @@ def test_venv_probe_prefers_omnivoice_indextts_dir(
                     timeout=10,
                     env={**os.environ, "PYTHONPATH": str(site)},
                 )
-                return proc.returncode == 0
-        return False
+                return "yes" if proc.returncode == 0 else "no"
+        return "no"
     monkeypatch.setattr(bootstrap, "_venv_can_import_indextts", wrapped)
 
     resolved = bootstrap.resolve_indextts_venv()
@@ -340,7 +340,7 @@ def test_resolve_caches_result(monkeypatch, tmp_path, isolated_engines_venv):
 
     def sentinel(_path):
         sentinel_called["count"] += 1
-        return False
+        return "no"
 
     monkeypatch.setattr(bootstrap, "_venv_can_import_indextts", sentinel)
     second = bootstrap.resolve_indextts_venv()

@@ -38,6 +38,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from engines._venv_probe import ProbeResult, log_safe, venv_can_import
+
 logger = logging.getLogger("omnivoice.moss_tts_v15.bootstrap")
 
 #: Absolute path to the sidecar entrypoint. ``MossTTSV15Backend.sidecar_script``
@@ -67,7 +69,6 @@ _resolved_python: Optional[Path] = None
 # Timeouts — bounded so a wedged venv never hangs the parent. The bootstrap
 # install can take many minutes on a cold cache (MOSS pulls a CUDA torch
 # build + transformers + an audio codec stack).
-_IMPORT_PROBE_TIMEOUT_S = 15
 _UV_VENV_TIMEOUT_S = 120
 _UV_PIP_INSTALL_TIMEOUT_S = 1800
 
@@ -109,22 +110,49 @@ def resolve_moss_tts_v15_venv() -> Path:
 
     clone_dir = os.environ.get(_CLONE_DIR_ENV)
 
+    # A candidate whose probe ran out of time (#1414): preferred over
+    # bootstrapping or declaring the engine missing, but only after every
+    # candidate has had its chance to prove itself outright.
+    unproven: Optional[Path] = None
+
     # Probe 1 — user's clone-level venv (highest priority for back-compat).
     if clone_dir:
         cand = _venv_python_path(Path(clone_dir) / ".venv")
-        if cand.is_file() and _venv_can_import_moss(cand):
-            logger.info(
-                "MOSS-TTS-v1.5 venv resolved from %s: %s", _CLONE_DIR_ENV, cand,
-            )
-            _resolved_python = cand
-            return cand
+        if cand.is_file():
+            verdict = _venv_can_import_moss(cand)
+            if verdict == "yes":
+                logger.info(
+                    "MOSS-TTS-v1.5 venv resolved from %s: %s", _CLONE_DIR_ENV, cand,
+                )
+                _resolved_python = cand
+                return cand
+            if verdict == "unproven":
+                unproven = cand
 
     # Probe 2 — this package's own venv.
     cand = _venv_python_path(_ENGINES_VENV_DIR)
-    if cand.is_file() and _venv_can_import_moss(cand):
-        logger.info("MOSS-TTS-v1.5 venv resolved from engines path: %s", cand)
-        _resolved_python = cand
-        return cand
+    if cand.is_file():
+        verdict = _venv_can_import_moss(cand)
+        if verdict == "yes":
+            logger.info("MOSS-TTS-v1.5 venv resolved from engines path: %s", cand)
+            _resolved_python = cand
+            return cand
+        if verdict == "unproven" and unproven is None:
+            unproven = cand
+
+    if unproven is not None:
+        # Nothing proved itself, but something plausible is installed. Use
+        # it: a venv that really is broken fails the sidecar handshake with
+        # a real error, which beats reinstalling over the top of a working
+        # install or telling the user their engine isn't there.
+        logger.warning(
+            "MOSS-TTS-v1.5 venv %s could not be verified in time; using it "
+            "anyway rather than treating a slow import as a missing "
+            "install (#1414).",
+            log_safe(unproven),
+        )
+        _resolved_python = unproven
+        return unproven
 
     # Probe 3 — bootstrap.
     if not clone_dir:
@@ -165,33 +193,16 @@ def _probe_paths() -> list[Path]:
     return out
 
 
-def _venv_can_import_moss(python_path: Path) -> bool:
-    """Spawn the candidate python and verify the MOSS stack imports.
+def _venv_can_import_moss(python_path: Path) -> ProbeResult:
+    """Spawn the candidate python and verify the engine imports.
 
-    MOSS-TTS-v1.5 loads via ``transformers`` + ``trust_remote_code`` (no
-    fixed top-level package to import), so the readiness signal is that the
-    venv has a working ``transformers`` + ``torch`` — which only the
-    ``[torch-runtime]`` install provides. Bounded by
-    ``_IMPORT_PROBE_TIMEOUT_S`` so a wedged venv never hangs the parent.
-    Returns False on any failure (non-zero exit, timeout, OSError).
+    Tri-state — "yes" / "no" / "unproven". See ``engines._venv_probe``:
+    a probe that runs out of time proves nothing, and treating that as
+    "no" is what discarded working user installs (#1414).
     """
-    try:
-        proc = subprocess.run(
-            [str(python_path), "-c", "import transformers, torch"],
-            capture_output=True,
-            timeout=_IMPORT_PROBE_TIMEOUT_S,
-        )
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.debug("moss-tts-v15 import probe failed for %s: %s", python_path, exc)
-        return False
-    if proc.returncode != 0:
-        logger.debug(
-            "moss-tts-v15 import probe non-zero for %s: %s",
-            python_path,
-            proc.stderr.decode("utf-8", errors="replace")[:200],
-        )
-        return False
-    return True
+    return venv_can_import(
+        python_path, "import transformers, torch", engine="moss_tts_v15", logger=logger,
+    )
 
 
 def _locate_uv() -> Optional[str]:
@@ -265,7 +276,10 @@ def _bootstrap_engines_venv(clone_dir: Path) -> Path:
             f"{exc.stderr.decode('utf-8', errors='replace') if exc.stderr else exc}"
         ) from exc
 
-    if not _venv_can_import_moss(python_path):
+    # Only a *proven* failure is fatal: a bootstrap that installed correctly
+    # and is merely slow to import must not be thrown away after spending
+    # minutes on the install (#1414).
+    if _venv_can_import_moss(python_path) == "no":
         raise RuntimeError(
             "MOSS-TTS-v1.5 bootstrap completed but the transformers/torch "
             f"import still fails from {python_path}. Verify that {clone_dir} "
