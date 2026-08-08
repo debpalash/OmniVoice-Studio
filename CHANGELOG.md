@@ -16,7 +16,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 - Workspace tabs in the title bar, if you prefer them to the icon rail (#1412)
 - macOS support now matches what the app actually delivers
 - Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
-- Apple Silicon: transcription no longer needs a system ffmpeg, as the docs always said (#1426)
+- Apple Silicon: transcription no longer needs a system ffmpeg, as the docs always said (#1436)
 - A failed audiobook chapter says why, instead of turning red and saying nothing
 
 ### Changed
