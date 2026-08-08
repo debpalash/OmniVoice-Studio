@@ -205,9 +205,18 @@ def why_no_gpu(torch) -> tuple[str, ...]:
 
     Never raises, and returns ``()`` rather than guessing when it cannot tell.
     """
-    version = getattr(torch, "version", None)
-    hip = getattr(version, "hip", None)
-    cuda = getattr(version, "cuda", None)
+    # Metadata access itself can raise: `torch.version` is a module attribute
+    # on a real torch, but a partially-initialised or shimmed torch-like object
+    # can expose it as a property that throws. This function's contract is that
+    # it never raises — it is called from the diagnostics path, where an
+    # exception would take out the very report meant to explain the problem
+    # (CodeRabbit, #1425).
+    try:
+        version = getattr(torch, "version", None)
+        hip = getattr(version, "hip", None)
+        cuda = getattr(version, "cuda", None)
+    except Exception:  # noqa: BLE001 - never raise from a diagnostic
+        return ()
 
     if not hip and not cuda:
         # A build with no GPU support compiled in. Deliberately silent: this
@@ -391,9 +400,11 @@ def _probe() -> HostCaps:
 
     # ── CUDA / ROCm (both present through torch.cuda) ────────────────────
     cuda_ok = False
+    cuda_probe_failed = False
     try:
         cuda_ok = bool(torch.cuda.is_available())
     except Exception as exc:  # broken CUDA init (forked process / driver crash)
+        cuda_probe_failed = True
         notes.append(f"CUDA init raised: {type(exc).__name__}")
 
     if cuda_ok:
@@ -430,10 +441,17 @@ def _probe() -> HostCaps:
                     f"build's archs ({', '.join(archs)}) — {KERNEL_RISK_MARKER}"
                 )
 
-    else:
+    elif not cuda_probe_failed:
         # A GPU-capable build that found nothing must say why (#1274/#1228).
         # Silence here is what made "Compute device: cpu" indistinguishable
         # from a machine with no GPU at all.
+        #
+        # Only when the probe actually completed, though. If
+        # `torch.cuda.is_available()` RAISED we know nothing about the host's
+        # devices, and `why_no_gpu()` would report its findings as fact —
+        # "no CUDA device was found" beside "CUDA init raised", which reads as
+        # a diagnosis when it is an unfinished probe. The exception note above
+        # is the whole truth in that case (CodeRabbit, #1425).
         notes.extend(why_no_gpu(torch))
 
     # ── Intel XPU via IPEX ───────────────────────────────────────────────

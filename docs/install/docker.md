@@ -219,7 +219,10 @@ Two paths are worth persisting across container restarts:
 - **GPU not detected (AMD):** make sure you pulled the `:rocm` tag (the default
   image is CUDA-only) and passed `--device /dev/kfd --device /dev/dri`. Check
   the container sees the card with
-  `docker exec omnivoice rocminfo | grep -i gfx`; on RDNA3 consumer cards try
-  `-e HSA_OVERRIDE_GFX_VERSION=11.0.0` — see
-  [Pull and run (AMD GPU / ROCm)](#pull-and-run-amd-gpu--rocm) above.
+  `docker exec omnivoice rocminfo | grep -i gfx`. On consumer cards, run
+  **without** any `HSA_OVERRIDE_GFX_VERSION` first — the backend sets it
+  itself when your card needs it, and overriding a natively-supported GPU
+  only forces it onto foreign kernels. See
+  [Pull and run (AMD GPU / ROCm)](#pull-and-run-amd-gpu--rocm) above for when
+  to set one by hand.
 - More entries: [docs/install/troubleshooting.md](troubleshooting.md).

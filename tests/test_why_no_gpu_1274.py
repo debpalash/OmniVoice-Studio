@@ -25,11 +25,24 @@ from types import SimpleNamespace
 
 import pytest
 
-from core.device_caps import why_no_gpu
 
 
 def _torch(*, hip=None, cuda=None):
     return SimpleNamespace(version=SimpleNamespace(hip=hip, cuda=cuda))
+
+
+def why_no_gpu(torch):
+    """Resolved per call, not bound at import.
+
+    A module-level `from core.device_caps import why_no_gpu` captures whatever
+    object existed at collection time. Tests here patch `sys.modules["torch"]`
+    and other suites purge `sys.modules`, so the imported name can end up
+    referring to a module object nothing else in the process is using — the
+    assertions then pass against a stale copy (CodeRabbit, #1425).
+    """
+    import importlib
+
+    return importlib.import_module("core.device_caps").why_no_gpu(torch)
 
 
 def _joined(torch) -> str:
@@ -146,7 +159,37 @@ def test_it_never_raises_on_odd_torch_objects():
         assert isinstance(why_no_gpu(weird), tuple)
 
 
-def test_the_probe_attaches_the_reason(monkeypatch):
+def test_metadata_access_that_raises_is_not_an_exception_either():
+    """`torch.version` is a plain module attribute on a real torch, but a
+    partially-initialised or shimmed torch-like object can expose it as a
+    property that throws — and `getattr(torch, "version", None)` does not
+    swallow that, the default only covers a MISSING attribute.
+
+    This runs on the diagnostics path, so raising here takes out the very
+    report meant to explain why the GPU is unavailable (CodeRabbit, #1425).
+    """
+
+    class _Hostile:
+        @property
+        def version(self):
+            raise RuntimeError("torch is half-initialised")
+
+    assert why_no_gpu(_Hostile()) == ()
+
+    class _HostileInner:
+        """Raises one level down — `torch.version` resolves, `.hip` does not."""
+
+        class _V:
+            @property
+            def hip(self):
+                raise RuntimeError("hip probe exploded")
+
+        version = _V()
+
+    assert why_no_gpu(_HostileInner()) == ()
+
+
+def test_the_probe_attaches_the_reason(monkeypatch, request):
     """End to end: the note has to reach `HostCaps.notes`, which is what the
     About page and the diagnostics bundle read. Fail-before, this branch
     produced nothing at all."""
@@ -156,6 +199,12 @@ def test_the_probe_attaches_the_reason(monkeypatch):
         version=SimpleNamespace(hip="6.4.0", cuda=None),
         cuda=SimpleNamespace(is_available=lambda: False),
     )
+    request.addfinalizer(dc.refresh)
+    # Registered BEFORE the fake torch goes in, so it runs even if an
+    # assertion below fails. `detect_host_caps()` memoises, and a cached probe
+    # built from this fake would be handed to every later test in the process
+    # — the trailing `dc.refresh()` alone only cleans up on the happy path
+    # (CodeRabbit, #1425).
     monkeypatch.setitem(sys.modules, "torch", fake)
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(dc.os.path, "exists", lambda p: False)
@@ -163,4 +212,33 @@ def test_the_probe_attaches_the_reason(monkeypatch):
     caps = dc.detect_host_caps()
     assert caps.family == "cpu"
     assert any("/dev/kfd" in n for n in caps.notes), caps.notes
+
+
+def test_a_failed_cuda_probe_does_not_also_claim_no_device_was_found(monkeypatch, request):
+    """`torch.cuda.is_available()` raising tells us nothing about the host.
+
+    The probe reports `CUDA init raised: …` for that, which is true. Running
+    `why_no_gpu()` afterwards adds a second note asserting what it found —
+    "no CUDA device was found" — as though the probe had completed. Two notes,
+    one of them a diagnosis drawn from an unfinished measurement, is worse
+    than the one true note alone (CodeRabbit, #1425).
+    """
+    import core.device_caps as dc
+
+    def _boom():
+        raise RuntimeError("CUDA driver initialisation failed")
+
+    fake = SimpleNamespace(
+        version=SimpleNamespace(hip=None, cuda="12.8"),
+        cuda=SimpleNamespace(is_available=_boom),
+    )
+    request.addfinalizer(dc.refresh)
+    monkeypatch.setitem(sys.modules, "torch", fake)
+    monkeypatch.setattr(sys, "platform", "linux")
     dc.refresh()
+    caps = dc.detect_host_caps()
+
+    assert any("cuda init raised" in n.lower() for n in caps.notes), caps.notes
+    assert not any("no cuda device" in n.lower() for n in caps.notes), (
+        "the probe reported what it found after failing to look"
+    )
