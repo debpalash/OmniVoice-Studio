@@ -966,11 +966,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     # Appending the shared hints HERE covers every route that can leak a
     # model-load/download error (generate, dub, archetypes, …), not just TTS
     # generate. append_hint is a no-op for every other error and never raises.
+    from core.response_safety import public_exception_response
+
+    content = public_exception_response(
+        exc,
+        fallback="VoiceStudio hit an internal error; check the backend log for details.",
+    )
+    content["error_class"] = _entry.get("error_class")
     return JSONResponse(
-        {
-            "detail": "VoiceStudio hit an internal error; check the backend log for details.",
-            "error_class": _entry.get("error_class"),
-        },
+        content,
         status_code=500,
         headers=headers,
     )

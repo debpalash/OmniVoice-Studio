@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from core.response_safety import public_engine_health, public_failure
+from core.response_safety import (
+    public_engine_health,
+    public_exception_response,
+    public_failure,
+)
 
 
 _PRIVATE = (
@@ -36,6 +40,25 @@ def test_engine_health_never_returns_engine_owned_diagnostic():
         "Engine unavailable; check the backend log for details."
     )
     assert public_engine_health(True, _PRIVATE) == "Healthy"
+
+
+def test_recognized_failure_gets_constant_recovery_without_private_text():
+    private = RuntimeError(
+        "Using SOCKS proxy from /home/alice/private with "
+        "hf_abcdefghijklmnopqrstuvwxyz1234567890 but socksio is not installed"
+    )
+    payload = public_exception_response(private, fallback="Internal error.")
+
+    assert payload["docs_topic"] == "SOCKS_PROXY_SUPPORT_MISSING"
+    assert "unset ALL_PROXY/HTTPS_PROXY" in payload["hint"]
+    serialized = str(payload)
+    assert "/home/alice" not in serialized
+    assert "hf_abcdefghijklmnopqrstuvwxyz1234567890" not in serialized
+
+
+def test_unknown_failure_has_no_diagnostic_derived_guidance():
+    payload = public_exception_response(RuntimeError(_PRIVATE), fallback="Internal error.")
+    assert payload == {"detail": "Internal error."}
 
 
 def test_engine_health_route_logs_but_does_not_return_private_diagnostic(
@@ -79,7 +102,7 @@ def test_global_exception_handler_keeps_private_failure_out_of_response(
 
     @app.get("/private-failure")
     def private_failure():
-        raise RuntimeError(_PRIVATE)
+        raise RuntimeError(f"{_PRIVATE}\nUsing SOCKS proxy but socksio is not installed")
 
     app.add_exception_handler(Exception, main_mod.global_exception_handler)
     with TestClient(app, raise_server_exceptions=False) as client:
@@ -87,10 +110,10 @@ def test_global_exception_handler_keeps_private_failure_out_of_response(
 
     assert response.status_code == 500
     body = response.json()
-    assert body == {
-        "detail": "VoiceStudio hit an internal error; check the backend log for details.",
-        "error_class": "RuntimeError",
-    }
+    assert body["error_class"] == "RuntimeError"
+    assert body["docs_topic"] == "SOCKS_PROXY_SUPPORT_MISSING"
+    assert "unset ALL_PROXY/HTTPS_PROXY" in body["hint"]
+    assert body["detail"].endswith(body["hint"])
     serialized = response.text
     assert "Traceback" not in serialized
     assert "/home/alice" not in serialized

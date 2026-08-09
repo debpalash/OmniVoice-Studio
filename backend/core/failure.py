@@ -91,6 +91,16 @@ _HINTS: dict[str, str] = {
 
 _OFFICIAL_HF_ENDPOINTS = {"https://huggingface.co", "https://hf.co"}
 
+
+def public_hint_for_topic(topic: str) -> str:
+    """Data-independent response guidance for a stable failure topic."""
+    if topic == "HF_MIRROR_UNREACHABLE":
+        return (
+            "Check Settings → Models → Hugging Face mirror, restore the official "
+            "endpoint, and retry."
+        )
+    return _HINTS.get(topic, "")
+
 # Connectivity signatures across the layers an HF download failure surfaces
 # from: transformers' wording, huggingface_hub errors, requests/urllib3, and
 # raw socket/DNS failures (Linux/macOS/Windows variants).

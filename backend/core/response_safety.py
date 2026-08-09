@@ -36,3 +36,24 @@ def public_engine_health(ok: bool, diagnostic: Any) -> str:
     """Map an engine-owned health diagnostic to a stable response message."""
     del diagnostic
     return "Healthy" if ok else "Engine unavailable; check the backend log for details."
+
+
+def public_exception_response(error: BaseException, *, fallback: str) -> dict[str, str]:
+    """Return fixed remediation selected by a stable failure taxonomy.
+
+    Classification may inspect the private diagnostic locally, but response
+    values come exclusively from VoiceStudio-owned constants. No substring of
+    ``error`` is copied into the payload.
+    """
+    from core.failure import classify, public_hint_for_topic
+
+    try:
+        topic = classify(str(error))
+        hint = public_hint_for_topic(topic)
+    except Exception:
+        topic = ""
+        hint = ""
+    payload = {"detail": f"{fallback} {hint}".strip()}
+    if topic and hint:
+        payload.update({"docs_topic": topic, "hint": hint})
+    return payload
