@@ -83,6 +83,26 @@ _race_lock = threading.Lock()
 _FAILOVER_ATTEMPTED: set[str] = set()
 
 
+def _is_allowed_probe_endpoint(endpoint: str) -> bool:
+    """Only probe the two fixed HTTPS origins shipped by VoiceStudio."""
+    try:
+        parsed = urlsplit(endpoint)
+        port = parsed.port
+    except (TypeError, ValueError):
+        return False
+    return (
+        parsed.scheme == "https"
+        and parsed.hostname in {urlsplit(CANONICAL_ENDPOINT).hostname,
+                                urlsplit(COMMUNITY_MIRROR).hostname}
+        and port in (None, 443)
+        and parsed.username is None
+        and parsed.password is None
+        and parsed.path in ("", "/")
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 @dataclass
 class ProbeResult:
     endpoint: str
@@ -120,11 +140,13 @@ def probe_endpoint(endpoint: str, timeout: float = PROBE_TIMEOUT_S) -> ProbeResu
     Any HTTP response (even an error status) counts as reachable — the probe
     measures whether the network path works, not whether a specific resource
     exists. Never raises."""
+    if not _is_allowed_probe_endpoint(endpoint):
+        return ProbeResult(endpoint=endpoint, reachable=False, error="invalid_endpoint")
     url = endpoint.rstrip("/") + "/"
     req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "VoiceStudio-endpoint-probe"})
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout):
+        with urllib.request.urlopen(req, timeout=timeout):  # nosec B310 -- fixed HTTPS allowlist above
             pass
     except urllib.error.HTTPError:
         pass  # the server answered → reachable
@@ -143,6 +165,8 @@ def throughput_probe(endpoint: str, timeout: float = PROBE_TIMEOUT_S) -> Optiona
     Used only as a tiebreak confirmation when latency says the mirror is
     decisively faster — throughput is what a multi-GB download actually
     feels. Best-effort; any failure returns None (tiebreak skipped)."""
+    if not _is_allowed_probe_endpoint(endpoint):
+        return None
     url = endpoint.rstrip("/") + _THROUGHPUT_SAMPLE_PATH
     req = urllib.request.Request(
         url,
@@ -155,7 +179,7 @@ def throughput_probe(endpoint: str, timeout: float = PROBE_TIMEOUT_S) -> Optiona
     total = 0
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 -- fixed HTTPS allowlist above
             while total < _THROUGHPUT_SAMPLE_BYTES and time.monotonic() < deadline:
                 chunk = resp.read(min(65536, _THROUGHPUT_SAMPLE_BYTES - total))
                 if not chunk:
