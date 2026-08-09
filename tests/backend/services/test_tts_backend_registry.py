@@ -116,7 +116,7 @@ class FakeSubBackend(SubprocessBackend):
 # ── ENGINE-05 — graceful degradation ───────────────────────────────────────
 
 
-def test_list_backends_resilient(registry_sandbox):
+def test_list_backends_resilient(registry_sandbox, caplog):
     """A BrokenBackend.is_available() that raises must NOT take down the list."""
     registry_sandbox["broken"] = BrokenBackend
     out = list_backends()
@@ -129,6 +129,8 @@ def test_list_backends_resilient(registry_sandbox):
     assert "kaboom" in (entry["reason"] or "")
     assert "RuntimeError" in (entry["last_error"] or "")
     assert "kaboom" in (entry["last_error"] or "")
+    assert "kaboom" not in caplog.text
+    assert "availability probe failed for registered backend broken" in caplog.text
 
     # And every production backend still appears.
     expected = {

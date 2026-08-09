@@ -2370,10 +2370,7 @@ def list_backends() -> list[dict]:
             except Exception as exc:
                 ok = False
                 msg = f"{type(exc).__name__}: {exc}"
-                logger.warning(
-                    "asr list_backends: %s.is_available() raised — degrading "
-                    "gracefully so the picker still renders: %s", bid, msg,
-                )
+                logger.warning("asr list_backends: availability probe failed for registered backend %s", bid)
         if ok:
             _LAST_ERRORS.pop(bid, None)
         else:
