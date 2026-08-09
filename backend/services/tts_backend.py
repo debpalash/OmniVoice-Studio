@@ -1695,11 +1695,11 @@ class GPTSoVITSBackend(TTSBackend):
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
         # GPT-SoVITS runs as an external API server — check if it's reachable.
-        import urllib.request
+        from services.outbound_http import open_trusted_endpoint
         url = os.environ.get("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
         try:
-            req = urllib.request.Request(f"{url}/", method="GET")
-            urllib.request.urlopen(req, timeout=2)
+            with open_trusted_endpoint(url, method="GET", timeout=2):
+                pass
             return True, "ready (server reachable)"
         except Exception:
             return False, (
@@ -1717,8 +1717,8 @@ class GPTSoVITSBackend(TTSBackend):
         return ["zh", "en", "ja", "yue", "ko"]
 
     def generate(self, text: str, **kw) -> torch.Tensor:
-        import urllib.request
         import urllib.parse
+        from services.outbound_http import open_trusted_endpoint
 
         ref_audio = kw.get("ref_audio")
         ref_text = kw.get("ref_text", "")
@@ -1746,11 +1746,10 @@ class GPTSoVITSBackend(TTSBackend):
             params["speed_factor"] = str(speed)
 
         query = urllib.parse.urlencode(params)
-        url = f"{self._url}/?{query}"
-
         try:
-            req = urllib.request.Request(url, method="POST")
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with open_trusted_endpoint(
+                self._url, method="POST", query=query, timeout=120
+            ) as resp:
                 audio_bytes = resp.read()
         except Exception as e:
             raise RuntimeError(

@@ -255,6 +255,11 @@ Professional-grade voice AI, minus the subscription and the cloud.
 | **dots.tts** ⚡ (2B) | 24 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ❌ | Apache-2.0 |
 | **Confucius4-TTS** ⚡ | 14 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
 
+GPT-SoVITS connects to `http://127.0.0.1:9880` by default. To use a server on
+another machine, set `OMNIVOICE_GPTSOVITS_URL` to its credential-free
+`http://` or `https://` origin and add that machine's CIDR to
+`OMNIVOICE_TRUSTED_NETWORKS`; redirects and untrusted destinations are rejected.
+
 > **CUDA** = GPU-accelerated · **MPS** = Apple Silicon Metal · **CPU** = runs everywhere, slower for large models · KittenTTS and MOSS-TTS-Nano run realtime on CPU · MLX-Audio is Apple Silicon only · ⚡ = lazy-registered (installed on first use)
 >
 > **Clone** matters beyond single-clip generation: Video Dubbing (and any Batch job with a pinned voice) needs reference-audio cloning to preserve speaker identity, so picking a Clone-less engine (KittenTTS, Sherpa-ONNX, Supertonic 3) as the active engine fails those jobs up front with an actionable message instead of silently falling back to VoiceStudio.
