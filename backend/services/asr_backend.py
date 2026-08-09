@@ -1162,7 +1162,7 @@ class MLXWhisperBackend(ASRBackend):
         # moved off in #479, and one that cannot find the bundled
         # imageio-ffmpeg binary because that is named ffmpeg-<plat>-vN. On a
         # clean from-source install with no system ffmpeg this fails the whole
-        # request with [Errno 2] No such file or directory: fmpeg\.
+        # request with [Errno 2] No such file or directory: ffmpeg.
         #
         # The aligner below already used the validated decoder, so this was one
         # call site out of two in the same method. Reusing that decode also
