@@ -714,8 +714,16 @@ async def dub_translate(req: TranslateRequest):
             translated, req, src_lang, loop,
         )
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        from core.response_safety import public_failure
+
+        error = public_failure(
+            logger,
+            "Translation request failed",
+            e,
+            response="Translation failed; check the backend log for details.",
+            traceback=True,
+        )
+        return JSONResponse(status_code=500, content={"error": error})
 
 
 def _stamp_duration_plan(rows, req) -> None:

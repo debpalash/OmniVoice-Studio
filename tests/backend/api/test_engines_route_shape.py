@@ -471,7 +471,7 @@ def test_engine_health_subprocess_success(fresh_app, monkeypatch):
     body = r.json()
     assert body["id"] == "indextts2"
     assert body["ok"] is True
-    assert body["message"] == "pong"
+    assert body["message"] == "Healthy"
     assert isinstance(body["latency_ms"], (int, float))
     assert body["latency_ms"] >= 0.0
 
@@ -802,4 +802,4 @@ def test_no_hf_token_leak_in_health_response(fresh_app, monkeypatch):
     body = r.json()
     assert body["ok"] is False
     assert not HF_TOKEN_RE.search(body["message"])
-    assert "hf_***REDACTED***" in body["message"]
+    assert body["message"] == "Engine unavailable; check the backend log for details."

@@ -18,6 +18,7 @@ import shutil
 
 from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, LOG_PATH, IDLE_TIMEOUT_SECONDS
 from core.version import APP_VERSION
+from core.response_safety import public_failure
 from services.model_manager import get_model_status, get_best_device, resolve_omnivoice_checkpoint
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 
@@ -266,7 +267,7 @@ def system_info():
             "backend_port": network_share.backend_port(),
             "share_port_base": network_share.share_port_base(),
             "ui_port": _ui_port(),
-            "error": str(e),
+            "error": "System information is temporarily unavailable; check the backend log for details.",
         }
 
 
@@ -363,7 +364,14 @@ async def system_logs_tauri(tail: int = 200):
                 lines, total = await asyncio.to_thread(_tail_file, p, tail)
                 return {"lines": lines, "path": p, "exists": True, "total_lines": total}
             except Exception as e:
-                return {"lines": [], "path": p, "exists": True, "error": str(e)}
+                error = public_failure(
+                    logger,
+                    "Could not read Tauri log",
+                    e,
+                    response="Could not read the Tauri log; check the backend log for details.",
+                    traceback=True,
+                )
+                return {"lines": [], "path": p, "exists": True, "error": error}
     return {"lines": [], "path": None, "exists": False, "candidates": candidates}
 
 
@@ -1137,7 +1145,16 @@ async def tailscale_status():
 
 @router.post("/system/tailscale/enable")
 async def tailscale_enable():
-    return _tailscale.serve_enable()
+    result = _tailscale.serve_enable()
+    if result.get("ok"):
+        return result
+    error = public_failure(
+        logger,
+        "Tailscale serve failed",
+        result.get("error", "unknown error"),
+        response="Tailscale sharing could not be enabled; check the backend log for details.",
+    )
+    return {"ok": False, "error": error}
 
 
 @router.post("/system/tailscale/disable")

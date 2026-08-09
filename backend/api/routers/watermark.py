@@ -9,6 +9,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from services.watermark import detect_watermark, is_enabled, _check_available
 from core.prefs import get as pref_get, set_ as pref_set
+from core.response_safety import public_failure
 
 logger = logging.getLogger("omnivoice.watermark_api")
 
@@ -49,8 +50,14 @@ async def detect_audio_watermark(file: UploadFile = File(...)):
         return result
 
     except Exception as e:
-        logger.exception("Watermark detection failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        detail = public_failure(
+            logger,
+            "Watermark detection failed",
+            e,
+            response="Watermark detection failed; check the backend log for details.",
+            traceback=True,
+        )
+        raise HTTPException(status_code=500, detail=detail) from e
     finally:
         try:
             os.unlink(tmp_path)
