@@ -79,6 +79,30 @@ def test_hint_only_reorders_never_drops(er):
         assert set(prober.calls) == {er.CANONICAL_ENDPOINT, er.COMMUNITY_MIRROR}
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "file:///etc/passwd",
+        "http://huggingface.co",
+        "https://huggingface.co.evil.example",
+        "https://huggingface.co@evil.example",
+        "https://huggingface.co:444",
+        "https://huggingface.co/model",
+        "https://huggingface.co?redirect=file:///etc/passwd",
+    ],
+)
+def test_probe_rejects_unapproved_origins(er, endpoint):
+    # The suite-wide network guard replaces the actual prober, so exercise the
+    # validation chokepoint directly. Both real network helpers call it before
+    # constructing a Request or reaching urlopen.
+    assert er._is_allowed_probe_endpoint(endpoint) is False
+
+
+@pytest.mark.parametrize("endpoint", ["https://huggingface.co", "https://hf-mirror.com/"])
+def test_probe_allows_only_shipped_https_origins(er, endpoint):
+    assert er._is_allowed_probe_endpoint(endpoint) is True
+
+
 # ── Decision policy matrix ──────────────────────────────────────────────────
 
 def test_both_reachable_similar_latency_prefers_canonical(er):

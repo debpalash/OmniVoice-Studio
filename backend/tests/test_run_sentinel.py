@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -244,12 +245,13 @@ def test_version_gate_hides_other_release_records_and_reads_never_write(sentinel
     store["records"][0]["version"] = "0.0.1"
     with open(run_sentinel.CRASH_RECORD_PATH, "w", encoding="utf-8") as f:
         json.dump(store, f)
-    before = open(run_sentinel.CRASH_RECORD_PATH, "rb").read()
+    before = Path(run_sentinel.CRASH_RECORD_PATH).read_bytes()
 
     assert run_sentinel.newest_record("9.9.9") is None, "other release = stale"
     # Preview stamps match their base release (X.Y.Z-N == X.Y.Z).
     assert run_sentinel.newest_record("0.0.1-7") is not None
-    assert open(run_sentinel.CRASH_RECORD_PATH, "rb").read() == before, (
+    actual = Path(run_sentinel.CRASH_RECORD_PATH).read_bytes()
+    assert actual == before, (
         "the read path must never write (crash.rs read-only contract)"
     )
     # Versionless legacy records never surface either.

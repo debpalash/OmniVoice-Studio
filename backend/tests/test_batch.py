@@ -180,7 +180,8 @@ class TestDeleteJob:
         assert client.get(f"/batch/jobs/{r['job_id']}").status_code == 404
 
     def test_delete_not_found(self, client):
-        assert client.delete("/batch/jobs/nope").status_code == 404
+        response = client.delete("/batch/jobs/nope")
+        assert response.status_code == 404
 
 
 class TestSetProgress:
