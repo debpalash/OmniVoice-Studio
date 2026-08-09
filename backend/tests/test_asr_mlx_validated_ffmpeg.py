@@ -2,12 +2,8 @@ import sys
 import types
 import wave
 
-import pytest
-
 # conftest.py puts `backend/` on sys.path and points OMNIVOICE_DATA_DIR at a
 # throwaway tmpdir before this module imports the REAL core.config.
-pytest.importorskip("mlx_whisper")
-
 from services.asr_backend import MLXWhisperBackend  # noqa: E402
 
 
@@ -36,15 +32,23 @@ def test_mlx_decodes_the_audio_instead_of_handing_over_a_path(monkeypatch, tmp_p
 
     def fake_transcribe(audio, **kw):
         seen["audio"] = audio
-        return {"language": "en", "segments": []}
+        return {
+            "language": "en",
+            "segments": [{"text": "test", "start": 0.0, "end": 0.2}],
+        }
+
+    def fake_forced_align(segments, audio, language_code, device=None):
+        seen["aligned_audio"] = audio
+        return segments
 
     monkeypatch.setitem(
         sys.modules, "mlx_whisper", types.SimpleNamespace(transcribe=fake_transcribe)
     )
+    monkeypatch.setattr("services.asr_backend.forced_align", fake_forced_align)
 
     backend = MLXWhisperBackend.__new__(MLXWhisperBackend)
     backend._model_name = "mlx-community/whisper-large-v3-mlx"
-    backend.transcribe(_silent_wav(tmp_path / "a.wav"), word_timestamps=False)
+    backend.transcribe(_silent_wav(tmp_path / "a.wav"), word_timestamps=True)
 
     audio = seen["audio"]
     assert not isinstance(audio, (str, bytes)), (
@@ -52,3 +56,4 @@ def test_mlx_decodes_the_audio_instead_of_handing_over_a_path(monkeypatch, tmp_p
         "bare PATH lookup instead of the validated binary find_ffmpeg() returns"
     )
     assert hasattr(audio, "__len__") and len(audio) > 0, "decoded audio is empty"
+    assert seen["aligned_audio"] is audio
