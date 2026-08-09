@@ -324,6 +324,7 @@ def engine_health(engine_id: str):
         )
 
     t0 = perf_counter()
+    failure_class = "HealthCheckFailed"
     if hasattr(cls, "health_check"):
         # SubprocessBackend path — spawn sidecar (if not running) and ping.
         # ``health_check`` already swallows its own exceptions per Plan
@@ -333,6 +334,7 @@ def engine_health(engine_id: str):
             instance = _get_engine_instance(cls)
             ok, msg = instance.health_check()
         except Exception as exc:
+            failure_class = type(exc).__name__
             ok, msg = False, f"{type(exc).__name__}: {exc}"
     else:
         # In-process backend — `is_available()` is the classmethod-level
@@ -341,6 +343,7 @@ def engine_health(engine_id: str):
         try:
             ok, msg = cls.is_available()
         except Exception as exc:
+            failure_class = type(exc).__name__
             ok, msg = False, f"{type(exc).__name__}: {exc}"
 
     # Engine-owned output can contain much more than shaped HF tokens: local
@@ -349,7 +352,11 @@ def engine_health(engine_id: str):
 
     latency_ms = (perf_counter() - t0) * 1000.0
     if not ok:
-        logger.warning("Engine %s health check failed: %s", engine_id, msg)
+        logger.warning(
+            "Engine %s health check failed (class=%s; details withheld)",
+            engine_id,
+            failure_class,
+        )
     return {
         "id": engine_id,
         "ok": bool(ok),

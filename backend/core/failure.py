@@ -343,7 +343,18 @@ def classify(reason: str) -> str:
     # load surface can leak them) and VoiceStudio's own repair messages, so the
     # user-facing error and the auto bug report name the class and its
     # automatic repair.
-    if is_incomplete_cache_message(low) or "broken file link" in low:
+    if (
+        is_incomplete_cache_message(low)
+        or "broken file link" in low
+        or (
+            "the tts model cache for" in low
+            and "is incomplete" in low
+            and (
+                "could not be auto-repaired" in low
+                or "weights missing" in low
+            )
+        )
+    ):
         return "MODEL_CACHE_CORRUPT"
     # #1347: an import that failed because its DOWNLOAD died is a network
     # problem wearing an import problem's clothes. The reporter's message named

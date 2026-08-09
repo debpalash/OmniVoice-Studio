@@ -499,6 +499,9 @@ def test_classify_repair_messages():
     assert failure.classify(
         "Model cache had broken file links — repaired automatically, retrying…"
     ) == "MODEL_CACHE_CORRUPT"
+    assert failure.classify(
+        "The TTS model cache for private/repo is incomplete and could not be auto-repaired."
+    ) == "MODEL_CACHE_CORRUPT"
 
 
 def test_classify_unrelated_errors_not_cache_corrupt():

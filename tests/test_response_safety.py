@@ -3,13 +3,6 @@ from __future__ import annotations
 
 import logging
 
-from core.response_safety import (
-    public_engine_health,
-    public_exception_response,
-    public_failure,
-)
-
-
 _PRIVATE = (
     "Traceback (most recent call last):\n"
     '  File "/home/alice/private/project.py", line 7\n'
@@ -17,7 +10,9 @@ _PRIVATE = (
 )
 
 
-def test_public_failure_logs_private_diagnostic_but_returns_fixed_text(caplog):
+def test_public_failure_logs_only_stable_class_and_returns_fixed_text(caplog):
+    from core.response_safety import public_failure
+
     logger = logging.getLogger("test.response_safety")
 
     with caplog.at_level(logging.ERROR):
@@ -29,13 +24,16 @@ def test_public_failure_logs_private_diagnostic_but_returns_fixed_text(caplog):
         )
 
     assert result == "Operation failed; check the backend log for details."
-    assert _PRIVATE in caplog.text
+    assert _PRIVATE not in caplog.text
+    assert "class=RuntimeError" in caplog.text
     assert "Traceback" not in result
     assert "/home/alice" not in result
     assert "hf_abcdefghijklmnopqrstuvwxyz1234567890" not in result
 
 
 def test_engine_health_never_returns_engine_owned_diagnostic():
+    from core.response_safety import public_engine_health
+
     assert public_engine_health(False, _PRIVATE) == (
         "Engine unavailable; check the backend log for details."
     )
@@ -43,6 +41,8 @@ def test_engine_health_never_returns_engine_owned_diagnostic():
 
 
 def test_recognized_failure_gets_constant_recovery_without_private_text():
+    from core.response_safety import public_exception_response
+
     private = RuntimeError(
         "Using SOCKS proxy from /home/alice/private with "
         "hf_abcdefghijklmnopqrstuvwxyz1234567890 but socksio is not installed"
@@ -57,6 +57,8 @@ def test_recognized_failure_gets_constant_recovery_without_private_text():
 
 
 def test_unknown_failure_has_no_diagnostic_derived_guidance():
+    from core.response_safety import public_exception_response
+
     payload = public_exception_response(RuntimeError(_PRIVATE), fallback="Internal error.")
     assert payload == {"detail": "Internal error."}
 
@@ -77,10 +79,25 @@ def test_engine_health_route_logs_but_does_not_return_private_diagnostic(
 
     assert result["ok"] is False
     assert result["message"] == "Engine unavailable; check the backend log for details."
-    assert _PRIVATE in caplog.text
+    assert _PRIVATE not in caplog.text
+    assert "class=RuntimeError" in caplog.text
     assert "Traceback" not in result["message"]
     assert "/home/alice" not in result["message"]
     assert "hf_abcdefghijklmnopqrstuvwxyz1234567890" not in result["message"]
+
+
+def test_wrapped_cache_repair_failure_keeps_constant_recovery_guidance():
+    from core.response_safety import public_exception_response
+
+    private = RuntimeError(
+        "The TTS model cache for /home/alice/models--private is incomplete and "
+        "could not be auto-repaired. hf_abcdefghijklmnopqrstuvwxyz1234567890"
+    )
+    payload = public_exception_response(private, fallback="Internal error.")
+    assert payload["docs_topic"] == "MODEL_CACHE_CORRUPT"
+    assert "delete the model's models--<org>--<name> folder" in payload["hint"]
+    assert "/home/alice" not in str(payload)
+    assert "hf_abcdefghijklmnopqrstuvwxyz1234567890" not in str(payload)
 
 
 def test_global_exception_handler_keeps_private_failure_out_of_response(

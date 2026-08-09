@@ -1,8 +1,8 @@
 """Response-boundary helpers for failures produced by untrusted code.
 
-Exceptions and subprocess/engine diagnostics belong in the local backend log,
-not in an HTTP response.  Keeping this mapping deliberately data-independent
-also prevents a new credential or path shape from bypassing a regex scrubber.
+Exceptions and subprocess/engine diagnostics belong in the local crash journal,
+not in routine logs or HTTP responses. Keeping this mapping deliberately
+data-independent prevents new credential or path shapes bypassing a scrubber.
 """
 from __future__ import annotations
 
@@ -18,17 +18,16 @@ def public_failure(
     response: str,
     traceback: bool = False,
 ) -> str:
-    """Log the private diagnostic and return a fixed public failure message.
+    """Log fixed failure metadata and return a fixed public failure message.
 
     ``response`` must be authored by VoiceStudio, never derived from ``error``.
     The helper intentionally does not attempt to redact exception text: a
     deny-list cannot cover arbitrary secrets, paths, source lines or nested
     tracebacks.
     """
-    if traceback and isinstance(error, BaseException):
-        logger.exception(log_message)
-    else:
-        logger.error("%s: %s", log_message, error)
+    del traceback
+    error_class = type(error).__name__ if isinstance(error, BaseException) else "Failure"
+    logger.error("%s (class=%s; details withheld)", log_message, error_class)
     return response
 
 
