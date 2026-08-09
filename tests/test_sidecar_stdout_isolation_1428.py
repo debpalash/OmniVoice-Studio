@@ -37,11 +37,23 @@ SIDECARS = sorted(
     p for p in list(ENGINES.glob("*/main.py")) + list(ENGINES.glob("*/sidecar.py"))
 )
 
+EXPECTED_SIDECARS = {
+    ENGINES / "_asr_sidecar" / "main.py",
+    ENGINES / "_echo" / "main.py",
+    ENGINES / "confucius4" / "main.py",
+    ENGINES / "dots_tts" / "main.py",
+    ENGINES / "indextts" / "main.py",
+    ENGINES / "moss_tts_v15" / "main.py",
+    ENGINES / "omnivoice_subprocess" / "main.py",
+    ENGINES / "pockettts" / "main.py",
+    ENGINES / "supertonic3" / "sidecar.py",
+}
+
 
 def test_the_scan_finds_the_sidecars_it_is_meant_to_guard():
     """A guard that silently matched nothing would pass while protecting
     nothing."""
-    assert len(SIDECARS) >= 8, [str(p) for p in SIDECARS]
+    assert set(SIDECARS) == EXPECTED_SIDECARS, [str(p) for p in SIDECARS]
 
 
 @pytest.mark.parametrize("path", SIDECARS, ids=lambda p: p.parent.name)
