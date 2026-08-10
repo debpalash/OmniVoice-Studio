@@ -1,10 +1,16 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 
 import IdleSkeleton from '../components/dub/IdleSkeleton';
+import {
+  _cookieTransportAllowed,
+  dubIngestUrl,
+  DUB_COOKIE_SIZE_ERROR,
+  MAX_COOKIE_EXPORT_BYTES,
+} from '../api/dub';
 
 // Regression guard for the Dub "transcribe-idle-desync" bug: on the
 // URL-ingest (and restored-job) path there is no local `dubVideoFile`, so the
@@ -53,6 +59,8 @@ function baseProps(overrides = {}) {
     onIngestUrl: noop,
     fetchYtSubs: false,
     setFetchYtSubs: noop,
+    youtubeCookieFile: null,
+    setYoutubeCookieFile: noop,
     dubLangCode: 'en',
     setDubLangCode: noop,
     setDubLang: noop,
@@ -73,11 +81,46 @@ function renderIdle(overrides) {
 }
 
 describe('IdleSkeleton — pipeline-stage vs idle dropzone', () => {
+  it('never sends cookie credentials over remote plaintext HTTP', () => {
+    expect(_cookieTransportAllowed('http://127.0.0.1:3900')).toBe(true);
+    expect(_cookieTransportAllowed('https://studio.example.test')).toBe(true);
+    expect(_cookieTransportAllowed('http://studio.example.test')).toBe(false);
+  });
+  it('rejects an oversized cookie export before reading it', async () => {
+    const cookieFile = {
+      size: MAX_COOKIE_EXPORT_BYTES + 1,
+      text: vi.fn(),
+    };
+    await expect(
+      dubIngestUrl('https://youtube.com/watch?v=abc', 'job', { cookieFile }),
+    ).rejects.toMatchObject({
+      code: DUB_COOKIE_SIZE_ERROR,
+    });
+    expect(cookieFile.text).not.toHaveBeenCalled();
+  });
   it('shows the idle dropzone only when the pipeline is truly idle (no job)', () => {
     const { container } = renderIdle({ dubStep: 'idle', dubJobId: null });
     expect(container.querySelector('.dub-idle-drop')).not.toBeNull();
     expect(screen.getByText(DROP_HINT)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(URL_PLACEHOLDER)).toBeInTheDocument();
+    expect(screen.getByLabelText('Choose a cookies.txt export')).toBeInTheDocument();
+  });
+
+  it('clears the native cookie picker when the selection is removed', () => {
+    const selected = new File(['# Netscape HTTP Cookie File\n'], 'cookies.txt', {
+      type: 'text/plain',
+    });
+    const { rerender } = renderIdle({ youtubeCookieFile: selected });
+    const input = screen.getByLabelText('Choose a cookies.txt export');
+    fireEvent.change(input, { target: { files: [selected] } });
+    expect(input.files).toHaveLength(1);
+
+    rerender(
+      <I18nextProvider i18n={i18n}>
+        <IdleSkeleton {...baseProps({ youtubeCookieFile: null })} />
+      </I18nextProvider>,
+    );
+    expect(input.value).toBe('');
   });
 
   it('does NOT show the idle dropzone while transcribing a URL-ingested job', () => {

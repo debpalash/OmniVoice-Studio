@@ -6,7 +6,7 @@ The coupling lives in `[tool.uv] constraint-dependencies`.
 
 That setting is part of the **project** API — `uv sync`, `uv lock`, `uv run`.
 `uv pip install` is the pip-compatible interface and ignores it. Both install
-paths that use `uv pip install --system` (the Colab notebook and the Docker
+paths that use `uv pip install` (the Colab notebook and the Docker
 image) therefore resolved the trio on its bare lower bounds, free to upgrade
 torch while leaving a torchvision built against an older ABI in place:
 
@@ -99,13 +99,33 @@ def test_the_pins_carry_no_local_version(file_constraints):
 
 def test_the_dockerfile_passes_the_constraint():
     text = _DOCKERFILE.read_text(encoding="utf-8")
-    install = [ln for ln in text.splitlines() if "uv pip install" in ln and "--system" in ln]
-    assert install, "no `uv pip install --system` line found in the Dockerfile"
-    for line in install:
-        assert "--constraint" in line and "torch-constraints.txt" in line, (
-            f"Docker installs without the torch constraint, so the trio can "
-            f"drift again:\n  {line.strip()}"
-        )
+    install_start = text.index("RUN uv pip install")
+    install_end = text.index("\n\n", install_start)
+    install = text[install_start:install_end]
+    assert "--constraint" in install and "torch-constraints.txt" in install, (
+        "Docker installs without the torch constraint, so the trio can "
+        f"drift again:\n{install}"
+    )
+
+
+def test_docker_install_and_runtime_use_the_guarded_python():
+    """#1274: ROCm's `python3` had HIP torch, while `--system` installed and
+    bare `uvicorn` launched through `/usr/bin/python` with CUDA torch."""
+    text = _DOCKERFILE.read_text(encoding="utf-8")
+    install_start = text.index("RUN uv pip install")
+    install_end = text.index("\n\n", install_start)
+    install = text[install_start:install_end]
+    assert '--python "$(command -v python3)"' in install
+    assert "--system" not in install
+    assert 'ENTRYPOINT ["python3", "-m", "uvicorn"' in text
+
+
+def test_docker_docs_do_not_assume_the_run_name_for_compose():
+    docs = (_ROOT / "docs" / "install" / "docker.md").read_text(encoding="utf-8")
+    assert "docker exec <container> python3" in docs
+    assert "torch.cuda.get_device_name(0) if ok else 'unavailable'" in docs
+    for compose_name in ("omnivoice-studio", "omnivoice-studio-gpu", "omnivoice-studio-rocm"):
+        assert compose_name in docs
 
 
 def test_the_dockerfile_copies_the_constraints_file():

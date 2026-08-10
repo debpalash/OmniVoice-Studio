@@ -11,6 +11,8 @@ import {
   tasksCancel,
   transcribeStreamUrl,
   dubImportSrt,
+  DUB_COOKIE_TRANSPORT_ERROR,
+  DUB_COOKIE_SIZE_ERROR,
 } from '../api/dub';
 import { dialectMatchesLang } from '../api/dialects';
 import { segmentGenInputs, applySpeakerCloneDefaults } from '../utils/segments';
@@ -553,6 +555,7 @@ export default function useDubWorkflow({
           signal: ctrl.signal,
           fetchSubs: !!opts.fetchSubs,
           subLangs: opts.subLangs,
+          cookieFile: opts.cookieFile,
         });
         setDubJobId(data.job_id);
         setDubTaskId(data.task_id);
@@ -592,10 +595,17 @@ export default function useDubWorkflow({
           toastAsrModelMissing(asrMissingPayload(err));
           useAppStore.getState().errorPill(t('asr_missing.message'));
         } else {
-          setDubError(err.message);
+          const cookieErrorKey =
+            err?.code === DUB_COOKIE_TRANSPORT_ERROR
+              ? 'dub.cookie_transport_error'
+              : err?.code === DUB_COOKIE_SIZE_ERROR
+                ? 'dub.cookie_size_error'
+                : null;
+          const message = cookieErrorKey ? t(cookieErrorKey) : err.message;
+          setDubError(message);
           setDubStep('idle');
-          toastErrorWithReport(t('dub_workflow.ingest_failed', { message: err.message }), err);
-          useAppStore.getState().errorPill(err.message);
+          toastErrorWithReport(t('dub_workflow.ingest_failed', { message }), err);
+          useAppStore.getState().errorPill(message);
         }
         setTranscribeStart(null);
       } finally {

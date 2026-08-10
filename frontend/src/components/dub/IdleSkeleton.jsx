@@ -19,6 +19,7 @@ import {
   Download,
 } from 'lucide-react';
 import { Button, Badge } from '../../ui';
+import { useEffect, useRef } from 'react';
 import WaveformTimeline from '../WaveformTimeline';
 import DubbingDemo from '../DubbingDemo';
 import DubFailureNotice from './DubFailureNotice';
@@ -62,6 +63,8 @@ export default function IdleSkeleton({
   onIngestUrl,
   fetchYtSubs,
   setFetchYtSubs,
+  youtubeCookieFile,
+  setYoutubeCookieFile,
   dubLangCode,
   setDubLangCode,
   setDubLang,
@@ -70,6 +73,12 @@ export default function IdleSkeleton({
   dubInstruct,
   setDubInstruct,
 }) {
+  const youtubeCookieInputRef = useRef(null);
+  useEffect(() => {
+    if (!youtubeCookieFile && youtubeCookieInputRef.current) {
+      youtubeCookieInputRef.current.value = '';
+    }
+  }, [youtubeCookieFile]);
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header bar */}
@@ -376,6 +385,34 @@ export default function IdleSkeleton({
                   />
                   <span>{t('dub.pull_captions')}</span>
                 </label>
+                <div
+                  className="flex items-center gap-[6px] mt-[4px] text-[0.62rem] text-fg-muted"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                >
+                  <span>{t('dub.youtube_auth')}</span>
+                  <input
+                    ref={youtubeCookieInputRef}
+                    type="file"
+                    accept=".txt,text/plain"
+                    aria-label={t('dub.youtube_cookie_file')}
+                    className="max-w-[230px] text-[0.6rem] file:mr-[6px] file:rounded-[4px] file:border-0 file:px-[7px] file:py-[3px] file:bg-[rgba(255,255,255,0.08)] file:text-fg file:cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setYoutubeCookieFile(e.target.files?.[0] || null)}
+                  />
+                  {youtubeCookieFile && (
+                    <button
+                      type="button"
+                      className="text-fg-muted hover:text-fg"
+                      onClick={() => setYoutubeCookieFile(null)}
+                      aria-label={t('dub.remove_cookie_file')}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </label>
 
               {/* One decision up front: the target language. Everything else

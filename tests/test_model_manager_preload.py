@@ -61,12 +61,19 @@ def test_load_model_skips_pytorch_whisper_by_default(model_manager, monkeypatch)
 
 def test_load_model_can_preload_pytorch_whisper_when_requested(model_manager, monkeypatch):
     calls = []
+    asr_loads = []
+
+    class DummyModel:
+        llm = object()
+
+        def load_asr_model(self):
+            asr_loads.append(True)
 
     class DummyOmniVoice:
         @staticmethod
         def from_pretrained(*args, **kwargs):
             calls.append((args, kwargs))
-            return SimpleNamespace(llm=object())
+            return DummyModel()
 
     monkeypatch.setenv("OMNIVOICE_PRELOAD_TTS_ASR", "1")
     monkeypatch.setattr(model_manager, "_lazy_torch", lambda: SimpleNamespace(float16="float16"))
@@ -75,7 +82,8 @@ def test_load_model_can_preload_pytorch_whisper_when_requested(model_manager, mo
 
     model_manager._load_model_sync()
 
-    assert calls[0][1]["load_asr"] is True
+    assert calls[0][1]["load_asr"] is False
+    assert asr_loads == [True]
 
 
 def test_resolve_checkpoint_honors_test_sentinel(model_manager, monkeypatch):
