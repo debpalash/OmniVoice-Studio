@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from core.db import db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
+from core.file_cleanup import FileCleanupError, unlink_if_present
 from services.ffmpeg_utils import spawn_subprocess
 
 logger = logging.getLogger("omnivoice.gallery")
@@ -139,11 +140,14 @@ def delete_voice(voice_id: str):
             raise HTTPException(status_code=404, detail="Voice not found")
 
         audio_path = row["audio_path"]
-        if audio_path and os.path.exists(audio_path):
+        if audio_path:
             try:
-                os.remove(audio_path)
-            except Exception:
-                pass
+                unlink_if_present(audio_path)
+            except FileCleanupError as exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Could not delete the voice audio file. Close any app using it and retry.",
+                ) from exc
 
         conn.execute("DELETE FROM voice_gallery WHERE id = ?", (voice_id,))
     return {"success": True}
@@ -478,19 +482,22 @@ def batch_delete_voices(body: dict):
         return {"deleted": 0}
 
     deleted = 0
+    failed = 0
     with db_conn() as conn:
         for vid in ids:
             row = conn.execute("SELECT audio_path FROM voice_gallery WHERE id = ?", (vid,)).fetchone()
             if row:
                 audio_path = row["audio_path"]
-                if audio_path and os.path.exists(audio_path):
+                if audio_path:
                     try:
-                        os.remove(audio_path)
-                    except Exception:
-                        pass
+                        unlink_if_present(audio_path)
+                    except FileCleanupError:
+                        logger.warning("Voice audio cleanup failed for a gallery item")
+                        failed += 1
+                        continue
                 conn.execute("DELETE FROM voice_gallery WHERE id = ?", (vid,))
                 deleted += 1
-    return {"deleted": deleted}
+    return {"deleted": deleted, "failed": failed}
 
 
 @router.post("/gallery/voices/{voice_id}/to-profile")
@@ -526,4 +533,3 @@ def voice_to_profile(voice_id: str):
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
     return {"success": True, "profile_id": profile_id, "name": voice["name"]}
-
