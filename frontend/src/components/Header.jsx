@@ -22,6 +22,7 @@ import NotificationPanel from './NotificationPanel';
 import TitleTabs from './TitleTabs';
 import { useAppStore } from '../store';
 import { useSysinfo } from '../api/hooks';
+import voiceStudioLogo from '../../src-tauri/icons/32x32.png';
 
 const VIEW_META = {
   launchpad: {
@@ -280,25 +281,15 @@ export default function Header({
       {/* Center: logo — the tabs take this room in titlebar-tabs mode. */}
       {!tabsInTitlebar && (
         <div className="flex items-center gap-2 justify-self-center pointer-events-none whitespace-nowrap">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#f3a5b6"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" opacity="0.18" fill="#f3a5b6" />
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v12" />
-            <path d="M8 9v6" />
-            <path d="M16 9v6" />
-          </svg>
+          <img
+            src={voiceStudioLogo}
+            alt=""
+            aria-hidden="true"
+            data-testid="voice-studio-logo"
+            className="size-5 rounded-[5px]"
+          />
           <span className="text-[0.92rem] font-semibold text-[var(--chrome-fg)] tracking-[0.02em] [font-family:var(--font-sans)] not-italic">
-            Omni<span className="text-[var(--chrome-accent)]">Voice</span>
+            Voice<span className="text-[var(--chrome-accent)]">Studio</span>
           </span>
         </div>
       )}
