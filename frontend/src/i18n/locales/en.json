@@ -383,7 +383,7 @@
     "engines": "Engines",
     "capture": "Capture",
     "sharing": "Sharing",
-    "openapi": "OpenAPI",
+    "openapi": "VoiceStudio API",
     "appearance": "Appearance",
     "credentials": "Credentials",
     "llm_providers": "LLM Providers",
@@ -2662,8 +2662,7 @@
     "sponsors_tier_bronze": "Bronze"
   },
   "openapi": {
-    "title": "OpenAPI Reference",
-    "description": "Interactive reference for VoiceStudio's local backend API.",
+    "title": "VoiceStudio API",
     "loading": "Loading API spec…",
     "unreachable_title": "Backend spec unavailable",
     "unreachable_body": "Couldn't reach the local backend's OpenAPI spec at {{url}}. Make sure the backend is running, then retry.",

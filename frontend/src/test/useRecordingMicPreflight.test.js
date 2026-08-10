@@ -6,13 +6,15 @@
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const { toastMock } = vi.hoisted(() => ({
+const { toastMock, cleanAudioMock, startMicCaptureMock } = vi.hoisted(() => ({
   toastMock: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
     dismiss: vi.fn(),
     loading: vi.fn(),
   }),
+  cleanAudioMock: vi.fn(),
+  startMicCaptureMock: vi.fn(),
 }));
 vi.mock('react-hot-toast', () => ({ default: toastMock, toast: toastMock }));
 
@@ -20,18 +22,22 @@ const invokeMock = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args) => invokeMock(...args),
 }));
-vi.mock('../api/system', () => ({ cleanAudio: vi.fn() }));
+vi.mock('../api/system', () => ({ cleanAudio: cleanAudioMock }));
+vi.mock('../utils/aec/micCapture', () => ({ startMicCapture: startMicCaptureMock }));
 
 import useRecording from '../hooks/useRecording';
 
 beforeEach(() => {
   invokeMock.mockReset();
   toastMock.error.mockClear();
+  cleanAudioMock.mockReset();
+  startMicCaptureMock.mockReset();
 });
 
 afterEach(() => {
   delete window.__TAURI_INTERNALS__;
   delete navigator.mediaDevices;
+  delete globalThis.MediaRecorder;
 });
 
 function installGum(impl) {
@@ -86,4 +92,42 @@ it('plain browser: no probe, straight to getUserMedia', async () => {
   });
   expect(gum).toHaveBeenCalled();
   expect(invokeMock).not.toHaveBeenCalled();
+});
+
+it('records a WAV through Web Audio when MediaRecorder is unsupported', async () => {
+  const stopTrack = vi.fn();
+  installGum(async () => ({ getTracks: () => [{ stop: stopTrack }] }));
+  const stopCapture = vi.fn(async () => {});
+  stopCapture.sampleRate = 16000;
+  startMicCaptureMock.mockImplementation(async (_stream, onFrame) => {
+    onFrame(new Float32Array(1600).fill(0.25));
+    return stopCapture;
+  });
+  cleanAudioMock.mockResolvedValue(
+    new Response(new Blob([new Uint8Array(1200)], { type: 'audio/wav' }), {
+      headers: { 'X-Clean-Filename': 'recording_clean.wav' },
+    }),
+  );
+  const ingest = vi.fn(async () => {});
+  const { result } = renderHook(() => useRecording(ingest));
+
+  await act(async () => {
+    await result.current.startRecording();
+  });
+  expect(result.current.isRecording).toBe(true);
+
+  await act(async () => {
+    result.current.stopRecording();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(startMicCaptureMock).toHaveBeenCalledOnce();
+  expect(stopCapture).toHaveBeenCalledOnce();
+  expect(stopTrack).toHaveBeenCalledOnce();
+  const form = cleanAudioMock.mock.calls[0][0];
+  const audio = form.get('audio');
+  expect(audio.type).toBe('audio/wav');
+  expect(audio.name).toBe('recording.wav');
+  expect(ingest).toHaveBeenCalledOnce();
 });

@@ -33,7 +33,12 @@ Everything above, plus the toolchain:
 
   ```bash
   # Debian / Ubuntu
-  sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev build-essential
+  sudo apt-get update
+  sudo apt-get install -y \
+    libwebkit2gtk-4.1-dev libgtk-3-dev libpango1.0-dev libcairo2-dev \
+    libsoup-3.0-dev libgdk-pixbuf-2.0-dev \
+    libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev \
+    libasound2-dev build-essential curl wget file
 
   # Fedora
   sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel
@@ -51,11 +56,30 @@ Everything above, plus the toolchain:
 git clone https://github.com/debpalash/VoiceStudio.git
 cd VoiceStudio
 bun install
-bun run desktop-prod
+source "$HOME/.cargo/env"  # only needed in a shell opened before rustup finished
+bun desktop               # development build with hot reload
 ```
 
-The first launch creates the Python venv via `uv`, syncs deps, and downloads
-model weights (~2.4 GB). Subsequent launches start in seconds.
+Use `bun run desktop-prod` instead when you need to build and launch the
+production bundle. Both commands create the Python environment via `uv`, sync
+dependencies, and start the backend automatically; do not start the backend in
+a second terminal.
+
+The first Rust build takes longer because Cargo compiles the Tauri shell. If it
+fails with `Package gdk-3.0 was not found`, `pango.pc` missing,
+`libsoup-3.0` missing, or `javascriptcoregtk-4.1` missing, install the complete
+Debian/Ubuntu package block above. Those messages mean the development
+libraries are absent, not that `PKG_CONFIG_PATH` needs changing. Verify them
+with:
+
+```bash
+pkg-config --exists \
+  gdk-3.0 pango cairo libsoup-3.0 javascriptcoregtk-4.1 gdk-pixbuf-2.0 \
+  && echo "Tauri system libraries are ready"
+```
+
+The first app launch downloads model weights on demand. Subsequent launches
+reuse the Rust build, Python environment, and installed models.
 
 ## Install (AppImage)
 

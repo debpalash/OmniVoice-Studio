@@ -1,7 +1,7 @@
-// Microphone PCM capture for the opt-in AEC path (parity Action 8). Routes a
-// getUserMedia stream through an AudioWorklet that emits fixed-size Float32
-// frames; the caller converts/tags/sends them. Only used when AEC is enabled
-// — the default dictation path keeps using MediaRecorder/WebM untouched.
+// Microphone PCM capture for the opt-in AEC path and for WebViews that cannot
+// construct MediaRecorder. Routes a getUserMedia stream through an
+// AudioWorklet that emits fixed-size Float32 frames; the caller converts,
+// tags, streams, or WAV-encodes them.
 
 const WORKLET_URL = '/aec-worklet.js';
 
@@ -30,7 +30,7 @@ export async function startMicCapture(
   // mic, we don't want to play it back through the speakers.
   src.connect(node);
 
-  return async function stop() {
+  const stop = async function stop() {
     try {
       node.port.onmessage = null;
     } catch {
@@ -52,4 +52,8 @@ export async function startMicCapture(
       /* ignore */
     }
   };
+  // Existing callers use this value as a function. The property lets generic
+  // PCM/WAV recording encode the frames at the AudioContext's actual rate.
+  stop.sampleRate = ctx.sampleRate;
+  return stop;
 }

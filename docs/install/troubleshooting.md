@@ -681,6 +681,14 @@ up, the shell now prints the exit code and where to look (the cargo/tauri
 output above it, plus `omnivoice.log` and `backend_err.log` in your VoiceStudio
 data folder) instead of exiting silently.
 
+If Cargo stops before the window is built with `Package gdk-3.0 was not found`,
+`pango.pc` missing, `libsoup-3.0` missing, or `javascriptcoregtk-4.1` missing,
+the Ubuntu/Debian WebKitGTK development packages are absent. Install the full
+package block in the [Linux source-build guide](linux.md#building-from-source),
+then rerun `source "$HOME/.cargo/env"` and `bun desktop`. Do not set a custom
+`PKG_CONFIG_PATH` unless the libraries were deliberately installed outside the
+system package manager.
+
 **Still stuck?** Open the details, copy the output, and file it with **Report**
 — that output is the thing that makes the failure diagnosable.
 

@@ -9,7 +9,9 @@ Protocol:
     → Client sends binary audio frames (16-bit PCM or WebM/Opus blobs)
     ← Server sends JSON messages:
 
-    Opt-in AEC mode (``?aec=1[&sr=16000]``, parity Action 8b): for dictating
+    Raw PCM mode (``?pcm=1&sr=16000``) is the container-free fallback for
+    WebViews without MediaRecorder. Opt-in AEC mode
+    (``?aec=1[&sr=16000]``, parity Action 8b): for dictating
     while the app plays audio. Frames must be raw int16 mono PCM, each tagged
     with a 1-byte prefix — 0x00 = microphone, 0x01 = playback reference. The
     server runs an NLMS echo canceller, cleaning the mic against the reference
@@ -66,6 +68,19 @@ MIN_FINAL_BUFFER_BYTES = 4000  # ~125ms of 16-bit mono 16kHz
 # server can tell mic audio from the playback reference it must cancel:
 _AEC_NEAR = 0x00  # microphone frame (clean it, then buffer for ASR)
 _AEC_FAR = 0x01   # playback reference frame (feed the echo model only)
+
+
+def _requested_pcm_sample_rate(query_params) -> int | None:
+    """Return a bounded PCM rate for ``?pcm=1``/``?aec=1`` sessions."""
+    raw_pcm = query_params.get("pcm") in ("1", "true", "on")
+    aec = query_params.get("aec") in ("1", "true", "on")
+    if not raw_pcm and not aec:
+        return None
+    try:
+        sample_rate = int(query_params.get("sr", "16000"))
+    except (TypeError, ValueError):
+        return 16000
+    return sample_rate if 8000 <= sample_rate <= 96000 else 16000
 
 
 def _demux_aec_frame(data: bytes) -> tuple[str, bytes]:
@@ -210,12 +225,11 @@ async def ws_transcribe(websocket: WebSocket):
     # identical legacy behaviour. When on, frames are 1-byte-tagged raw PCM
     # and the cleaned mic stream is muxed via stdlib wave (not ffmpeg).
     aec = None
-    pcm_sr: int | None = None
+    pcm_sr = _requested_pcm_sample_rate(websocket.query_params)
     if websocket.query_params.get("aec") in ("1", "true", "on"):
         try:
-            pcm_sr = int(websocket.query_params.get("sr", "16000"))
             from services.aec import NlmsEchoCanceller
-            aec = NlmsEchoCanceller(sample_rate=pcm_sr)
+            aec = NlmsEchoCanceller(sample_rate=pcm_sr or 16000)
             logger.info("AEC enabled for dictation session (sr=%d)", pcm_sr)
         except Exception as e:
             # Bad sr or import failure → fall back to plain dictation.

@@ -13,6 +13,7 @@ import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
 import { createWaveform } from './captureWaveform';
 import { emitDictationNotice } from '../utils/dictationNotice';
+import { createSupportedMediaRecorder } from '../utils/mediaRecorder';
 
 // True inside the Tauri shell (desktop app / widget window); false in the
 // browser webui / Docker, where the native commands don't exist. Gating on
@@ -101,8 +102,8 @@ const IDLE_VISIBLE_POLL_MS = 600;
 
 // A dictation model id is a sherpa-onnx live model when it carries the
 // `sherpa-` prefix the backend assigns (see services/sherpa_dictation.py). Only
-// then do we open the low-latency raw-PCM streaming path; anything else (or no
-// selection) falls through to the legacy MediaRecorder/WebM path unchanged.
+// then do we open the low-latency raw-PCM streaming path. Other models use a
+// supported MediaRecorder container when available, or raw PCM on WebKitGTK.
 export function isSherpaModel(id) {
   return typeof id === 'string' && id.startsWith('sherpa-');
 }
@@ -366,6 +367,7 @@ export default function CaptureWidget({ onDismiss }) {
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const recordingFormatRef = useRef({ mimeType: 'audio/webm', extension: 'webm' });
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const wsRef = useRef(null);
@@ -383,6 +385,7 @@ export default function CaptureWidget({ onDismiss }) {
   // raw PCM via an AudioWorklet and tag mic/far-end frames instead of using
   // MediaRecorder. All AEC state lives in refs so the default path is inert.
   const aecModeRef = useRef(false);
+  const pcmModeRef = useRef(false);
   const aecStopRef = useRef(null); // async teardown of the mic worklet graph
   const farEndUnsubRef = useRef(null); // unsubscribe from the far-end bus
 
@@ -401,6 +404,7 @@ export default function CaptureWidget({ onDismiss }) {
       console.warn('mic worklet teardown failed:', err);
     }
     aecModeRef.current = false;
+    pcmModeRef.current = false;
   }, []);
 
   // Hydrate dictation prefs (enabled / mode / model) from the backend once. The
@@ -564,7 +568,7 @@ export default function CaptureWidget({ onDismiss }) {
       clearTimeout(dismissTimerRef.current);
       dismissTimerRef.current = null;
     }
-    if (aecModeRef.current || sherpaModeRef.current) teardownAec();
+    if (aecModeRef.current || sherpaModeRef.current || pcmModeRef.current) teardownAec();
     setState('idle');
     setTranscript('');
     setPartialText('');
@@ -595,7 +599,7 @@ export default function CaptureWidget({ onDismiss }) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
-    if (aecModeRef.current || sherpaModeRef.current) {
+    if (aecModeRef.current || sherpaModeRef.current || pcmModeRef.current) {
       teardownAec();
     }
     if (streamRef.current) {
@@ -782,6 +786,7 @@ export default function CaptureWidget({ onDismiss }) {
       });
       streamRef.current = stream;
       chunksRef.current = [];
+      recordingFormatRef.current = { mimeType: 'audio/webm', extension: 'webm' };
       wsPendingRef.current = [];
       wsHadFinalRef.current = false;
       committedRef.current = [];
@@ -804,10 +809,6 @@ export default function CaptureWidget({ onDismiss }) {
         dismissTimerRef.current = null;
       }
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-
       // Read prefs at start time (avoids stale closures). AEC is opt-in; the
       // sherpa live engine is selected when the persisted dictation model is a
       // sherpa-onnx model — that path streams raw int16 PCM and emits live
@@ -815,10 +816,13 @@ export default function CaptureWidget({ onDismiss }) {
       const aecOn = useAppStore.getState().aecEnabled === true;
       const modelId = useAppStore.getState().dictationModelId;
       const sherpaOn = isSherpaModel(modelId);
+      const supportedRecorder = aecOn || sherpaOn ? null : createSupportedMediaRecorder(stream);
+      const pcmFallback = !aecOn && !sherpaOn && supportedRecorder === null;
       aecModeRef.current = aecOn;
       sherpaModeRef.current = sherpaOn;
+      pcmModeRef.current = pcmFallback;
       // Raw-PCM transport is used whenever AEC or the sherpa live engine is on.
-      const pcmMode = aecOn || sherpaOn;
+      const pcmMode = aecOn || sherpaOn || pcmFallback;
 
       // Open WebSocket BEFORE starting capture.
       try {
@@ -827,10 +831,12 @@ export default function CaptureWidget({ onDismiss }) {
         //   • sherpa → ?model=<id>&sr=16000  (raw int16 PCM, live partials)
         //   • AEC    → ?aec=1&sr=16000       (tagged raw PCM, NLMS canceller)
         //   • both   → ?model=<id>&aec=1&sr=16000
-        //   • neither → /ws/transcribe       (legacy MediaRecorder/WebM)
+        //   • no recorder → ?pcm=1&sr=16000  (WebKitGTK fallback)
+        //   • otherwise → /ws/transcribe     (negotiated media container)
         const params = [];
         if (sherpaOn) params.push(`model=${encodeURIComponent(modelId)}`);
         if (aecOn) params.push('aec=1');
+        if (pcmFallback) params.push('pcm=1');
         if (pcmMode) params.push('sr=16000');
         const wsPath = params.length ? `/ws/transcribe?${params.join('&')}` : '/ws/transcribe';
         const ws = new WebSocket(buildWsUrl(wsPath));
@@ -1091,7 +1097,8 @@ export default function CaptureWidget({ onDismiss }) {
         }
         mediaRecorderRef.current = null;
       } else {
-        const recorder = new MediaRecorder(stream, { mimeType });
+        const { recorder, mimeType, extension } = supportedRecorder;
+        recordingFormatRef.current = { mimeType, extension };
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
             chunksRef.current.push(e.data);
@@ -1193,13 +1200,14 @@ export default function CaptureWidget({ onDismiss }) {
 
   const sendForTranscription = useCallback(async () => {
     if (wsHadFinalRef.current) return;
-    // No WebM blob exists on any raw-PCM path (AEC or sherpa live) — the WS is
-    // the only result channel there.
-    if (aecModeRef.current || sherpaModeRef.current) return;
+    // No encoded blob exists on a raw-PCM path — the WS is the only result
+    // channel there.
+    if (aecModeRef.current || sherpaModeRef.current || pcmModeRef.current) return;
 
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+    const { mimeType, extension } = recordingFormatRef.current;
+    const blob = new Blob(chunksRef.current, { type: mimeType });
     const formData = new FormData();
-    formData.append('audio', blob, 'capture.webm');
+    formData.append('audio', blob, `capture.${extension}`);
     formData.append('mode', captureMode);
 
     try {

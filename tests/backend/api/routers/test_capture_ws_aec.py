@@ -15,6 +15,7 @@ from api.routers.capture_ws import (
     _AEC_NEAR,
     _demux_aec_frame,
     _pcm16_to_wav,
+    _requested_pcm_sample_rate,
 )
 
 
@@ -63,3 +64,11 @@ def test_pcm16_to_wav_roundtrip():
 def test_pcm16_to_wav_rejects_tiny_buffer():
     assert _pcm16_to_wav(b"\x00\x01", 16000) is None
     assert _pcm16_to_wav(b"", 16000) is None
+
+
+def test_plain_pcm_transport_negotiates_a_bounded_sample_rate():
+    assert _requested_pcm_sample_rate({}) is None
+    assert _requested_pcm_sample_rate({"pcm": "1", "sr": "48000"}) == 48000
+    assert _requested_pcm_sample_rate({"pcm": "true", "sr": "invalid"}) == 16000
+    assert _requested_pcm_sample_rate({"pcm": "on", "sr": "1000000"}) == 16000
+    assert _requested_pcm_sample_rate({"aec": "1", "sr": "8000"}) == 8000

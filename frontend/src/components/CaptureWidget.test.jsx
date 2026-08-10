@@ -132,6 +132,7 @@ describe('CaptureWidget', () => {
     mocks.holder.paste = async () => undefined;
     mocks.holder.calls = [];
     mocks.holder.onFrame = null;
+    mocks.state.dictationModelId = 'sherpa-parakeet-tdt-v3';
     FakeWebSocket.instances = [];
     global.WebSocket = FakeWebSocket;
     global.MediaRecorder = FakeMediaRecorder;
@@ -150,6 +151,19 @@ describe('CaptureWidget', () => {
 
   const pasteCalls = () => mocks.holder.calls.filter(([c]) => c === 'simulate_paste');
   const typeCalls = () => mocks.holder.calls.filter(([c]) => c === 'simulate_type');
+
+  it('falls back to raw PCM when MediaRecorder cannot be constructed', async () => {
+    mocks.state.dictationModelId = null;
+    delete global.MediaRecorder;
+    render(withI18n(<CaptureWidget />));
+
+    const ws = await startSession();
+    expect(ws.url).toContain('/ws/transcribe?pcm=1&sr=16000');
+    expect(mocks.holder.onFrame).toBeTypeOf('function');
+
+    act(() => mocks.holder.onFrame(new Float32Array([0.25, -0.25])));
+    expect(ws.sent.some((value) => value instanceof ArrayBuffer)).toBe(true);
+  });
 
   it('renders truthful model status from {type:"status"} frames', async () => {
     render(withI18n(<CaptureWidget />));
