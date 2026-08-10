@@ -229,6 +229,9 @@ def test_generate_500_detail_carries_socks_hint(client, monkeypatch):
     r = client.post("/generate", data={"text": "hello", "engine": "omnivoice"})
     assert r.status_code == 500
     detail = r.json()["detail"]
-    assert detail.startswith(_SOCKS_MSG)  # the real error stays visible
-    assert detail != _SOCKS_MSG, "500 detail must not be the bare httpx message"
-    assert "unset ALL_PROXY/HTTPS_PROXY" in detail  # ...and actionable
+    assert _SOCKS_MSG not in detail
+    assert detail.startswith(
+        "VoiceStudio hit an internal error; check the backend log for details."
+    )
+    assert "unset ALL_PROXY/HTTPS_PROXY" in detail
+    assert r.json()["docs_topic"] == "SOCKS_PROXY_SUPPORT_MISSING"
