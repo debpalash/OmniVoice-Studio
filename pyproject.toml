@@ -52,7 +52,7 @@ dependencies = [
     # ("No ASR backend is ready"). Cap below 80 so pkg_resources stays present
     # (issue #224; also #58). Revisit when whisperx/faster-whisper drop the
     # pkg_resources dependency.
-    "setuptools>=75,<80",
+    "setuptools>=75,<84",
     "psutil>=7.2.2",
     # Pinned to 3.x — pyannote 4.x removed `use_auth_token` from `Inference`
     # which whisperx 3.4.2 still passes, blowing up `whisperx.load_model()`
