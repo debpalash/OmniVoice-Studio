@@ -200,7 +200,7 @@ def _speaker_key_for_segment(job: dict, sid) -> str | None:
     for row in job.get("segments") or []:
         if isinstance(row, dict) and str(row.get("id", "")) == str(sid):
             spk = row.get("speaker_id") or "Speaker 1"
-            return spk.lower().replace(" ", "_")
+            return auto_profile_id(spk)[len("auto:"):]
     return None
 
 
@@ -690,7 +690,14 @@ async def dub_generate(job_id: str, req: DubRequest):
                         # editor's Voice dropdown can actually render ("From
                         # Video → Speaker N"). `seg_id` is closed over from
                         # the per-segment loop below.
-                        seg_ref = (job.get("segment_clones") or {}).get(str(seg_id))
+                        selected_is_segment_speaker = (
+                            _speaker_key_for_segment(job, seg_id) == key
+                        )
+                        seg_ref = (
+                            (job.get("segment_clones") or {}).get(str(seg_id))
+                            if selected_is_segment_speaker
+                            else None
+                        )
                         if seg_ref:
                             ref_audio = seg_ref.get("ref_audio")
                             ref_text = seg_ref.get("ref_text")
@@ -1537,7 +1544,10 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
         if pid and pid.startswith("auto:"):
             key = pid[len("auto:"):]
             info = None
-            if req.segment_id is not None:
+            if (
+                req.segment_id is not None
+                and _speaker_key_for_segment(job, req.segment_id) == key
+            ):
                 info = (job.get("segment_clones") or {}).get(str(req.segment_id))
             if info is None:
                 info = resolve_consistent_ref(job, key)

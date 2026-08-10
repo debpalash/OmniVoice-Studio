@@ -400,6 +400,29 @@ def test_per_line_auto_binding_still_prefers_segment_clip(patched_generate):
     assert model.refs[0] == ("/v/seg0.wav", "seg0 ref", False)
 
 
+def test_per_line_cross_speaker_cast_uses_the_selected_speaker(patched_generate):
+    """Choosing Speaker 2 on Speaker 1's row must not silently keep that
+    row's Speaker 1 segment reference."""
+    body = {
+        "segments": [
+            {
+                "start": 0.0,
+                "end": 3.0,
+                "text": "hola",
+                "profile_id": "auto:speaker_2",
+            },
+        ],
+        "segment_ids": ["0"],
+        "language": "Auto",
+        "language_code": "es",
+        "num_step": 4,
+        "timing_strategy": "concise",
+        "voice_match": "per_line",
+    }
+    model = patched_generate(_DIARIZED_JOB, body)
+    assert model.refs[0] == ("/v/spk2.wav", "spk2 ref", True)
+
+
 def test_per_line_auto_binding_short_line_uses_speakers_best_video_clip(patched_generate):
     """A cast choice applies to short lines too; they must not fall back to
     the engine default merely because that line has no segment reference."""
