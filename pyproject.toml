@@ -37,10 +37,10 @@ dependencies = [
     "torch>=2.4",
     "torchaudio>=2.4",
     "torchvision>=0.19",
-    "transformers>=5.3.0",
+    "transformers>=5.5.0",
     "accelerate",
     "pydub",
-    "gradio",
+    "gradio>=6.15.1",
     "tensorboardX",
     "webdataset",
     "numpy",
@@ -88,7 +88,7 @@ dependencies = [
     # mlx-whisper/mlx-audio (depends on mlx — no wheels elsewhere).
     "parakeet-mlx>=0.5.2 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "demucs>=4.0.1",
-    "yt-dlp>=2024.12.13",
+    "yt-dlp>=2026.7.4",
     # >=1.16: alembic.ini relies on path_separator=os (new in 1.16.0), which
     # older alembic silently ignores and then colon-splits C:\ paths /
     # space-splits POSIX paths containing spaces.
@@ -109,7 +109,7 @@ dependencies = [
     "fastapi",
     "scalar-fastapi",
     "uvicorn",
-    "python-multipart",
+    "python-multipart>=0.0.31",
     # Required by uvicorn for WebSocket support (real-time sidebar events).
     "websockets",
     # Offline translation — listed as builtin in the engine registry so the
@@ -121,7 +121,7 @@ dependencies = [
     # (Assumption A1 in RESEARCH.md was checked at execute-time and proved
     # false — `cryptography` is not on the install path today).
     "cryptography>=41",
-    "mcp>=1.2",
+    "mcp>=1.28.1,<2",
     # Opt-in product analytics (core/analytics.py). Inert unless the build ships a
     # POSTHOG_PROJECT_TOKEN *and* the user opts in — default OFF. No exception
     # autocapture (it would ship raw tracebacks past core.failure.sanitize()).
@@ -204,7 +204,7 @@ eval = [
     "unidecode",            # Unicode normalization
 ]
 ui = [
-    "gradio",
+    "gradio>=6.15.1",
     "gradio_client",
     "requests",
 ]
@@ -261,6 +261,12 @@ explicit = true
 
 [tool.uv]
 constraint-dependencies = [
+    "mako>=1.3.12",
+    "msgpack>=1.2.1",
+    "pillow>=12.3.0",
+    "pydantic-settings>=2.14.2",
+    "pygments>=2.20.0",
+    "starlette>=1.3.1",
     "torch==2.8.0",
     "torchaudio==2.8.0",
     "torchvision==0.23.0",

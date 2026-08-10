@@ -1662,7 +1662,20 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
         logger.warning("Cannot import snapshot_download to repair cache: %s", imp_err)
         _last_repair_error = f"{type(imp_err).__name__}: {imp_err}"
         return False
-    dl_kwargs: dict = {"repo_id": checkpoint}
+    try:
+        from services.hf_cache_repair import hf_cache_home
+        from services.hf_revisions import installed_revision
+        cache_root = hf_cache_home()
+        revision = installed_revision(checkpoint, cache_root)
+    except (OSError, ValueError) as revision_err:
+        _last_repair_error = str(revision_err)
+        logger.warning("Refusing unpinned model repair for %s: %s", checkpoint, revision_err)
+        return False
+    dl_kwargs: dict = {
+        "repo_id": checkpoint,
+        "revision": revision,
+        "cache_dir": cache_root,
+    }
     # Explicit endpoint (HF_ENDPOINT / pref) wins; otherwise the automatic
     # endpoint selection's cached pick applies (services.endpoint_race).
     try:
@@ -1683,12 +1696,12 @@ def _repair_model_cache(checkpoint: str, *, force: bool = False) -> bool:
         """One snapshot_download, tolerating an hf_hub that rejects the optional
         symlink knob. Lets real failures (network, gated repo, disk) propagate."""
         try:
-            snapshot_download(**dl_kwargs)
+            snapshot_download(**dl_kwargs)  # nosec B615 -- installed immutable revision
         except TypeError:
             # Older/newer huggingface_hub may not accept local_dir_use_symlinks
             # on a cache-only call — retry without the optional knob.
             dl_kwargs.pop("local_dir_use_symlinks", None)
-            snapshot_download(**dl_kwargs)
+            snapshot_download(**dl_kwargs)  # nosec B615 -- installed immutable revision
 
     # Bounded retries (#739): an incomplete cache *is* an interrupted download, so
     # a single transient blip mid-repair shouldn't drop the user back to a manual

@@ -42,6 +42,9 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - Engine discovery no longer exposes probe exceptions, local paths or credentials in API responses and logs. (#1460)
+- Linux releases now verify that the AppImage actually contains the compatibility launcher, instead of silently shipping Tauri's stock launcher and opening as a blank window on newer Mesa systems. (#1464)
+- Patched dependency releases now cover 35 Python and Rust security advisories without weakening VoiceStudio's GPU or offline-runtime compatibility. (#1456, #1472, #1473, #1474, #1475, #1476, #1477)
+- Curated models now install and repair from reviewed, immutable revisions; custom MOSS remote code requires an explicit safety opt-in. (#1453)
 - YouTube imports that require a signed-in session can now use an explicitly selected `cookies.txt` export for one import; VoiceStudio never reads browser cookies silently and makes two best-effort attempts to delete its temporary copy. (#1429, #1432) — thanks @dongqing1968-sudo and @phamvandu9595-tech!
 - First-run source builds no longer stop after uv was successfully downloaded just because its installer failed during a later shell-profile step; app-private uv installs no longer touch shell profiles at all. (#1438) — thanks @AdrianoCahete!
 - Model files damaged by an interrupted download now repair themselves instead of failing every generation, including invalid `config.json` files and corrupt weight headers. — thanks @overrunau and @zherunh! (#1406, #1437)

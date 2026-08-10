@@ -8,11 +8,22 @@ from fastapi.responses import JSONResponse
 
 from schemas.requests import TranslateRequest
 from services.model_manager import _cpu_pool, _gpu_pool
+from services.hf_revisions import revision_for
 from services.translator import cinematic_available, cinematic_refine_many, _cinematic_budget
 from api.routers.dub_core import _get_job, _save_job
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
+
+_NLLB_REPO_ID = "facebook/nllb-200-distilled-600M"
+
+
+def _load_nllb_component(factory):
+    """Load a curated NLLB component from its reviewed immutable revision."""
+    return factory.from_pretrained(
+        _NLLB_REPO_ID,
+        revision=revision_for(_NLLB_REPO_ID),
+    )
 
 TRANSLATE_CODES = {
     "en": "en", "es": "es", "fr": "fr", "de": "de", "it": "it", "pt": "pt",
@@ -287,9 +298,9 @@ async def dub_translate(req: TranslateRequest):
 
                 try:
                     if _nllb_tokenizer is None:
-                        _nllb_tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
+                        _nllb_tokenizer = _load_nllb_component(AutoTokenizer)
                     if _nllb_model is None:
-                        _nllb_model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
+                        _nllb_model = _load_nllb_component(AutoModelForSeq2SeqLM)
                         if target_device != "cpu":
                             try:
                                 _nllb_model = _nllb_model.to(target_device)

@@ -751,6 +751,17 @@ jobs:
           "$APPIMAGE" --appimage-extract >/dev/null
           ROOT="$EXTRACT_DIR/squashfs-root"
           fail() { echo "FAIL — $1"; find "$ROOT" -maxdepth 5 -type f 2>/dev/null | head -40; exit 1; }
+          # Regression gate: beforeBundleCommand runs before Tauri creates the
+          # AppDir. The v0.4.2 artifact therefore silently shipped Tauri's
+          # stock AppRun and bypassed every WebKit/Mesa compatibility fix.
+          cmp -s "$ROOT/AppRun" "$GITHUB_WORKSPACE/frontend/src-tauri/appimage/AppRun" \
+            || fail "custom AppRun missing from final AppImage"
+          [ -s "$ROOT/usr/lib/.bundled-webkitgtk-version" ] \
+            || fail "bundled WebKitGTK version marker missing"
+          cmp -s \
+            "$ROOT/usr/lib/.bundled-webkitgtk-version" \
+            "$GITHUB_WORKSPACE/frontend/src-tauri/target/.tauri/bundled-webkitgtk-version" \
+            || fail "bundled WebKitGTK version marker is stale or mismatched"
           # Thin uv-venv installer: verify the AppImage carries the shell binary,
           # the bundled uv sidecar, and the backend source resources.
           { [ -f "$ROOT/AppRun" ] || find "$ROOT" -type f \( -name "VoiceStudio" -o -name "omnivoice-studio" \) | grep -q .; } || fail "shell binary / AppRun missing"

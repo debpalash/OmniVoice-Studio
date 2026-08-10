@@ -104,7 +104,9 @@ default voice. `duration` (seconds) maps to MOSS's `tokens` argument at
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OMNIVOICE_MOSS_TTS_V15_DIR` | — | Path to the MOSS-TTS clone (required). |
-| `OMNIVOICE_MOSS_TTS_V15_MODEL` | `OpenMOSS-Team/MOSS-TTS-v1.5` | HF repo id override (mirror / air-gapped). |
+| `OMNIVOICE_MOSS_TTS_V15_MODEL` | `OpenMOSS-Team/MOSS-TTS-v1.5` | Advanced HF repo override. Custom repositories execute their modelling code and are rejected unless both safeguards below are set. Configure `HF_ENDPOINT` for a mirror instead. |
+| `OMNIVOICE_MOSS_TTS_V15_REVISION` | — | Immutable 40-character commit SHA required with a custom model repository. |
+| `OMNIVOICE_MOSS_TTS_V15_TRUST_REMOTE_CODE` | — | Set to `1` only after auditing a custom repository's Python code. The reviewed built-in repository needs no opt-in. |
 | `OMNIVOICE_MOSS_TTS_V15_ATTN` | `sdpa` | Attention impl; set `flash_attention_2` on Ampere+ CUDA with `flash-attn` installed. |
 
 ## Common errors
