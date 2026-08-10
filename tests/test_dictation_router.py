@@ -45,6 +45,19 @@ def test_list_models_shape(client):
     assert [m["id"] for m in rec] == ["sherpa-parakeet-tdt-v3"]
 
 
+def test_list_models_omits_probe_diagnostic(client, monkeypatch):
+    from api.routers import dictation as dr
+
+    private = "Traceback: token=private-value at /home/alice/sherpa.py"
+    monkeypatch.setattr(dr.sd, "sherpa_available", lambda: (False, private))
+    body = client.get("/dictation/models").json()
+    assert body["engine_available"] is False
+    assert body["engine_reason"] == (
+        "Engine unavailable. Check installation and configuration."
+    )
+    assert private not in repr(body)
+
+
 def test_get_prefs_defaults(client):
     r = client.get("/dictation/prefs")
     assert r.status_code == 200
