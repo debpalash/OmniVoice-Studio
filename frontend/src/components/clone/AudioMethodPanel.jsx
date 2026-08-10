@@ -1,6 +1,7 @@
 import { UploadCloud, X, Save, Dice5 } from 'lucide-react';
 import { Button, Input } from '../../ui';
 import MicButton from './MicButton';
+import WaveformPlayer from '../WaveformPlayer';
 
 export default function AudioMethodPanel({
   t,
@@ -84,6 +85,16 @@ export default function AudioMethodPanel({
             onStop={stopRecording}
           />
         </div>
+      )}
+
+      {refAudio && !selectedProfile && (
+        <WaveformPlayer
+          src={refAudio}
+          source="clone-reference"
+          height={34}
+          compact
+          className="mt-2"
+        />
       )}
 
       {selectedProfile && (

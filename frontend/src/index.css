@@ -873,7 +873,7 @@ html[data-ui-scale-engine='native'] .app-container {
   /* Matches the LogsFooter's chrome: flat bg, hairline bottom border,
      no radial glow, no blur, no decorative SVG ribbon. The pulsing
      accent dot + italic logo still carry the brand. */
-  padding: 3px 16px 3px 64px;
+  padding: 3px 8px 3px 16px;
   background: var(--chrome-bg);
   border-bottom: 1px solid var(--chrome-border);
   user-select: none;
@@ -882,7 +882,6 @@ html[data-ui-scale-engine='native'] .app-container {
   grid-column: 1 / -1;
   grid-row: 1;
   cursor: default;
-  padding-right: 8px;
 }
 
 @keyframes flush-slide {

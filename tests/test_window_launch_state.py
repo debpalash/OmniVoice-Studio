@@ -1,9 +1,10 @@
 """Launch-window contract (owner decision, 2026-07-02): the app must ALWAYS
 open maximized — never fullscreen — on every platform.
 
-Two halves enforce it, and both must hold:
+Three parts enforce it, and all must hold:
   1. tauri.conf.json declares `maximized: true` + `fullscreen: false`.
-  2. lib.rs denylists BOTH "widget" and "main" in tauri-plugin-window-state —
+  2. The native frame stays disabled so the app header is the only title bar.
+  3. lib.rs denylists BOTH "widget" and "main" in tauri-plugin-window-state —
      otherwise restored geometry silently overrides the config, and one manual
      resize makes every later launch reopen at that smaller size.
 """
@@ -29,6 +30,10 @@ def test_main_window_opens_maximized_not_fullscreen():
     win = _main_window()
     assert win.get("maximized") is True
     assert win.get("fullscreen") is False
+
+
+def test_main_window_uses_the_custom_titlebar():
+    assert _main_window().get("decorations") is False
 
 
 def test_startup_enforces_maximize_in_rust():
