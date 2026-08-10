@@ -197,7 +197,7 @@ time, so in production **restart the backend** to apply a change. Default empty
 
 Admin routes — `/system/*` (including `set-env`, **RCE-class**),
 `/api/settings/*`, engine install/uninstall, media tools, MCP bindings — sit on
-a stricter gate (`require_loopback`, `backend/api/dependencies.py`) than
+a stricter gate (`require_admin`, `backend/api/dependencies.py`) than
 consumption. On the desktop build they are **true-loopback-only**: no PIN, key,
 or trusted network reaches them from another machine.
 
@@ -219,8 +219,11 @@ requirement is dropped (issue #261, else the operator is 403'd out of their own
   loopback or a caller already authenticated with the API key can read it.
 
 Host paths are never selected through HTTP. The native Tauri process validates
-model-cache destinations and custom FFmpeg/FFprobe binaries, writes a private
-one-shot capability, and only that opaque authorization reaches the backend.
+model-cache and export destinations plus custom FFmpeg/FFprobe binaries, writes
+a private one-shot capability, and only that opaque authorization reaches the
+backend. `/export` therefore accepts an `authorization` token, never a
+`destination_path`; revealing an arbitrary exported path runs in the native
+process, while the HTTP fallback is limited to the server-owned data root.
 `/system/set-env` does not accept executable-path keys at all. Server mode and
 an API key do not weaken that native boundary.
 
@@ -263,7 +266,7 @@ same origin.) If you only moved the Vite dev server's port, set
 | Code | Meaning | What to do |
 |---|---|---|
 | **401** | Consumption auth failed — `{"detail": "PIN required"}` or `{"detail": "API key required"}`. | Supply the PIN / key (header, cookie, or query param above). A WebSocket surfaces this as close code **1008**. |
-| **403** | `{"detail": "loopback origin required"}` — you reached a **loopback-gated** route (admin: `/system/*`, `/api/settings/*`; or a `require_local` route from outside a trusted network) from a non-loopback origin. | A PIN won't help. Run the request from the box itself; for `require_local` routes add the caller to `OMNIVOICE_TRUSTED_NETWORKS`; for **admin** routes use `OMNIVOICE_SERVER_MODE=1` **and** present the **API key** (the PIN/trusted-network don't reach admin). |
+| **403** | Authorization failed: loopback/native access was required, a server-mode mutation lacked the API key, or a native path capability was invalid, expired, or for a different operation. | A PIN cannot grant admin or filesystem access. Run native operations from the desktop app; configure and present the API key for remote server-mode mutations; reopen the native picker if a one-shot capability expired. |
 | **429** | **Not an auth failure.** The GPU pool is saturated (admission control) or a model download is rate-limited. Ships with `Retry-After` and `X-VoiceStudio-Retryable: true`. | Back off for `Retry-After` seconds and retry the identical request. |
 
 ---

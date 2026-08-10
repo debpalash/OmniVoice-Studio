@@ -65,11 +65,11 @@ def test_rejects_unwritable_dir(env, monkeypatch, tmp_path):
     assert ei.value.status_code == 400
 
 
-def test_rejects_path_with_null_byte(env):
+def test_rejects_path_with_null_byte(env, tmp_path):
     # An embedded NUL would otherwise blow up os.makedirs with a ValueError
     # (→ 500). Validate up front and return a clean 400 instead.
     with pytest.raises(fastapi.HTTPException) as ei:
-        s.set_models_dir(_body("/tmp/mo\x00dels"))
+        s.set_models_dir(_body(str(tmp_path / "mo\x00dels")))
     assert ei.value.status_code == 400
 
 

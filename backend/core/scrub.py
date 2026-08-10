@@ -91,9 +91,9 @@ def _env_secret_values() -> list[str]:
 def scrub_text(text: str | None) -> str:
     """Return ``text`` with secrets and home paths redacted.
 
-    Never raises — scrubbing failure must not block a bug report, and a
-    partially-scrubbed string is still better than an unscrubbed one, so
-    each pass is independent.
+    Never raises. If a redaction pass itself fails, return only the redaction
+    marker: diagnostic detail is less important than keeping credentials and
+    private paths out of a report.
     """
     if not text:
         return "" if text is None else str(text)
@@ -104,18 +104,18 @@ def scrub_text(text: str | None) -> str:
         for val in _env_secret_values():
             s = s.replace(val, REDACTED)
     except Exception:
-        pass
+        return REDACTED
 
     # 2. Credential-shaped substrings + URL query secrets.
     for pat in _TOKEN_PATTERNS:
         try:
             s = pat.sub(REDACTED, s)
         except Exception:
-            pass
+            return REDACTED
     try:
         s = _URL_SECRET_RE.sub(lambda m: m.group(1) + REDACTED, s)
     except Exception:
-        pass
+        return REDACTED
 
     # 3. This process's real home dir (covers symlinked/nonstandard homes
     #    the generic patterns miss), then the per-OS shapes. Boundary-aware so
@@ -126,12 +126,12 @@ def scrub_text(text: str | None) -> str:
         if home and home not in ("/", "~"):
             s = re.sub(re.escape(home) + r"(?=[/\\\s\"']|$)", "~", s)
     except Exception:
-        pass
+        return REDACTED
     for pat in _HOME_PATTERNS:
         try:
             s = pat.sub("~", s)
         except Exception:
-            pass
+            return REDACTED
 
     return s
 
@@ -153,5 +153,5 @@ def scrub_provider_error(detail: object, api_key: str | None = None) -> str:
         if api_key and api_key != "local" and len(api_key) >= _MIN_SECRET_LEN:
             s = s.replace(api_key, REDACTED)
     except Exception:
-        pass
+        return REDACTED
     return scrub_text(s)

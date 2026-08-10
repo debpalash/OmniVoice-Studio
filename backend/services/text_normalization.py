@@ -181,10 +181,29 @@ def _num2words_lang(language: Optional[str]) -> Optional[str]:
 # ── Universal safety filters (all languages) ─────────────────────────────────
 
 # Zero-width & bidi controls, C0/C1 controls (except \t \n \r), BOM, U+FFFD.
-_ZW_CONTROL_RE = re.compile(
-    "[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f"
-    "\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff\ufffd]"
+# Keep the set explicit rather than encoding it as regex character ranges: the
+# latter is easy to widen accidentally and obscures the intentionally preserved
+# whitespace controls at the C0 boundaries.
+_UNSAFE_CONTROL_CODEPOINTS = frozenset(
+    (
+        *range(0x00, 0x09),
+        0x0B,
+        0x0C,
+        *range(0x0E, 0x20),
+        *range(0x7F, 0xA0),
+        *range(0x200B, 0x2010),
+        *range(0x202A, 0x202F),
+        *range(0x2060, 0x2065),
+        0xFEFF,
+        0xFFFD,
+    )
 )
+_UNSAFE_CONTROL_TRANSLATION = dict.fromkeys(_UNSAFE_CONTROL_CODEPOINTS)
+
+
+def _strip_unsafe_controls(text: str) -> str:
+    """Delete only the explicitly enumerated unsafe Unicode controls."""
+    return text.translate(_UNSAFE_CONTROL_TRANSLATION)
 
 # A tiny, unambiguous HTML-entity leftover set. `&amp;` is decoded only when
 # NOT followed by a letter/`#` — so double-encoded junk ("&amp;nbsp;") is left
@@ -212,7 +231,7 @@ _NEWLINE_RE = re.compile(r"\n{3,}")    # blank-line floods → one blank line
 
 
 def _safety_filters(text: str) -> str:
-    out = _ZW_CONTROL_RE.sub("", text)
+    out = _strip_unsafe_controls(text)
     out = _ENTITY_RE.sub(lambda m: _ENTITIES.get(m.group(0), "&"), out)
     out = _REPEAT_RE.sub(lambda m: m.group(1) * 3, out)
     out = _HSPACE_RE.sub(" ", out)

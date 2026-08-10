@@ -8,7 +8,9 @@ import os
 
 import pytest
 
-from core.scrub import scrub_text, REDACTED
+import core.scrub as scrub_module
+
+from core.scrub import REDACTED, scrub_provider_error, scrub_text
 
 
 # ── Home directory redaction ──────────────────────────────────────────────
@@ -146,3 +148,44 @@ def test_home_superstring_not_corrupted(monkeypatch):
     assert "~ny" not in out
     assert "johnny" not in out       # still redacted by the generic macOS shape
     assert out == "~/secret.wav"
+
+
+class _BrokenPattern:
+    def sub(self, *_args, **_kwargs):
+        raise RuntimeError("redaction engine failed")
+
+
+def test_env_secret_collection_failure_is_fail_closed(monkeypatch):
+    secret = "private-provider-key-value"
+    monkeypatch.setattr(
+        scrub_module,
+        "_env_secret_values",
+        lambda: (_ for _ in ()).throw(RuntimeError("environment unavailable")),
+    )
+    assert scrub_text(f"provider rejected {secret}") == REDACTED
+
+
+@pytest.mark.parametrize("target", ["_TOKEN_PATTERNS", "_URL_SECRET_RE", "_HOME_PATTERNS"])
+def test_redaction_pattern_failure_is_fail_closed(monkeypatch, target):
+    value = (_BrokenPattern(),) if target.endswith("PATTERNS") else _BrokenPattern()
+    monkeypatch.setattr(scrub_module, target, value)
+    assert scrub_text("token=private-provider-key-value /home/alice/file") == REDACTED
+
+
+def test_actual_home_redaction_failure_is_fail_closed(monkeypatch):
+    monkeypatch.setattr(scrub_module.os.path, "expanduser", lambda _path: (_ for _ in ()).throw(RuntimeError()))
+    assert scrub_text("token=private-provider-key-value /private/alice/file") == REDACTED
+
+
+def test_provider_exact_key_redaction_failure_is_fail_closed():
+    class _BrokenKey:
+        def __bool__(self):
+            return True
+
+        def __eq__(self, _other):
+            return False
+
+        def __len__(self):
+            raise RuntimeError("key inspection failed")
+
+    assert scrub_provider_error("provider echoed a credential", _BrokenKey()) == REDACTED

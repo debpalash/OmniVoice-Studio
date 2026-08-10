@@ -808,17 +808,16 @@ function App() {
       return;
     }
     try {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const ext = fallbackName.includes('.') ? fallbackName.split('.').pop() : 'wav';
-      const destPath = await save({
-        defaultPath: fallbackName,
-        filters: [{ name: 'Media', extensions: [ext] }],
+      const { invoke } = await import('@tauri-apps/api/core');
+      const selection = await invoke('authorize_host_path', {
+        kind: 'dub_export',
+        suggestedName: fallbackName,
       });
-      if (!destPath) return; // User cancelled
+      if (!selection) return; // User cancelled
 
       await exportAction({
         source_filename: sourceIdentifier,
-        destination_path: destPath,
+        authorization: selection.authorization,
         mode,
       });
       toast.success(i18n.t('app.toast_exported', { name: fallbackName }));
@@ -839,7 +838,7 @@ function App() {
       toast.error(i18n.t('app.toast_open_folder_failed', { message: err.message }));
     }
   };
-  // Save a dynamic (save_path-aware) export — dub video/audio/subtitles — to
+  // Save a dynamic export — dub video/audio/subtitles — to
   // disk. The parity-safe dialog + server-side copy vs browser-blob branch now
   // lives in the shared `downloadMedia` util (#1218) so audiobook/story exports
   // reuse the exact same path and never fall back to a webview-hijacking

@@ -42,6 +42,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - GPT-SoVITS connections now stay on loopback or explicitly trusted networks and cannot escape through redirects or DNS rebinding. (#1463)
+- Failed gallery, batch-video, and desktop-log cleanup is now reported instead of silently claiming success, and diagnostic redaction fails closed if a scrubber breaks. (#1458)
+- Remote backends can no longer probe or overwrite arbitrary host files through native-only tools, and imported or persisted paths cannot escape their VoiceStudio data folders. (#1455)
 - Linux releases now verify that the AppImage actually contains the compatibility launcher, instead of silently shipping Tauri's stock launcher and opening as a blank window on newer Mesa systems. (#1464)
 - Patched dependency releases now cover 35 Python and Rust security advisories without weakening VoiceStudio's GPU or offline-runtime compatibility. (#1456, #1472, #1473, #1474, #1475, #1476, #1477)
 - Curated models now install and repair from reviewed, immutable revisions; custom MOSS remote code requires an explicit safety opt-in. (#1453)

@@ -240,7 +240,9 @@ const STARTUP_GRACE_MS = 120_000;
 const RECONCILE_MS = 12_000;
 const RECONCILE_INTERVAL_MS = 1000;
 
-export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+export type ApiFetchOptions = RequestInit & { retryTransport?: boolean };
+
+export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promise<Response> {
   const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
   const key = _apiKey();
   // Only modify the request when a PIN/API key is set, so the default call
@@ -249,9 +251,10 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
   const extra: Record<string, string> = {};
   if (pin) extra['X-OmniVoice-Pin'] = pin;
   if (key) extra['Authorization'] = `Bearer ${key}`;
+  const { retryTransport = true, ...requestOpts } = opts;
   const finalOpts: RequestInit = Object.keys(extra).length
-    ? { ...opts, headers: { ...(opts.headers as Record<string, string>), ...extra } }
-    : opts;
+    ? { ...requestOpts, headers: { ...(requestOpts.headers as Record<string, string>), ...extra } }
+    : requestOpts;
   const signal = finalOpts.signal as AbortSignal | null | undefined;
   let lastDetail = '';
   // The shell's last word on the backend. When it still says `ready` after we've
@@ -283,7 +286,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       // lets callers distinguish a transport failure from an HTTP error.
       if (signal?.aborted || (e as Error)?.name === 'AbortError') throw e;
       lastDetail = String((e as Error)?.message || e);
-      if (attempt < TRANSPORT_RETRY_BACKOFF_MS.length) {
+      if (retryTransport && attempt < TRANSPORT_RETRY_BACKOFF_MS.length) {
         await new Promise((r) => setTimeout(r, TRANSPORT_RETRY_BACKOFF_MS[attempt]));
         continue;
       }
@@ -292,7 +295,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}): Promise<Re
       // import — not 2.9 s). Keep waiting exactly as long as the shell says
       // "starting", bounded by STARTUP_GRACE_MS.
       const elapsed = Date.now() - startedAt;
-      if (elapsed < STARTUP_GRACE_MS) {
+      if (retryTransport && elapsed < STARTUP_GRACE_MS) {
         try {
           lastStage = await backendLifecycleStage();
         } catch {

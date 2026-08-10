@@ -15,7 +15,14 @@ import stat
 from core.config import DATA_DIR
 
 _TOKEN_RE = re.compile(r"[0-9a-f]{64}\Z")
-_KINDS = {"models_dir", "ffmpeg", "ffprobe"}
+_KINDS = {
+    "models_dir",
+    "ffmpeg",
+    "ffprobe",
+    "dub_export",
+    "soni_input",
+    "soni_output_dir",
+}
 _AUTH_DIR = os.path.join(DATA_DIR, ".path-authorizations")
 
 

@@ -5,7 +5,7 @@ from services.audio_dsp import EFFECT_PRESETS
 
 class ExportRequest(BaseModel):
     source_filename: str
-    destination_path: str
+    authorization: str
     mode: str = "history"
 
 class ExportRecordRequest(BaseModel):

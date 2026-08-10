@@ -19,8 +19,6 @@ export default function MediaEngineCard() {
   const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [detectError, setDetectError] = useState(null);
-  const [customPath, setCustomPath] = useState('');
-  const [showPathInput, setShowPathInput] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -81,18 +79,21 @@ export default function MediaEngineCard() {
   const chooseFile = async () => {
     try {
       if ('__TAURI_INTERNALS__' in window) {
-        const { open } = await import('@tauri-apps/plugin-dialog');
-        const picked = await open({ multiple: false, directory: false, title: 'FFmpeg' });
-        if (typeof picked === 'string') {
-          await post('/media-tools/ffmpeg/custom-path', { path: picked });
+        const { invoke } = await import('@tauri-apps/api/core');
+        const selection = await invoke('authorize_host_path', { kind: 'ffmpeg' });
+        if (selection) {
+          await post('/media-tools/ffmpeg/custom-path', {
+            authorization: selection.authorization,
+          });
           return;
         }
       }
-    } catch {
-      /* picker unavailable — fall through to the inline input */
+    } catch (e) {
+      setDetectError(e?.message || String(e));
     }
-    setShowPathInput(true);
   };
+
+  const isDesktop = '__TAURI_INTERNALS__' in window;
 
   if (!status || status.ready) return null; // the ideal outcome: nothing.
 
@@ -151,29 +152,10 @@ export default function MediaEngineCard() {
         >
           {t('setup.media_engine_use_system', { defaultValue: 'Use a system copy' })}
         </Button>
-        <Button variant="ghost" size="sm" disabled={busy} onClick={chooseFile}>
-          {t('setup.media_engine_choose_file', { defaultValue: 'Choose file…' })}
-        </Button>
-        {showPathInput && (
-          <>
-            <input
-              type="text"
-              value={customPath}
-              onChange={(e) => setCustomPath(e.target.value)}
-              placeholder="/usr/bin/ffmpeg"
-              className="min-w-[220px] flex-1 rounded border border-border bg-transparent px-2 py-1 font-mono text-xs text-fg"
-              aria-label={t('settings.ffmpeg_input_aria', { defaultValue: 'FFmpeg path' })}
-              data-testid="media-engine-path"
-            />
-            <Button
-              variant="subtle"
-              size="sm"
-              disabled={busy || !customPath.trim()}
-              onClick={() => post('/media-tools/ffmpeg/custom-path', { path: customPath.trim() })}
-            >
-              {t('credentials.save', { defaultValue: 'Save' })}
-            </Button>
-          </>
+        {isDesktop && (
+          <Button variant="ghost" size="sm" disabled={busy} onClick={chooseFile}>
+            {t('setup.media_engine_choose_file', { defaultValue: 'Choose file…' })}
+          </Button>
         )}
       </div>
     </div>
