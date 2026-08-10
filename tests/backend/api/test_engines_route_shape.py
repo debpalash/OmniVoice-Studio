@@ -151,6 +151,10 @@ def test_engine_discovery_omits_service_diagnostics(fresh_app, monkeypatch):
     assert "/home/alice" not in rendered
     assert "Traceback" not in rendered
     assert "private-value" not in rendered
+    assert body["backends"][0]["reason"] == (
+        "Engine unavailable. Check installation and configuration."
+    )
+    assert body["backends"][0]["last_error"] == "A previous engine check failed."
     assert body["backends"][0]["install_hint"] == "Install the registered dependency."
     assert body["backends"][0]["routing_reason"] == (
         "GPU acceleration is unavailable; this engine will use CPU."
@@ -158,24 +162,37 @@ def test_engine_discovery_omits_service_diagnostics(fresh_app, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("status", "expected"),
+    ("status", "private_reason", "expected"),
     [
         (
             "accelerated",
+            "NVIDIA RTX has 4.0 GB VRAM; this engine wants about 8 GB.",
             "The accelerator may not meet this engine's recommended VRAM.",
         ),
         (
+            "accelerated",
+            "sm_120 is absent and may fail at kernel launch: /home/alice",
+            "The selected accelerator may not be supported by this PyTorch build.",
+        ),
+        (
             "cpu_fallback",
+            "engine has no CUDA path; running on CPU at /home/alice",
             "GPU acceleration is unavailable; this engine will use CPU.",
         ),
         (
+            "cpu_only",
+            "DirectML GPU present; engine routes via private CPU path",
+            "This engine runs on CPU on this host.",
+        ),
+        (
             "unavailable",
+            "requires cuda; this host probe read /home/alice/device",
             "This engine has no compatible compute device on this host.",
         ),
     ],
 )
 def test_engine_discovery_preserves_routing_outcome_without_diagnostics(
-    fresh_app, monkeypatch, status, expected
+    fresh_app, monkeypatch, status, private_reason, expected
 ):
     from api.routers import engines
 
@@ -183,7 +200,7 @@ def test_engine_discovery_preserves_routing_outcome_without_diagnostics(
         "id": "probe",
         "available": status != "unavailable",
         "routing_status": status,
-        "routing_reason": "Traceback: secret at /home/alice/device.py",
+        "routing_reason": private_reason,
     }
     monkeypatch.setattr(engines.tts_backend, "active_backend_id", lambda: "probe")
     monkeypatch.setattr(engines.tts_backend, "list_backends", lambda: [unsafe])
