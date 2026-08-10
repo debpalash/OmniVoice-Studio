@@ -10,7 +10,36 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from api.dependencies import is_loopback, is_local_host, require_local, require_loopback
+def _dependency(name):
+    # Resolve at test execution time: other suites intentionally replace
+    # ``api.*`` modules in sys.modules while probing cold-start behavior.
+    from api import dependencies
+
+    return getattr(dependencies, name)
+
+
+def is_loopback(*args, **kwargs):
+    return _dependency("is_loopback")(*args, **kwargs)
+
+
+def is_local_host(*args, **kwargs):
+    return _dependency("is_local_host")(*args, **kwargs)
+
+
+def require_admin(*args, **kwargs):
+    return _dependency("require_admin")(*args, **kwargs)
+
+
+def require_desktop(*args, **kwargs):
+    return _dependency("require_desktop")(*args, **kwargs)
+
+
+def require_local(*args, **kwargs):
+    return _dependency("require_local")(*args, **kwargs)
+
+
+def require_loopback(*args, **kwargs):
+    return _dependency("require_loopback")(*args, **kwargs)
 
 
 def _req(host):
@@ -134,7 +163,7 @@ def test_require_local_rejects_untrusted_non_loopback(monkeypatch):
     assert exc.value.status_code == 403
 
 
-def _req_full(host, *, headers=None, query=None, cookies=None, pin=None):
+def _req_full(host, *, headers=None, query=None, cookies=None, pin=None, method="GET"):
     """Richer stub carrying the channels the admin-credential check reads:
     headers, query params, cookies, and app.state.network_share.pin."""
     ns = SimpleNamespace(pin=pin) if pin is not None else None
@@ -145,6 +174,7 @@ def _req_full(host, *, headers=None, query=None, cookies=None, pin=None):
         query_params=query or {},
         cookies=cookies or {},
         app=app,
+        method=method,
     )
 
 
@@ -229,6 +259,62 @@ def test_server_mode_loopback_admin_never_needs_credential(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
     require_loopback(_req_full("127.0.0.1"))  # must not raise
+
+
+# GHAS #506/#440/#441: require_loopback permits an unconfigured bare Docker
+# server for compatibility. RCE/filesystem-capable routers use the stricter,
+# method-aware admin gate instead.
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+def test_server_mode_admin_mutation_requires_api_key_when_unconfigured(monkeypatch, method):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    with pytest.raises(HTTPException) as exc:
+        require_admin(_req_full("172.17.0.1", method=method))
+    assert exc.value.status_code == 403
+
+
+def test_server_mode_admin_read_keeps_bare_docker_bootstrap(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    require_admin(_req_full("172.17.0.1", method="GET"))
+
+
+def test_server_mode_admin_read_keeps_pin_only_discovery(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    monkeypatch.setenv("OMNIVOICE_SHARE_PIN", "123456")
+    require_admin(_req_full("172.17.0.1", method="GET"))
+
+
+def test_server_mode_admin_mutation_allows_api_key(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+    require_admin(_req_full(
+        "172.17.0.1",
+        method="POST",
+        headers={"authorization": "Bearer s3cret"},
+    ))
+
+
+def test_server_mode_desktop_capability_rejects_remote_api_key(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+    with pytest.raises(HTTPException) as exc:
+        require_desktop(_req_full(
+            "172.17.0.1",
+            method="POST",
+            headers={"authorization": "Bearer s3cret"},
+        ))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "DELETE"])
+def test_loopback_admin_never_needs_api_key(monkeypatch, method):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    require_admin(_req_full("127.0.0.1", method=method))
 
 
 def test_is_local_host_unwraps_ipv4_mapped_ipv6(monkeypatch):

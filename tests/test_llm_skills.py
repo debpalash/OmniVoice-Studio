@@ -268,6 +268,24 @@ def test_disabled_direction_parse_uses_heuristic(skills, store, monkeypatch):
     assert d.tokens.get("energy") == ["urgent"]  # heuristic still delivers
 
 
+def test_direction_failure_returns_stable_error(skills, store, monkeypatch, caplog):
+    _activate_groq(store)
+    from services import director
+
+    private = "Traceback: token=private-value at /home/alice/director.py"
+
+    class _Fake:
+        id = "openai-compat"
+        def chat(self, **kw):
+            raise RuntimeError(private)
+
+    monkeypatch.setattr(director, "get_active_llm_backend", lambda: _Fake())
+    d = director.parse("urgent and surprised")
+    assert d.error == "llm-parse-failed"
+    assert private not in repr(d)
+    assert private not in caplog.text
+
+
 def test_disabled_slot_fitting_returns_no_llm_marker(skills, store, monkeypatch):
     _activate_groq(store)
     from services import speech_rate
@@ -285,6 +303,24 @@ def test_disabled_slot_fitting_returns_no_llm_marker(skills, store, monkeypatch)
     skills.configure_skill("slot_fitting", enabled=False)
     res = speech_rate.adjust_for_slot(long_text, slot_seconds=1.0, target_lang="en")
     assert res["error"] == "no-llm" and res["text"] == long_text
+
+
+def test_slot_fit_failure_returns_stable_error(skills, store, monkeypatch, caplog):
+    _activate_groq(store)
+    from services import speech_rate
+
+    private = "Traceback: token=private-value at /home/alice/rate.py"
+
+    class _Fake:
+        id = "openai-compat"
+        def chat(self, **kw):
+            raise RuntimeError(private)
+
+    monkeypatch.setattr(speech_rate, "get_active_llm_backend", lambda: _Fake())
+    res = speech_rate.adjust_for_slot("x" * 30, slot_seconds=1.0, target_lang="en")
+    assert res["error"] == "fit-provider-failed"
+    assert private not in repr(res)
+    assert private not in caplog.text
 
 
 def test_disabled_glossary_extract_503s(skills, store):

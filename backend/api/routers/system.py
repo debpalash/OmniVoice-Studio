@@ -11,7 +11,7 @@ from core.prefs import set_ as prefs_set, delete as prefs_delete
 from services import network_share
 from services import tailscale as _tailscale
 from api.schemas import SysinfoResponse, SystemInfoResponse, ModelStatusResponse
-from api.dependencies import require_loopback
+from api.dependencies import is_loopback, require_admin
 from fastapi.responses import FileResponse, StreamingResponse
 import torch
 import shutil
@@ -22,17 +22,16 @@ from core.response_safety import public_failure
 from services.model_manager import get_model_status, get_best_device, resolve_omnivoice_checkpoint
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 
-# Router-level loopback gate. Every route mounted on `router` (GET + POST,
-# present and future) is gated by `require_loopback`, which 403s any request
-# whose `client.host` is not a loopback address. This closes the same trust
+# Router-level admin gate. Every route mounted on `router` (GET + POST,
+# present and future) is gated by `require_admin`: desktop requests must be
+# loopback; server-mode mutations require the long API key. This closes the trust
 # boundary that PR #81 only patched on `/system/set-env` and that the
 # 260518-ivy deferred-items file enumerated for follow-up: /model/unload/*,
 # /system/logs/clear, /system/logs/tauri/clear, /system/flush-memory,
 # /clean-audio (POSTs) plus the read-side info-disclosure routes
 # /system/info, /system/logs, /system/logs/tauri, /system/logs/stream.
-# This router only ever serves the local Tauri shell and the dev frontend
-# at http://127.0.0.1:3901 — both are loopback origins.
-router = APIRouter(dependencies=[Depends(require_loopback)])
+# Native Tauri/dev callers remain loopback and need no credential.
+router = APIRouter(dependencies=[Depends(require_admin)])
 logger = logging.getLogger("omnivoice.api")
 
 # Cache device checks at module load — they don't change at runtime
@@ -814,7 +813,6 @@ async def ack_crash():
 PERSISTENT_KEYS = {
     "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
     "http_proxy", "https_proxy", "all_proxy",
-    "FFMPEG_PATH", "FFPROBE_PATH",
     "TRANSLATE_BASE_URL", "TRANSLATE_API_KEY", "TRANSLATE_MODEL",
     "DEEPL_API_KEY", "DEEPL_BASE_URL",
     "MICROSOFT_API_KEY", "MICROSOFT_BASE_URL",
@@ -851,7 +849,7 @@ async def set_env_var(body: dict):
     are set on ``os.environ`` for the running process.
 
     The loopback-origin gate that previously lived inline here is now applied
-    at the router level via `dependencies=[Depends(require_loopback)]` on
+    at the router level via `dependencies=[Depends(require_admin)]` on
     `router` — see the top of this file. Every route on this router is
     gated, including this one. The 403 body and behavior are unchanged.
     """
@@ -866,23 +864,6 @@ async def set_env_var(body: dict):
         )
 
     if value:
-        # Validate executable paths if the user is setting them manually.
-        # Reject control characters / null bytes (defense-in-depth against
-        # path-injection), then require an existing regular file. NOTE: this
-        # endpoint is loopback-only and MUST remain so — a remote caller able
-        # to set FFMPEG_PATH/FFPROBE_PATH could point it at an arbitrary
-        # binary (RCE). Network sharing must never expose /system/set-env.
-        if key in ("FFMPEG_PATH", "FFPROBE_PATH"):
-            if any(ord(c) < 0x20 or ord(c) == 0x7F for c in value):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid path: control characters are not allowed",
-                )
-            if not os.path.isfile(value):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File not found: {value}",
-                )
         # Port keys must be a numeric string in the unprivileged range so a
         # typo can't drop the backend onto a privileged port (<1024) or an
         # out-of-range value uvicorn would reject at bind time.
@@ -1109,12 +1090,21 @@ def quarantine_status():
 # ── Network sharing (loopback-only control surface) ──────────────────────────
 
 @router.get("/system/network/state")
-async def network_state():
+async def network_state(request: Request):
     st = network_share.get_state()
+    # PIN-only server mode permits unauthenticated read-only discovery, but the
+    # PIN is itself a consumption credential. Reveal it only to the native
+    # loopback UI or to a remote caller that already passed the configured
+    # long API-key gate. The boolean lets headless dashboards remain useful.
+    host = request.client.host if request.client else None
+    may_reveal_pin = is_loopback(host) or bool(
+        os.environ.get("OMNIVOICE_API_KEY", "").strip()
+    )
     return {
         "enabled": st.enabled,
         "share_port": st.share_port,
-        "pin": st.pin,
+        "pin": st.pin if may_reveal_pin else None,
+        "pin_required": bool(st.pin),
         "lan_addresses": st.lan_addresses,
     }
 

@@ -160,10 +160,10 @@ def parse(text: str) -> Direction:
 
     try:
         body = llm.chat(system=_LLM_PROMPT, user=text)
-    except Exception as e:
-        logger.warning("director LLM parse failed: %s", e)
+    except Exception:
+        logger.warning("director LLM parse failed; using heuristic parser")
         d = _heuristic_parse(text)
-        d.error = f"llm-parse-failed: {e}"
+        d.error = "llm-parse-failed"
         return d
 
     raw = body.strip()

@@ -75,6 +75,35 @@ def test_network_state_endpoint_defaults_disabled():
     assert r.json()["enabled"] is False
 
 
+def test_pin_only_remote_discovery_never_returns_share_pin(monkeypatch):
+    import importlib
+
+    from main import app
+
+    # Resolve the exact module instance held by the live router. The full suite
+    # deliberately replaces app modules in sys.modules, so the module-level
+    # ``ns`` test helper may no longer be the endpoint's dependency.
+    live_network_share = importlib.import_module("api.routers.system").network_share
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    monkeypatch.setattr(
+        live_network_share,
+        "_state",
+        live_network_share.ShareState(True, 3901, "123456", ["192.168.1.10"]),
+    )
+    # Keep the consumption middleware inert: this endpoint is testing the
+    # intentional admin read-only exception itself, before a PIN is supplied.
+    monkeypatch.setattr(app.state, "network_share", None, raising=False)
+    response = TestClient(app, client=("172.17.0.1", 50000)).get(
+        "/system/network/state"
+    )
+    assert response.status_code == 200
+    assert response.json()["pin"] is None
+    assert response.json()["pin_required"] is True
+    assert "123456" not in response.text
+
+
 def test_network_control_rejects_non_loopback():
     from main import app
     c = TestClient(app, client=("10.0.0.5", 9999))

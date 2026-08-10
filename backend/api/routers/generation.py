@@ -1538,17 +1538,19 @@ async def generate_speech(
                 # In-band error frame carries the machine-readable retryable
                 # marker (#1190) — an NDJSON consumer can back off instead of
                 # guessing from the prose.
-                logger.error("Streaming generate timed out: %s", e)
-                yield _line({
-                    "type": "error", "detail": str(e), "retryable": True,
-                    "retry_after": getattr(e, "retry_after", 30),
-                })
-            except ValueError as e:
-                logger.error("Streaming generate validation failed: %s", e)
-                yield _line({"type": "error", "detail": str(e)})
-            except Exception as e:
-                logger.error("Streaming generate failed: %s\n%s", e, traceback.format_exc())
-                yield _line({"type": "error", "detail": _safe_exc_text(e)})
+                logger.error("Streaming generation capacity unavailable")
+                from core.public_errors import stream_failure
+                failure = stream_failure("generation_busy")
+                failure["retry_after"] = getattr(e, "retry_after", 30)
+                yield _line({"type": "error", **failure})
+            except ValueError:
+                logger.error("Streaming generation request rejected")
+                from core.public_errors import stream_failure
+                yield _line({"type": "error", **stream_failure("invalid_request")})
+            except Exception:
+                logger.error("Streaming generation failed unexpectedly")
+                from core.public_errors import stream_failure
+                yield _line({"type": "error", **stream_failure("generation_failed")})
             finally:
                 # Ownership of the temp reference clip moves to this generator
                 # in stream mode (the route returns before rendering starts).
