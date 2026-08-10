@@ -129,6 +129,31 @@ def test_tailscale_command_exception_stays_in_local_log(monkeypatch, caplog):
     assert private not in str(result)
 
 
+def test_tailscale_nonzero_output_stays_in_local_log(monkeypatch, caplog):
+    from types import SimpleNamespace
+
+    from services import tailscale
+
+    private = f"{_PRIVATE}\nTOKEN=private-value"
+    monkeypatch.setattr(
+        tailscale.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr=private,
+        ),
+    )
+
+    with caplog.at_level(logging.ERROR, logger="omnivoice.tailscale"):
+        result = tailscale._run(["tailscale", "serve"])
+
+    assert result == {"ok": False, "error": "tailscale command failed"}
+    assert "/home/alice" in caplog.text
+    assert "TOKEN=private-value" in caplog.text
+    assert private not in str(result)
+
+
 def test_wrapped_cache_repair_failure_keeps_constant_recovery_guidance():
     from core.public_errors import public_exception_response
 

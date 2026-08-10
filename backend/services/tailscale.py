@@ -54,7 +54,13 @@ def _run(args):
     try:
         r = subprocess.run(args, capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
-            return {"ok": False, "error": (r.stderr or r.stdout or "tailscale serve failed").strip()}
+            diagnostic = (r.stderr or r.stdout or "tailscale serve failed").strip()
+            logger.error(
+                "Tailscale command exited with code %s: %.2000r",
+                r.returncode,
+                diagnostic,
+            )
+            return {"ok": False, "error": "tailscale command failed"}
         return {"ok": True, "error": ""}
     except Exception:
         logger.exception("Tailscale command failed")
