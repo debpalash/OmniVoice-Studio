@@ -184,9 +184,12 @@ def adjust_for_slot(
                 system=system, user="\n".join(user_lines),
                 temperature=0.2,  # pinned like the Fast path — default 1.0 drifts/invents
             )
-        except Exception as e:
-            logger.warning("speech-rate attempt %d failed: %s", attempt, e)
-            return {"text": best[0], "rate_ratio": best[1], "attempts": attempt - 1, "error": str(e)}
+        except Exception:
+            logger.warning("speech-rate provider attempt %d failed", attempt)
+            return {
+                "text": best[0], "rate_ratio": best[1],
+                "attempts": attempt - 1, "error": "fit-provider-failed",
+            }
 
         if next_text and next_text.strip():
             candidate = next_text.strip()

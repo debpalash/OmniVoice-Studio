@@ -21,7 +21,8 @@ tools keep working unchanged whichever gate is set.
 > VoiceStudio separates **consumption** (TTS, dictation, voices) from
 > **administration** (`/system/*`, `/api/settings/*` — RCE-class). The PIN and
 > trusted networks are *consumption* credentials; the **admin surface is only
-> ever reached from loopback or with the API key** (see [Admin routes](#admin-routes-and-server-mode)).
+> ever reached from loopback or with the API key**. Host-path capabilities stay
+> desktop-only even with a key (see [Admin routes](#admin-routes-and-server-mode)).
 
 > Both gates can be active at once. The PIN and the API key are independent; when
 > both are set, each is checked on the paths it covers.
@@ -206,13 +207,22 @@ origin is unenforceable — NAT rewrites the source and even a
 requirement is dropped (issue #261, else the operator is 403'd out of their own
 `/system/*`). It is replaced by a **credential rule**, not removed:
 
-- **No credential configured** (no API key, no PIN) → admin is open. The bare
-  Docker flow; exposure rests entirely on your port mapping / firewall.
+- **No API key configured** → read-only admin discovery remains available for
+  the bare Docker bootstrap flow, but `POST`/`PUT`/`PATCH`/`DELETE` requests are
+  denied. Set `OMNIVOICE_API_KEY` before changing settings remotely.
 - **A credential is configured** → admin requires the **API key** (`Authorization:
   Bearer` / `?api_key` / `ov_key` cookie), or genuine loopback. The **6-digit
   share PIN does not gate admin** (it is brute-forceable), and trusted-network
-  membership never does either. So a **PIN-only** server-mode deployment keeps
-  admin loopback-only; remote admin requires the long API key.
+  membership never does either. A **PIN-only** server-mode deployment therefore
+  allows remote read-only discovery but blocks remote mutations; remote writes
+  require the long API key. Discovery never returns the share PIN itself; only
+  loopback or a caller already authenticated with the API key can read it.
+
+Host paths are never selected through HTTP. The native Tauri process validates
+model-cache destinations and custom FFmpeg/FFprobe binaries, writes a private
+one-shot capability, and only that opaque authorization reaches the backend.
+`/system/set-env` does not accept executable-path keys at all. Server mode and
+an API key do not weaken that native boundary.
 
 This is the fix for a real escalation (#1213): before it, server mode made the
 admin gate a no-op, so with an API key set *and* a trusted CIDR configured, a LAN

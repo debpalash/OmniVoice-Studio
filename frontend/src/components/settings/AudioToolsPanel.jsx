@@ -267,7 +267,27 @@ export default function AudioToolsPanel() {
 
   const onToolAction = useCallback(
     async (path, body) => {
-      const ok = await post(path, body);
+      let requestBody = body;
+      if (path.endsWith('/custom-path')) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const tool = path.includes('/ffprobe/') ? 'ffprobe' : 'ffmpeg';
+          const authorization = await invoke('authorize_host_path', {
+            kind: tool,
+            path: body?.path || '',
+          });
+          requestBody = { authorization };
+        } catch (e) {
+          toast.error(
+            t('settings.audio_tools_path_failed', {
+              message: e.message || String(e),
+              defaultValue: "Couldn't set path: {{message}}",
+            }),
+          );
+          return;
+        }
+      }
+      const ok = await post(path, requestBody);
       if (ok && (path.endsWith('/custom-path') || path.endsWith('/use-system'))) {
         toast.success(
           t('settings.audio_tools_path_set', {

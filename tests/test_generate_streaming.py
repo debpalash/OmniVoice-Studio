@@ -111,7 +111,9 @@ def _make_deterministic_engine(engine_id="stream-fake", *, delay_s=0.0,
         def generate(self, text, **kw) -> torch.Tensor:
             type(self).calls.append((text, time.monotonic()))
             if fail_on_call is not None and len(type(self).calls) == fail_on_call:
-                raise RuntimeError("engine exploded mid-stream (test)")
+                raise RuntimeError(
+                    "TOKEN=stream-secret /home/alice/private-reference.wav"
+                )
             if delay_s:
                 time.sleep(delay_s)
             # Deterministic, text-dependent waveform (crc-seeded sine-ish ramp).
@@ -277,8 +279,9 @@ def test_stream_final_file_identical_to_classic_output(client, monkeypatch,
     assert done["duration"] > 0
 
 
-def test_stream_midstream_error_yields_error_event(client, monkeypatch,
-                                                   no_omnivoice_model):
+def test_stream_midstream_error_yields_error_event(
+    client, monkeypatch, no_omnivoice_model, caplog
+):
     """Chunk 2 blowing up must surface as an in-band error event AFTER the
     already-delivered chunk — no done, no history row, no saved file."""
     fake = _make_deterministic_engine(fail_on_call=2)
@@ -294,7 +297,13 @@ def test_stream_midstream_error_yields_error_event(client, monkeypatch,
     assert "chunk" in types            # chunk 0 was delivered before the crash
     assert types[-1] == "error"
     assert "done" not in types
-    assert events[-1][0]["detail"]     # actionable message for the fallback log
+    error = events[-1][0]
+    assert error["code"] == "generation_failed"
+    assert error["detail"] == "Generation failed. Check the selected engine and try again."
+    assert "stream-secret" not in repr(error)
+    assert "Traceback" not in repr(error)
+    assert "stream-secret" not in caplog.text
+    assert "/home/alice/private-reference.wav" not in caplog.text
 
     after_ids = {h["id"] for h in client.get("/history").json()}
     assert after_ids == before_ids     # nothing was recorded for the failure

@@ -8,6 +8,7 @@ second store to diverge from.
 from __future__ import annotations
 
 import os
+import json
 
 import fastapi
 import pytest
@@ -24,12 +25,25 @@ def env(tmp_path, monkeypatch):
     # module object — a setattr monkeypatch wouldn't reach the endpoint's copy.
     envfile = str(tmp_path / "env")
     monkeypatch.setenv("OMNIVOICE_ENV_FILE", envfile)
+    auth_dir = tmp_path / "authorizations"
+    auth_dir.mkdir()
+    from core import path_authorization
+    monkeypatch.setattr(path_authorization, "_AUTH_DIR", str(auth_dir))
     return envfile
+
+
+def _body(path, kind="models_dir"):
+    from core import path_authorization
+    auth_dir = path_authorization._AUTH_DIR
+    token = "a" * 64
+    with open(os.path.join(auth_dir, f"{token}.json"), "w", encoding="utf-8") as f:
+        json.dump({"token": token, "kind": kind, "path": path}, f)
+    return s._ModelsDirBody(authorization=token)
 
 
 def test_set_persists_and_writes_durable_env(env, tmp_path):
     target = str(tmp_path / "models")
-    res = s.set_models_dir(s._ModelsDirBody(path=target))
+    res = s.set_models_dir(_body(target))
     abs_target = os.path.abspath(target)
     assert res["configured"] == abs_target
     assert res["restart_required"] is True
@@ -47,7 +61,7 @@ def test_rejects_unwritable_dir(env, monkeypatch, tmp_path):
 
     monkeypatch.setattr(os, "makedirs", boom)
     with pytest.raises(fastapi.HTTPException) as ei:
-        s.set_models_dir(s._ModelsDirBody(path=str(tmp_path / "ro")))
+        s.set_models_dir(_body(str(tmp_path / "ro")))
     assert ei.value.status_code == 400
 
 
@@ -55,13 +69,69 @@ def test_rejects_path_with_null_byte(env):
     # An embedded NUL would otherwise blow up os.makedirs with a ValueError
     # (→ 500). Validate up front and return a clean 400 instead.
     with pytest.raises(fastapi.HTTPException) as ei:
-        s.set_models_dir(s._ModelsDirBody(path="/tmp/mo\x00dels"))
+        s.set_models_dir(_body("/tmp/mo\x00dels"))
     assert ei.value.status_code == 400
+
+
+def test_server_mode_remote_without_api_key_cannot_create_models_dir(env, monkeypatch, tmp_path):
+    """GHAS #440/#441: a published bare Docker port is not filesystem auth."""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    target = tmp_path / "must-not-exist"
+    app = fastapi.FastAPI()
+    app.include_router(s.router)
+    response = TestClient(app, client=("172.17.0.1", 50000)).put(
+        "/api/settings/storage/models-dir",
+        json={"path": str(target)},
+    )
+    assert response.status_code == 403
+    assert not target.exists()
+
+
+def test_server_mode_admin_key_cannot_supply_raw_models_path(env, monkeypatch, tmp_path):
+    """An admin key is not a native path authorization."""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+    target = tmp_path / "must-not-exist"
+    app = fastapi.FastAPI()
+    app.include_router(s.router)
+    response = TestClient(app, client=("172.17.0.1", 50000)).put(
+        "/api/settings/storage/models-dir",
+        headers={"authorization": "Bearer s3cret"},
+        json={"path": str(target)},
+    )
+    assert response.status_code == 422
+    assert not target.exists()
+
+
+def test_loopback_raw_path_is_not_a_models_directory_authorization(env, tmp_path):
+    from fastapi.testclient import TestClient
+
+    target = tmp_path / "must-not-exist"
+    app = fastapi.FastAPI()
+    app.include_router(s.router)
+    response = TestClient(app, client=("127.0.0.1", 50000)).put(
+        "/api/settings/storage/models-dir", json={"path": str(target)}
+    )
+    assert response.status_code == 422
+    assert not target.exists()
+
+
+def test_models_directory_authorization_is_one_shot(env, tmp_path):
+    body = _body(str(tmp_path / "models"))
+    assert s.set_models_dir(body)["configured"]
+    with pytest.raises(fastapi.HTTPException) as exc:
+        s.set_models_dir(body)
+    assert exc.value.status_code == 403
 
 
 def test_clear_reverts_to_default(env):
     user_env.set_user_env("OMNIVOICE_CACHE_DIR", "/old")
-    res = s.set_models_dir(s._ModelsDirBody(path=""))
+    res = s.set_models_dir(_body(""))
     assert res["configured"] is None
     assert res["restart_required"] is True
     assert user_env.get_user_env("OMNIVOICE_CACHE_DIR") is None
@@ -84,7 +154,7 @@ def test_path_with_spaces_survives_the_full_persistence_chain(env, tmp_path, mon
     still shows the chosen folder. Pin the whole chain byte-for-byte:
     endpoint → env file → load_into_environ → os.environ → GET."""
     target = str(tmp_path / "Program Data" / "OmniVoice" / "Model Cache")
-    res = s.set_models_dir(s._ModelsDirBody(path=target))
+    res = s.set_models_dir(_body(target))
     abs_target = os.path.abspath(target)
     assert res["configured"] == abs_target
     assert user_env.get_user_env("OMNIVOICE_CACHE_DIR") == abs_target

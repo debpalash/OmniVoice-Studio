@@ -366,7 +366,8 @@ class TestEndpoints:
              _offline_asr_missing(cached=True):
             r = client.get("/dub/transcribe-stream/j4")
         assert r.status_code == 200
-        assert "audio load failed" in r.text
+        assert "Transcription failed. Check the selected ASR engine and try again." in r.text
+        assert str(wav) not in r.text
         backend.unload.assert_called_once()
 
 

@@ -734,7 +734,7 @@ async def dub_transcribe_stream(
                             preflight_error = asr_model_missing_detail(e.payload)
                             preflight_payload = e.payload
                         except Exception as e:
-                            logger.exception("transcribe preflight: ASR load failed (job=%r)", job_id)
+                            logger.error("Transcription preflight ASR load failed")
                             from core.failure import build_failure
                             f = build_failure(e, stage="transcribe-preflight", include_diagnostic=False)
                             preflight_error = "ASR backend initialization failed: " + f["reason"] + (
@@ -765,9 +765,10 @@ async def dub_transcribe_stream(
 
         try:
             audio_np, sr = await loop.run_in_executor(_cpu_pool, _load)
-        except Exception as e:
+        except Exception:
             # Terminal error → always emit `done` (see preflight note, #578).
-            yield _sse_event("error", {"detail": f"audio load failed: {e}", "retryable": True})
+            from core.public_errors import stream_failure
+            yield _sse_event("error", stream_failure("transcription_failed"))
             yield _sse_event("done", {})
             return
 
@@ -867,9 +868,16 @@ async def dub_transcribe_stream(
                             continue
                         turns.append({"start": s0 + offset, "end": s1 + offset, "speaker": spk})
                     return {"chunks": shifted, "language": r.get("language"), "speaker_turns": turns}
-                except Exception as e:
-                    logger.exception("chunk transcribe failed (backend=%s)", _asr_backend.id)
-                    return {"chunks": [], "language": None, "error": str(e)}
+                except Exception:
+                    logger.error("Chunk transcription failed (backend=%s)", _asr_backend.id)
+                    from core.public_errors import stream_failure
+                    failure = stream_failure("transcription_failed")
+                    return {
+                        "chunks": [],
+                        "language": None,
+                        "error": failure["detail"],
+                        "error_code": failure["code"],
+                    }
 
             # Retry a failed/timed-out chunk once on a fresh pool before giving
             # up. Otherwise a transient wedge on the FIRST chunk (whisperx often
@@ -900,7 +908,7 @@ async def dub_transcribe_stream(
                     yield _sse_event("ping", {})
                 try:
                     part = task.result()
-                except ASRTimeoutError as e:
+                except ASRTimeoutError:
                     # The guard already reset the pool; keep the actionable
                     # message (it names the durable fixes, and — after repeated
                     # timeouts — the crash-isolated engine escape hatch).
@@ -910,7 +918,14 @@ async def dub_transcribe_stream(
                         i + 1, chunks_n, transcribe_timeout_s, _attempt,
                         _CHUNK_TRANSCRIBE_ATTEMPTS, job_id,
                     )
-                    part = {"chunks": [], "language": None, "error": str(e)}
+                    from core.public_errors import stream_failure
+                    failure = stream_failure("transcription_timeout")
+                    part = {
+                        "chunks": [],
+                        "language": None,
+                        "error": failure["detail"],
+                        "error_code": failure["code"],
+                    }
                 # Success → keep it. Failure/timeout → retry once on a fresh
                 # worker (the internal _transcribe_chunk except returns an
                 # error-part; the timeout path already reset the pool).
@@ -964,6 +979,7 @@ async def dub_transcribe_stream(
                 "segments": chunk_segs,
                 "progress": (i + 1) / chunks_n,
                 "error": part.get("error"),
+                "error_code": part.get("error_code"),
             })
 
         if job.get("aborted"):
@@ -1447,12 +1463,10 @@ async def dub_transcribe_stream(
         try:
             async for ev in _gen_body():
                 yield ev
-        except Exception as e:  # noqa: BLE001 — last-resort stream finalizer
-            logger.exception("transcribe stream crashed (job=%r)", job_id)
-            from core.failure import build_failure
-            f = build_failure(e, stage="transcribe", include_diagnostic=False)
-            detail = f["reason"] + (f" — {f['hint']}" if f.get("hint") else "")
-            yield _sse_event("error", {"detail": detail, "retryable": True})
+        except Exception:  # noqa: BLE001 — last-resort stream finalizer
+            logger.error("Transcription stream failed unexpectedly")
+            from core.public_errors import stream_failure
+            yield _sse_event("error", stream_failure("transcription_failed"))
             yield _sse_event("done", {})
         finally:
             # Last-resort VRAM release (see _loaded_asr above): covers crashes,

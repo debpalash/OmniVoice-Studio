@@ -422,6 +422,7 @@ pub fn run() {
             updater_channel::install_update,
             updater_channel::list_releases,
             commands::get_sysinfo,
+            commands::authorize_host_path,
             commands::read_log_tail,
             commands::hf_cache_scan,
             commands::simulate_paste,

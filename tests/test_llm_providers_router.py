@@ -179,7 +179,9 @@ def test_probe_failure_detail_is_scrubbed(settings_mod, monkeypatch):
         "boom key=gsk-test-123 at /Users/someone/secret"))
     body = settings_mod.test_llm_provider("groq")
     assert body["ok"] is False
-    assert "gsk-test-123" not in body["detail"]
+    assert body["detail"] == "The provider request failed. Try again."
+    assert "gsk-test-123" not in repr(body)
+    assert "/Users/someone" not in repr(body)
 
 
 # ── /models discovery ───────────────────────────────────────────────────────
@@ -204,6 +206,17 @@ def test_models_failure_is_classified(settings_mod, monkeypatch):
     _fake_openai(monkeypatch, raise_exc=exc)
     body = settings_mod.list_llm_provider_models("groq")
     assert body["ok"] is False and body["kind"] == "auth" and body["models"] == []
+    assert body["detail"] == "Authentication failed. Check the provider API key."
+
+
+def test_models_failure_omits_trace_path_and_secret(settings_mod, monkeypatch):
+    _configure_groq(settings_mod)
+    private = "Traceback: key=gsk-test-123 at /home/alice/provider.py"
+    _fake_openai(monkeypatch, raise_exc=RuntimeError(private))
+    body = settings_mod.list_llm_provider_models("groq")
+    assert body["kind"] == "error"
+    assert body["detail"] == "The provider request failed. Try again."
+    assert private not in repr(body)
 
 
 def test_models_not_truncated_under_cap(settings_mod, monkeypatch):

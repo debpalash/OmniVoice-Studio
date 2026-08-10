@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import re
 import sys
+from time import perf_counter
 
 import pytest
 
@@ -480,6 +481,45 @@ def test_select_mlx_audio_raw_repo_id_accepted(fresh_app, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert _prefs.get("mlx_audio_model_id") == "mlx-community/Some-Other-Model-4bit"
+
+
+def test_select_mlx_audio_repo_id_accepts_underscore_prefixes(fresh_app, monkeypatch):
+    _make_mlx_audio_available(monkeypatch)
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={
+            "family": "tts", "backend_id": "mlx-audio",
+            "model_id": "_owner/_repo",
+        },
+    )
+    assert r.status_code == 200, r.text
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "owner/repo/extra",
+        "-owner/repo",
+        "owner/.repo",
+        "owner/repo--name",
+        "owner/repo..name",
+        "owner/repo.",
+        "owner/repo.git",
+        f"owner/{'a' * 97}",
+        "-" * 100_000,
+    ],
+)
+def test_select_mlx_audio_rejects_malformed_repo_ids(fresh_app, monkeypatch, model_id):
+    _make_mlx_audio_available(monkeypatch)
+    started = perf_counter()
+    r = _client(fresh_app).post(
+        "/engines/select",
+        json={"family": "tts", "backend_id": "mlx-audio", "model_id": model_id},
+    )
+    assert r.status_code == 400
+    assert perf_counter() - started < 0.5
+    assert len(r.content) < 256
+    assert model_id[:100] not in r.text
 
 
 def test_select_mlx_audio_without_model_id_does_not_touch_pref(fresh_app, monkeypatch):

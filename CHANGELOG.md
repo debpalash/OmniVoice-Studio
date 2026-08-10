@@ -42,10 +42,15 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - Engine discovery no longer exposes probe exceptions, local paths or credentials in API responses and logs. (#1460)
+- An error whose text merely contained the digits 401 — a file path, a byte count, a job id — no longer tells you to fix your Hugging Face token. (#1427)
+- Custom MLX model IDs and saved voice instructions are now validated in bounded time, so malformed input cannot stall the backend. (#1446)
+- Streaming and provider failures now return stable recovery guidance without exposing exception details. (#1462)
+- Server-mode settings mutations require the admin API key, while host destinations and executable paths can only be selected through the native desktop app. (#1448)
 - Automatic model-mirror checks now reject untrusted URLs before opening a network connection. (#1447)
 - Sidecar engines no longer break when a library they load prints to the console. Those bytes landed in the middle of the engine's data stream, failing the generation and leaving the connection scrambled for every request after it. (#1428) — thanks @1335-Group!
 - A generation abandoned while stuck on an internal lock now says so, instead of blaming your hardware and suggesting shorter text. Nothing had been computed, so none of that advice applied. (#1416, #1419)
 - A machine with a GPU that ends up on CPU now says why — a missing device node, a permissions problem, a card newer than the installed ROCm, an `HSA_OVERRIDE_GFX_VERSION` that is doing more harm than good, or an NVIDIA driver the container can't reach each read differently. Before, all of them looked identical to having no GPU at all. (#1274, #1228)
+- The first generation on an engine that still has to install itself no longer gives up part-way. The install reports progress now, so the generation waits for it instead of hitting its own five-minute limit. (#1414)
 - A slow machine is no longer told its IndexTTS-2 install isn't there. The check that confirms an engine's virtualenv gave up after 10 seconds and counted that as a broken install, so a cold first run 500'd; it now waits longer and treats slow as unproven, not broken. (#1414) — thanks @OracleNightmare!
 - A broken Python environment now says so, instead of blaming the app's own install. A missing or mismatched torch/transformers surfaced as "omnivoice not importable" and sent people reinstalling the wrong thing. (#1415)
 - A model that fails to load at startup no longer leaves the app looking healthy while producing nothing — the failure and its remedy now show up in the model status. (#1415)

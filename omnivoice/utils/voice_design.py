@@ -108,7 +108,12 @@ def sanitize_instruct(raw):
     """
     if not raw:
         return ""
-    return _valid_instruct_from_items(re.split(r"\s*[,，]\s*", str(raw).strip()))
+    # Strip each comma-delimited item after splitting.  A pattern with ``\s*``
+    # on both sides of the delimiter backtracks quadratically when a poisoned
+    # stored value contains a long whitespace run without a comma (GHAS #778).
+    return _valid_instruct_from_items(
+        item.strip() for item in re.split(r"[,，]", str(raw).strip())
+    )
 
 
 def instruct_from_vd_states(vd_states):
