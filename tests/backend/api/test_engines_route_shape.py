@@ -138,6 +138,7 @@ def test_engine_discovery_omits_service_diagnostics(fresh_app, monkeypatch):
     unsafe = {
         "id": "probe", "display_name": "Probe", "available": False,
         "reason": private, "last_error": private, "routing_reason": private,
+        "routing_status": "cpu_fallback",
         "install_hint": "Install the registered dependency.",
     }
     monkeypatch.setattr(engines.tts_backend, "active_backend_id", lambda: "probe")
@@ -150,6 +151,46 @@ def test_engine_discovery_omits_service_diagnostics(fresh_app, monkeypatch):
     assert "Traceback" not in rendered
     assert "private-value" not in rendered
     assert body["backends"][0]["install_hint"] == "Install the registered dependency."
+    assert body["backends"][0]["routing_reason"] == (
+        "GPU acceleration is unavailable; this engine will use CPU."
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (
+            "accelerated",
+            "The accelerator may not meet this engine's recommended VRAM.",
+        ),
+        (
+            "cpu_fallback",
+            "GPU acceleration is unavailable; this engine will use CPU.",
+        ),
+        (
+            "unavailable",
+            "This engine has no compatible compute device on this host.",
+        ),
+    ],
+)
+def test_engine_discovery_preserves_routing_outcome_without_diagnostics(
+    fresh_app, monkeypatch, status, expected
+):
+    from api.routers import engines
+
+    unsafe = {
+        "id": "probe",
+        "available": status != "unavailable",
+        "routing_status": status,
+        "routing_reason": "Traceback: secret at /home/alice/device.py",
+    }
+    monkeypatch.setattr(engines.tts_backend, "active_backend_id", lambda: "probe")
+    monkeypatch.setattr(engines.tts_backend, "list_backends", lambda: [unsafe])
+
+    body = _client(fresh_app).get("/engines/tts").json()
+
+    assert body["backends"][0]["routing_reason"] == expected
+    assert "/home/alice" not in repr(body)
 
 
 def test_indextts2_entry_has_subprocess_isolation_mode(fresh_app):

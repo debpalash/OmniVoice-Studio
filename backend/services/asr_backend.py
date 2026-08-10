@@ -2367,9 +2367,9 @@ def list_backends() -> list[dict]:
         else:
             try:
                 ok, msg = cls.is_available()
-            except Exception as exc:
+            except Exception:
                 ok = False
-                msg = f"{type(exc).__name__}: {exc}"
+                msg = "Availability probe failed; check the backend log."
                 logger.warning("asr list_backends: availability probe failed for registered backend %s", bid)
         if ok:
             _LAST_ERRORS.pop(bid, None)
