@@ -5,10 +5,11 @@ SoniTranslate sidecar integration.
 """
 
 import logging
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from api.dependencies import require_native_access
 from services import sonitranslate as soni
 
 router = APIRouter(prefix="/engines/sonitranslate", tags=["SoniTranslate"])
@@ -63,15 +64,15 @@ async def sonitranslate_stop():
 
 
 class DubRequest(BaseModel):
-    video_path: str
+    video_authorization: str
     target_language: str = "Spanish (es)"
     source_language: str = "Automatic detection"
     tts_voice: str = "es-ES-AlvaroNeural-Male"
     max_speakers: int = 1
-    output_dir: Optional[str] = None
+    output_authorization: str | None = None
 
 
-@router.post("/dub")
+@router.post("/dub", dependencies=[Depends(require_native_access)])
 async def sonitranslate_dub(body: DubRequest):
     """Run full dubbing pipeline via SoniTranslate.
 
@@ -89,15 +90,28 @@ async def sonitranslate_dub(body: DubRequest):
     AudioSeal provenance mark that every built-in synthesis path carries.
     """
     try:
+        from core.path_authorization import PathAuthorizationError, consume
+
+        try:
+            video_path = consume(body.video_authorization, "soni_input")
+            output_dir = (
+                consume(body.output_authorization, "soni_output_dir")
+                if body.output_authorization
+                else None
+            )
+        except PathAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
         result = await soni.dub_video(
-            video_path=body.video_path,
+            video_path=video_path,
             target_language=body.target_language,
             source_language=body.source_language,
             tts_voice=body.tts_voice,
             max_speakers=body.max_speakers,
-            output_dir=body.output_dir,
+            output_dir=output_dir,
         )
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("SoniTranslate dub failed")
         raise HTTPException(status_code=500, detail=str(e))

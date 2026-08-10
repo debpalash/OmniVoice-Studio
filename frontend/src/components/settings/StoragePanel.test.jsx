@@ -21,17 +21,16 @@ describe('StoragePanel native path boundary', () => {
       ok: true,
       json: async () => ({ configured: '/private/models', restart_required: true }),
     });
-    invoke.mockResolvedValue('d'.repeat(64));
+    invoke.mockResolvedValue({ authorization: 'd'.repeat(64), path: '/private/models' });
     render(<StoragePanel />);
 
-    const input = await screen.findByTestId('models-dir-input');
-    fireEvent.change(input, { target: { value: '/private/models' } });
+    await screen.findByTestId('models-dir-input');
     fireEvent.click(screen.getByTestId('models-dir-save'));
 
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('authorize_host_path', {
         kind: 'models_dir',
-        path: '/private/models',
+        reset: false,
       }),
     );
     expect(apiFetch).toHaveBeenCalledWith(

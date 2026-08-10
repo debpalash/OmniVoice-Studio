@@ -3,10 +3,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::image::Image;
+use tauri_plugin_dialog::DialogExt;
 
 use crate::{AppFlags, TrayHandle, DictationShortcutState};
 use crate::{TRAY_ICON_DEFAULT, TRAY_ICON_RECORDING};
@@ -21,44 +22,146 @@ struct AuthorizedHostPath {
     path: String,
 }
 
+#[derive(Serialize)]
+pub struct AuthorizedPathSelection {
+    authorization: String,
+    path: String,
+}
+
 pub fn path_authorization_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
     crate::setup::resolved_data_dir(app)
         .unwrap_or_else(crate::setup::default_data_dir)
         .join(".path-authorizations")
 }
 
-fn validate_host_path(kind: &str, raw: &str) -> Result<PathBuf, String> {
-    if !matches!(kind, "models_dir" | "ffmpeg" | "ffprobe") {
+fn remember_reveal_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    path: &Path,
+) -> Result<(), String> {
+    let dir = path_authorization_dir(app);
+    fs::create_dir_all(&dir).map_err(|e| format!("Could not create authorization store: {e}"))?;
+    let ledger = dir.join("revealed-paths");
+    let selected = path.to_string_lossy().into_owned();
+    let mut paths: Vec<String> = fs::read_to_string(&ledger)
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    paths.retain(|item| item != &selected);
+    paths.push(selected);
+    if paths.len() > 1024 {
+        paths.drain(..paths.len() - 1024);
+    }
+    fs::write(&ledger, format!("{}\n", paths.join("\n")))
+        .map_err(|e| format!("Could not remember selected path: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&ledger, fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Could not protect selected paths: {e}"))?;
+    }
+    Ok(())
+}
+
+fn reveal_path_is_authorized<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    target: &Path,
+) -> bool {
+    if let Ok(data_root) = fs::canonicalize(
+        crate::setup::resolved_data_dir(app).unwrap_or_else(crate::setup::default_data_dir),
+    ) {
+        if target.starts_with(data_root) {
+            return true;
+        }
+    }
+    let Ok(ledger) = fs::read_to_string(path_authorization_dir(app).join("revealed-paths")) else {
+        return false;
+    };
+    ledger.lines().any(|selected| {
+        fs::canonicalize(selected)
+            .map(|remembered| remembered == target)
+            .unwrap_or(false)
+    })
+}
+
+fn validate_host_path(kind: &str, path: PathBuf) -> Result<PathBuf, String> {
+    if !matches!(
+        kind,
+        "models_dir"
+            | "ffmpeg"
+            | "ffprobe"
+            | "dub_export"
+            | "soni_input"
+            | "soni_output_dir"
+    ) {
         return Err("Unsupported host-path capability".into());
     }
-    if raw.chars().any(|c| c.is_control()) {
+    if path.to_string_lossy().chars().any(|c| c.is_control()) {
         return Err("Path contains invalid control characters".into());
     }
-    if kind == "models_dir" && raw.is_empty() {
+    if kind == "models_dir" && path.as_os_str().is_empty() {
         return Ok(PathBuf::new()); // explicit reset to the platform default
     }
-    let path = PathBuf::from(raw);
     if !path.is_absolute() {
         return Err("Path must be absolute".into());
     }
-    if kind == "models_dir" {
+    if matches!(kind, "models_dir" | "soni_output_dir") {
         fs::create_dir_all(&path).map_err(|e| format!("Directory is not writable: {e}"))?;
         let probe = path.join(".voicestudio-write-test");
         fs::write(&probe, b"ok").map_err(|e| format!("Directory is not writable: {e}"))?;
         let _ = fs::remove_file(probe);
+    } else if kind == "dub_export" {
+        let parent = path
+            .parent()
+            .ok_or_else(|| "Save destination must have a parent directory".to_string())?;
+        if !parent.is_dir() {
+            return Err("Save destination directory does not exist".into());
+        }
+    } else if kind == "soni_input" {
+        if !path.is_file() {
+            return Err("Selected media input is not a file".into());
+        }
     } else {
         if !path.is_file() {
             return Err("Selected media tool is not a file".into());
         }
-        let status = crate::tools::no_window(
+        let mut child = crate::tools::no_window(
             std::process::Command::new(&path)
                 .arg("-version")
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null()),
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped()),
         )
-        .status()
+        .spawn()
         .map_err(|e| format!("Selected media tool could not run: {e}"))?;
-        if !status.success() {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                Ok(None) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err("Selected media tool did not respond within 5 seconds".into());
+                }
+                Err(e) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!("Selected media tool could not be checked: {e}"));
+                }
+            }
+        }
+        let output = child
+            .wait_with_output()
+            .map_err(|e| format!("Selected media tool output could not be read: {e}"))?;
+        let version_text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .to_ascii_lowercase();
+        if !output.status.success() || !version_text.contains(kind) {
             return Err("Selected media tool failed its version check".into());
         }
     }
@@ -66,12 +169,34 @@ fn validate_host_path(kind: &str, raw: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub fn authorize_host_path(
+pub async fn authorize_host_path(
     app: tauri::AppHandle,
     kind: String,
-    path: String,
-) -> Result<String, String> {
-    let validated = validate_host_path(&kind, path.trim())?;
+    suggested_name: Option<String>,
+    reset: Option<bool>,
+) -> Result<Option<AuthorizedPathSelection>, String> {
+    let selected = if kind == "models_dir" && reset.unwrap_or(false) {
+        Some(PathBuf::new())
+    } else {
+        let dialog = app.dialog().file();
+        let picked = match kind.as_str() {
+            "models_dir" | "soni_output_dir" => dialog.blocking_pick_folder(),
+            "ffmpeg" | "ffprobe" | "soni_input" => dialog.blocking_pick_file(),
+            "dub_export" => {
+                let mut save = app.dialog().file();
+                if let Some(name) = suggested_name.as_deref() {
+                    save = save.set_file_name(name);
+                }
+                save.blocking_save_file()
+            }
+            _ => return Err("Unsupported host-path capability".into()),
+        };
+        picked.and_then(|value| value.into_path().ok())
+    };
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let validated = validate_host_path(&kind, selected)?;
     let mut random = [0_u8; 32];
     getrandom::fill(&mut random).map_err(|e| format!("Secure randomness unavailable: {e}"))?;
     let token: String = random.iter().map(|b| format!("{b:02x}")).collect();
@@ -97,7 +222,13 @@ pub fn authorize_host_path(
         fs::set_permissions(&target, fs::Permissions::from_mode(0o600))
             .map_err(|e| format!("Could not protect authorization: {e}"))?;
     }
-    Ok(token)
+    if payload.kind == "dub_export" {
+        remember_reveal_path(&app, &validated)?;
+    }
+    Ok(Some(AuthorizedPathSelection {
+        authorization: token,
+        path: validated.to_string_lossy().into_owned(),
+    }))
 }
 
 #[cfg(test)]
@@ -107,14 +238,30 @@ mod host_path_authorization_tests {
 
     #[test]
     fn rejects_unknown_relative_and_control_character_paths() {
-        assert!(validate_host_path("shell", "/tmp/tool").is_err());
-        assert!(validate_host_path("models_dir", "relative/models").is_err());
-        assert!(validate_host_path("models_dir", "/tmp/bad\npath").is_err());
+        assert!(validate_host_path("shell", PathBuf::from("/tmp/tool")).is_err());
+        assert!(validate_host_path("models_dir", PathBuf::from("relative/models")).is_err());
+        assert!(validate_host_path("models_dir", PathBuf::from("/tmp/bad\npath")).is_err());
     }
 
     #[test]
     fn empty_models_path_is_the_authorized_default_reset() {
-        assert_eq!(validate_host_path("models_dir", "").unwrap(), PathBuf::new());
+        assert_eq!(validate_host_path("models_dir", PathBuf::new()).unwrap(), PathBuf::new());
+    }
+
+    #[test]
+    fn dub_export_accepts_only_absolute_paths_in_existing_directories() {
+        let parent = std::env::temp_dir();
+        let destination = parent.join("voicestudio-authorized-export.wav");
+        assert_eq!(
+            validate_host_path("dub_export", destination.clone()).unwrap(),
+            destination,
+        );
+        assert!(validate_host_path("dub_export", PathBuf::from("relative/export.wav")).is_err());
+        assert!(validate_host_path(
+            "dub_export",
+            parent.join("missing-directory/export.wav"),
+        )
+        .is_err());
     }
 }
 
@@ -830,6 +977,53 @@ pub fn save_text_file(path: String, contents: String) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("create dir: {e}"))?;
     }
     std::fs::write(p, contents).map_err(|e| format!("write: {e}"))
+}
+
+#[tauri::command]
+pub fn reveal_host_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    // Revealing is a native-shell action, never a loopback HTTP authority.
+    // Canonicalization rejects missing paths and removes traversal/symlinks;
+    // argv-only spawning avoids shell interpretation on every platform.
+    let target = std::fs::canonicalize(&path)
+        .map_err(|_| "That file or folder is no longer on disk".to_string())?;
+    if !reveal_path_is_authorized(&app, &target) {
+        return Err("That path was not selected by VoiceStudio".into());
+    }
+    let folder = if target.is_dir() {
+        target.clone()
+    } else {
+        target.parent()
+            .ok_or_else(|| "That path has no containing folder".to_string())?
+            .to_path_buf()
+    };
+    let mut command = if cfg!(target_os = "macos") {
+        let mut command = std::process::Command::new("open");
+        if target.is_file() {
+            command.arg("-R").arg(&target);
+        } else {
+            command.arg(&folder);
+        }
+        command
+    } else if cfg!(target_os = "windows") {
+        let mut command = std::process::Command::new("explorer");
+        if target.is_file() {
+            command.arg("/select,").arg(&target);
+        } else {
+            command.arg(&folder);
+        }
+        command
+    } else {
+        let mut command = std::process::Command::new("xdg-open");
+        command.arg(&folder);
+        command
+    };
+    let mut child = crate::tools::no_window(&mut command)
+        .spawn()
+        .map_err(|e| format!("Could not open the containing folder: {e}"))?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 // ── WebView cache repair (issue #879) ─────────────────────────────────────

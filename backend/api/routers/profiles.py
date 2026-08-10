@@ -13,6 +13,7 @@ from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
 from core.personalities import get_personalities
 from omnivoice.utils.voice_design import heal_design_instruct, sanitize_instruct
+from core.path_security import UnsafePath, resolve_within
 
 router = APIRouter()
 
@@ -377,13 +378,18 @@ async def lock_profile(
         if not history or not history["audio_path"]:
             raise HTTPException(status_code=404, detail="History item not found or has no audio")
 
-        src_path = os.path.join(OUTPUTS_DIR, history["audio_path"])
-        if not os.path.exists(src_path):
+        try:
+            src_path = resolve_within(OUTPUTS_DIR, history["audio_path"])
+        except UnsafePath as exc:
+            raise HTTPException(status_code=400, detail="Invalid history audio path") from exc
+        if not src_path.is_file():
             raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
         locked_filename = f"{profile_id}_locked.wav"
-        locked_path = os.path.join(VOICES_DIR, locked_filename)
-        shutil.copy2(src_path, locked_path)
+        locked_path = _voices_path(locked_filename)
+        if locked_path is None:
+            raise HTTPException(status_code=400, detail="Invalid profile id")
+        shutil.copy2(str(src_path), locked_path)
 
         ref_text = history["text"][:100] if history["text"] else ""
 
@@ -405,8 +411,8 @@ async def unlock_profile(profile_id: str):
             )
 
         if profile["locked_audio_path"]:
-            locked_path = os.path.join(VOICES_DIR, profile["locked_audio_path"])
-            if os.path.exists(locked_path):
+            locked_path = _voices_path(profile["locked_audio_path"])
+            if locked_path and os.path.exists(locked_path):
                 os.remove(locked_path)
 
         conn.execute(

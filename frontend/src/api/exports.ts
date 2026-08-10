@@ -9,6 +9,10 @@ export async function exportAction(body: Record<string, unknown>): Promise<unkno
 }
 
 export async function exportReveal(body: Record<string, unknown>): Promise<unknown> {
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('reveal_host_path', { path: body.path });
+  }
   return apiPost('/export/reveal', body);
 }
 

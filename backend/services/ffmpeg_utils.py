@@ -9,6 +9,7 @@ import sys
 # Leaf module (stdlib-only) — safe to import at module top, unlike
 # services.dub_pipeline which imports this module and would cycle.
 from services.proc_registry import register_proc, unregister_proc
+from core.path_security import UnsafePath, resolve_within
 
 logger = logging.getLogger("omnivoice.api")
 
@@ -550,21 +551,25 @@ async def _pitch_preserving_stretch(wav, target_samples: int, sr: int):
     return torch.from_numpy(out_arr.copy()).unsqueeze(0).to(wav.device)
 
 
-async def probe_duration(path: str) -> float | None:
+async def probe_duration(path: str, *, allowed_root: str) -> float | None:
     """Return a media file's duration in seconds via ffprobe, or None.
 
     Used by the Smart Fit pipeline to sanity-check source/track lengths
     without loading the media. Never raises — probing is best-effort.
     """
     ffprobe = find_ffprobe()
-    if not ffprobe or not os.path.isfile(path):
+    try:
+        media_path = resolve_within(allowed_root, path)
+    except UnsafePath:
+        return None
+    if not ffprobe or not media_path.is_file():
         return None
     try:
         proc = await spawn_subprocess(
             ffprobe, "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
-            path,
+            str(media_path),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -573,7 +578,7 @@ async def probe_duration(path: str) -> float | None:
             return None
         return float(stdout.decode().strip())
     except Exception as e:
-        logger.debug("probe_duration failed for %s: %s", os.path.basename(str(path)), e)
+        logger.debug("probe_duration failed for %s: %s", media_path.name, e)
         return None
 
 

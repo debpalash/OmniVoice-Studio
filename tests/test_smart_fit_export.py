@@ -515,8 +515,10 @@ def _seed_retime_job(dc, tmp_path: Path, video: Path, track_dur: float) -> str:
     job_dir.mkdir(parents=True, exist_ok=True)
     track_wav = job_dir / "dubbed_de.wav"
     _make_sine_wav(track_wav, track_dur)
+    local_video = job_dir / "source.mp4"
+    local_video.write_bytes(video.read_bytes())
     job = _smart_fit_job(track_dur=track_dur)
-    job["video_path"] = str(video)
+    job["video_path"] = str(local_video)
     job["dubbed_tracks"]["de"]["path"] = str(track_wav)
     dc._dub_jobs[job_id] = job
     return job_id

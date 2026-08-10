@@ -7,6 +7,8 @@ composed at the route or router level without surprises.
 Currently exposed:
 - `require_loopback`: 403 unless the request came from a loopback origin
   (bypassed in explicit server mode — see `_server_mode`).
+- `require_native_access`: true-loopback-only access to the host filesystem;
+  unlike `require_loopback`, it is never bypassed by server mode.
 - `ws_remote_authorized`: whether a WebSocket handshake from a non-loopback
   client carries the remote API key (Wave 2.3) — used by WS endpoints that
   keep their own inline loopback guards.
@@ -239,6 +241,19 @@ def require_local(request: Request) -> None:
     if _server_mode():
         return
     raise HTTPException(status_code=403, detail="loopback origin required")
+
+
+def require_native_access(request: Request) -> None:
+    """Protect capabilities that read or write operator-chosen host paths.
+
+    Docker server mode deliberately relaxes the ordinary admin gate because a
+    bridge makes even local traffic appear remote. That exception is unsafe for
+    native file pickers: a remote API caller must never probe or overwrite an
+    arbitrary path on the backend host, even with the server API key.
+    """
+    host = request.client.host if request.client else None
+    if not is_loopback(host):
+        raise HTTPException(status_code=403, detail="native filesystem access requires loopback origin")
 
 
 def remote_api_key() -> str | None:
