@@ -41,6 +41,24 @@ describe('applySpeakerCloneDefaults (#486)', () => {
     expect(JSON.stringify(sources)).not.toContain('/private');
   });
 
+  it('strips paths and transcript text from legacy pooled clone metadata', () => {
+    const sources = castSourcesFromJob({
+      speaker_clones: {
+        'Speaker 1': {
+          ref_audio: '/home/person/private.wav',
+          ref_text: 'private transcript',
+          duration: 7.5,
+          source_count: 2,
+        },
+      },
+    });
+    expect(sources).toEqual({
+      'Speaker 1': { duration: 7.5, source_count: 2, kind: 'speaker' },
+    });
+    expect(JSON.stringify(sources)).not.toContain('/home/person');
+    expect(JSON.stringify(sources)).not.toContain('private transcript');
+  });
+
   it('never clobbers a profile_id the user already chose', () => {
     const segs = [{ id: '0', speaker_id: 'Speaker 1', profile_id: 'preset:narrator' }];
     expect(applySpeakerCloneDefaults(segs, clones)[0].profile_id).toBe('preset:narrator');

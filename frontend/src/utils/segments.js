@@ -49,7 +49,15 @@ export function autoProfileId(speakerId) {
 /** Recover path-free cast metadata from current or legacy job payloads. */
 export function castSourcesFromJob(job) {
   if (!job || typeof job !== 'object') return {};
-  const sources = { ...(job.cast_sources || job.speaker_clones) };
+  const sources = {};
+  for (const [speaker, info] of Object.entries(job.cast_sources || job.speaker_clones || {})) {
+    if (!info || typeof info !== 'object') continue;
+    sources[speaker] = {
+      duration: Number(info.duration) || 0,
+      source_count: Number(info.source_count) || 1,
+      kind: info.kind === 'segment' ? 'segment' : 'speaker',
+    };
+  }
   for (const segment of job.segments || []) {
     const speaker = segment?.speaker_id || 'Speaker 1';
     const current = sources[speaker];
