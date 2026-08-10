@@ -156,7 +156,7 @@ export default function IdleSkeleton({
               which re-runs the ASR stream on the same job without re-uploading. */}
       {dubError && dubJobId && dubStep === 'idle' && (
         <div
-          className="mb-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)] rounded-md border border-[rgba(251,73,52,0.35)] bg-[rgba(251,73,52,0.08)] px-[12px] py-[9px]"
+          className="mb-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)] rounded-md border border-transparent bg-[rgba(251,73,52,0.08)] px-[12px] py-[9px]"
           role="alert"
         >
           <AlertCircle size={15} className="shrink-0 text-danger" aria-hidden="true" />
