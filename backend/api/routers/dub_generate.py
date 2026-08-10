@@ -690,8 +690,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                         # editor's Voice dropdown can actually render ("From
                         # Video → Speaker N"). `seg_id` is closed over from
                         # the per-segment loop below.
+                        segment_speaker_key = _speaker_key_for_segment(job, seg_id)
+                        # Legacy jobs may not persist diarized segment rows.
+                        # Preserve their established per-line preference; only
+                        # suppress it when current metadata proves the user
+                        # explicitly selected a different speaker.
                         selected_is_segment_speaker = (
-                            _speaker_key_for_segment(job, seg_id) == key
+                            segment_speaker_key is None or segment_speaker_key == key
                         )
                         seg_ref = (
                             (job.get("segment_clones") or {}).get(str(seg_id))
