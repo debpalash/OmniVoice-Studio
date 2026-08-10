@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+import threading
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -68,6 +69,12 @@ def clear_install_cooldowns() -> None:
 # mid-file in hf_hub 1.7.2 — cancel stops further retries, marks the row
 # cancelled, and clears the cooldown so a cancel isn't rate-limited.
 _cancelled: set[str] = set()
+
+# One worker per repo. Repeated clicks and feature-level recovery can converge
+# on the same install; starting a second snapshot_download against the same HF
+# cache is wasteful and can corrupt the user-visible progress stream.
+_active_installs: set[str] = set()
+_active_installs_lock = threading.Lock()
 
 
 def _download_max_workers() -> int:
@@ -394,6 +401,10 @@ async def install_model(req: InstallModelRequest):
                 f"Retry in {remaining}s or check your network."
             ),
         )
+    with _active_installs_lock:
+        if req.repo_id in _active_installs:
+            return {"status": "already_running", "repo_id": req.repo_id}
+        _active_installs.add(req.repo_id)
     loop = asyncio.get_running_loop()
 
     def _do():
@@ -652,8 +663,15 @@ async def install_model(req: InstallModelRequest):
             _cancelled.discard(req.repo_id)
             download_aggregator.finish(req.repo_id)
             hf_progress.current_repo_id.reset(token)
+            with _active_installs_lock:
+                _active_installs.discard(req.repo_id)
 
-    loop.create_task(asyncio.to_thread(_do))
+    try:
+        loop.create_task(asyncio.to_thread(_do))
+    except Exception:
+        with _active_installs_lock:
+            _active_installs.discard(req.repo_id)
+        raise
     return {"status": "install_started", "repo_id": req.repo_id}
 
 

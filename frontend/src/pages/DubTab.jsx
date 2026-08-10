@@ -24,6 +24,7 @@ export default function DubTab(props) {
     dubLocalBlobUrl,
     transcribeElapsed,
     transcribeProgress,
+    asrInstall,
     translateProvider,
     setTranslateProvider,
     showTranscript,
@@ -38,6 +39,7 @@ export default function DubTab(props) {
     handleDubUpload,
     handleDubIngestUrl,
     handleDubRetryTranscribe,
+    handleInstallMissingAsr,
     handleDubStop,
     handleDubGenerate,
     handleDubImportSrt,
@@ -541,6 +543,8 @@ export default function DubTab(props) {
           dubJobId={dubJobId}
           dubStep={dubStep}
           dubFailure={dubFailure}
+          asrInstall={asrInstall}
+          handleInstallMissingAsr={handleInstallMissingAsr}
           handleDubRetryTranscribe={handleDubRetryTranscribe}
           handleDubImportSrt={handleDubImportSrt}
           dubLocalBlobUrl={dubLocalBlobUrl}

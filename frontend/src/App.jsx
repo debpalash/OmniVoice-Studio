@@ -524,10 +524,12 @@ function App() {
     setPreviewAudios,
     transcribeElapsed,
     transcribeProgress,
+    asrInstall,
     handleDubUpload: _handleDubUpload,
     handleDubIngestUrl,
     handleDubAbort,
     handleDubRetryTranscribe,
+    handleInstallMissingAsr,
     handleDubStop,
     handleDubGenerate,
     handleCleanupSegments,
@@ -1471,6 +1473,7 @@ function App() {
                     dubLocalBlobUrl={dubLocalBlobUrl}
                     transcribeElapsed={transcribeElapsed}
                     transcribeProgress={transcribeProgress}
+                    asrInstall={asrInstall}
                     translateProvider={translateProvider}
                     setTranslateProvider={setTranslateProvider}
                     onGlossaryChange={setGlossaryTerms}
@@ -1486,6 +1489,7 @@ function App() {
                     handleDubUpload={handleDubUpload}
                     handleDubIngestUrl={handleDubIngestUrl}
                     handleDubRetryTranscribe={handleDubRetryTranscribe}
+                    handleInstallMissingAsr={handleInstallMissingAsr}
                     handleDubStop={handleDubStop}
                     handleDubGenerate={handleDubGenerate}
                     handleDubDownload={handleDubDownload}

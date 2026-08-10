@@ -20,6 +20,7 @@ import type { EffectPreset } from '../api/engines';
 type DubStep =
   | 'idle'
   | 'uploading'
+  | 'installing-asr'
   | 'transcribing'
   | 'editing'
   | 'generating'

@@ -36,6 +36,8 @@ function baseProps(overrides = {}) {
     dubJobId: null,
     dubStep: 'idle',
     dubFailure: null,
+    asrInstall: null,
+    handleInstallMissingAsr: noop,
     handleDubRetryTranscribe: noop,
     handleDubImportSrt: noop,
     dubLocalBlobUrl: null,
@@ -141,6 +143,39 @@ describe('IdleSkeleton — pipeline-stage vs idle dropzone', () => {
     });
     expect(container.querySelector('.dub-idle-drop')).toBeNull();
     expect(screen.queryByPlaceholderText(URL_PLACEHOLDER)).not.toBeInTheDocument();
+  });
+
+  it('keeps both install and retry actions beside a missing-ASR error', () => {
+    const install = vi.fn();
+    const retry = vi.fn();
+    renderIdle({
+      dubStep: 'idle',
+      dubJobId: 'job-needs-asr',
+      dubError: 'No speech-to-text model is installed.',
+      asrInstall: {
+        phase: 'missing',
+        repoId: 'Systran/faster-whisper-large-v3',
+        label: 'Whisper large-v3',
+        sizeGb: 2.9,
+      },
+      handleInstallMissingAsr: install,
+      handleDubRetryTranscribe: retry,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Download Whisper large-v3/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry transcription' }));
+    expect(install).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('shows inline model progress instead of the upload form while installing ASR', () => {
+    const { container } = renderIdle({
+      dubStep: 'installing-asr',
+      dubJobId: 'job-installing-asr',
+      asrInstall: { phase: 'installing', label: 'Whisper large-v3', percent: 42 },
+    });
+    expect(container.querySelector('.dub-idle-drop')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent('Installing Whisper large-v3…');
+    expect(screen.getByText('42%')).toBeInTheDocument();
   });
 
   it('never falls back to the dropzone for a non-idle no-file step (e.g. stopping)', () => {

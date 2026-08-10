@@ -13,16 +13,23 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
+const toastLoading = vi.fn();
 vi.mock('react-hot-toast', () => ({
   default: Object.assign(vi.fn(), {
     error: (...a) => toastError(...a),
     success: (...a) => toastSuccess(...a),
+    loading: (...a) => toastLoading(...a),
     dismiss: vi.fn(),
   }),
 }));
 
 const installModel = vi.fn();
-vi.mock('../api/setup', () => ({ installModel: (...a) => installModel(...a) }));
+const listModels = vi.fn();
+vi.mock('../api/setup', () => ({
+  installModel: (...a) => installModel(...a),
+  listModels: (...a) => listModels(...a),
+  setupDownloadStreamUrl: () => 'http://localhost/setup/download-stream',
+}));
 
 const apiPost = vi.fn();
 vi.mock('../api/client', () => ({ apiPost: (...a) => apiPost(...a) }));
@@ -70,11 +77,27 @@ describe('asrMissingPayload', () => {
 });
 
 describe('toastAsrModelMissing', () => {
+  let stream;
+
   beforeEach(() => {
     toastError.mockReset();
     toastSuccess.mockReset();
     installModel.mockReset();
+    listModels.mockReset();
     apiPost.mockReset();
+    toastLoading.mockReset();
+    listModels.mockResolvedValue({ models: [] });
+    globalThis.EventSource = class FakeEventSource {
+      constructor(url) {
+        this.url = url;
+        this.close = vi.fn();
+        stream = this;
+      }
+
+      emit(event) {
+        this.onmessage?.({ data: JSON.stringify(event) });
+      }
+    };
   });
 
   function renderToast(payload) {
@@ -94,6 +117,15 @@ describe('toastAsrModelMissing', () => {
     await waitFor(() =>
       expect(installModel).toHaveBeenCalledWith('Systran/faster-whisper-large-v3'),
     );
+    expect(toastSuccess).not.toHaveBeenCalled();
+    stream.emit({
+      repo_id: 'Systran/faster-whisper-large-v3',
+      phase: 'aggregate',
+      bytes_done: 50,
+      total_bytes: 100,
+    });
+    expect(toastLoading.mock.calls.at(-1)[0]).toContain('50%');
+    stream.emit({ repo_id: 'Systran/faster-whisper-large-v3', phase: 'install_done' });
     // Non-dictation pick: no dictation pref write.
     expect(apiPost).not.toHaveBeenCalled();
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
@@ -112,6 +144,11 @@ describe('toastAsrModelMissing', () => {
       },
     });
     fireEvent.click(screen.getByRole('button'));
+    await waitFor(() => expect(installModel).toHaveBeenCalled());
+    stream.emit({
+      repo_id: 'csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8',
+      phase: 'install_done',
+    });
     await waitFor(() =>
       expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', {
         model_id: 'sherpa-parakeet-tdt-v3',

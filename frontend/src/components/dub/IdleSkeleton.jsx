@@ -18,7 +18,7 @@ import {
   Play,
   Download,
 } from 'lucide-react';
-import { Button, Badge } from '../../ui';
+import { Button, Progress } from '../../ui';
 import { useEffect, useRef } from 'react';
 import WaveformTimeline from '../WaveformTimeline';
 import DubbingDemo from '../DubbingDemo';
@@ -30,6 +30,33 @@ import { LANG_CODES } from '../../utils/languages';
 const SPEAKERS_INPUT =
   'w-[52px] ml-[4px] px-[6px] py-[4px] rounded-[6px] border border-[var(--border,#3c3836)] bg-[var(--input-bg,#282828)] text-inherit text-[12px]';
 
+function AsrInstallStatus({ t, install, onAbort }) {
+  const pct = typeof install?.percent === 'number' ? Math.round(install.percent) : null;
+  return (
+    <div
+      className="flex flex-col items-center gap-[var(--space-5)] w-full"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader className="spinner" size={20} color="#d3869b" aria-hidden="true" />
+      <span className="text-fg font-medium text-[var(--text-lg)]">
+        {t('dub.install_progress', { engine: install?.label })}
+      </span>
+      <div className="w-[80%] max-w-[340px]">
+        <Progress value={pct} tone="brand" size="sm" />
+      </div>
+      {pct != null && (
+        <span className="text-[var(--text-sm)] text-fg-muted [font-variant-numeric:tabular-nums]">
+          {pct}%
+        </span>
+      )}
+      <Button variant="danger" size="sm" onClick={onAbort}>
+        {t('dub.prep_stop')}
+      </Button>
+    </div>
+  );
+}
+
 export default function IdleSkeleton({
   t,
   dubVideoFile,
@@ -39,6 +66,8 @@ export default function IdleSkeleton({
   dubJobId,
   dubStep,
   dubFailure,
+  asrInstall,
+  handleInstallMissingAsr,
   handleDubRetryTranscribe,
   handleDubImportSrt,
   dubLocalBlobUrl,
@@ -126,11 +155,23 @@ export default function IdleSkeleton({
               Surfaces the backend error detail and offers one-click retry,
               which re-runs the ASR stream on the same job without re-uploading. */}
       {dubError && dubJobId && dubStep === 'idle' && (
-        <div className="mb-[var(--space-2)]">
-          <Badge tone="danger">
-            <AlertCircle size={11} /> {dubError}
-          </Badge>
+        <div
+          className="mb-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)] rounded-md border border-[rgba(251,73,52,0.35)] bg-[rgba(251,73,52,0.08)] px-[12px] py-[9px]"
+          role="alert"
+        >
+          <AlertCircle size={15} className="shrink-0 text-danger" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-[var(--text-sm)] text-fg break-words">
+            {dubError}
+          </span>
           <DubFailureNotice failure={dubFailure} />
+          {asrInstall?.phase === 'missing' && asrInstall.repoId && (
+            <Button variant="primary" size="sm" onClick={handleInstallMissingAsr}>
+              {t('asr_missing.download', {
+                label: asrInstall.label,
+                size: asrInstall.sizeGb,
+              })}
+            </Button>
+          )}
           {handleDubRetryTranscribe && (
             <Button
               variant="subtle"
@@ -189,6 +230,8 @@ export default function IdleSkeleton({
                       progress={dubPrepProgress}
                       onAbort={handleDubAbort}
                     />
+                  ) : dubStep === 'installing-asr' ? (
+                    <AsrInstallStatus t={t} install={asrInstall} onAbort={handleDubAbort} />
                   ) : dubStep === 'transcribing' ? (
                     <TranscribeOverlay
                       elapsed={transcribeElapsed}
@@ -272,6 +315,10 @@ export default function IdleSkeleton({
               onAbort={handleDubAbort}
               large
             />
+          ) : dubStep === 'installing-asr' ? (
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+              <AsrInstallStatus t={t} install={asrInstall} onAbort={handleDubAbort} />
+            </div>
           ) : dubStep === 'transcribing' ? (
             // URL-ingest / restored jobs have no local `dubVideoFile`, so the
             // waveform-overlay branch above never runs for them. Without this

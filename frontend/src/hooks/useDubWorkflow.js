@@ -22,7 +22,8 @@ import { streamDropError } from '../utils/backendCrash';
 import { playPing } from '../utils/media';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
-import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
+import { asrMissingPayload, installRecommendedAsr } from '../utils/asrModelMissing';
+import { cancelInstallModel } from '../api/setup';
 import { addBreadcrumb } from '../utils/breadcrumbs';
 import { recordValueMoment } from '../utils/donationMoments';
 import i18next from 'i18next';
@@ -105,9 +106,76 @@ export default function useDubWorkflow({
   // true on a CUDA GPU and 50x wrong on a CPU, so it showed "~0s remaining" for
   // 45 minutes. A measured fraction is the only thing that can't lie.
   const [transcribeProgress, setTranscribeProgress] = useState(0);
+  const [asrInstall, setAsrInstall] = useState(null);
 
   const dubAbortCtrlRef = useRef(null);
   const dubClientJobIdRef = useRef(null);
+  const asrInstallCtrlRef = useRef(null);
+  const retryTranscribeRef = useRef(null);
+
+  const _showMissingAsr = useCallback(
+    (payload) => {
+      const rec = payload?.recommended;
+      setAsrInstall({
+        phase: 'missing',
+        percent: null,
+        payload,
+        repoId: rec?.repo_id || '',
+        label: rec?.label || rec?.repo_id || '',
+        sizeGb: rec?.size_gb,
+      });
+      setDubError(t('asr_missing.message'));
+      setDubStep('idle');
+      useAppStore.getState().dismissPill();
+    },
+    [setDubError, setDubStep],
+  );
+
+  const handleInstallMissingAsr = useCallback(async () => {
+    if (!asrInstall?.payload || asrInstall.phase === 'installing') return;
+    const ctrl = new AbortController();
+    asrInstallCtrlRef.current = ctrl;
+    setDubError('');
+    setDubStep('installing-asr');
+    setAsrInstall((current) => ({ ...current, phase: 'installing', percent: 0 }));
+    useAppStore
+      .getState()
+      .showPill('loading-model', t('dub.install_progress', { engine: asrInstall.label }), {
+        progress: 0,
+        cancellable: true,
+        homeMode: 'dub',
+      });
+    try {
+      await installRecommendedAsr(asrInstall.payload, {
+        signal: ctrl.signal,
+        onProgress: ({ percent }) => {
+          setAsrInstall((current) =>
+            current ? { ...current, phase: 'installing', percent } : current,
+          );
+          useAppStore.getState().setPillProgress(percent);
+        },
+      });
+      setAsrInstall(null);
+      setDubError('');
+      setDubStep('idle');
+      useAppStore.getState().completePill(t('dub.install_ok', { engine: asrInstall.label }));
+      await retryTranscribeRef.current?.();
+    } catch (error) {
+      const aborted = error?.name === 'AbortError';
+      const message = aborted
+        ? t('dub_workflow.retry_cancelled')
+        : t('asr_missing.install_failed', { message: error?.message || String(error) });
+      setDubStep('idle');
+      setDubError(message);
+      setAsrInstall((current) =>
+        current ? { ...current, phase: 'missing', percent: null } : current,
+      );
+      if (aborted) useAppStore.getState().dismissPill();
+      else useAppStore.getState().errorPill(message);
+    } finally {
+      asrInstallCtrlRef.current = null;
+    }
+  }, [asrInstall, setDubError, setDubStep]);
 
   // Reset a stale dub session (the persisted job is gone server-side, #660):
   // clear the dead id/state, drop any pill, and prompt a fresh upload with a
@@ -117,6 +185,7 @@ export default function useDubWorkflow({
     setDubTaskId('');
     setDubSegments([]);
     setDubError('');
+    setAsrInstall(null);
     setDubStep('idle');
     setTranscribeStart(null);
     try {
@@ -440,6 +509,7 @@ export default function useDubWorkflow({
       if (!dubVideoFile) return;
       addBreadcrumb('dub:upload');
       setDubStep('uploading');
+      setAsrInstall(null);
       setDubError('');
       setDubFailure(null);
       setDubTracks([]);
@@ -497,10 +567,7 @@ export default function useDubWorkflow({
           _resetStaleDubSession();
         } else if (asrMissingPayload(err)) {
           // Typed preflight: no ASR model installed → download CTA, not a report.
-          setDubError(t('asr_missing.message'));
-          setDubStep('idle');
-          toastAsrModelMissing(asrMissingPayload(err));
-          useAppStore.getState().errorPill(t('asr_missing.message'));
+          _showMissingAsr(asrMissingPayload(err));
         } else {
           setDubError(err.message);
           setDubStep('idle');
@@ -527,6 +594,7 @@ export default function useDubWorkflow({
       loadProjects,
       loadProfiles,
       _resetStaleDubSession,
+      _showMissingAsr,
     ],
   );
 
@@ -536,6 +604,7 @@ export default function useDubWorkflow({
       if (!clean) return;
       addBreadcrumb('dub:ingest-url');
       setDubStep('uploading');
+      setAsrInstall(null);
       setDubError('');
       setDubFailure(null);
       setDubTracks([]);
@@ -590,10 +659,7 @@ export default function useDubWorkflow({
         } else if (isExpiredDubJobError(err)) {
           _resetStaleDubSession();
         } else if (asrMissingPayload(err)) {
-          setDubError(t('asr_missing.message'));
-          setDubStep('idle');
-          toastAsrModelMissing(asrMissingPayload(err));
-          useAppStore.getState().errorPill(t('asr_missing.message'));
+          _showMissingAsr(asrMissingPayload(err));
         } else {
           const cookieErrorKey =
             err?.code === DUB_COOKIE_TRANSPORT_ERROR
@@ -626,17 +692,24 @@ export default function useDubWorkflow({
       loadProjects,
       loadProfiles,
       _resetStaleDubSession,
+      _showMissingAsr,
     ],
   );
 
   const handleDubAbort = useCallback(async () => {
+    if (asrInstallCtrlRef.current) {
+      asrInstallCtrlRef.current.abort();
+      if (asrInstall?.repoId) await cancelInstallModel(asrInstall.repoId).catch(() => {});
+      return;
+    }
     const jobId = dubClientJobIdRef.current || dubJobId;
     if (dubAbortCtrlRef.current) dubAbortCtrlRef.current.abort();
     if (jobId) await apiDubAbort(jobId);
-  }, [dubJobId]);
+  }, [asrInstall?.repoId, dubJobId]);
 
   const handleDubRetryTranscribe = useCallback(async () => {
     if (!dubJobId) return;
+    setAsrInstall(null);
     const ctrl = new AbortController();
     dubAbortCtrlRef.current = ctrl;
     setDubError('');
@@ -656,9 +729,7 @@ export default function useDubWorkflow({
       } else if (isExpiredDubJobError(err)) {
         _resetStaleDubSession();
       } else if (asrMissingPayload(err)) {
-        setDubError(t('asr_missing.message'));
-        setDubStep('idle');
-        toastAsrModelMissing(asrMissingPayload(err));
+        _showMissingAsr(asrMissingPayload(err));
       } else {
         setDubError(err.message);
         setDubStep('idle');
@@ -675,7 +746,9 @@ export default function useDubWorkflow({
     _waitForTranscribe,
     loadProjects,
     _resetStaleDubSession,
+    _showMissingAsr,
   ]);
+  retryTranscribeRef.current = handleDubRetryTranscribe;
 
   const handleDubImportSrt = useCallback(
     async (file) => {
@@ -1128,10 +1201,12 @@ export default function useDubWorkflow({
     setPreviewAudios,
     transcribeElapsed,
     transcribeProgress,
+    asrInstall,
     handleDubUpload,
     handleDubIngestUrl,
     handleDubAbort,
     handleDubRetryTranscribe,
+    handleInstallMissingAsr,
     handleDubStop,
     handleDubGenerate,
     handleCleanupSegments,
