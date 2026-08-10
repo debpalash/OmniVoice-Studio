@@ -281,10 +281,11 @@ export default function useDubWorkflow({
             }));
             // #486: bind each segment to its detected speaker's clone up front, so
             // a 2-speaker dub doesn't land every row on "Default".
-            setDubSegments(applySpeakerCloneDefaults(normalized, m.speaker_clones));
+            const castSources = m.cast_sources || m.speaker_clones || {};
+            setDubSegments(applySpeakerCloneDefaults(normalized, castSources));
             setDubTranscript(m.full_transcript || '');
-            if (m.speaker_clones && typeof m.speaker_clones === 'object') {
-              setSpeakerClones(m.speaker_clones);
+            if (castSources && typeof castSources === 'object') {
+              setSpeakerClones(castSources);
             }
           } catch (err) {
             console.warn('Transcribe SSE handler failed:', err);

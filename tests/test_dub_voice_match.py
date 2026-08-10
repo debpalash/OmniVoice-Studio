@@ -137,6 +137,14 @@ def test_consistent_pick_unknown_speaker_returns_none():
     assert resolve_consistent_ref(job, "speaker_9") is None
 
 
+def test_clone_lookup_uses_the_same_portable_speaker_slug_as_profile_ids():
+    from api.routers.dub_generate import _find_speaker_clone
+
+    clone = {"ref_audio": "/v/speaker.wav"}
+    assert _find_speaker_clone({"SPEAKER_00": clone}, "speaker00") is clone
+    assert _find_speaker_clone({"Guest-2!": clone}, "guest_2") is clone
+
+
 # ── Schema: validation + default ────────────────────────────────────────────
 
 
@@ -390,6 +398,22 @@ def test_per_line_auto_binding_still_prefers_segment_clip(patched_generate):
     }
     model = patched_generate(_DIARIZED_JOB, body)
     assert model.refs[0] == ("/v/seg0.wav", "seg0 ref", False)
+
+
+def test_per_line_auto_binding_short_line_uses_speakers_best_video_clip(patched_generate):
+    """A cast choice applies to short lines too; they must not fall back to
+    the engine default merely because that line has no segment reference."""
+    job = {
+        **_HEURISTIC_JOB,
+        "segment_clones": {
+            "0": _HEURISTIC_JOB["segment_clones"]["0"],
+            "1": _HEURISTIC_JOB["segment_clones"]["1"],
+        },
+    }
+    body = _heuristic_body()
+    body["segments"][2]["profile_id"] = "auto:speaker_1"
+    model = patched_generate(job, body)
+    assert model.refs[2][0:2] == ("/v/seg1.wav", "seg1 ref")
 
 
 def test_consistent_explicit_cross_auto_seg_binding_is_honoured(patched_generate):

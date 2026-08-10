@@ -26,6 +26,7 @@ from services.speaker_clone import (
     MIN_REF_DURATION_S,
     MIN_SLICE_DURATION_S,
     _pick_reference_slices,
+    build_cast_sources,
     extract_speaker_clones,
     refine_ref_text,
     refine_ref_texts,
@@ -132,6 +133,43 @@ class TestExtractSpeakerClones:
         # or every real turn boundary would be flagged.
         from services.segmentation import SPEAKER_GAP
         assert 0 < ADJACENT_TURN_GUARD_S < SPEAKER_GAP
+
+
+class TestBuildCastSources:
+    def test_exposes_segment_reference_when_no_pooled_clone_exists(self):
+        segments = [
+            {"id": "a", "speaker_id": "Speaker 1"},
+            {"id": "b", "speaker_id": "Speaker 1"},
+        ]
+        sources = build_cast_sources(
+            segments,
+            {},
+            {
+                "a": {"ref_audio": "/private/a.wav", "duration": 3.1},
+                "b": {"ref_audio": "/private/b.wav", "duration": 6.4},
+            },
+        )
+        assert sources == {
+            "Speaker 1": {"duration": 6.4, "source_count": 1, "kind": "segment"}
+        }
+        assert "/private" not in repr(sources)
+
+    def test_pooled_clone_wins_and_private_fields_do_not_cross_api(self):
+        sources = build_cast_sources(
+            [{"id": "a", "speaker_id": "Speaker 1"}],
+            {
+                "Speaker 1": {
+                    "ref_audio": "/private/speaker.wav",
+                    "ref_text": "secret transcript",
+                    "duration": 8.2,
+                    "source_count": 2,
+                }
+            },
+            {"a": {"ref_audio": "/private/a.wav", "duration": 12.0}},
+        )
+        assert sources == {
+            "Speaker 1": {"duration": 8.2, "source_count": 2, "kind": "speaker"}
+        }
 
 
 class _FakeASR:

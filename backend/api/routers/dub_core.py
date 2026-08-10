@@ -1384,7 +1384,11 @@ async def dub_transcribe_stream(
         # new target language and have the ORIGINAL speaker speak it — the
         # central pro-grade dubbing promise.
         try:
-            from services.speaker_clone import extract_speaker_clones, auto_profile_id
+            from services.speaker_clone import (
+                auto_profile_id,
+                build_cast_sources,
+                extract_speaker_clones,
+            )
             vocals_for_clone = job.get("vocals_path") or asr_audio_target
             clones = {}
             if labels_source == "heuristic":
@@ -1486,7 +1490,9 @@ async def dub_transcribe_stream(
                 except Exception as e:
                     logger.warning("per-segment clone refs skipped: %s", e)
 
-            if clones or seg_clones:
+            cast_sources = build_cast_sources(final_segs, clones, seg_clones)
+            job["cast_sources"] = cast_sources
+            if cast_sources:
                 if clones:
                     job["speaker_clones"] = clones
                 # Default each segment's profile_id to its detected speaker's
@@ -1508,16 +1514,11 @@ async def dub_transcribe_stream(
                     if s.get("profile_id"):
                         continue
                     spk = s.get("speaker_id") or "Speaker 1"
-                    if spk in clones:
+                    if spk in cast_sources:
+                        # Keep one UI-visible value for pooled and per-segment
+                        # sources. Generation resolves this line's own clip
+                        # first and falls back to the speaker's best clip.
                         s["profile_id"] = auto_profile_id(spk)
-                        continue
-                    # No per-speaker clone for this speaker (too little usable
-                    # audio overall) but this single line was long enough for
-                    # its own ref — fall back to the per-segment id. The editor
-                    # can't render it, but generation still clones correctly.
-                    sid = str(s.get("id", ""))
-                    if sid and sid in seg_clones:
-                        s["profile_id"] = f"auto-seg:{sid}"
         except Exception as e:
             logger.warning("speaker_clone extraction skipped: %s", e)
 
@@ -1550,7 +1551,10 @@ async def dub_transcribe_stream(
             "segments": final_segs,
             "source_lang": job["source_lang"],
             "full_transcript": job["full_transcript"],
-            "speaker_clones": job.get("speaker_clones", {}),
+            # The client only needs labels and durations. Never send host
+            # paths or reference transcripts through this public event.
+            "speaker_clones": job.get("cast_sources", {}),
+            "cast_sources": job.get("cast_sources", {}),
         })
         yield _sse_event("done", {})
 

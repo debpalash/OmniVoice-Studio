@@ -415,3 +415,45 @@ def auto_profile_id(speaker_id: str) -> str:
     """Stable profile id prefix so `_gen` can tell auto-clones apart from
     persistent voice-profile ids."""
     return f"auto:{_safe_name(speaker_id)}"
+
+
+def build_cast_sources(
+    segments: list[dict],
+    speaker_clones: dict[str, dict] | None,
+    segment_clones: dict[str, dict] | None,
+) -> dict[str, dict]:
+    """Return path-free metadata for every usable ``From video`` voice.
+
+    A trusted diarizer can produce a pooled per-speaker clone.  When it
+    cannot, the pipeline still extracts clean per-segment references; those
+    references are valid voice prompts even though they are not reliable
+    evidence for grouping identities.  The cast UI needs to know that a
+    speaker label has at least one usable source without receiving host paths
+    or transcript text.
+    """
+    sources: dict[str, dict] = {}
+    for speaker_id, info in (speaker_clones or {}).items():
+        sources[speaker_id] = {
+            "duration": float(info.get("duration") or 0.0),
+            "source_count": int(info.get("source_count") or 1),
+            "kind": "speaker",
+        }
+
+    for segment in segments or []:
+        if not isinstance(segment, dict):
+            continue
+        speaker_id = segment.get("speaker_id") or "Speaker 1"
+        current = sources.get(speaker_id)
+        if current and current.get("kind") == "speaker":
+            continue
+        info = (segment_clones or {}).get(str(segment.get("id", "")))
+        if not info or not info.get("ref_audio"):
+            continue
+        duration = float(info.get("duration") or 0.0)
+        if current is None or duration > current["duration"]:
+            sources[speaker_id] = {
+                "duration": duration,
+                "source_count": 1,
+                "kind": "segment",
+            }
+    return sources

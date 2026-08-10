@@ -6,6 +6,7 @@ import SearchableSelect from './SearchableSelect';
 import { ArchetypeIcon } from '../utils/archetypeIcons';
 import { PRESETS } from '../utils/constants';
 import { useArchetypes } from '../api/hooks';
+import { autoProfileId } from '../utils/segments';
 import { useArchetypeAsProfile } from '../api/archetypes';
 import { useAppStore } from '../store';
 
@@ -149,9 +150,8 @@ export default function VoiceSelector({
     // 2. fromVideo (dub only) — slug rule byte-identical to DubSegmentRow.
     const speakers = speakerClones ? Object.keys(speakerClones) : [];
     for (const spk of speakers) {
-      const slug = (spk || '').toLowerCase().replace(/\s+/g, '_');
       list.push({
-        value: `auto:${slug}`,
+        value: autoProfileId(spk),
         label: `🎤 ${spk}`,
         group: 'fromVideo',
         groupLabel: t('voiceSelector.fromVideo'),

@@ -84,6 +84,7 @@ import {
 } from './utils/constants';
 import { LANG_CODES } from './utils/languages';
 import { restoreProjectExtras } from './utils/projectState';
+import { castSourcesFromJob } from './utils/segments';
 import { API, apiFetch, apiJson } from './api/client';
 import { flushMemory as apiFlushMemory } from './api/system';
 import {
@@ -1078,11 +1079,9 @@ function App() {
           item.language_code || job.language_code || 'und',
         );
       }
-      // Rehydrate the auto-extracted speaker clones so the CAST dropdown's
-      // "🎤 From video" option reappears after a reload. Projects that
-      // predate the speaker-clone feature have an empty map; the Extract
-      // Voices button in the CAST strip handles those.
-      setSpeakerClones(job.speaker_clones || {});
+      // Rehydrate path-free cast sources. Legacy heuristic jobs may have only
+      // per-segment references; castSourcesFromJob recovers those too.
+      setSpeakerClones(castSourcesFromJob(job));
     } catch (e) {
       console.error('Failed to restore job_data', e);
     }

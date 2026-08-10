@@ -4,6 +4,7 @@ import { Button, Segmented } from '../../ui';
 import GlossaryPanel from '../GlossaryPanel';
 import CheckpointBanner from '../CheckpointBanner';
 import { LANG_CODES } from '../../utils/languages';
+import { autoProfileId } from '../../utils/segments';
 
 const DubSegmentTable = lazy(() => import('../DubSegmentTable'));
 const DubPasteTranslationDialog = lazy(() => import('./DubPasteTranslationDialog'));
@@ -261,7 +262,7 @@ export default function DubRightColumn({
             {speakerClones && Object.keys(speakerClones).length > 0 && (
               <optgroup label={t('dub.cast')}>
                 {Object.keys(speakerClones).map((spk) => {
-                  const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+                  const autoId = autoProfileId(spk);
                   return (
                     <option key={autoId} value={autoId}>
                       🎤 {spk}

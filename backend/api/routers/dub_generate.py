@@ -29,6 +29,7 @@ from services.rvc import apply_rvc, is_enabled as rvc_is_enabled
 from services.incremental import segment_fingerprint, fit_fingerprint
 from services.fit_planner import UNDERRUN_TOLERANCE, FitParams, plan_fit
 from services.watermark import mark_synthetic
+from services.speaker_clone import auto_profile_id
 from api.routers.dub_core import _get_job, _save_job
 from omnivoice.utils.voice_design import heal_design_instruct
 
@@ -174,7 +175,7 @@ CONSISTENT_MIN_REF_S = 3.0
 def _speaker_key_matches(speaker_id: str, key: str) -> bool:
     """Same matching rule the `auto:` branch has always used: the safe-name
     slug first (`auto_profile_id`), the raw speaker id as fallback."""
-    return speaker_id.lower().replace(" ", "_") == key or speaker_id == key
+    return auto_profile_id(speaker_id) == f"auto:{key}" or speaker_id == key
 
 
 def _find_speaker_clone(clones: dict, key: str):
@@ -698,6 +699,13 @@ async def dub_generate(job_id: str, req: DubRequest):
                             auto = _find_speaker_clone(
                                 job.get("speaker_clones") or {}, key
                             )
+                            if auto is None:
+                                # Short lines may have no line-specific clip.
+                                # Reuse this speaker's best source instead of
+                                # silently reverting to the engine default.
+                                auto = resolve_consistent_ref(
+                                    job, key, _consistent_ref_memo
+                                )
                             if auto:
                                 ref_audio = auto.get("ref_audio")
                                 ref_text = auto.get("ref_text")
@@ -1528,12 +1536,14 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
         pid = req.profile_id
         if pid and pid.startswith("auto:"):
             key = pid[len("auto:"):]
-            clones = job.get("speaker_clones") or {}
-            for spk, info in clones.items():
-                if spk.lower().replace(" ", "_") == key or spk == key:
-                    ref_audio = info.get("ref_audio")
-                    ref_text = info.get("ref_text")
-                    break
+            info = None
+            if req.segment_id is not None:
+                info = (job.get("segment_clones") or {}).get(str(req.segment_id))
+            if info is None:
+                info = resolve_consistent_ref(job, key)
+            if info:
+                ref_audio = info.get("ref_audio")
+                ref_text = info.get("ref_text")
             pid = None
 
         instruct_str = req.instruct
@@ -1602,4 +1612,3 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
             "X-Audio-Duration": str(round(audio_tensor.shape[-1] / sr, 2)),
         },
     )
-

@@ -91,6 +91,14 @@ describe('VoiceSelector', () => {
     expect(onChange).toHaveBeenCalledWith('auto:speaker_1');
   });
 
+  it('uses the canonical backend slug for raw diarizer speaker ids', () => {
+    const onChange = vi.fn();
+    renderVS({ value: '', onChange, profiles: [], speakerClones: { SPEAKER_00: {} } });
+    open();
+    fireEvent.mouseDown(screen.getByText('🎤 SPEAKER_00'));
+    expect(onChange).toHaveBeenCalledWith('auto:speaker00');
+  });
+
   it('renders a ghost row (does NOT auto-clear) for a deleted-but-referenced voice', () => {
     const onChange = vi.fn();
     renderVS({ value: 'p_gone', onChange, profiles: PROFILES });

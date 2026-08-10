@@ -36,10 +36,32 @@ export function segmentGenInputs(s) {
 }
 
 /** The `auto:<safe>` profile id for a diarized speaker. Mirrors the backend's
- *  clone-resolution key (`speaker_id.lower().replace(" ", "_")`) and the
- *  Voice-dropdown option value in DubTab, so the three always agree. */
+ *  portable filename/profile slug and is shared by every voice picker. */
 export function autoProfileId(speakerId) {
-  return `auto:${(speakerId || '').toLowerCase().replace(/\s+/g, '_')}`;
+  const cleaned = [];
+  for (const char of String(speakerId || '').toLowerCase()) {
+    if (/^[\p{L}\p{N}]$/u.test(char)) cleaned.push(char);
+    else if (char === ' ' || char === '-') cleaned.push('_');
+  }
+  return `auto:${cleaned.join('') || 'speaker'}`;
+}
+
+/** Recover path-free cast metadata from current or legacy job payloads. */
+export function castSourcesFromJob(job) {
+  if (!job || typeof job !== 'object') return {};
+  const sources = { ...(job.cast_sources || job.speaker_clones) };
+  for (const segment of job.segments || []) {
+    const speaker = segment?.speaker_id || 'Speaker 1';
+    const current = sources[speaker];
+    if (current && current.kind !== 'segment') continue;
+    const info = (job.segment_clones || {})[String(segment?.id ?? '')];
+    if (!info?.ref_audio) continue;
+    const duration = Number(info.duration) || 0;
+    if (!current || duration > current.duration) {
+      sources[speaker] = { duration, source_count: 1, kind: 'segment' };
+    }
+  }
+  return sources;
 }
 
 /**

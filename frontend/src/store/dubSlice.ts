@@ -127,17 +127,16 @@ export interface DubSlice {
   // The client re-renders these at full quality before final export.
   previewSegIds: string[];
 
-  // Per-speaker auto-clones extracted from the source video's vocals. Keys
-  // are speaker_id (e.g. "Speaker 1"), values are {ref_audio, ref_text,
-  // duration, source_count}. Enables the cross-lingual "same voice in a
-  // new language" dubbing flow.
+  // Path-free metadata for usable source-video voices. A source can be a
+  // pooled per-speaker clone or a clean per-segment reference.
   speakerClones: Record<
     string,
     {
-      ref_audio: string;
-      ref_text: string;
+      ref_audio?: string;
+      ref_text?: string;
       duration: number;
       source_count: number;
+      kind?: 'speaker' | 'segment';
     }
   >;
 

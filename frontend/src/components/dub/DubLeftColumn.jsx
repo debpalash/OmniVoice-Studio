@@ -27,6 +27,7 @@ import { dubSegmentsText } from '../../api/dub';
 import { copyText } from '../../utils/copyText';
 import { openExternal } from '../../api/external';
 import { TRANSLATION_ENGINES_DOCS } from '../../utils/errorDocsMap';
+import { autoProfileId } from '../../utils/segments';
 import toast from 'react-hot-toast';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
@@ -364,7 +365,7 @@ export default function DubLeftColumn({
               {t('dub.cast')}
             </span>
             {[...new Set(dubSegments.map((s) => s.speaker_id).filter(Boolean))].map((spk) => {
-              const autoId = `auto:${(spk || '').toLowerCase().replace(/\s+/g, '_')}`;
+              const autoId = autoProfileId(spk);
               const clone = speakerClones[spk];
               return (
                 <div key={spk} className="dub-cast__pair">
