@@ -197,6 +197,10 @@ class DubIngestUrlRequest(BaseModel):
     # YouTube auto-translates for us.
     fetch_subs: Optional[bool] = False
     sub_langs: Optional[List[str]] = None
+    # Explicit, per-import Netscape cookie export. This is never populated
+    # automatically: browser cookie stores contain unrelated login secrets and
+    # VoiceStudio must not inspect them without a deliberate user action.
+    cookie_file: Optional[str] = None
 
 class ProjectSaveRequest(BaseModel):
     name: str

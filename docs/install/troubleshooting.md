@@ -247,6 +247,23 @@ faster than app releases, so when video-URL imports start failing, press
 **Update** there — the new version survives app updates, and **Restore tested
 version** reverts to the build the app shipped with.
 
+### YouTube asks you to sign in or confirm you are not a bot
+
+First update yt-dlp under **Settings → Audio tools**. If YouTube still requires
+your signed-in session, export its cookies in Netscape `cookies.txt` format,
+then choose that file beside the URL field before importing. VoiceStudio uses
+the export for that import only and makes two best-effort attempts to delete
+its temporary copy.
+
+Cookie exports are login credentials. VoiceStudio never reads a browser's
+cookie database automatically, never saves the export in your project, and
+never uploads it anywhere except to your own VoiceStudio backend. Use an export
+limited to YouTube where your browser extension supports domain filtering.
+For a backend on another machine, the picker is enabled only over HTTPS; plain
+HTTP is accepted solely on the desktop app's loopback connection.
+Remote backends must also use `OMNIVOICE_API_KEY` as the bearer key and remain
+restricted to a private tailnet; see [API authentication](../api-auth.md).
+
 ## 8. Docker LAN access — media preview 404
 
 **Symptom:** VoiceStudio loads on `http://<lan-ip>:3900` but the audio preview

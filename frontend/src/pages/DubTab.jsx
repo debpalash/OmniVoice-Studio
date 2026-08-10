@@ -415,13 +415,20 @@ export default function DubTab(props) {
   // component instead of the global store to avoid polluting cross-project
   // prefs with what's really a per-ingest choice.
   const [fetchYtSubs, setFetchYtSubs] = useState(false);
+  const [youtubeCookieFile, setYoutubeCookieFile] = useState(null);
+  const resetDubAndCredentials = useCallback(() => {
+    setYoutubeCookieFile(null);
+    resetDub?.();
+  }, [resetDub]);
   const onIngestUrl = () => {
     if (!ingestUrl.trim() || !handleDubIngestUrl) return;
     handleDubIngestUrl(ingestUrl.trim(), {
       fetchSubs: fetchYtSubs,
       subLangs: undefined,
+      cookieFile: youtubeCookieFile || undefined,
     });
     setIngestUrl('');
+    setYoutubeCookieFile(null);
   };
   // Track-switcher visibility is keyed to the persisted tracks ONLY — not the
   // language dropdown. Restored projects can carry finished tracks while
@@ -558,6 +565,8 @@ export default function DubTab(props) {
           onIngestUrl={onIngestUrl}
           fetchYtSubs={fetchYtSubs}
           setFetchYtSubs={setFetchYtSubs}
+          youtubeCookieFile={youtubeCookieFile}
+          setYoutubeCookieFile={setYoutubeCookieFile}
           dubLangCode={dubLangCode}
           setDubLangCode={switchDubLangCode}
           setDubLang={setDubLang}
@@ -578,7 +587,7 @@ export default function DubTab(props) {
             dubSegments={dubSegments}
             activeProjectName={activeProjectName}
             saveProject={saveProject}
-            resetDub={resetDub}
+            resetDub={resetDubAndCredentials}
             dubStep={dubStep}
             handleDubStop={handleDubStop}
             dubProgress={dubProgress}
