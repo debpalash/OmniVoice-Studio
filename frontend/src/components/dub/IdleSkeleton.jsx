@@ -294,7 +294,11 @@ export default function IdleSkeleton({
                   variant="primary"
                   className="flex-1"
                   onClick={handleDubUpload}
-                  disabled={dubStep === 'uploading' || dubStep === 'transcribing'}
+                  disabled={
+                    dubStep === 'uploading' ||
+                    dubStep === 'transcribing' ||
+                    dubStep === 'installing-asr'
+                  }
                 >
                   {dubStep === 'uploading' || dubStep === 'transcribing' ? (
                     <>
@@ -545,6 +549,9 @@ export default function IdleSkeleton({
             accept="video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma"
             id="video-upload"
             className="hidden"
+            disabled={
+              dubStep === 'uploading' || dubStep === 'transcribing' || dubStep === 'installing-asr'
+            }
             onChange={(e) => {
               const file = e.target.files[0];
               if (!file) return;

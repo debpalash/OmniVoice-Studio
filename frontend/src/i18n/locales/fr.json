@@ -25,6 +25,7 @@
     "workspaces": "Espaces de travail"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Général",
     "theme": "Thème",
     "language": "Langue",
@@ -2076,12 +2077,25 @@
     "filter_starred": "Étoilées",
     "load_take_failed": "Impossible de charger cette prise : {{message}}"
   },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Chargement de la spécification de l’API…",
+    "unreachable_title": "Spécification du backend indisponible",
+    "unreachable_body": "Impossible d’atteindre la spécification OpenAPI du backend local à l’adresse {{url}}. Vérifiez que le backend fonctionne, puis réessayez.",
+    "retry": "Réessayer",
+    "copy_url": "Copier l’URL de la spécification",
+    "copy_url_aria": "Copier l’URL /openapi.json",
+    "copied": "URL de la spécification copiée",
+    "copy_failed": "Échec de la copie — sélectionnez et copiez manuellement l’URL ci-dessus.",
+    "open_raw": "Ouvrir la spécification brute",
+    "open_raw_aria": "Ouvrir le JSON OpenAPI brut dans le navigateur"
+  },
   "recording": {
     "cleaned_loaded": "Enregistrement nettoyé et chargé !",
     "loaded_raw": "Enregistrement chargé (brut — débruitage indisponible)",
     "too_short": "Enregistrement trop court",
     "input_device": "Périphérique d’entrée",
-    "default_input": "Valeur système par défaut",
+    "default_input": "Entrée système par défaut",
     "microphone_number": "Microphone {{number}}",
     "channels": "Canaux",
     "channels_auto": "Automatique",

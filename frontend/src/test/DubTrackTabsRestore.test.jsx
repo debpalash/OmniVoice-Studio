@@ -24,15 +24,32 @@ vi.mock('../components/dub/DubLeftColumn', () => ({
   },
 }));
 vi.mock('../components/dub/DubHeader', () => ({
-  default: ({ resetDub }) => (
-    <button data-testid="reset-dub" onClick={resetDub}>
-      reset
-    </button>
+  default: ({ resetDub, pipelineSteps = [], onPipelineStep }) => (
+    <div>
+      <button data-testid="reset-dub" onClick={resetDub}>
+        reset
+      </button>
+      {pipelineSteps.map((step) => (
+        <button key={step} onClick={() => onPipelineStep(step)}>
+          {step}
+        </button>
+      ))}
+    </div>
   ),
 }));
 vi.mock('../components/dub/DubRightColumn', () => ({ default: () => null }));
 vi.mock('../components/dub/DubFooter', () => ({ default: () => null }));
-vi.mock('../components/dub/DubPipelineStepper', () => ({ default: () => null }));
+vi.mock('../components/dub/DubPipelineStepper', () => ({
+  default: ({ selectableSteps = [], onStepSelect }) => (
+    <div>
+      {selectableSteps.map((step) => (
+        <button key={step} onClick={() => onStepSelect(step)}>
+          {step}
+        </button>
+      ))}
+    </div>
+  ),
+}));
 vi.mock('../components/dub/IdleSkeleton', () => ({
   default: ({ youtubeCookieFile, setYoutubeCookieFile }) => (
     <div>
@@ -179,5 +196,47 @@ describe('DubTab — completed tracks always show their tabs (restore P0)', () =
 
     expect(resetDub).toHaveBeenCalledOnce();
     expect(screen.getByTestId('cookie-name')).toHaveTextContent('none');
+  });
+
+  it('retries an incomplete transcript directly but confirms before replacing a completed one', () => {
+    const retry = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    useAppStore.setState({
+      dubJobId: 'job1',
+      dubStep: 'idle',
+      dubSegments: [],
+      dubTracks: [],
+    });
+    const { rerender } = render(<DubTab {...makeProps()} handleDubRetryTranscribe={retry} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'transcribe' }));
+    expect(retry).toHaveBeenCalledOnce();
+    expect(confirm).not.toHaveBeenCalled();
+
+    act(() =>
+      useAppStore.setState({
+        dubStep: 'idle',
+        dubSegments: [{ id: 'partial', text: 'Incomplete transcript' }],
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'transcribe' }));
+    expect(retry).toHaveBeenCalledTimes(2);
+    expect(confirm).not.toHaveBeenCalled();
+
+    act(() =>
+      useAppStore.setState({
+        dubStep: 'editing',
+        dubSegments: [{ id: 's1', text: 'Complete transcript' }],
+      }),
+    );
+    rerender(<DubTab {...makeProps()} handleDubRetryTranscribe={retry} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'transcribe' }));
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledTimes(2);
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'transcribe' }));
+    expect(retry).toHaveBeenCalledTimes(3);
   });
 });

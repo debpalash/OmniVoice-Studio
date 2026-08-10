@@ -20,12 +20,16 @@ function extensionFor(mimeType) {
   return 'webm';
 }
 
+export function audioFormatForMimeType(mimeType) {
+  return { mimeType: String(mimeType || ''), extension: extensionFor(mimeType) };
+}
+
 function recorderCandidates(Recorder) {
   const canProbe = typeof Recorder.isTypeSupported === 'function';
   const candidates = AUDIO_TYPES.filter(
     ([mimeType]) => !canProbe || Recorder.isTypeSupported(mimeType),
   ).map(([mimeType, extension]) => ({ options: { mimeType }, mimeType, extension }));
-  candidates.push({ options: undefined, mimeType: 'audio/webm', extension: 'webm' });
+  candidates.push({ options: undefined, mimeType: '', extension: 'webm' });
   return candidates;
 }
 

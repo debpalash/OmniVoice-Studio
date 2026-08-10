@@ -25,6 +25,7 @@
     "workspaces": "Рабочие пространства"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Общие",
     "theme": "Тема",
     "language": "Язык",
@@ -2075,6 +2076,19 @@
     "play_take": "Загрузить как активный вывод",
     "filter_starred": "Избранные",
     "load_take_failed": "Не удалось загрузить дубль: {{message}}"
+  },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Загрузка спецификации API…",
+    "unreachable_title": "Спецификация бэкенда недоступна",
+    "unreachable_body": "Не удалось получить спецификацию OpenAPI локального бэкенда по адресу {{url}}. Убедитесь, что бэкенд запущен, и повторите попытку.",
+    "retry": "Повторить",
+    "copy_url": "Копировать URL спецификации",
+    "copy_url_aria": "Копировать URL /openapi.json",
+    "copied": "URL спецификации скопирован",
+    "copy_failed": "Не удалось скопировать — выделите и скопируйте URL выше вручную.",
+    "open_raw": "Открыть исходную спецификацию",
+    "open_raw_aria": "Открыть исходный JSON OpenAPI в браузере"
   },
   "recording": {
     "cleaned_loaded": "Запись очищена и загружена!",

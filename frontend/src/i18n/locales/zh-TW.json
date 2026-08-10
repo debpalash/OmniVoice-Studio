@@ -25,6 +25,7 @@
     "workspaces": "工作區"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "一般",
     "theme": "佈景主題",
     "language": "顯示語言",
@@ -2075,6 +2076,19 @@
     "play_take": "載入為目前輸出",
     "filter_starred": "已加星",
     "load_take_failed": "無法載入該次生成:{{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "正在載入 API 規格…",
+    "unreachable_title": "後端規格無法使用",
+    "unreachable_body": "無法存取 {{url}} 上的本機後端 OpenAPI 規格。請確認後端正在執行，然後重試。",
+    "retry": "重試",
+    "copy_url": "複製規格網址",
+    "copy_url_aria": "複製 /openapi.json 網址",
+    "copied": "已複製規格網址",
+    "copy_failed": "複製失敗 — 請手動選取並複製上方網址。",
+    "open_raw": "開啟原始規格",
+    "open_raw_aria": "在瀏覽器中開啟原始 OpenAPI JSON"
   },
   "recording": {
     "cleaned_loaded": "錄音已清理並載入！",

@@ -12,7 +12,7 @@ import { checkMicrophone } from '../utils/permissions';
 import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { startMicCapture } from '../utils/aec/micCapture';
 import { encodeWav } from '../utils/audioTrim';
-import { startSupportedMediaRecorder } from '../utils/mediaRecorder';
+import { audioFormatForMimeType, startSupportedMediaRecorder } from '../utils/mediaRecorder';
 import {
   buildAudioInputConstraints,
   createInputLevelStore,
@@ -145,7 +145,10 @@ export default function useRecording(ingestRefAudio) {
       let recordingFormat = { mimeType: 'audio/webm', extension: 'webm' };
       const supported = startSupportedMediaRecorder(stream, {
         onData: (e) => {
-          if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+          if (e.data.size > 0) {
+            if (e.data.type) recordingFormat = audioFormatForMimeType(e.data.type);
+            recordingChunksRef.current.push(e.data);
+          }
         },
         onStop: () => {
           const blob = new Blob(recordingChunksRef.current, { type: recordingFormat.mimeType });
@@ -158,11 +161,19 @@ export default function useRecording(ingestRefAudio) {
         mediaRecorderRef.current = recorder;
       } else {
         // Some Linux WebKitGTK builds expose MediaRecorder but reject every
-        // codec/constructor. Web Audio is still available, so record mono PCM
+        // codec/constructor. Web Audio is still available, so record PCM
         // and wrap it in a portable WAV instead of failing the microphone.
         const frames = [];
+        const actualChannels = Number(stream.getAudioTracks?.()[0]?.getSettings?.().channelCount);
+        const pcmChannels =
+          channelMode === 'mono'
+            ? 1
+            : channelMode === 'stereo'
+              ? 2
+              : Math.max(1, Math.min(2, actualChannels || 1));
         const stopCapture = await startMicCapture(stream, (frame) => frames.push(frame.slice()), {
           sampleRate: 16000,
+          channels: pcmChannels,
         });
         const controller = {
           state: 'recording',
@@ -172,7 +183,11 @@ export default function useRecording(ingestRefAudio) {
             void Promise.resolve(stopCapture())
               .catch(() => {})
               .then(() => {
-                const wav = encodeWav(concatFrames(frames), stopCapture.sampleRate || 16000);
+                const wav = encodeWav(
+                  concatFrames(frames),
+                  stopCapture.sampleRate || 16000,
+                  stopCapture.channels || pcmChannels,
+                );
                 return finishRecording(new Blob([wav], { type: 'audio/wav' }), 'wav');
               });
           },

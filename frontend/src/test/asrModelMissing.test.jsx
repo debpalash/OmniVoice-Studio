@@ -156,6 +156,27 @@ describe('toastAsrModelMissing', () => {
     );
   });
 
+  it('reports a dictation preference write failure instead of claiming install success', async () => {
+    installModel.mockResolvedValue({ status: 'started' });
+    apiPost.mockRejectedValue(new Error('prefs unavailable'));
+    renderToast({
+      ...PAYLOAD,
+      recommended: {
+        ...PAYLOAD.recommended,
+        dictation_id: 'sherpa-parakeet-tdt-v3',
+      },
+    });
+    fireEvent.click(screen.getByRole('button'));
+    await waitFor(() => expect(installModel).toHaveBeenCalled());
+    stream.emit({
+      repo_id: 'Systran/faster-whisper-large-v3',
+      phase: 'install_done',
+    });
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(2));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('degrades to a plain toast when no recommendation resolves', () => {
     toastAsrModelMissing({ error: 'asr_model_missing', recommended: null });
     expect(toastError).toHaveBeenCalledTimes(1);

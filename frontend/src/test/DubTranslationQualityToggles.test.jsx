@@ -127,4 +127,23 @@ describe('Dub translation quality toggles (LLM engine)', () => {
     expect(screen.queryByLabelText(t('dub.auto_glossary_label'))).toBeNull();
     expect(screen.queryByLabelText(t('dub.reflect_label'))).toBeNull();
   });
+
+  it('keeps every translation quality selectable without an LLM', () => {
+    const setTranslateQuality = vi.fn();
+    render(
+      <DubLeftColumn
+        {...makeProps({
+          translateProvider: 'google',
+          activeEngineEntry: GOOGLE,
+          llmEndpoint: { available: false },
+          setTranslateQuality,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: t('dub.autofit_quality') }));
+    expect(setTranslateQuality).toHaveBeenCalledWith('autofit');
+    fireEvent.click(screen.getByRole('radio', { name: t('dub.cinematic_quality') }));
+    expect(setTranslateQuality).toHaveBeenCalledWith('cinematic');
+  });
 });

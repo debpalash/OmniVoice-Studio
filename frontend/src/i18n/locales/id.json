@@ -25,6 +25,7 @@
     "workspaces": "Ruang kerja"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Umum",
     "theme": "Tema",
     "language": "Bahasa",
@@ -2075,6 +2076,19 @@
     "play_take": "Muat sebagai keluaran aktif",
     "filter_starred": "Berbintang",
     "load_take_failed": "Tidak dapat memuat take itu: {{message}}"
+  },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Memuat spesifikasi API…",
+    "unreachable_title": "Spesifikasi backend tidak tersedia",
+    "unreachable_body": "Tidak dapat menjangkau spesifikasi OpenAPI backend lokal di {{url}}. Pastikan backend berjalan, lalu coba lagi.",
+    "retry": "Coba lagi",
+    "copy_url": "Salin URL spesifikasi",
+    "copy_url_aria": "Salin URL /openapi.json",
+    "copied": "URL spesifikasi disalin",
+    "copy_failed": "Gagal menyalin — pilih dan salin URL di atas secara manual.",
+    "open_raw": "Buka spesifikasi mentah",
+    "open_raw_aria": "Buka JSON OpenAPI mentah di browser"
   },
   "recording": {
     "cleaned_loaded": "Rekaman dibersihkan & dimuat!",

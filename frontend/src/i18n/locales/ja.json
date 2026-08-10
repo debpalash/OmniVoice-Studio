@@ -25,6 +25,7 @@
     "workspaces": "ワークスペース"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "一般",
     "theme": "テーマ",
     "language": "言語",
@@ -2075,6 +2076,19 @@
     "play_take": "アクティブな出力として読み込む",
     "filter_starred": "スター付き",
     "load_take_failed": "テイクを読み込めませんでした: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "API 仕様を読み込んでいます…",
+    "unreachable_title": "バックエンド仕様を利用できません",
+    "unreachable_body": "{{url}} にあるローカルバックエンドの OpenAPI 仕様に接続できませんでした。バックエンドが実行中であることを確認して、再試行してください。",
+    "retry": "再試行",
+    "copy_url": "仕様 URL をコピー",
+    "copy_url_aria": "/openapi.json の URL をコピー",
+    "copied": "仕様 URL をコピーしました",
+    "copy_failed": "コピーに失敗しました。上の URL を選択して手動でコピーしてください。",
+    "open_raw": "未加工の仕様を開く",
+    "open_raw_aria": "未加工の OpenAPI JSON をブラウザーで開く"
   },
   "recording": {
     "cleaned_loaded": "録音をクリーンアップして読み込みました！",

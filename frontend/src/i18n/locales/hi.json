@@ -25,6 +25,7 @@
     "workspaces": "वर्कस्पेस"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "सामान्य",
     "theme": "थीम",
     "language": "भाषा",
@@ -2075,6 +2076,19 @@
     "play_take": "सक्रिय आउटपुट के रूप में लोड करें",
     "filter_starred": "स्टार किए गए",
     "load_take_failed": "वह टेक लोड नहीं हो सका: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "API विनिर्देश लोड हो रहा है…",
+    "unreachable_title": "बैकएंड विनिर्देश उपलब्ध नहीं है",
+    "unreachable_body": "{{url}} पर स्थानीय बैकएंड के OpenAPI विनिर्देश तक नहीं पहुँचा जा सका। सुनिश्चित करें कि बैकएंड चल रहा है, फिर दोबारा कोशिश करें।",
+    "retry": "दोबारा कोशिश करें",
+    "copy_url": "विनिर्देश URL कॉपी करें",
+    "copy_url_aria": "/openapi.json URL कॉपी करें",
+    "copied": "विनिर्देश URL कॉपी हो गया",
+    "copy_failed": "कॉपी नहीं हो सका — ऊपर दिए URL को चुनकर मैन्युअल रूप से कॉपी करें।",
+    "open_raw": "मूल विनिर्देश खोलें",
+    "open_raw_aria": "ब्राउज़र में मूल OpenAPI JSON खोलें"
   },
   "recording": {
     "cleaned_loaded": "रिकॉर्डिंग साफ़ करके लोड हो गई!",

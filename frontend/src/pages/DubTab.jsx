@@ -115,36 +115,6 @@ export default function DubTab(props) {
   const activeProjectName = useAppStore((s) => s.activeProjectName);
   const translateQuality = useAppStore((s) => s.translateQuality);
   const setTranslateQuality = useAppStore((s) => s.setTranslateQuality);
-  // #372: live LLM availability so the Cinematic toggle can refuse the pick
-  // (instead of looping the user between two warnings). null until loaded.
-  const [llmEndpoint, setLlmEndpoint] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () =>
-      import('../api/client').then(({ apiJson }) =>
-        apiJson('/api/settings/llm-endpoint')
-          .then((d) => {
-            if (!cancelled) setLlmEndpoint(d);
-          })
-          .catch(() => {
-            /* backend mid-boot — guard simply stays permissive */
-          }),
-      );
-    refresh();
-    // Re-poll when the window regains focus / becomes visible — configuring a
-    // provider in Settings → LLM Providers otherwise wouldn't lift the Cinematic
-    // gate until this tab remounted (the fetch used to be mount-only, `[]`).
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, []);
   const dualSubs = useAppStore((s) => s.dualSubs);
   const setDualSubs = useAppStore((s) => s.setDualSubs);
   const burnSubs = useAppStore((s) => s.burnSubs);
@@ -422,13 +392,9 @@ export default function DubTab(props) {
     setYoutubeCookieFile(null);
     resetDub?.();
   }, [resetDub]);
-  const pipelineBusy = [
-    'uploading',
-    'installing-asr',
-    'transcribing',
-    'generating',
-    'stopping',
-  ].includes(dubStep);
+  const pipelineBusy =
+    isTranslating ||
+    ['uploading', 'installing-asr', 'transcribing', 'generating', 'stopping'].includes(dubStep);
   const pipelineSteps = pipelineBusy
     ? []
     : [
@@ -447,6 +413,9 @@ export default function DubTab(props) {
       } else if (step === 'prepare' && dubVideoFile) {
         handleDubUpload?.();
       } else if (step === 'transcribe' && dubJobId) {
+        const transcriptComplete =
+          dubSegments.length > 0 && ['editing', 'generating', 'done'].includes(dubStep);
+        if (transcriptComplete && !window.confirm(`${t('dub.retry_transcription')}?`)) return;
         handleDubRetryTranscribe?.();
       } else if (step === 'edit' && dubSegments.length) {
         setDubStep('editing');
@@ -709,7 +678,6 @@ export default function DubTab(props) {
               engines={engines}
               setTranslateProvider={handleSelectTranslateProvider}
               setTranslateQuality={setTranslateQuality}
-              llmEndpoint={llmEndpoint}
               multiLangMode={multiLangMode}
               setMultiLangMode={setMultiLangMode}
               multiLangs={multiLangs}

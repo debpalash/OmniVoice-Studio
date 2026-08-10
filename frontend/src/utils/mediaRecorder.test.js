@@ -1,8 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createSupportedMediaRecorder, startSupportedMediaRecorder } from './mediaRecorder';
+import {
+  audioFormatForMimeType,
+  createSupportedMediaRecorder,
+  startSupportedMediaRecorder,
+} from './mediaRecorder';
 
 describe('createSupportedMediaRecorder', () => {
+  it('derives the browser-selected container from the first BlobEvent MIME type', () => {
+    expect(audioFormatForMimeType('audio/mp4;codecs=mp4a.40.2')).toEqual({
+      mimeType: 'audio/mp4;codecs=mp4a.40.2',
+      extension: 'm4a',
+    });
+  });
   it('uses an Ogg container when WebKit rejects WebM', () => {
     class OggRecorder {
       static isTypeSupported(type) {

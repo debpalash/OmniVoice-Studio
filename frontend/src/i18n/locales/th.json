@@ -25,6 +25,7 @@
     "workspaces": "พื้นที่ทำงาน"
   },
   "settings": {
+    "openapi": "API ของ VoiceStudio",
     "general": "ทั่วไป",
     "theme": "ธีม",
     "language": "ภาษา",
@@ -2075,6 +2076,19 @@
     "play_take": "โหลดเป็นเอาต์พุตปัจจุบัน",
     "filter_starred": "ติดดาว",
     "load_take_failed": "โหลดเทคนั้นไม่ได้: {{message}}"
+  },
+  "openapi": {
+    "title": "API ของ VoiceStudio",
+    "loading": "กำลังโหลดข้อกำหนด API…",
+    "unreachable_title": "ไม่พบข้อกำหนดของแบ็กเอนด์",
+    "unreachable_body": "ไม่สามารถเข้าถึงข้อกำหนด OpenAPI ของแบ็กเอนด์ภายในเครื่องที่ {{url}} ได้ โปรดตรวจสอบว่าแบ็กเอนด์กำลังทำงาน แล้วลองอีกครั้ง",
+    "retry": "ลองอีกครั้ง",
+    "copy_url": "คัดลอก URL ของข้อกำหนด",
+    "copy_url_aria": "คัดลอก URL /openapi.json",
+    "copied": "คัดลอก URL ของข้อกำหนดแล้ว",
+    "copy_failed": "คัดลอกไม่สำเร็จ — โปรดเลือกและคัดลอก URL ด้านบนด้วยตนเอง",
+    "open_raw": "เปิดข้อกำหนดดิบ",
+    "open_raw_aria": "เปิด JSON ของ OpenAPI แบบดิบในเบราว์เซอร์"
   },
   "recording": {
     "cleaned_loaded": "ทำความสะอาดและโหลดการบันทึกแล้ว!",

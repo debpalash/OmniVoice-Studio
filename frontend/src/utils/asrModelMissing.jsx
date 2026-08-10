@@ -87,7 +87,8 @@ export async function installRecommendedAsr(payload, { onProgress, signal } = {}
         return;
       }
       if (event.phase === 'install_error') {
-        rejectOnce(new Error(event.error || i18next.t('asr_missing.install_failed')));
+        const message = event.error || i18next.t('asr_missing.message');
+        rejectOnce(new Error(i18next.t('asr_missing.install_failed', { message })));
         return;
       }
       if (event.phase === 'install_cancelled') {
@@ -130,6 +131,7 @@ export async function installRecommendedAsr(payload, { onProgress, signal } = {}
     }
     return ready;
   } catch (error) {
+    if (settled) throw error instanceof Error ? error : new Error(String(error));
     rejectOnce(error);
     return terminal;
   }

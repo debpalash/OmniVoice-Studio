@@ -62,7 +62,7 @@ def dub(tmp_path, monkeypatch):
     from api.routers import dub_core as dc
     importlib.reload(dc)
 
-    calls = {"get_model": 0}
+    calls = {"get_model": 0, "order": []}
 
     async def _counting_get_model():
         calls["get_model"] += 1
@@ -73,10 +73,12 @@ def dub(tmp_path, monkeypatch):
 
     monkeypatch.setattr(dc, "get_model", _counting_get_model)
     monkeypatch.setattr(dc, "get_diarization_pipeline", lambda *a, **k: None)
-    monkeypatch.setattr(dc, "offload_tts_for_asr", lambda *a, **k: None)
+    monkeypatch.setattr(dc, "offload_tts_for_asr", lambda *a, **k: calls["order"].append("offload"))
     monkeypatch.setattr(dc, "restore_tts_after_asr", lambda *a, **k: None)
+    monkeypatch.setattr("services.asr_backend.asr_model_missing_error", lambda: None)
     monkeypatch.setattr(
-        "services.asr_backend.get_active_asr_backend", lambda *a, **k: _FakeASR()
+        "services.asr_backend.load_active_asr_backend",
+        lambda *a, **k: calls["order"].append("load-asr") or _FakeASR(),
     )
 
     job_id = f"test_{uuid.uuid4().hex[:8]}"
@@ -110,6 +112,7 @@ def test_transcribe_does_not_load_the_tts_model(dub):
     dc, job_id, calls = dub
     body = _drain(dc, job_id)
     assert calls["get_model"] == 0, "dub loaded the TTS core it was about to free"
+    assert calls["order"].index("offload") < calls["order"].index("load-asr")
     # And the stream still worked — we didn't just break the preflight.
     assert "error" not in body or "segment" in body or "done" in body
 

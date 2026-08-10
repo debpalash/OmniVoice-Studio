@@ -25,6 +25,7 @@
     "workspaces": "Không gian làm việc"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Chung",
     "theme": "Giao diện",
     "language": "Ngôn ngữ",
@@ -2075,6 +2076,19 @@
     "play_take": "Tải làm đầu ra hiện tại",
     "filter_starred": "Đã gắn sao",
     "load_take_failed": "Không thể tải bản thu đó: {{message}}"
+  },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Đang tải đặc tả API…",
+    "unreachable_title": "Không có đặc tả backend",
+    "unreachable_body": "Không thể truy cập đặc tả OpenAPI của backend cục bộ tại {{url}}. Hãy bảo đảm backend đang chạy rồi thử lại.",
+    "retry": "Thử lại",
+    "copy_url": "Sao chép URL đặc tả",
+    "copy_url_aria": "Sao chép URL /openapi.json",
+    "copied": "Đã sao chép URL đặc tả",
+    "copy_failed": "Sao chép thất bại — hãy chọn và sao chép thủ công URL ở trên.",
+    "open_raw": "Mở đặc tả thô",
+    "open_raw_aria": "Mở JSON OpenAPI thô trong trình duyệt"
   },
   "recording": {
     "cleaned_loaded": "Đã làm sạch và tải bản ghi âm!",

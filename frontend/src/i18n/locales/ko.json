@@ -25,6 +25,7 @@
     "workspaces": "작업 공간"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "일반",
     "theme": "테마",
     "language": "언어",
@@ -2075,6 +2076,19 @@
     "play_take": "활성 출력으로 불러오기",
     "filter_starred": "별표됨",
     "load_take_failed": "테이크를 불러오지 못했습니다: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "API 사양 불러오는 중…",
+    "unreachable_title": "백엔드 사양을 사용할 수 없음",
+    "unreachable_body": "{{url}}의 로컬 백엔드 OpenAPI 사양에 연결할 수 없습니다. 백엔드가 실행 중인지 확인한 후 다시 시도하세요.",
+    "retry": "다시 시도",
+    "copy_url": "사양 URL 복사",
+    "copy_url_aria": "/openapi.json URL 복사",
+    "copied": "사양 URL을 복사했습니다",
+    "copy_failed": "복사하지 못했습니다. 위 URL을 선택하여 직접 복사하세요.",
+    "open_raw": "원본 사양 열기",
+    "open_raw_aria": "원본 OpenAPI JSON을 브라우저에서 열기"
   },
   "recording": {
     "cleaned_loaded": "녹음이 정리되어 로드되었습니다!",

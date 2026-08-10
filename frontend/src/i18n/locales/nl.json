@@ -25,6 +25,7 @@
     "workspaces": "Werkruimtes"
   },
   "settings": {
+    "openapi": "VoiceStudio-API",
     "general": "Algemeen",
     "theme": "Thema",
     "language": "Taal",
@@ -2075,6 +2076,19 @@
     "play_take": "Laden als actieve uitvoer",
     "filter_starred": "Met ster",
     "load_take_failed": "Kon die take niet laden: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio-API",
+    "loading": "API-specificatie laden…",
+    "unreachable_title": "Backendspecificatie niet beschikbaar",
+    "unreachable_body": "De OpenAPI-specificatie van de lokale backend op {{url}} is niet bereikbaar. Controleer of de backend actief is en probeer het opnieuw.",
+    "retry": "Opnieuw proberen",
+    "copy_url": "Specificatie-URL kopiëren",
+    "copy_url_aria": "De URL van /openapi.json kopiëren",
+    "copied": "Specificatie-URL gekopieerd",
+    "copy_failed": "Kopiëren mislukt — selecteer en kopieer de URL hierboven handmatig.",
+    "open_raw": "Ruwe specificatie openen",
+    "open_raw_aria": "De ruwe OpenAPI-JSON in de browser openen"
   },
   "recording": {
     "cleaned_loaded": "Opname opgeschoond en geladen!",

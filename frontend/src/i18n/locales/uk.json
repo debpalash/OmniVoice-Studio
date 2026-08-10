@@ -25,6 +25,7 @@
     "workspaces": "Робочі простори"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Загальні",
     "theme": "Тема",
     "language": "Мова",
@@ -2075,6 +2076,19 @@
     "play_take": "Завантажити як активний вивід",
     "filter_starred": "Із зіркою",
     "load_take_failed": "Не вдалося завантажити дубль: {{message}}"
+  },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Завантаження специфікації API…",
+    "unreachable_title": "Специфікація бекенду недоступна",
+    "unreachable_body": "Не вдалося отримати специфікацію OpenAPI локального бекенду за адресою {{url}}. Переконайтеся, що бекенд працює, і повторіть спробу.",
+    "retry": "Повторити",
+    "copy_url": "Копіювати URL специфікації",
+    "copy_url_aria": "Копіювати URL /openapi.json",
+    "copied": "URL специфікації скопійовано",
+    "copy_failed": "Не вдалося скопіювати — виділіть і скопіюйте URL вище вручну.",
+    "open_raw": "Відкрити вихідну специфікацію",
+    "open_raw_aria": "Відкрити вихідний JSON OpenAPI у браузері"
   },
   "recording": {
     "cleaned_loaded": "Запис очищено та завантажено!",

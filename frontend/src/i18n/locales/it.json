@@ -25,6 +25,7 @@
     "workspaces": "Aree di lavoro"
   },
   "settings": {
+    "openapi": "API VoiceStudio",
     "general": "Generale",
     "theme": "Tema",
     "language": "Lingua",
@@ -2075,6 +2076,19 @@
     "play_take": "Carica come output attivo",
     "filter_starred": "Con stella",
     "load_take_failed": "Impossibile caricare il take: {{message}}"
+  },
+  "openapi": {
+    "title": "API VoiceStudio",
+    "loading": "Caricamento della specifica API…",
+    "unreachable_title": "Specifica del backend non disponibile",
+    "unreachable_body": "Impossibile raggiungere la specifica OpenAPI del backend locale all’indirizzo {{url}}. Verifica che il backend sia in esecuzione, quindi riprova.",
+    "retry": "Riprova",
+    "copy_url": "Copia URL della specifica",
+    "copy_url_aria": "Copia l’URL /openapi.json",
+    "copied": "URL della specifica copiato",
+    "copy_failed": "Copia non riuscita — seleziona e copia manualmente l’URL qui sopra.",
+    "open_raw": "Apri specifica grezza",
+    "open_raw_aria": "Apri il JSON OpenAPI grezzo nel browser"
   },
   "recording": {
     "cleaned_loaded": "Registrazione pulita e caricata!",

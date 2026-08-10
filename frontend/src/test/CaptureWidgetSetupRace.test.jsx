@@ -116,6 +116,7 @@ beforeEach(() => {
     return undefined;
   });
   FakeWS.instances = [];
+  storeState.dictationModelId = 'sherpa-parakeet-v3';
   realWebSocket = globalThis.WebSocket;
   globalThis.WebSocket = FakeWS;
   // jsdom has no MediaRecorder; only isTypeSupported is reached on the
@@ -139,6 +140,21 @@ afterEach(() => {
 });
 
 describe('CaptureWidget — connect-time asr_model_missing during mic setup', () => {
+  it('turns a PCM-fallback socket failure into a terminal error', async () => {
+    storeState.dictationModelId = 'whisperx';
+    render(<CaptureWidget />);
+    pressShortcut();
+
+    await waitFor(() => expect(FakeWS.instances.length).toBe(1));
+    const ws = FakeWS.instances[0];
+    ws.onerror?.(new Event('error'));
+    ws.onclose?.();
+    micControl.resolve(micStop);
+
+    await waitFor(() => expect(screen.getByText(/Transcription failed/)).toBeInTheDocument());
+    expect(invokeMock).not.toHaveBeenCalledWith('set_tray_recording', { recording: true });
+  });
+
   it('keeps the error pill: no recording state, no tray flag, mic released', async () => {
     render(<CaptureWidget />);
     pressShortcut();

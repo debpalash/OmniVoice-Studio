@@ -82,6 +82,39 @@ describe('Dubbing missing-ASR recovery', () => {
     useAppStore.setState({ dubJobId: 'job-kept-for-retry', dubStep: 'idle' });
     setupApi.installModel.mockReset().mockResolvedValue({ status: 'install_started' });
     setupApi.listModels.mockReset().mockResolvedValue({ models: [] });
+    setupApi.cancelInstallModel.mockReset().mockResolvedValue({});
+    dubApi.dubUpload.mockReset();
+  });
+
+  it('never retries an old job after a new upload replaces it', async () => {
+    const { result } = renderWorkflow();
+    let firstAttempt;
+    act(() => {
+      firstAttempt = result.current.handleDubRetryTranscribe();
+    });
+    streams[0].emit('error', {
+      error: 'asr_model_missing',
+      detail: 'No speech-to-text model is installed.',
+      recommended: { repo_id: 'Systran/faster-whisper-large-v3', label: 'Whisper large-v3' },
+    });
+    await act(async () => firstAttempt);
+
+    let recovery;
+    act(() => {
+      recovery = result.current.handleInstallMissingAsr();
+    });
+    await waitFor(() => expect(setupApi.installModel).toHaveBeenCalledOnce());
+
+    dubApi.dubUpload.mockImplementation(() => new Promise(() => {}));
+    act(() => {
+      void result.current.handleDubUpload(new File(['video'], 'new.mp4', { type: 'video/mp4' }));
+    });
+    await waitFor(() => expect(setupApi.cancelInstallModel).toHaveBeenCalledOnce());
+    await act(async () => recovery);
+
+    expect(streams).toHaveLength(2);
+    expect(result.current.asrInstall).toBeNull();
+    expect(useAppStore.getState().dubJobId).not.toBe('job-kept-for-retry');
   });
 
   it('keeps the job, installs inline, then automatically retranscribes it', async () => {

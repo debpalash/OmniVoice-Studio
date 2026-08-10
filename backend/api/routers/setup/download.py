@@ -75,6 +75,7 @@ _cancelled: set[str] = set()
 # cache is wasteful and can corrupt the user-visible progress stream.
 _active_installs: set[str] = set()
 _active_installs_lock = threading.Lock()
+_install_tasks: set[asyncio.Task] = set()
 
 
 def _download_max_workers() -> int:
@@ -667,7 +668,9 @@ async def install_model(req: InstallModelRequest):
                 _active_installs.discard(req.repo_id)
 
     try:
-        loop.create_task(asyncio.to_thread(_do))
+        task = loop.create_task(asyncio.to_thread(_do))
+        _install_tasks.add(task)
+        task.add_done_callback(_install_tasks.discard)
     except Exception:
         with _active_installs_lock:
             _active_installs.discard(req.repo_id)

@@ -25,6 +25,7 @@
     "workspaces": "Çalışma alanları"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "Genel",
     "theme": "Tema",
     "language": "Dil",
@@ -2075,6 +2076,19 @@
     "play_take": "Etkin çıktı olarak yükle",
     "filter_starred": "Yıldızlı",
     "load_take_failed": "Kayıt yüklenemedi: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "API belirtimi yükleniyor…",
+    "unreachable_title": "Backend belirtimi kullanılamıyor",
+    "unreachable_body": "{{url}} adresindeki yerel backend OpenAPI belirtimine ulaşılamadı. Backend'in çalıştığından emin olup yeniden deneyin.",
+    "retry": "Yeniden dene",
+    "copy_url": "Belirtim URL'sini kopyala",
+    "copy_url_aria": "/openapi.json URL'sini kopyala",
+    "copied": "Belirtim URL'si kopyalandı",
+    "copy_failed": "Kopyalama başarısız — yukarıdaki URL'yi seçip elle kopyalayın.",
+    "open_raw": "Ham belirtimi aç",
+    "open_raw_aria": "Ham OpenAPI JSON dosyasını tarayıcıda aç"
   },
   "recording": {
     "cleaned_loaded": "Kayıt temizlendi ve yüklendi!",

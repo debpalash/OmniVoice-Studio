@@ -122,21 +122,31 @@ it('plain browser: no probe, straight to getUserMedia', async () => {
 
 it('records a WAV through Web Audio when MediaRecorder is unsupported', async () => {
   const stopTrack = vi.fn();
-  installGum(async () => ({ getTracks: () => [{ stop: stopTrack }] }));
+  installGum(async () => ({
+    getTracks: () => [{ stop: stopTrack }],
+    getAudioTracks: () => [{ getSettings: () => ({ channelCount: 2 }) }],
+  }));
   const stopCapture = vi.fn(async () => {});
   stopCapture.sampleRate = 16000;
-  startMicCaptureMock.mockImplementation(async (_stream, onFrame) => {
-    onFrame(new Float32Array(1600).fill(0.25));
+  startMicCaptureMock.mockImplementation(async (_stream, onFrame, options) => {
+    stopCapture.channels = options.channels;
+    onFrame(new Float32Array(3200).fill(0.25));
     return stopCapture;
   });
   cleanAudioMock.mockResolvedValue(
-    new Response(new Blob([new Uint8Array(1200)], { type: 'audio/wav' }), {
-      headers: { 'X-Clean-Filename': 'recording_clean.wav' },
+    new Response(new Uint8Array(1200), {
+      headers: {
+        'Content-Type': 'audio/wav',
+        'X-Clean-Filename': 'recording_clean.wav',
+      },
     }),
   );
   const ingest = vi.fn(async () => {});
   const { result } = renderHook(() => useRecording(ingest));
 
+  await act(async () => {
+    result.current.setChannelMode('stereo');
+  });
   await act(async () => {
     await result.current.startRecording();
   });
@@ -148,12 +158,17 @@ it('records a WAV through Web Audio when MediaRecorder is unsupported', async ()
     await Promise.resolve();
   });
 
-  expect(startMicCaptureMock).toHaveBeenCalledOnce();
+  expect(startMicCaptureMock).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.any(Function),
+    expect.objectContaining({ channels: 2 }),
+  );
   expect(stopCapture).toHaveBeenCalledOnce();
   expect(stopTrack).toHaveBeenCalledOnce();
   const form = cleanAudioMock.mock.calls[0][0];
   const audio = form.get('audio');
   expect(audio.type).toBe('audio/wav');
   expect(audio.name).toBe('recording.wav');
+  expect(new DataView(await audio.arrayBuffer()).getUint16(22, true)).toBe(2);
   expect(ingest).toHaveBeenCalledOnce();
 });

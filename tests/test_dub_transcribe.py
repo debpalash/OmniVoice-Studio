@@ -342,7 +342,7 @@ def test_transcribe_chunk_oom_has_one_actionable_public_message(
     finally:
         dc._dub_jobs.pop(job_id, None)
 
-    assert '"code": "transcription_memory"' in body
+    assert body.count('"code": "transcription_memory"') == 1
     assert "Transcription ran out of GPU memory." in body
     assert "Transcription produced no segments" not in body
     assert "secret diagnostic" not in body

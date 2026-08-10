@@ -99,10 +99,10 @@ _ENGINE_AGNOSTIC_KEYS = (
 # Never raise one: if this fails after adding en.json keys, add the keys to
 # every locale (translated) in the same change instead.
 _MISSING_BASELINE = {
-    "ar": 516, "de": 516, "es": 516, "fr": 516, "hi": 516, "id": 516,
-    "it": 516, "ja": 516, "ko": 516, "nl": 516, "pl": 516, "pt": 516,
-    "ru": 516, "sv": 516, "th": 516, "tr": 516, "uk": 516, "vi": 516,
-    "zh-CN": 509, "zh-TW": 516,
+    "ar": 504, "de": 504, "es": 504, "fr": 504, "hi": 504, "id": 504,
+    "it": 504, "ja": 504, "ko": 504, "nl": 504, "pl": 504, "pt": 504,
+    "ru": 504, "sv": 504, "th": 504, "tr": 504, "uk": 504, "vi": 504,
+    "zh-CN": 497, "zh-TW": 504,
 }
 
 
@@ -139,6 +139,21 @@ def _flatten(d, prefix=""):
 _LOCALES = [f[:-5] for f in _locale_files()]
 _OTHERS = [loc for loc in _LOCALES if loc != _EN]
 
+_OPENAPI_KEYS = {
+    "settings.openapi",
+    "openapi.title",
+    "openapi.loading",
+    "openapi.unreachable_title",
+    "openapi.unreachable_body",
+    "openapi.retry",
+    "openapi.copy_url",
+    "openapi.copy_url_aria",
+    "openapi.copied",
+    "openapi.copy_failed",
+    "openapi.open_raw",
+    "openapi.open_raw_aria",
+}
+
 
 def test_locale_inventory_matches_baseline():
     """Every locale is ratcheted; a new locale must be added to the baseline
@@ -149,6 +164,13 @@ def test_locale_inventory_matches_baseline():
         f"unlisted={sorted(set(_OTHERS) - set(_MISSING_BASELINE))} "
         f"stale={sorted(set(_MISSING_BASELINE) - set(_OTHERS))}"
     )
+
+
+@pytest.mark.parametrize("locale", _OTHERS)
+def test_openapi_ui_is_translated_in_every_locale(locale):
+    translated = _flatten(_load(locale))
+    missing = sorted(_OPENAPI_KEYS - translated.keys())
+    assert not missing, f"{locale}.json is missing VoiceStudio API strings: {missing}"
 
 
 @pytest.mark.parametrize("locale", _LOCALES)

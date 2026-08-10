@@ -80,6 +80,7 @@ def test_ensure_loaded_eagerly_builds_pipeline(monkeypatch):
 
 
 def test_low_free_vram_routes_pytorch_whisper_to_cpu(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_ASR_VRAM_PREFLIGHT", raising=False)
     import torch
 
     monkeypatch.setattr("services.model_manager.get_best_device", lambda: "cuda:0")

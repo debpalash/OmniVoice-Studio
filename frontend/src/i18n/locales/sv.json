@@ -25,6 +25,7 @@
     "workspaces": "Arbetsytor"
   },
   "settings": {
+    "openapi": "VoiceStudio API",
     "general": "Allmänt",
     "theme": "Tema",
     "language": "Språk",
@@ -2075,6 +2076,19 @@
     "play_take": "Läs in som aktiv utmatning",
     "filter_starred": "Stjärnmärkta",
     "load_take_failed": "Kunde inte läsa in tagningen: {{message}}"
+  },
+  "openapi": {
+    "title": "VoiceStudio API",
+    "loading": "Läser in API-specifikationen…",
+    "unreachable_title": "Backend-specifikationen är inte tillgänglig",
+    "unreachable_body": "Det gick inte att nå den lokala backendens OpenAPI-specifikation på {{url}}. Kontrollera att backenden körs och försök igen.",
+    "retry": "Försök igen",
+    "copy_url": "Kopiera specifikations-URL",
+    "copy_url_aria": "Kopiera URL:en till /openapi.json",
+    "copied": "Specifikations-URL kopierad",
+    "copy_failed": "Kopieringen misslyckades — markera och kopiera URL:en ovan manuellt.",
+    "open_raw": "Öppna rå specifikation",
+    "open_raw_aria": "Öppna rå OpenAPI-JSON i webbläsaren"
   },
   "recording": {
     "cleaned_loaded": "Inspelningen rensad och laddad!",

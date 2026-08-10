@@ -769,6 +769,16 @@ async def dub_transcribe_stream(
                         preflight_payload = _missing
                     if _missing is None:
                         try:
+                            # Free recoverable TTS VRAM before ASR chooses its
+                            # device. Probing first falsely routed Whisper to
+                            # CPU even when this offload made CUDA viable.
+                            try:
+                                await asyncio.get_running_loop().run_in_executor(
+                                    _cpu_pool, offload_tts_for_asr
+                                )
+                                _tts_offloaded["v"] = True
+                            except Exception as e:
+                                logger.warning("offload_tts_for_asr failed (continuing): %s", e)
                             # The PyTorch-Whisper backend lazily builds its own pipeline
                             # when no preloaded `_asr_pipe` is present (issue #255), so it
                             # no longer needs OMNIVOICE_PRELOAD_TTS_ASR=1.
@@ -897,17 +907,6 @@ async def dub_transcribe_stream(
             "chunks": chunks_n,
             "chunk_s": transcribe_chunk_s,
         })
-
-        # Free VRAM: move TTS model to CPU so WhisperX + VAD can fit.
-        # Only offloads when free GPU memory is < 4 GB (e.g. laptop GPUs).
-        # Non-fatal: an offload failure must not drop the stream (#255) —
-        # transcription can still proceed (it just has less headroom).
-        try:
-            await loop.run_in_executor(_cpu_pool, offload_tts_for_asr)
-            # Restore is now owed on every exit path, not just success (#1191).
-            _tts_offloaded["v"] = True
-        except Exception as e:
-            logger.warning("offload_tts_for_asr failed (continuing): %s", e)
 
         all_segments: list[dict] = []
         # Words (global-timeline) retained so diarization can re-split a segment

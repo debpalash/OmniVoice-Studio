@@ -13,7 +13,7 @@ import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
 import { createWaveform } from './captureWaveform';
 import { emitDictationNotice } from '../utils/dictationNotice';
-import { startSupportedMediaRecorder } from '../utils/mediaRecorder';
+import { audioFormatForMimeType, startSupportedMediaRecorder } from '../utils/mediaRecorder';
 
 // True inside the Tauri shell (desktop app / widget window); false in the
 // browser webui / Docker, where the native commands don't exist. Gating on
@@ -822,6 +822,7 @@ export default function CaptureWidget({ onDismiss }) {
           : startSupportedMediaRecorder(stream, {
               onData: (e) => {
                 if (e.data.size === 0) return;
+                if (e.data.type) recordingFormatRef.current = audioFormatForMimeType(e.data.type);
                 chunksRef.current.push(e.data);
                 void e.data.arrayBuffer().then((buf) => {
                   const ws = wsRef.current;
@@ -856,6 +857,21 @@ export default function CaptureWidget({ onDismiss }) {
         const wsPath = params.length ? `/ws/transcribe?${params.join('&')}` : '/ws/transcribe';
         const ws = new WebSocket(buildWsUrl(wsPath));
         ws.binaryType = 'arraybuffer';
+        const failRawPcmSession = () => {
+          if (
+            wsHadFinalRef.current ||
+            !(sherpaModeRef.current || aecModeRef.current || pcmModeRef.current)
+          ) {
+            return false;
+          }
+          wsHadFinalRef.current = true;
+          stopCaptureGraph();
+          setTrayRecording(false);
+          setModelStatus(null);
+          setErrorInfo({ kind: 'server', message: '' });
+          setState('error');
+          return true;
+        };
         ws.onopen = () => {
           for (const buf of wsPendingRef.current) {
             try {
@@ -996,7 +1012,7 @@ export default function CaptureWidget({ onDismiss }) {
               toastAsrModelMissing(asrMissingPayload(msg));
               setErrorInfo({ kind: 'transcription', message: t('asr_missing.message') });
               setState('error');
-            } else if (sherpaModeRef.current || aecModeRef.current) {
+            } else if (sherpaModeRef.current || aecModeRef.current || pcmModeRef.current) {
               // Raw-PCM paths have no WebM blob to re-POST — surface the
               // backend's error instead of leaving the pill wedged in
               // "Transcribing…" forever.
@@ -1013,6 +1029,7 @@ export default function CaptureWidget({ onDismiss }) {
         };
         ws.onerror = () => {
           wsRef.current = null;
+          failRawPcmSession();
         };
         ws.onclose = () => {
           wsRef.current = null;
@@ -1026,6 +1043,7 @@ export default function CaptureWidget({ onDismiss }) {
             }
             return;
           }
+          if (failRawPcmSession()) return;
           if (
             !wsHadFinalRef.current &&
             mediaRecorderRef.current &&
