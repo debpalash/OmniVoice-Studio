@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from api.dependencies import require_local
+from api.public_engine_metadata import public_unavailability
 from core import prefs
 from services import sherpa_dictation as sd
 
@@ -80,7 +81,7 @@ def list_dictation_models():
     return {
         "models": out,
         "engine_available": available,
-        "engine_reason": None if available else reason,
+        "engine_reason": None if available else public_unavailability(reason),
         "default_model_id": sd.DEFAULT_MODEL_ID,
     }
 

@@ -116,7 +116,7 @@ class FakeSubBackend(SubprocessBackend):
 # ── ENGINE-05 — graceful degradation ───────────────────────────────────────
 
 
-def test_list_backends_resilient(registry_sandbox):
+def test_list_backends_resilient(registry_sandbox, caplog):
     """A BrokenBackend.is_available() that raises must NOT take down the list."""
     registry_sandbox["broken"] = BrokenBackend
     out = list_backends()
@@ -125,10 +125,10 @@ def test_list_backends_resilient(registry_sandbox):
     assert "broken" in by_id
     entry = by_id["broken"]
     assert entry["available"] is False
-    assert "RuntimeError" in (entry["reason"] or "")
-    assert "kaboom" in (entry["reason"] or "")
-    assert "RuntimeError" in (entry["last_error"] or "")
-    assert "kaboom" in (entry["last_error"] or "")
+    assert entry["reason"] == "Availability probe failed; check the backend log."
+    assert entry["last_error"] == "Availability probe failed; check the backend log."
+    assert "kaboom" not in caplog.text
+    assert "availability probe failed for registered backend broken" in caplog.text
 
     # And every production backend still appears.
     expected = {
@@ -265,8 +265,9 @@ def test_last_error_cleared_after_recovery(registry_sandbox):
     # First listing — failure populates last_error.
     first = {e["id"]: e for e in list_backends()}
     assert first["flaky"]["available"] is False
-    assert first["flaky"]["last_error"] is not None
-    assert "first call boom" in first["flaky"]["last_error"]
+    assert first["flaky"]["last_error"] == (
+        "Availability probe failed; check the backend log."
+    )
 
     # Second listing — success clears the cache.
     second = {e["id"]: e for e in list_backends()}

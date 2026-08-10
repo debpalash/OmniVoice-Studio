@@ -29,6 +29,7 @@ from core import prefs
 from services import tts_backend, asr_backend, llm_backend, translation_engines
 from services.audio_dsp import list_effect_presets
 from api.schemas import EffectPresetsResponse
+from api.public_engine_metadata import public_backends, public_unavailability
 
 router = APIRouter()
 
@@ -54,32 +55,32 @@ def list_all_engines():
     return {
         "tts": {
             "active": tts_backend.active_backend_id(),
-            "backends": tts_backend.list_backends(),
+            "backends": public_backends(tts_backend.list_backends()),
         },
         "asr": {
             "active": asr_backend.active_backend_id(),
-            "backends": asr_backend.list_backends(),
+            "backends": public_backends(asr_backend.list_backends()),
         },
         "llm": {
             "active": llm_backend.active_backend_id(),
-            "backends": llm_backend.list_backends(),
+            "backends": public_backends(llm_backend.list_backends()),
         },
     }
 
 
 @router.get("/engines/tts")
 def list_tts_backends():
-    return {"active": tts_backend.active_backend_id(), "backends": tts_backend.list_backends()}
+    return {"active": tts_backend.active_backend_id(), "backends": public_backends(tts_backend.list_backends())}
 
 
 @router.get("/engines/asr")
 def list_asr_backends():
-    return {"active": asr_backend.active_backend_id(), "backends": asr_backend.list_backends()}
+    return {"active": asr_backend.active_backend_id(), "backends": public_backends(asr_backend.list_backends())}
 
 
 @router.get("/engines/llm")
 def list_llm_backends():
-    return {"active": llm_backend.active_backend_id(), "backends": llm_backend.list_backends()}
+    return {"active": llm_backend.active_backend_id(), "backends": public_backends(llm_backend.list_backends())}
 
 
 @router.get("/engines/effects/presets", response_model=EffectPresetsResponse)
@@ -102,7 +103,10 @@ def list_translation_engines():
     an engine whose Python dependency isn't importable yet.
     """
     return {
-        "engines": translation_engines.list_engines(),
+        "engines": [
+            {**entry, "availability_reason": public_unavailability(entry.get("availability_reason"))}
+            for entry in translation_engines.list_engines()
+        ],
         "sandboxed": translation_engines.is_frozen(),
     }
 

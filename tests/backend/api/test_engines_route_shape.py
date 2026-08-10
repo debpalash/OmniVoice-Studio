@@ -132,6 +132,85 @@ def test_llm_entries_are_network_n_a(fresh_app):
         assert entry["gpu_compat"] == []
 
 
+def test_engine_discovery_omits_service_diagnostics(fresh_app, monkeypatch):
+    from api.routers import engines
+
+    private = "Traceback: token=private-value at /home/alice/models/engine.py"
+    unsafe = {
+        "id": "probe", "display_name": "Probe", "available": False,
+        "reason": private, "last_error": private, "routing_reason": private,
+        "routing_status": "cpu_fallback",
+        "install_hint": "Install the registered dependency.",
+    }
+    monkeypatch.setattr(engines.tts_backend, "active_backend_id", lambda: "probe")
+    monkeypatch.setattr(engines.tts_backend, "list_backends", lambda: [unsafe])
+
+    body = _client(fresh_app).get("/engines/tts").json()
+    rendered = repr(body)
+    assert private not in rendered
+    assert "/home/alice" not in rendered
+    assert "Traceback" not in rendered
+    assert "private-value" not in rendered
+    assert body["backends"][0]["reason"] == (
+        "Engine unavailable. Check installation and configuration."
+    )
+    assert body["backends"][0]["last_error"] == "A previous engine check failed."
+    assert body["backends"][0]["install_hint"] == "Install the registered dependency."
+    assert body["backends"][0]["routing_reason"] == (
+        "GPU acceleration is unavailable; this engine will use CPU."
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "private_reason", "expected"),
+    [
+        (
+            "accelerated",
+            "NVIDIA RTX has 4.0 GB VRAM; this engine wants about 8 GB.",
+            "The accelerator may not meet this engine's recommended VRAM.",
+        ),
+        (
+            "accelerated",
+            "sm_120 is absent and may fail at kernel launch: /home/alice",
+            "The selected accelerator may not be supported by this PyTorch build.",
+        ),
+        (
+            "cpu_fallback",
+            "engine has no CUDA path; running on CPU at /home/alice",
+            "GPU acceleration is unavailable; this engine will use CPU.",
+        ),
+        (
+            "cpu_only",
+            "DirectML GPU present; engine routes via private CPU path",
+            "This engine runs on CPU on this host.",
+        ),
+        (
+            "unavailable",
+            "requires cuda; this host probe read /home/alice/device",
+            "This engine has no compatible compute device on this host.",
+        ),
+    ],
+)
+def test_engine_discovery_preserves_routing_outcome_without_diagnostics(
+    fresh_app, monkeypatch, status, private_reason, expected
+):
+    from api.routers import engines
+
+    unsafe = {
+        "id": "probe",
+        "available": status != "unavailable",
+        "routing_status": status,
+        "routing_reason": private_reason,
+    }
+    monkeypatch.setattr(engines.tts_backend, "active_backend_id", lambda: "probe")
+    monkeypatch.setattr(engines.tts_backend, "list_backends", lambda: [unsafe])
+
+    body = _client(fresh_app).get("/engines/tts").json()
+
+    assert body["backends"][0]["routing_reason"] == expected
+    assert "/home/alice" not in repr(body)
+
+
 def test_indextts2_entry_has_subprocess_isolation_mode(fresh_app):
     """Cross-checks Plan 02-03's IndexTTS subprocess migration via the API."""
     client = _client(fresh_app)
@@ -814,11 +893,13 @@ def test_no_hf_token_leak_in_engines_response(fresh_app):
             f"HF tokens leaked into /engines response body: {matches}"
         )
 
-        # The masked sentinel must be present — otherwise the test isn't
-        # actually exercising the redaction path.
+        # The boundary emits stable metadata rather than a partially scrubbed
+        # service diagnostic.
         by_id = {b["id"]: b for b in r.json()["tts"]["backends"]}
         assert "tainted-test" in by_id
-        assert "hf_***REDACTED***" in (by_id["tainted-test"]["reason"] or "")
+        assert by_id["tainted-test"]["reason"] == (
+            "Engine unavailable. Check installation and configuration."
+        )
     finally:
         tts_mod._REGISTRY.clear()
         tts_mod._REGISTRY.update(saved)
