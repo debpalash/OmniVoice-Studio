@@ -33,6 +33,8 @@ export default function DubHeader({
   qcRunning,
   handleDubQc,
   setExportOpen,
+  pipelineSteps,
+  onPipelineStep,
 }) {
   return (
     <div className="flex flex-col gap-[2px] min-w-0 px-[10px] py-[4px] shrink-0 bg-[var(--color-bg-elev-1)] rounded-md mb-[2px]">
@@ -156,7 +158,12 @@ export default function DubHeader({
           </div>
         </div>
       </div>
-      <DubPipelineStepper dubStep={dubStep} inline />
+      <DubPipelineStepper
+        dubStep={dubStep}
+        inline
+        selectableSteps={pipelineSteps}
+        onStepSelect={onPipelineStep}
+      />
     </div>
   );
 }

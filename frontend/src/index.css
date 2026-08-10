@@ -3856,6 +3856,29 @@ body:has(.capture-pill) {
   white-space: nowrap;
   color: var(--chrome-fg-dim, #665c54);
 }
+.dub-stepper__action {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+  padding: 2px;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+button.dub-stepper__action {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button.dub-stepper__action:hover {
+  color: var(--chrome-fg);
+  background: var(--chrome-hover-bg, rgba(255, 255, 255, 0.06));
+}
+button.dub-stepper__action:focus-visible {
+  outline: 2px solid var(--chrome-accent, #d3869b);
+  outline-offset: 2px;
+}
 .dub-stepper__step:not(:first-child)::before {
   content: '';
   width: 24px;

@@ -422,6 +422,51 @@ export default function DubTab(props) {
     setYoutubeCookieFile(null);
     resetDub?.();
   }, [resetDub]);
+  const pipelineBusy = [
+    'uploading',
+    'installing-asr',
+    'transcribing',
+    'generating',
+    'stopping',
+  ].includes(dubStep);
+  const pipelineSteps = pipelineBusy
+    ? []
+    : [
+        ...(dubJobId || dubStep !== 'idle' ? ['upload'] : []),
+        ...(dubVideoFile ? ['prepare'] : []),
+        ...(dubJobId ? ['transcribe'] : []),
+        ...(dubSegments.length ? ['edit'] : []),
+        ...(dubStep === 'done' ? ['export'] : []),
+      ];
+  const onPipelineStep = useCallback(
+    (step) => {
+      if (pipelineBusy) return;
+      if (step === 'upload') {
+        if (dubSegments.length && !window.confirm(`${t('dub.reset')}?`)) return;
+        resetDubAndCredentials();
+      } else if (step === 'prepare' && dubVideoFile) {
+        handleDubUpload?.();
+      } else if (step === 'transcribe' && dubJobId) {
+        handleDubRetryTranscribe?.();
+      } else if (step === 'edit' && dubSegments.length) {
+        setDubStep('editing');
+      } else if (step === 'export' && dubStep === 'done') {
+        setExportOpen(true);
+      }
+    },
+    [
+      pipelineBusy,
+      dubSegments.length,
+      t,
+      resetDubAndCredentials,
+      dubVideoFile,
+      handleDubUpload,
+      dubJobId,
+      handleDubRetryTranscribe,
+      setDubStep,
+      dubStep,
+    ],
+  );
   const onIngestUrl = () => {
     if (!ingestUrl.trim() || !handleDubIngestUrl) return;
     handleDubIngestUrl(ingestUrl.trim(), {
@@ -531,7 +576,13 @@ export default function DubTab(props) {
         !(
           dubJobId &&
           (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done')
-        ) && <DubPipelineStepper dubStep={dubStep} />}
+        ) && (
+          <DubPipelineStepper
+            dubStep={dubStep}
+            selectableSteps={pipelineSteps}
+            onStepSelect={onPipelineStep}
+          />
+        )}
       {/* ── Idle: show full editor skeleton with drop zone ── */}
       {showIdleSkeleton && (
         <IdleSkeleton
@@ -604,6 +655,8 @@ export default function DubTab(props) {
             qcRunning={qcRunning}
             handleDubQc={handleDubQc}
             setExportOpen={setExportOpen}
+            pipelineSteps={pipelineSteps}
+            onPipelineStep={onPipelineStep}
           />
           <div className="grid grid-cols-2 max-[1000px]:grid-cols-1 max-[1000px]:grid-rows-[auto_1fr] gap-[6px] flex-1 min-h-0 overflow-hidden">
             <DubLeftColumn
