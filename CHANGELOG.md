@@ -30,6 +30,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Added
 
+- Voice recording now offers microphone and channel selection with a live input-level meter on every desktop platform. (#1481)
 - Settings → Appearance → **Navigation style** switches the workspace switcher between the icon rail down the window edge and browser-style tabs across the title bar. Both offer the same workspaces; the choice sticks across launches, and the rail stays the default. Tab labels fold down to icons when the title bar runs out of room — the workspace you're in keeps its name. (#1412)
 - Portable mode lets you choose the folder — press **Change…** on the first-run setup screen and put the whole install on an external drive. It also stops being greyed out after a default Program Files install. (#766)
 - Settings → Privacy now has an **Invisible watermark** toggle. On by default, available to everyone, and it only affects audio generated after the change. (#1308)
@@ -42,6 +43,8 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Linux microphone recording now falls back to WAV when WebKit cannot encode MediaRecorder audio, and desktop scaling/titlebar controls remain responsive at every UI scale. (#1481)
+- Dubbing can install a missing ASR model and retry the same job, navigate back through completed stages, and finish transcription under low GPU memory without producing an empty transcript. (#1481)
 - Filenames and other outside data can no longer forge extra lines or terminal commands in backend and frontend diagnostic logs. (#1457)
 - Backend journal, dictation reset, voice-catalog, and crash-notification failures are now visible and retryable instead of being silently ignored. (#1459)
 - Backend failures keep raw tracebacks, local paths and credentials in the local log instead of returning them in API responses. (#1454)
