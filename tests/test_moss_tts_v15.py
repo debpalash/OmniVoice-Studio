@@ -63,6 +63,46 @@ def test_sidecar_script_ships():
     assert MOSS_TTS_V15_SIDECAR_SCRIPT.is_file()
 
 
+def test_default_model_source_is_pinned(monkeypatch):
+    from engines.moss_tts_v15 import main
+    monkeypatch.delenv("OMNIVOICE_MOSS_TTS_V15_MODEL", raising=False)
+    assert main._model_source() == (main._DEFAULT_REPO, main._DEFAULT_REVISION)
+
+
+def test_default_model_revision_matches_the_central_reviewed_pin():
+    from engines.moss_tts_v15 import main
+    from services.hf_revisions import revision_for
+
+    assert main._DEFAULT_REVISION == revision_for(main._DEFAULT_REPO)
+
+
+def test_custom_remote_code_is_rejected_without_explicit_opt_in(monkeypatch):
+    from engines.moss_tts_v15 import main
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_MODEL", "someone/custom-model")
+    monkeypatch.delenv("OMNIVOICE_MOSS_TTS_V15_TRUST_REMOTE_CODE", raising=False)
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_REVISION", "a" * 40)
+    with pytest.raises(RuntimeError, match="after auditing"):
+        main._model_source()
+
+
+def test_custom_remote_code_requires_immutable_revision(monkeypatch):
+    from engines.moss_tts_v15 import main
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_MODEL", "someone/custom-model")
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_TRUST_REMOTE_CODE", "1")
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_REVISION", "main")
+    with pytest.raises(RuntimeError, match="40-character commit SHA"):
+        main._model_source()
+
+
+def test_audited_custom_remote_code_requires_both_opt_ins(monkeypatch):
+    from engines.moss_tts_v15 import main
+    revision = "b" * 40
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_MODEL", "someone/custom-model")
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_TRUST_REMOTE_CODE", "true")
+    monkeypatch.setenv("OMNIVOICE_MOSS_TTS_V15_REVISION", revision)
+    assert main._model_source() == ("someone/custom-model", revision)
+
+
 # ── hardware honesty (cross-platform rule) ─────────────────────────────────
 
 

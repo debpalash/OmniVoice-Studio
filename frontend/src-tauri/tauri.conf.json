@@ -55,6 +55,7 @@
   },
   "bundle": {
     "active": true,
+    "useLocalToolsDir": true,
     "targets": [
       "dmg",
       "app",
@@ -83,6 +84,13 @@
       "binaries/ffmpeg",
       "binaries/ffprobe"
     ],
+    "linux": {
+      "appimage": {
+        "files": {
+          "usr/lib/.bundled-webkitgtk-version": "target/.tauri/bundled-webkitgtk-version"
+        }
+      }
+    },
     "macOS": {
       "minimumSystemVersion": "13.3",
       "signingIdentity": "-",

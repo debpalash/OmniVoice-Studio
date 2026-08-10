@@ -11,7 +11,7 @@
 # known-broken ranges. Setting it unconditionally regresses healthy WebKit
 # versions (2.48+) where the compositing path works fine.
 #
-# This file is copied into the AppImage staging directory by
+# This file is installed into Tauri's local tool cache by
 # scripts/inject-apprun.sh (wired into Tauri's beforeBundleCommand). See
 # .planning/decisions/apprun-strategy.md for the decision rationale.
 
@@ -30,13 +30,13 @@ HERE="$(dirname -- "$(readlink -f -- "$0")")"
 # dev packages installed, so pkg-config answers with their system's healthy
 # 2.48 while the bundle runs an older lib — skipping a workaround the running
 # library needs). inject-apprun.sh stamps the bundled version into
-# .bundled-webkitgtk-version at build time, where it is knowable by
+# usr/lib/.bundled-webkitgtk-version at build time, where it is knowable by
 # construction; the host pkg-config path survives only as a fallback for
 # bundles predating the stamp. OMNIVOICE_APPRUN_WK_MARKER exists for the
 # unit tests to point at a fixture marker.
 _detect_webkit_workaround() {
   local wk_version="0.0"
-  local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/.bundled-webkitgtk-version}"
+  local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/usr/lib/.bundled-webkitgtk-version}"
   if [ -r "$marker" ]; then
     # Empty/unreadable marker content → "0.0" (unknown) → fail-safe workaround,
     # same philosophy as the missing-pkg-config branch below.
@@ -125,7 +125,7 @@ _prefer_system_webkit() {
 
   # Only meaningful when we know what we bundled; an unstamped bundle keeps
   # the old ordering rather than guessing.
-  local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/.bundled-webkitgtk-version}"
+  local marker="${OMNIVOICE_APPRUN_WK_MARKER:-$HERE/usr/lib/.bundled-webkitgtk-version}"
   [ -r "$marker" ] || return 1
   local bundled
   bundled="$(cat "$marker" 2>/dev/null | tr -d '[:space:]')"

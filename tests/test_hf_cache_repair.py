@@ -49,6 +49,12 @@ def _no_ambient_offline_mode(monkeypatch):
     explicitly via monkeypatch.setenv."""
     monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
     monkeypatch.delenv("TRANSFORMERS_OFFLINE", raising=False)
+    from services import hf_revisions
+    monkeypatch.setitem(
+        hf_revisions.CURATED_REVISIONS,
+        "test/checkpoint",
+        "a" * 40,
+    )
 
 
 def _mk_repo_cache(tmp_path, repo_id: str = "test/checkpoint"):
@@ -142,11 +148,11 @@ def test_repair_removes_only_broken_and_redownloads(tmp_path, monkeypatch):
     _symlink_or_skip(os.path.join("..", "..", "blobs", "MISSING"),
                      str(snap / "model.safetensors"))
     calls = []
+    monkeypatch.setenv("HF_HUB_CACHE", str(cache))
     monkeypatch.setattr(huggingface_hub, "snapshot_download",
                         lambda **k: calls.append(k))
 
-    summary = hf_cache_repair.repair_repo_cache("test/checkpoint",
-                                                cache_dir=str(cache))
+    summary = hf_cache_repair.repair_repo_cache("test/checkpoint")
     assert summary["found"] == 1
     assert summary["removed"] == 1
     assert summary["restored"] is True
@@ -155,7 +161,11 @@ def test_repair_removes_only_broken_and_redownloads(tmp_path, monkeypatch):
     assert summary["error"] == ""
     # The broken entry is gone; snapshot_download was asked to restore it.
     assert not os.path.lexists(snap / "model.safetensors")
-    assert calls == [{"repo_id": "test/checkpoint", "cache_dir": str(cache)}]
+    assert calls == [{
+        "repo_id": "test/checkpoint",
+        "revision": "a" * 40,
+        "cache_dir": str(cache),
+    }]
     # Healthy entries and blobs are untouched.
     assert (snap / "config.json").read_bytes() == b'{"ok": true}'
     assert (snap / "tokenizer.json").read_bytes() == b'{"tok": 1}'

@@ -158,6 +158,13 @@ _TRUNCATED = OSError(
 
 def test_repair_records_why_it_failed(model_manager, monkeypatch):
     import huggingface_hub
+    from services import hf_revisions
+
+    monkeypatch.setitem(
+        hf_revisions.CURATED_REVISIONS,
+        "test/checkpoint",
+        "a" * 40,
+    )
 
     def boom(**kwargs):
         raise OSError(_TRANSFORMERS_874)

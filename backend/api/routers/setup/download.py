@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from core import prefs
 from core.failure import is_hf_connectivity_error
+from services.hf_revisions import revision_for
 from utils import hf_progress
 from utils import download_aggregator
 # Weight-floor scan (MM2-07 / #352) lives in ``models.py`` — the lowest module in
@@ -170,7 +171,7 @@ def _repo_cancelled(repo_id: str) -> bool:
     return repo_id in _cancelled
 
 
-def _segmented_snapshot(repo_id: str, *, endpoint: "str | None") -> str:
+def _segmented_snapshot(repo_id: str, *, endpoint: "str | None", revision: str) -> str:
     """Fetch every file of a repo via the segmented downloader into the HF
     cache, mirroring hf_hub_download's blob+snapshot+refs layout so the result
     is indistinguishable from snapshot_download (FDL-09) — keeping /models
@@ -187,10 +188,10 @@ def _segmented_snapshot(repo_id: str, *, endpoint: "str | None") -> str:
 
     token = _resolve_token()
     api = HfApi(endpoint=endpoint, token=token)
-    info = api.repo_info(repo_id, repo_type="model")
+    info = api.repo_info(repo_id, repo_type="model", revision=revision)
     commit = info.sha
     files = [s.rfilename for s in (info.siblings or [])]
-    if not commit or not files:
+    if commit != revision or not files:
         raise RuntimeError("repo_info returned no commit/siblings")
 
     repo_dir = os.path.join(_C.HF_HUB_CACHE, repo_folder_name(repo_id=repo_id, repo_type="model"))
@@ -407,6 +408,7 @@ async def install_model(req: InstallModelRequest):
             # parallel-files worker count, and honour an optional mirror endpoint.
             dl_kwargs: dict = {
                 "repo_id": req.repo_id,
+                "revision": revision_for(req.repo_id),
                 "max_workers": _download_max_workers(),
             }
             _tqdm_cls = hf_progress.tracked_tqdm_class()
@@ -447,11 +449,15 @@ async def install_model(req: InstallModelRequest):
             # bytes that will actually download — BEFORE any byte flows. Seeds
             # the overall aggregator so its bar/ETA are correct from the first
             # event. Degrades gracefully (totals=None) on older/gated repos.
-            _preflight_kwargs = {"repo_id": req.repo_id, "dry_run": True}
+            _preflight_kwargs = {
+                "repo_id": req.repo_id,
+                "revision": dl_kwargs["revision"],
+                "dry_run": True,
+            }
             if _endpoint:
                 _preflight_kwargs["endpoint"] = _endpoint
             try:
-                _plan = snapshot_download(**_preflight_kwargs)
+                _plan = snapshot_download(**_preflight_kwargs)  # nosec B615 -- immutable revision_for pin
                 _summary = compute_plan(_plan)
                 # Disk-space guard (before a single byte flows): the preflight
                 # gives an exact "to download" size, so reject an install that
@@ -515,7 +521,11 @@ async def install_model(req: InstallModelRequest):
                     _snapshot_path = None
                     if _attempt == 1 and _segmented_enabled() and not _xet_active():
                         try:
-                            _snapshot_path = _segmented_snapshot(req.repo_id, endpoint=_endpoint)
+                            _snapshot_path = _segmented_snapshot(
+                                req.repo_id,
+                                endpoint=_endpoint,
+                                revision=dl_kwargs["revision"],
+                            )
                         except _InstallCancelled:
                             raise
                         except Exception as _seg_err:
@@ -525,8 +535,11 @@ async def install_model(req: InstallModelRequest):
                             )
                             _snapshot_path = None
                     if _snapshot_path is None:
-                        _snapshot_path = snapshot_download(**dl_kwargs)
+                        _snapshot_path = snapshot_download(**dl_kwargs)  # nosec B615 -- immutable revision_for pin
                     _validate_snapshot_has_weights(req.repo_id, _snapshot_path)
+                    from huggingface_hub.constants import HF_HUB_CACHE
+                    from services.hf_revisions import remember_revision
+                    remember_revision(req.repo_id, dl_kwargs["revision"], HF_HUB_CACHE)
                     break
                 except Exception as net_err:
                     # #1224: a truncated body ("peer closed connection without
