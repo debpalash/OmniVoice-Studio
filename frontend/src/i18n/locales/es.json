@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "¡Grabación limpiada y cargada!",
     "loaded_raw": "Grabación cargada (sin procesar — eliminación de ruido no disponible)",
-    "too_short": "Grabación demasiado corta"
+    "too_short": "Grabación demasiado corta",
+    "input_device": "Dispositivo de entrada",
+    "default_input": "Predeterminado del sistema",
+    "microphone_number": "Micrófono {{number}}",
+    "channels": "Canales",
+    "channels_auto": "Automático",
+    "channels_mono": "Mono",
+    "channels_stereo": "Estéreo",
+    "input_level": "Nivel de entrada del micrófono",
+    "input_detected": "Entrada detectada",
+    "no_input_detected": "No se detecta entrada"
   },
   "pronunciation": {
     "title": "Diccionario de pronunciación",

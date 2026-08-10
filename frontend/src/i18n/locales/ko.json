@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "녹음이 정리되어 로드되었습니다!",
     "loaded_raw": "녹음이 로드되었습니다 (원본 — 노이즈 제거 사용 불가)",
-    "too_short": "녹음이 너무 짧습니다"
+    "too_short": "녹음이 너무 짧습니다",
+    "input_device": "입력 장치",
+    "default_input": "시스템 기본값",
+    "microphone_number": "마이크 {{number}}",
+    "channels": "채널",
+    "channels_auto": "자동",
+    "channels_mono": "모노",
+    "channels_stereo": "스테레오",
+    "input_level": "마이크 입력 레벨",
+    "input_detected": "입력 감지됨",
+    "no_input_detected": "입력 감지 안 됨"
   },
   "pronunciation": {
     "title": "Pronunciation dictionary",

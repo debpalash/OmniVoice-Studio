@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Đã làm sạch và tải bản ghi âm!",
     "loaded_raw": "Đã tải bản ghi âm (thô — không có khử nhiễu)",
-    "too_short": "Bản ghi âm quá ngắn"
+    "too_short": "Bản ghi âm quá ngắn",
+    "input_device": "Thiết bị đầu vào",
+    "default_input": "Mặc định hệ thống",
+    "microphone_number": "Micrô {{number}}",
+    "channels": "Kênh",
+    "channels_auto": "Tự động",
+    "channels_mono": "Đơn âm",
+    "channels_stereo": "Âm thanh nổi",
+    "input_level": "Mức đầu vào micrô",
+    "input_detected": "Đã phát hiện âm thanh",
+    "no_input_detected": "Không phát hiện âm thanh"
   },
   "pronunciation": {
     "title": "Từ điển phát âm",

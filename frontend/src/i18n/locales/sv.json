@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Inspelningen rensad och laddad!",
     "loaded_raw": "Inspelningen laddad (rå — brusreducering otillgänglig)",
-    "too_short": "Inspelningen är för kort"
+    "too_short": "Inspelningen är för kort",
+    "input_device": "Inmatningsenhet",
+    "default_input": "Systemstandard",
+    "microphone_number": "Mikrofon {{number}}",
+    "channels": "Kanaler",
+    "channels_auto": "Automatiskt",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Mikrofonens ingångsnivå",
+    "input_detected": "Ingång upptäckt",
+    "no_input_detected": "Ingen ingång upptäckt"
   },
   "pronunciation": {
     "title": "Uttalsordbok",

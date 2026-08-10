@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Запись очищена и загружена!",
     "loaded_raw": "Запись загружена (без обработки — шумоподавление недоступно)",
-    "too_short": "Запись слишком короткая"
+    "too_short": "Запись слишком короткая",
+    "input_device": "Устройство ввода",
+    "default_input": "Системное по умолчанию",
+    "microphone_number": "Микрофон {{number}}",
+    "channels": "Каналы",
+    "channels_auto": "Автоматически",
+    "channels_mono": "Моно",
+    "channels_stereo": "Стерео",
+    "input_level": "Уровень входа микрофона",
+    "input_detected": "Сигнал обнаружен",
+    "no_input_detected": "Сигнал не обнаружен"
   },
   "pronunciation": {
     "title": "Словарь произношения",

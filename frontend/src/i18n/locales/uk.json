@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Запис очищено та завантажено!",
     "loaded_raw": "Запис завантажено (необроблений — усунення шуму недоступне)",
-    "too_short": "Запис надто короткий"
+    "too_short": "Запис надто короткий",
+    "input_device": "Пристрій введення",
+    "default_input": "Системний за замовчуванням",
+    "microphone_number": "Мікрофон {{number}}",
+    "channels": "Канали",
+    "channels_auto": "Автоматично",
+    "channels_mono": "Моно",
+    "channels_stereo": "Стерео",
+    "input_level": "Рівень входу мікрофона",
+    "input_detected": "Сигнал виявлено",
+    "no_input_detected": "Сигнал не виявлено"
   },
   "pronunciation": {
     "title": "Словник вимови",

@@ -2086,7 +2086,17 @@
   "recording": {
     "cleaned_loaded": "录音已清理并加载！",
     "loaded_raw": "录音已加载（原始音频——降噪不可用）",
-    "too_short": "录音太短"
+    "too_short": "录音太短",
+    "input_device": "输入设备",
+    "default_input": "系统默认",
+    "microphone_number": "麦克风 {{number}}",
+    "channels": "声道",
+    "channels_auto": "自动",
+    "channels_mono": "单声道",
+    "channels_stereo": "立体声",
+    "input_level": "麦克风输入电平",
+    "input_detected": "检测到输入",
+    "no_input_detected": "未检测到输入"
   },
   "pronunciation": {
     "title": "发音词典",

@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Opname opgeschoond en geladen!",
     "loaded_raw": "Opname geladen (ruw — ruisonderdrukking niet beschikbaar)",
-    "too_short": "Opname te kort"
+    "too_short": "Opname te kort",
+    "input_device": "Invoerapparaat",
+    "default_input": "Systeemstandaard",
+    "microphone_number": "Microfoon {{number}}",
+    "channels": "Kanalen",
+    "channels_auto": "Automatisch",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Microfooningangsniveau",
+    "input_detected": "Invoer gedetecteerd",
+    "no_input_detected": "Geen invoer gedetecteerd"
   },
   "pronunciation": {
     "title": "Uitspraakwoordenboek",

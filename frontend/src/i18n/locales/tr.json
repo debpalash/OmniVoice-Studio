@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Kayıt temizlendi ve yüklendi!",
     "loaded_raw": "Kayıt yüklendi (ham — gürültü giderme kullanılamıyor)",
-    "too_short": "Kayıt çok kısa"
+    "too_short": "Kayıt çok kısa",
+    "input_device": "Giriş aygıtı",
+    "default_input": "Sistem varsayılanı",
+    "microphone_number": "Mikrofon {{number}}",
+    "channels": "Kanallar",
+    "channels_auto": "Otomatik",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Mikrofon giriş seviyesi",
+    "input_detected": "Giriş algılandı",
+    "no_input_detected": "Giriş algılanmadı"
   },
   "pronunciation": {
     "title": "Telaffuz sözlüğü",

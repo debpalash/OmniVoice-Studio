@@ -43,7 +43,12 @@ afterEach(() => {
 function installGum(impl) {
   const gum = vi.fn(impl);
   Object.defineProperty(navigator, 'mediaDevices', {
-    value: { getUserMedia: gum },
+    value: {
+      getUserMedia: gum,
+      enumerateDevices: vi.fn(async () => []),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    },
     configurable: true,
   });
   return gum;
@@ -62,6 +67,27 @@ it('OS-denied → guided toast, getUserMedia skipped', async () => {
   expect(gum).not.toHaveBeenCalled();
   expect(toastMock.error).toHaveBeenCalled();
   expect(result.current.isRecording).toBe(false);
+});
+
+it('uses the selected microphone and requested channel mode', async () => {
+  const gum = installGum(async () => {
+    const error = new Error('busy');
+    error.name = 'NotReadableError';
+    throw error;
+  });
+  const { result } = renderHook(() => useRecording(vi.fn()));
+
+  act(() => {
+    result.current.setSelectedAudioInputId('usb-mic');
+    result.current.setChannelMode('stereo');
+  });
+  await act(async () => {
+    await result.current.startRecording();
+  });
+
+  expect(gum).toHaveBeenCalledWith({
+    audio: { deviceId: { exact: 'usb-mic' }, channelCount: { ideal: 2 } },
+  });
 });
 
 it('prompt/unknown/granted → getUserMedia proceeds as before', async () => {

@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Aufnahme bereinigt & geladen!",
     "loaded_raw": "Aufnahme geladen (roh — Entrauschen nicht verfügbar)",
-    "too_short": "Aufnahme zu kurz"
+    "too_short": "Aufnahme zu kurz",
+    "input_device": "Eingabegerät",
+    "default_input": "Systemstandard",
+    "microphone_number": "Mikrofon {{number}}",
+    "channels": "Kanäle",
+    "channels_auto": "Automatisch",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Mikrofonpegel",
+    "input_detected": "Eingang erkannt",
+    "no_input_detected": "Kein Eingang erkannt"
   },
   "pronunciation": {
     "title": "Aussprachewörterbuch",

@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "錄音已清理並載入！",
     "loaded_raw": "錄音已載入（原始 — 無法降噪）",
-    "too_short": "錄音太短"
+    "too_short": "錄音太短",
+    "input_device": "輸入裝置",
+    "default_input": "系統預設",
+    "microphone_number": "麥克風 {{number}}",
+    "channels": "聲道",
+    "channels_auto": "自動",
+    "channels_mono": "單聲道",
+    "channels_stereo": "立體聲",
+    "input_level": "麥克風輸入電平",
+    "input_detected": "偵測到輸入",
+    "no_input_detected": "未偵測到輸入"
   },
   "pronunciation": {
     "title": "發音字典",

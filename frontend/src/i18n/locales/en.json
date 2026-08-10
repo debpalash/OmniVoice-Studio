@@ -2819,7 +2819,17 @@
   "recording": {
     "cleaned_loaded": "Recording cleaned & loaded!",
     "loaded_raw": "Recording loaded (raw — denoising unavailable)",
-    "too_short": "Recording too short"
+    "too_short": "Recording too short",
+    "input_device": "Input device",
+    "default_input": "System default",
+    "microphone_number": "Microphone {{number}}",
+    "channels": "Channels",
+    "channels_auto": "Auto",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Microphone input level",
+    "input_detected": "Input detected",
+    "no_input_detected": "No input detected"
   },
   "dictation": {
     "title": "Dictation refinement",

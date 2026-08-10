@@ -58,6 +58,12 @@ export default function CloneDesignTab(props) {
     isRecording,
     isCleaning,
     recordingTime,
+    audioInputs,
+    selectedAudioInputId,
+    setSelectedAudioInputId,
+    channelMode,
+    setChannelMode,
+    inputLevelStore,
     vdStates,
     setVdStates,
     isGenerating,
@@ -350,6 +356,12 @@ export default function CloneDesignTab(props) {
                 isCleaning={isCleaning}
                 isRecording={isRecording}
                 recordingTime={recordingTime}
+                audioInputs={audioInputs}
+                selectedAudioInputId={selectedAudioInputId}
+                setSelectedAudioInputId={setSelectedAudioInputId}
+                channelMode={channelMode}
+                setChannelMode={setChannelMode}
+                inputLevelStore={inputLevelStore}
                 startRecording={startRecording}
                 stopRecording={stopRecording}
                 refText={refText}

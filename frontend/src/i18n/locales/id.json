@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Rekaman dibersihkan & dimuat!",
     "loaded_raw": "Rekaman dimuat (mentah — penghilang derau tidak tersedia)",
-    "too_short": "Rekaman terlalu pendek"
+    "too_short": "Rekaman terlalu pendek",
+    "input_device": "Perangkat masukan",
+    "default_input": "Bawaan sistem",
+    "microphone_number": "Mikrofon {{number}}",
+    "channels": "Kanal",
+    "channels_auto": "Otomatis",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Tingkat masukan mikrofon",
+    "input_detected": "Masukan terdeteksi",
+    "no_input_detected": "Tidak ada masukan terdeteksi"
   },
   "pronunciation": {
     "title": "Kamus pengucapan",

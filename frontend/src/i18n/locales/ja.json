@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "録音をクリーンアップして読み込みました！",
     "loaded_raw": "録音を読み込みました（未処理 — ノイズ除去は利用できません）",
-    "too_short": "録音が短すぎます"
+    "too_short": "録音が短すぎます",
+    "input_device": "入力デバイス",
+    "default_input": "システム既定",
+    "microphone_number": "マイク {{number}}",
+    "channels": "チャンネル",
+    "channels_auto": "自動",
+    "channels_mono": "モノラル",
+    "channels_stereo": "ステレオ",
+    "input_level": "マイク入力レベル",
+    "input_detected": "入力を検出",
+    "no_input_detected": "入力を検出できません"
   },
   "pronunciation": {
     "title": "発音辞典",

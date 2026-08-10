@@ -421,8 +421,19 @@ function App() {
   const [compareProgress, setCompareProgress] = useState('');
 
   // ═══ MIC RECORDING ═══
-  const { isRecording, isCleaning, recordingTime, startRecording, stopRecording } =
-    useRecording(ingestRefAudio);
+  const {
+    isRecording,
+    isCleaning,
+    recordingTime,
+    audioInputs,
+    selectedAudioInputId,
+    setSelectedAudioInputId,
+    channelMode,
+    setChannelMode,
+    inputLevelStore,
+    startRecording,
+    stopRecording,
+  } = useRecording(ingestRefAudio);
 
   // ═══ DUB STATE ═══
   const dubJobId = useAppStore((s) => s.dubJobId);
@@ -1584,6 +1595,12 @@ function App() {
                     isRecording={isRecording}
                     isCleaning={isCleaning}
                     recordingTime={recordingTime}
+                    audioInputs={audioInputs}
+                    selectedAudioInputId={selectedAudioInputId}
+                    setSelectedAudioInputId={setSelectedAudioInputId}
+                    channelMode={channelMode}
+                    setChannelMode={setChannelMode}
+                    inputLevelStore={inputLevelStore}
                     vdStates={vdStates}
                     setVdStates={setVdStates}
                     isGenerating={isGenerating}

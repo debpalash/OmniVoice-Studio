@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "Nagranie oczyszczone i załadowane!",
     "loaded_raw": "Nagranie załadowane (surowe — odszumianie niedostępne)",
-    "too_short": "Nagranie zbyt krótkie"
+    "too_short": "Nagranie zbyt krótkie",
+    "input_device": "Urządzenie wejściowe",
+    "default_input": "Domyślne systemowe",
+    "microphone_number": "Mikrofon {{number}}",
+    "channels": "Kanały",
+    "channels_auto": "Automatycznie",
+    "channels_mono": "Mono",
+    "channels_stereo": "Stereo",
+    "input_level": "Poziom wejścia mikrofonu",
+    "input_detected": "Wykryto sygnał",
+    "no_input_detected": "Nie wykryto sygnału"
   },
   "pronunciation": {
     "title": "Słownik wymowy",

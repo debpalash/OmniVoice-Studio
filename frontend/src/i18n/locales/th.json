@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "ทำความสะอาดและโหลดการบันทึกแล้ว!",
     "loaded_raw": "โหลดการบันทึกแล้ว (ดิบ — ใช้การลดเสียงรบกวนไม่ได้)",
-    "too_short": "การบันทึกสั้นเกินไป"
+    "too_short": "การบันทึกสั้นเกินไป",
+    "input_device": "อุปกรณ์อินพุต",
+    "default_input": "ค่าเริ่มต้นของระบบ",
+    "microphone_number": "ไมโครโฟน {{number}}",
+    "channels": "ช่องสัญญาณ",
+    "channels_auto": "อัตโนมัติ",
+    "channels_mono": "โมโน",
+    "channels_stereo": "สเตอริโอ",
+    "input_level": "ระดับอินพุตไมโครโฟน",
+    "input_detected": "ตรวจพบเสียง",
+    "no_input_detected": "ไม่พบเสียง"
   },
   "pronunciation": {
     "title": "พจนานุกรมการออกเสียง",

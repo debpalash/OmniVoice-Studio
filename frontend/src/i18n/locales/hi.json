@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "रिकॉर्डिंग साफ़ करके लोड हो गई!",
     "loaded_raw": "रिकॉर्डिंग लोड हुई (रॉ — डेनोइज़िंग अनुपलब्ध)",
-    "too_short": "रिकॉर्डिंग बहुत छोटी है"
+    "too_short": "रिकॉर्डिंग बहुत छोटी है",
+    "input_device": "इनपुट डिवाइस",
+    "default_input": "सिस्टम डिफ़ॉल्ट",
+    "microphone_number": "माइक्रोफ़ोन {{number}}",
+    "channels": "चैनल",
+    "channels_auto": "स्वचालित",
+    "channels_mono": "मोनो",
+    "channels_stereo": "स्टीरियो",
+    "input_level": "माइक्रोफ़ोन इनपुट स्तर",
+    "input_detected": "आवाज़ मिली",
+    "no_input_detected": "कोई आवाज़ नहीं मिली"
   },
   "pronunciation": {
     "title": "उच्चारण शब्दकोश",

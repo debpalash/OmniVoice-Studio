@@ -3,7 +3,7 @@
  *
  * Extracted from App.jsx to reduce its useState/useRef count.
  */
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { cleanAudio as apiCleanAudio } from '../api/system';
@@ -13,6 +13,12 @@ import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { startMicCapture } from '../utils/aec/micCapture';
 import { encodeWav } from '../utils/audioTrim';
 import { startSupportedMediaRecorder } from '../utils/mediaRecorder';
+import {
+  buildAudioInputConstraints,
+  createInputLevelStore,
+  listAudioInputs,
+  startInputLevelMonitor,
+} from '../utils/audioInput';
 
 function concatFrames(frames) {
   const length = frames.reduce((total, frame) => total + frame.length, 0);
@@ -30,9 +36,44 @@ export default function useRecording(ingestRefAudio) {
   const [isRecording, setIsRecording] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState('');
+  const [channelMode, setChannelMode] = useState('auto');
+  const inputLevelStoreRef = useRef(null);
+  if (!inputLevelStoreRef.current) inputLevelStoreRef.current = createInputLevelStore();
   const mediaRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
+  const stopLevelMonitorRef = useRef(null);
+
+  const refreshAudioInputs = async () => {
+    try {
+      const inputs = await listAudioInputs();
+      setAudioInputs(inputs);
+      setSelectedAudioInputId((current) =>
+        current && !inputs.some((device) => device.deviceId === current) ? '' : current,
+      );
+    } catch {
+      setAudioInputs([]);
+    }
+  };
+
+  const stopLevelMonitor = () => {
+    stopLevelMonitorRef.current?.();
+    stopLevelMonitorRef.current = null;
+    inputLevelStoreRef.current.set(0);
+  };
+
+  useEffect(() => {
+    void refreshAudioInputs();
+    const mediaDevices = navigator.mediaDevices;
+    mediaDevices?.addEventListener?.('devicechange', refreshAudioInputs);
+    return () => {
+      mediaDevices?.removeEventListener?.('devicechange', refreshAudioInputs);
+      stopLevelMonitorRef.current?.();
+      clearInterval(recordingTimerRef.current);
+    };
+  }, []);
 
   const startRecording = async () => {
     // Pre-flight: an OS-denied mic grant means getUserMedia can only throw an
@@ -45,12 +86,27 @@ export default function useRecording(ingestRefAudio) {
     }
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia(
+        buildAudioInputConstraints(selectedAudioInputId, channelMode),
+      );
+      void refreshAudioInputs();
+      stopLevelMonitor();
+      try {
+        stopLevelMonitorRef.current = startInputLevelMonitor(
+          stream,
+          inputLevelStoreRef.current.set,
+        );
+      } catch {
+        // Level feedback is optional; recording must still work when a webview
+        // exposes getUserMedia without a complete Web Audio implementation.
+        stopLevelMonitorRef.current = null;
+      }
       recordingChunksRef.current = [];
       setRecordingTime(0);
 
       const finishRecording = async (blob, extension) => {
         clearInterval(recordingTimerRef.current);
+        stopLevelMonitor();
         stream.getTracks().forEach((t) => t.stop());
         if (blob.size < 1000) {
           toast.error(t('recording.too_short', { defaultValue: 'Recording too short' }));
@@ -131,6 +187,7 @@ export default function useRecording(ingestRefAudio) {
         setRecordingTime(((Date.now() - st) / 1000).toFixed(1));
       }, 100);
     } catch (e) {
+      stopLevelMonitor();
       stream?.getTracks().forEach((track) => track.stop());
       // Same actionable mapping as the dictation pill: denied → per-OS
       // settings hint; otherwise no-device / device-busy / generic (#323).
@@ -142,6 +199,7 @@ export default function useRecording(ingestRefAudio) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
+    stopLevelMonitor();
     setIsRecording(false);
   };
 
@@ -149,6 +207,12 @@ export default function useRecording(ingestRefAudio) {
     isRecording,
     isCleaning,
     recordingTime,
+    audioInputs,
+    selectedAudioInputId,
+    setSelectedAudioInputId,
+    channelMode,
+    setChannelMode,
+    inputLevelStore: inputLevelStoreRef.current,
     startRecording,
     stopRecording,
   };

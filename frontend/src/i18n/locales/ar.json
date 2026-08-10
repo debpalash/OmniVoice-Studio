@@ -2079,7 +2079,17 @@
   "recording": {
     "cleaned_loaded": "تم تنظيف التسجيل وتحميله!",
     "loaded_raw": "تم تحميل التسجيل (خام — إزالة الضوضاء غير متاحة)",
-    "too_short": "التسجيل قصير جدًا"
+    "too_short": "التسجيل قصير جدًا",
+    "input_device": "جهاز الإدخال",
+    "default_input": "إعداد النظام الافتراضي",
+    "microphone_number": "الميكروفون {{number}}",
+    "channels": "القنوات",
+    "channels_auto": "تلقائي",
+    "channels_mono": "أحادي",
+    "channels_stereo": "ستيريو",
+    "input_level": "مستوى إدخال الميكروفون",
+    "input_detected": "تم اكتشاف صوت",
+    "no_input_detected": "لم يتم اكتشاف صوت"
   },
   "pronunciation": {
     "title": "قاموس النطق",
