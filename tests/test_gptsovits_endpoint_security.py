@@ -1,10 +1,13 @@
 """GPT-SoVITS outbound requests stay on loopback or explicit trusted CIDRs."""
+import importlib
 import socket
 
 import pytest
 
-from services import outbound_http
-from services.outbound_http import UnsafeEndpoint, open_trusted_endpoint, resolve_trusted_endpoint
+
+@pytest.fixture
+def outbound_http():
+    return importlib.import_module("services.outbound_http")
 
 
 def _answer(ip: str, port: int = 9880):
@@ -24,32 +27,32 @@ def _answer(ip: str, port: int = 9880):
         "http://127.0.0.1:9880/?next=http://169.254.169.254",
     ],
 )
-def test_rejects_non_origin_and_host_spoof_urls(monkeypatch, url):
+def test_rejects_non_origin_and_host_spoof_urls(outbound_http, monkeypatch, url):
     monkeypatch.setattr(socket, "getaddrinfo", lambda *_args, **_kwargs: _answer("127.0.0.1"))
-    with pytest.raises(UnsafeEndpoint):
-        resolve_trusted_endpoint(url)
+    with pytest.raises(outbound_http.UnsafeEndpoint):
+        outbound_http.resolve_trusted_endpoint(url)
 
 
-def test_private_network_requires_explicit_existing_trust_policy(monkeypatch):
+def test_private_network_requires_explicit_existing_trust_policy(outbound_http, monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", lambda *_args, **_kwargs: _answer("192.168.4.20"))
     monkeypatch.delenv("OMNIVOICE_TRUSTED_NETWORKS", raising=False)
-    with pytest.raises(UnsafeEndpoint):
-        resolve_trusted_endpoint("http://gptsovits.lan:9880")
+    with pytest.raises(outbound_http.UnsafeEndpoint):
+        outbound_http.resolve_trusted_endpoint("http://gptsovits.lan:9880")
 
     monkeypatch.setenv("OMNIVOICE_TRUSTED_NETWORKS", "192.168.4.0/24")
-    endpoint = resolve_trusted_endpoint("http://gptsovits.lan:9880")
+    endpoint = outbound_http.resolve_trusted_endpoint("http://gptsovits.lan:9880")
     assert endpoint.ip == "192.168.4.20"
 
 
-def test_mixed_dns_answers_are_rejected(monkeypatch):
+def test_mixed_dns_answers_are_rejected(outbound_http, monkeypatch):
     monkeypatch.setenv("OMNIVOICE_TRUSTED_NETWORKS", "10.0.0.0/8")
     monkeypatch.setattr(
         socket,
         "getaddrinfo",
         lambda *_args, **_kwargs: _answer("10.2.3.4") + _answer("169.254.169.254"),
     )
-    with pytest.raises(UnsafeEndpoint):
-        resolve_trusted_endpoint("http://gptsovits.internal:9880")
+    with pytest.raises(outbound_http.UnsafeEndpoint):
+        outbound_http.resolve_trusted_endpoint("http://gptsovits.internal:9880")
 
 
 class _Response:
@@ -91,33 +94,39 @@ class _CaptureSocket:
 
 
 @pytest.mark.parametrize(
-    ("connection_cls", "endpoint", "expected_host"),
+    ("connection_kind", "endpoint_args", "expected_host"),
     [
         (
-            outbound_http._PinnedHTTPConnection,
-            outbound_http.ResolvedEndpoint("http", "127.0.0.1", 80, "127.0.0.1"),
+            "http",
+            ("http", "127.0.0.1", 80, "127.0.0.1"),
             b"Host: 127.0.0.1\r\n",
         ),
         (
-            outbound_http._PinnedHTTPConnection,
-            outbound_http.ResolvedEndpoint("http", "localhost", 9880, "127.0.0.1"),
+            "http",
+            ("http", "localhost", 9880, "127.0.0.1"),
             b"Host: localhost:9880\r\n",
         ),
         (
-            outbound_http._PinnedHTTPConnection,
-            outbound_http.ResolvedEndpoint("http", "::1", 9880, "::1"),
+            "http",
+            ("http", "::1", 9880, "::1"),
             b"Host: [::1]:9880\r\n",
         ),
         (
-            outbound_http._PinnedHTTPSConnection,
-            outbound_http.ResolvedEndpoint("https", "localhost", 443, "127.0.0.1"),
+            "https",
+            ("https", "localhost", 443, "127.0.0.1"),
             b"Host: localhost\r\n",
         ),
     ],
 )
 def test_http_client_builds_complete_host_authority(
-    connection_cls, endpoint, expected_host
+    outbound_http, connection_kind, endpoint_args, expected_host
 ):
+    connection_cls = (
+        outbound_http._PinnedHTTPSConnection
+        if connection_kind == "https"
+        else outbound_http._PinnedHTTPConnection
+    )
+    endpoint = outbound_http.ResolvedEndpoint(*endpoint_args)
     connection = connection_cls(endpoint, timeout=2)
     capture = _CaptureSocket()
     connection.sock = capture
@@ -128,7 +137,9 @@ def test_http_client_builds_complete_host_authority(
     assert expected_host in wire
 
 
-def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(monkeypatch):
+def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(
+    outbound_http, monkeypatch
+):
     calls = 0
 
     def changing_dns(*_args, **_kwargs):
@@ -139,7 +150,7 @@ def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(monkeypatch
     _Connection.instances.clear()
     monkeypatch.setattr(socket, "getaddrinfo", changing_dns)
     monkeypatch.setattr(outbound_http, "_PinnedHTTPConnection", _Connection)
-    response = open_trusted_endpoint(
+    response = outbound_http.open_trusted_endpoint(
         "http://localhost:9880", method="POST", query="text=hello", timeout=5
     )
 
@@ -151,7 +162,7 @@ def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(monkeypatch
     assert response.status == 200
 
 
-def test_redirect_is_rejected_without_following_location(monkeypatch):
+def test_redirect_is_rejected_without_following_location(outbound_http, monkeypatch):
     _Connection.instances.clear()
     monkeypatch.setattr(socket, "getaddrinfo", lambda *_args, **_kwargs: _answer("127.0.0.1"))
     monkeypatch.setattr(outbound_http, "_PinnedHTTPConnection", _Connection)
@@ -162,17 +173,17 @@ def test_redirect_is_rejected_without_following_location(monkeypatch):
         self.response = _Response(302)
 
     monkeypatch.setattr(_Connection, "__init__", redirecting_init)
-    with pytest.raises(UnsafeEndpoint, match="redirects"):
-        open_trusted_endpoint("http://127.0.0.1:9880", method="GET", timeout=2)
+    with pytest.raises(outbound_http.UnsafeEndpoint, match="redirects"):
+        outbound_http.open_trusted_endpoint(
+            "http://127.0.0.1:9880", method="GET", timeout=2
+        )
     assert _Connection.instances[0].closed is True
 
 
-def test_gptsovits_availability_uses_valid_configured_endpoint(monkeypatch):
-    import importlib
-
+def test_gptsovits_availability_uses_valid_configured_endpoint(
+    outbound_http, monkeypatch
+):
     from services.tts_backend import GPTSoVITSBackend
-
-    live_outbound_http = importlib.import_module("services.outbound_http")
 
     calls = []
 
@@ -185,7 +196,7 @@ def test_gptsovits_availability_uses_valid_configured_endpoint(monkeypatch):
 
     monkeypatch.setenv("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
     monkeypatch.setattr(
-        live_outbound_http,
+        outbound_http,
         "open_trusted_endpoint",
         lambda url, **kwargs: calls.append((url, kwargs)) or _ContextResponse(),
     )
