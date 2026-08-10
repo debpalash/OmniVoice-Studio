@@ -92,7 +92,7 @@ def _analyse_frame_basic(frame_path: str) -> dict:
         import statistics
 
         img = Image.open(frame_path).convert("RGB").resize((320, 240))
-        pixels = list(img.getdata())
+        pixels = list(img.get_flattened_data())
 
         # Brightness
         luminances = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b in pixels]
@@ -113,7 +113,7 @@ def _analyse_frame_basic(frame_path: str) -> dict:
         # Edge density → approximates "action" vs "static"
         try:
             gray = img.convert("L")
-            edge_pixels = list(gray.getdata())
+            edge_pixels = list(gray.get_flattened_data())
             diffs = [
                 abs(edge_pixels[i] - edge_pixels[i + 1])
                 for i in range(len(edge_pixels) - 1)

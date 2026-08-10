@@ -61,6 +61,9 @@ dependencies = [
     "pyannote-audio>=3.3.2,<4.0",
     "pyinstaller>=6.19.0",
     "imageio-ffmpeg>=0.6.0",
+    # Directly used by video_context; 12.1 adds get_flattened_data(), the
+    # replacement for getdata() ahead of its Pillow 14 removal.
+    "pillow>=12.1.0",
     "pedalboard>=0.9.14",
     # Primary ASR — cross-platform, CTranslate2-based under the hood. WhisperX
     # adds wav2vec2 forced alignment (±10-30 ms word timing vs Whisper's own
