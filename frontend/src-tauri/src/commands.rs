@@ -5,12 +5,118 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::image::Image;
 
 use crate::{AppFlags, TrayHandle, DictationShortcutState};
 use crate::{TRAY_ICON_DEFAULT, TRAY_ICON_RECORDING};
 use crate::config::{load_config, save_config};
+
+// ── Native host-path authorization ───────────────────────────────────────
+
+#[derive(Serialize, Deserialize)]
+struct AuthorizedHostPath {
+    token: String,
+    kind: String,
+    path: String,
+}
+
+pub fn path_authorization_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
+    crate::setup::resolved_data_dir(app)
+        .unwrap_or_else(crate::setup::default_data_dir)
+        .join(".path-authorizations")
+}
+
+fn validate_host_path(kind: &str, raw: &str) -> Result<PathBuf, String> {
+    if !matches!(kind, "models_dir" | "ffmpeg" | "ffprobe") {
+        return Err("Unsupported host-path capability".into());
+    }
+    if raw.chars().any(|c| c.is_control()) {
+        return Err("Path contains invalid control characters".into());
+    }
+    if kind == "models_dir" && raw.is_empty() {
+        return Ok(PathBuf::new()); // explicit reset to the platform default
+    }
+    let path = PathBuf::from(raw);
+    if !path.is_absolute() {
+        return Err("Path must be absolute".into());
+    }
+    if kind == "models_dir" {
+        fs::create_dir_all(&path).map_err(|e| format!("Directory is not writable: {e}"))?;
+        let probe = path.join(".voicestudio-write-test");
+        fs::write(&probe, b"ok").map_err(|e| format!("Directory is not writable: {e}"))?;
+        let _ = fs::remove_file(probe);
+    } else {
+        if !path.is_file() {
+            return Err("Selected media tool is not a file".into());
+        }
+        let status = crate::tools::no_window(
+            std::process::Command::new(&path)
+                .arg("-version")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null()),
+        )
+        .status()
+        .map_err(|e| format!("Selected media tool could not run: {e}"))?;
+        if !status.success() {
+            return Err("Selected media tool failed its version check".into());
+        }
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn authorize_host_path(
+    app: tauri::AppHandle,
+    kind: String,
+    path: String,
+) -> Result<String, String> {
+    let validated = validate_host_path(&kind, path.trim())?;
+    let mut random = [0_u8; 32];
+    getrandom::fill(&mut random).map_err(|e| format!("Secure randomness unavailable: {e}"))?;
+    let token: String = random.iter().map(|b| format!("{b:02x}")).collect();
+    let dir = path_authorization_dir(&app);
+    fs::create_dir_all(&dir).map_err(|e| format!("Could not create authorization store: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("Could not protect authorization store: {e}"))?;
+    }
+    let target = dir.join(format!("{token}.json"));
+    let payload = AuthorizedHostPath {
+        token: token.clone(),
+        kind,
+        path: validated.to_string_lossy().into_owned(),
+    };
+    fs::write(&target, serde_json::to_vec(&payload).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("Could not authorize path: {e}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Could not protect authorization: {e}"))?;
+    }
+    Ok(token)
+}
+
+#[cfg(test)]
+mod host_path_authorization_tests {
+    use super::validate_host_path;
+    use std::path::PathBuf;
+
+    #[test]
+    fn rejects_unknown_relative_and_control_character_paths() {
+        assert!(validate_host_path("shell", "/tmp/tool").is_err());
+        assert!(validate_host_path("models_dir", "relative/models").is_err());
+        assert!(validate_host_path("models_dir", "/tmp/bad\npath").is_err());
+    }
+
+    #[test]
+    fn empty_models_path_is_the_authorized_default_reset() {
+        assert_eq!(validate_host_path("models_dir", "").unwrap(), PathBuf::new());
+    }
+}
 
 // ── System metrics ────────────────────────────────────────────────────────
 

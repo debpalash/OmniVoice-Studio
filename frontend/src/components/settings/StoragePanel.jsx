@@ -9,7 +9,7 @@
  * Endpoints:
  *   GET /api/settings/storage/models-dir
  *     → {configured, effective, default, restart_required}
- *   PUT /api/settings/storage/models-dir  body {path}  (empty path clears)
+ *   Native IPC authorizes the path, then PUT sends only the one-shot token.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { HardDrive } from 'lucide-react';
@@ -52,10 +52,12 @@ export default function StoragePanel() {
     setSaving(true);
     setError(null);
     try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const authorization = await invoke('authorize_host_path', { kind: 'models_dir', path });
       const res = await apiFetch('/api/settings/storage/models-dir', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ authorization }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));

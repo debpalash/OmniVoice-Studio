@@ -11,6 +11,8 @@ vi.mock('../../api/client', () => ({
   apiJson: vi.fn(),
   apiFetch: vi.fn(),
 }));
+const invoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args) => invoke(...args) }));
 
 import { toast } from 'react-hot-toast';
 import { apiJson, apiFetch } from '../../api/client';
@@ -57,6 +59,7 @@ describe('AudioToolsPanel — power-user surface for the media tools', () => {
     vi.clearAllMocks();
     apiJson.mockResolvedValue(JSON.parse(JSON.stringify(STATUS)));
     apiFetch.mockResolvedValue(okResponse);
+    invoke.mockResolvedValue('c'.repeat(64));
   });
 
   it('renders one row per tool with version, path, and origin badge', async () => {
@@ -83,6 +86,26 @@ describe('AudioToolsPanel — power-user surface for the media tools', () => {
       expect(apiFetch).toHaveBeenCalledWith('/media-tools/ffmpeg/use-system', expect.anything()),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  });
+
+  it('sends only a native one-shot authorization for a custom executable', async () => {
+    render(<AudioToolsPanel />);
+    fireEvent.click(await screen.findByLabelText('FFmpeg: Choose file…'));
+    const input = await screen.findByLabelText('FFmpeg binary path');
+    fireEvent.change(input, { target: { value: '/opt/tools/ffmpeg' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('authorize_host_path', {
+        kind: 'ffmpeg',
+        path: '/opt/tools/ffmpeg',
+      }),
+    );
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/media-tools/ffmpeg/custom-path',
+      expect.objectContaining({ body: JSON.stringify({ authorization: 'c'.repeat(64) }) }),
+    );
+    expect(apiFetch.mock.calls.flat().join(' ')).not.toContain('/opt/tools/ffmpeg');
   });
 
   it('Restore bundled is per-tool and always available (safe revert)', async () => {

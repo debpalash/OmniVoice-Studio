@@ -1,11 +1,10 @@
 """Settings API — HF token save/clear/state endpoints (Phase 1 AUTH-03 backend half).
 
 These endpoints are the backend half of the Wave 2 Settings → API Keys
-panel. Threat T-01-03 mitigation: every write endpoint is gated by the
-router-level `require_loopback` dep, so non-loopback origins get 403
-before the handler runs. Reads are loopback-gated too — the masked
-token preview is useful telemetry that we still don't want exposed on
-the LAN.
+panel. Threat T-01-03 mitigation: the router-level `require_admin` dependency
+keeps desktop callers loopback-only and requires the long API key for every
+remote server-mode mutation. Read-only bare-Docker discovery remains available
+until an API key is configured; once configured, reads require it too.
 
 The state endpoint duplicates `/system/hf-token/state` (which lives on
 `system.py` for legacy-router compatibility); both return the same shape.
@@ -20,14 +19,14 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 
 logger = logging.getLogger("omnivoice.api.settings")
 
 router = APIRouter(
     prefix="/api/settings",
     tags=["settings"],
-    dependencies=[Depends(require_loopback)],
+    dependencies=[Depends(require_admin)],
 )
 
 
@@ -445,42 +444,20 @@ def test_llm_provider(provider_id: str):
             "reply": reply[:80],
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
-    except Exception as e:  # noqa: BLE001 — surface a clean, scrubbed error to the UI
+    except Exception as e:  # noqa: BLE001 — classify without exposing diagnostics
         kind = _classify_llm_error(e)
-        detail = _scrub_llm_detail(e, api_key)
-        # A 404 from a LOCAL server is almost never a wrong URL — the request
-        # reached it — it is a model name the server does not have loaded. The
-        # generic "check the model name and Base URL path" sends the user to
-        # audit a URL that works. Ask what IS loaded and say so (#1332).
+        from core.public_errors import provider_failure
+        failure = provider_failure(kind)
+        # A successful local catalog probe proves the cached model is stale.
+        # Invalidate it, but never include catalog or exception text in the
+        # response: both are controlled by the provider.
         if kind == "not_found" and p.local:
             available = _local_models(base_url, api_key)
-            asked = llm_providers.resolve_model(p)
-            if available:
-                detail = (
-                    f"{p.display_name} is running, but has no model named "
-                    f"{asked!r}. Loaded right now: {', '.join(available[:10])}"
-                    + (" …" if len(available) > 10 else "")
-                    + ". Pick one in the Model field above."
-                )
-                # The cached discovery, if any, produced a name this server
-                # rejects — most likely the user swapped the loaded model
-                # inside the local app. Drop it so the next attempt re-asks
-                # rather than repeating the same 404 until the TTL expires.
+            if available is not None:
                 llm_providers.forget_discovered_models(p.id)
-            elif available == []:
-                detail = (
-                    f"{p.display_name} is running, but reports no loaded models, "
-                    f"so {asked!r} cannot be served. Load a model in "
-                    f"{p.display_name} first, then test again."
-                )
-                llm_providers.forget_discovered_models(p.id)
-            # available is None: the model listing itself failed, so nothing
-            # here is established. Keep the generic 404 text rather than
-            # inventing a diagnosis the lookup did not support.
         return {
             "ok": False,
-            "kind": kind,
-            "detail": detail,
+            **failure,
             "latency_ms": int((_time.monotonic() - t0) * 1000),
         }
 
@@ -529,10 +506,10 @@ def list_llm_provider_models(provider_id: str):
         # can say "first 200 shown" rather than implying it's the full list.
         return {"ok": True, "models": ids[:200], "truncated": len(ids) > 200}
     except Exception as e:  # noqa: BLE001
+        from core.public_errors import provider_failure
         return {
             "ok": False,
-            "kind": _classify_llm_error(e),
-            "detail": _scrub_llm_detail(e, api_key),
+            **provider_failure(_classify_llm_error(e)),
             "models": [],
         }
 
@@ -685,7 +662,7 @@ def _effective_models_dir() -> str:
 
 
 class _ModelsDirBody(BaseModel):
-    path: str = Field(default="", description="Absolute directory; empty clears → default cache")
+    authorization: str = Field(description="One-shot native desktop authorization")
 
 
 @router.get("/storage/models-dir")
@@ -714,17 +691,18 @@ def set_models_dir(body: _ModelsDirBody):
     saved. Returns restart_required=True.
     """
     from core import user_env
+    from core.path_authorization import PathAuthorizationError, consume
 
-    raw = (body.path or "").strip()
+    try:
+        raw = consume(body.authorization, "models_dir").strip()
+    except PathAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     if not raw:
         user_env.unset_user_env(_MODELS_DIR_ENV)
         return {"configured": None, "default": _default_models_dir(), "restart_required": True}
 
-    # Reject control characters / NUL before touching the filesystem: an
-    # embedded NUL makes os.makedirs raise ValueError (→ 500). This is also
-    # the input-validation barrier for the path before it reaches any fs call
-    # (the dir is user-chosen by design — this is a loopback-gated, same-user
-    # local file picker, not a cross-privilege boundary).
+    # Tauri already validates this before issuing the capability. Keep the
+    # backend checks as defense in depth against a corrupt capability file.
     if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in raw):
         raise HTTPException(status_code=400, detail="Path contains invalid control characters")
 

@@ -7,6 +7,8 @@ strip poison ("[object Object]", freeform prose) down to whitelist tags,
 recovering a design from ``vd_states`` when the stored value is unusable.
 """
 import json
+from statistics import median
+import time
 
 import pytest
 
@@ -55,6 +57,27 @@ def test_sanitize_normalises_case_and_blank_items():
 @pytest.mark.parametrize("bad", [None, "", "   ", "[object Object]"])
 def test_sanitize_handles_empty_and_poison(bad):
     assert sanitize_instruct(bad) == ""
+
+
+def test_sanitize_long_whitespace_run_is_linear_time():
+    sizes = (2_000, 8_000, 32_000)
+    timings = []
+    for size in sizes:
+        poisoned = "female" + (" " * size) + "not-a-tag"
+        assert sanitize_instruct(poisoned) == ""  # warm timer/cache paths
+        samples = []
+        for _ in range(5):
+            started = time.perf_counter_ns()
+            assert sanitize_instruct(poisoned) == ""
+            samples.append(time.perf_counter_ns() - started)
+        timings.append(median(samples))
+
+    # Input grows 4x per step and 16x overall. Generous multipliers and a
+    # 20 ms scheduling floor tolerate noisy shared runners while still
+    # separating linear split/strip behavior from the former quadratic regex.
+    for smaller, larger in zip(timings, timings[1:]):
+        assert larger <= max(smaller * 10, 20_000_000)
+    assert timings[-1] <= max(timings[0] * 48, 20_000_000)
 
 
 def test_instruct_from_vd_states_dict_drops_auto():
