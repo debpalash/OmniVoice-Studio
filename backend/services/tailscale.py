@@ -9,12 +9,14 @@ by default — the WireGuard tunnel already encrypts the transport — and only
 use HTTPS when the tailnet actually has certs provisioned.
 """
 import json
+import logging
 import shutil
 import subprocess
 
 from services import network_share
 
 _ADMIN_DNS = "https://login.tailscale.com/admin/dns"
+logger = logging.getLogger("omnivoice.tailscale")
 
 
 def _cli():
@@ -54,8 +56,9 @@ def _run(args):
         if r.returncode != 0:
             return {"ok": False, "error": (r.stderr or r.stdout or "tailscale serve failed").strip()}
         return {"ok": True, "error": ""}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+    except Exception:
+        logger.exception("Tailscale command failed")
+        return {"ok": False, "error": "tailscale command failed"}
 
 
 def serve_enable(port: int | None = None) -> dict:

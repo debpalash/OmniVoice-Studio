@@ -112,6 +112,23 @@ def test_tailscale_enable_failure_keeps_service_output_private(monkeypatch, capl
     assert "/home/alice" not in caplog.text
 
 
+def test_tailscale_command_exception_stays_in_local_log(monkeypatch, caplog):
+    from services import tailscale
+
+    private = f"{_PRIVATE}\nTOKEN=private-value"
+
+    def fail_run(*_args, **_kwargs):
+        raise RuntimeError(private)
+
+    monkeypatch.setattr(tailscale.subprocess, "run", fail_run)
+    with caplog.at_level(logging.ERROR, logger="omnivoice.tailscale"):
+        result = tailscale._run(["tailscale", "serve"])
+
+    assert result == {"ok": False, "error": "tailscale command failed"}
+    assert private in caplog.text
+    assert private not in str(result)
+
+
 def test_wrapped_cache_repair_failure_keeps_constant_recovery_guidance():
     from core.public_errors import public_exception_response
 
