@@ -168,7 +168,11 @@ def test_redirect_is_rejected_without_following_location(monkeypatch):
 
 
 def test_gptsovits_availability_uses_valid_configured_endpoint(monkeypatch):
+    import importlib
+
     from services.tts_backend import GPTSoVITSBackend
+
+    live_outbound_http = importlib.import_module("services.outbound_http")
 
     calls = []
 
@@ -181,7 +185,7 @@ def test_gptsovits_availability_uses_valid_configured_endpoint(monkeypatch):
 
     monkeypatch.setenv("OMNIVOICE_GPTSOVITS_URL", "http://127.0.0.1:9880")
     monkeypatch.setattr(
-        outbound_http,
+        live_outbound_http,
         "open_trusted_endpoint",
         lambda url, **kwargs: calls.append((url, kwargs)) or _ContextResponse(),
     )
