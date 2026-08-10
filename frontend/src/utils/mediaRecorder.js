@@ -20,6 +20,47 @@ function extensionFor(mimeType) {
   return 'webm';
 }
 
+function recorderCandidates(Recorder) {
+  const canProbe = typeof Recorder.isTypeSupported === 'function';
+  const candidates = AUDIO_TYPES.filter(
+    ([mimeType]) => !canProbe || Recorder.isTypeSupported(mimeType),
+  ).map(([mimeType, extension]) => ({ options: { mimeType }, mimeType, extension }));
+  candidates.push({ options: undefined, mimeType: 'audio/webm', extension: 'webm' });
+  return candidates;
+}
+
+function tryRecorders(stream, Recorder, prepare) {
+  if (typeof Recorder !== 'function') return null;
+
+  for (const candidate of recorderCandidates(Recorder)) {
+    let recorder;
+    try {
+      recorder = candidate.options ? new Recorder(stream, candidate.options) : new Recorder(stream);
+      prepare(recorder);
+      const mimeType = recorder.mimeType || candidate.mimeType;
+      return {
+        recorder,
+        mimeType,
+        extension: candidate.options ? candidate.extension : extensionFor(mimeType),
+      };
+    } catch {
+      // WebKitGTK can accept construction and fail only when start() runs.
+      // Detach callbacks before cleanup so a rejected candidate cannot ingest
+      // an empty recording.
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        try {
+          if (recorder.state === 'recording') recorder.stop();
+        } catch {
+          // Continue to the next format.
+        }
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * @returns {{recorder: MediaRecorder, mimeType: string, extension: string}|null}
  */
@@ -27,29 +68,23 @@ export function createSupportedMediaRecorder(
   stream,
   Recorder = typeof MediaRecorder === 'undefined' ? undefined : MediaRecorder,
 ) {
-  if (typeof Recorder !== 'function') return null;
+  return tryRecorders(stream, Recorder, () => {});
+}
 
-  const canProbe = typeof Recorder.isTypeSupported === 'function';
-  for (const [mimeType, extension] of AUDIO_TYPES) {
-    if (canProbe && !Recorder.isTypeSupported(mimeType)) continue;
-    try {
-      const recorder = new Recorder(stream, { mimeType });
-      return {
-        recorder,
-        mimeType: recorder.mimeType || mimeType,
-        extension,
-      };
-    } catch {
-      // WebKitGTK may claim support but reject the constructor. Try the next
-      // container, then the browser-selected default below.
-    }
-  }
-
-  try {
-    const recorder = new Recorder(stream);
-    const mimeType = recorder.mimeType || 'audio/webm';
-    return { recorder, mimeType, extension: extensionFor(mimeType) };
-  } catch {
-    return null;
-  }
+/**
+ * Construct and start the first recorder that works. Some WebKitGTK builds
+ * throw NotSupportedError only from start(), after construction succeeds.
+ *
+ * @returns {{recorder: MediaRecorder, mimeType: string, extension: string}|null}
+ */
+export function startSupportedMediaRecorder(
+  stream,
+  { onData, onStop, timeslice = 250 },
+  Recorder = typeof MediaRecorder === 'undefined' ? undefined : MediaRecorder,
+) {
+  return tryRecorders(stream, Recorder, (recorder) => {
+    recorder.ondataavailable = onData;
+    recorder.onstop = onStop;
+    recorder.start(timeslice);
+  });
 }

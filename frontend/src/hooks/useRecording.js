@@ -12,7 +12,7 @@ import { checkMicrophone } from '../utils/permissions';
 import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { startMicCapture } from '../utils/aec/micCapture';
 import { encodeWav } from '../utils/audioTrim';
-import { createSupportedMediaRecorder } from '../utils/mediaRecorder';
+import { startSupportedMediaRecorder } from '../utils/mediaRecorder';
 
 function concatFrames(frames) {
   const length = frames.reduce((total, frame) => total + frame.length, 0);
@@ -86,17 +86,19 @@ export default function useRecording(ingestRefAudio) {
         }
       };
 
-      const supported = createSupportedMediaRecorder(stream);
+      let recordingFormat = { mimeType: 'audio/webm', extension: 'webm' };
+      const supported = startSupportedMediaRecorder(stream, {
+        onData: (e) => {
+          if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+        },
+        onStop: () => {
+          const blob = new Blob(recordingChunksRef.current, { type: recordingFormat.mimeType });
+          void finishRecording(blob, recordingFormat.extension);
+        },
+      });
       if (supported) {
         const { recorder, mimeType, extension } = supported;
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) recordingChunksRef.current.push(e.data);
-        };
-        recorder.onstop = () => {
-          const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-          void finishRecording(blob, extension);
-        };
-        recorder.start(250); // Collect chunks every 250ms
+        recordingFormat = { mimeType, extension };
         mediaRecorderRef.current = recorder;
       } else {
         // Some Linux WebKitGTK builds expose MediaRecorder but reject every

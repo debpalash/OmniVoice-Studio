@@ -22,7 +22,6 @@ import NotificationPanel from './NotificationPanel';
 import TitleTabs from './TitleTabs';
 import { useAppStore } from '../store';
 import { useSysinfo } from '../api/hooks';
-import voiceStudioLogo from '../../src-tauri/icons/32x32.png';
 
 const VIEW_META = {
   launchpad: {
@@ -281,13 +280,21 @@ export default function Header({
       {/* Center: logo — the tabs take this room in titlebar-tabs mode. */}
       {!tabsInTitlebar && (
         <div className="flex items-center gap-2 justify-self-center pointer-events-none whitespace-nowrap">
-          <img
-            src={voiceStudioLogo}
-            alt=""
+          <svg
+            viewBox="0 0 32 32"
+            fill="none"
             aria-hidden="true"
             data-testid="voice-studio-logo"
-            className="size-5 rounded-[5px]"
-          />
+            className="size-6 overflow-visible"
+          >
+            <path
+              d="M2 16c2.2 0 2.5-4 4.2-4 2.1 0 2.2 8 4.1 8 2.1 0 2.2-16 4.3-16 2.3 0 2.1 24 4.3 24 2.1 0 2.2-19 4.2-19 2.2 0 2.1 12 4 12 1.7 0 2-5 3.9-5"
+              stroke="var(--chrome-accent)"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           <span className="text-[0.92rem] font-semibold text-[var(--chrome-fg)] tracking-[0.02em] [font-family:var(--font-sans)] not-italic">
             Voice<span className="text-[var(--chrome-accent)]">Studio</span>
           </span>

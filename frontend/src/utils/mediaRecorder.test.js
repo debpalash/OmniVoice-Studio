@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createSupportedMediaRecorder } from './mediaRecorder';
+import { createSupportedMediaRecorder, startSupportedMediaRecorder } from './mediaRecorder';
 
 describe('createSupportedMediaRecorder', () => {
   it('uses an Ogg container when WebKit rejects WebM', () => {
@@ -51,5 +51,38 @@ describe('createSupportedMediaRecorder', () => {
     });
     Unsupported.isTypeSupported = () => false;
     expect(createSupportedMediaRecorder({}, Unsupported)).toBeNull();
+  });
+
+  it('tries another container when start fails after construction', () => {
+    const starts = [];
+    class LateRejectingRecorder {
+      static isTypeSupported(type) {
+        return type === 'audio/webm;codecs=opus' || type === 'audio/mp4';
+      }
+
+      constructor(_stream, options = {}) {
+        this.mimeType = options.mimeType;
+        this.state = 'inactive';
+      }
+
+      start() {
+        starts.push(this.mimeType || 'default');
+        if (this.mimeType?.startsWith('audio/webm')) {
+          throw new DOMException(
+            'MediaRecorder is unsupported on this platform',
+            'NotSupportedError',
+          );
+        }
+        this.state = 'recording';
+      }
+    }
+
+    const result = startSupportedMediaRecorder(
+      {},
+      { onData: vi.fn(), onStop: vi.fn() },
+      LateRejectingRecorder,
+    );
+    expect(result).toMatchObject({ mimeType: 'audio/mp4', extension: 'm4a' });
+    expect(starts).toEqual(['audio/webm;codecs=opus', 'audio/mp4']);
   });
 });

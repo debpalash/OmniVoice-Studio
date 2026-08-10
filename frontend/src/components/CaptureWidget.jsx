@@ -13,7 +13,7 @@ import { showMicDeniedGuide } from '../utils/micDeniedToast';
 import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
 import { createWaveform } from './captureWaveform';
 import { emitDictationNotice } from '../utils/dictationNotice';
-import { createSupportedMediaRecorder } from '../utils/mediaRecorder';
+import { startSupportedMediaRecorder } from '../utils/mediaRecorder';
 
 // True inside the Tauri shell (desktop app / widget window); false in the
 // browser webui / Docker, where the native commands don't exist. Gating on
@@ -816,8 +816,23 @@ export default function CaptureWidget({ onDismiss }) {
       const aecOn = useAppStore.getState().aecEnabled === true;
       const modelId = useAppStore.getState().dictationModelId;
       const sherpaOn = isSherpaModel(modelId);
-      const supportedRecorder = aecOn || sherpaOn ? null : createSupportedMediaRecorder(stream);
+      const supportedRecorder =
+        aecOn || sherpaOn
+          ? null
+          : startSupportedMediaRecorder(stream, {
+              onData: (e) => {
+                if (e.data.size === 0) return;
+                chunksRef.current.push(e.data);
+                void e.data.arrayBuffer().then((buf) => {
+                  const ws = wsRef.current;
+                  if (ws && ws.readyState === WebSocket.OPEN) ws.send(buf);
+                  else wsPendingRef.current.push(buf);
+                });
+              },
+              onStop: () => {},
+            });
       const pcmFallback = !aecOn && !sherpaOn && supportedRecorder === null;
+      if (supportedRecorder) mediaRecorderRef.current = supportedRecorder.recorder;
       aecModeRef.current = aecOn;
       sherpaModeRef.current = sherpaOn;
       pcmModeRef.current = pcmFallback;
@@ -1099,21 +1114,6 @@ export default function CaptureWidget({ onDismiss }) {
       } else {
         const { recorder, mimeType, extension } = supportedRecorder;
         recordingFormatRef.current = { mimeType, extension };
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            chunksRef.current.push(e.data);
-            e.data.arrayBuffer().then((buf) => {
-              const ws = wsRef.current;
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(buf);
-              } else {
-                wsPendingRef.current.push(buf);
-              }
-            });
-          }
-        };
-        recorder.onstop = () => {};
-        recorder.start(250);
         mediaRecorderRef.current = recorder;
       }
       // The session may already have RESOLVED while the mic graph was being
@@ -1148,6 +1148,7 @@ export default function CaptureWidget({ onDismiss }) {
         stopCaptureGraph();
         return;
       }
+      stopCaptureGraph();
       // Distinguish "permission denied" (→ per-OS settings hint) from
       // "no device" / "device busy" / anything else (#323).
       toast.error(micErrorMessage(t, err), { duration: 6000 });
