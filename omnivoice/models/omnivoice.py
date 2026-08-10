@@ -75,6 +75,16 @@ from omnivoice.utils.voice_design import (
 
 logger = logging.getLogger(__name__)
 
+_AUDIO_TOKENIZER_FALLBACK_REPO = "eustlb/higgs-audio-v2-tokenizer"
+
+
+class OmniVoiceModelAssetError(RuntimeError):
+    """A fixed nested model repository failed while OmniVoice was loading."""
+
+    def __init__(self, repository_id: str):
+        super().__init__(f"Failed to load OmniVoice model asset: {repository_id}")
+        self.repository_id = repository_id
+
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -345,18 +355,25 @@ class OmniVoice(PreTrainedModel):
                 if not os.path.isdir(audio_tokenizer_path):
                     # Fallback to the HuggingFace Hub path of transformers'
                     # HiggsAudioV2Tokenizer if the local subdirectory doesn't exist.
-                    audio_tokenizer_path = "eustlb/higgs-audio-v2-tokenizer"
+                    audio_tokenizer_path = _AUDIO_TOKENIZER_FALLBACK_REPO
 
                 # higgs-audio-v2-tokenizer does not support MPS (output channels > 65536)
                 tokenizer_device = (
                     "cpu" if str(model.device).startswith("mps") else model.device
                 )
-                model.audio_tokenizer = _audio_tokenizer_cls().from_pretrained(
-                    audio_tokenizer_path, device_map=tokenizer_device
-                )
-                model.feature_extractor = AutoFeatureExtractor.from_pretrained(
-                    audio_tokenizer_path
-                )
+                try:
+                    model.audio_tokenizer = _audio_tokenizer_cls().from_pretrained(
+                        audio_tokenizer_path, device_map=tokenizer_device
+                    )
+                    model.feature_extractor = AutoFeatureExtractor.from_pretrained(
+                        audio_tokenizer_path
+                    )
+                except Exception as exc:
+                    if audio_tokenizer_path != _AUDIO_TOKENIZER_FALLBACK_REPO:
+                        raise
+                    raise OmniVoiceModelAssetError(
+                        _AUDIO_TOKENIZER_FALLBACK_REPO
+                    ) from exc
 
                 model.sampling_rate = model.feature_extractor.sampling_rate
 

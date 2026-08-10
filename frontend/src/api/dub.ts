@@ -19,6 +19,26 @@ export interface IngestUrlOptions {
   fetchSubs?: boolean;
   /** Limit caption fetch to specific lang codes; defaults to all available. */
   subLangs?: string[];
+  /** Explicit cookies.txt export used only for this import. */
+  cookieFile?: File;
+}
+
+export const DUB_COOKIE_TRANSPORT_ERROR = 'DUB_COOKIE_TRANSPORT';
+export const DUB_COOKIE_SIZE_ERROR = 'DUB_COOKIE_TOO_LARGE';
+export const MAX_COOKIE_EXPORT_BYTES = 1024 * 1024;
+
+function cookieSelectionError(code: string): Error & { code: string } {
+  return Object.assign(new Error(code), { code });
+}
+
+export function _cookieTransportAllowed(apiBase: string): boolean {
+  const endpoint = new URL(apiBase, window.location.href);
+  return (
+    endpoint.protocol === 'https:' ||
+    endpoint.hostname === 'localhost' ||
+    endpoint.hostname === '127.0.0.1' ||
+    endpoint.hostname === '[::1]'
+  );
 }
 
 export async function dubIngestUrl(
@@ -26,7 +46,14 @@ export async function dubIngestUrl(
   jobId: string,
   opts: IngestUrlOptions = {},
 ): Promise<unknown> {
-  const { signal, fetchSubs, subLangs } = opts;
+  const { signal, fetchSubs, subLangs, cookieFile } = opts;
+  if (cookieFile && !_cookieTransportAllowed(API)) {
+    throw cookieSelectionError(DUB_COOKIE_TRANSPORT_ERROR);
+  }
+  if (cookieFile && cookieFile.size > MAX_COOKIE_EXPORT_BYTES) {
+    throw cookieSelectionError(DUB_COOKIE_SIZE_ERROR);
+  }
+  const cookieText = cookieFile ? await cookieFile.text() : undefined;
   return apiPost(
     '/dub/ingest-url',
     {
@@ -34,6 +61,7 @@ export async function dubIngestUrl(
       job_id: jobId,
       fetch_subs: fetchSubs || undefined,
       sub_langs: subLangs && subLangs.length ? subLangs : undefined,
+      cookie_file: cookieText,
     },
     { signal },
   );

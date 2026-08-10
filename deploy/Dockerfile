@@ -32,7 +32,6 @@ WORKDIR /app
 # Enable unbuffered logs and optimizations
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV UV_SYSTEM_PYTHON=1
 ENV HF_HOME=/app/omnivoice_data/huggingface
 # Allow bare imports (from core.config, from services.*, etc.) when
 # uvicorn is started as `backend.main:app` from WORKDIR /app.
@@ -54,9 +53,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # PEP 668: the ROCm base (Ubuntu 24.04) marks its system Python
-# EXTERNALLY-MANAGED, which would refuse `pip install` / `uv pip install
-# --system`. Inside a single-purpose container image installing into the
-# base env is exactly what we want. No-ops on the conda-based CUDA image.
+# EXTERNALLY-MANAGED, which would refuse installing into the selected base
+# interpreter. Inside a single-purpose container image that is exactly what
+# we want. No-ops on the conda-based CUDA image.
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 ENV UV_BREAK_SYSTEM_PACKAGES=1
 
@@ -71,6 +70,11 @@ COPY deploy/torch-constraints.txt ./deploy/torch-constraints.txt
 # Install the project (non-editable — no need for -e in containers).
 # Uses `uv` for exponentially faster resolution than plain pip.
 #
+# Target the exact interpreter selected by the base image. The ROCm image has
+# both /opt/venv/bin/python3 (ROCm torch) and /usr/bin/python (a CUDA-default
+# environment); `--system` used the latter while the build guard used the
+# former, so a green image launched a CPU-only backend on AMD (#1274).
+#
 # NOTE: `uv pip install` (without --upgrade) keeps already-installed packages
 # that satisfy the requirements, so the base image's GPU-built torch/torchaudio
 # (2.8.0, satisfying our `torch>=2.4`) survive this step instead of being
@@ -83,7 +87,8 @@ COPY deploy/torch-constraints.txt ./deploy/torch-constraints.txt
 # stays put — an ABI mismatch at import (#1357). The pins carry no local
 # segment, so they match the base image's +cu128 / +rocm6.4 builds rather than
 # replacing them.
-RUN uv pip install --system --no-cache --constraint deploy/torch-constraints.txt .
+RUN uv pip install --python "$(command -v python3)" --no-cache \
+    --constraint deploy/torch-constraints.txt .
 
 # Guard (fails the build, not the user at runtime): assert the dependency
 # install did NOT replace the base image's GPU torch. A future dep bump that
@@ -121,5 +126,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
 # Mount points for persistent data (sqlite db, user voices, huggingface cache)
 VOLUME ["/app/omnivoice_data"]
 
-# Bind to 0.0.0.0 for external access
-ENTRYPOINT ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "3900"]
+# Bind to 0.0.0.0 for external access. `python3 -m` keeps runtime imports on
+# the same interpreter whose torch flavor the build guard validated (#1274).
+ENTRYPOINT ["python3", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "3900"]

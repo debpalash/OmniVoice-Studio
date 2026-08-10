@@ -3,7 +3,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -410,7 +410,7 @@ pub fn resolve_uv<R: tauri::Runtime>(
         log::info!("Using bundled uv at {}", p.display());
         return Ok(p);
     }
-    if no_window(Command::new("uv").arg("--version")).output().is_ok() {
+    if uv_is_usable(Path::new("uv")) {
         log::info!("Using system uv from PATH");
         return Ok(PathBuf::from("uv"));
     }
@@ -427,11 +427,11 @@ pub fn resolve_uv<R: tauri::Runtime>(
 /// Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/{version}/install.ps1 | iex"`
 ///
 /// The installer handles platform detection, checksums, and extraction
-/// automatically. We control the install directory via `UV_INSTALL_DIR`.
-/// Idempotent: if the binary is already present, returns its path immediately.
+/// automatically. `UV_UNMANAGED_INSTALL` keeps this app-private tool out of
+/// the user's PATH and shell profiles on every platform.
 fn install_uv_standalone(dest: &Path, _region: &str) -> io::Result<PathBuf> {
     let uv_bin = dest.join(if cfg!(windows) { "uv.exe" } else { "uv" });
-    if uv_bin.is_file() {
+    if uv_is_usable(&uv_bin) {
         return Ok(uv_bin);
     }
     fs::create_dir_all(dest)?;
@@ -439,28 +439,24 @@ fn install_uv_standalone(dest: &Path, _region: &str) -> io::Result<PathBuf> {
 
     #[cfg(unix)]
     {
-        let status = Command::new("sh")
-            .args([
+        let output = configure_uv_installer(
+            Command::new("sh").args([
                 "-c",
                 &format!(
-                    "curl -LsSf https://astral.sh/uv/{}/install.sh | sh -s -- --no-modify-path",
+                    "curl -LsSf https://astral.sh/uv/{}/install.sh | sh",
                     UV_VERSION
                 ),
-            ])
-            .env("UV_INSTALL_DIR", dest)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .status()
-            .map_err(|e| io::Error::new(
+            ]),
+            dest,
+        )
+        .output()
+        .map_err(|e| {
+            io::Error::new(
                 io::ErrorKind::Other,
                 format!("uv installer launch failed (is curl installed?): {}", e),
-            ))?;
-        if !status.success() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("uv installer exited with code {:?}", status.code()),
-            ));
-        }
+            )
+        })?;
+        return finish_uv_install(dest, &uv_bin, output);
     }
 
     #[cfg(windows)]
@@ -472,39 +468,328 @@ fn install_uv_standalone(dest: &Path, _region: &str) -> io::Result<PathBuf> {
         // Windows: `CREATE_NO_WINDOW` so the uv installer's PowerShell doesn't
         // flash a console window during first-run bootstrap. stdout/stderr are
         // piped, so nothing is lost.
-        let status = no_window(
-            Command::new("powershell")
-                .args(["-ExecutionPolicy", "ByPass", "-c", &script])
-                .env("UV_INSTALL_DIR", dest)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped()),
-        )
-        .status()
-        .map_err(|e| io::Error::new(
-            io::ErrorKind::Other,
-            format!("uv PowerShell installer failed: {}", e),
-        ))?;
-        if !status.success() {
-            return Err(io::Error::new(
+        let mut command = Command::new("powershell");
+        command.args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "ByPass",
+            "-c",
+            &script,
+        ]);
+        configure_uv_installer(&mut command, dest);
+        let output = no_window(&mut command).output().map_err(|e| {
+            io::Error::new(
                 io::ErrorKind::Other,
-                format!("uv installer exited with code {:?}", status.code()),
-            ));
-        }
+                format!("uv PowerShell installer failed: {}", e),
+            )
+        })?;
+        return finish_uv_install(dest, &uv_bin, output);
     }
 
-    if uv_bin.is_file() {
-        log::info!("uv installed successfully at {}", uv_bin.display());
-        Ok(uv_bin)
-    } else {
-        let alt = dest.join("bin").join(if cfg!(windows) { "uv.exe" } else { "uv" });
-        if alt.is_file() {
-            fs::rename(&alt, &uv_bin)?;
-            log::info!("uv moved from bin/ to {}", uv_bin.display());
-            return Ok(uv_bin);
+    #[allow(unreachable_code)]
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "unsupported uv install platform",
+    ))
+}
+
+fn configure_uv_installer<'a>(command: &'a mut Command, dest: &Path) -> &'a mut Command {
+    // The official unmanaged mode is designed for app-private/CI installs: it
+    // selects the destination and disables PATH, profile, and self-update
+    // mutations. Explicitly remove the legacy variable so a parent shell
+    // cannot leave the installer in two conflicting modes.
+    command
+        .env_remove("UV_INSTALL_DIR")
+        .env("UV_UNMANAGED_INSTALL", dest)
+        .env("UV_NO_MODIFY_PATH", "1")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+}
+
+fn uv_is_usable(path: &Path) -> bool {
+    no_window(
+        Command::new(path)
+            .arg("--version")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()),
+    )
+    .output()
+    .map(|output| output.status.success() && uv_version_matches(&output.stdout))
+    .unwrap_or(false)
+}
+
+fn uv_version_matches(output: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(output) else {
+        return false;
+    };
+    let mut fields = text.split_whitespace();
+    fields.next() == Some("uv") && fields.next() == Some(UV_VERSION)
+}
+
+fn finish_uv_install(dest: &Path, uv_bin: &Path, output: Output) -> io::Result<PathBuf> {
+    finish_uv_install_with_probe(dest, uv_bin, output, uv_is_usable)
+}
+
+fn finish_uv_install_with_probe<F>(
+    dest: &Path,
+    uv_bin: &Path,
+    output: Output,
+    is_usable: F,
+) -> io::Result<PathBuf>
+where
+    F: Fn(&Path) -> bool,
+{
+    let alt = dest.join("bin").join(if cfg!(windows) { "uv.exe" } else { "uv" });
+    if !is_usable(uv_bin) && is_usable(&alt) {
+        fs::rename(&alt, uv_bin).or_else(|_| fs::copy(&alt, uv_bin).map(|_| ()))?;
+    }
+
+    // Some installer failures happen after extraction (for example while
+    // editing a Windows shell profile). The installed executable is the real
+    // postcondition: accepting a verified binary makes first run self-heal in
+    // this process instead of requiring a restart. Never accept a partial or
+    // corrupt file merely because it exists.
+    if is_usable(uv_bin) {
+        if output.status.success() {
+            log::info!("uv installed successfully at {}", uv_bin.display());
+        } else {
+            log::warn!(
+                "uv installer exited with {:?}, but the installed binary passed validation at {}",
+                output.status.code(),
+                uv_bin.display()
+            );
         }
-        Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("uv binary not found at {} after installer completed", uv_bin.display()),
-        ))
+        return Ok(uv_bin.to_path_buf());
+    }
+
+    let detail = installer_output_detail(&output);
+    Err(io::Error::new(
+        io::ErrorKind::Other,
+        if output.status.success() {
+            format!(
+                "uv installer completed but no usable binary was found at {}{}",
+                uv_bin.display(),
+                detail
+            )
+        } else {
+            format!("uv installer exited with code {:?}{}", output.status.code(), detail)
+        },
+    ))
+}
+
+fn installer_output_detail(output: &Output) -> String {
+    let bytes = if output.stderr.is_empty() {
+        &output.stdout
+    } else {
+        &output.stderr
+    };
+    let text = String::from_utf8_lossy(bytes);
+    let mut text = text.trim().to_string();
+    if text.is_empty() {
+        return String::new();
+    }
+    for key in ["USERPROFILE", "HOME"] {
+        if let Some(home) = std::env::var_os(key).and_then(|value| value.into_string().ok()) {
+            text = redact_home_prefix(&text, &home);
+        }
+    }
+    let start = text
+        .char_indices()
+        .rev()
+        .nth(1999)
+        .map(|(index, _)| index)
+        .unwrap_or(0);
+    format!(": {}", &text[start..])
+}
+
+fn redact_home_prefix(text: &str, home: &str) -> String {
+    if home.len() < 3 {
+        return text.to_string();
+    }
+    let mut redacted = text.replace(home, "~");
+    let forward = home.replace('\\', "/");
+    let backward = home.replace('/', "\\");
+    if forward != home {
+        redacted = redacted.replace(&forward, "~");
+    }
+    if backward != home {
+        redacted = redacted.replace(&backward, "~");
+    }
+    redacted
+}
+
+#[cfg(test)]
+mod uv_tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn installer_uses_app_private_unmanaged_mode() {
+        let mut command = Command::new("installer");
+        configure_uv_installer(&mut command, Path::new("private-tools"));
+        let envs: std::collections::HashMap<_, _> = command.get_envs().collect();
+
+        assert_eq!(envs.get(OsStr::new("UV_INSTALL_DIR")), Some(&None));
+        assert_eq!(
+            envs.get(OsStr::new("UV_UNMANAGED_INSTALL")).and_then(|value| *value),
+            Some(OsStr::new("private-tools"))
+        );
+        assert_eq!(
+            envs.get(OsStr::new("UV_NO_MODIFY_PATH")).and_then(|value| *value),
+            Some(OsStr::new("1"))
+        );
+    }
+
+    #[test]
+    fn uv_version_probe_requires_the_pinned_version() {
+        assert!(uv_version_matches(
+            format!("uv {} (build-id)\n", UV_VERSION).as_bytes()
+        ));
+        assert!(!uv_version_matches(b"uv 0.10.0 (older)\n"));
+        assert!(!uv_version_matches(b"not-uv 0.11.7\n"));
+        assert!(!uv_version_matches(b"uv\n"));
+        assert!(!uv_version_matches(&[0xff, 0xfe]));
+    }
+
+    #[test]
+    fn installer_error_includes_captured_stderr() {
+        let output = Output {
+            status: failure_status(),
+            stdout: Vec::new(),
+            stderr: b"profile update denied".to_vec(),
+        };
+        assert_eq!(installer_output_detail(&output), ": profile update denied");
+    }
+
+    #[test]
+    fn installer_error_redacts_unix_and_windows_home_paths() {
+        assert_eq!(
+            redact_home_prefix(
+                "installed into /Users/alice/.local/bin",
+                "/Users/alice"
+            ),
+            "installed into ~/.local/bin"
+        );
+        assert_eq!(
+            redact_home_prefix(
+                r"installed into C:\Users\alice\.local\bin",
+                r"C:\Users\alice"
+            ),
+            r"installed into ~\.local\bin"
+        );
+        assert_eq!(
+            redact_home_prefix(
+                "installed into C:/Users/alice/.local/bin",
+                r"C:\Users\alice"
+            ),
+            "installed into ~/.local/bin"
+        );
+    }
+
+    #[test]
+    fn installer_exit_one_is_accepted_when_downloaded_uv_is_usable() {
+        let dest = Path::new("private-tools");
+        let uv_bin = dest.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        let output = Output {
+            status: failure_status(),
+            stdout: Vec::new(),
+            stderr: b"later installer step failed".to_vec(),
+        };
+
+        let result = finish_uv_install_with_probe(dest, &uv_bin, output, |candidate| {
+            candidate == uv_bin
+        });
+
+        assert_eq!(result.unwrap(), uv_bin);
+    }
+
+    #[test]
+    fn successful_installer_without_usable_uv_is_rejected() {
+        let dest = Path::new("private-tools");
+        let uv_bin = dest.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        let output = Output {
+            status: success_status(),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        };
+
+        let error = finish_uv_install_with_probe(dest, &uv_bin, output, |_| false)
+            .expect_err("installer success is insufficient without a usable binary");
+
+        assert!(error.to_string().contains("no usable binary was found"));
+    }
+
+    #[test]
+    fn failed_installer_with_unusable_uv_reports_captured_error() {
+        let dest = Path::new("private-tools");
+        let uv_bin = dest.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        let output = Output {
+            status: failure_status(),
+            stdout: Vec::new(),
+            stderr: b"downloaded executable was corrupt".to_vec(),
+        };
+
+        let error = finish_uv_install_with_probe(dest, &uv_bin, output, |_| false)
+            .expect_err("an unusable download must not be accepted");
+
+        assert!(error.to_string().contains("downloaded executable was corrupt"));
+    }
+
+    #[test]
+    fn usable_legacy_bin_location_is_relocated() {
+        let unique = format!(
+            "voicestudio-uv-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let dest = std::env::temp_dir().join(unique);
+        let uv_bin = dest.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        let legacy = dest
+            .join("bin")
+            .join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        fs::write(&legacy, b"verified test executable").unwrap();
+        let output = Output {
+            status: success_status(),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        };
+
+        let result = finish_uv_install_with_probe(&dest, &uv_bin, output, |candidate| {
+            candidate.is_file()
+        });
+
+        assert_eq!(result.unwrap(), uv_bin);
+        assert!(uv_bin.is_file());
+        assert!(!legacy.exists());
+        fs::remove_dir_all(dest).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn success_status() -> std::process::ExitStatus {
+        use std::os::unix::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(0)
+    }
+
+    #[cfg(windows)]
+    fn success_status() -> std::process::ExitStatus {
+        use std::os::windows::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(0)
+    }
+
+    #[cfg(unix)]
+    fn failure_status() -> std::process::ExitStatus {
+        use std::os::unix::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(1 << 8)
+    }
+
+    #[cfg(windows)]
+    fn failure_status() -> std::process::ExitStatus {
+        use std::os::windows::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(1)
     }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useAppStore } from '../store';
 
 // Regression guard for the "completed dub tracks' tabs hidden until the
@@ -23,11 +23,29 @@ vi.mock('../components/dub/DubLeftColumn', () => ({
     return <div data-testid="left-col" />;
   },
 }));
-vi.mock('../components/dub/DubHeader', () => ({ default: () => null }));
+vi.mock('../components/dub/DubHeader', () => ({
+  default: ({ resetDub }) => (
+    <button data-testid="reset-dub" onClick={resetDub}>
+      reset
+    </button>
+  ),
+}));
 vi.mock('../components/dub/DubRightColumn', () => ({ default: () => null }));
 vi.mock('../components/dub/DubFooter', () => ({ default: () => null }));
 vi.mock('../components/dub/DubPipelineStepper', () => ({ default: () => null }));
-vi.mock('../components/dub/IdleSkeleton', () => ({ default: () => null }));
+vi.mock('../components/dub/IdleSkeleton', () => ({
+  default: ({ youtubeCookieFile, setYoutubeCookieFile }) => (
+    <div>
+      <span data-testid="cookie-name">{youtubeCookieFile?.name || 'none'}</span>
+      <button
+        data-testid="select-cookie"
+        onClick={() => setYoutubeCookieFile(new File(['secret'], 'cookies.txt'))}
+      >
+        select
+      </button>
+    </div>
+  ),
+}));
 vi.mock('../components/ExportModal', () => ({ default: () => null }));
 vi.mock('../hooks/useTimelineOnsets', () => ({ default: () => ({ onsets: [] }) }));
 vi.mock('../api/dub', () => ({
@@ -145,5 +163,21 @@ describe('DubTab — completed tracks always show their tabs (restore P0)', () =
     // switcher appeared trackless and the auto-jump 404'd the preview.
     expect(left.hasDubbedTrack).toBe(false);
     expect(left.previewMode).toBe('original');
+  });
+
+  it('clears a selected cookie export when a completed dub is reset', () => {
+    const resetDub = vi.fn(() =>
+      useAppStore.setState({ dubJobId: null, dubStep: 'idle', dubTracks: [] }),
+    );
+    useAppStore.setState({ dubJobId: null, dubStep: 'idle', dubTracks: [] });
+    render(<DubTab {...makeProps()} resetDub={resetDub} />);
+
+    fireEvent.click(screen.getByTestId('select-cookie'));
+    expect(screen.getByTestId('cookie-name')).toHaveTextContent('cookies.txt');
+    act(() => useAppStore.setState({ dubJobId: 'job1', dubStep: 'done' }));
+    fireEvent.click(screen.getByTestId('reset-dub'));
+
+    expect(resetDub).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('cookie-name')).toHaveTextContent('none');
   });
 });

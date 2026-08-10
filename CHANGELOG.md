@@ -42,6 +42,10 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 ### Fixed
 
 - Engine discovery no longer exposes probe exceptions, local paths or credentials in API responses and logs. (#1460)
+- YouTube imports that require a signed-in session can now use an explicitly selected `cookies.txt` export for one import; VoiceStudio never reads browser cookies silently and makes two best-effort attempts to delete its temporary copy. (#1429, #1432) — thanks @dongqing1968-sudo and @phamvandu9595-tech!
+- First-run source builds no longer stop after uv was successfully downloaded just because its installer failed during a later shell-profile step; app-private uv installs no longer touch shell profiles at all. (#1438) — thanks @AdrianoCahete!
+- Model files damaged by an interrupted download now repair themselves instead of failing every generation, including invalid `config.json` files and corrupt weight headers. — thanks @overrunau and @zherunh! (#1406, #1437)
+- ROCm Docker now installs and starts the backend with the same Python whose AMD torch build was validated, instead of launching a second CUDA-only environment and silently running on CPU. (#1274) — thanks @simmessa and @spicchio72!
 - An error whose text merely contained the digits 401 — a file path, a byte count, a job id — no longer tells you to fix your Hugging Face token. (#1427)
 - Custom MLX model IDs and saved voice instructions are now validated in bounded time, so malformed input cannot stall the backend. (#1446)
 - Streaming and provider failures now return stable recovery guidance without exposing exception details. (#1462)

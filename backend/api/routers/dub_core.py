@@ -4,9 +4,12 @@ import asyncio
 import logging
 import shutil
 import subprocess
+import tempfile
+from urllib.parse import urlsplit
 import soundfile as sf
 import torch
 from typing import Optional
+from fastapi import Request
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
@@ -39,6 +42,67 @@ from services import dub_pipeline
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.api")
+
+_MAX_COOKIE_EXPORT_BYTES = 1024 * 1024
+
+
+def _cookie_transport_allowed(
+    scheme: str, client_host: str | None, origin: str | None
+) -> bool:
+    """Credentials may cross HTTP only from a local UI to a loopback peer."""
+    from api.dependencies import is_local_host
+
+    if scheme == "https":
+        return True
+    try:
+        origin_host = urlsplit(origin or "").hostname or ""
+    except ValueError:
+        return False
+    return is_local_host(client_host or "") and (
+        is_local_host(origin_host) or origin_host == "tauri.localhost"
+    )
+
+
+def _stage_cookie_export(contents: str | None) -> str | None:
+    """Write an explicitly supplied cookies.txt export to a private temp file."""
+    if contents is None:
+        return None
+    cookie_bytes = contents.encode("utf-8")
+    if len(cookie_bytes) > _MAX_COOKIE_EXPORT_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cookie file is too large (maximum 1 MB). Export cookies in "
+                "Netscape cookies.txt format and try again."
+            ),
+        )
+    first_line = contents.lstrip("\ufeff\r\n ").splitlines()[0] if contents.strip() else ""
+    if not first_line.startswith(("# Netscape HTTP Cookie File", "# HTTP Cookie File")):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This is not a Netscape cookies.txt export. Export cookies as "
+                "cookies.txt from your browser, then choose that file."
+            ),
+        )
+    fd, cookie_path = tempfile.mkstemp(
+        prefix="voicestudio-ytdlp-", suffix=".cookies.txt",
+    )
+    try:
+        os.chmod(cookie_path, 0o600)
+        with os.fdopen(fd, "wb") as cookie_handle:
+            cookie_handle.write(cookie_bytes)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass  # Best effort: fdopen may already have consumed/closed the descriptor.
+        try:
+            os.unlink(cookie_path)
+        except OSError:
+            pass  # Best effort: preserve the original staging error.
+        raise
+    return cookie_path
 
 
 # ── Legacy-name aliases to services/dub_pipeline.py ────────────────────────
@@ -395,7 +459,7 @@ async def dub_upload(
 
 
 @router.post("/dub/ingest-url")
-async def dub_ingest_url(req: DubIngestUrlRequest):
+async def dub_ingest_url(req: DubIngestUrlRequest, request: Request):
     """Ingest a remote video URL via yt-dlp. Queues background prep task.
 
     Returns 202 immediately with {job_id, task_id}. All work (download,
@@ -424,7 +488,17 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
             status_code=400,
             detail="Invalid job_id. Must be alphanumeric + hyphens/underscores only, ≤64 chars. Generate a fresh job_id or omit it to auto-create one.",
         )
+    if req.cookie_file and not _cookie_transport_allowed(
+        request.url.scheme,
+        request.client.host if request.client else None,
+        request.headers.get("origin"),
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Cookie exports require HTTPS or the local desktop app.",
+        )
     os.makedirs(job_dir, exist_ok=True)
+    cookie_path = _stage_cookie_export(req.cookie_file)
 
     task_id = f"prep_{job_id}"
     source = {
@@ -432,12 +506,21 @@ async def dub_ingest_url(req: DubIngestUrlRequest):
         "url": url,
         "fetch_subs": bool(req.fetch_subs),
         "sub_langs": req.sub_langs or None,
+        "cookie_file": cookie_path,
     }
-    await task_manager.add_task(
-        task_id, "prep",
-        _ingest_gen, job_id, job_dir,
-        source, None,
-    )
+    try:
+        await task_manager.add_task(
+            task_id, "prep",
+            _ingest_gen, job_id, job_dir,
+            source, None,
+        )
+    except Exception:
+        if cookie_path:
+            try:
+                os.unlink(cookie_path)
+            except OSError:
+                pass  # Best effort: do not hide the task-enqueue failure.
+        raise
     return JSONResponse(
         status_code=202,
         content={"job_id": job_id, "task_id": task_id, "filename": ""},

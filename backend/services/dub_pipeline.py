@@ -840,6 +840,18 @@ def _cleanup_partial_download(job_dir: str) -> None:
             pass
 
 
+def _delete_cookie_export(cookie_file: str | None) -> bool:
+    """Best-effort removal of the per-import authentication export."""
+    if not cookie_file:
+        return True
+    try:
+        os.unlink(cookie_file)
+    except OSError:
+        # Best effort: cleanup must never replace the download result.
+        return False
+    return True
+
+
 def yt_download_sync(
     url: str,
     job_dir: str,
@@ -847,6 +859,7 @@ def yt_download_sync(
     fetch_subs: bool = False,
     sub_langs: list[str] | None = None,
     progress_hook=None,
+    cookie_file: str | None = None,
 ) -> tuple[str, str, list[str]]:
     """Blocking yt-dlp download into `job_dir`.
 
@@ -918,6 +931,8 @@ def yt_download_sync(
         "extractor_retries": 5,
         "skip_unavailable_fragments": True,
     }
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
     # #712: the format selector above pulls separate video+audio streams, so
     # yt-dlp muxes them via ffmpeg (merge_output_format=mp4). yt-dlp only looks
     # for ffmpeg on PATH and aborts with "you have requested merging of multiple
@@ -1108,6 +1123,7 @@ async def ingest_pipeline(
             url = source["url"]
             fetch_subs = bool(source.get("fetch_subs"))
             sub_langs = source.get("sub_langs") or None
+            cookie_file = source.get("cookie_file") or None
             yield prep_event("download_start", url=url)
             # Bridge yt-dlp's per-fragment progress callback (fires inside
             # the worker thread) into the async generator via a threadsafe
@@ -1137,6 +1153,7 @@ async def ingest_pipeline(
                 yt_download_sync, url, job_dir,
                 fetch_subs=fetch_subs, sub_langs=sub_langs,
                 progress_hook=_yt_progress,
+                cookie_file=cookie_file,
             ))
             try:
                 while not dl_task.done():
@@ -1157,6 +1174,10 @@ async def ingest_pipeline(
                 yield prep_event("error", **failure.build_failure(e, stage="download"))
                 shutil.rmtree(job_dir, ignore_errors=True)
                 return
+            # yt-dlp (including its optional subtitle pass) is finished. Drop
+            # the login credential before the much longer audio-prep stages.
+            if _delete_cookie_export(cookie_file):
+                source["cookie_file"] = None
             filename = title or os.path.basename(video_path)
             try:
                 size = os.path.getsize(video_path)
@@ -1439,6 +1460,11 @@ async def ingest_pipeline(
         yield prep_event("error", **failure.build_failure(e, stage="ingest"))
         return
     finally:
+        # Cookie exports are login credentials. Keep an explicitly selected
+        # export only for this download, then remove it on success, failure or
+        # cancellation; never copy it into the project/job directory.
+        cookie_file = source.get("cookie_file")
+        _delete_cookie_export(cookie_file)
         end_ingest(job_id)
         with _active_procs_lock:
             _active_procs.pop(job_id, None)
