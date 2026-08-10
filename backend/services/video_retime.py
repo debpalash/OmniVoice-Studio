@@ -471,7 +471,7 @@ async def prepare_smart_fit_video(
                 video_dur=expected + tail_pad,
             )
         raise
-    actual = await probe_duration(work_path)
+    actual = await probe_duration(work_path, allowed_root=_base)
     return RetimeDecision(
         mode="file", file_path=work_path,
         video_dur=float(actual) if actual else expected + tail_pad,

@@ -22,8 +22,8 @@
 //       to the destination. The /audio mount is a StaticFiles mount with no
 //       ?save_path= support, so this is the only server-side copy that works
 //       for those files.
-//   (b) no `sourceFilename` → a dynamic, save_path-aware endpoint (dub exports):
-//       append ?save_path= and let that endpoint render + copy, returning JSON.
+//   (b) no `sourceFilename` → a dynamic dub endpoint: Tauri authorizes the
+//       chosen path once and only the capability token crosses loopback HTTP.
 //   Subtitles (srt/vtt) are small text bodies fetched raw and written via the
 //   trusted `save_text_file` command — the backend never handles their dest
 //   path (#309).
@@ -50,7 +50,7 @@ function guessMode(ext) {
  * as the App's own export flow. Never creates an `<a href={httpUrl} download>`.
  *
  * @param {string} url            HTTP URL of the file (also the source for the
- *                                browser blob download + dynamic save_path copy).
+ *                                browser blob download + authorized dynamic copy).
  * @param {string} fallbackName   Suggested filename in the save dialog / for the
  *                                download.
  * @param {object} [opts]
@@ -70,7 +70,7 @@ export async function downloadMedia(url, fallbackName, opts = {}) {
   const modeGuess = guessMode(extGuess);
 
   // exportRecord writes the history row for paths the backend didn't already
-  // record (browser download, save_path, subtitle). Non-fatal: a failed record
+  // record (browser download, authorized dub save, subtitle). Non-fatal: a failed record
   // must not turn a successful save into an error toast.
   const recordHistory = async (filename, destinationPath) => {
     try {
@@ -84,12 +84,39 @@ export async function downloadMedia(url, fallbackName, opts = {}) {
   // ── Tauri: native save dialog + server-side copy ────────────────────────
   if (isTauri) {
     try {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const destPath = await save({
-        defaultPath: fallbackName,
-        filters: [{ name: modeGuess === 'video' ? 'Video' : 'Audio', extensions: [extGuess] }],
+      // Dynamic dub saves are selected inside the native command. A webview
+      // path is never treated as filesystem authority.
+      if (!sourceFilename && !['srt', 'vtt'].includes(extGuess)) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const selection = await invoke('authorize_host_path', {
+          kind: 'dub_export',
+          suggestedName: fallbackName,
+        });
+        if (!selection) return;
+        toast.loading(i18n.t('app.toast_saving', { name: fallbackName }), { id: fallbackName });
+        const res = await apiFetch(url, {
+          headers: { 'X-VoiceStudio-Path-Authorization': selection.authorization },
+          retryTransport: false,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const ctype = res.headers.get('content-type') || '';
+        if (!ctype.includes('application/json')) {
+          throw new Error(
+            `Server returned ${ctype || 'an unknown content type'} instead of a JSON save confirmation`,
+          );
+        }
+        const data = await res.json();
+        toast.success(i18n.t('app.toast_saved', { path: data.path }), { id: fallbackName });
+        onValueMoment?.();
+        await recordHistory(data.display_name || fallbackName, data.path);
+        return;
+      }
+      const { invoke } = await import('@tauri-apps/api/core');
+      const selection = await invoke('authorize_host_path', {
+        kind: 'dub_export',
+        suggestedName: fallbackName,
       });
-      if (!destPath) return; // user cancelled
+      if (!selection) return; // user cancelled
       toast.loading(i18n.t('app.toast_saving', { name: fallbackName }), { id: fallbackName });
 
       // (a) File already in OUTPUTS_DIR — copy by source filename via /export.
@@ -97,10 +124,10 @@ export async function downloadMedia(url, fallbackName, opts = {}) {
       if (sourceFilename) {
         await exportAction({
           source_filename: sourceFilename,
-          destination_path: destPath,
+          authorization: selection.authorization,
           mode: modeGuess,
         });
-        toast.success(i18n.t('app.toast_saved', { path: destPath }), { id: fallbackName });
+        toast.success(i18n.t('app.toast_saved', { path: selection.path }), { id: fallbackName });
         onValueMoment?.();
         onHistoryChanged?.();
         return;
@@ -112,30 +139,12 @@ export async function downloadMedia(url, fallbackName, opts = {}) {
         const res = await apiFetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`); // don't write an error body to disk
         const text = await res.text();
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('save_text_file', { path: destPath, contents: text });
-        toast.success(i18n.t('app.toast_saved', { path: destPath }), { id: fallbackName });
+        await invoke('save_text_file', { path: selection.path, contents: text });
+        toast.success(i18n.t('app.toast_saved', { path: selection.path }), { id: fallbackName });
         onValueMoment?.();
-        await recordHistory(fallbackName, destPath);
+        await recordHistory(fallbackName, selection.path);
         return;
       }
-
-      // (c) Dynamic save_path-aware endpoint (dub exports): the endpoint copies
-      // to destPath and returns a JSON envelope. Guard the content-type so a
-      // raw-body response surfaces a clear error, not a JSON.parse crash (#309).
-      const sep = url.includes('?') ? '&' : '?';
-      const res = await apiFetch(`${url}${sep}save_path=${encodeURIComponent(destPath)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`); // a 4xx/5xx isn't a successful save
-      const ctype = res.headers.get('content-type') || '';
-      if (!ctype.includes('application/json')) {
-        throw new Error(
-          `Server returned ${ctype || 'an unknown content type'} instead of a JSON save confirmation`,
-        );
-      }
-      const data = await res.json();
-      toast.success(i18n.t('app.toast_saved', { path: data.path }), { id: fallbackName });
-      onValueMoment?.();
-      await recordHistory(data.display_name || fallbackName, data.path);
     } catch (err) {
       console.error(err);
       toast.error(i18n.t('app.toast_save_error', { message: err.message }), { id: fallbackName });

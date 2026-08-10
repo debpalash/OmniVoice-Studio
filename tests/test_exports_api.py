@@ -20,6 +20,8 @@ checks in test_router_smoke.py):
   failure → plain-copy fallback (the user still gets their file).
 """
 import os
+import json
+import secrets
 import subprocess
 
 import pytest
@@ -52,6 +54,36 @@ def outputs_dir(tmp_path, monkeypatch):
     return out
 
 
+@pytest.fixture
+def authorize_destination(tmp_path, monkeypatch):
+    """Mint the same one-shot file capability written by the Tauri process."""
+    from core import path_authorization
+
+    auth_dir = tmp_path / "authorizations"
+    auth_dir.mkdir()
+    monkeypatch.setattr(path_authorization, "_AUTH_DIR", str(auth_dir))
+
+    def authorize(path):
+        token = secrets.token_hex(32)
+        (auth_dir / f"{token}.json").write_text(
+            json.dumps({"token": token, "kind": "dub_export", "path": str(path)}),
+            encoding="utf-8",
+        )
+        return token
+
+    return authorize
+
+
+@pytest.fixture
+def server_data_dir(tmp_path, monkeypatch):
+    import api.routers.exports as exports
+
+    root = tmp_path / "server-data"
+    root.mkdir()
+    monkeypatch.setattr(exports, "DATA_DIR", str(root))
+    return root
+
+
 def _make_source(outputs_dir, name="clip.wav", data=b"RIFFxxxxWAVE-test-audio"):
     p = outputs_dir / name
     p.write_bytes(data)
@@ -70,7 +102,7 @@ def test_route_shapes(client):
 
 
 # ── /export happy path ───────────────────────────────────────────────────────
-def test_export_copies_file_and_records_history(client, outputs_dir, tmp_path):
+def test_export_copies_file_and_records_history(client, outputs_dir, tmp_path, authorize_destination):
     src = _make_source(outputs_dir)
     dest_dir = tmp_path / "dest"
     dest_dir.mkdir()
@@ -78,7 +110,7 @@ def test_export_copies_file_and_records_history(client, outputs_dir, tmp_path):
 
     r = client.post("/export", json={
         "source_filename": "clip.wav",
-        "destination_path": str(dest),
+        "authorization": authorize_destination(dest),
         "mode": "history",
     })
     assert r.status_code == 200
@@ -95,7 +127,48 @@ def test_export_copies_file_and_records_history(client, outputs_dir, tmp_path):
     assert entry["mode"] == "history"
 
 
-def test_export_destination_may_be_an_existing_directory(client, outputs_dir, tmp_path):
+def test_export_never_accepts_http_destination_path(client, outputs_dir, tmp_path):
+    _make_source(outputs_dir)
+    dest = tmp_path / "attacker-selected.wav"
+    response = client.post(
+        "/export",
+        json={"source_filename": "clip.wav", "destination_path": str(dest)},
+    )
+    assert response.status_code == 422
+    assert not dest.exists()
+
+
+def test_export_capability_is_one_shot(client, outputs_dir, tmp_path, authorize_destination):
+    _make_source(outputs_dir)
+    token = authorize_destination(tmp_path / "once.wav")
+    payload = {"source_filename": "clip.wav", "authorization": token}
+    assert client.post("/export", json=payload).status_code == 200
+    retry = client.post("/export", json=payload)
+    assert retry.status_code == 403
+    assert "expired" in retry.json()["detail"]
+
+
+def test_export_rejects_remote_caller_before_consuming_capability(
+    outputs_dir, tmp_path, authorize_destination
+):
+    from fastapi.testclient import TestClient
+    from main import app
+
+    _make_source(outputs_dir)
+    token = authorize_destination(tmp_path / "remote.wav")
+    remote = TestClient(app, client=("192.168.1.20", 50000))
+    response = remote.post(
+        "/export", json={"source_filename": "clip.wav", "authorization": token}
+    )
+    assert response.status_code == 403
+    # Rejection happened before the route consumed native authority.
+    local = TestClient(app, client=("127.0.0.1", 50000))
+    assert local.post(
+        "/export", json={"source_filename": "clip.wav", "authorization": token}
+    ).status_code == 200
+
+
+def test_export_destination_may_be_an_existing_directory(client, outputs_dir, tmp_path, authorize_destination):
     # shutil.copy2 into a directory keeps the source basename.
     _make_source(outputs_dir, name="take2.wav")
     dest_dir = tmp_path / "outbox"
@@ -103,7 +176,7 @@ def test_export_destination_may_be_an_existing_directory(client, outputs_dir, tm
 
     r = client.post("/export", json={
         "source_filename": "take2.wav",
-        "destination_path": str(dest_dir),
+        "authorization": authorize_destination(dest_dir),
     })
     assert r.status_code == 200
     assert (dest_dir / "take2.wav").is_file()
@@ -117,26 +190,26 @@ def test_export_destination_may_be_an_existing_directory(client, outputs_dir, tm
     "/etc/passwd",               # absolute path
     "",                          # empty
 ])
-def test_export_rejects_non_basename_sources(client, outputs_dir, tmp_path, bad_name):
+def test_export_rejects_non_basename_sources(client, outputs_dir, tmp_path, bad_name, authorize_destination):
     r = client.post("/export", json={
         "source_filename": bad_name,
-        "destination_path": str(tmp_path),
+        "authorization": authorize_destination(tmp_path),
     })
     assert r.status_code == 400
     assert "unexpected name" in r.json()["detail"]
 
 
-def test_export_404_when_source_gone(client, outputs_dir, tmp_path):
+def test_export_404_when_source_gone(client, outputs_dir, tmp_path, authorize_destination):
     r = client.post("/export", json={
         "source_filename": "never-generated.wav",
-        "destination_path": str(tmp_path),
+        "authorization": authorize_destination(tmp_path),
     })
     assert r.status_code == 404
     assert "isn't on disk" in r.json()["detail"]
 
 
 def test_export_symlink_inside_outputs_pointing_outside_is_rejected(
-    client, outputs_dir, tmp_path
+    client, outputs_dir, tmp_path, authorize_destination
 ):
     # A symlink planted in OUTPUTS_DIR must not let /export read arbitrary
     # files: realpath resolves it outside the root, failing containment.
@@ -146,25 +219,25 @@ def test_export_symlink_inside_outputs_pointing_outside_is_rejected(
 
     r = client.post("/export", json={
         "source_filename": "innocent.wav",
-        "destination_path": str(tmp_path / "out.wav"),
+        "authorization": authorize_destination(tmp_path / "out.wav"),
     })
     assert r.status_code == 404
 
 
 # ── /export destination guards ───────────────────────────────────────────────
 @pytest.mark.parametrize("bad_dest", ["", "   "])
-def test_export_rejects_empty_destination(client, outputs_dir, bad_dest):
+def test_export_rejects_empty_destination(client, outputs_dir, bad_dest, authorize_destination):
     _make_source(outputs_dir)
     r = client.post("/export", json={
         "source_filename": "clip.wav",
-        "destination_path": bad_dest,
+        "authorization": authorize_destination(bad_dest),
     })
     assert r.status_code == 400
-    assert "destination folder" in r.json()["detail"]
+    assert "destination is invalid" in r.json()["detail"]
 
 
 def test_export_rejects_relative_destination_even_when_cwd_resolvable(
-    client, outputs_dir, tmp_path, monkeypatch
+    client, outputs_dir, tmp_path, monkeypatch, authorize_destination
 ):
     """Regression: the isabs check ran on realpath()'s output, which is
     always absolute — so a relative destination fell through and exported to
@@ -177,24 +250,24 @@ def test_export_rejects_relative_destination_even_when_cwd_resolvable(
 
     r = client.post("/export", json={
         "source_filename": "clip.wav",
-        "destination_path": os.path.join("rel_out", "exported.wav"),
+        "authorization": authorize_destination(os.path.join("rel_out", "exported.wav")),
     })
     assert r.status_code == 400
-    assert "full path" in r.json()["detail"]
+    assert "destination is invalid" in r.json()["detail"]
     assert not (tmp_path / "rel_out" / "exported.wav").exists()
 
 
-def test_export_rejects_destination_with_missing_parent(client, outputs_dir, tmp_path):
+def test_export_rejects_destination_with_missing_parent(client, outputs_dir, tmp_path, authorize_destination):
     _make_source(outputs_dir)
     r = client.post("/export", json={
         "source_filename": "clip.wav",
-        "destination_path": str(tmp_path / "no-such-dir" / "out.wav"),
+        "authorization": authorize_destination(tmp_path / "no-such-dir" / "out.wav"),
     })
     assert r.status_code == 400
     assert "doesn't exist yet" in r.json()["detail"]
 
 
-def test_export_copy_failure_maps_to_500(client, outputs_dir, tmp_path, monkeypatch):
+def test_export_copy_failure_maps_to_500(client, outputs_dir, tmp_path, monkeypatch, authorize_destination):
     import api.routers.exports as exports
 
     _make_source(outputs_dir)
@@ -205,7 +278,7 @@ def test_export_copy_failure_maps_to_500(client, outputs_dir, tmp_path, monkeypa
     monkeypatch.setattr(exports.shutil, "copy2", _boom)
     r = client.post("/export", json={
         "source_filename": "clip.wav",
-        "destination_path": str(tmp_path / "out.wav"),
+        "authorization": authorize_destination(tmp_path / "out.wav"),
     })
     assert r.status_code == 500
     assert "disk full" in r.json()["detail"]
@@ -213,7 +286,7 @@ def test_export_copy_failure_maps_to_500(client, outputs_dir, tmp_path, monkeypa
 
 # ── /export mp4 watermark branch ─────────────────────────────────────────────
 def test_export_mp4_plain_copy_when_visible_watermark_disabled(
-    client, outputs_dir, tmp_path, monkeypatch
+    client, outputs_dir, tmp_path, monkeypatch, authorize_destination
 ):
     from services import watermark
 
@@ -229,7 +302,7 @@ def test_export_mp4_plain_copy_when_visible_watermark_disabled(
     dest = tmp_path / "dub-export.mp4"
     r = client.post("/export", json={
         "source_filename": "dub.mp4",
-        "destination_path": str(dest),
+        "authorization": authorize_destination(dest),
     })
     assert r.status_code == 200
     assert dest.read_bytes() == src.read_bytes()
@@ -237,7 +310,7 @@ def test_export_mp4_plain_copy_when_visible_watermark_disabled(
 
 
 def test_export_mp4_falls_back_to_plain_copy_when_ffmpeg_fails(
-    client, outputs_dir, tmp_path, monkeypatch
+    client, outputs_dir, tmp_path, monkeypatch, authorize_destination
 ):
     from services import watermark
 
@@ -255,7 +328,7 @@ def test_export_mp4_falls_back_to_plain_copy_when_ffmpeg_fails(
     dest = tmp_path / "dub-export.mp4"
     r = client.post("/export", json={
         "source_filename": "dub.mp4",
-        "destination_path": str(dest),
+        "authorization": authorize_destination(dest),
     })
     # The user still gets their file (unwatermarked) — never a hard failure.
     assert r.status_code == 200
@@ -308,16 +381,36 @@ def test_reveal_rejects_empty_path(client, bad_path):
     assert "nothing to reveal" in r.json()["detail"].lower()
 
 
-def test_reveal_404_when_path_missing(client, tmp_path):
-    r = client.post("/export/reveal", json={"path": str(tmp_path / "gone.wav")})
+def test_reveal_404_when_path_missing(client, server_data_dir):
+    r = client.post("/export/reveal", json={"path": str(server_data_dir / "gone.wav")})
     assert r.status_code == 404
     assert "no longer on disk" in r.json()["detail"]
 
 
-def test_reveal_file_spawns_file_manager_without_shell(client, tmp_path, monkeypatch):
+@pytest.mark.parametrize("outside", ["../secret.wav", r"..\secret.wav", r"C:\secret.wav"])
+def test_reveal_rejects_posix_windows_and_drive_escapes(client, server_data_dir, outside):
+    response = client.post("/export/reveal", json={"path": outside})
+    assert response.status_code == 403
+
+
+def test_reveal_rejects_absolute_and_symlink_escapes(client, server_data_dir, tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.wav"
+    secret.write_bytes(b"secret")
+    assert client.post("/export/reveal", json={"path": str(secret)}).status_code == 403
+    link = server_data_dir / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation is unavailable on this host")
+    assert client.post("/export/reveal", json={"path": str(link / "secret.wav")}).status_code == 403
+
+
+def test_reveal_file_spawns_file_manager_without_shell(client, server_data_dir, monkeypatch):
     import api.routers.exports as exports
 
-    target = tmp_path / "show-me.wav"
+    target = server_data_dir / "show-me.wav"
     target.write_bytes(b"x")
 
     calls = []
@@ -342,23 +435,25 @@ def test_reveal_file_spawns_file_manager_without_shell(client, tmp_path, monkeyp
                for part in cmd)
 
 
-def test_reveal_directory_opens_the_folder_itself(client, tmp_path, monkeypatch):
+def test_reveal_directory_opens_the_folder_itself(client, server_data_dir, monkeypatch):
     import api.routers.exports as exports
 
     calls = []
     monkeypatch.setattr(
         exports.subprocess, "Popen", lambda cmd, *a, **kw: calls.append(cmd)
     )
-    r = client.post("/export/reveal", json={"path": str(tmp_path)})
+    child = server_data_dir / "exports"
+    child.mkdir()
+    r = client.post("/export/reveal", json={"path": str(child)})
     assert r.status_code == 200
     assert len(calls) == 1
-    assert any(os.path.realpath(str(tmp_path)) in str(part) for part in calls[0])
+    assert any(os.path.realpath(str(child)) in str(part) for part in calls[0])
 
 
-def test_reveal_spawn_failure_maps_to_500(client, tmp_path, monkeypatch):
+def test_reveal_spawn_failure_maps_to_500(client, server_data_dir, monkeypatch):
     import api.routers.exports as exports
 
-    target = tmp_path / "cursed.wav"
+    target = server_data_dir / "cursed.wav"
     target.write_bytes(b"x")
 
     def _no_opener(*a, **kw):

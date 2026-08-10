@@ -4,34 +4,28 @@ import time
 import shutil
 import subprocess
 import platform
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.dependencies import require_native_access
 from core.db import db_conn
-from core.config import OUTPUTS_DIR
+from core.config import DATA_DIR, OUTPUTS_DIR
 from core import event_bus
+from core.path_authorization import PathAuthorizationError, consume
+from core.path_security import UnsafePath, resolve_within, safe_filename
 from schemas.requests import ExportRequest, ExportRecordRequest, RevealRequest
 
 router = APIRouter()
 
 
-def _safe_destination(raw: str) -> str:
-    """Resolve + validate an export destination. Rejects relative/empty paths."""
-    if not raw or not raw.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Export needs a destination folder. Pick where the file should go and try again.",
-        )
-    expanded = os.path.expanduser(raw)
-    # Check BEFORE realpath(): realpath absolutizes a relative path against
-    # the server's cwd, which made this check dead code — a relative
-    # destination silently exported to a cwd-dependent location instead of
-    # the documented 400 (regression-tested in tests/test_exports_api.py).
-    if not os.path.isabs(expanded):
-        raise HTTPException(
-            status_code=400,
-            detail="The destination needs to be a full path (e.g. /Users/you/Movies/VoiceStudio) — not relative.",
-        )
-    dest = os.path.realpath(expanded)
+def _authorized_destination(token: str) -> str:
+    """Consume a native save-dialog capability and validate its destination."""
+    try:
+        raw = consume(token, "dub_export")
+    except PathAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if not raw or not raw.strip() or not os.path.isabs(os.path.expanduser(raw)):
+        raise HTTPException(status_code=400, detail="The selected destination is invalid.")
+    dest = os.path.realpath(os.path.expanduser(raw))
     parent = os.path.dirname(dest)
     if not parent or not os.path.isdir(parent):
         raise HTTPException(
@@ -43,30 +37,30 @@ def _safe_destination(raw: str) -> str:
 
 def _safe_source(filename: str) -> str:
     """Resolve a source filename against OUTPUTS_DIR / dub outputs, blocking traversal."""
-    base = os.path.basename(filename or "")
-    # "." and ".." are their own basename, so they'd slip past the
-    # base != filename check and only die later on realpath containment —
-    # reject them up front with the same 400 as any other malformed name.
-    if not base or base != filename or base in (".", ".."):
+    try:
+        base = safe_filename(filename)
+    except UnsafePath as exc:
         raise HTTPException(
             status_code=400,
             detail="The file to export has an unexpected name. Try re-generating the audio and exporting again.",
-        )
+        ) from exc
     for root in (OUTPUTS_DIR, os.path.join("dub", "outputs")):
-        candidate = os.path.realpath(os.path.join(root, base))
-        root_real = os.path.realpath(root)
-        if candidate.startswith(root_real + os.sep) and os.path.exists(candidate):
-            return candidate
+        try:
+            candidate = resolve_within(root, base)
+        except UnsafePath:
+            continue
+        if candidate.is_file():
+            return str(candidate)
     raise HTTPException(
         status_code=404,
         detail="That file isn't on disk anymore — it may have been cleaned up. Regenerate and try again.",
     )
 
 
-@router.post("/export")
+@router.post("/export", dependencies=[Depends(require_native_access)])
 def export_file(req: ExportRequest):
     src = _safe_source(req.source_filename)
-    dest = _safe_destination(req.destination_path)
+    dest = _authorized_destination(req.authorization)
     try:
         # Video exports: overlay VoiceStudio logo if visible watermark is enabled
         if src.lower().endswith(".mp4"):
@@ -126,31 +120,38 @@ def get_export_history():
     return [dict(r) for r in rows]
 
 
-@router.post("/export/reveal")
+@router.post("/export/reveal", dependencies=[Depends(require_native_access)])
 def reveal_in_folder(req: RevealRequest):
-    # Tauri/native dialog-provided path; subprocess uses list args (no shell interpolation).
+    # Desktop clients reveal arbitrary user-selected export destinations in
+    # the native Tauri process. This HTTP fallback is deliberately limited to
+    # server-owned data so a remote/browser caller cannot make the host open
+    # an attacker-chosen path.
     if not req.path or not req.path.strip():
         raise HTTPException(
             status_code=400,
             detail="No path was provided — nothing to reveal.",
         )
-    target = os.path.realpath(os.path.expanduser(req.path))
-    if not os.path.exists(target):
+    try:
+        target_path = resolve_within(DATA_DIR, req.path)
+    except UnsafePath as exc:
+        raise HTTPException(status_code=403, detail="That path cannot be opened remotely.") from exc
+    if not target_path.exists():
         raise HTTPException(
             status_code=404,
             detail="That file or folder is no longer on disk. It may have been moved or deleted.",
         )
 
-    folder = target if os.path.isdir(target) else os.path.dirname(target)
+    target = str(target_path)
+    folder = target if target_path.is_dir() else str(target_path.parent)
     system = platform.system()
     try:
         if system == "Darwin":
-            if os.path.isfile(target):
+            if target_path.is_file():
                 subprocess.Popen(["open", "-R", target])
             else:
                 subprocess.Popen(["open", folder])
         elif system == "Windows":
-            if os.path.isfile(target):
+            if target_path.is_file():
                 subprocess.Popen(["explorer", "/select,", target.replace("/", "\\")])
             else:
                 subprocess.Popen(["explorer", folder.replace("/", "\\")])

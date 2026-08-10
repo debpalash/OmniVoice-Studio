@@ -5,7 +5,7 @@
  * One row per tool:
  *   • FFmpeg / FFprobe — version + origin badge (Bundled / System / Custom /
  *     App package) + path; actions: Use system copy (auto-detect),
- *     Choose file… (picker in Tauri, inline path input everywhere),
+ *     Choose file… (native picker in Tauri),
  *     Restore bundled (always-safe revert). The section header carries
  *     "Update bundled build" (one download covers both binaries).
  *   • yt-dlp — module version + Update (fetches the newest wheel into an
@@ -19,9 +19,8 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { AudioLines, Film, ScanSearch, DownloadCloud } from 'lucide-react';
 import { Button, Badge } from '../../ui';
-import { SettingsSection, SettingRow, SettingsInput } from './primitives';
+import { SettingsSection, SettingRow } from './primitives';
 import RestartBadge from './RestartBadge';
-import { isTauri } from './native';
 
 const ORIGIN_TONE = {
   bundled: 'success',
@@ -46,33 +45,11 @@ function OriginBadge({ origin }) {
   );
 }
 
-/** Open the OS file picker in Tauri; return the chosen path or null. */
-async function pickBinary(title) {
-  if (!isTauri()) return null;
-  try {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const picked = await open({ multiple: false, directory: false, title });
-    return typeof picked === 'string' ? picked : null;
-  } catch {
-    return null;
-  }
-}
-
 function BinaryRow({ tool, info, onAction, busy }) {
   const { t } = useTranslation();
-  const [path, setPath] = useState('');
-  const [showInput, setShowInput] = useState(false);
   const label = tool === 'ffmpeg' ? 'FFmpeg' : 'FFprobe';
 
-  const chooseFile = async () => {
-    const picked = await pickBinary(label);
-    if (picked) {
-      onAction(`/media-tools/${tool}/custom-path`, { path: picked });
-    } else {
-      // Web preview / picker unavailable — fall back to the inline input.
-      setShowInput(true);
-    }
-  };
+  const chooseFile = () => onAction(`/media-tools/${tool}/custom-path`);
 
   return (
     <SettingRow
@@ -113,15 +90,17 @@ function BinaryRow({ tool, info, onAction, busy }) {
           >
             {t('settings.audio_tools_use_system', { defaultValue: 'Use system copy' })}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={chooseFile}
-            aria-label={`${label}: ${t('settings.audio_tools_choose_file')}`}
-          >
-            {t('settings.audio_tools_choose_file', { defaultValue: 'Choose file…' })}
-          </Button>
+          {'__TAURI_INTERNALS__' in window && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={chooseFile}
+              aria-label={`${label}: ${t('settings.audio_tools_choose_file')}`}
+            >
+              {t('settings.audio_tools_choose_file', { defaultValue: 'Choose file…' })}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -131,32 +110,6 @@ function BinaryRow({ tool, info, onAction, busy }) {
           >
             {t('settings.audio_tools_restore', { defaultValue: 'Restore bundled' })}
           </Button>
-          {showInput && (
-            <>
-              <SettingsInput
-                placeholder={tool === 'ffmpeg' ? '/usr/bin/ffmpeg' : '/usr/bin/ffprobe'}
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' &&
-                  path.trim() &&
-                  onAction(`/media-tools/${tool}/custom-path`, { path: path.trim() })
-                }
-                aria-label={t('settings.audio_tools_path_input_aria', {
-                  tool: label,
-                  defaultValue: '{{tool}} binary path',
-                })}
-              />
-              <Button
-                size="sm"
-                variant="subtle"
-                disabled={busy || !path.trim()}
-                onClick={() => onAction(`/media-tools/${tool}/custom-path`, { path: path.trim() })}
-              >
-                {t('credentials.save', { defaultValue: 'Save' })}
-              </Button>
-            </>
-          )}
         </>
       }
     />
@@ -268,15 +221,15 @@ export default function AudioToolsPanel() {
   const onToolAction = useCallback(
     async (path, body) => {
       let requestBody = body;
+      let selectedPath = body?.path;
       if (path.endsWith('/custom-path')) {
         try {
           const { invoke } = await import('@tauri-apps/api/core');
           const tool = path.includes('/ffprobe/') ? 'ffprobe' : 'ffmpeg';
-          const authorization = await invoke('authorize_host_path', {
-            kind: tool,
-            path: body?.path || '',
-          });
-          requestBody = { authorization };
+          const selection = await invoke('authorize_host_path', { kind: tool });
+          if (!selection) return;
+          requestBody = { authorization: selection.authorization };
+          selectedPath = selection.path;
         } catch (e) {
           toast.error(
             t('settings.audio_tools_path_failed', {
@@ -292,7 +245,8 @@ export default function AudioToolsPanel() {
         toast.success(
           t('settings.audio_tools_path_set', {
             tool: path.includes('ffprobe') ? 'FFprobe' : 'FFmpeg',
-            path: body?.path || t('settings.audio_tools_origin_system', { defaultValue: 'System' }),
+            path:
+              selectedPath || t('settings.audio_tools_origin_system', { defaultValue: 'System' }),
             defaultValue: '{{tool}} now uses {{path}}',
           }),
         );

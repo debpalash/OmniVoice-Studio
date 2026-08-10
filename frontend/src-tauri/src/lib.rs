@@ -435,6 +435,7 @@ pub fn run() {
             commands::set_tray_recording,
             commands::quit_app,
             commands::save_text_file,
+            commands::reveal_host_path,
             commands::get_dictation_shortcut,
             commands::set_dictation_shortcut,
             commands::get_launch_as_widget,

@@ -6,6 +6,8 @@ vi.mock('../api/client', () => ({
   apiJson: vi.fn(),
   apiFetch: vi.fn(),
 }));
+const invoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args) => invoke(...args) }));
 
 import { apiJson, apiFetch } from '../api/client';
 import MediaEngineCard from './MediaEngineCard';
@@ -19,6 +21,7 @@ const statusWith = (ready, acquire) => ({
 describe('MediaEngineCard — invisible-by-default media engine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete window.__TAURI_INTERNALS__;
     apiFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
   });
 
@@ -83,18 +86,28 @@ describe('MediaEngineCard — invisible-by-default media engine', () => {
     );
   });
 
-  it('Choose file… falls back to an inline path input outside Tauri and saves it', async () => {
+  it('Choose file uses only a native picker authorization', async () => {
     apiJson.mockResolvedValue(statusWith(false, { state: 'error', error: 'boom' }));
+    window.__TAURI_INTERNALS__ = {};
+    invoke.mockResolvedValue({ authorization: 'e'.repeat(64), path: '/usr/local/bin/ffmpeg' });
     render(<MediaEngineCard />);
     fireEvent.click(await screen.findByText('Choose file…'));
-    const input = await screen.findByTestId('media-engine-path');
-    fireEvent.change(input, { target: { value: '/usr/local/bin/ffmpeg' } });
-    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('authorize_host_path', { kind: 'ffmpeg' }),
+    );
     await waitFor(() =>
       expect(apiFetch).toHaveBeenCalledWith(
         '/media-tools/ffmpeg/custom-path',
-        expect.objectContaining({ body: JSON.stringify({ path: '/usr/local/bin/ffmpeg' }) }),
+        expect.objectContaining({ body: JSON.stringify({ authorization: 'e'.repeat(64) }) }),
       ),
     );
+    expect(apiFetch.mock.calls.flat().join(' ')).not.toContain('/usr/local/bin/ffmpeg');
+  });
+
+  it('does not offer native file selection in a browser', async () => {
+    apiJson.mockResolvedValue(statusWith(false, { state: 'error', error: 'boom' }));
+    render(<MediaEngineCard />);
+    await screen.findByTestId('media-engine-card');
+    expect(screen.queryByText('Choose file…')).not.toBeInTheDocument();
   });
 });

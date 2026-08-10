@@ -48,16 +48,17 @@ export default function StoragePanel() {
     refresh();
   }, [refresh]);
 
-  const save = async (path) => {
+  const save = async (reset = false) => {
     setSaving(true);
     setError(null);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const authorization = await invoke('authorize_host_path', { kind: 'models_dir', path });
+      const selection = await invoke('authorize_host_path', { kind: 'models_dir', reset });
+      if (!selection) return;
       const res = await apiFetch('/api/settings/storage/models-dir', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorization }),
+        body: JSON.stringify({ authorization: selection.authorization }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -67,7 +68,7 @@ export default function StoragePanel() {
       setConfigured(b?.configured || '');
       setRestart(Boolean(b?.restart_required));
       toast.success(
-        path
+        selection.path
           ? 'Models directory saved — restart to apply'
           : 'Reverted to default — restart to apply',
       );
@@ -116,7 +117,7 @@ export default function StoragePanel() {
               type="text"
               value={input}
               placeholder={def || '~/.cache/huggingface'}
-              onChange={(e) => setInput(e.target.value)}
+              readOnly
               disabled={saving || loading}
               spellCheck={false}
               aria-label="Models directory"
@@ -124,7 +125,7 @@ export default function StoragePanel() {
             />
             <button
               className="flex-none cursor-pointer rounded-[var(--chrome-radius-pill)] [border:1px_solid_transparent] bg-[var(--chrome-accent)] px-[var(--space-4)] py-[var(--space-2)] font-sans text-[length:var(--text-base)] text-[var(--chrome-bg)] disabled:cursor-default disabled:opacity-50"
-              onClick={() => save(input.trim())}
+              onClick={() => save(false)}
               disabled={saving || loading}
               data-testid="models-dir-save"
             >
@@ -133,8 +134,7 @@ export default function StoragePanel() {
             <button
               className="flex-none cursor-pointer rounded-[var(--chrome-radius-pill)] [border:1px_solid_var(--chrome-border)] bg-transparent px-[var(--space-4)] py-[var(--space-2)] font-sans text-[length:var(--text-base)] text-[var(--chrome-fg-muted)] hover:enabled:bg-[var(--chrome-hover-bg)] hover:enabled:text-[var(--chrome-fg)] disabled:cursor-default disabled:opacity-50"
               onClick={() => {
-                setInput('');
-                save('');
+                save(true);
               }}
               disabled={saving || loading || !configured}
               title="Revert to the default cache location"

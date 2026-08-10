@@ -40,6 +40,7 @@ from core.db import db_conn
 from core import event_bus
 from core.version import APP_VERSION
 from core.http_headers import content_disposition
+from core.path_security import UnsafePath, resolve_within, safe_filename
 
 logger = logging.getLogger("omnivoice.marketplace")
 
@@ -54,6 +55,26 @@ BUNDLE_VERSION = 1
 
 # Maximum bundle upload size (100 MB) to prevent memory exhaustion
 MAX_BUNDLE_BYTES = 100 * 1024 * 1024
+
+
+def _contained_path(root, value, *, detail="Invalid file path") -> Path:
+    try:
+        return resolve_within(root, value)
+    except UnsafePath as exc:
+        raise HTTPException(status_code=400, detail=detail) from exc
+
+
+def _voice_asset(value) -> Path | None:
+    """Resolve a DB-stored voice asset without trusting the database value."""
+    if not value:
+        return None
+    try:
+        resolved = resolve_within(VOICES_DIR, value)
+    except UnsafePath as exc:
+        raise HTTPException(status_code=400, detail="Voice profile contains an invalid asset path") from exc
+    if not resolved.is_file():
+        raise HTTPException(status_code=400, detail="Voice profile reference audio is missing")
+    return resolved
 
 
 # ── Export ──────────────────────────────────────────────────────────────────
@@ -109,18 +130,18 @@ def export_profile(profile_id: str):
         # Reference audio
         ref_path = profile.get("ref_audio_path")
         if ref_path:
-            full_ref = os.path.join(VOICES_DIR, ref_path)
-            if os.path.isfile(full_ref):
+            full_ref = _voice_asset(ref_path)
+            if full_ref and full_ref.is_file():
                 ext = os.path.splitext(ref_path)[1] or ".wav"
-                zf.write(full_ref, f"ref_audio{ext}")
+                zf.write(str(full_ref), f"ref_audio{ext}")
 
         # Locked audio (if profile is locked)
         locked_path = profile.get("locked_audio_path")
         if locked_path:
-            full_locked = os.path.join(VOICES_DIR, locked_path)
-            if os.path.isfile(full_locked):
+            full_locked = _voice_asset(locked_path)
+            if full_locked and full_locked.is_file():
                 ext = os.path.splitext(locked_path)[1] or ".wav"
-                zf.write(full_locked, f"locked_audio{ext}")
+                zf.write(str(full_locked), f"locked_audio{ext}")
 
     buf.seek(0)
     safe_name = "".join(
@@ -270,7 +291,11 @@ def publish_to_marketplace(
     safe_name = "".join(
         c if c.isalnum() or c in "-_ " else "" for c in profile.get("name", "voice")
     ).strip().replace(" ", "_")[:40]
-    bundle_path = MARKETPLACE_DIR / f"{safe_name}_{profile_id}.omnivoice"
+    bundle_path = _contained_path(
+        MARKETPLACE_DIR,
+        f"{safe_name}_{profile_id}.omnivoice",
+        detail="Invalid profile id",
+    )
 
     # Build the bundle
     with zipfile.ZipFile(str(bundle_path), "w", zipfile.ZIP_DEFLATED) as zf:
@@ -283,17 +308,17 @@ def publish_to_marketplace(
 
         ref_path = profile.get("ref_audio_path")
         if ref_path:
-            full_ref = os.path.join(VOICES_DIR, ref_path)
-            if os.path.isfile(full_ref):
+            full_ref = _voice_asset(ref_path)
+            if full_ref and full_ref.is_file():
                 ext = os.path.splitext(ref_path)[1] or ".wav"
-                zf.write(full_ref, f"ref_audio{ext}")
+                zf.write(str(full_ref), f"ref_audio{ext}")
 
         locked_path = profile.get("locked_audio_path")
         if locked_path:
-            full_locked = os.path.join(VOICES_DIR, locked_path)
-            if os.path.isfile(full_locked):
+            full_locked = _voice_asset(locked_path)
+            if full_locked and full_locked.is_file():
                 ext = os.path.splitext(locked_path)[1] or ".wav"
-                zf.write(full_locked, f"locked_audio{ext}")
+                zf.write(str(full_locked), f"locked_audio{ext}")
 
     logger.info("Published voice %r to marketplace: %s", profile.get("name"), bundle_path)
     return {
@@ -353,7 +378,13 @@ def browse_marketplace(
 @router.post("/install/{filename}")
 async def install_from_marketplace(filename: str):
     """Import a voice profile from a bundle in the local marketplace directory."""
-    bundle_path = MARKETPLACE_DIR / filename
+    try:
+        filename = safe_filename(filename)
+    except UnsafePath as exc:
+        raise HTTPException(status_code=400, detail="Invalid bundle filename") from exc
+    if not filename.endswith(".omnivoice"):
+        raise HTTPException(status_code=400, detail="Invalid bundle filename")
+    bundle_path = _contained_path(MARKETPLACE_DIR, filename, detail="Invalid bundle filename")
     if not bundle_path.is_file():
         raise HTTPException(status_code=404, detail=f"Bundle not found: {filename}")
 
@@ -426,7 +457,13 @@ async def install_from_marketplace(filename: str):
 @router.delete("/{filename}")
 def remove_from_marketplace(filename: str):
     """Remove a bundle from the local marketplace directory."""
-    bundle_path = MARKETPLACE_DIR / filename
+    try:
+        filename = safe_filename(filename)
+    except UnsafePath as exc:
+        raise HTTPException(status_code=400, detail="Invalid bundle filename") from exc
+    if not filename.endswith(".omnivoice"):
+        raise HTTPException(status_code=400, detail="Invalid bundle filename")
+    bundle_path = _contained_path(MARKETPLACE_DIR, filename, detail="Invalid bundle filename")
     if not bundle_path.is_file():
         raise HTTPException(status_code=404, detail=f"Bundle not found: {filename}")
     try:

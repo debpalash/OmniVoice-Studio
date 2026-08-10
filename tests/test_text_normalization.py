@@ -81,6 +81,30 @@ def test_normalizes(language, raw, expected):
     assert normalize_text(raw, language) == expected
 
 
+def test_unsafe_control_filter_has_exact_boundaries():
+    """Delete the security control set without widening into adjacent text."""
+    expected_codepoints = {
+        *range(0x00, 0x09),
+        0x0B,
+        0x0C,
+        *range(0x0E, 0x20),
+        *range(0x7F, 0xA0),
+        *range(0x200B, 0x2010),
+        *range(0x202A, 0x202F),
+        *range(0x2060, 0x2065),
+        0xFEFF,
+        0xFFFD,
+    }
+    unsafe = "".join(map(chr, sorted(expected_codepoints)))
+    assert text_normalization._strip_unsafe_controls(unsafe) == ""
+
+    # Tabs/newlines/carriage returns and code points immediately outside each
+    # security range remain available to the later whitespace/text passes.
+    allowed_boundaries = "\t\n\r ~\u00a0\u200a\u2010\u2029\u202f\u205f\u2065\ufefe\ufffc\ufffe"
+    assert text_normalization._strip_unsafe_controls(allowed_boundaries) == allowed_boundaries
+    assert text_normalization._UNSAFE_CONTROL_CODEPOINTS == expected_codepoints
+
+
 # ── Table-driven: conservatism — text that must NOT change ───────────────────
 
 _UNCHANGED_CASES = [

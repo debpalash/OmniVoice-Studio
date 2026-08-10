@@ -467,14 +467,20 @@ def _truncate_file(path: str):
 async def clear_tauri_logs():
     """Truncate whichever Tauri-side log files we know about. OS-level rotation may recreate them."""
     cleared = []
+    failed = 0
     for p in _tauri_log_candidates():
         if os.path.exists(p):
             try:
                 await asyncio.to_thread(_truncate_file, p)
                 cleared.append(p)
-            except Exception:
-                pass
-    return {"cleared": cleared}
+            except OSError:
+                failed += 1
+    if failed:
+        raise HTTPException(
+            status_code=500,
+            detail="One or more desktop log files could not be cleared. Close any app using them and retry.",
+        )
+    return {"cleared": cleared, "failed": 0}
 
 @router.get("/sysinfo", response_model=SysinfoResponse)
 def get_sys_info():

@@ -284,8 +284,7 @@ def test_server_mode_admin_read_keeps_bare_docker_bootstrap(monkeypatch):
 def test_server_mode_admin_read_keeps_pin_only_discovery(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
-    monkeypatch.setenv("OMNIVOICE_SHARE_PIN", "123456")
-    require_admin(_req_full("172.17.0.1", method="GET"))
+    require_admin(_req_full("172.17.0.1", method="GET", pin="123456"))
 
 
 def test_server_mode_admin_mutation_allows_api_key(monkeypatch):

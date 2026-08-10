@@ -129,7 +129,7 @@ class TestDubExportUniqueness:
             client.get(f"/dub/download-mp3/{job_id}", params={"lang": "es", "preserve_bg": False})
             client.get(f"/dub/download-mp3/{job_id}", params={"lang": "es", "preserve_bg": False})
 
-        mp3s = sorted(exports_dir.glob("dubbed_es_*.mp3"))
+        mp3s = sorted(exports_dir.glob("dubbed_*.mp3"))
         assert len(mp3s) == 3, f"expected 3 mp3 exports, got {[f.name for f in mp3s]}"
         assert len({f.name for f in mp3s}) == 3
 
