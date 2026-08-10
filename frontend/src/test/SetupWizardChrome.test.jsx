@@ -196,6 +196,13 @@ describe('studio chrome does not appear before the studio', () => {
       expect(css).toMatch(/html\[data-zoom-layout='off'\] \.app-wizard-wrap \{[^}]*zoom:\s*1/);
     });
 
+    it('fills the viewport without CSS zoom when Tauri owns the scale', () => {
+      const css = readSrc('index.css');
+      expect(css).toMatch(
+        /html\[data-ui-scale-engine='native'\] \.app-wizard-wrap \{[^}]*width:\s*100vw[^}]*height:\s*100vh[^}]*zoom:\s*1/,
+      );
+    });
+
     it('the mount passes --ui-scale and never a bare inline zoom', () => {
       const app = readSrc('App.jsx');
       const mount = app.slice(app.indexOf('className="app-wizard-wrap"'));

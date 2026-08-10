@@ -748,6 +748,14 @@ html[data-zoom-layout='off'] .app-container {
   height: 100vh;
   zoom: 1;
 }
+/* Tauri applies UI scale to the webview itself. Keep the document shell at a
+   true viewport size there; combining native zoom with this CSS zoom contract
+   would double-scale and recreate the right/bottom dead bands. */
+html[data-ui-scale-engine='native'] .app-container {
+  width: 100vw;
+  height: 100vh;
+  zoom: 1;
+}
 /* No padding-bottom footer reservation here anymore: the LogsFooter occupies
    grid row 3 (see grid-template-rows above), so row-2 content stops at its
    top edge by construction. The footer still writes --logs-footer-height for
@@ -2762,6 +2770,21 @@ input[type="file"]::file-selector-button:hover {
    rationale as the .app-container override above): the shrunk box can't be
    magnified back, so render at 1.0 filling the window instead. */
 html[data-zoom-layout='off'] .app-wizard-wrap {
+  width: 100vw;
+  height: 100vh;
+  zoom: 1;
+}
+html[data-ui-scale-engine='native'] .app-wizard-wrap {
+  width: 100vw;
+  height: 100vh;
+  zoom: 1;
+}
+.app-bootstrap-scale {
+  width: calc(100vw / var(--ui-scale, 1));
+  height: calc(100vh / var(--ui-scale, 1));
+  zoom: var(--ui-scale, 1);
+}
+html[data-ui-scale-engine='native'] .app-bootstrap-scale {
   width: 100vw;
   height: 100vh;
   zoom: 1;

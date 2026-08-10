@@ -46,4 +46,10 @@ describe('app shell scale (black-band + clipping regression guard)', () => {
       /\[data-zoom-layout=['"]?off['"]?\][^{]*\.app-container\s*\{[^}]*width:\s*100vw[^}]*height:\s*100vh/,
     );
   });
+
+  it('lets native Tauri zoom own scale while the shell still fills the viewport', () => {
+    expect(css).toMatch(
+      /\[data-ui-scale-engine=['"]?native['"]?\][^{]*\.app-container\s*\{[^}]*width:\s*100vw[^}]*height:\s*100vh[^}]*zoom:\s*1/,
+    );
+  });
 });
