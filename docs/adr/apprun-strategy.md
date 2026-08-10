@@ -19,13 +19,12 @@ Tauri 2's AppImage bundler auto-generates an `AppRun` shell launcher inside the
 config key in Tauri 2.x as of this writing. The chosen injection strategy is:
 
 > **A custom `AppRun` template sourced from `frontend/src-tauri/appimage/AppRun`
-> is copied into the AppImage staging directory by a `beforeBundleCommand`
-> (Tauri 2 supports this hook).**
+> is installed into Tauri's project-local AppImage tool cache by a
+> `beforeBundleCommand`. Tauri then copies that launcher into the AppDir.**
 
-The script that copies it lives at `scripts/inject-apprun.sh` and is invoked
-from `package.json` via the existing `bun run build` pipeline, so the
-operation is wired into the same `cargo tauri build --bundles appimage` call
-the release pipeline already uses.
+The script that seeds the cache lives at `scripts/inject-apprun.sh`. The final
+release smoke test extracts the AppImage and compares its `AppRun` byte-for-byte
+with the source template, so a stock launcher cannot ship silently again.
 
 ---
 
@@ -58,25 +57,21 @@ Tauri's `bundle.linux.appimage` accepts `bundleMediaFramework: bool` and
 `files: HashMap<PathBuf, PathBuf>` but **not** an `appRun` / `template` key.
 Tracking issue: `tauri-apps/tauri#7616` is still open.
 
-### B. `beforeBundleCommand` hook (CHOSEN)
+### B. Replace the staged AppDir from `beforeBundleCommand` (REJECTED)
 
-Tauri 2 added `build.beforeBundleCommand` as a sibling to `beforeBuildCommand`.
-It runs AFTER `cargo build` but BEFORE the bundler packs the AppDir into an
-AppImage. This is exactly the right point to swap the AppRun:
-- The AppDir staging directory exists at a predictable path
-  (`target/${profile}/bundle/appimage/*.AppDir/`)
-- The auto-generated `AppRun` is already in place
-- We just overwrite it with our version before `appimagetool` runs
+`beforeBundleCommand` runs before `tauri-bundler` creates the AppDir. The old
+implementation globbed for that future directory, found nothing, exited zero,
+and v0.4.2 shipped Tauri's stock launcher. This timing cannot be made reliable.
 
-Tradeoffs:
-- ✓ No re-packing the squashfs after the fact (faster, simpler)
-- ✓ One-line tauri.conf.json change + small shell script
-- ✓ Cross-platform safe: the hook only fires when Linux + AppImage are in the
-  active target list, so macOS/Windows builds are unaffected
-- ✗ The staging path is glob-discovered (the .AppDir name follows
-  `productName`), so the script handles `productName` changes gracefully
+### C. Seed Tauri's local AppImage tool cache (CHOSEN)
 
-### C. Post-bundle re-pack with `appimagetool`
+With `bundle.useLocalToolsDir`, Tauri reads its launcher from
+`target/.tauri/AppRun-<arch>` and copies it into the newly created AppDir. The
+hook installs our launcher at that existing extension point before the bundler
+runs. `bundle.linux.appimage.files` carries the generated WebKitGTK version
+marker into `usr/lib`, where the launcher reads it.
+
+### D. Post-bundle re-pack with `appimagetool`
 
 Status: **rejected.** This would require unpacking the AppImage's squashfs
 after Tauri produces it, replacing AppRun, re-running `appimagetool --no-appstream`,
@@ -87,7 +82,7 @@ release-pipeline dep. Strategy B avoids both.
 
 ## Chosen strategy
 
-**Strategy B — `beforeBundleCommand` hook + custom AppRun template.**
+**Strategy C — project-local Tauri tool cache + custom AppRun template.**
 
 ### Files
 
@@ -95,8 +90,10 @@ release-pipeline dep. Strategy B avoids both.
 |---|---|
 | `frontend/src-tauri/appimage/AppRun` | The custom launcher shell script (source of truth, version-controlled) |
 | `frontend/src-tauri/appimage/AppRun.test.sh` | Shell unit test (W-1) — 4 cases for the WebKit version conditional |
-| `scripts/inject-apprun.sh` | Glob the AppDir under `frontend/src-tauri/target/release/bundle/appimage/*.AppDir/` and `cp -f` the AppRun in. Idempotent. |
-| `frontend/src-tauri/tauri.conf.json` | `build.beforeBundleCommand` wires the hook into the bundler pipeline |
+| `scripts/inject-apprun.sh` | Seed `target/.tauri/AppRun-<arch>` and generate the bundled WebKitGTK marker |
+| `scripts/inject-apprun.test.sh` | Regression test for cache seeding, executable mode and version stamping |
+| `frontend/src-tauri/tauri.conf.json` | Enable the local tool cache and package its generated marker |
+| `.github/workflows/release.yml` | Extract the final artifact and reject a stock launcher or missing marker |
 
 ### Wire-up
 
@@ -104,14 +101,15 @@ release-pipeline dep. Strategy B avoids both.
 // frontend/src-tauri/tauri.conf.json
 {
   "build": {
-    "beforeBundleCommand": "bash ../../scripts/inject-apprun.sh"
+    "beforeBundleCommand": "bash ../scripts/inject-apprun.sh"
     // ... existing keys
   }
 }
 ```
 
-The hook is a no-op when `--bundles appimage` is not in the active target
-list (the script `glob`s for the AppDir; if none exist, it exits 0).
+The hook is a no-op on non-Linux hosts. On Linux, an unknown architecture or
+missing WebKitGTK version is a build failure rather than a silently broken
+artifact.
 
 ### Why `WEBKIT_DISABLE_COMPOSITING_MODE` is conditional, not unconditional
 
@@ -130,7 +128,7 @@ When Tauri 2 ships a first-class `appRun` template key (see open
 `tauri-apps/tauri#7616`), the migration is:
 
 1. Move `frontend/src-tauri/appimage/AppRun` content into the new config key
-2. Delete `scripts/inject-apprun.sh`
+2. Delete `scripts/inject-apprun.sh` and its cache-seeding test
 3. Remove the `beforeBundleCommand` line that invokes it
 4. Keep `AppRun.test.sh` as-is — it still validates the conditional logic
 

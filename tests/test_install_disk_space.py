@@ -90,7 +90,10 @@ def test_install_worker_emits_install_error_and_skips_download(models_mod, monke
     # call must never happen (the guard returns first). Fail loudly if it does.
     import huggingface_hub
 
+    calls = []
+
     def _fake_snapshot(**kwargs):
+        calls.append(kwargs)
         if kwargs.get("dry_run"):
             return []  # preflight plan input (compute_plan is stubbed anyway)
         raise AssertionError("snapshot_download called for a real download despite disk-full reject")
@@ -116,5 +119,46 @@ def test_install_worker_emits_install_error_and_skips_download(models_mod, monke
     errs = [e for e in events if e.get("phase") == "install_error"]
     assert errs, f"expected an install_error event, got phases: {[e.get('phase') for e in events]}"
     assert "disk space" in errs[0]["error"].lower()
+    from services.hf_revisions import revision_for
+    assert calls[0]["revision"] == revision_for(repo_id)
     # And the resolving heartbeat must not have leaked — no infinite 'resolving'
     # stream after the bail (the worker set the stop event before returning).
+
+
+def test_install_preflight_download_and_repair_marker_share_revision(models_mod, monkeypatch):
+    download = importlib.import_module("api.routers.setup.download")
+    import asyncio
+    import huggingface_hub
+    from services import hf_revisions
+
+    repo_id = download.KNOWN_MODELS[0]["repo_id"]
+    expected = hf_revisions.revision_for(repo_id)
+    calls = []
+    remembered = []
+
+    def fake_snapshot(**kwargs):
+        calls.append(kwargs)
+        return [] if kwargs.get("dry_run") else "/cache/snapshots/" + expected
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot)
+    monkeypatch.setattr(download, "compute_plan", lambda _plan: {
+        "total_bytes": 1, "cached_bytes": 0, "to_download_bytes": 1,
+        "n_files": 1, "n_cached": 0,
+    })
+    monkeypatch.setattr(download, "disk_space_error", lambda *_a, **_k: None)
+    monkeypatch.setattr(download, "_segmented_enabled", lambda: False)
+    monkeypatch.setattr(download, "_validate_snapshot_has_weights", lambda *_a: None)
+    monkeypatch.setattr(hf_revisions, "remember_revision", lambda *args: remembered.append(args))
+
+    async def run_install():
+        await download.install_model(download.InstallModelRequest(repo_id=repo_id))
+        pending = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        if pending:
+            await asyncio.gather(*pending)
+
+    asyncio.run(run_install())
+
+    assert [call["revision"] for call in calls] == [expected, expected]
+    assert calls[0]["dry_run"] is True
+    assert "dry_run" not in calls[1]
+    assert remembered and remembered[0][0:2] == (repo_id, expected)

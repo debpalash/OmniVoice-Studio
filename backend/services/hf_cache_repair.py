@@ -209,6 +209,12 @@ def repair_repo_cache(repo_id: str, cache_dir: str | None = None) -> dict:
             )
             return summary
 
+        # Resolve the exact revision before deleting even a broken pointer. An
+        # unreviewed repository can never turn cache repair into a mutable-
+        # branch network fetch.
+        from services.hf_revisions import installed_revision
+        revision = installed_revision(repo_id, cache_root)
+
         def _remove(paths: list[str]) -> int:
             n = 0
             for path in paths:
@@ -232,13 +238,15 @@ def repair_repo_cache(repo_id: str, cache_dir: str | None = None) -> dict:
 
         from huggingface_hub import snapshot_download
 
-        dl_kwargs: dict = {"repo_id": repo_id}
-        if cache_dir:
-            dl_kwargs["cache_dir"] = cache_dir
+        dl_kwargs: dict = {
+            "repo_id": repo_id,
+            "revision": revision,
+            "cache_dir": cache_root,
+        }
         endpoint = os.environ.get("HF_ENDPOINT")
         if endpoint:
             dl_kwargs["endpoint"] = endpoint
-        snapshot_download(**dl_kwargs)
+        snapshot_download(**dl_kwargs)  # nosec B615 -- installed immutable revision
         summary["restored"] = True
 
         # Verify-after-repair: hub's memoized symlink probe can claim support
@@ -267,7 +275,7 @@ def repair_repo_cache(repo_id: str, cache_dir: str | None = None) -> dict:
             )
             return summary
         summary["removed"] += _remove(still_broken)
-        snapshot_download(**dl_kwargs)
+        snapshot_download(**dl_kwargs)  # nosec B615 -- installed immutable revision
         remaining = find_dangling_entries(repo_dir)
         if remaining:
             summary["error"] = (

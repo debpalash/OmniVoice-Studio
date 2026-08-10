@@ -1,7 +1,8 @@
 # Gitleaks config — extends the default ruleset.
 #
-# The ONLY sanctioned allowlist entry is PostHog's publishable project token
-# (owner decision 2026-07-20, #1193). Per PostHog's docs the `phc_` project
+# Every entry below is an exact, anchored non-secret value. PostHog's
+# publishable project token is public by design (owner decision 2026-07-20,
+# #1193). Per PostHog's docs the `phc_` project
 # token is a write-only client key with "no access to your private data" —
 # it ships in every release binary and every official PostHog SDK snippet.
 # It is NOT a credential. Personal keys (`phx_`) remain fully banned.
@@ -12,7 +13,16 @@
 useDefault = true
 
 [allowlist]
-description = "PostHog publishable write-only project token (public by design; #1193)"
+description = "Exact public/test literals misclassified as generic API keys"
 regexes = [
-  '''phc_v5wMjnYMPMaEcRNLRKQsTYCzPaYWh7wcHPhXNkNajVf9''',
+  # Public PostHog project token; personal `phx_` keys remain banned.
+  '''^phc_v5wMjnYMPMaEcRNLRKQsTYCzPaYWh7wcHPhXNkNajVf9$''',
+  # Reviewed immutable Hugging Face commit for the Higgs tokenizer.
+  '''^528e871c2a26c4f0f7773b9754e2e1acae20899d$''',
+  # Deliberately synthetic fixtures that exercise HF-token redaction/storage.
+  '''^hf_abcdefghijklmnopqrstuvwxyz01234567890abcd$''',
+  '''^hf_abcdefghijklmnopqrstuvwxyz0123456789ABCDEF$''',
+  '''^hf_QWERTYUIOPasdfghjklZXCVBNM0123456789xyzAB$''',
+  # NLLB generation length argument, not the value of a credential.
+  '''^max_length=400$''',
 ]

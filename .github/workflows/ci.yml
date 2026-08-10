@@ -89,7 +89,9 @@ jobs:
       # never been wired into CI, so its cases were a regression test nothing
       # ran. Cheap (pure bash, stubs pkg-config) and it gates the class.
       - name: AppImage launcher (AppRun) unit tests
-        run: bash frontend/src-tauri/appimage/AppRun.test.sh
+        run: |
+          bash frontend/src-tauri/appimage/AppRun.test.sh
+          bash scripts/inject-apprun.test.sh
 
       # `backend/tests/` mounts routers on bare FastAPI apps (no heavy main
       # import chain) with a hermetic data dir from its conftest.py. It no
