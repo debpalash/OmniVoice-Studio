@@ -43,6 +43,15 @@ def stream_failure(code: str) -> dict[str, object]:
             "detail": "Transcription failed. Check the selected ASR engine and try again.",
             "retryable": True,
         },
+        "transcription_memory": {
+            "code": "transcription_memory",
+            "detail": (
+                "Transcription ran out of GPU memory. Close other GPU apps or "
+                "Flush models, then try again; VoiceStudio will use CPU when "
+                "the remaining GPU memory is too low."
+            ),
+            "retryable": True,
+        },
         "transcription_timeout": {
             "code": "transcription_timeout",
             "detail": (

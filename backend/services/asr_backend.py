@@ -1232,6 +1232,11 @@ class PyTorchWhisperBackend(ASRBackend):
         # Reuses the `_asr_pipe` attached to the TTS model when available.
         self._pipe = asr_pipe
 
+    # whisper-large-v3-turbo occupies roughly 3.2 GiB before generation adds
+    # its encoder/decoder workspace. Loading it onto a nearly full card works,
+    # then the first transcribe fails with a CUDA OOM and yields zero segments.
+    _CUDA_VRAM_BUDGET_GB = 5.0
+
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
         try:
@@ -1239,6 +1244,40 @@ class PyTorchWhisperBackend(ASRBackend):
             return True, "ready"
         except ImportError as e:
             return False, f"transformers not installed: {e}"
+
+    @classmethod
+    def _pick_device(cls) -> str:
+        from services.model_manager import get_best_device
+
+        device = str(get_best_device())
+        if not device.startswith("cuda") or os.environ.get(
+            "OMNIVOICE_ASR_VRAM_PREFLIGHT", "1"
+        ).strip().lower() in ("0", "false", "no"):
+            return device
+        try:
+            import torch
+
+            free, _total = torch.cuda.mem_get_info()
+            free_gb = free / 1024**3
+        except Exception:  # noqa: BLE001 — an unavailable probe must not block ASR
+            return device
+        if free_gb >= cls._CUDA_VRAM_BUDGET_GB:
+            return device
+        logger.warning(
+            "PyTorch Whisper VRAM preflight: %.1f GB free < %.1f GB needed "
+            "for reliable CUDA transcription — using CPU instead. Close other "
+            "GPU apps or Flush models to restore GPU-speed ASR.",
+            free_gb,
+            cls._CUDA_VRAM_BUDGET_GB,
+        )
+        return "cpu"
+
+    def ensure_loaded(self) -> None:
+        # Unlike the CTranslate2 backends, this fallback used to inherit the
+        # protocol's no-op loader. Import/model failures therefore appeared on
+        # every chunk as the misleading "produced no segments" result. Load it
+        # once during the stream preflight so the real failure is reported once.
+        self._ensure_pipe()
 
     def _ensure_pipe(self):
         if self._pipe is not None:
@@ -1252,12 +1291,10 @@ class PyTorchWhisperBackend(ASRBackend):
         # constructor and this path is skipped.
         import torch
         from transformers import pipeline as hf_pipeline
-        from services.model_manager import get_best_device
-
         model_name = os.environ.get(
             "OMNIVOICE_PYTORCH_ASR_MODEL", "openai/whisper-large-v3-turbo"
         )
-        device = get_best_device()
+        device = self._pick_device()
         asr_dtype = torch.float16 if str(device).startswith("cuda") else torch.float32
         logger.info(
             "PyTorchWhisperBackend: loading standalone ASR pipeline %s on %s",
@@ -1268,7 +1305,11 @@ class PyTorchWhisperBackend(ASRBackend):
                 "automatic-speech-recognition",
                 model=model_name,
                 dtype=asr_dtype,
-                device_map=device,
+                # `device_map="cpu"` only controls weight placement; the
+                # pipeline can still choose CUDA as its execution device.
+                # `device` is the pipeline-level contract and keeps the
+                # low-VRAM fallback entirely on CPU.
+                device=device,
             )
         except Exception as e:
             # #549: an incomplete transformers install fails to build the ASR

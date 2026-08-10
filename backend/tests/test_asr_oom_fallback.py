@@ -85,6 +85,7 @@ def test_float16_unsupported_falls_back_to_int8(monkeypatch):
         return object()  # cuda int8 succeeds
 
     monkeypatch.setattr(whisperx, "load_model", fake_load_model)
+    monkeypatch.setattr(WhisperXBackend, "_free_vram_gb", staticmethod(lambda: 10.0))
 
     be = WhisperXBackend()
     be._device, be._compute_type = "cuda", "float16"

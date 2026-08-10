@@ -64,6 +64,37 @@ def test_lazy_builds_standalone_pipeline(monkeypatch):
     assert be._pipe is not None
     assert captured["task"] == "automatic-speech-recognition"
     assert captured["kw"]["model"]  # a concrete model name was chosen
+    assert captured["kw"]["device"] == "cpu"
+    assert "device_map" not in captured["kw"]
+
+
+def test_ensure_loaded_eagerly_builds_pipeline(monkeypatch):
+    """Dub preflight must load the fallback before processing every chunk."""
+    backend = ab.PyTorchWhisperBackend()
+    calls = []
+    monkeypatch.setattr(backend, "_ensure_pipe", lambda: calls.append("load"))
+
+    backend.ensure_loaded()
+
+    assert calls == ["load"]
+
+
+def test_low_free_vram_routes_pytorch_whisper_to_cpu(monkeypatch):
+    import torch
+
+    monkeypatch.setattr("services.model_manager.get_best_device", lambda: "cuda:0")
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda: (4 * 1024**3, 24 * 1024**3))
+
+    assert ab.PyTorchWhisperBackend._pick_device() == "cpu"
+
+
+def test_sufficient_free_vram_keeps_pytorch_whisper_on_cuda(monkeypatch):
+    import torch
+
+    monkeypatch.setattr("services.model_manager.get_best_device", lambda: "cuda:0")
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda: (6 * 1024**3, 24 * 1024**3))
+
+    assert ab.PyTorchWhisperBackend._pick_device() == "cuda:0"
 
 
 def test_pytorch_asr_model_overridable_via_env(monkeypatch):

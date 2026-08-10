@@ -297,6 +297,57 @@ def test_transcribe_chunk_failure_uses_stable_public_metadata(
     assert "/home/alice/private-audio.wav" not in caplog.text
 
 
+def test_transcribe_chunk_oom_has_one_actionable_public_message(
+    tmp_path, monkeypatch
+):
+    """CUDA OOM must not collapse into a duplicated no-segments error."""
+    import asyncio
+    import torch
+    from api.routers import dub_core as dc
+
+    job_id = "t_chunk_oom"
+    audio = tmp_path / "a.wav"
+    _make_wav(audio, seconds=1.0)
+    dc._dub_jobs[job_id] = {
+        "audio_path": str(audio), "vocals_path": None, "scene_cuts": [],
+    }
+
+    class _OOMASR:
+        id = "pytorch-whisper"
+
+        def ensure_loaded(self):
+            pass
+
+        def transcribe(self, path, *, word_timestamps=True):
+            raise torch.OutOfMemoryError("secret diagnostic")
+
+        def unload(self):
+            pass
+
+    monkeypatch.setattr(dc, "_CHUNK_TRANSCRIBE_ATTEMPTS", 1)
+    monkeypatch.setattr(dc, "offload_tts_for_asr", lambda: None)
+    monkeypatch.setattr(
+        "services.asr_backend.get_active_asr_backend", lambda **_kw: _OOMASR()
+    )
+
+    async def _collect():
+        response = await dc.dub_transcribe_stream(job_id)
+        parts = []
+        async for chunk in response.body_iterator:
+            parts.append(chunk.decode() if isinstance(chunk, bytes) else str(chunk))
+        return "".join(parts)
+
+    try:
+        body = asyncio.run(_collect())
+    finally:
+        dc._dub_jobs.pop(job_id, None)
+
+    assert '"code": "transcription_memory"' in body
+    assert "Transcription ran out of GPU memory." in body
+    assert "Transcription produced no segments" not in body
+    assert "secret diagnostic" not in body
+
+
 def test_transcribe_stream_surfaces_asr_load_failure_at_preflight(tmp_path, monkeypatch):
     """Regression #578: the reported failure mode is the *ASR model* failing to
     load (WhisperX: faster-whisper weights / CTranslate2-cuDNN mismatch / the
