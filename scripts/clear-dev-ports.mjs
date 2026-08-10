@@ -1,8 +1,12 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
+import { readFileSync, readlinkSync } from "node:fs";
+import { dirname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_PORTS = [3900, 3901];
+const CHECKOUT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export function parseWindowsListeners(output, ports) {
   const wanted = new Set(ports);
@@ -60,23 +64,135 @@ function windowsListeners(ports) {
   return parseWindowsListeners(result.stdout, ports).filter(validPid);
 }
 
-function isAlive(pid) {
+function normalized(value, windows = process.platform === "win32") {
+  const text = resolve(String(value || ""));
+  return windows ? text.toLowerCase() : text;
+}
+
+function belongsToCheckout(cwd, command, executable, windows = process.platform === "win32") {
+  const root = normalized(CHECKOUT_ROOT, windows);
+  const prefix = `${root}${sep}`;
+  const ownedPath = (value) => {
+    if (!value) return false;
+    const path = normalized(value, windows);
+    return path === root || path.startsWith(prefix);
+  };
+  if (ownedPath(cwd) || ownedPath(executable)) return true;
+  const haystack = windows ? String(command || "").toLowerCase() : String(command || "");
+  return haystack.includes(root);
+}
+
+function inspectLinux(pid) {
   try {
-    process.kill(pid, 0);
-    return true;
+    const cwd = readlinkSync(`/proc/${pid}/cwd`);
+    const command = readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ");
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    const afterName = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
+    const startTime = afterName[19]; // proc(5): field 22; this array starts at field 3.
+    if (!startTime) return null;
+    return {
+      identity: `linux:${startTime}`,
+      owned: belongsToCheckout(cwd, command, "", false),
+    };
   } catch (error) {
-    if (error?.code === "ESRCH") return false;
+    if (error?.code === "ENOENT" || error?.code === "ESRCH") return null;
     throw error;
   }
 }
 
-async function stopUnix(pid) {
-  process.kill(pid, "SIGTERM");
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    await Bun.sleep(50);
-    if (!isAlive(pid)) return;
+function inspectMac(pid) {
+  const cwdResult = spawnSync("lsof", ["-a", "-p", String(pid), "-d", "cwd", "-Fn"], {
+    encoding: "utf8",
+  });
+  const startResult = spawnSync("ps", ["-p", String(pid), "-o", "lstart="], { encoding: "utf8" });
+  const commandResult = spawnSync("ps", ["-p", String(pid), "-o", "command="], {
+    encoding: "utf8",
+  });
+  if (startResult.status !== 0 || !startResult.stdout.trim()) return null;
+  if (cwdResult.error) throw cwdResult.error;
+  if (commandResult.error) throw commandResult.error;
+  const cwdLine = cwdResult.stdout.split(/\r?\n/).find((line) => line.startsWith("n"));
+  const cwd = cwdLine?.slice(1) || "";
+  return {
+    identity: `mac:${startResult.stdout.trim()}`,
+    owned: belongsToCheckout(cwd, commandResult.stdout.trim(), "", false),
+  };
+}
+
+function inspectWindows(pid) {
+  const script = [
+    `$p = Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'`,
+    "if ($null -ne $p) {",
+    "  $p | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress",
+    "}",
+  ].join("; ");
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`Could not inspect process ${pid}`);
+  if (!result.stdout.trim()) return null;
+  const info = JSON.parse(result.stdout);
+  return {
+    identity: `windows:${info.CreationDate}`,
+    owned: belongsToCheckout("", info.CommandLine, info.ExecutablePath, true),
+  };
+}
+
+function systemOperations() {
+  const windows = process.platform === "win32";
+  return {
+    listeners: windows ? windowsListeners : unixListeners,
+    inspect: windows ? inspectWindows : process.platform === "darwin" ? inspectMac : inspectLinux,
+    stop(pid, force) {
+      if (windows) {
+        const args = force
+          ? ["/F", "/T", "/PID", String(pid)]
+          : ["/T", "/PID", String(pid)];
+        const result = spawnSync("taskkill", args, { stdio: "ignore" });
+        if (result.status !== 0) throw new Error(`Could not stop process ${pid}`);
+      } else {
+        process.kill(pid, force ? "SIGKILL" : "SIGTERM");
+      }
+    },
+    sleep(ms) {
+      return new Promise((done) => setTimeout(done, ms));
+    },
+  };
+}
+
+async function inspectSameProcess(ops, pid, expectedIdentity) {
+  const current = await ops.inspect(pid);
+  if (!current || current.identity !== expectedIdentity) return null;
+  if (!current.owned) throw new Error(`Refusing to stop unrelated process ${pid}`);
+  return current;
+}
+
+export async function clearDevPortsWith(ports, ops) {
+  const listeners = await ops.listeners(ports);
+  for (const pid of listeners) {
+    const first = await ops.inspect(pid);
+    if (!first) continue;
+    if (!first.owned) throw new Error(`Refusing to stop unrelated process ${pid}`);
+
+    if (!(await inspectSameProcess(ops, pid, first.identity))) continue;
+    await ops.stop(pid, false);
+
+    let current = first;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await ops.sleep(50);
+      current = await inspectSameProcess(ops, pid, first.identity);
+      if (!current) break;
+    }
+    if (!current) continue;
+
+    // Revalidate immediately before escalation. A recycled PID is never killed.
+    if (!(await inspectSameProcess(ops, pid, first.identity))) continue;
+    await ops.stop(pid, true);
   }
-  process.kill(pid, "SIGKILL");
+
+  const remaining = await ops.listeners(ports);
+  if (remaining.length) throw new Error(`Ports still occupied by process ${remaining.join(", ")}`);
 }
 
 export async function clearDevPorts(ports = DEFAULT_PORTS) {
@@ -84,20 +200,7 @@ export async function clearDevPorts(ports = DEFAULT_PORTS) {
   if (uniquePorts.some((port) => !Number.isInteger(port) || port < 1 || port > 65535)) {
     throw new TypeError(`Invalid port list: ${ports.join(", ")}`);
   }
-
-  const windows = process.platform === "win32";
-  const listeners = windows ? windowsListeners(uniquePorts) : unixListeners(uniquePorts);
-  for (const pid of listeners) {
-    if (windows) {
-      const result = spawnSync("taskkill", ["/F", "/T", "/PID", String(pid)], { stdio: "ignore" });
-      if (result.status !== 0) throw new Error(`Could not stop process ${pid}`);
-    } else {
-      await stopUnix(pid);
-    }
-  }
-
-  const remaining = windows ? windowsListeners(uniquePorts) : unixListeners(uniquePorts);
-  if (remaining.length) throw new Error(`Ports still occupied by process ${remaining.join(", ")}`);
+  return clearDevPortsWith(uniquePorts, systemOperations());
 }
 
 if (import.meta.main) {
