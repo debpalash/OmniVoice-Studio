@@ -43,6 +43,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Fixed
 
+- Dubbing's **From video** cast now uses available source-audio samples for every speaker and short line, including jobs without a pooled diarization clone. (#1484)
 - Basic Dubbing translation remains available without an LLM; Cinematic and Autofit now degrade through the existing Fast translation path instead of blocking the quality choice. (#1481)
 - Linux microphone recording now falls back to WAV when WebKit cannot encode MediaRecorder audio, and desktop scaling/titlebar controls remain responsive at every UI scale. (#1481)
 - Dubbing can install a missing ASR model and retry the same job, navigate back through completed stages, and finish transcription under low GPU memory without producing an empty transcript. (#1481)
