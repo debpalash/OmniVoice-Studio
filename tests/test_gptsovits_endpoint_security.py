@@ -82,6 +82,52 @@ class _Connection:
         self.closed = True
 
 
+class _CaptureSocket:
+    def __init__(self):
+        self.chunks = []
+
+    def sendall(self, data):
+        self.chunks.append(data)
+
+
+@pytest.mark.parametrize(
+    ("connection_cls", "endpoint", "expected_host"),
+    [
+        (
+            outbound_http._PinnedHTTPConnection,
+            outbound_http.ResolvedEndpoint("http", "127.0.0.1", 80, "127.0.0.1"),
+            b"Host: 127.0.0.1\r\n",
+        ),
+        (
+            outbound_http._PinnedHTTPConnection,
+            outbound_http.ResolvedEndpoint("http", "localhost", 9880, "127.0.0.1"),
+            b"Host: localhost:9880\r\n",
+        ),
+        (
+            outbound_http._PinnedHTTPConnection,
+            outbound_http.ResolvedEndpoint("http", "::1", 9880, "::1"),
+            b"Host: [::1]:9880\r\n",
+        ),
+        (
+            outbound_http._PinnedHTTPSConnection,
+            outbound_http.ResolvedEndpoint("https", "localhost", 443, "127.0.0.1"),
+            b"Host: localhost\r\n",
+        ),
+    ],
+)
+def test_http_client_builds_complete_host_authority(
+    connection_cls, endpoint, expected_host
+):
+    connection = connection_cls(endpoint, timeout=2)
+    capture = _CaptureSocket()
+    connection.sock = capture
+
+    connection.request("GET", "/")
+
+    wire = b"".join(capture.chunks)
+    assert expected_host in wire
+
+
 def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(monkeypatch):
     calls = 0
 
@@ -101,6 +147,7 @@ def test_valid_endpoint_is_pinned_to_the_single_validated_dns_answer(monkeypatch
     assert calls == 1
     assert connection.endpoint.ip == "127.0.0.1"
     assert connection.request_args[0] == ("POST", "/?text=hello")
+    assert connection.request_args[1] == {}
     assert response.status == 200
 
 

@@ -95,7 +95,10 @@ def open_trusted_endpoint(
     conn_cls = _PinnedHTTPSConnection if endpoint.scheme == "https" else _PinnedHTTPConnection
     conn = conn_cls(endpoint, timeout)
     target = "/" + (f"?{query}" if query else "")
-    conn.request(method, target, headers={"Host": endpoint.host})
+    # Let http.client format the authority from the validated host and port.
+    # Supplying the hostname ourselves drops non-default ports and IPv6
+    # brackets, which can make Host-aware inference servers misroute requests.
+    conn.request(method, target)
     response = conn.getresponse()
     # Redirects are never followed: a configured inference origin must answer
     # directly, so a Location header cannot escape the validated connection.
