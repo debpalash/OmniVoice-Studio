@@ -11,7 +11,7 @@ _PRIVATE = (
 
 
 def test_public_failure_logs_only_stable_class_and_returns_fixed_text(caplog):
-    from core.response_safety import public_failure
+    from core.public_errors import public_failure
 
     logger = logging.getLogger("test.response_safety")
 
@@ -32,7 +32,7 @@ def test_public_failure_logs_only_stable_class_and_returns_fixed_text(caplog):
 
 
 def test_engine_health_never_returns_engine_owned_diagnostic():
-    from core.response_safety import public_engine_health
+    from core.public_errors import public_engine_health
 
     assert public_engine_health(False, _PRIVATE) == (
         "Engine unavailable; check the backend log for details."
@@ -41,7 +41,7 @@ def test_engine_health_never_returns_engine_owned_diagnostic():
 
 
 def test_recognized_failure_gets_constant_recovery_without_private_text():
-    from core.response_safety import public_exception_response
+    from core.public_errors import public_exception_response
 
     private = RuntimeError(
         "Using SOCKS proxy from /home/alice/private with "
@@ -57,7 +57,7 @@ def test_recognized_failure_gets_constant_recovery_without_private_text():
 
 
 def test_unknown_failure_has_no_diagnostic_derived_guidance():
-    from core.response_safety import public_exception_response
+    from core.public_errors import public_exception_response
 
     payload = public_exception_response(RuntimeError(_PRIVATE), fallback="Internal error.")
     assert payload == {"detail": "Internal error."}
@@ -74,20 +74,46 @@ def test_engine_health_route_logs_but_does_not_return_private_diagnostic(
             raise RuntimeError(_PRIVATE)
 
     monkeypatch.setattr(engines, "_resolve_engine_class", lambda _engine_id: BrokenEngine)
+    hostile_engine_id = "broken\nFORGED ENGINE LOG"
     with caplog.at_level(logging.WARNING):
-        result = engines.engine_health("broken")
+        result = engines.engine_health(hostile_engine_id)
 
     assert result["ok"] is False
     assert result["message"] == "Engine unavailable; check the backend log for details."
     assert _PRIVATE not in caplog.text
-    assert "class=RuntimeError" in caplog.text
+    assert hostile_engine_id not in caplog.text
+    assert "FORGED ENGINE LOG" not in caplog.text
     assert "Traceback" not in result["message"]
     assert "/home/alice" not in result["message"]
     assert "hf_abcdefghijklmnopqrstuvwxyz1234567890" not in result["message"]
 
 
+def test_tailscale_enable_failure_keeps_service_output_private(monkeypatch, caplog):
+    import asyncio
+
+    from api.routers import system
+
+    private = f"{_PRIVATE}\nTOKEN=private-value"
+    monkeypatch.setattr(
+        system._tailscale,
+        "serve_enable",
+        lambda: {"ok": False, "error": private},
+    )
+
+    with caplog.at_level(logging.ERROR):
+        result = asyncio.run(system.tailscale_enable())
+
+    assert result == {
+        "ok": False,
+        "error": "Tailscale sharing could not be enabled; check the backend log for details.",
+    }
+    assert private not in caplog.text
+    assert "TOKEN=private-value" not in caplog.text
+    assert "/home/alice" not in caplog.text
+
+
 def test_wrapped_cache_repair_failure_keeps_constant_recovery_guidance():
-    from core.response_safety import public_exception_response
+    from core.public_errors import public_exception_response
 
     private = RuntimeError(
         "The TTS model cache for /home/alice/models--private is incomplete and "

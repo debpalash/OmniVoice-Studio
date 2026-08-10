@@ -714,7 +714,7 @@ async def dub_translate(req: TranslateRequest):
             translated, req, src_lang, loop,
         )
     except Exception as e:
-        from core.response_safety import public_failure
+        from core.public_errors import public_failure
 
         error = public_failure(
             logger,

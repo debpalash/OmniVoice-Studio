@@ -18,7 +18,7 @@ import shutil
 
 from core.config import OUTPUTS_DIR, DATA_DIR, CRASH_LOG_PATH, LOG_PATH, IDLE_TIMEOUT_SECONDS
 from core.version import APP_VERSION
-from core.response_safety import public_failure
+from core.public_errors import public_failure
 from services.model_manager import get_model_status, get_best_device, resolve_omnivoice_checkpoint
 from services.ffmpeg_utils import find_ffmpeg, run_ffmpeg
 

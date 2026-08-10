@@ -9,7 +9,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from services.watermark import detect_watermark, is_enabled, _check_available
 from core.prefs import get as pref_get, set_ as pref_set
-from core.response_safety import public_failure
+from core.public_errors import public_failure
 
 logger = logging.getLogger("omnivoice.watermark_api")
 
