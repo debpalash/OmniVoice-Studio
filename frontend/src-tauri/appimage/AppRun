@@ -301,7 +301,7 @@ if _prefer_system_gstreamer; then
     # Fail safe, and say so: the app still starts on the bundled core, which
     # is where the microphone problem lives, so the user needs a thread to
     # pull rather than a silent half-fix.
-    echo "OmniVoice: your GStreamer (${_SYS_GST_LIB}) cannot load against the" >&2
+    echo "VoiceStudio: your GStreamer (${_SYS_GST_LIB}) cannot load against the" >&2
     echo "  libraries this AppImage bundles, so it is not being used. Audio" >&2
     echo "  capture may not find any microphone (see issue #1333). Building" >&2
     echo "  from source avoids the mismatch entirely." >&2

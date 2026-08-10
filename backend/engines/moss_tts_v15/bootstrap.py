@@ -160,7 +160,7 @@ def resolve_moss_tts_v15_venv() -> Path:
             "MOSS-TTS-v1.5 is not installed. Set the "
             f"{_CLONE_DIR_ENV} environment variable to your MOSS-TTS clone "
             "(the directory that contains pyproject.toml), then restart "
-            "OmniVoice. See docs/engines/moss-tts-v15.md for the full "
+            "VoiceStudio. See docs/engines/moss-tts-v15.md for the full "
             "install walk-through."
         )
 
@@ -231,7 +231,7 @@ def _bootstrap_engines_venv(clone_dir: Path) -> Path:
         raise RuntimeError(
             "uv is required to bootstrap the MOSS-TTS-v1.5 venv but was not "
             "found on PATH (and OMNIVOICE_BUNDLED_UV was not set). Install uv "
-            "from https://docs.astral.sh/uv/ and re-launch OmniVoice, or set "
+            "from https://docs.astral.sh/uv/ and re-launch VoiceStudio, or set "
             "OMNIVOICE_BUNDLED_UV to the absolute path of a uv binary."
         )
 

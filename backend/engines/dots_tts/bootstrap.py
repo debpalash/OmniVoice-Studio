@@ -138,7 +138,7 @@ def resolve_dots_tts_venv() -> Path:
             "dots.tts is not installed. Set the "
             f"{_CLONE_DIR_ENV} environment variable to your dots.tts clone "
             "(the directory that contains pyproject.toml and constraints/), "
-            "then restart OmniVoice. See docs/engines/dots-tts.md for the "
+            "then restart VoiceStudio. See docs/engines/dots-tts.md for the "
             "full install walk-through."
         )
 
@@ -192,7 +192,7 @@ def _bootstrap_engines_venv(clone_dir: Path) -> Path:
         raise RuntimeError(
             "uv is required to bootstrap the dots.tts venv but was not found "
             "on PATH (and OMNIVOICE_BUNDLED_UV was not set). Install uv from "
-            "https://docs.astral.sh/uv/ and re-launch OmniVoice, or set "
+            "https://docs.astral.sh/uv/ and re-launch VoiceStudio, or set "
             "OMNIVOICE_BUNDLED_UV to the absolute path of a uv binary."
         )
 

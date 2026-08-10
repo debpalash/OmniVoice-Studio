@@ -513,7 +513,7 @@ class OmniVoiceBackend(TTSBackend):
     """
 
     id = "omnivoice"
-    display_name = "OmniVoice (600 languages, zero-shot)"
+    display_name = "VoiceStudio (k2-fsa/OmniVoice, 600+ languages)"
     gpu_compat = ("cuda", "mps", "cpu")
     # Derived from the pool's own per-job budget (_GPU_VRAM_PER_JOB_GB = 5.0 in
     # model_manager, itself measured from the ~1.6 GB forward + autoregressive
@@ -1785,7 +1785,7 @@ class SherpaOnnxBackend(TTSBackend):
       • Android / iOS
       • WebAssembly (browser)
 
-    This is the bridge to browser-based OmniVoice: the same engine runs natively
+    This is the bridge to browser-based VoiceStudio: the same engine runs natively
     on desktop and compiles to WASM for the web UI.
 
     Install: pip install sherpa-onnx
@@ -1826,7 +1826,7 @@ class SherpaOnnxBackend(TTSBackend):
             return False, (
                 "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx TTS "
                 "model directory (containing model.onnx + tokens.txt), then "
-                "restart OmniVoice. Download models from "
+                "restart VoiceStudio. Download models from "
                 "https://github.com/k2-fsa/sherpa-onnx/releases"
             )
         if not os.path.isfile(os.path.join(model_dir, "model.onnx")):

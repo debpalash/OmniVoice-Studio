@@ -18,7 +18,7 @@ features:
   - Batch Queue
   - MCP Server
   - AI Watermark
-  - 100% Local
+  - Local-first
   - GPU Auto-Detect
   - Extensible
 
@@ -28,7 +28,7 @@ features:
 # doc (optional): a repo-relative doc file that must exist.
 tts_engines:
   - id: omnivoice
-    readme: "**OmniVoice** (default)"
+    readme: "**VoiceStudio** (default, powered by k2-fsa/OmniVoice)"
   - id: omnivoice-subprocess
     doc: docs/engines/omnivoice-subprocess.md
   - id: cosyvoice

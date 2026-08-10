@@ -81,6 +81,15 @@ describe('NavRail — same list, other skin', () => {
       expect(screen.getByRole('button', { name: i18n.t(`nav.${item.tKey}`) })).toBeInTheDocument();
     }
   });
+
+  it('keeps the compact icon rail airy below the titlebar', () => {
+    const { container } = render(
+      <NavRail mode="launchpad" setMode={() => {}} side="left" onFlipSide={() => {}} />,
+    );
+    const rail = container.querySelector('.nav-rail');
+    expect(rail.className).toContain('pt-[18px]');
+    expect(rail.firstElementChild.className).toContain('gap-[9px]');
+  });
 });
 
 describe('appShellClasses — the grid only reserves what renders', () => {

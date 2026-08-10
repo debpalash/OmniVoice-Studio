@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { collectErrors, gotoMode } from './_helpers';
 
-test.describe('OmniVoice Gallery', () => {
-  test('heading is "OmniVoice Gallery"', async ({ page }) => {
+test.describe('VoiceStudio Gallery', () => {
+  test('heading is "VoiceStudio Gallery"', async ({ page }) => {
     await gotoMode(page, 'gallery');
-    await expect(page.getByRole('heading', { name: /OmniVoice Gallery/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /VoiceStudio Gallery/i })).toBeVisible();
   });
 
   test('facet dropdowns use the dark theme, not the OS-default light surface', async ({ page }) => {

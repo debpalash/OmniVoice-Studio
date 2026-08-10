@@ -79,13 +79,13 @@ class Confucius4Backend(SubprocessBackend):
             return False, (
                 "Confucius4-TTS venv not found. Set OMNIVOICE_CONFUCIUS4_TTS_DIR "
                 "to your Confucius4-TTS clone (the directory containing "
-                "requirements.txt) and restart OmniVoice. CUDA GPU recommended "
+                "requirements.txt) and restart VoiceStudio. CUDA GPU recommended "
                 "(CPU works but is slow). See docs/engines/confucius4-tts.md."
             )
         if not CONFUCIUS4_SIDECAR_SCRIPT.exists():
             return False, (
                 "Confucius4-TTS sidecar script missing at "
-                f"{CONFUCIUS4_SIDECAR_SCRIPT} — reinstall OmniVoice."
+                f"{CONFUCIUS4_SIDECAR_SCRIPT} — reinstall VoiceStudio."
             )
         return True, "ok"
 

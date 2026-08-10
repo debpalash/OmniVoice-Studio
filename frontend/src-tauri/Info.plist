@@ -10,7 +10,7 @@
         into the app's Info.plist by tauri-bundler at bundle time.
     -->
     <key>NSMicrophoneUsageDescription</key>
-    <string>OmniVoice needs microphone access for live dictation and voice recording. Audio is processed entirely on your machine — nothing is sent to any external server.</string>
+    <string>VoiceStudio needs microphone access for live dictation and voice recording. Audio is processed on your machine.</string>
 
     <!--
         Same story for camera. We don't currently use it, but if a future
@@ -18,6 +18,6 @@
         need this string. Cheap to ship now; avoids a future TCC denial.
     -->
     <key>NSCameraUsageDescription</key>
-    <string>OmniVoice may use the camera for upcoming video features. Video stays on your machine.</string>
+    <string>VoiceStudio may use the camera for upcoming video features. Video stays on your machine.</string>
 </dict>
 </plist>

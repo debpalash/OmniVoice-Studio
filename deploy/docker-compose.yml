@@ -13,9 +13,9 @@
 #  Open http://localhost:3900 once the health check passes.
 #
 #  SECURITY: The port is bound to 127.0.0.1 by default — only this
-#  machine can reach the API. To expose OmniVoice on your LAN (or
+#  machine can reach the API. To expose VoiceStudio on your LAN (or
 #  through a reverse proxy / tunnel), change the port mapping to
-#  "0.0.0.0:3900:3900" or "3900:3900". OmniVoice itself ships no
+#  "0.0.0.0:3900:3900" or "3900:3900". VoiceStudio itself ships no
 #  authentication — if you expose it, put it behind a reverse proxy
 #  with auth (Caddy basic_auth, nginx + htpasswd, Tailscale, etc.).
 # ──────────────────────────────────────────────────────────────

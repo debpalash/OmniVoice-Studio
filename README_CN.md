@@ -4,13 +4,13 @@
   <img src="docs/logo.png" alt="VoiceStudio 徽标" width="120" />
   <h1>VoiceStudio</h1>
   <p><sub><em>原名 OmniVoice-Studio</em></sub></p>
-  <h3>开源版 ElevenLabs 替代品。</h3>
-  <p>实时听写、零样本语音克隆、电影级视频配音——全部在你的桌面上完成。<br/><b>无需账号。无需 API 密钥。无需云端。</b>一切都在你自己的设备上运行。开源，支持 <b>646 种语言</b>。</p>
+  <h3>创造声音，讲述故事，文件始终属于你。♡</h3>
+  <p>在一个开源桌面工作室里完成克隆、设计、配音、听写和有声书制作。<br/><b>默认本地优先。</b>没有订阅，也没有用量计费；联网服务始终由你主动选择。</p>
 
   <p>
     <a href="#quickstart">快速开始</a> ·
     <a href="#features">功能</a> ·
-    <a href="#why-ovs">为什么选择 OVS</a> ·
+    <a href="#why-voicestudio">为什么选择 VoiceStudio</a> ·
     <a href="#tts-engines">引擎</a> ·
     <a href="#openai-api">API</a> ·
     <a href="#sponsor--donate">捐赠</a> ·
@@ -40,55 +40,10 @@
   <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — 启动台" width="100%"/>
 </div>
 
-> **你的声音是你最私密的数据。为什么还要按月付费，从云端把它租回来？** 每一款主流语音工具都会把你的音频送到别人的服务器上，并按月向你收费。VoiceStudio 反其道而行：克隆、设计、配音、听写，全部在你自己的硬件上完成——646 种语言，没有计费表在转，任何数据都不离开你的设备。
+> **声音很私人，创作空间也应该真正属于你。** VoiceStudio 的核心流程运行在你的硬件上：克隆、设计、配音、听写，并以 646 种语言创作，不需要订阅，也没有用量计费。联网引擎和服务始终是清晰可见的可选项，而不是隐藏依赖。
 
 > [!WARNING]
 > **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/VoiceStudio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
-
-<a id="screenshots"></a>
-
-## 📸 实际效果
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="docs/screenshot-studio.png" alt="工作室" width="100%"/>
-      <br/><b>工作室（Studio）</b><br/>
-      <sub>在同一个工作区里生成与克隆——3 秒音频即可复刻任何声音，646 种语言，零样本。</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/screenshot-design.png" alt="声音设计" width="100%"/>
-      <br/><b>声音设计</b><br/>
-      <sub>从零构建新声音——性别、年龄、口音、音高、情感、方言。</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/screenshot-gallery.png" alt="声音库" width="100%"/>
-      <br/><b>声音库</b><br/>
-      <sub>浏览现成的原型声音，支持语言筛选——或构建你自己的声音库。</sub>
-    </td>
-    <td align="center">
-      <img src="docs/screenshot-dub.png" alt="视频配音" width="100%"/>
-      <br/><b>视频配音</b><br/>
-      <sub>一次端到端的真实配音：37 个片段完成转录、翻译成孟加拉语、重新配音并对齐时间轴——随时可导出为 MP4。</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/screenshot-engines.png" alt="设置 — 引擎" width="100%"/>
-      <br/><b>设置 → 引擎</b><br/>
-      <sub>引擎兼容性矩阵——14 个 TTS 引擎，逐引擎 GPU 预检，绝不静默回退到 CPU。</sub>
-    </td>
-    <td align="center">
-      <img src="docs/screenshot-settings.png" alt="设置 — 模型" width="100%"/>
-      <br/><b>设置 → 模型</b><br/>
-      <sub>一键模型商店——自动检测你的平台（CUDA / MPS / CPU）并推荐合适的模型。</sub>
-    </td>
-  </tr>
-</table>
-
----
 
 <a id="features"></a>
 
@@ -125,8 +80,8 @@
     <p>在<b>任何应用</b>中按 <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Space</kbd>。<br/>转录、自动粘贴、随即消失。</p>
   </td>
   <td align="center" valign="top">
-    <h3>🔐 100% 本地</h3>
-    <p>无需密钥、无需云端、无需账号。<br/><b>只在你的设备上</b>。</p>
+    <h3>🔐 本地优先</h3>
+    <p>核心创作流程<br/><b>留在你的设备上</b>。</p>
   </td>
   <td align="center" valign="top">
     <h3>🤖 MCP 服务器</h3>
@@ -200,22 +155,22 @@ Hugging Face Token 的配置见
 
 ---
 
-<a id="why-ovs"></a>
+<a id="why-voicestudio"></a>
 
 ## 💡 为什么选择 VoiceStudio？
 
-ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音频。VoiceStudio **在你的硬件上运行，没有任何用量限制。**
+云端语音工具很方便，但工作流会依赖账号、用量计费和他人的基础设施。VoiceStudio 在你的硬件上提供完整工作室；只有你主动选择时，才会使用联网集成。
 
 | | **ElevenLabs** | **VoiceStudio** |
 |---|---|---|
-| **价格** | $5–$330/月，按字符计费 | 免费且开源（AGPL-3.0）· 专有用途可选 [商业许可证](#license) |
+| **价格** | 订阅与用量限制 | 免费且开源（AGPL-3.0）· 专有用途可选 [商业许可证](#license) |
 | **语音克隆** | ✅ 3 秒音频 | ✅ 3 秒音频，零样本 |
 | **声音设计** | ✅ 性别、年龄 | ✅ 性别、年龄、口音、音高、风格、方言 |
 | **有声书 / 故事** | ❌ | ✅ 完整有声书编辑器 + 多声音故事（EPUB/PDF 导入，.m4b 导出） |
-| **语言** | 32 | **646** |
+| **语言** | 取决于套餐和模型 | **646** |
 | **视频配音** | ✅ 仅云端 | ✅ 完全本地 |
-| **数据隐私** | 音频发送到云端 | **数据不离开你的设备** |
-| **API 密钥** | 需要 | 不需要 |
+| **数据隐私** | 音频在远端处理 | 核心流程在本地运行；联网服务必须主动选择 |
+| **API 密钥** | 需要账号 | 本地流程不需要 |
 | **GPU 支持** | 不适用（云端） | CUDA · Apple Silicon · ROCm（Linux）· CPU |
 | **桌面应用** | ❌ | ✅ macOS · Windows · Linux |
 | **TTS 引擎** | 1 | **14** — [完整矩阵](#tts-engines) |
@@ -268,7 +223,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 
 | 引擎 | 语言 | 克隆 | 指令 | Linux | macOS ARM | Windows | 许可证 |
 |--------|:---------:|:-----:|:--------:|:-----:|:---------:|:-------:|:-------:|
-| **OmniVoice**（默认） | 600+ | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | 内置 |
+| **VoiceStudio**（默认，由 k2-fsa/OmniVoice 驱动） | 600+ | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | 内置 |
 | **CosyVoice 3** | 9 + 18 种方言 | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |
 | **GPT-SoVITS** | 5 | ✅ | — | ✅ CUDA/CPU | — | ✅ CUDA/CPU | MIT |
 | **VoxCPM2** | 30 | ✅ | ✅ | ✅ CUDA/CPU | ✅ MPS | ✅ CUDA/CPU | Apache-2.0 |

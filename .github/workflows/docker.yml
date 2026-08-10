@@ -29,7 +29,7 @@
 # On main pushes the Docker Hub repository overview is also synced from
 # deploy/dockerhub-overview.md (source of truth for the hub.docker.com page).
 #
-# NOTE: the Docker image is the headless web-server build of OmniVoice (FastAPI
+# NOTE: the Docker image is the headless web-server build of VoiceStudio (FastAPI
 # backend + pre-built React frontend served over HTTP).  The Tauri desktop
 # auto-updater and its update-channel toggle are desktop-only features; they do
 # NOT apply to the Docker image.

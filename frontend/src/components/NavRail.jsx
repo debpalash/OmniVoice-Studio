@@ -61,9 +61,9 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
 
   return (
     <aside
-      className={`nav-rail z-50 flex select-none flex-col items-center gap-[6px] bg-[var(--chrome-bg)] py-[8px] ${asideBorder}`}
+      className={`nav-rail z-50 flex select-none flex-col items-center gap-[10px] bg-[var(--chrome-bg)] pb-[10px] pt-[18px] ${asideBorder}`}
     >
-      <div className="flex flex-1 flex-col items-center gap-[4px]">
+      <div className="flex flex-1 flex-col items-center gap-[9px]">
         {items.map((it) => (
           <RailBtn
             key={it.id}
@@ -74,7 +74,7 @@ export default function NavRail({ mode, setMode, side = 'left', onFlipSide }) {
           />
         ))}
       </div>
-      <div className="flex flex-col items-center gap-[4px]">
+      <div className="flex flex-col items-center gap-[8px]">
         {footerItems.map((it) => (
           <RailBtn
             key={it.id}

@@ -34,7 +34,7 @@ models:
   # ── Required ──────────────────────────────────────────────────────────
 
   - repo_id: "k2-fsa/OmniVoice"
-    label: "OmniVoice TTS (600+ languages, zero-shot)"
+    label: "VoiceStudio TTS (k2-fsa/OmniVoice, 600+ languages, zero-shot)"
     role: TTS
     size_gb: 2.4
     required: true

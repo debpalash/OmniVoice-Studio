@@ -45,6 +45,6 @@ body:
   - type: markdown
     attributes:
       value: |
-        > OmniVoice is **local-first** — features must work fully offline with no accounts,
+        > VoiceStudio is **local-first** — core features work offline without an account,
         API keys, or cloud calls, and behave identically on macOS/Windows/Linux. Proposals
         that fit those constraints are easiest to land.
