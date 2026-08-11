@@ -65,8 +65,11 @@ function windowsListeners(ports) {
 }
 
 function normalized(value, windows = process.platform === "win32") {
-  const text = resolve(String(value || ""));
-  return windows ? text.toLowerCase() : text;
+  if (windows)
+    return String(value || "")
+      .replaceAll("/", "\\")
+      .toLowerCase();
+  return resolve(String(value || ""));
 }
 
 export function belongsToCheckout(
@@ -84,7 +87,11 @@ export function belongsToCheckout(
     return path === root || path.startsWith(prefix);
   };
   if (ownedPath(cwd) || ownedPath(executable)) return true;
-  const haystack = windows ? String(command || "").toLowerCase() : String(command || "");
+  const haystack = windows
+    ? String(command || "")
+        .replaceAll("/", "\\")
+        .toLowerCase()
+    : String(command || "");
   let index = haystack.indexOf(root);
   while (index !== -1) {
     const previous = haystack[index - 1];
@@ -173,42 +180,19 @@ function inspectWindows(pid) {
   };
 }
 
-export async function stopWindowsProcess(
-  pid,
-  force,
-  expectedIdentity,
-  runTaskkill,
-  inspect = inspectWindows,
-) {
-  const result = runTaskkill(pid, force);
-  if (result.status === 0) return;
-
-  // taskkill can lose an exit/reuse race. Only suppress its failure when the
-  // original process is provably gone; never act on the replacement process.
-  const current = await inspect(pid);
-  if (!current || current.identity !== expectedIdentity) return;
-  throw new Error(`Could not stop process ${pid}`);
-}
-
 function systemOperations() {
   const windows = process.platform === "win32";
   return {
+    // Windows taskkill targets a reusable PID, not the inspected process
+    // instance. Refuse automatic termination until it can be handle-bound.
+    canStop: !windows,
     // macOS exposes process start time to ps at one-second resolution. That is
     // sufficient for a graceful stop, but not safe proof for SIGKILL escalation.
     canForce: process.platform !== "darwin",
     listeners: windows ? windowsListeners : unixListeners,
     inspect: windows ? inspectWindows : process.platform === "darwin" ? inspectMac : inspectLinux,
-    stop(pid, force, expectedIdentity) {
-      if (windows) {
-        return stopWindowsProcess(pid, force, expectedIdentity, (targetPid, shouldForce) => {
-          const args = shouldForce
-            ? ["/F", "/T", "/PID", String(targetPid)]
-            : ["/T", "/PID", String(targetPid)];
-          return spawnSync("taskkill", args, { stdio: "ignore" });
-        });
-      } else {
-        stopUnixProcess(pid, force);
-      }
+    stop(pid, force) {
+      stopUnixProcess(pid, force);
     },
     sleep(ms) {
       return new Promise((done) => setTimeout(done, ms));
@@ -229,6 +213,11 @@ export async function clearDevPortsWith(ports, ops) {
     const first = await ops.inspect(pid);
     if (!first) continue;
     if (!first.owned) throw new Error(`Refusing to stop unrelated process ${pid}`);
+    if (ops.canStop === false) {
+      throw new Error(
+        `VoiceStudio process ${pid} is using a development port; stop it in Task Manager and retry`,
+      );
+    }
 
     if (!(await inspectSameProcess(ops, pid, first.identity))) continue;
     await ops.stop(pid, false, first.identity);

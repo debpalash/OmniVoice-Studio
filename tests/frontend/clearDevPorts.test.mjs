@@ -8,7 +8,6 @@ import {
   parseSsListeners,
   parseWindowsListeners,
   stopUnixProcess,
-  stopWindowsProcess,
 } from "../../scripts/clear-dev-ports.mjs";
 
 test("parses only requested Windows TCP listeners", () => {
@@ -37,6 +36,7 @@ test("command ownership requires a checkout path boundary", () => {
   assert.equal(belongsToCheckout("", `bun ${root}-old/scripts/dev.mjs`, "", false, root), false);
   assert.equal(belongsToCheckout("", `bun ${root}2/scripts/dev.mjs`, "", false, root), false);
   assert.equal(belongsToCheckout("", `bun /tmp${root}/scripts/dev.mjs`, "", false, root), false);
+  assert.equal(belongsToCheckout("", "bun C:/repo/scripts/dev.mjs", "", true, "C:\\repo"), true);
 });
 
 test("permission and exit races make a process uninspectable", () => {
@@ -62,26 +62,6 @@ test("an already-exited Unix process counts as stopped", () => {
   );
 });
 
-test("ignores a Windows taskkill exit race only when the original process is gone", async () => {
-  const failedTaskkill = () => ({ status: 128 });
-  await assert.doesNotReject(
-    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => null),
-  );
-  await assert.doesNotReject(
-    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => ({
-      identity: "windows:start-b",
-      owned: false,
-    })),
-  );
-  await assert.rejects(
-    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => ({
-      identity: "windows:start-a",
-      owned: true,
-    })),
-    /Could not stop process 1234/,
-  );
-});
-
 test("refuses an unrelated listener without signalling it", async () => {
   const signals = [];
   const ops = {
@@ -91,6 +71,19 @@ test("refuses an unrelated listener without signalling it", async () => {
     sleep: async () => {},
   };
   await assert.rejects(clearDevPortsWith([3900], ops), /Refusing to stop unrelated process 1234/);
+  assert.deepEqual(signals, []);
+});
+
+test("refuses Windows auto-stop when termination cannot bind to the inspected process", async () => {
+  const signals = [];
+  const ops = {
+    canStop: false,
+    listeners: async () => [1234],
+    inspect: async () => ({ identity: "windows:start-a", owned: true }),
+    stop: async (...args) => signals.push(args),
+    sleep: async () => {},
+  };
+  await assert.rejects(clearDevPortsWith([3900], ops), /stop it in Task Manager and retry/);
   assert.deepEqual(signals, []);
 });
 
