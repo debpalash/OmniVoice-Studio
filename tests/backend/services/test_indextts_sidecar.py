@@ -7,16 +7,18 @@ subprocess-isolated IndexTTS2Backend can both serve generate() from the
 SAME Python session. The two transformers versions can no longer
 collide because IndexTTS runs in a different OS process.
 
-Real IndexTTS-2 model load is ~20 s cold and depends on a ~6 GB model
-download — these tests use a mock sidecar fixture
+Real IndexTTS 2.5 model load is expensive and depends on multi-GB weights.
+These tests use a mock sidecar fixture
 (``tests/fixtures/mock_indextts_sidecar.py``) that mimics the
 production wire protocol without importing the indextts library.
 """
 from __future__ import annotations
 
+import io
 import json
 import struct
 import sys
+import types
 from pathlib import Path
 from typing import Iterator
 
@@ -154,9 +156,8 @@ def test_list_backends_includes_indextts_with_subprocess_isolation_mode():
     entries = {e["id"]: e for e in list_backends()}
     assert "indextts2" in entries
     assert entries["indextts2"]["isolation_mode"] == "subprocess"
-    # display_name was preserved verbatim from the legacy class.
     assert entries["indextts2"]["display_name"] == (
-        "IndexTTS2 (emotion control, duration control, zero-shot)"
+        "IndexTTS 2.5 (multilingual emotion-controlled cloning)"
     )
 
 
@@ -198,6 +199,7 @@ def test_synthesize_forwards_emotion_kwargs_via_vector(monkeypatch, patched_inde
     audio = backend.generate(
         "hi",
         ref_audio="/tmp/ref.wav",
+        language="ja-JP",
         emo_vector=[1, 0, 0, 0, 0, 0, 0, 0],
         emo_audio="/tmp/should_be_ignored.wav",
         emo_text="should_be_ignored",
@@ -211,6 +213,7 @@ def test_synthesize_forwards_emotion_kwargs_via_vector(monkeypatch, patched_inde
     assert payload["op"] == "synthesize"
     assert payload["text"] == "hi"
     assert payload["ref_audio"] == "/tmp/ref.wav"
+    assert payload["lang"] == "ja"
     assert payload["emo_vector"] == [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     assert payload["use_random"] is True
     # duration=2.0 → target_tokens = int(2.0 * 21) = 42
@@ -305,6 +308,42 @@ def test_generate_requires_ref_audio(patched_indextts_backend):
     early so the sidecar isn't woken up on a no-op."""
     with pytest.raises(RuntimeError, match="reference audio"):
         patched_indextts_backend.generate("hello", ref_audio=None)
+
+
+def test_indextts25_languages_and_unknown_language_fallback(
+    monkeypatch, patched_indextts_backend,
+):
+    backend = patched_indextts_backend
+    assert backend.supported_languages == ["zh", "en", "ja", "es", "ar"]
+    sent = []
+    original_send = SubprocessBackend._send
+
+    def spy_send(self, msg):
+        if msg.get("op") == "synthesize":
+            sent.append(dict(msg))
+        return original_send(self, msg)
+
+    monkeypatch.setattr(SubprocessBackend, "_send", spy_send)
+    backend.generate("hello", ref_audio="/tmp/ref.wav", language="fr-FR")
+    assert sent[0]["lang"] == "en"
+
+
+@pytest.mark.parametrize(
+    ("language", "text", "expected"),
+    [
+        ("Japanese", "hello", "ja"),
+        ("es-MX", "hola", "es"),
+        ("Auto", "مرحبا", "ar"),
+        (None, "こんにちは", "ja"),
+        (None, "你好", "zh"),
+    ],
+)
+def test_indextts25_language_labels_and_auto_script_detection(
+    language, text, expected,
+):
+    from engines.indextts import _normalize_indextts25_language
+
+    assert _normalize_indextts25_language(language, text) == expected
 
 
 # ── #42 closure: in-process OmniVoice + subprocess IndexTTS coexist ───────
@@ -432,7 +471,118 @@ def test_no_indextts_import_in_tts_backend():
 def test_sidecar_imports_indextts():
     """backend/engines/indextts/main.py imports indextts (lazy, inside fn)."""
     src = (REPO_ROOT / "backend" / "engines" / "indextts" / "main.py").read_text()
-    assert "from indextts.infer_v2 import IndexTTS2" in src, (
-        "sidecar must import IndexTTS2 from indextts.infer_v2 (it's the "
-        "real model loader). See bootstrap.py for venv resolution."
+    assert "from indextts.infer_v2_5 import IndexTTS2" in src
+    assert "from indextts.infer_v2 import IndexTTS2" in src
+
+
+def test_sidecar_25_requires_language_and_drops_legacy_target_tokens():
+    from engines.indextts import main as sidecar
+
+    kwargs = sidecar._build_infer_kwargs(
+        {
+            "text": "hola",
+            "lang": "ES",
+            "target_tokens": 84,
+            "duration_factor": 1.2,
+            "emo_vector": [1.0, 0, 0, 0, 0, 0, 0, 0],
+        },
+        "/tmp/ref.wav",
+        is_v25=True,
     )
+    assert kwargs["lang"] == "es"
+    assert kwargs["duration_factor"] == 1.2
+    assert "target_tokens" not in kwargs
+
+
+def test_sidecar_25_uses_25_config_and_gates_bf16(monkeypatch):
+    from engines.indextts import main as sidecar
+
+    monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: False)
+    kwargs = sidecar._model_init_kwargs(
+        "/models/index-tts", version="2.5", reduced_precision=True,
+    )
+    assert kwargs["cfg_path"].endswith("checkpoints/config_v2_5.yaml")
+    assert kwargs["use_bf16"] is False
+    assert kwargs["use_qwen_emo"] is True
+
+    monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: True)
+    assert sidecar._model_init_kwargs(
+        "/models/index-tts", version="2.5", reduced_precision=True,
+    )["use_bf16"] is True
+
+
+def test_sidecar_loader_prefers_25_and_uses_reviewed_weight_layout(monkeypatch):
+    from engines.indextts import main as sidecar
+
+    captured = {}
+
+    class FakeIndexTTS:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    package = types.ModuleType("indextts")
+    package.__path__ = []
+    module = types.ModuleType("indextts.infer_v2_5")
+    module.IndexTTS2 = FakeIndexTTS
+    monkeypatch.setitem(sys.modules, "indextts", package)
+    monkeypatch.setitem(sys.modules, "indextts.infer_v2_5", module)
+    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", "/models/index-tts")
+    monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: True)
+    monkeypatch.setattr(sidecar, "_model", None)
+    monkeypatch.setattr(sidecar, "_model_version", None)
+
+    loaded = sidecar._load_model(io.BytesIO())
+
+    assert isinstance(loaded, FakeIndexTTS)
+    assert sidecar._model_version == "2.5"
+    assert captured["cfg_path"].endswith("checkpoints/config_v2_5.yaml")
+    assert captured["model_dir"].endswith("checkpoints")
+    assert captured["use_qwen_emo"] is True
+
+
+def test_sidecar_loader_keeps_user_managed_v2_compatibility(monkeypatch):
+    from engines.indextts import main as sidecar
+
+    captured = {}
+
+    class FakeIndexTTS:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    package = types.ModuleType("indextts")
+    package.__path__ = []
+    legacy_module = types.ModuleType("indextts.infer_v2")
+    legacy_module.IndexTTS2 = FakeIndexTTS
+    monkeypatch.setitem(sys.modules, "indextts", package)
+    monkeypatch.delitem(sys.modules, "indextts.infer_v2_5", raising=False)
+    monkeypatch.setitem(sys.modules, "indextts.infer_v2", legacy_module)
+    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", "/models/index-tts-v2")
+    monkeypatch.setattr(sidecar, "_model", None)
+    monkeypatch.setattr(sidecar, "_model_version", None)
+
+    loaded = sidecar._load_model(io.BytesIO())
+
+    assert isinstance(loaded, FakeIndexTTS)
+    assert sidecar._model_version == "2"
+    assert captured["cfg_path"].endswith("checkpoints/config.yaml")
+    assert captured["use_fp16"] is True
+    assert "use_qwen_emo" not in captured
+
+
+def test_sidecar_2_fallback_keeps_target_tokens_and_drops_25_only_kwargs():
+    from engines.indextts import main as sidecar
+
+    kwargs = sidecar._build_infer_kwargs(
+        {"text": "hello", "lang": "en", "target_tokens": 42, "duration_factor": 1.2},
+        "/tmp/ref.wav",
+        is_v25=False,
+    )
+    assert kwargs["target_tokens"] == 42
+    assert "lang" not in kwargs
+    assert "duration_factor" not in kwargs
+    model_kwargs = sidecar._model_init_kwargs(
+        "/models/index-tts", version="2", reduced_precision=True,
+    )
+    assert model_kwargs["cfg_path"].endswith("checkpoints/config.yaml")
+    assert model_kwargs["use_fp16"] is True
+    assert "use_qwen_emo" not in model_kwargs

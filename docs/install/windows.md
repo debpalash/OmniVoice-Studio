@@ -200,7 +200,7 @@ Full HF token guide: [docs/setup/huggingface-token.md](../setup/huggingface-toke
 
 <a id="torch-compile-oom"></a>
 
-On Windows, certain TTS engines (notably IndexTTS-2 and some CosyVoice paths)
+On Windows, certain TTS engines (notably IndexTTS 2.5 and some CosyVoice paths)
 trigger `torch.compile` / Triton kernel compilation during the first
 synthesise call. On machines with <16 GB VRAM, that compile step can OOM
 *before* the audio render even begins — the error usually surfaces as

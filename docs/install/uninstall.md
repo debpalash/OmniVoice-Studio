@@ -140,7 +140,7 @@ model paths don't hit the 260-character `MAX_PATH` limit.
   `HF_HUB_CACHE`), your data is there instead of the defaults above.
 - **Portable mode:** everything lives in an `OmniVoiceStudio-Data/` folder next
   to the app binary — delete that one folder and you're done.
-- **Optional engine sidecars:** if you installed IndexTTS-2, CosyVoice, or
+- **Optional engine sidecars:** if you installed IndexTTS 2.5, CosyVoice, or
   another sidecar engine, its isolated venv lives under the app-config folder
   above and is removed with it.
 

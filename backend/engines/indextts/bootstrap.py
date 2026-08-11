@@ -1,4 +1,4 @@
-"""IndexTTS-2 venv probe + lazy bootstrap (Phase 2 Plan 02-03).
+"""IndexTTS 2.5/2 venv probe + lazy bootstrap (Phase 2 Plan 02-03).
 
 The parent process needs to know *which Python interpreter* to spawn the
 IndexTTS sidecar under. This module owns that resolution. The probe runs
@@ -13,9 +13,9 @@ Probe order (Open Question #1 resolution from 02-RESEARCH.md):
        Windows). Highest priority — power users who already cloned
        IndexTTS and ran ``uv pip install -e .`` get zero migration cost.
     2. ``backend/engines/indextts/.venv/`` — this package's own venv,
-       created by step 3 if needed. Survives across OmniVoice upgrades;
+       created by step 3 if needed. Survives across VoiceStudio upgrades;
        the IndexTTS clone is referenced via ``uv pip install -e`` so
-       weights and code live in the user's clone, not under OmniVoice.
+       weights and code live in the user's clone, not under VoiceStudio.
     3. Bootstrap: run ``uv venv`` then ``uv pip install -e
        ${OMNIVOICE_INDEXTTS_DIR}`` to populate step-2's venv. Requires
        OMNIVOICE_INDEXTTS_DIR to be set (otherwise we don't know where
@@ -162,10 +162,10 @@ def resolve_indextts_venv() -> Path:
     # Probe 3 — bootstrap.
     if not omv_dir:
         raise RuntimeError(
-            "IndexTTS-2 is not installed. Set the OMNIVOICE_INDEXTTS_DIR "
+            "IndexTTS 2.5 is not installed. Set the OMNIVOICE_INDEXTTS_DIR "
             "environment variable to your IndexTTS clone (the directory "
             "that contains checkpoints/ and pyproject.toml), then restart "
-            "OmniVoice. See docs/engines/indextts.md for the full install "
+            "VoiceStudio. See docs/engines/indextts.md for the full install "
             "walk-through."
         )
 
@@ -200,15 +200,19 @@ def _probe_paths() -> list[Path]:
 
 
 def _venv_can_import_indextts(python_path: Path) -> ProbeResult:
-    """Spawn the candidate python and verify ``import indextts.infer_v2`` works.
+    """Verify IndexTTS 2.5, retaining user-managed IndexTTS-2 compatibility.
 
     Tri-state — "yes" / "no" / "unproven". See ``engines._venv_probe``: a
     probe that runs out of time proves nothing, and treating that as "no"
     is what discarded working OMNIVOICE_INDEXTTS_DIR installs (#1414).
     """
-    return venv_can_import(
-        python_path, "import indextts.infer_v2", engine="indextts", logger=logger,
+    probe = (
+        "try:\n import indextts.infer_v2_5\n"
+        "except ModuleNotFoundError as exc:\n"
+        " if exc.name != 'indextts.infer_v2_5': raise\n"
+        " import indextts.infer_v2\n"
     )
+    return venv_can_import(python_path, probe, engine="indextts", logger=logger)
 
 
 def _locate_uv() -> Optional[str]:
@@ -234,10 +238,10 @@ def _bootstrap_engines_venv(indextts_clone: Path) -> Path:
     uv = _locate_uv()
     if not uv:
         raise RuntimeError(
-            "uv is required to bootstrap the IndexTTS-2 venv but was not "
+            "uv is required to bootstrap the IndexTTS 2.5 venv but was not "
             "found on PATH (and the bundled uv path was not set via the "
             "OMNIVOICE_BUNDLED_UV env var). Install uv from "
-            "https://docs.astral.sh/uv/ and re-launch OmniVoice, or set "
+            "https://docs.astral.sh/uv/ and re-launch VoiceStudio, or set "
             "OMNIVOICE_BUNDLED_UV to the absolute path of a uv binary."
         )
 
@@ -285,8 +289,8 @@ def _bootstrap_engines_venv(indextts_clone: Path) -> Path:
     # spending minutes on the install (#1414).
     if _venv_can_import_indextts(python_path) == "no":
         raise RuntimeError(
-            "IndexTTS bootstrap completed but `import indextts.infer_v2` "
-            f"still fails from {python_path}. Verify that "
+            "IndexTTS bootstrap completed but neither the 2.5 nor 2 inference "
+            f"module imports from {python_path}. Verify that "
             f"{indextts_clone} is a valid IndexTTS clone (contains "
             "pyproject.toml with the indextts package). See "
             "docs/engines/indextts.md."

@@ -1,7 +1,7 @@
-"""One-click sidecar-engine provisioner (issue: IndexTTS-2 in-app install).
+"""One-click sidecar-engine provisioner.
 
-Some engines (IndexTTS-2 today; MOSS-v1.5 / dots.tts / Confucius4 are the
-same shape) can't live in the app venv because they pin a ``transformers``
+Some engines (IndexTTS 2.5, MOSS-v1.5, dots.tts, and Confucius4) have the
+same shape and can't live in the app venv because they pin a ``transformers``
 version that conflicts with the parent's ``>=5.3``. They run as sidecars:
 a source checkout + a dedicated venv + (for IndexTTS-2) model weights in
 ``<checkout>/checkpoints/``. Until now provisioning that trio was four
@@ -24,8 +24,8 @@ Design notes (single source of truth for the choices):
   clone. A user-managed install (env var already pointing at their clone)
   is left completely alone.
 * **Weights ARE part of the install** for engines whose sidecar loads
-  from ``<checkout>/<weights_subdir>/`` (IndexTTS-2's ``main.py`` reads
-  ``$OMNIVOICE_INDEXTTS_DIR/checkpoints/config.yaml`` — verified). The
+  from ``<checkout>/<weights_subdir>/`` (IndexTTS 2.5's ``main.py`` reads
+  ``$OMNIVOICE_INDEXTTS_DIR/checkpoints/config_v2_5.yaml`` — verified). The
   download goes through ``huggingface_hub.snapshot_download`` with the
   endpoint from :mod:`services.endpoint_race` (HF endpoint auto-select;
   **no hardcoded huggingface.co**) and the token from
@@ -102,8 +102,13 @@ class SidecarSpec:
     checkout_dirname: str              # directory name of the checkout under the managed root
     env_var: str                       # env var the engine's bootstrap reads (install dir)
     probe_module: str                  # python -c "import <probe_module>" proves the venv works
+    repo_ref: Optional[str] = None     # branch/tag selected by git clone
+    source_revision: Optional[str] = None  # reviewed upstream commit
+    source_required_path: Optional[str] = None  # distinguishes incompatible source generations
     weights_repo_id: Optional[str] = None   # HF repo downloaded into <checkout>/<weights_subdir>
+    weights_revision: Optional[str] = None  # reviewed HF commit
     weights_subdir: str = "checkpoints"
+    weights_config_name: str = "config.yaml"  # required model config inside weights_subdir
     docs_path: str = "docs/engines"         # where the manual-install fallback lives
     required_bytes: int = 12 * _GIB    # conservative source+venv+weights estimate for preflight
     # Called after a successful install/uninstall so the engine's memoised
@@ -126,14 +131,22 @@ def _indextts_installed() -> bool:
 SPECS: dict[str, SidecarSpec] = {
     "indextts2": SidecarSpec(
         engine_id="indextts2",
-        display_name="IndexTTS-2",
+        display_name="IndexTTS 2.5",
         repo_url="https://github.com/index-tts/index-tts.git",
-        tarball_url="https://github.com/index-tts/index-tts/archive/refs/heads/main.tar.gz",
+        tarball_url=(
+            "https://github.com/index-tts/index-tts/archive/"
+            "bf2e967fac7933197143b017a60820b1ad40c448.tar.gz"
+        ),
         checkout_dirname="index-tts",
         env_var="OMNIVOICE_INDEXTTS_DIR",
-        probe_module="indextts.infer_v2",
-        weights_repo_id="IndexTeam/IndexTTS-2",
+        probe_module="indextts.infer_v2_5",
+        repo_ref="indextts-2.5",
+        source_revision="bf2e967fac7933197143b017a60820b1ad40c448",
+        source_required_path="indextts/infer_v2_5.py",
+        weights_repo_id="IndexTeam/IndexTTS-2.5",
+        weights_revision="d0aa86e75bb6f3437f3831e95056fa72842d89ef",
         weights_subdir="checkpoints",
+        weights_config_name="config_v2_5.yaml",
         docs_path="docs/engines/indextts.md",
         # ~0.1 GB source + up to ~6 GB venv (torch + transformers<5) +
         # ~6 GB weights. Deliberately conservative; the preflight subtracts
@@ -445,6 +458,8 @@ def _healthy(spec: SidecarSpec) -> bool:
         # IndexTTS's old lazy-bootstrap venv under backend/engines/) — trust
         # the engine's own probe so we never re-provision over a working one.
         return _safe_installed(spec)
+    if not _source_present(spec, checkout):
+        return False
     if not _venv_python(checkout / ".venv").is_file():
         return False
     if spec.weights_repo_id and not _weights_present(spec):
@@ -605,22 +620,34 @@ def _step_preflight(spec: SidecarSpec, job: dict) -> None:
 def _step_fetch_source(spec: SidecarSpec, job: dict) -> None:
     step = _job_step(job, "fetch_source")
     checkout = managed_checkout(spec)
-    if (checkout / "pyproject.toml").is_file():
+    if _source_present(spec, checkout):
         step["state"] = "done"
         step["detail"] = "source already present"
         _log(job, f"Source already present at {checkout} — skipping fetch.")
         return
     if checkout.exists():
-        # Half-fetched checkout (no pyproject.toml) — repair by refetching.
-        _log(job, f"Removing incomplete checkout at {checkout} …")
+        # Half-fetched or superseded checkout — repair by refetching. This is
+        # also the managed IndexTTS-2 -> 2.5 migration: the old checkout lacks
+        # infer_v2_5.py and the reviewed-source marker.
+        _log(job, f"Removing incomplete or outdated checkout at {checkout} …")
         shutil.rmtree(checkout, ignore_errors=True)
 
     git = shutil.which("git")
     if git:
         _log(job, f"Cloning {spec.repo_url} (git, depth 1) …")
-        rc = _run_logged(job, [git, "clone", "--depth", "1", spec.repo_url, str(checkout)],
-                         timeout=_GIT_CLONE_TIMEOUT_S)
-        if rc == 0 and (checkout / "pyproject.toml").is_file():
+        clone_argv = [git, "clone", "--depth", "1"]
+        if spec.repo_ref:
+            clone_argv.extend(["--branch", spec.repo_ref])
+        clone_argv.extend([spec.repo_url, str(checkout)])
+        rc = _run_logged(job, clone_argv, timeout=_GIT_CLONE_TIMEOUT_S)
+        if rc == 0 and spec.source_revision:
+            rc = _run_logged(
+                job,
+                [git, "-C", str(checkout), "checkout", "--detach", spec.source_revision],
+                timeout=_GIT_CLONE_TIMEOUT_S,
+            )
+        if rc == 0 and _source_layout_ok(spec, checkout):
+            _write_source_marker(spec, checkout)
             step["detail"] = "git clone"
             return
         _log(job, f"git clone failed (exit {rc}) — falling back to source tarball.")
@@ -629,14 +656,43 @@ def _step_fetch_source(spec: SidecarSpec, job: dict) -> None:
         _log(job, "git not found — using the source-tarball fallback.")
 
     _fetch_tarball(spec, job, checkout)
-    if not (checkout / "pyproject.toml").is_file():
+    if not _source_layout_ok(spec, checkout):
         raise _StepError(
             f"Fetched source at {checkout} has no pyproject.toml — the download "
             "appears incomplete or the upstream layout changed.",
             "Re-run the install; if it keeps failing, clone the repository "
             f"manually and set {spec.env_var} to the clone (see the engine docs).",
         )
+    _write_source_marker(spec, checkout)
     step["detail"] = "source tarball"
+
+
+_SOURCE_REVISION_MARKER = ".voicestudio_source_revision"
+
+
+def _source_layout_ok(spec: SidecarSpec, checkout: Path) -> bool:
+    if not (checkout / "pyproject.toml").is_file():
+        return False
+    return not spec.source_required_path or (checkout / spec.source_required_path).is_file()
+
+
+def _write_source_marker(spec: SidecarSpec, checkout: Path) -> None:
+    if spec.source_revision:
+        (checkout / _SOURCE_REVISION_MARKER).write_text(
+            f"{spec.source_revision}\n", encoding="utf-8",
+        )
+
+
+def _source_present(spec: SidecarSpec, checkout: Path) -> bool:
+    if not _source_layout_ok(spec, checkout):
+        return False
+    if not spec.source_revision:
+        return True
+    try:
+        marker = (checkout / _SOURCE_REVISION_MARKER).read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    return marker == spec.source_revision
 
 
 def _fetch_tarball(spec: SidecarSpec, job: dict, checkout: Path) -> None:
@@ -787,7 +843,7 @@ def _step_verify(spec: SidecarSpec, job: dict) -> None:
 
 
 # Written into the weights dir after snapshot_download COMPLETES. A partial
-# multi-shard download can leave config.yaml + several plausible shards on
+# multi-shard download can leave a config + several plausible shards on
 # disk, so file heuristics alone would declare a killed-mid-download install
 # healthy and never resume it (the sidecar edition of #352). Only this
 # installer writes the marker; user-managed clones never hit this path.
@@ -796,16 +852,22 @@ _WEIGHTS_COMPLETE_MARKER = ".omnivoice_weights_complete"
 
 def _weights_present(spec: SidecarSpec) -> bool:
     """True only for a COMPLETED weights download: the completion marker
-    plus a sanity floor (config.yaml + one ≥5 MB weight file — the same
+    plus a sanity floor (the expected config + one ≥5 MB weight file — the same
     truncated-download floor the model store uses)."""
     wdir = managed_checkout(spec) / spec.weights_subdir
-    if not (wdir / _WEIGHTS_COMPLETE_MARKER).is_file():
+    try:
+        marker = (wdir / _WEIGHTS_COMPLETE_MARKER).read_text(encoding="utf-8").splitlines()
+    except OSError:
         return False
-    return _weights_floor_ok(wdir)
+    expected = [spec.weights_repo_id or "", spec.weights_revision or ""]
+    actual = marker[:2] if len(marker) >= 2 else marker + [""]
+    if actual != expected:
+        return False
+    return _weights_floor_ok(wdir, config_name=spec.weights_config_name)
 
 
-def _weights_floor_ok(wdir: Path) -> bool:
-    if not (wdir / "config.yaml").is_file():
+def _weights_floor_ok(wdir: Path, *, config_name: str = "config.yaml") -> bool:
+    if not (wdir / config_name).is_file():
         return False
     floor = 5 * 1024 * 1024
     try:
@@ -871,6 +933,8 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
             "local_dir": str(wdir),
             "token": resolve_token(),
         }
+        if spec.weights_revision:
+            kwargs["revision"] = spec.weights_revision
         endpoint = endpoint_race.effective_endpoint()
         if endpoint:
             kwargs["endpoint"] = endpoint
@@ -889,7 +953,7 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
         hf_progress.unregister_listener(listener_id)
         hf_progress.current_repo_id.reset(repo_token)
 
-    if not _weights_floor_ok(wdir):
+    if not _weights_floor_ok(wdir, config_name=spec.weights_config_name):
         raise _StepError(
             "Weight download finished but no plausible weight files were found — "
             "the download was likely interrupted.",
@@ -898,7 +962,8 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
     # snapshot_download returned AND the sanity floor holds → mark complete,
     # so _weights_present/_healthy stop treating this dir as a partial.
     (wdir / _WEIGHTS_COMPLETE_MARKER).write_text(
-        f"{spec.weights_repo_id}\n{time.time():.0f}\n", encoding="utf-8",
+        f"{spec.weights_repo_id}\n{spec.weights_revision or ''}\n{time.time():.0f}\n",
+        encoding="utf-8",
     )
     step["detail"] = "weights downloaded"
     _log(job, "Model weights downloaded.")

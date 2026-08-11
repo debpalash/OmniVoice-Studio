@@ -75,7 +75,7 @@ def _fake_run_logged(created: list):
     def run(job, argv, *, timeout, env=None):
         created.append(argv)
         prog = os.path.basename(argv[0])
-        if prog.startswith("git"):
+        if prog.startswith("git") and argv[1] == "clone":
             checkout = Path(argv[-1])
             checkout.mkdir(parents=True, exist_ok=True)
             (checkout / "pyproject.toml").write_text("[project]\nname='fake'\n")
@@ -365,14 +365,23 @@ def test_half_fetched_checkout_is_refetched(monkeypatch):
     assert any(a[1] == "clone" for a in argvs)
 
 
-def _write_weights(wdir: Path, *, complete: bool) -> None:
+def _write_weights(
+    wdir: Path,
+    *,
+    complete: bool,
+    repo_id: str = "Example/Weights",
+    revision: str = "",
+    config_name: str = "config.yaml",
+) -> None:
     """Fabricate a weights dir; ``complete=True`` adds the completion marker
     the installer writes after snapshot_download returns."""
     wdir.mkdir(parents=True, exist_ok=True)
-    (wdir / "config.yaml").write_text("model: fake\n")
+    (wdir / config_name).write_text("model: fake\n")
     (wdir / "weights.safetensors").write_bytes(b"\0" * (6 * 1024 * 1024))
     if complete:
-        (wdir / si._WEIGHTS_COMPLETE_MARKER).write_text("Example/Weights\n")
+        (wdir / si._WEIGHTS_COMPLETE_MARKER).write_text(
+            f"{repo_id}\n{revision}\n",
+        )
 
 
 def test_partial_install_is_not_already_installed(monkeypatch):
@@ -380,6 +389,8 @@ def test_partial_install_is_not_already_installed(monkeypatch):
     instead of short-circuiting with already_installed."""
     spec = _mk_spec(weights_repo_id="Example/Weights")
     checkout = si.managed_checkout(spec)
+    checkout.mkdir(parents=True, exist_ok=True)
+    (checkout / "pyproject.toml").write_text("[project]\nname='fake'\n")
     py = si._venv_python(checkout / ".venv")
     py.parent.mkdir(parents=True)
     py.write_text("#!fake\n")
@@ -397,6 +408,8 @@ def test_interrupted_multishard_weights_are_not_healthy(monkeypatch):
     already_installed and failing later at model-load time."""
     spec = _mk_spec(weights_repo_id="Example/Weights")
     checkout = si.managed_checkout(spec)
+    checkout.mkdir(parents=True, exist_ok=True)
+    (checkout / "pyproject.toml").write_text("[project]\nname='fake'\n")
     py = si._venv_python(checkout / ".venv")
     py.parent.mkdir(parents=True)
     py.write_text("#!fake\n")
@@ -437,6 +450,35 @@ def test_weights_step_downloads_via_endpoint_autoselect(monkeypatch):
     assert si._weights_present(spec)
 
 
+def test_weights_revision_is_pinned_and_old_marker_forces_upgrade(monkeypatch):
+    spec = _mk_spec(
+        weights_repo_id="Example/Weights",
+        weights_revision="a" * 40,
+    )
+    wdir = si.managed_checkout(spec) / spec.weights_subdir
+    _write_weights(wdir, complete=True)  # legacy default-branch marker
+    assert si._weights_present(spec) is False
+
+    seen = {}
+
+    def fake_snapshot_download(**kwargs):
+        seen.update(kwargs)
+        _write_weights(
+            Path(kwargs["local_dir"]), complete=False,
+            repo_id=kwargs["repo_id"], revision=kwargs["revision"],
+        )
+
+    import huggingface_hub
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr("services.endpoint_race.effective_endpoint", lambda: None)
+    monkeypatch.setattr("services.token_resolver.resolve", lambda: None)
+    job = si._new_job(spec.engine_id)
+    si._job_step(job, "fetch_weights")["state"] = "running"
+    si._step_fetch_weights(spec, job)
+    assert seen["revision"] == "a" * 40
+    assert si._weights_present(spec) is True
+
+
 def test_weights_step_skips_when_already_present(monkeypatch):
     spec = _mk_spec(weights_repo_id="Example/Weights")
     wdir = si.managed_checkout(spec) / spec.weights_subdir
@@ -463,6 +505,8 @@ def test_healthy_managed_install_reheals_lost_env_var(monkeypatch):
     spec = _mk_spec(weights_repo_id="Example/Weights")
     monkeypatch.setitem(si.SPECS, "fake-side", spec)
     checkout = si.managed_checkout(spec)
+    checkout.mkdir(parents=True, exist_ok=True)
+    (checkout / "pyproject.toml").write_text("[project]\nname='fake'\n")
     py = si._venv_python(checkout / ".venv")
     py.parent.mkdir(parents=True)
     py.write_text("#!fake\n")
@@ -568,12 +612,71 @@ def test_indextts2_spec_matches_bootstrap_contract():
     # The env var must be the one engines/indextts/bootstrap.py actually
     # reads — anything else would install into a dir the engine never finds.
     assert spec.env_var == "OMNIVOICE_INDEXTTS_DIR"
-    assert spec.probe_module == "indextts.infer_v2"
-    # main.py loads from <dir>/checkpoints/config.yaml (verified) — the
+    assert spec.probe_module == "indextts.infer_v2_5"
+    # main.py loads from <dir>/checkpoints/config_v2_5.yaml — the
     # installer must put the weights exactly there.
-    assert spec.weights_repo_id == "IndexTeam/IndexTTS-2"
+    assert spec.repo_ref == "indextts-2.5"
+    assert spec.source_revision == "bf2e967fac7933197143b017a60820b1ad40c448"
+    assert spec.source_required_path == "indextts/infer_v2_5.py"
+    assert spec.weights_repo_id == "IndexTeam/IndexTTS-2.5"
+    assert spec.weights_revision == "d0aa86e75bb6f3437f3831e95056fa72842d89ef"
     assert spec.weights_subdir == "checkpoints"
+    assert spec.weights_config_name == "config_v2_5.yaml"
     assert spec.repo_url.endswith("index-tts.git")
+
+
+def test_indextts25_health_requires_25_config_name(monkeypatch):
+    spec = si.get_spec("indextts2")
+    monkeypatch.setenv(spec.env_var, str(si.managed_checkout(spec)))
+    checkout = si.managed_checkout(spec)
+    required = checkout / spec.source_required_path
+    required.parent.mkdir(parents=True, exist_ok=True)
+    required.write_text("class IndexTTS2: pass\n")
+    (checkout / "pyproject.toml").write_text("[project]\nname='indextts'\n")
+    (checkout / si._SOURCE_REVISION_MARKER).write_text(f"{spec.source_revision}\n")
+    py = si._venv_python(checkout / ".venv")
+    py.parent.mkdir(parents=True)
+    py.write_text("#!fake\n")
+    wdir = checkout / spec.weights_subdir
+    _write_weights(
+        wdir,
+        complete=True,
+        repo_id=spec.weights_repo_id,
+        revision=spec.weights_revision,
+    )
+    assert si._healthy(spec) is False
+    (wdir / "config.yaml").unlink()
+    (wdir / "config_v2_5.yaml").write_text("model: fake\n")
+    assert si._healthy(spec) is True
+
+
+def test_managed_indextts2_source_without_25_module_is_replaced(monkeypatch):
+    spec = si.get_spec("indextts2")
+    checkout = si.managed_checkout(spec)
+    checkout.mkdir(parents=True)
+    (checkout / "pyproject.toml").write_text("[project]\nname='indextts'\n")
+    (checkout / "old-v2-only.txt").write_text("old")
+    argvs = []
+
+    def fake_run(job, argv, *, timeout, env=None):
+        argvs.append(argv)
+        if argv[1] == "clone":
+            checkout.mkdir(parents=True, exist_ok=True)
+            (checkout / "pyproject.toml").write_text("[project]\nname='indextts'\n")
+            required = checkout / spec.source_required_path
+            required.parent.mkdir(parents=True, exist_ok=True)
+            required.write_text("class IndexTTS2: pass\n")
+        return 0
+
+    monkeypatch.setattr(si.shutil, "which", lambda n: "/usr/bin/git")
+    monkeypatch.setattr(si, "_run_logged", fake_run)
+    job = si._new_job(spec.engine_id)
+    si._job_step(job, "fetch_source")["state"] = "running"
+    si._step_fetch_source(spec, job)
+    clone = next(argv for argv in argvs if argv[1] == "clone")
+    assert clone[clone.index("--branch") + 1] == "indextts-2.5"
+    assert not (checkout / "old-v2-only.txt").exists()
+    assert si._source_present(spec, checkout)
 
 
 def test_indextts2_env_var_in_settings_allowlist():

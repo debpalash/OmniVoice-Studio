@@ -259,7 +259,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 
 ### 🗣️ TTS 引擎
 
-**14 个引擎，一个选择器。** VoiceStudio（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加六个按需延迟安装的重量级引擎（IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。
+**14 个引擎，一个选择器。** VoiceStudio（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加六个按需延迟安装的重量级引擎（IndexTTS 2.5、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。
 
 <details>
 <summary><b>📊 完整矩阵</b>——14 个引擎 × 平台 × 克隆/指令 × 许可证</summary>
@@ -276,7 +276,7 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 | **KittenTTS** | 英语 | — | — | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
 | **MLX-Audio**（Kokoro、Qwen3-TTS、CSM、Dia 等） | 多语言 | 因模型而异 | 因模型而异 | ❌ | ✅ 原生 | ❌ | 因模型而异 |
 | **Sherpa-ONNX** | 20+ | — | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
-| **IndexTTS 2** ⚡ | 多语言 | ✅ | — | ✅ CUDA | — | ✅ CUDA | Apache-2.0 |
+| **IndexTTS 2.5** ⚡ | 中文 · 英语 · 日语 · 西班牙语 · 阿拉伯语 | ✅ | — | ✅ CUDA | — | ✅ CUDA | Bilibili 模型许可 |
 | **OmniVoice GGUF** ⚡ | 600+ | ✅ | ✅ | ✅ CPU | ✅ CPU | ✅ CPU | 内置 |
 | **Supertonic 3** ⚡ | 31 | — | — | ✅ CPU | ✅ CPU | ✅ CPU | OpenRAIL-M |
 | **MOSS-TTS-v1.5** ⚡（8B） | 31 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
@@ -411,7 +411,7 @@ npx skills add debpalash/omnivoice-studio
 | **多语言** | 多语言批量选择器、顺序 GPU 执行的批量配音队列 |
 | **说话人分离** | Pyannote 机器学习分离、自动说话人克隆提取、逐说话人声音分配 |
 | **ASR** | 9 个引擎（WhisperX、Faster-Whisper、隔离版 Faster-Whisper、MLX Whisper、PyTorch Whisper、Parakeet TDT、Moonshine、FunASR/SenseVoice、sherpa-onnx 实时听写）、崩溃隔离的子进程后端 |
-| **TTS** | 14 个引擎（VoiceStudio、CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX，+ 延迟安装：IndexTTS 2、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）、带 GPU 预检的引擎路由 |
+| **TTS** | 14 个引擎（VoiceStudio、CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX，+ 延迟安装：IndexTTS 2.5、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）、带 GPU 预检的引擎路由 |
 | **基础设施** | Docker 部署、CUDA/MPS/ROCm 自动检测、cuDNN 8 兼容、显存感知模型卸载、引擎路由（绝不静默回退 CPU）、诊断套件与错误日志、受限网络镜像支持 |
 | **AI 溯源** | AudioSeal 不可见水印（类似 SynthID）、视频徽标叠加、水印检测 API |
 | **用户体验** | 撤销/重做、键盘快捷键、拖放、会话持久化、毛玻璃设计系统、Linux/WebKitGTK 的 UI 缩放修复 |

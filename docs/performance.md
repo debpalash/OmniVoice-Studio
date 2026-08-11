@@ -81,7 +81,7 @@ None of them are required — the defaults are chosen for the common case.
 | Variable | Default | What it does |
 |---|---|---|
 | `OMNIVOICE_IDLE_TIMEOUT_S` | `900` | Seconds of idle before the TTS model unloads to free memory. Raise it (e.g. `3600`) if you generate in bursts and dislike the ~8 s reload; lower it on tight-memory machines. |
-| `OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S` | `300` | Same idea for sidecar engines (IndexTTS-2 etc.). |
+| `OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S` | `300` | Same idea for sidecar engines (IndexTTS 2.5 etc.). |
 | `OMNIVOICE_LLM_CONCURRENCY` | `6` | Parallel LLM translation calls during a dub. Raise for a fast API endpoint, lower if your provider rate-limits. |
 | `OMNIVOICE_GPU_WORKERS` | auto | Concurrent generations on the GPU. Auto-sized from free VRAM (1 worker per 5 GB, max 4); MPS and CPU always get 1. **Do not raise this on ≤10 GB cards or Apple Silicon** — two concurrent jobs over-committing VRAM is exactly the crash class (#567) the auto-sizing exists to prevent. |
 | `OMNIVOICE_CPU_POOL` | `min(8, cores)` | Thread pool for CPU-side work (translation dispatch, audio I/O). |

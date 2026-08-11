@@ -91,7 +91,7 @@ downloads work. Visit each page while signed in with the same HF account:
 - `pyannote/speaker-diarization-3.1` — required for diarization.
   See [docs/features/diarization.md](../features/diarization.md).
 - `pyannote/segmentation-3.0` — required transitively by the above.
-- `IndexTeam/IndexTTS-2` — required if you use IndexTTS for voice cloning.
+- `IndexTeam/IndexTTS-2.5` — required if you use IndexTTS 2.5 for voice cloning.
 - `Supertone/supertonic-3` — required if you enable the Supertonic-3 engine.
 - `kyutai/pocket-tts` — required if you enable PocketTTS; first accept its
   access conditions on Hugging Face, then use a token from the same account.

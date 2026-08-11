@@ -45,6 +45,7 @@ tts_engines:
   - id: gpt-sovits
   - id: sherpa-onnx
   - id: indextts2
+    readme: "**IndexTTS 2.5** ⚡"
     doc: docs/engines/indextts.md
   - id: omnivoice-gguf
   - id: supertonic3

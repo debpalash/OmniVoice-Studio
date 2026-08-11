@@ -1,7 +1,7 @@
-"""IndexTTS-2 sidecar package (Phase 2 Plan 02-03).
+"""IndexTTS 2.5/2 sidecar package (Phase 2 Plan 02-03).
 
 IndexTTS-2 runs in its own subprocess + dedicated venv with
-``transformers<5``, isolated from the OmniVoice parent process which
+``transformers<5``, isolated from the VoiceStudio parent process which
 pins ``transformers>=5.3``. Closes issue #42 — the canonical
 ``OffloadedCache`` ImportError driven by the transformers v4 ↔ v5
 incompatibility — by making the two libraries live in separate OS
@@ -28,6 +28,7 @@ packages. The parent only ever spawns it as a subprocess.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from services.subprocess_backend import SubprocessBackend
@@ -38,11 +39,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger("omnivoice.indextts")
 
 
+_LANGUAGE_ALIASES = {
+    "zh": "zh",
+    "chinese": "zh",
+    "mandarin": "zh",
+    "en": "en",
+    "english": "en",
+    "ja": "ja",
+    "jp": "ja",
+    "japanese": "ja",
+    "es": "es",
+    "spanish": "es",
+    "español": "es",
+    "ar": "ar",
+    "arabic": "ar",
+}
+
+
+def _normalize_indextts25_language(value, text: str) -> str:
+    """Map VoiceStudio locale labels to IndexTTS 2.5's required token."""
+    raw = str(value or "").strip().lower().replace("_", "-")
+    base = raw.split("-", 1)[0]
+    resolved = _LANGUAGE_ALIASES.get(raw) or _LANGUAGE_ALIASES.get(base)
+    if resolved:
+        return resolved
+    # Auto/empty requests still need an explicit 2.5 language. Script
+    # detection is deterministic and local; ambiguous Latin text defaults EN.
+    if re.search(r"[\u0600-\u06ff\u0750-\u077f]", text):
+        return "ar"
+    if re.search(r"[\u3040-\u30ff]", text):
+        return "ja"
+    if re.search(r"[\u3400-\u9fff]", text):
+        return "zh"
+    return "en"
+
+
 class IndexTTS2Backend(SubprocessBackend):
-    """IndexTTS2 (Bilibili) — runs in its own subprocess + dedicated venv.
+    """IndexTTS 2.5 (Bilibili) — isolated subprocess with IndexTTS-2 fallback.
 
     Plan 02-03 migrated IndexTTS off the in-process import path because
-    IndexTTS pins ``transformers<5`` while OmniVoice pins
+    IndexTTS pins ``transformers<5`` while VoiceStudio pins
     ``transformers>=5.3``. The two cannot share a Python interpreter
     without one of them blowing up at import time (issue #42 — the
     canonical ``OffloadedCache`` ImportError). Running IndexTTS in a
@@ -61,11 +97,11 @@ class IndexTTS2Backend(SubprocessBackend):
 
     Installation (transparent to existing v0.2.7 users — ENGINE-07)::
 
-        git clone https://github.com/index-tts/index-tts.git
+        git clone --branch indextts-2.5 https://github.com/index-tts/index-tts.git
         cd index-tts && uv pip install -e .   # NOT uv sync --all-extras
-        hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
+        hf download IndexTeam/IndexTTS-2.5 --local-dir=checkpoints
 
-    Set ``OMNIVOICE_INDEXTTS_DIR`` to the repo root. OmniVoice will
+    Set ``OMNIVOICE_INDEXTTS_DIR`` to the repo root. VoiceStudio will
     create ``backend/engines/indextts/.venv`` lazily on first launch if
     no venv exists yet — the user's existing
     ``${OMNIVOICE_INDEXTTS_DIR}/.venv`` is preferred if present, so no
@@ -76,7 +112,7 @@ class IndexTTS2Backend(SubprocessBackend):
     """
 
     id = "indextts2"
-    display_name = "IndexTTS2 (emotion control, duration control, zero-shot)"
+    display_name = "IndexTTS 2.5 (multilingual emotion-controlled cloning)"
     supports_voice_design = False  # requires ref audio for timbre
     supports_emotion = True  # graded emo_vector / emo_text / emo_alpha (#1208)
     _DEFAULT_SAMPLE_RATE = 24000
@@ -100,15 +136,15 @@ class IndexTTS2Backend(SubprocessBackend):
         )
         if not is_indextts_installed():
             return False, (
-                "IndexTTS-2 venv not found. Set OMNIVOICE_INDEXTTS_DIR to "
+                "IndexTTS 2.5 venv not found. Set OMNIVOICE_INDEXTTS_DIR to "
                 "your IndexTTS clone (the directory containing checkpoints/) "
-                "and restart OmniVoice. See docs/engines/indextts.md for the "
+                "and restart VoiceStudio. See docs/engines/indextts.md for the "
                 "full install walk-through."
             )
         if not INDEXTTS_SIDECAR_SCRIPT.exists():
             return False, (
                 "IndexTTS sidecar script missing at "
-                f"{INDEXTTS_SIDECAR_SCRIPT} — reinstall OmniVoice."
+                f"{INDEXTTS_SIDECAR_SCRIPT} — reinstall VoiceStudio."
             )
         return True, "ok"
 
@@ -131,8 +167,7 @@ class IndexTTS2Backend(SubprocessBackend):
 
     @property
     def supported_languages(self) -> list[str]:
-        # Primarily Chinese + English with multilingual prompt handling.
-        return ["zh", "en"]
+        return ["zh", "en", "ja", "es", "ar"]
 
     # ── parent-side emotion / duration arbitration ─────────────────────
     #
@@ -171,7 +206,8 @@ class IndexTTS2Backend(SubprocessBackend):
         if description and not emo_text and not emo_vector and not emo_audio:
             emo_text = description
 
-        forwarded: dict = {"ref_audio": ref_audio}
+        language = _normalize_indextts25_language(kw.get("language"), text)
+        forwarded: dict = {"ref_audio": ref_audio, "lang": language}
 
         # Duration control — codec frame rate ≈ 21 Hz.
         duration = kw.get("duration")
@@ -179,6 +215,9 @@ class IndexTTS2Backend(SubprocessBackend):
             target_tokens = int(float(duration) * 21)
             if target_tokens > 0:
                 forwarded["target_tokens"] = target_tokens
+        duration_factor = kw.get("duration_factor")
+        if duration_factor is not None:
+            forwarded["duration_factor"] = max(0.5, min(float(duration_factor), 2.0))
 
         if (
             emo_vector
