@@ -69,9 +69,15 @@ function normalized(value, windows = process.platform === "win32") {
   return windows ? text.toLowerCase() : text;
 }
 
-function belongsToCheckout(cwd, command, executable, windows = process.platform === "win32") {
-  const root = normalized(CHECKOUT_ROOT, windows);
-  const prefix = `${root}${sep}`;
+export function belongsToCheckout(
+  cwd,
+  command,
+  executable,
+  windows = process.platform === "win32",
+  checkoutRoot = CHECKOUT_ROOT,
+) {
+  const root = normalized(checkoutRoot, windows);
+  const prefix = `${root}${windows ? "\\" : sep}`;
   const ownedPath = (value) => {
     if (!value) return false;
     const path = normalized(value, windows);
@@ -79,7 +85,17 @@ function belongsToCheckout(cwd, command, executable, windows = process.platform 
   };
   if (ownedPath(cwd) || ownedPath(executable)) return true;
   const haystack = windows ? String(command || "").toLowerCase() : String(command || "");
-  return haystack.includes(root);
+  let index = haystack.indexOf(root);
+  while (index !== -1) {
+    const next = haystack[index + root.length];
+    if (next === undefined || next === "/" || next === "\\" || /\s|["']/.test(next)) return true;
+    index = haystack.indexOf(root, index + 1);
+  }
+  return false;
+}
+
+export function isUninspectableProcessError(error) {
+  return ["ENOENT", "ESRCH", "EACCES", "EPERM"].includes(error?.code);
 }
 
 function inspectLinux(pid) {
@@ -87,7 +103,10 @@ function inspectLinux(pid) {
     const cwd = readlinkSync(`/proc/${pid}/cwd`);
     const command = readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ");
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    const afterName = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
+    const afterName = stat
+      .slice(stat.lastIndexOf(")") + 2)
+      .trim()
+      .split(/\s+/);
     const startTime = afterName[19]; // proc(5): field 22; this array starts at field 3.
     if (!startTime) return null;
     return {
@@ -95,8 +114,16 @@ function inspectLinux(pid) {
       owned: belongsToCheckout(cwd, command, "", false),
     };
   } catch (error) {
-    if (error?.code === "ENOENT" || error?.code === "ESRCH") return null;
+    if (isUninspectableProcessError(error)) return null;
     throw error;
+  }
+}
+
+export function stopUnixProcess(pid, force, kill = process.kill) {
+  try {
+    kill(pid, force ? "SIGKILL" : "SIGTERM");
+  } catch (error) {
+    if (error?.code !== "ESRCH") throw error;
   }
 }
 
@@ -126,9 +153,13 @@ function inspectWindows(pid) {
     "  $p | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress",
     "}",
   ].join("; ");
-  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    {
+      encoding: "utf8",
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`Could not inspect process ${pid}`);
   if (!result.stdout.trim()) return null;
@@ -146,13 +177,11 @@ function systemOperations() {
     inspect: windows ? inspectWindows : process.platform === "darwin" ? inspectMac : inspectLinux,
     stop(pid, force) {
       if (windows) {
-        const args = force
-          ? ["/F", "/T", "/PID", String(pid)]
-          : ["/T", "/PID", String(pid)];
+        const args = force ? ["/F", "/T", "/PID", String(pid)] : ["/T", "/PID", String(pid)];
         const result = spawnSync("taskkill", args, { stdio: "ignore" });
         if (result.status !== 0) throw new Error(`Could not stop process ${pid}`);
       } else {
-        process.kill(pid, force ? "SIGKILL" : "SIGTERM");
+        stopUnixProcess(pid, force);
       }
     },
     sleep(ms) {
@@ -191,7 +220,11 @@ export async function clearDevPortsWith(ports, ops) {
     await ops.stop(pid, true);
   }
 
-  const remaining = await ops.listeners(ports);
+  let remaining = await ops.listeners(ports);
+  for (let attempt = 0; attempt < 10 && remaining.length; attempt += 1) {
+    await ops.sleep(50);
+    remaining = await ops.listeners(ports);
+  }
   if (remaining.length) throw new Error(`Ports still occupied by process ${remaining.join(", ")}`);
 }
 

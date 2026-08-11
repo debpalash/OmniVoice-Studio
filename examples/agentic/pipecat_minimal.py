@@ -1,7 +1,7 @@
 """Minimal pipecat agent that speaks and listens through local VoiceStudio.
 
-VoiceStudio is used purely as an OpenAI-compatible TTS/STT provider — nothing
-leaves your machine. See docs/agentic-voice.md for the full recipe.
+VoiceStudio defaults to a local OpenAI-compatible TTS/STT provider. For remote
+use, point it only at a protected tailnet URL. See docs/agentic-voice.md.
 
 Run VoiceStudio first (default http://localhost:3900), then:
 

@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  belongsToCheckout,
   clearDevPortsWith,
+  isUninspectableProcessError,
   parseSsListeners,
   parseWindowsListeners,
+  stopUnixProcess,
 } from "../../scripts/clear-dev-ports.mjs";
 
 test("parses only requested Windows TCP listeners", () => {
@@ -25,6 +28,37 @@ test("parses only requested Linux listeners and deduplicates pids", () => {
   assert.deepEqual(parseSsListeners(output, [3900, 3901]), [1234]);
 });
 
+test("command ownership requires a checkout path boundary", () => {
+  const root = "/work/VoiceStudio";
+  assert.equal(belongsToCheckout("", `bun ${root}/scripts/dev.mjs`, "", false, root), true);
+  assert.equal(belongsToCheckout("", `bun '${root}'`, "", false, root), true);
+  assert.equal(belongsToCheckout("", `bun ${root}-old/scripts/dev.mjs`, "", false, root), false);
+  assert.equal(belongsToCheckout("", `bun ${root}2/scripts/dev.mjs`, "", false, root), false);
+});
+
+test("permission and exit races make a process uninspectable", () => {
+  for (const code of ["ENOENT", "ESRCH", "EACCES", "EPERM"]) {
+    assert.equal(isUninspectableProcessError({ code }), true);
+  }
+  assert.equal(isUninspectableProcessError({ code: "EIO" }), false);
+});
+
+test("an already-exited Unix process counts as stopped", () => {
+  const missing = Object.assign(new Error("gone"), { code: "ESRCH" });
+  assert.doesNotThrow(() =>
+    stopUnixProcess(1234, false, () => {
+      throw missing;
+    }),
+  );
+  assert.throws(
+    () =>
+      stopUnixProcess(1234, true, () => {
+        throw Object.assign(new Error("denied"), { code: "EPERM" });
+      }),
+    /denied/,
+  );
+});
+
 test("refuses an unrelated listener without signalling it", async () => {
   const signals = [];
   const ops = {
@@ -33,10 +67,7 @@ test("refuses an unrelated listener without signalling it", async () => {
     stop: async (...args) => signals.push(args),
     sleep: async () => {},
   };
-  await assert.rejects(
-    clearDevPortsWith([3900], ops),
-    /Refusing to stop unrelated process 1234/,
-  );
+  await assert.rejects(clearDevPortsWith([3900], ops), /Refusing to stop unrelated process 1234/);
   assert.deepEqual(signals, []);
 });
 
@@ -72,4 +103,24 @@ test("escalates only while ownership and identity remain stable", async () => {
     [1234, false],
     [1234, true],
   ]);
+});
+
+test("waits for the listener to disappear after force stop", async () => {
+  const signals = [];
+  let discovery = 0;
+  let sleeps = 0;
+  const ops = {
+    listeners: async () => (++discovery < 4 ? [1234] : []),
+    inspect: async () => ({ identity: "start-a", owned: true }),
+    stop: async (pid, force) => signals.push([pid, force]),
+    sleep: async () => {
+      sleeps += 1;
+    },
+  };
+  await clearDevPortsWith([3900], ops);
+  assert.deepEqual(signals, [
+    [1234, false],
+    [1234, true],
+  ]);
+  assert.equal(sleeps, 12);
 });
