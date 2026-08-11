@@ -1,4 +1,4 @@
-"""VoiceStudio 0.5.0 release-brand and source-launch contracts."""
+"""VoiceStudio 5.0.0 release-brand and source-launch contracts."""
 
 from __future__ import annotations
 
@@ -8,11 +8,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASE_VERSION = "5.0.0"
 
 
-def test_release_version_is_0_5_0_everywhere() -> None:
+def test_release_version_is_5_0_0_everywhere() -> None:
     package = json.loads((ROOT / "frontend/package.json").read_text())
-    assert package["version"] == "0.5.0"
+    assert package["version"] == RELEASE_VERSION
 
     mirrors = {
         "pyproject.toml": r'(?m)^version = "([^"]+)"',
@@ -21,14 +22,21 @@ def test_release_version_is_0_5_0_everywhere() -> None:
     }
     for path, pattern in mirrors.items():
         match = re.search(pattern, (ROOT / path).read_text())
-        assert match and match.group(1) == "0.5.0", path
+        assert match and match.group(1) == RELEASE_VERSION, path
+
+    lock_contracts = {
+        "bun.lock": r'"name": "omnivoice-studio",\s+"version": "([^"]+)"',
+        "uv.lock": r'name = "omnivoice"\s+version = "([^"]+)"',
+        "frontend/src-tauri/Cargo.lock": (
+            r'name = "omnivoice-studio"\s+version = "([^"]+)"'
+        ),
+    }
+    for path, pattern in lock_contracts.items():
+        match = re.search(pattern, (ROOT / path).read_text())
+        assert match and match.group(1) == RELEASE_VERSION, path
 
 
 def test_visible_brand_surfaces_say_voicestudio() -> None:
-    header = (ROOT / "frontend/src/components/Header.jsx").read_text()
-    assert "Voice<span" in header and ">Studio</span>" in header
-    assert "Omni<span" not in header
-
     visible_files = (
         "frontend/src-tauri/Info.plist",
         "frontend/src-tauri/appimage/AppRun",
@@ -47,6 +55,35 @@ def test_visible_brand_surfaces_say_voicestudio() -> None:
     assert "**OmniVoice** (default)" not in readme
 
 
+def test_brand_mark_is_shared_and_fills_the_icon() -> None:
+    mark = (ROOT / "frontend/src/components/brand/VoiceStudioMark.jsx").read_text()
+    header = (ROOT / "frontend/src/components/Header.jsx").read_text()
+    about = (ROOT / "frontend/src/components/settings/AboutTab.jsx").read_text()
+    logo = (ROOT / "docs/logo.svg").read_text()
+    favicon = (ROOT / "frontend/public/favicon.svg").read_text()
+
+    signature = "M6 34c4 0 5-7 9-7"
+    assert signature in mark
+    assert signature in logo
+    assert signature in favicon
+    assert "<VoiceStudioMark" in header
+    assert "<VoiceStudioMark" in about
+    assert 'data-testid="voice-studio-logo"' in header
+
+    # The previous icon devoted most of its canvas to an empty ring. The new
+    # mark uses the full tile and keeps only a narrow 2-unit outer margin.
+    assert 'x="2" y="2" width="60" height="60"' in logo
+    assert "<circle" not in logo
+    assert 'src="docs/logo.png"' in (ROOT / "README.md").read_text()
+
+
+def test_python_package_metadata_points_to_voicestudio() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    assert 'Homepage = "https://github.com/debpalash/VoiceStudio"' in pyproject
+    assert 'Repository = "https://github.com/debpalash/VoiceStudio"' in pyproject
+    assert '"Upstream TTS Model" = "https://github.com/k2-fsa/OmniVoice"' in pyproject
+
+
 def test_engine_help_names_the_app_not_the_upstream_model() -> None:
     paths = (
         "backend/engines/confucius4/__init__.py",
@@ -62,6 +99,15 @@ def test_engine_help_names_the_app_not_the_upstream_model() -> None:
     for path in paths:
         text = (ROOT / path).read_text()
         assert not stale_help.search(text), path
+
+
+def test_compatibility_identifiers_stay_stable() -> None:
+    package = json.loads((ROOT / "frontend/package.json").read_text())
+    assert package["name"] == "omnivoice-studio"
+    assert 'name = "omnivoice"' in (ROOT / "pyproject.toml").read_text()
+    assert 'name = "omnivoice-studio"' in (
+        ROOT / "frontend/src-tauri/Cargo.toml"
+    ).read_text()
 
 
 def test_source_launch_cleans_idle_ports_quietly() -> None:

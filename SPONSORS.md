@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo.png" alt="VoiceStudio Logo" width="96" />
+  <img src="docs/logo.png" alt="VoiceStudio Logo" width="96" height="96" />
   <h1>Sponsor VoiceStudio</h1>
   <p><b>Keep the open-source ElevenLabs alternative free, local, and shipping.</b></p>
 </div>

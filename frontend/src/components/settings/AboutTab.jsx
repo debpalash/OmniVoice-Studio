@@ -19,6 +19,7 @@ import { CATEGORY_BY_ID } from './settingsCategories';
 import { useAppStore } from '../../store';
 import { isTauri } from './native';
 import Row from './Row';
+import VoiceStudioMark from '../brand/VoiceStudioMark';
 
 /**
  * Where a failing self-check can be fixed inside the app — diagnose check id
@@ -81,7 +82,15 @@ export default function AboutTab({
 
   return (
     <SettingsSection icon={Info} title={t('settings.about')}>
-      <Row label={t('about.app')} value="VoiceStudio" />
+      <Row
+        label={t('about.app')}
+        value={
+          <span className="inline-flex items-center gap-[var(--space-2)]" translate="no">
+            <VoiceStudioMark className="size-5 text-[var(--chrome-accent)]" />
+            VoiceStudio
+          </span>
+        }
+      />
       <Row label={t('about.version')} value={resolveAboutVersion(appVersion, info)} mono />
       <Row
         label={t('about.tauri_runtime')}

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "omnivoice"
-version = "0.5.0"
+version = "5.0.0"
 description = "VoiceStudio — a private, local-first studio for voice cloning, speech generation, dubbing, transcription, and audiobooks"
 readme = "README.md"
 # Free and open-source under the GNU Affero General Public License v3 (see
@@ -13,7 +13,7 @@ readme = "README.md"
 # TTS model by Han Zhu remains Apache-2.0 upstream (Apache-2.0 is AGPL-compatible).
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
-authors = [{name = "Han Zhu"}]
+authors = [{name = "Debpalash"}, {name = "Han Zhu"}]
 keywords = [
     "tts",
     "text-to-speech",
@@ -242,9 +242,11 @@ omnivoice-demo = "omnivoice.cli.demo:main"
 omnivoice-dub = "omnivoice.cli.dub:main"
 
 [project.urls]
-Homepage = "https://github.com/k2-fsa/OmniVoice"
-Repository = "https://github.com/k2-fsa/OmniVoice"
-"Bug Tracker" = "https://github.com/k2-fsa/OmniVoice/issues"
+Homepage = "https://github.com/debpalash/VoiceStudio"
+Repository = "https://github.com/debpalash/VoiceStudio"
+Documentation = "https://github.com/debpalash/VoiceStudio/tree/main/docs"
+"Bug Tracker" = "https://github.com/debpalash/VoiceStudio/issues"
+"Upstream TTS Model" = "https://github.com/k2-fsa/OmniVoice"
 
 [tool.uv.sources]
 # Install PyTorch with CUDA support on Linux/Windows (CUDA doesn't exist for Mac).

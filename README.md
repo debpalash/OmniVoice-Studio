@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo.png" alt="VoiceStudio Logo" width="120" />
+  <img src="docs/logo.png" alt="VoiceStudio Logo" width="120" height="120" />
   <h1>VoiceStudio</h1>
   <p><sub><em>previously OmniVoice-Studio</em></sub></p>
   <h3>Make voices. Tell stories. Keep the files. ♡</h3>

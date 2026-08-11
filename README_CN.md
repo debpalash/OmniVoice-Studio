@@ -1,7 +1,7 @@
 *本文档是 [README.md](README.md) 的简体中文翻译；若与英文版有出入，以英文版为准。*
 
 <div align="center">
-  <img src="docs/logo.png" alt="VoiceStudio 徽标" width="120" />
+  <img src="docs/logo.png" alt="VoiceStudio 徽标" width="120" height="120" />
   <h1>VoiceStudio</h1>
   <p><sub><em>原名 OmniVoice-Studio</em></sub></p>
   <h3>创造声音，讲述故事，文件始终属于你。♡</h3>

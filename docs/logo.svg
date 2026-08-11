@@ -1,61 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">VoiceStudio</title>
+  <desc id="description">A warm pink speech waveform with a small spark on a dark rounded tile.</desc>
   <defs>
-    <!-- Background gradient -->
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1e1e2e"/>
-      <stop offset="100%" stop-color="#13131f"/>
+    <linearGradient id="tile" x1="7" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#211B2B"/>
+      <stop offset="1" stop-color="#120F18"/>
     </linearGradient>
-
-    <!-- Waveform pink gradient -->
-    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#e8a4b8"/>
-      <stop offset="50%" stop-color="#d3869b"/>
-      <stop offset="100%" stop-color="#c07090"/>
-    </linearGradient>
-
-    <!-- Glow filter -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 0.4 0 0 0  0 0 0.5 0 0  0 0 0 0.6 0" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Subtle inner shadow -->
-    <filter id="inset" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
-      <feOffset dx="0" dy="3" result="offset"/>
-      <feComposite in="SourceGraphic" in2="offset" operator="over"/>
-    </filter>
-
-    <!-- Edge highlight -->
-    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
-      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.03"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+    <radialGradient id="warmth" cx="0" cy="0" r="1" gradientTransform="translate(49 13) rotate(132) scale(42)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6A2D4C" stop-opacity="0.44"/>
+      <stop offset="1" stop-color="#6A2D4C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="voice" x1="7" y1="18" x2="59" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD0DB"/>
+      <stop offset="0.5" stop-color="#F47FA3"/>
+      <stop offset="1" stop-color="#F7AE73"/>
     </linearGradient>
   </defs>
-
-  <!-- Outer rounded square -->
-  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#bg)"/>
-
-  <!-- Edge/border highlight -->
-  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="none" stroke="url(#edge)" stroke-width="2"/>
-
-  <!-- Central waveform bars (audio visualizer style) -->
-  <g transform="translate(256, 256)" filter="url(#glow)">
-    <!-- 7 bars, symmetric heights, rounded caps -->
-    <rect x="-120" y="-30"  width="20" height="60"  rx="10" fill="url(#wave)" opacity="0.7"/>
-    <rect x="-84"  y="-55"  width="20" height="110" rx="10" fill="url(#wave)" opacity="0.85"/>
-    <rect x="-48"  y="-80"  width="20" height="160" rx="10" fill="url(#wave)" opacity="0.95"/>
-    <rect x="-10"  y="-100" width="20" height="200" rx="10" fill="url(#wave)"/>
-    <rect x="28"   y="-75"  width="20" height="150" rx="10" fill="url(#wave)" opacity="0.95"/>
-    <rect x="64"   y="-50"  width="20" height="100" rx="10" fill="url(#wave)" opacity="0.85"/>
-    <rect x="100"  y="-25"  width="20" height="50"  rx="10" fill="url(#wave)" opacity="0.7"/>
-  </g>
-
-  <!-- Subtle circle ring behind bars -->
-  <circle cx="256" cy="256" r="140" fill="none" stroke="#d3869b" stroke-width="1.5" opacity="0.15"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#tile)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="14.5" fill="url(#warmth)" stroke="#FFFFFF" stroke-opacity="0.09"/>
+  <path d="M6 34c4 0 5-7 9-7 5 0 4 14 9 14 5 0 4-23 9-23s4 28 9 28 4-21 9-21c4 0 5 9 8 9" stroke="url(#voice)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 9c.7 4.3 3.7 7.3 8 8-4.3.7-7.3 3.7-8 8-.7-4.3-3.7-7.3-8-8 4.3-.7 7.3-3.7 8-8Z" fill="#FFE5B5"/>
 </svg>

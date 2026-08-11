@@ -3,16 +3,16 @@
 All notable changes to VoiceStudio.
 
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
-Versions track the desktop app (`tauri.conf.json` + `frontend/src-tauri/Cargo.toml`).
-The bundled TTS model package (`pyproject.toml`) is versioned independently.
+`frontend/package.json` is the app-version source of truth; Cargo, Python, and
+the frozen-backend fallback mirror it for their toolchains.
 
 ## [Unreleased]
 
-## [0.5.0] — 2026-08-10
+## [5.0.0] — 2026-08-11
 
 **Highlights**
 
-- VoiceStudio 0.5.0 is the release where the name, desktop chrome, documentation, and package metadata finally tell one clear story
+- VoiceStudio 5.0.0 gives the app, desktop chrome, documentation, and package metadata one clear identity
 - A local-first creative studio: voice cloning, design, dubbing, dictation, stories, audiobooks, and transcription without a subscription meter
 - Reliability first: automatic cache repair, truthful hardware routing, safer sidecars, and actionable recovery instead of mystery failures
 - Security boundaries now match the product: native file access stays native, untrusted network destinations fail closed, and public errors keep private diagnostics local
@@ -27,6 +27,7 @@ The bundled TTS model package (`pyproject.toml`) is versioned independently.
 
 ### Changed
 
+- VoiceStudio now uses one waveform-and-spark mark across the title bar, About screen, README, browser favicon, and every desktop/platform icon
 - PocketTTS now asks you to review its code license, model license and gated-access conditions before first use, and explains how to unlock the model instead of showing a raw download failure — thanks @paoloantinori! (#1442)
 - The repository moved to github.com/debpalash/VoiceStudio. Every link in the app, docs and scripts now points there; GitHub redirects the old URLs, and the Docker image paths, the app bundle identifier and your data folder are all deliberately unchanged. (#1394)
 - The app is now **VoiceStudio** (previously OmniVoice-Studio). Only the name you see changes — your data folder, settings and the Docker image paths stay put, so upgrading needs nothing from you. On Linux the .deb is now `voicestudio`; remove the old `omnivoice-studio` package once.
