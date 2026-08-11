@@ -28,6 +28,7 @@ packages. The parent only ever spawns it as a subprocess.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import TYPE_CHECKING
 
@@ -167,6 +168,12 @@ class IndexTTS2Backend(SubprocessBackend):
 
     @property
     def supported_languages(self) -> list[str]:
+        configured = os.environ.get("OMNIVOICE_INDEXTTS_DIR")
+        if configured and not os.path.isfile(
+            os.path.join(configured, "indextts", "infer_v2_5.py")
+        ):
+            # Preserve truthful metadata for user-managed IndexTTS-2 checkouts.
+            return ["zh", "en"]
         return ["zh", "en", "ja", "es", "ar"]
 
     # ── parent-side emotion / duration arbitration ─────────────────────

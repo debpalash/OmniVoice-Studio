@@ -311,9 +311,14 @@ def test_generate_requires_ref_audio(patched_indextts_backend):
 
 
 def test_indextts25_languages_and_unknown_language_fallback(
-    monkeypatch, patched_indextts_backend,
+    monkeypatch, patched_indextts_backend, tmp_path,
 ):
     backend = patched_indextts_backend
+    checkout = tmp_path / "index-tts"
+    module = checkout / "indextts" / "infer_v2_5.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("class IndexTTS2: pass\n")
+    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", str(checkout))
     assert backend.supported_languages == ["zh", "en", "ja", "es", "ar"]
     sent = []
     original_send = SubprocessBackend._send
@@ -326,6 +331,17 @@ def test_indextts25_languages_and_unknown_language_fallback(
     monkeypatch.setattr(SubprocessBackend, "_send", spy_send)
     backend.generate("hello", ref_audio="/tmp/ref.wav", language="fr-FR")
     assert sent[0]["lang"] == "en"
+
+
+def test_user_managed_indextts2_keeps_legacy_language_metadata(
+    monkeypatch, patched_indextts_backend, tmp_path,
+):
+    checkout = tmp_path / "index-tts-v2"
+    legacy_module = checkout / "indextts" / "infer_v2.py"
+    legacy_module.parent.mkdir(parents=True)
+    legacy_module.write_text("class IndexTTS2: pass\n")
+    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", str(checkout))
+    assert patched_indextts_backend.supported_languages == ["zh", "en"]
 
 
 @pytest.mark.parametrize(
