@@ -8,6 +8,7 @@ import {
   parseSsListeners,
   parseWindowsListeners,
   stopUnixProcess,
+  stopWindowsProcess,
 } from "../../scripts/clear-dev-ports.mjs";
 
 test("parses only requested Windows TCP listeners", () => {
@@ -32,8 +33,10 @@ test("command ownership requires a checkout path boundary", () => {
   const root = "/work/VoiceStudio";
   assert.equal(belongsToCheckout("", `bun ${root}/scripts/dev.mjs`, "", false, root), true);
   assert.equal(belongsToCheckout("", `bun '${root}'`, "", false, root), true);
+  assert.equal(belongsToCheckout("", `bun --cwd=${root}/frontend`, "", false, root), true);
   assert.equal(belongsToCheckout("", `bun ${root}-old/scripts/dev.mjs`, "", false, root), false);
   assert.equal(belongsToCheckout("", `bun ${root}2/scripts/dev.mjs`, "", false, root), false);
+  assert.equal(belongsToCheckout("", `bun /tmp${root}/scripts/dev.mjs`, "", false, root), false);
 });
 
 test("permission and exit races make a process uninspectable", () => {
@@ -56,6 +59,26 @@ test("an already-exited Unix process counts as stopped", () => {
         throw Object.assign(new Error("denied"), { code: "EPERM" });
       }),
     /denied/,
+  );
+});
+
+test("ignores a Windows taskkill exit race only when the original process is gone", async () => {
+  const failedTaskkill = () => ({ status: 128 });
+  await assert.doesNotReject(
+    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => null),
+  );
+  await assert.doesNotReject(
+    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => ({
+      identity: "windows:start-b",
+      owned: false,
+    })),
+  );
+  await assert.rejects(
+    stopWindowsProcess(1234, false, "windows:start-a", failedTaskkill, async () => ({
+      identity: "windows:start-a",
+      owned: true,
+    })),
+    /Could not stop process 1234/,
   );
 });
 
@@ -103,6 +126,20 @@ test("escalates only while ownership and identity remain stable", async () => {
     [1234, false],
     [1234, true],
   ]);
+});
+
+test("does not force-kill when the platform cannot prove process identity precisely", async () => {
+  const signals = [];
+  let discovery = 0;
+  const ops = {
+    canForce: false,
+    listeners: async () => (discovery++ === 0 ? [1234] : []),
+    inspect: async () => ({ identity: "mac:start-second", owned: true }),
+    stop: async (pid, force) => signals.push([pid, force]),
+    sleep: async () => {},
+  };
+  await clearDevPortsWith([3900], ops);
+  assert.deepEqual(signals, [[1234, false]]);
 });
 
 test("waits for the listener to disappear after force stop", async () => {

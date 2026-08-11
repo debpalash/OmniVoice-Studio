@@ -87,8 +87,11 @@ export function belongsToCheckout(
   const haystack = windows ? String(command || "").toLowerCase() : String(command || "");
   let index = haystack.indexOf(root);
   while (index !== -1) {
+    const previous = haystack[index - 1];
     const next = haystack[index + root.length];
-    if (next === undefined || next === "/" || next === "\\" || /\s|["']/.test(next)) return true;
+    const startsArgument = previous === undefined || previous === "=" || /\s|["']/.test(previous);
+    const endsPath = next === undefined || next === "/" || next === "\\" || /\s|["']/.test(next);
+    if (startsArgument && endsPath) return true;
     index = haystack.indexOf(root, index + 1);
   }
   return false;
@@ -170,16 +173,39 @@ function inspectWindows(pid) {
   };
 }
 
+export async function stopWindowsProcess(
+  pid,
+  force,
+  expectedIdentity,
+  runTaskkill,
+  inspect = inspectWindows,
+) {
+  const result = runTaskkill(pid, force);
+  if (result.status === 0) return;
+
+  // taskkill can lose an exit/reuse race. Only suppress its failure when the
+  // original process is provably gone; never act on the replacement process.
+  const current = await inspect(pid);
+  if (!current || current.identity !== expectedIdentity) return;
+  throw new Error(`Could not stop process ${pid}`);
+}
+
 function systemOperations() {
   const windows = process.platform === "win32";
   return {
+    // macOS exposes process start time to ps at one-second resolution. That is
+    // sufficient for a graceful stop, but not safe proof for SIGKILL escalation.
+    canForce: process.platform !== "darwin",
     listeners: windows ? windowsListeners : unixListeners,
     inspect: windows ? inspectWindows : process.platform === "darwin" ? inspectMac : inspectLinux,
-    stop(pid, force) {
+    stop(pid, force, expectedIdentity) {
       if (windows) {
-        const args = force ? ["/F", "/T", "/PID", String(pid)] : ["/T", "/PID", String(pid)];
-        const result = spawnSync("taskkill", args, { stdio: "ignore" });
-        if (result.status !== 0) throw new Error(`Could not stop process ${pid}`);
+        return stopWindowsProcess(pid, force, expectedIdentity, (targetPid, shouldForce) => {
+          const args = shouldForce
+            ? ["/F", "/T", "/PID", String(targetPid)]
+            : ["/T", "/PID", String(targetPid)];
+          return spawnSync("taskkill", args, { stdio: "ignore" });
+        });
       } else {
         stopUnixProcess(pid, force);
       }
@@ -205,7 +231,7 @@ export async function clearDevPortsWith(ports, ops) {
     if (!first.owned) throw new Error(`Refusing to stop unrelated process ${pid}`);
 
     if (!(await inspectSameProcess(ops, pid, first.identity))) continue;
-    await ops.stop(pid, false);
+    await ops.stop(pid, false, first.identity);
 
     let current = first;
     for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -214,10 +240,11 @@ export async function clearDevPortsWith(ports, ops) {
       if (!current) break;
     }
     if (!current) continue;
+    if (ops.canForce === false) continue;
 
     // Revalidate immediately before escalation. A recycled PID is never killed.
     if (!(await inspectSameProcess(ops, pid, first.identity))) continue;
-    await ops.stop(pid, true);
+    await ops.stop(pid, true, first.identity);
   }
 
   let remaining = await ops.listeners(ports);
