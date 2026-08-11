@@ -117,10 +117,13 @@ are reused.
 
 ## License
 
-IndexTTS 2.5 uses the upstream Bilibili model license. It permits academic
-research, education, and non-commercial use subject to its terms. Commercial
-use requires permission from the upstream authors. Review the license on the
-[IndexTTS 2.5 model page](https://huggingface.co/IndexTeam/IndexTTS-2.5)
-before use.
+IndexTTS 2.5 uses the bilibili Model Use License. It grants a limited,
+worldwide, non-exclusive, royalty-free license subject to its restrictions.
+A separate license is required when the user or an affiliate exceeded 100
+million monthly active users in the preceding month or RMB 1 billion in annual
+revenue in the preceding year. The agreement also includes downstream,
+derivative-work, prohibited-use, attribution, and compliance obligations.
+Review the [official license](https://huggingface.co/IndexTeam/IndexTTS-2.5/blob/main/LICENSE)
+before installing or using the model.
 
 See [Engine venvs and disk usage](disk-usage.md) for storage details.

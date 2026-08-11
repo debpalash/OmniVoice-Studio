@@ -108,8 +108,8 @@ class IndexTTS2Backend(SubprocessBackend):
     ``${OMNIVOICE_INDEXTTS_DIR}/.venv`` is preferred if present, so no
     re-install is needed.
 
-    License: Custom (Bilibili) — free for research/non-commercial.
-    Commercial use requires contacting indexspeech@bilibili.com.
+    License: bilibili Model Use License. A separate license is required
+    above the upstream 100M-MAU or RMB 1B annual-revenue thresholds.
     """
 
     id = "indextts2"
