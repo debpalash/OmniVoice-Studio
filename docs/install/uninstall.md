@@ -143,8 +143,10 @@ model paths don't hit the 260-character `MAX_PATH` limit.
 - **App-managed engine sidecars:** if VoiceStudio installed IndexTTS 2.5,
   CosyVoice, or another sidecar, its isolated venv lives under the app-config
   folder above and is removed with it. A user-managed IndexTTS checkout set via
-  `OMNIVOICE_INDEXTTS_DIR` is outside that folder and is never removed; retain
-  or delete it separately.
+  `OMNIVOICE_INDEXTTS_DIR` is preserved only when its resolved path is outside
+  the app-config folder. Verify the resolved path before cleanup: anything
+  inside the app-config folder is removed with it; retain or delete an external
+  checkout separately.
 
 > **Shared HF cache caveat:** `~/.cache/huggingface/` is the **standard Hugging
 > Face cache**, shared by any tool that uses `huggingface_hub` (other ML apps,

@@ -511,23 +511,26 @@ def test_sidecar_25_requires_language_and_drops_legacy_target_tokens():
     assert "target_tokens" not in kwargs
 
 
-def test_public_duration_changes_indextts25_wire_factor():
-    """The public duration field must not become a no-op on IndexTTS 2.5."""
+@pytest.mark.parametrize(("duration", "expected"), [(0.5, 0.5), (2.0, 2.0)])
+def test_public_duration_maps_to_exact_indextts25_factor(duration, expected):
+    """The public duration field must reach the 2.5 sidecar boundary."""
+    from engines.indextts import _duration_factor
     from engines.indextts import main as sidecar
 
-    short = sidecar._build_infer_kwargs(
-        {"text": "hello", "lang": "en", "target_tokens": 21, "duration_factor": 0.5},
-        "/tmp/ref.wav",
+    # Fifteen English characters are one natural second in the shared model.
+    factor = _duration_factor("abcdefghijklmno", "en", duration)
+    kwargs = sidecar._build_infer_kwargs(
+        {
+            "text": "abcdefghijklmno",
+            "lang": "en",
+            "target_tokens": int(duration * 21),
+            "duration_factor": factor,
+        },
+        "ref.wav",
         is_v25=True,
     )
-    long = sidecar._build_infer_kwargs(
-        {"text": "hello", "lang": "en", "target_tokens": 84, "duration_factor": 2.0},
-        "/tmp/ref.wav",
-        is_v25=True,
-    )
-    assert short["duration_factor"] < long["duration_factor"]
-    assert "target_tokens" not in short
-    assert "target_tokens" not in long
+    assert kwargs["duration_factor"] == expected
+    assert "target_tokens" not in kwargs
 
 
 def test_sidecar_25_uses_25_config_and_gates_bf16(monkeypatch):

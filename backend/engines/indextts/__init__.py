@@ -75,6 +75,16 @@ def _normalize_indextts25_language(value, text: str) -> str:
     return "en"
 
 
+def _duration_factor(text: str, language: str, duration: float) -> float:
+    """Map VoiceStudio's absolute duration to IndexTTS 2.5's relative scale."""
+    from services.speech_rate import expected_duration
+
+    natural_s = expected_duration(text, language)
+    if natural_s <= 0:
+        return 1.0
+    return max(0.5, min(float(duration) / natural_s, 2.0))
+
+
 class IndexTTS2Backend(SubprocessBackend):
     """IndexTTS 2.5 (Bilibili) — isolated subprocess with IndexTTS-2 fallback.
 
@@ -231,13 +241,9 @@ class IndexTTS2Backend(SubprocessBackend):
             # reading estimate as the dubbing fit planner so the public
             # ``duration`` control remains effective on 2.5; the sidecar
             # drops this factor when it detects a legacy IndexTTS-2 checkout.
-            from services.speech_rate import expected_duration
-
-            natural_s = expected_duration(text, language)
-            if natural_s > 0:
-                forwarded["duration_factor"] = max(
-                    0.5, min(float(duration) / natural_s, 2.0)
-                )
+            forwarded["duration_factor"] = _duration_factor(
+                text, language, float(duration)
+            )
 
         if (
             emo_vector

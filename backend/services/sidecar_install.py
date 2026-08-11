@@ -563,7 +563,7 @@ def uninstall(engine_id: str) -> dict:
     if env_dir:  # only ever the managed checkout at this point
         os.environ.pop(spec.env_var, None)
     from core import prefs
-    if prefs.get(f"env.{spec.env_var}") == str(checkout):
+    if prefs.get(f"env.{spec.env_var}") in {str(path) for path in managed_paths}:
         prefs.delete(f"env.{spec.env_var}")
     try:
         spec.invalidate()

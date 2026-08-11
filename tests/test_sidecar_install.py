@@ -596,6 +596,20 @@ def test_uninstall_refuses_user_managed_clone(monkeypatch, tmp_path):
     assert os.environ["OMNIVOICE_FAKE_SIDE_DIR"] == str(user_clone)  # never cleared
 
 
+def test_uninstall_clears_legacy_managed_preference(monkeypatch):
+    spec = si.get_spec("indextts2")
+    legacy = si.managed_root(spec) / "index-tts"
+    legacy.mkdir(parents=True)
+    monkeypatch.setenv(spec.env_var, str(legacy))
+    deleted = []
+    monkeypatch.setattr("core.prefs.get", lambda k, d=None: str(legacy))
+    monkeypatch.setattr("core.prefs.delete", lambda k: deleted.append(k))
+
+    assert si.uninstall(spec.engine_id)["status"] == "uninstalled"
+    assert spec.env_var not in os.environ
+    assert deleted == [f"env.{spec.env_var}"]
+
+
 def test_uninstall_refuses_while_job_running(monkeypatch):
     spec = _mk_spec()
     monkeypatch.setitem(si.SPECS, "fake-side", spec)
