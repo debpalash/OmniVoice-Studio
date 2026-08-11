@@ -276,12 +276,16 @@ ElevenLabs 收费 **$5–$330/月**，并在他们的服务器上处理你的音
 | **KittenTTS** | 英语 | — | — | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
 | **MLX-Audio**（Kokoro、Qwen3-TTS、CSM、Dia 等） | 多语言 | 因模型而异 | 因模型而异 | ❌ | ✅ 原生 | ❌ | 因模型而异 |
 | **Sherpa-ONNX** | 20+ | — | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
-| **IndexTTS 2.5** ⚡ | 中文 · 英语 · 日语 · 西班牙语 · 阿拉伯语 | ✅ | — | ✅ CUDA | — | ✅ CUDA | Bilibili 模型许可 |
+| **IndexTTS 2.5** ⚡ | 中文 · 英语 · 日语 · 西班牙语 · 阿拉伯语 | ✅ | — | ✅ CUDA | — | ✅ CUDA | Bilibili 模型许可¹ |
 | **OmniVoice GGUF** ⚡ | 600+ | ✅ | ✅ | ✅ CPU | ✅ CPU | ✅ CPU | 内置 |
 | **Supertonic 3** ⚡ | 31 | — | — | ✅ CPU | ✅ CPU | ✅ CPU | OpenRAIL-M |
 | **MOSS-TTS-v1.5** ⚡（8B） | 31 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
 | **dots.tts** ⚡（2B） | 24 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ❌ | Apache-2.0 |
 | **Confucius4-TTS** ⚡ | 14 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
+
+¹ 若月活跃用户超过 1 亿，或年收入超过人民币 10 亿元，使用 IndexTTS 2.5
+前必须另行取得 Bilibili 的书面许可。启用可选边车前，请审阅其
+[模型许可](https://huggingface.co/IndexTeam/IndexTTS-2.5/blob/main/LICENSE)。
 
 > **CUDA** = GPU 加速 · **MPS** = Apple Silicon Metal · **CPU** = 随处可运行，大模型较慢 · KittenTTS 和 MOSS-TTS-Nano 可在 CPU 上实时运行 · MLX-Audio 仅限 Apple Silicon · ⚡ = 延迟注册（首次使用时安装）
 >

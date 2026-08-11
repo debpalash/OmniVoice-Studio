@@ -650,12 +650,14 @@ def test_indextts25_health_requires_25_config_name(monkeypatch):
     assert si._healthy(spec) is True
 
 
-def test_managed_indextts2_source_without_25_module_is_replaced(monkeypatch):
+def test_managed_indextts2_source_is_preserved_during_25_install(monkeypatch):
     spec = si.get_spec("indextts2")
+    legacy = si.managed_root(spec) / "index-tts"
+    legacy.mkdir(parents=True)
+    (legacy / "pyproject.toml").write_text("[project]\nname='indextts'\n")
+    (legacy / "old-v2-only.txt").write_text("old")
+    monkeypatch.setenv(spec.env_var, str(legacy))
     checkout = si.managed_checkout(spec)
-    checkout.mkdir(parents=True)
-    (checkout / "pyproject.toml").write_text("[project]\nname='indextts'\n")
-    (checkout / "old-v2-only.txt").write_text("old")
     argvs = []
 
     def fake_run(job, argv, *, timeout, env=None):
@@ -675,7 +677,7 @@ def test_managed_indextts2_source_without_25_module_is_replaced(monkeypatch):
     si._step_fetch_source(spec, job)
     clone = next(argv for argv in argvs if argv[1] == "clone")
     assert clone[clone.index("--branch") + 1] == "indextts-2.5"
-    assert not (checkout / "old-v2-only.txt").exists()
+    assert (legacy / "old-v2-only.txt").read_text() == "old"
     assert si._source_present(spec, checkout)
 
 

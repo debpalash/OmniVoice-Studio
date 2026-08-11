@@ -26,8 +26,10 @@ The installer:
 - resumes partial model downloads;
 - saves `OMNIVOICE_INDEXTTS_DIR` and activates the engine without a restart.
 
-App-managed IndexTTS-2 source is replaced by 2.5 when its installer is run.
-User-managed clones are never modified or removed; their legacy
+An app-managed IndexTTS-2 checkout remains intact while 2.5 installs into a
+separate directory. VoiceStudio switches to 2.5 only after the new source,
+environment, and weights pass verification. User-managed clones are never
+modified or removed; their legacy
 `indextts.infer_v2` entry point remains supported.
 
 ## Manual install
@@ -125,5 +127,10 @@ revenue in the preceding year. The agreement also includes downstream,
 derivative-work, prohibited-use, attribution, and compliance obligations.
 Review the [official license](https://huggingface.co/IndexTeam/IndexTTS-2.5/blob/main/LICENSE)
 before installing or using the model.
+
+This model is not covered by VoiceStudio's blanket commercial-use statement.
+Organizations above either threshold must obtain Bilibili's separate written
+license before installing or using IndexTTS 2.5. Other engines remain available
+without enabling this optional sidecar.
 
 See [Engine venvs and disk usage](disk-usage.md) for storage details.

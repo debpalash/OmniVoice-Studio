@@ -137,7 +137,7 @@ SPECS: dict[str, SidecarSpec] = {
             "https://github.com/index-tts/index-tts/archive/"
             "bf2e967fac7933197143b017a60820b1ad40c448.tar.gz"
         ),
-        checkout_dirname="index-tts",
+        checkout_dirname="index-tts-2.5",
         env_var="OMNIVOICE_INDEXTTS_DIR",
         probe_module="indextts.infer_v2_5",
         repo_ref="indextts-2.5",
@@ -179,6 +179,13 @@ def managed_root(spec: SidecarSpec) -> Path:
 
 def managed_checkout(spec: SidecarSpec) -> Path:
     return managed_root(spec) / spec.checkout_dirname
+
+
+def _legacy_managed_checkouts(spec: SidecarSpec) -> tuple[Path, ...]:
+    """App-owned predecessor checkouts retained during in-place upgrades."""
+    if spec.engine_id == "indextts2":
+        return (managed_root(spec) / "index-tts",)
+    return ()
 
 
 def _venv_python(venv_dir: Path) -> Path:
@@ -320,7 +327,9 @@ def disk_space_error(spec: SidecarSpec) -> Optional[str]:
     (needs X + headroom Y, have Z — same shape as the model-install guard);
     ``None`` when it fits or the volume can't be probed."""
     root = managed_root(spec)
-    already = _dir_size_bytes(root)
+    # A preserved predecessor is not a partial copy of the new install: the
+    # upgrade needs its full space until the new sidecar is verified.
+    already = _dir_size_bytes(managed_checkout(spec))
     remaining = max(0, spec.required_bytes - already)
     free = disk_free_bytes(root)
     if free <= 0:
@@ -421,8 +430,8 @@ def get_status(engine_id: str) -> dict:
         # True when the on-disk install is the app-managed one (uninstallable
         # from the app). A user's own clone is never "managed".
         "managed": bool(
-            checkout.is_dir()
-            and (not env_dir or Path(env_dir) == checkout)
+            (checkout.is_dir() and (not env_dir or Path(env_dir) == checkout))
+            or (env_dir and Path(env_dir) in _legacy_managed_checkouts(spec))
         ),
         "install_dir": env_dir or (str(checkout) if checkout.is_dir() else None),
         "job": job,
@@ -440,7 +449,8 @@ def _user_managed_dir(spec: SidecarSpec) -> Optional[Path]:
     """The user's own install dir when the env var points anywhere but the
     app-managed checkout; None for managed/unset (ours to provision)."""
     env_dir = os.environ.get(spec.env_var)
-    if env_dir and Path(env_dir) != managed_checkout(spec):
+    managed_paths = (managed_checkout(spec), *_legacy_managed_checkouts(spec))
+    if env_dir and Path(env_dir) not in managed_paths:
         return Path(env_dir)
     return None
 
@@ -454,6 +464,11 @@ def _healthy(spec: SidecarSpec) -> bool:
         return _safe_installed(spec)
     checkout = managed_checkout(spec)
     if not checkout.is_dir():
+        # A working app-managed predecessor stays available to the engine,
+        # but the install endpoint must still offer the reviewed 2.5 upgrade.
+        env_dir = os.environ.get(spec.env_var)
+        if env_dir and Path(env_dir) in _legacy_managed_checkouts(spec):
+            return False
         # No managed install at all. A legacy install may still exist (e.g.
         # IndexTTS's old lazy-bootstrap venv under backend/engines/) — trust
         # the engine's own probe so we never re-provision over a working one.
@@ -531,7 +546,8 @@ def uninstall(engine_id: str) -> dict:
             return {"status": "install_in_progress", "engine": engine_id}
     env_dir = os.environ.get(spec.env_var)
     checkout = managed_checkout(spec)
-    if env_dir and Path(env_dir) != checkout:
+    managed_paths = (checkout, *_legacy_managed_checkouts(spec))
+    if env_dir and Path(env_dir) not in managed_paths:
         return {
             "status": "not_managed",
             "engine": engine_id,
@@ -626,9 +642,9 @@ def _step_fetch_source(spec: SidecarSpec, job: dict) -> None:
         _log(job, f"Source already present at {checkout} — skipping fetch.")
         return
     if checkout.exists():
-        # Half-fetched or superseded checkout — repair by refetching. This is
-        # also the managed IndexTTS-2 -> 2.5 migration: the old checkout lacks
-        # infer_v2_5.py and the reviewed-source marker.
+        # Half-fetched checkout — repair by refetching. Superseded managed
+        # generations live at a different path and remain usable until this
+        # replacement has completed successfully.
         _log(job, f"Removing incomplete or outdated checkout at {checkout} …")
         shutil.rmtree(checkout, ignore_errors=True)
 

@@ -225,6 +225,19 @@ class IndexTTS2Backend(SubprocessBackend):
         duration_factor = kw.get("duration_factor")
         if duration_factor is not None:
             forwarded["duration_factor"] = max(0.5, min(float(duration_factor), 2.0))
+        elif duration is not None:
+            # IndexTTS 2.5 replaced absolute semantic-token control with a
+            # relative duration factor. Use the same language-aware natural
+            # reading estimate as the dubbing fit planner so the public
+            # ``duration`` control remains effective on 2.5; the sidecar
+            # drops this factor when it detects a legacy IndexTTS-2 checkout.
+            from services.speech_rate import expected_duration
+
+            natural_s = expected_duration(text, language)
+            if natural_s > 0:
+                forwarded["duration_factor"] = max(
+                    0.5, min(float(duration) / natural_s, 2.0)
+                )
 
         if (
             emo_vector

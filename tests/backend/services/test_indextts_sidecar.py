@@ -218,6 +218,7 @@ def test_synthesize_forwards_emotion_kwargs_via_vector(monkeypatch, patched_inde
     assert payload["use_random"] is True
     # duration=2.0 → target_tokens = int(2.0 * 21) = 42
     assert payload["target_tokens"] == 42
+    assert payload["duration_factor"] == pytest.approx(2.0)
     # The losing modalities are dropped — sidecar never sees them.
     assert "emo_audio_prompt" not in payload
     assert "emo_text" not in payload
@@ -508,6 +509,25 @@ def test_sidecar_25_requires_language_and_drops_legacy_target_tokens():
     assert kwargs["lang"] == "es"
     assert kwargs["duration_factor"] == 1.2
     assert "target_tokens" not in kwargs
+
+
+def test_public_duration_changes_indextts25_wire_factor():
+    """The public duration field must not become a no-op on IndexTTS 2.5."""
+    from engines.indextts import main as sidecar
+
+    short = sidecar._build_infer_kwargs(
+        {"text": "hello", "lang": "en", "target_tokens": 21, "duration_factor": 0.5},
+        "/tmp/ref.wav",
+        is_v25=True,
+    )
+    long = sidecar._build_infer_kwargs(
+        {"text": "hello", "lang": "en", "target_tokens": 84, "duration_factor": 2.0},
+        "/tmp/ref.wav",
+        is_v25=True,
+    )
+    assert short["duration_factor"] < long["duration_factor"]
+    assert "target_tokens" not in short
+    assert "target_tokens" not in long
 
 
 def test_sidecar_25_uses_25_config_and_gates_bf16(monkeypatch):

@@ -248,12 +248,17 @@ Professional-grade voice AI, minus the subscription and the cloud.
 | **KittenTTS** | English | — | — | ✅ CPU | ✅ CPU | ✅ CPU | MIT |
 | **MLX-Audio** (Kokoro, Qwen3-TTS, CSM, Dia, …) | Multi | Varies | Varies | ❌ | ✅ Native | ❌ | Varies |
 | **Sherpa-ONNX** | 20+ | — | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
-| **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | ✅ | — | ✅ CUDA | — | ✅ CUDA | Bilibili model license |
+| **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | ✅ | — | ✅ CUDA | — | ✅ CUDA | Bilibili model license¹ |
 | **OmniVoice GGUF** ⚡ | 600+ | ✅ | ✅ | ✅ CPU | ✅ CPU | ✅ CPU | Built-in |
 | **Supertonic 3** ⚡ | 31 | — | — | ✅ CPU | ✅ CPU | ✅ CPU | OpenRAIL-M |
 | **MOSS-TTS-v1.5** ⚡ (8B) | 31 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
 | **dots.tts** ⚡ (2B) | 24 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ❌ | Apache-2.0 |
 | **Confucius4-TTS** ⚡ | 14 | ✅ | — | ✅ CUDA/CPU | ✅ CPU | ✅ CUDA/CPU | Apache-2.0 |
+
+¹ IndexTTS 2.5 requires a separate written Bilibili license above 100 million
+monthly active users or RMB 1 billion in annual revenue. Review its
+[model license](https://huggingface.co/IndexTeam/IndexTTS-2.5/blob/main/LICENSE)
+before enabling the optional sidecar.
 
 GPT-SoVITS connects to `http://127.0.0.1:9880` by default. To use a server on
 another machine, set `OMNIVOICE_GPTSOVITS_URL` to its credential-free

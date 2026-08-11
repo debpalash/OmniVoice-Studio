@@ -140,9 +140,11 @@ model paths don't hit the 260-character `MAX_PATH` limit.
   `HF_HUB_CACHE`), your data is there instead of the defaults above.
 - **Portable mode:** everything lives in an `OmniVoiceStudio-Data/` folder next
   to the app binary — delete that one folder and you're done.
-- **Optional engine sidecars:** if you installed IndexTTS 2.5, CosyVoice, or
-  another sidecar engine, its isolated venv lives under the app-config folder
-  above and is removed with it.
+- **App-managed engine sidecars:** if VoiceStudio installed IndexTTS 2.5,
+  CosyVoice, or another sidecar, its isolated venv lives under the app-config
+  folder above and is removed with it. A user-managed IndexTTS checkout set via
+  `OMNIVOICE_INDEXTTS_DIR` is outside that folder and is never removed; retain
+  or delete it separately.
 
 > **Shared HF cache caveat:** `~/.cache/huggingface/` is the **standard Hugging
 > Face cache**, shared by any tool that uses `huggingface_hub` (other ML apps,
