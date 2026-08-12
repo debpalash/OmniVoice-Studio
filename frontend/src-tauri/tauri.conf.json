@@ -72,6 +72,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "category": "Music",
     "resources": [
       "../../pyproject.toml",
       "../../uv.lock",
@@ -88,7 +89,8 @@
     "linux": {
       "appimage": {
         "files": {
-          "usr/lib/.bundled-webkitgtk-version": "target/.tauri/bundled-webkitgtk-version"
+          "usr/lib/.bundled-webkitgtk-version": "target/.tauri/bundled-webkitgtk-version",
+          ".DirIcon": "icons/128x128.png"
         }
       }
     },

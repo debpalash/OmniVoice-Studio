@@ -26,6 +26,11 @@ the frozen-backend fallback mirror it for their toolchains.
 - Apple Silicon: transcription no longer needs a system ffmpeg, as the docs always said — thanks @gambletan! (#1436)
 - A failed audiobook chapter says why, instead of turning red and saying nothing
 
+### Fixed
+
+- The Linux app icon is no longer blank. Every AppImage since v0.4.2 shipped `.DirIcon` as an absolute symlink into the machine that built it (`/home/runner/work/…`), so the link dangled on every user's computer and file managers, app menus and desktop integration all drew nothing. The release build now verifies the icon resolves inside the bundle before publishing. (#PR)
+- The Linux desktop entry no longer ships an empty `Categories=`, which `desktop-file-validate` rejects and menu builders skip. (#PR)
+
 ### Changed
 
 - Linux release smoke now validates linuxdeploy's wrapped custom launcher instead of rejecting a healthy AppImage. (#1506)
