@@ -1576,23 +1576,27 @@ select.input-base:focus-visible,
   0%, 100% { transform: scaleX(0.35); opacity: 0.35; }
   50%      { transform: scaleX(1);    opacity: 0.85; }
 }
-/* Action cards — flat chrome frame, painted with:
-     • an always-on breath ring (the "eternal glow")
-     • a cursor-tracked spotlight that fires on hover
-   `--card-hue` (inline style) drives everything — background tint, icon,
-   accent border, glow color — so each card's personality flows from one
-   hex value. `isolation: isolate` contains the pseudo-layer z-stack.
-   (The `.lp-actions` grid container is utility-styled inline on the
-   component; only the card itself keeps a class here for its pseudo
-   spotlight / breath-ring layers and nth-child stagger.) */
+/* Action cards — quiet, borderless tiles.
+   The app-wide token zeroing at the bottom of this file makes every
+   `--chrome-border` transparent, so a card's structure can't come from a
+   frame; it comes from a whisper-faint surface plus internal rhythm. Colour
+   is spent sparingly: `--card-hue` (inline style) tints the glyph at rest and
+   only takes over the surface, the count and the arrow once the card is
+   raised. `isolation: isolate` keeps the raised card's shadow in its own
+   stacking context. (The `.lp-cards` grid is utility-styled on the component;
+   the card keeps a class here for its hover/focus choreography.) */
 .lp-action-card {
-  background: transparent;
-  border: 1px solid var(--chrome-border);
+  background: color-mix(in srgb, var(--chrome-fg) 3.5%, transparent);
+  border: 0;
   border-radius: var(--chrome-radius-pill);
-  padding: 18px 18px 16px;
+  padding: 15px 16px 16px;
   cursor: pointer;
-  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-base);
-  position: relative; overflow: visible;
+  display: flex; flex-direction: column;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+  position: relative; overflow: hidden;
   box-shadow: none;
   isolation: isolate;
   /* Native <button> reset */
@@ -1600,119 +1604,101 @@ select.input-base:focus-visible,
 }
 /* Hover OR keyboard focus raises the card forward — the `--raised` class is
    set from React state so pointer and keyboard share one path (`:hover` is
-   kept as a no-JS fallback). */
+   kept as a no-JS fallback). A 2px lift and a soft neutral shadow: enough to
+   read as "this one", not a bounce. */
 .lp-action-card:hover,
 .lp-action-card--raised {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 7%, transparent);
-  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
-  box-shadow: 0 18px 36px -18px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
+  box-shadow: 0 14px 28px -22px rgba(0, 0, 0, 0.9);
   z-index: 2;
 }
+.lp-action-card:active { transform: translateY(0); }
+.lp-action-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 70%, transparent);
+  outline-offset: 2px;
+}
+/* Head row — bare glyph left, count right, on one optical line. No chip, no
+   ring around the icon: the glyph itself is the accent. */
+.lp-action-card .card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 14px;
+}
 .lp-action-card .card-icon {
-  width: 34px; height: 34px; position: relative; z-index: 1;
-  border-radius: var(--chrome-radius-pill);
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 28%, transparent);
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 10px;
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--card-hue, var(--chrome-accent));
+  opacity: 0.78;
+  transition: opacity var(--dur-base) var(--ease-out);
 }
 .lp-action-card:hover .card-icon,
-.lp-action-card--raised .card-icon {
-  transform: scale(1.05);
-  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 45%, transparent);
-}
-/* ── Glow layer (spotlight + breath ring) ────────────────────────── */
-.lp-glow-layer {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-/* Cursor spotlight — radial gradient whose center is set by --mx/--my
-   from onMouseMove. Fades in only while the card is hovered. */
-.lp-glow-layer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    260px circle at var(--mx, 50%) var(--my, 50%),
-    color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 28%, transparent) 0%,
-    transparent 55%
-  );
-  opacity: 0;
-  transition: opacity 260ms ease;
-}
-.lp-action-card:hover .lp-glow-layer::before,
-.lp-action-card--raised .lp-glow-layer::before { opacity: 1; }
-/* Eternal breath ring — pulses forever, tied to the card's hue. `--lp-i`
-   offsets each card's phase so the row reads "alive," not "strobing." */
-.lp-glow-layer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 1px solid color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 30%, transparent);
-  opacity: 0.2;
-  animation: lpBreath 5.2s ease-in-out infinite;
-  animation-delay: calc(var(--lp-i, 0) * -0.74s);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent);
-}
-@keyframes lpBreath {
-  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 0 transparent; }
-  50%      { opacity: 0.55; box-shadow: 0 0 22px 0 color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 20%, transparent); }
-}
-/* Count badge leans on card hue too instead of hardcoded rgba. */
-.lp-action-card .card-count {
-  border-color: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 50%, transparent) !important;
-  color: var(--card-hue, var(--chrome-accent)) !important;
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 10%, var(--chrome-bg)) !important;
-}
+.lp-action-card--raised .card-icon { opacity: 1; }
 /* Respect reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   .lp-aurora__blob,
   .lp-hero__halo,
   .lp-hero__sweep,
-  .lp-glow-layer::after,
-  .lp-wave-bar {
+  .lp-wave-bar,
+  .lp-animate {
     animation: none !important;
   }
+  .lp-action-card:hover,
+  .lp-action-card--raised { transform: none; }
+}
+/* Title row — name left, open affordance parked at the right margin. */
+.lp-action-card .card-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 5px;
 }
 .lp-action-card h3 {
-  font-family: var(--chrome-font-mono);
-  font-size: 0.82rem; font-weight: 600; margin: 0 0 4px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem; font-weight: 500; margin: 0;
   color: var(--chrome-fg);
-  letter-spacing: var(--chrome-label-track);
-  text-transform: uppercase;
-  position: relative; z-index: 1;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+  min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* The arrow is pure decoration (aria-hidden in the JSX) — it drifts into
+   place on raise rather than sitting there as permanent furniture. */
+.lp-action-card .card-go {
+  display: inline-flex; flex-shrink: 0;
+  color: var(--chrome-fg-dim);
+  opacity: 0;
+  transform: translate(-3px, 3px);
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+.lp-action-card:hover .card-go,
+.lp-action-card--raised .card-go {
+  opacity: 1;
+  transform: translate(0, 0);
+  color: var(--card-hue, var(--chrome-accent));
 }
 .lp-action-card .card-desc {
   font-family: var(--font-sans);
-  font-size: 0.72rem; color: var(--chrome-fg-muted); margin: 0; line-height: 1.5;
+  font-size: 0.71rem; color: var(--chrome-fg-muted); margin: 0; line-height: 1.55;
   font-weight: 400;
-  position: relative; z-index: 1;
-  min-height: 3em;
+  min-height: 3.1em;
   /* Clamp to two lines so every card in a grid row is the same height. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
+/* Count is a plain tabular numeral, not a badge — no pill, no ring, no
+   negative offset hanging off the corner. */
 .lp-action-card .card-count {
   font-family: var(--chrome-font-mono);
-  font-size: var(--chrome-label-size); font-weight: 600;
+  font-size: var(--chrome-label-size); font-weight: 500;
   letter-spacing: var(--chrome-label-track);
-  padding: 1px 7px;
-  border-radius: var(--chrome-radius-pill);
-  position: absolute; top: -8px; right: -6px; z-index: 2;
-  transform: none;
-  box-shadow: none;
-  border: 1px solid var(--chrome-border-strong);
-  background: var(--chrome-bg);
+  font-variant-numeric: tabular-nums;
+  color: var(--chrome-fg-dim);
+  transition: color var(--dur-base) var(--ease-out);
 }
+.lp-action-card:hover .card-count,
+.lp-action-card--raised .card-count { color: var(--card-hue, var(--chrome-accent)); }
 
 /* ── Personality picker strip ────────────────────────────── */
 .personality-strip {
@@ -1735,8 +1721,12 @@ select.input-base:focus-visible,
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* `backwards`, deliberately NOT `both`: a forwards-filling animation keeps
+   owning `transform` after it ends, and animation-origin declarations outrank
+   normal ones — which would silently kill `.lp-action-card`'s hover lift.
+   Backwards fill still holds the from-state through the stagger delay. */
 .lp-animate {
-  animation: lpFadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: lpFadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
   /* Stagger the deal across all cards via each card's own --lp-i (set inline
      in LaunchpadDeck) — degrades to 0s where --lp-i is absent. */
   animation-delay: calc(var(--lp-i, 0) * 0.05s);
@@ -1786,40 +1776,12 @@ select.input-base:focus-visible,
    column stretching (1fr) so there are no dead margins and no horizontal
    scroll. `--lp-card-min` is set inline from useShellNarrow (a wider floor on
    narrow shells → fewer, comfier columns). The cards are the .lp-action-card
-   tiles above, each carrying a decorative waveform strip. */
+   tiles above. */
 .lp-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--lp-card-min, 200px), 1fr));
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-}
-/* Decorative waveform strip on each card — 7 accent bars breathing on
-   stagger-delayed scaleY; `--lp-i` shifts each card's phase so the row never
-   pulses in lockstep. aria-hidden in the JSX. Frozen under reduced motion. */
-@keyframes lpCardWave {
-  0%, 100% { transform: scaleY(0.35); opacity: 0.5; }
-  50%      { transform: scaleY(1);    opacity: 0.95; }
-}
-.lp-card-wave {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 18px;
-  margin-top: 12px;
-  position: relative;
-  z-index: 1;
-}
-.lp-card-wave__bar {
-  width: 3px;
-  height: var(--wave-h, 12px);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--card-hue, var(--chrome-accent)) 72%, var(--chrome-fg-muted));
-  transform-origin: bottom center;
-  animation: lpCardWave 1.6s ease-in-out infinite;
-  animation-delay: calc((var(--wave-i, 0) + var(--lp-i, 0)) * -0.19s);
-}
-@media (prefers-reduced-motion: reduce) {
-  .lp-card-wave__bar { animation: none; }
 }
 
 /* ── Searchable combobox ─────────────────────────────────── */

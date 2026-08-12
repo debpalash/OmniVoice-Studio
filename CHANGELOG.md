@@ -28,6 +28,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- The Launchpad has a quieter, more spacious look: borderless feature tiles that light up on hover or keyboard focus, plain-numeral counts, hairline section rules, and one shared page column for the hero, tiles, recent files and project lists.
 - Linux release smoke now validates linuxdeploy's wrapped custom launcher instead of rejecting a healthy AppImage. (#1506)
 - Remote GPU workers render audiobooks chapter by chapter, with automatic per-chapter local fallback and one combined notice if the worker drops out. (#1478)
 - Remote GPU workers can now run a job to completion: long renders no longer die at two minutes, a worker that drops and reconnects mid-render keeps its work, and a timed-out job no longer takes the worker offline for good. Placing a job still needs the development-only `POST /workers/tasks`; wiring the app's own Synthesize button to it comes next.
