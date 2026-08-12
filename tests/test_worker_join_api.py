@@ -64,8 +64,14 @@ def client(monkeypatch, tmp_path):
         yield c, settings
 
 
-def _stub_agent(monkeypatch, *, fail: str = ""):
-    """Replace the real agent's start/stop with recorded no-ops."""
+def _stub_agent(monkeypatch, *, fail: str = "", never_registers: str = ""):
+    """Replace the real agent's start/stop/registration with recorded no-ops.
+
+    `fail` makes `start()` raise (a token that cannot even be redeemed);
+    `never_registers` makes the connection start fine and the control plane
+    never accept it — the case a scheduled-means-success join could not tell
+    apart from a working one.
+    """
     calls: list = []
 
     async def _start(*, token_text: str = "", endpoint: str = ""):
@@ -77,8 +83,14 @@ def _stub_agent(monkeypatch, *, fail: str = ""):
     async def _stop():
         calls.append(("stop", ""))
 
+    async def _wait_until_registered(timeout: float = 20.0):
+        calls.append(("wait", ""))
+        if never_registers:
+            raise RuntimeError(never_registers)
+
     monkeypatch.setattr(worker_agent.agent, "start", _start)
     monkeypatch.setattr(worker_agent.agent, "stop", _stop)
+    monkeypatch.setattr(worker_agent.agent, "wait_until_registered", _wait_until_registered)
     monkeypatch.setattr(worker_agent.agent, "last_error", "")
     monkeypatch.setattr(worker_agent.agent, "endpoint", "")
     return calls
@@ -133,6 +145,102 @@ def test_a_failed_join_answers_with_the_reason_and_stays_off(client, monkeypatch
     # retrying forever.
     assert "worker_mode_enabled" not in settings
     assert c.get("/workers/agent").json()["last_error"].startswith("This enrollment token")
+
+
+def test_a_join_the_control_plane_never_accepts_is_not_a_success(client, monkeypatch, tmp_path):
+    """Scheduling the connection is not joining.
+
+    `start()` returns as soon as the dial-out loop is created, so a control
+    plane that rejects this worker — or never answers — used to persist worker
+    mode and report success, leaving the machine retrying forever against an
+    address that will not have it.
+    """
+    c, settings = client
+    calls = _stub_agent(monkeypatch, never_registers="The control plane did not answer in time.")
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_unreachable"})
+
+    assert response.status_code == 409
+    assert "did not answer" in response.json()["detail"]
+    assert "worker_mode_enabled" not in settings
+    # …and the half-started agent is not left dialling in the background.
+    assert calls[-1][0] == "stop"
+
+
+def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tmp_path):
+    """A rejoin that fails must not cost the user the control plane they had.
+
+    Pinning the new certificate overwrites the old one on disk, so without a
+    rollback a mistyped code left the machine unable to reconnect to anything.
+    """
+    c, settings = client
+    calls = _stub_agent(monkeypatch, never_registers="That code has expired.")
+    pinned = tmp_path / "pinned.crt"
+    pinned.write_bytes(b"previous-control-plane")
+    settings["worker_mode_enabled"] = "true"
+    settings["worker_endpoint"] = "studio-mac:7443"
+
+    # The join overwrites the pinned certificate before it fails, exactly as
+    # pin_certificate does on the real path.
+    original_start = worker_agent.agent.start
+
+    async def _start_and_pin(*, token_text: str = "", endpoint: str = ""):
+        # Only a start that redeems a token re-pins, exactly like the real
+        # path — the rollback's own start() reuses what is on disk.
+        if token_text:
+            pinned.write_bytes(b"the-control-plane-that-rejected-us")
+        await original_start(token_text=token_text, endpoint=endpoint)
+
+    monkeypatch.setattr(worker_agent.agent, "start", _start_and_pin)
+
+    assert c.post("/workers/agent/join", json={"token": "ovw_expired"}).status_code == 409
+    # The certificate the machine still needs, put back after the failed pin.
+    assert pinned.read_bytes() == b"previous-control-plane"
+    # …and the agent it was running is dialling again. Without the rollback the
+    # machine sits stopped until someone notices and toggles it back on: the
+    # join stops the old agent before it knows the new code is any good.
+    assert calls[-1] == ("start", ""), (
+        f"expected the previous enrollment to be resumed, got {calls!r}"
+    )
+    assert settings["worker_endpoint"] == "studio-mac:7443"
+    assert settings["worker_mode_enabled"] == "true"
+
+
+def test_an_env_pinned_machine_refuses_to_be_toggled(client, monkeypatch):
+    """The environment wins everywhere else, so it wins here too.
+
+    Writing the setting under OMNIVOICE_WORKER_MODE would store a value the
+    rest of the app ignores, and the next restart would undo whatever the
+    toggle appeared to do.
+    """
+    c, settings = client
+    _stub_agent(monkeypatch)
+    monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "1")
+
+    response = c.post("/workers/agent/enabled", json={"enabled": False})
+
+    assert response.status_code == 409
+    assert "OMNIVOICE_WORKER_MODE" in response.json()["detail"]
+    assert "worker_mode_enabled" not in settings
+
+
+def test_an_env_pinned_machine_refuses_a_join_too(client, monkeypatch):
+    """Joining ENABLES worker mode, so the same rule applies as to the toggle.
+
+    Under OMNIVOICE_WORKER_MODE the join would persist a setting nothing
+    consults — and with the variable pinned off, hand the user a machine that
+    reports a successful join and never lends anything.
+    """
+    c, settings = client
+    calls = _stub_agent(monkeypatch)
+    monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "0")
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_abc123"})
+
+    assert response.status_code == 409
+    assert "OMNIVOICE_WORKER_MODE" in response.json()["detail"]
+    assert calls == []
+    assert "worker_mode_enabled" not in settings
 
 
 def test_join_rejects_an_empty_code(client, monkeypatch):

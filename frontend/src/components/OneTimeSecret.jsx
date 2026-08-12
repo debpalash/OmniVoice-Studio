@@ -48,6 +48,10 @@ function useQrDataUrl(value, size = 320) {
       return undefined;
     }
     let cancelled = false;
+    // Drop the previous code FIRST. Encoding is async, so leaving it up meant
+    // a window where the QR on screen encoded the old secret while the text
+    // beside it showed the new one — and the QR is the half people scan.
+    setUrl('');
     QRCode.toDataURL(value, {
       margin: 1,
       width: size,

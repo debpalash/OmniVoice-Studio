@@ -158,6 +158,24 @@ def agent_status() -> dict:
     return worker_agent.agent.status()
 
 
+def _refuse_when_env_pinned(worker_agent) -> None:
+    """OMNIVOICE_WORKER_MODE wins over the setting everywhere else.
+
+    `worker_mode_enabled()` reads the variable first and `status()` reports the
+    machine as env-pinned, so a route that changed worker mode anyway would
+    contradict both: it writes a setting nothing consults, and the next restart
+    undoes whatever the user just saw happen.
+    """
+    if worker_agent.agent.status()["env_pinned"]:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "OMNIVOICE_WORKER_MODE controls this machine's worker mode. Unset it "
+                "and restart VoiceStudio to manage it from here."
+            ),
+        )
+
+
 @router.post("/agent/join")
 async def join_control_plane(request: JoinRequest) -> dict:
     """Redeem a join code and start working for that control plane.
@@ -176,17 +194,33 @@ async def join_control_plane(request: JoinRequest) -> dict:
     token = request.token.strip()
     if not token:
         raise HTTPException(status_code=422, detail="Paste the join code first.")
-    await worker_agent.agent.stop()
-    try:
-        await worker_agent.agent.start(token_text=token)
-    except Exception as exc:
-        worker_agent.agent.last_error = str(exc)
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    worker_agent.agent.last_error = ""
-    # Persisted only after the join actually worked: a machine that failed to
-    # enrol must not come back up trying again forever.
-    worker_agent.set_worker_mode_enabled(True)
-    return worker_agent.agent.status()
+    # Same rule as the toggle below: joining ENABLES worker mode, so under
+    # OMNIVOICE_WORKER_MODE it would write a setting the rest of the app
+    # ignores — and with the variable set to 0, hand the user a machine that
+    # says it joined and never lends anything (CodeRabbit).
+    _refuse_when_env_pinned(worker_agent)
+    async with worker_agent.agent.lifecycle:
+        # A rejoin replaces a working enrollment. Keep enough to put it back:
+        # pinning the new certificate overwrites the old one on disk, so a
+        # failed rejoin would otherwise leave the machine unable to reconnect
+        # to the control plane it was already serving.
+        previous = worker_agent.snapshot_enrollment()
+        await worker_agent.agent.stop()
+        try:
+            await worker_agent.agent.start(token_text=token)
+            # Success is the control plane ACCEPTING this worker, not the
+            # connection being scheduled — see wait_until_registered.
+            await worker_agent.agent.wait_until_registered()
+        except Exception as exc:
+            worker_agent.agent.last_error = str(exc)
+            await worker_agent.agent.stop()
+            await worker_agent.restore_enrollment(previous)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        worker_agent.agent.last_error = ""
+        # Persisted only after the join actually worked: a machine that failed
+        # to enrol must not come back up trying again forever.
+        worker_agent.set_worker_mode_enabled(True)
+        return worker_agent.agent.status()
 
 
 @router.post("/agent/enabled")
@@ -199,18 +233,22 @@ async def set_agent_enabled(request: EnableRequest) -> dict:
     """
     from worker import agent as worker_agent  # noqa: PLC0415
 
-    if request.enabled:
-        try:
-            await worker_agent.agent.start()
-        except Exception as exc:
-            worker_agent.agent.last_error = str(exc)
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        worker_agent.agent.last_error = ""
-        worker_agent.set_worker_mode_enabled(True)
-    else:
-        await worker_agent.agent.stop()
-        worker_agent.set_worker_mode_enabled(False)
-    return worker_agent.agent.status()
+    _refuse_when_env_pinned(worker_agent)
+    async with worker_agent.agent.lifecycle:
+        if request.enabled:
+            try:
+                await worker_agent.agent.start()
+                await worker_agent.agent.wait_until_registered()
+            except Exception as exc:
+                worker_agent.agent.last_error = str(exc)
+                await worker_agent.agent.stop()
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            worker_agent.agent.last_error = ""
+            worker_agent.set_worker_mode_enabled(True)
+        else:
+            await worker_agent.agent.stop()
+            worker_agent.set_worker_mode_enabled(False)
+        return worker_agent.agent.status()
 
 
 @router.post("/enrollments")

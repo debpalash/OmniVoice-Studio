@@ -46,6 +46,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- Remote workers reads as a device list: status dot, address, latency, a live task meter, resident models and last-seen per machine, with housekeeping actions revealed on hover and a three-step empty state. (#1516)
+- The GPU picker and the new status-bar control paint their status dots and menu surfaces from themed tokens instead of fixed palette classes, so they stop showing Gruvbox colours on Midnight and Catppuccin. (#1516)
 - Dictation shows the pill again: a capture puts a small always-on-top capsule near the bottom of the screen you are working on — listening, transcribing, the result, and any error — and takes it away when the session ends. It never takes focus, so the text still lands in the app you were typing into. On Wayland the compositor decides where it sits; everywhere else it is bottom-centred.
 - Remote workers reads as a device list: status dot, address, latency, a live task meter, resident models and last-seen per machine, with housekeeping actions revealed on hover and a three-step empty state. (#1516)
 - Engines and models moved out of Settings into a new Model Catalogue workspace, reachable from the icon rail (or the title-bar tabs); Settings → Engines and Settings → Models now point there, and Settings keeps the models directory and Hugging Face mirror.
