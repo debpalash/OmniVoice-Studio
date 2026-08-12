@@ -19,10 +19,13 @@
 # Usage: bash scripts/uv-sync-retry.sh [uv sync args...]
 set -uo pipefail
 
-ATTEMPTS="${UV_SYNC_ATTEMPTS:-4}"
-# 15s, 45s, 90s — long enough to outlast a transient refusal without turning a
-# genuinely broken lockfile into a five-minute wait for the same red X.
-BACKOFFS=(15 45 90)
+# Three attempts, not more: uv does its OWN retrying underneath (the smoke
+# matrix sets UV_HTTP_RETRIES=5 with a 120 s timeout), so attempts here
+# MULTIPLY that budget. Three attempts plus 60 s of backoff keeps the worst
+# case comfortably inside the jobs' timeout-minutes while still outlasting the
+# refusals actually seen — which cleared within seconds.
+ATTEMPTS="${UV_SYNC_ATTEMPTS:-3}"
+BACKOFFS=(15 45)
 
 for attempt in $(seq 1 "$ATTEMPTS"); do
   if uv sync "$@"; then

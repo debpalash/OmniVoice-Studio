@@ -110,7 +110,9 @@ def test_ci_verifies_intel_mac_as_the_documented_remote_only_host():
     assert re.search(
         r"if: matrix\.backend_supported\n        run: .*--extra pockettts", workflow
     ), "the pockettts extra must be installed only on backend_supported legs"
-    assert "if: matrix.backend_supported\n        run: uv run pytest tests/smoke/" in workflow
+    assert re.search(
+        r"if: matrix\.backend_supported\n        run: uv run .*pytest tests/smoke/", workflow
+    ), "the smoke suite must run only on backend_supported legs"
     assert "HF_HUB_CACHE: ${{ runner.temp }}/pockettts-empty-hf-cache" in workflow
 
 

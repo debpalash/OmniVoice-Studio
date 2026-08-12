@@ -405,7 +405,7 @@ jobs:
 
       - name: Run smoke tests
         if: matrix.backend_supported
-        run: uv run pytest tests/smoke/ -q --tb=short
+        run: uv run --no-sync pytest tests/smoke/ -q --tb=short
         env:
           HF_HUB_OFFLINE: "1"  # same no-silent-downloads guard as the main pytest job
           HF_HUB_CACHE: ${{ runner.temp }}/pockettts-empty-hf-cache
@@ -414,7 +414,7 @@ jobs:
       # Linux emulation cannot exercise sharing rules or path parsing.
       - name: Remote-worker artifact paths (Windows)
         if: runner.os == 'Windows' && matrix.backend_supported
-        run: uv run pytest tests/test_worker_upload_server.py tests/test_worker_server_integrity.py -q --tb=short
+        run: uv run --no-sync pytest tests/test_worker_upload_server.py tests/test_worker_server_integrity.py -q --tb=short
         env:
           HF_HUB_OFFLINE: "1"
           HF_HUB_CACHE: ${{ runner.temp }}/worker-artifact-empty-hf-cache
