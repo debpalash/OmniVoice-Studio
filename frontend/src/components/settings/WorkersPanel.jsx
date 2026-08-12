@@ -20,17 +20,28 @@
  *
  * The enrollment token is shown exactly once. Only its hash is stored, so
  * there is no way to display it again — that is the point, not a limitation.
+ * It is handed over as a QR as well as text (see <OneTimeSecret/>), because
+ * the machine that has to receive it is by definition not the machine holding
+ * the clipboard.
+ *
+ * The list is a device list, not a table of settings: each row answers "can I
+ * use this machine right now, and if not why" — status, address, latency, how
+ * loaded it is — and carries the actions for that one machine. Approval lives
+ * here too: a worker that connected but has never been approved is inert, and
+ * a panel that only labels that state without offering the yes is a dead end.
  */
 import React, { useState } from 'react';
-import { Cpu, Copy, Check, Trash2, PlayCircle, Pencil } from 'lucide-react';
+import { Cpu, Check, Trash2, PlayCircle, Pencil, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../api/client';
 import { askConfirm } from '../../utils/dialog';
+import OneTimeSecret from '../OneTimeSecret';
 import { SettingsSection, SettingRow, SettingsToggle } from './primitives';
 import { Button, Badge } from '../../ui';
 import InboundNodePanel from './InboundNodePanel';
+import JoinWorkerPanel from './JoinWorkerPanel';
 
 const REFRESH_MS = 5000;
 
@@ -62,11 +73,34 @@ async function request(path, { body, ...opts } = {}) {
   return payload;
 }
 
+/** Latency only means something for a machine across a network. */
+function latencyLabel(worker) {
+  const ms = worker.connected ? worker.latency_ms : 0;
+  // 0 is "not measured yet", not "instantaneous" — say nothing rather than
+  // claim a suspiciously perfect link.
+  if (!ms) return '';
+  return ms < 1 ? '<1 ms' : `${Math.round(ms)} ms`;
+}
+
+function relativeSeen(seconds, t) {
+  if (!seconds) return '';
+  const mins = Math.max(0, Math.round(Date.now() / 1000 - seconds) / 60);
+  if (mins < 1) return t('settings.workers_seen_now', { defaultValue: 'just now' });
+  if (mins < 60)
+    return t('settings.workers_seen_min', {
+      defaultValue: '{{count}}m ago',
+      count: Math.round(mins),
+    });
+  return t('settings.workers_seen_hr', {
+    defaultValue: '{{count}}h ago',
+    count: Math.round(mins / 60),
+  });
+}
+
 export default function WorkersPanel() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [token, setToken] = useState(null);
-  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const { data } = useQuery({
@@ -80,25 +114,31 @@ export default function WorkersPanel() {
 
   const enabled = Boolean(data?.enabled);
   const workers = data?.workers || [];
+  const online = workers.filter((w) => w.connected && w.enabled).length;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['workers'] });
 
-  const setEnabled = async (next) => {
-    setBusy(true);
+  /** Every mutation here is the same shape: run it, refresh, surface why not. */
+  const guarded = async (fn) => {
     try {
-      await request('/workers/enabled', { method: 'POST', body: { enabled: next } });
-      if (!next) setToken(null);
+      await fn();
       refresh();
     } catch (e) {
       toast.error(e?.message || String(e));
-    } finally {
-      setBusy(false);
     }
+  };
+
+  const setEnabled = async (next) => {
+    setBusy(true);
+    await guarded(async () => {
+      await request('/workers/enabled', { method: 'POST', body: { enabled: next } });
+      if (!next) setToken(null);
+    });
+    setBusy(false);
   };
 
   const createToken = async () => {
     setBusy(true);
-    setCopied(false);
     try {
       setToken(
         await request('/workers/enrollments', { method: 'POST', body: { ttl_seconds: 900 } }),
@@ -107,15 +147,6 @@ export default function WorkersPanel() {
       toast.error(e?.message || String(e));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const copyToken = async () => {
-    try {
-      await navigator.clipboard.writeText(token.token);
-      setCopied(true);
-    } catch {
-      toast.error(t('settings.workers_copy_failed', { defaultValue: 'Could not copy.' }));
     }
   };
 
@@ -129,47 +160,29 @@ export default function WorkersPanel() {
       t('settings.workers_remove_title', { defaultValue: 'Remove worker?' }),
     );
     if (!ok) return;
-    try {
-      await request(`/workers/${worker.id}`, { method: 'DELETE' });
-      refresh();
-    } catch (e) {
-      toast.error(e?.message || String(e));
-    }
+    await guarded(() => request(`/workers/${worker.id}`, { method: 'DELETE' }));
   };
 
-  const resumeWorker = async (worker) => {
-    try {
-      await request(`/workers/${worker.id}/resume`, { method: 'POST' });
-      refresh();
-    } catch (e) {
-      toast.error(e?.message || String(e));
-    }
-  };
+  const resumeWorker = (worker) =>
+    guarded(() => request(`/workers/${worker.id}/resume`, { method: 'POST' }));
 
-  const renameWorker = async (worker, name) => {
+  const approveWorker = (worker) =>
+    guarded(() => request(`/workers/${worker.id}/consent`, { method: 'POST' }));
+
+  const renameWorker = (worker, name) => {
     const trimmed = (name || '').trim();
     // An empty name would leave the row labelled by its key id, which is not
     // something a user can recognise — treat it as "keep the current name".
-    if (!trimmed || trimmed === worker.name) return;
-    try {
-      await request(`/workers/${worker.id}`, { method: 'PATCH', body: { name: trimmed } });
-      refresh();
-    } catch (e) {
-      toast.error(e?.message || String(e));
-    }
+    if (!trimmed || trimmed === worker.name) return undefined;
+    return guarded(() =>
+      request(`/workers/${worker.id}`, { method: 'PATCH', body: { name: trimmed } }),
+    );
   };
 
-  const toggleWorker = async (worker) => {
-    try {
-      await request(`/workers/${worker.id}`, {
-        method: 'PATCH',
-        body: { enabled: !worker.enabled },
-      });
-      refresh();
-    } catch (e) {
-      toast.error(e?.message || String(e));
-    }
-  };
+  const toggleWorker = (worker) =>
+    guarded(() =>
+      request(`/workers/${worker.id}`, { method: 'PATCH', body: { enabled: !worker.enabled } }),
+    );
 
   return (
     <>
@@ -180,6 +193,18 @@ export default function WorkersPanel() {
           defaultValue:
             'Send individual jobs to GPUs on your other machines. Results come back here. Nothing is sent until you add a worker and approve it.',
         })}
+        actions={
+          enabled && data?.running ? (
+            <Badge tone={online > 0 ? 'success' : 'neutral'} dot>
+              {online > 0
+                ? t('settings.workers_summary_online', {
+                    defaultValue: '{{count}} online',
+                    count: online,
+                  })
+                : t('settings.workers_summary_none', { defaultValue: 'Nobody connected' })}
+            </Badge>
+          ) : null
+        }
       >
         <SettingRow
           title={t('settings.workers_enable', { defaultValue: 'Use remote workers' })}
@@ -191,10 +216,7 @@ export default function WorkersPanel() {
         />
 
         {enabled && !data?.running && data?.startup_error && (
-          <p
-            role="alert"
-            className="rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-sm text-red-300"
-          >
+          <p role="alert" className="rounded-lg bg-red-500/5 p-3 text-sm text-red-300">
             {t('settings.workers_port_conflict', {
               defaultValue:
                 'Remote workers are unavailable because another VoiceStudio instance is already accepting them on this port. Close the other instance, or set OMNIVOICE_WORKER_PORT to a different port and restart VoiceStudio.',
@@ -216,50 +238,37 @@ export default function WorkersPanel() {
 
             <SettingRow
               title={t('settings.workers_add', { defaultValue: 'Add a worker' })}
-              subtitle={t('settings.workers_add_hint', {
+              subtitle={t('settings.workers_add_hint_qr', {
                 defaultValue:
-                  'Generate a token, then paste it into OmniVoice on the other machine.',
+                  'Generate a token, then scan the QR from the other machine or paste the code into its Remote workers settings.',
               })}
               control={
-                <Button onClick={createToken} disabled={busy}>
+                <Button variant="primary" onClick={createToken} disabled={busy}>
                   {t('settings.workers_new_token', { defaultValue: 'Generate token' })}
                 </Button>
               }
             />
 
             {token && (
-              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
-                {/* Deliberately plain visible text, not an InfoHint tooltip: a
-                  warning the user must act on before navigating away cannot
-                  be hidden behind a hover. */}
-                <p className="m-0 text-xs text-amber-300">
-                  {t('settings.workers_token_once', {
-                    defaultValue:
-                      'Copy this now — it is shown only once, works only once, and expires in 15 minutes.',
-                  })}
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="flex-1 break-all rounded bg-black/20 p-2 text-xs">
-                    {token.token}
-                  </code>
-                  <Button variant="secondary" onClick={copyToken}>
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied
-                      ? t('settings.workers_copied', { defaultValue: 'Copied' })
-                      : t('settings.workers_copy', { defaultValue: 'Copy' })}
-                  </Button>
-                </div>
-              </div>
+              <OneTimeSecret
+                value={token.token}
+                expiresAt={token.expires_at}
+                onDone={() => setToken(null)}
+                headline={t('settings.workers_token_once', {
+                  defaultValue:
+                    'Copy this now — it is shown only once, works only once, and expires in 15 minutes.',
+                })}
+                note={t('settings.workers_token_qr_hint', {
+                  defaultValue:
+                    'On the other machine: Settings → System → Remote workers → Join, then scan or paste.',
+                })}
+              />
             )}
 
             {workers.length === 0 ? (
-              <p className="py-3 text-sm opacity-70">
-                {t('settings.workers_none', {
-                  defaultValue: 'No workers yet. Generate a token to add your first one.',
-                })}
-              </p>
+              <EmptyWorkers />
             ) : (
-              <ul className="divide-y divide-white/10">
+              <ul className="m-0 list-none divide-y divide-white/5 p-0">
                 {workers.map((w) => (
                   <WorkerRow
                     key={w.id}
@@ -267,6 +276,7 @@ export default function WorkersPanel() {
                     onRemove={() => removeWorker(w)}
                     onResume={() => resumeWorker(w)}
                     onToggle={() => toggleWorker(w)}
+                    onApprove={() => approveWorker(w)}
                     onRename={(name) => renameWorker(w, name)}
                   />
                 ))}
@@ -282,16 +292,76 @@ export default function WorkersPanel() {
         contract — a second switch that stayed live under it would be exactly
         the surprise that promise exists to prevent. Headless nodes that only
         lend a GPU set OMNIVOICE_INBOUND_NODE and never see this panel. */}
+      {enabled && <JoinWorkerPanel request={request} />}
       {enabled && <InboundNodePanel request={request} />}
     </>
   );
 }
 
-export function WorkerRow({ worker, onRemove, onResume, onToggle, onRename = () => {} }) {
+/**
+ * The empty state carries the three steps rather than one sentence, because
+ * "no workers yet" is the moment the user needs the instructions — not the
+ * moment to send them to the docs.
+ */
+function EmptyWorkers() {
+  const { t } = useTranslation();
+  const steps = [
+    t('settings.workers_step_1', {
+      defaultValue: 'Install VoiceStudio on the machine with the GPU.',
+    }),
+    t('settings.workers_step_2', { defaultValue: 'Generate a token above.' }),
+    t('settings.workers_step_3', {
+      defaultValue: 'Scan the QR there, or paste the code into its Remote workers settings.',
+    }),
+  ];
+  return (
+    <div className="py-3">
+      <p className="m-0 text-sm opacity-70">
+        {t('settings.workers_none', {
+          defaultValue: 'No workers yet. Generate a token to add your first one.',
+        })}
+      </p>
+      <ol className="mt-2 mb-0 list-none space-y-1.5 p-0">
+        {steps.map((step, i) => (
+          <li key={step} className="flex items-start gap-2 text-xs opacity-70">
+            <span className="mt-[1px] inline-flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-full bg-white/8 text-[10px] tabular-nums">
+              {i + 1}
+            </span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+// Disable / Remove are housekeeping: present for every row forever, needed
+// rarely. They fade in on hover or when anything inside takes focus — never
+// display:none, so they stay reachable by keyboard and to assistive tech.
+const SECONDARY_ACTIONS =
+  'flex items-center gap-1.5 opacity-0 transition-opacity duration-150 ' +
+  'group-hover:opacity-100 focus-within:opacity-100';
+
+/** Filled proportion of a worker's task slots, for the load meter. */
+function loadFraction(worker) {
+  const active = worker.active_tasks ?? 0;
+  const slots = active + (worker.available_slots ?? 0);
+  return slots > 0 ? Math.min(1, active / slots) : 0;
+}
+
+export function WorkerRow({
+  worker,
+  onRemove,
+  onResume,
+  onToggle,
+  onApprove = () => {},
+  onRename = () => {},
+}) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(worker.name);
   const paused = (worker.breakers || []).length > 0;
+  const approved = worker.consent_granted !== false;
 
   const commit = () => {
     setEditing(false);
@@ -304,11 +374,38 @@ export function WorkerRow({ worker, onRemove, onResume, onToggle, onRename = () 
       : worker.connected
         ? t('settings.workers_status_online', { defaultValue: 'Online' })
         : t('settings.workers_status_offline', { defaultValue: 'Offline' });
+  const healthy = worker.connected && worker.enabled && !paused;
+
+  // The second line is the machine's identity and freshness: which box this
+  // actually is, and whether what the row says is current. Latency and load
+  // live on the right of the first line, where the eye already is.
+  const address = worker.address || worker.endpoint || worker.host || '';
+  const seen = !worker.connected ? relativeSeen(worker.last_seen_at, t) : '';
+  const meta = [
+    address,
+    seen && t('settings.workers_last_seen', { defaultValue: 'last seen {{when}}', when: seen }),
+    (worker.resident_models || []).slice(0, 3).join(', '),
+  ].filter(Boolean);
 
   return (
-    <li className="flex flex-wrap items-center gap-3 py-3">
+    <li className="group flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The dot rides with the name, not with the row: aligned to the
+              row's centre it lands beside the address line and reads as a
+              bullet for the wrong sentence. */}
+          <span
+            aria-hidden="true"
+            className={`h-[7px] w-[7px] shrink-0 rounded-full ${
+              !worker.enabled
+                ? 'bg-white/25'
+                : paused
+                  ? 'bg-amber-400'
+                  : worker.connected
+                    ? 'bg-emerald-400'
+                    : 'bg-red-400'
+            }`}
+          />
           {editing ? (
             <input
               autoFocus
@@ -331,7 +428,7 @@ export function WorkerRow({ worker, onRemove, onResume, onToggle, onRename = () 
               <span className="truncate font-medium">{worker.name}</span>
               <button
                 type="button"
-                className="opacity-60 hover:opacity-100"
+                className="border-0 bg-transparent p-0 opacity-50 cursor-pointer hover:opacity-100"
                 aria-label={t('settings.workers_rename', { defaultValue: 'Rename worker' })}
                 onClick={() => {
                   setDraft(worker.name);
@@ -342,44 +439,92 @@ export function WorkerRow({ worker, onRemove, onResume, onToggle, onRename = () 
               </button>
             </>
           )}
-          <Badge tone={worker.connected && worker.enabled && !paused ? 'success' : 'neutral'}>
-            {status}
-          </Badge>
-          {!worker.consent_granted && (
-            <Badge tone="warning">
+          <Badge tone={healthy ? 'success' : paused ? 'warn' : 'neutral'}>{status}</Badge>
+          {!approved && (
+            <Badge tone="warn">
               {t('settings.workers_needs_consent', { defaultValue: 'Not approved' })}
             </Badge>
           )}
+          {latencyLabel(worker) && (
+            <span className="text-[11px] tabular-nums opacity-60">{latencyLabel(worker)}</span>
+          )}
         </div>
-        {worker.connected && (
-          <p className="mt-0.5 text-xs opacity-70">
-            {t('settings.workers_load', {
-              active: worker.active_tasks ?? 0,
-              slots: (worker.active_tasks ?? 0) + (worker.available_slots ?? 0),
-              defaultValue: 'Tasks {{active}} / {{slots}}',
-            })}
-          </p>
+
+        {meta.length > 0 && (
+          <p className="mt-0.5 m-0 truncate font-mono text-[11px] opacity-50">{meta.join(' · ')}</p>
         )}
+
+        {worker.connected && (
+          <div className="mt-1 flex items-center gap-2">
+            {/* A meter says "busy" at a glance in a way a fraction never does,
+                but the fraction stays — it is the number the user quotes when
+                something is queued. */}
+            <span
+              className="h-[3px] w-[64px] overflow-hidden rounded-full bg-white/10"
+              aria-hidden="true"
+            >
+              <span
+                className="block h-full rounded-full bg-current opacity-70"
+                style={{ width: `${Math.round(loadFraction(worker) * 100)}%` }}
+              />
+            </span>
+            <span className="text-xs opacity-70">
+              {t('settings.workers_load', {
+                active: worker.active_tasks ?? 0,
+                slots: (worker.active_tasks ?? 0) + (worker.available_slots ?? 0),
+                defaultValue: 'Tasks {{active}} / {{slots}}',
+              })}
+            </span>
+          </div>
+        )}
+
         {/* The breaker summary is written to be understood: "paused after 3
             failures, retrying in 60s" is actionable in a way that a
             reliability percentage never is. */}
-        {paused && <p className="mt-0.5 text-xs text-amber-400">{worker.breakers[0].summary}</p>}
+        {paused && (
+          <p className="mt-0.5 m-0 text-xs text-amber-400">{worker.breakers[0].summary}</p>
+        )}
       </div>
-      {paused && (
-        <Button variant="secondary" size="sm" onClick={onResume}>
-          <PlayCircle size={14} />
-          {t('settings.workers_resume', { defaultValue: 'Resume' })}
-        </Button>
-      )}
-      <Button variant="secondary" size="sm" onClick={onToggle}>
-        {worker.enabled
-          ? t('settings.workers_disable', { defaultValue: 'Disable' })
-          : t('settings.workers_enable_one', { defaultValue: 'Enable' })}
-      </Button>
-      <Button variant="danger" size="sm" onClick={onRemove}>
-        <Trash2 size={14} />
-        {t('settings.workers_remove', { defaultValue: 'Remove' })}
-      </Button>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        {/* Approval is the one action the panel used to name without offering.
+            A worker can connect, sit there labelled "Not approved", and never
+            be usable — so the yes belongs on the row that raises it. Approve
+            and Resume stay visible because they are the row's whole point when
+            they appear; the housekeeping pair fades in with the row so four
+            machines do not read as twelve buttons. */}
+        {!approved && (
+          <Button size="sm" leading={<ShieldCheck size={14} />} onClick={onApprove}>
+            {t('settings.workers_approve', { defaultValue: 'Approve' })}
+          </Button>
+        )}
+        {paused && (
+          <Button variant="ghost" size="sm" leading={<PlayCircle size={14} />} onClick={onResume}>
+            {t('settings.workers_resume', { defaultValue: 'Resume' })}
+          </Button>
+        )}
+        <div className={SECONDARY_ACTIONS}>
+          <Button
+            variant="ghost"
+            size="sm"
+            leading={worker.enabled ? null : <Check size={14} />}
+            onClick={onToggle}
+          >
+            {worker.enabled
+              ? t('settings.workers_disable', { defaultValue: 'Disable' })
+              : t('settings.workers_enable_one', { defaultValue: 'Enable' })}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[color:var(--color-danger)]"
+            leading={<Trash2 size={14} />}
+            onClick={onRemove}
+          >
+            {t('settings.workers_remove', { defaultValue: 'Remove' })}
+          </Button>
+        </div>
+      </div>
     </li>
   );
 }

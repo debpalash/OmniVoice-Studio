@@ -51,13 +51,133 @@ def _sweep_seconds_from_env(default: float = 60.0, floor: float = 1.0) -> float:
 IDLE_SWEEP_INTERVAL_SECONDS = _sweep_seconds_from_env()
 
 
+_WORKER_MODE_SETTING = "worker_mode_enabled"
+
+
 def worker_mode_enabled() -> bool:
-    return (os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    """Is this machine lending its GPU to someone else's control plane?
+
+    Environment first so a headless box can be a worker with no UI at all, then
+    settings for the desktop case — the same precedence as
+    ``service.remote_workers_enabled``. The settings half is what lets a user
+    join from the app and still be a worker after a restart; before it, joining
+    meant setting OMNIVOICE_WORKER_MODE and OMNIVOICE_WORKER_TOKEN by hand and
+    relaunching, which is the whole reason the feature was unreachable in the
+    UI.
+    """
+    env = (os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        return True
+    if env in ("0", "false", "no", "off"):
+        return False
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        stored = (settings_store.get_text(_WORKER_MODE_SETTING, "") or "").strip().lower()
+        return stored in ("1", "true", "yes", "on")
+    except Exception:
+        return False
+
+
+def set_worker_mode_enabled(enabled: bool) -> None:
+    from services import settings_store  # noqa: PLC0415
+
+    settings_store.set_text(_WORKER_MODE_SETTING, "true" if enabled else "false")
+
+
+_ENDPOINT_SETTING = "worker_endpoint"
+
+
+def _stored_endpoint() -> str:
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        return (settings_store.get_text(_ENDPOINT_SETTING, "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _remember_endpoint(endpoint: str) -> None:
+    if not endpoint:
+        return
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        settings_store.set_text(_ENDPOINT_SETTING, endpoint)
+    except Exception:
+        logger.debug("Could not remember the control-plane endpoint.", exc_info=True)
+
+
+def snapshot_enrollment() -> dict:
+    """Everything a join overwrites, kept so a failed one can be undone."""
+    certificate: Optional[bytes] = None
+    try:
+        with open(_paths()["pinned_cert"], "rb") as fh:
+            certificate = fh.read()
+    except (FileNotFoundError, PermissionError, OSError):
+        certificate = None
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        stored_mode = settings_store.get_text(_WORKER_MODE_SETTING, "")
+    except Exception:
+        stored_mode = ""
+    return {
+        "certificate": certificate,
+        "endpoint": _stored_endpoint(),
+        # The RAW setting, not worker_mode_enabled(): restoring "" as "false"
+        # would persist a decision the machine never made.
+        "worker_mode": stored_mode,
+    }
+
+
+async def restore_enrollment(previous: dict) -> None:
+    """Put a machine back the way a failed rejoin found it.
+
+    Best effort by design: the user's next action is to paste a fresh code
+    either way, and an exception raised here would replace the join error —
+    the one that says what actually went wrong — with a rollback error.
+    """
+    certificate = previous.get("certificate")
+    path = _paths()["pinned_cert"]
+    try:
+        if certificate is None:
+            # There was no enrollment before this attempt; leave none behind
+            # rather than a certificate the user never agreed to.
+            if os.path.exists(path):
+                os.remove(path)
+        else:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(certificate)
+    except OSError:
+        logger.warning("Could not restore the previous pinned certificate.", exc_info=True)
+    _remember_endpoint(previous.get("endpoint", ""))
+    stored_mode = (previous.get("worker_mode") or "").strip().lower()
+    if stored_mode not in ("1", "true", "yes", "on"):
+        if stored_mode:
+            set_worker_mode_enabled(False)
+        return
+    set_worker_mode_enabled(True)
+    try:
+        await agent.start()
+    except Exception:
+        # It was working a moment ago; if it will not come back the panel
+        # already shows the join error and the user can retry.
+        logger.warning("Could not resume the previous control plane.", exc_info=True)
+
+
+def enrolled() -> bool:
+    """Has this machine ever completed a join?
+
+    The pinned control-plane certificate is written only by a successful
+    enrollment, so its presence is the honest answer — and it is what lets the
+    agent reconnect later without a fresh token.
+    """
+    try:
+        return os.path.exists(_paths()["pinned_cert"])
+    except Exception:
+        return False
 
 
 def _paths() -> dict[str, str]:
@@ -144,10 +264,36 @@ class WorkerAgent:
         self._task: Optional[asyncio.Task] = None
         self._idle_sweep: Optional[asyncio.Task] = None
         self._client = None
+        # Why the last start failed, kept so the panel can say "that token has
+        # expired" instead of leaving a toggle that silently springs back.
+        self.last_error: str = ""
+        self.endpoint: str = ""
+        # Set the first time the control plane accepts this worker. `start()`
+        # only SCHEDULES the connection, so without waiting on this a caller
+        # cannot tell "connected" from "will retry forever in the background".
+        self._registered = asyncio.Event()
+        # One lock for every lifecycle change. Two concurrent requests — a join
+        # and a toggle, or two joins — used to interleave their stop/start
+        # pairs, and `start()` returns early when something is already running,
+        # so a join could report success for a control plane it never dialled.
+        self.lifecycle = asyncio.Lock()
 
     @property
     def running(self) -> bool:
         return self._task is not None and not self._task.done()
+
+    def status(self) -> dict:
+        """What the "lend this machine" panel renders, in one call."""
+        return {
+            "worker_mode": worker_mode_enabled(),
+            "running": self.running,
+            "enrolled": enrolled(),
+            "endpoint": self.endpoint
+            or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+            or _stored_endpoint(),
+            "last_error": self.last_error,
+            "env_pinned": bool((os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip()),
+        }
 
     async def start(self, *, token_text: str = "", endpoint: str = "") -> None:
         from worker import capabilities  # noqa: PLC0415
@@ -162,6 +308,7 @@ class WorkerAgent:
         if self.running:
             return
 
+        self._registered.clear()
         locations = _paths()
         os.makedirs(locations["root"], exist_ok=True)
         # Generated once and never transmitted; this is the worker's identity
@@ -171,6 +318,12 @@ class WorkerAgent:
         token_text = token_text or (os.environ.get("OMNIVOICE_WORKER_TOKEN") or "").strip()
         if token_text:
             endpoint, certificate = await asyncio.to_thread(pin_certificate, token_text)
+            # The token carries the address; remembering it is what makes the
+            # NEXT launch work. Without this a machine that joined from the UI
+            # came back up enrolled but with nowhere to dial, and the only fix
+            # was an environment variable — the barrier the join flow exists to
+            # remove.
+            _remember_endpoint(endpoint)
         else:
             # Already enrolled: reuse the certificate pinned at join time.
             try:
@@ -178,16 +331,21 @@ class WorkerAgent:
                     certificate = fh.read()
             except (FileNotFoundError, PermissionError) as exc:
                 raise RuntimeError(
-                    "This machine has not been enrolled yet. Generate a token on the "
-                    "control plane (Settings → System → Remote workers) and start with "
-                    "OMNIVOICE_WORKER_TOKEN set."
+                    "This machine has not been enrolled yet. Ask for a join code on the "
+                    "control plane (Settings → System → Remote workers) and paste it into "
+                    "Lend this machine's GPU."
                 ) from exc
-            endpoint = endpoint or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+            endpoint = (
+                endpoint
+                or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+                or _stored_endpoint()
+            )
             if not endpoint:
                 raise RuntimeError(
-                    "Set OMNIVOICE_WORKER_ENDPOINT to the control plane's host:port, or "
-                    "start with a fresh OMNIVOICE_WORKER_TOKEN."
+                    "This machine does not know which control plane to dial. Paste a fresh "
+                    "join code, or set OMNIVOICE_WORKER_ENDPOINT to its host:port."
                 )
+        self.endpoint = endpoint
 
         # Unavailable engines are reported too, so the control plane can tell
         # "this worker has no such engine" from "it has it but the weights
@@ -221,7 +379,7 @@ class WorkerAgent:
             # the last connection is reported honestly rather than from a
             # snapshot taken at startup.
             capability_probe=lambda: capabilities.discover(include_unavailable=True),
-            on_registered=lambda wid: save_worker_id(locations["worker_id"], wid),
+            on_registered=self._on_registered(locations["worker_id"]),
         )
         self._task = asyncio.create_task(self._client.run_forever(), name="worker-agent")
         self._idle_sweep = asyncio.create_task(
@@ -229,6 +387,48 @@ class WorkerAgent:
         )
         logger.info(
             "Worker agent connecting to %s with %d engine(s)", endpoint, len(discovered)
+        )
+
+    def _on_registered(self, worker_id_path: str):
+        def handle(worker_id) -> None:
+            save_worker_id(worker_id_path, worker_id)
+            self._registered.set()
+
+        return handle
+
+    async def wait_until_registered(self, timeout: float = 20.0) -> None:
+        """Block until the control plane has accepted this worker.
+
+        `start()` returns as soon as the connection is scheduled, so a join
+        that the control plane rejects — expired token, wrong address, a
+        server that never answers — looked exactly like a successful one:
+        the setting was persisted, the panel said "connected", and the machine
+        retried in the background forever. Raises with the connection's own
+        reason so the caller can undo the join and show it.
+        """
+        if self._task is None:
+            raise RuntimeError("The worker agent is not running.")
+        registered = asyncio.ensure_future(self._registered.wait())
+        try:
+            done, _ = await asyncio.wait(
+                {registered, self._task},
+                timeout=timeout,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            if not registered.done():
+                registered.cancel()
+        if registered in done:
+            return
+        if self._task in done:
+            # The connection loop gave up. Surface ITS error, not a timeout.
+            error = self._task.exception() if not self._task.cancelled() else None
+            raise RuntimeError(
+                str(error) if error else "The connection to the control plane stopped."
+            )
+        raise RuntimeError(
+            "The control plane did not answer in time. Check that it is running and "
+            "reachable at this address, then try the code again."
         )
 
     # ── Idle unloading ────────────────────────────────────────────────────

@@ -139,6 +139,7 @@ GET /tools/plugins
 GET /v1/audio/voices
 GET /watermark/status
 GET /workers
+GET /workers/agent
 GET /workers/inbound
 GET /workers/target
 GET /workers/tasks
@@ -247,6 +248,8 @@ POST /v1/audio/speech
 POST /v1/audio/transcriptions
 POST /watermark/detect
 POST /watermark/settings
+POST /workers/agent/enabled
+POST /workers/agent/join
 POST /workers/enabled
 POST /workers/enrollments
 POST /workers/inbound/connections

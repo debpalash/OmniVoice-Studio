@@ -243,9 +243,12 @@ describe('GpuTarget', () => {
 
   it('colours the dot green when ready, amber when busy, red when offline', async () => {
     for (const [status, cls] of [
-      ['ready', 'bg-emerald-400'],
-      ['busy', 'bg-amber-400'],
-      ['offline', 'bg-red-400'],
+      // Themed tokens, not palette-fixed Tailwind classes: on Midnight or
+      // Catppuccin a hardcoded `emerald` dot sits next to that theme's own
+      // green and reads as a rendering bug.
+      ['ready', 'bg-\\[var\\(--color-success\\)\\]'],
+      ['busy', 'bg-\\[var\\(--color-warn\\)\\]'],
+      ['offline', 'bg-\\[var\\(--color-danger\\)\\]'],
     ]) {
       apiFetch.mockResolvedValue(
         respond({
@@ -276,7 +279,7 @@ describe('GpuTarget', () => {
     const { container } = renderPicker();
 
     await screen.findByText('Local');
-    expect(container.querySelector('.bg-red-400')).toBeTruthy();
+    expect(container.querySelector('.bg-\\[var\\(--color-danger\\)\\]')).toBeTruthy();
   });
 
   // ── Op awareness ────────────────────────────────────────────────────────
@@ -351,7 +354,7 @@ describe('GpuTarget', () => {
     const { container } = renderPicker();
 
     await screen.findByText('Local');
-    expect(container.querySelector('.text-amber-400')).toBeNull();
+    expect(container.querySelector('.text-\\[color\\:var\\(--color-warn\\)\\]')).toBeNull();
   });
 
   it('labels dictation as intentionally local without an unported notice', async () => {
