@@ -108,6 +108,65 @@ def _remember_endpoint(endpoint: str) -> None:
         logger.debug("Could not remember the control-plane endpoint.", exc_info=True)
 
 
+def snapshot_enrollment() -> dict:
+    """Everything a join overwrites, kept so a failed one can be undone."""
+    certificate: Optional[bytes] = None
+    try:
+        with open(_paths()["pinned_cert"], "rb") as fh:
+            certificate = fh.read()
+    except (FileNotFoundError, PermissionError, OSError):
+        certificate = None
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        stored_mode = settings_store.get_text(_WORKER_MODE_SETTING, "")
+    except Exception:
+        stored_mode = ""
+    return {
+        "certificate": certificate,
+        "endpoint": _stored_endpoint(),
+        # The RAW setting, not worker_mode_enabled(): restoring "" as "false"
+        # would persist a decision the machine never made.
+        "worker_mode": stored_mode,
+    }
+
+
+async def restore_enrollment(previous: dict) -> None:
+    """Put a machine back the way a failed rejoin found it.
+
+    Best effort by design: the user's next action is to paste a fresh code
+    either way, and an exception raised here would replace the join error —
+    the one that says what actually went wrong — with a rollback error.
+    """
+    certificate = previous.get("certificate")
+    path = _paths()["pinned_cert"]
+    try:
+        if certificate is None:
+            # There was no enrollment before this attempt; leave none behind
+            # rather than a certificate the user never agreed to.
+            if os.path.exists(path):
+                os.remove(path)
+        else:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(certificate)
+    except OSError:
+        logger.warning("Could not restore the previous pinned certificate.", exc_info=True)
+    _remember_endpoint(previous.get("endpoint", ""))
+    stored_mode = (previous.get("worker_mode") or "").strip().lower()
+    if stored_mode not in ("1", "true", "yes", "on"):
+        if stored_mode:
+            set_worker_mode_enabled(False)
+        return
+    set_worker_mode_enabled(True)
+    try:
+        await agent.start()
+    except Exception:
+        # It was working a moment ago; if it will not come back the panel
+        # already shows the join error and the user can retry.
+        logger.warning("Could not resume the previous control plane.", exc_info=True)
+
+
 def enrolled() -> bool:
     """Has this machine ever completed a join?
 
@@ -209,6 +268,15 @@ class WorkerAgent:
         # expired" instead of leaving a toggle that silently springs back.
         self.last_error: str = ""
         self.endpoint: str = ""
+        # Set the first time the control plane accepts this worker. `start()`
+        # only SCHEDULES the connection, so without waiting on this a caller
+        # cannot tell "connected" from "will retry forever in the background".
+        self._registered = asyncio.Event()
+        # One lock for every lifecycle change. Two concurrent requests — a join
+        # and a toggle, or two joins — used to interleave their stop/start
+        # pairs, and `start()` returns early when something is already running,
+        # so a join could report success for a control plane it never dialled.
+        self.lifecycle = asyncio.Lock()
 
     @property
     def running(self) -> bool:
@@ -240,6 +308,7 @@ class WorkerAgent:
         if self.running:
             return
 
+        self._registered.clear()
         locations = _paths()
         os.makedirs(locations["root"], exist_ok=True)
         # Generated once and never transmitted; this is the worker's identity
@@ -310,7 +379,7 @@ class WorkerAgent:
             # the last connection is reported honestly rather than from a
             # snapshot taken at startup.
             capability_probe=lambda: capabilities.discover(include_unavailable=True),
-            on_registered=lambda wid: save_worker_id(locations["worker_id"], wid),
+            on_registered=self._on_registered(locations["worker_id"]),
         )
         self._task = asyncio.create_task(self._client.run_forever(), name="worker-agent")
         self._idle_sweep = asyncio.create_task(
@@ -318,6 +387,48 @@ class WorkerAgent:
         )
         logger.info(
             "Worker agent connecting to %s with %d engine(s)", endpoint, len(discovered)
+        )
+
+    def _on_registered(self, worker_id_path: str):
+        def handle(worker_id) -> None:
+            save_worker_id(worker_id_path, worker_id)
+            self._registered.set()
+
+        return handle
+
+    async def wait_until_registered(self, timeout: float = 20.0) -> None:
+        """Block until the control plane has accepted this worker.
+
+        `start()` returns as soon as the connection is scheduled, so a join
+        that the control plane rejects — expired token, wrong address, a
+        server that never answers — looked exactly like a successful one:
+        the setting was persisted, the panel said "connected", and the machine
+        retried in the background forever. Raises with the connection's own
+        reason so the caller can undo the join and show it.
+        """
+        if self._task is None:
+            raise RuntimeError("The worker agent is not running.")
+        registered = asyncio.ensure_future(self._registered.wait())
+        try:
+            done, _ = await asyncio.wait(
+                {registered, self._task},
+                timeout=timeout,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            if not registered.done():
+                registered.cancel()
+        if registered in done:
+            return
+        if self._task in done:
+            # The connection loop gave up. Surface ITS error, not a timeout.
+            error = self._task.exception() if not self._task.cancelled() else None
+            raise RuntimeError(
+                str(error) if error else "The connection to the control plane stopped."
+            )
+        raise RuntimeError(
+            "The control plane did not answer in time. Check that it is running and "
+            "reachable at this address, then try the code again."
         )
 
     # ── Idle unloading ────────────────────────────────────────────────────
