@@ -504,6 +504,27 @@ fn close_session(registration: &PortalRegistration) -> Result<(), String> {
         .map_err(|error| format!("could not close the shortcut session: {error}"))
 }
 
+/// Read the session handle and shortcut id out of an `Activated`/`Deactivated`
+/// signal.
+///
+/// The portal declares `(o session_handle, s shortcut_id, t timestamp,
+/// a{sv} options)` — the timestamp is **64-bit**. Deserializing the body into a
+/// `u32` field fails zbus' signature check, so every key press was discarded as
+/// an invalid signal and dictation never started on any Wayland compositor. The
+/// 32-bit spelling stays as a fallback so a non-conforming portal degrades to
+/// working rather than to silence.
+fn shortcut_signal_target(message: &zbus::Message) -> Result<(OwnedObjectPath, String), String> {
+    let body = message.body();
+    if let Ok((session, shortcut_id, _timestamp, _options)) =
+        body.deserialize::<(OwnedObjectPath, String, u64, VariantMap)>()
+    {
+        return Ok((session, shortcut_id));
+    }
+    body.deserialize::<(OwnedObjectPath, String, u32, VariantMap)>()
+        .map(|(session, shortcut_id, _timestamp, _options)| (session, shortcut_id))
+        .map_err(|error| error.to_string())
+}
+
 fn listen(app: tauri::AppHandle, registration: PortalRegistration) -> Result<(), String> {
     let portal = Proxy::new(
         &registration.connection,
@@ -526,13 +547,8 @@ fn listen(app: tauri::AppHandle, registration: PortalRegistration) -> Result<(),
         if member != "Activated" && member != "Deactivated" {
             continue;
         }
-        let (signal_session, shortcut_id, _timestamp, _options): (
-            OwnedObjectPath,
-            String,
-            u32,
-            VariantMap,
-        ) = match message.body().deserialize() {
-            Ok(body) => body,
+        let (signal_session, shortcut_id) = match shortcut_signal_target(&message) {
+            Ok(target) => target,
             Err(error) => {
                 log::warn!("Invalid Wayland shortcut signal: {error}");
                 continue;
@@ -583,13 +599,15 @@ pub fn register_initial(app: tauri::AppHandle, accelerator: String, revision: u6
 #[cfg(test)]
 mod tests {
     use super::{
-        desktop_exec_value, portal_trigger, receive_with_timeout, trigger_description,
-        variant_string, PortalShortcutState,
+        desktop_exec_value, portal_trigger, receive_with_timeout, shortcut_signal_target,
+        trigger_description, variant_string, PortalShortcutState, VariantMap,
+        GLOBAL_SHORTCUTS_INTERFACE, SHORTCUT_ID,
     };
     use std::collections::HashMap;
     use std::path::Path;
     use std::sync::mpsc;
     use std::time::Duration;
+    use zbus::zvariant::OwnedObjectPath;
 
     #[test]
     fn converts_tauri_accelerators_to_portal_triggers() {
@@ -643,6 +661,43 @@ mod tests {
         let changed = state.reserve();
         assert!(!state.is_current(startup));
         assert!(state.is_current(changed));
+    }
+
+    fn shortcut_signal<T>(timestamp: T) -> zbus::Message
+    where
+        T: serde::Serialize + zbus::zvariant::Type,
+    {
+        let session = OwnedObjectPath::try_from("/org/freedesktop/portal/desktop/session/1").unwrap();
+        zbus::Message::signal(
+            super::DESKTOP_PATH,
+            GLOBAL_SHORTCUTS_INTERFACE,
+            "Activated",
+        )
+        .unwrap()
+        .build(&(session, SHORTCUT_ID, timestamp, VariantMap::new()))
+        .unwrap()
+    }
+
+    /// The portal spells the timestamp `t`; a `u32` field made zbus reject every
+    /// signal, which silently killed Wayland dictation.
+    #[test]
+    fn reads_portal_signals_with_a_64_bit_timestamp() {
+        let message = shortcut_signal(1_786_563_484_746_u64);
+        let (session, shortcut_id) = shortcut_signal_target(&message)
+            .expect("64-bit timestamps are the portal's declared spelling");
+        assert_eq!(
+            session.as_str(),
+            "/org/freedesktop/portal/desktop/session/1"
+        );
+        assert_eq!(shortcut_id, SHORTCUT_ID);
+    }
+
+    #[test]
+    fn still_reads_a_32_bit_timestamp_from_a_nonconforming_portal() {
+        let message = shortcut_signal(42_u32);
+        let (_session, shortcut_id) = shortcut_signal_target(&message)
+            .expect("a 32-bit timestamp must not drop the key press");
+        assert_eq!(shortcut_id, SHORTCUT_ID);
     }
 
     #[test]

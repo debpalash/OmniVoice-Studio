@@ -36,6 +36,20 @@ async function setTrayRecording(recording) {
   }
 }
 
+// Show the standalone pill window, bottom-centred and without taking focus
+// (no-op in the browser webui, where the pill is just a DOM node).
+async function showWidgetWindow() {
+  if (!inTauri()) return;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('show_dictation_pill');
+  } catch (err) {
+    // Dictation still records and pastes without the pill on screen — the
+    // session must not be aborted over its chrome.
+    console.warn('widget show failed:', err);
+  }
+}
+
 // Hide the standalone widget window (no-op in the browser webui).
 async function hideWidgetWindow() {
   if (!inTauri()) return;
@@ -1339,6 +1353,16 @@ export default function CaptureWidget({ onDismiss }) {
   // without re-running this effect, and the square strands exactly as before —
   // the same bug, one path over. Poll instead, so the invariant holds no matter
   // who made the window visible or when (CodeRabbit, #1399).
+  // Every state but `idle` is one the user is meant to see — listening,
+  // transcribing, the result flash, an error, the Accessibility prompt. Show
+  // the window here rather than at each call site, for the same reason the
+  // idle reconcile below hides it here: one invariant covers the paths that
+  // exist now and the ones added later. `dismiss()` owns the hide.
+  useEffect(() => {
+    if (state === 'idle') return;
+    showWidgetWindow();
+  }, [state]);
+
   useEffect(() => {
     if (state !== 'idle' || !inTauri()) return undefined;
     let cancelled = false;
@@ -1394,11 +1418,11 @@ export default function CaptureWidget({ onDismiss }) {
     };
   }, [state]);
 
-  // The widget window is never shown, so anything this component renders is
-  // invisible by construction. States that need the user to DO something —
-  // grant Accessibility, grant the mic, retry after a failure — would
-  // otherwise be silent: the hotkey would appear to do nothing at all. Hand
-  // those to the main window, which is the only one on screen.
+  // The pill carries these states on screen now, but it is transient and
+  // deliberately unfocusable. States that need the user to DO something —
+  // grant Accessibility, grant the mic, retry after a failure — also go to the
+  // main window, where the instruction survives the pill's auto-dismiss and
+  // can be acted on.
   useEffect(() => {
     if (state !== 'error' && state !== 'setup') return;
     const kind = state === 'setup' ? 'setup' : errorInfo?.kind || 'transcription';

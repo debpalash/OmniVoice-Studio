@@ -91,8 +91,18 @@ pub fn dispatch_dictation_capture(app: &tauri::AppHandle, action: &str) {
         return;
     };
     if capture.ready {
-        let _ = app.emit(event, ());
+        // A press that reaches Rust but produces no recording is otherwise
+        // indistinguishable from one the compositor never delivered, so say
+        // which side of the handshake the press left on.
+        if let Err(error) = app.emit(event, ()) {
+            log::warn!("Dictation capture '{action}' could not emit {event}: {error}");
+        } else {
+            log::info!("Dictation capture '{action}' emitted as {event}");
+        }
     } else {
+        log::warn!(
+            "Dictation capture '{action}' queued — the capture window has not registered yet"
+        );
         capture.pending = Some(action.to_owned());
     }
 }
@@ -333,14 +343,11 @@ fn mark_pill_noactivate(win: &tauri::WebviewWindow) {
 
 /// Show the pill without granting it foreground activation.
 ///
-/// Retained but unused: the widget window is never shown (owner decision,
-/// 2026-08-07), so there is no call site left. Kept because it is the correct
-/// answer to #982 and the only place that knowledge is written down — if a
-/// visible pill ever comes back, showing it any other way re-breaks paste on
-/// Windows by stealing foreground from the app being dictated into.
+/// The only correct way to show it on Windows (#982): a plain `show()` steals
+/// foreground from the app being dictated into, and the paste then lands in the
+/// pill instead of the user's document. `show_dictation_pill` is the call site.
 #[cfg(target_os = "windows")]
-#[allow(dead_code)]
-fn show_pill_noactivate(win: &tauri::WebviewWindow) {
+pub(crate) fn show_pill_noactivate(win: &tauri::WebviewWindow) {
     use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
     let Ok(hwnd) = win.hwnd() else {
         log::warn!("pill: could not resolve HWND for non-activating show (#982)");
@@ -484,6 +491,7 @@ pub fn run() {
             commands::set_dictation_shortcut,
             commands::request_dictation_capture,
             commands::mark_dictation_capture_ready,
+            commands::show_dictation_pill,
             commands::get_launch_as_widget,
             commands::set_launch_as_widget,
             commands::clear_webview_cache_and_relaunch,
@@ -605,11 +613,12 @@ pub fn run() {
                             match event.state {
                                 ShortcutState::Pressed => {
                                     log::info!("Global shortcut pressed: dictation start");
-                                    // The widget window is never shown (owner
-                                    // decision, 2026-08-07): it stays a hidden
-                                    // host for the recorder, and dictation gives
-                                    // no on-screen pill. See the window builder
-                                    // above for why it must still exist.
+                                    // The widget window stays hidden until the
+                                    // capture itself reaches a state worth
+                                    // showing — the widget calls
+                                    // `show_dictation_pill` then, so a press
+                                    // that bails early never strands an empty
+                                    // capsule on the desktop.
                                     dispatch_dictation_capture(app_handle, "start");
                                 }
                                 ShortcutState::Released => {

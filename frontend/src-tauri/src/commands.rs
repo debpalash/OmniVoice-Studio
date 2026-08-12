@@ -930,6 +930,117 @@ pub fn request_dictation_capture(app: tauri::AppHandle, action: String) -> Resul
     Ok(())
 }
 
+/// Distance from the bottom edge of the work area, in logical pixels — clear of
+/// a dock/taskbar without floating in the middle of the screen.
+const PILL_BOTTOM_MARGIN: f64 = 56.0;
+
+/// Bottom-centre the pill inside a monitor. Pure geometry so the placement can
+/// be tested without a display server; every value is physical pixels except
+/// `scale`, which converts the logical margin.
+fn pill_bottom_centre(
+    origin: (i32, i32),
+    area: (u32, u32),
+    size: (u32, u32),
+    scale: f64,
+) -> (i32, i32) {
+    let x = origin.0 + (area.0 as i32 - size.0 as i32) / 2;
+    let margin = (PILL_BOTTOM_MARGIN * scale).round() as i32;
+    let y = origin.1 + area.1 as i32 - size.1 as i32 - margin;
+    // A pill taller than its monitor would otherwise be placed off the top.
+    (x.max(origin.0), y.max(origin.1))
+}
+
+/// Place the pill above the bottom edge of the screen the pointer is on.
+///
+/// Wayland denies clients any say in their own placement, so `set_position` is
+/// a no-op there and the compositor decides — the pill still appears, just
+/// wherever that compositor puts it. Every other platform honours it.
+fn place_dictation_pill(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
+    let monitor = app
+        .cursor_position()
+        .ok()
+        .and_then(|point| app.monitor_from_point(point.x, point.y).ok().flatten())
+        .or_else(|| win.current_monitor().ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        log::warn!("pill: no monitor available to place the capture pill on");
+        return;
+    };
+    let size = match win.outer_size() {
+        Ok(size) => size,
+        Err(error) => {
+            log::warn!("pill: could not measure the capture pill: {error}");
+            return;
+        }
+    };
+    let area = monitor.size();
+    let origin = monitor.position();
+    let (x, y) = pill_bottom_centre(
+        (origin.x, origin.y),
+        (area.width, area.height),
+        (size.width, size.height),
+        monitor.scale_factor(),
+    );
+    if let Err(error) = win.set_position(tauri::PhysicalPosition::new(x, y)) {
+        log::warn!("pill: could not place the capture pill: {error}");
+        return;
+    }
+    log::info!(
+        "pill: placed at {x},{y} ({}x{} on a {}x{} monitor)",
+        size.width, size.height, area.width, area.height
+    );
+}
+
+/// Show the dictation pill for the duration of a capture.
+///
+/// Called by the capture widget on every state that the user must see —
+/// recording, transcribing, the result flash, an error, the Accessibility
+/// prompt. `dismiss()` in the widget owns hiding it again, and the idle
+/// reconcile there is the backstop.
+#[tauri::command]
+pub fn show_dictation_pill(app: tauri::AppHandle) -> Result<(), String> {
+    let Some(win) = app.get_webview_window("widget") else {
+        return Err("the capture window is not available".into());
+    };
+    place_dictation_pill(&app, &win);
+    // The pill must never take focus: the paste lands in whatever app the user
+    // was typing into, and stealing foreground breaks that (#982, #287).
+    #[cfg(target_os = "windows")]
+    crate::show_pill_noactivate(&win);
+    #[cfg(not(target_os = "windows"))]
+    win.show()
+        .map_err(|error| format!("could not show the capture pill: {error}"))?;
+    log::info!("pill: shown (visible={:?})", win.is_visible());
+    Ok(())
+}
+
+#[cfg(test)]
+mod pill_placement_tests {
+    use super::{pill_bottom_centre, PILL_BOTTOM_MARGIN};
+
+    #[test]
+    fn centres_horizontally_and_sits_above_the_bottom_edge() {
+        let (x, y) = pill_bottom_centre((0, 0), (1920, 1080), (300, 64), 1.0);
+        assert_eq!(x, 810);
+        assert_eq!(y, 1080 - 64 - PILL_BOTTOM_MARGIN as i32);
+    }
+
+    #[test]
+    fn places_relative_to_the_monitor_origin_on_a_second_screen() {
+        // A monitor to the right of / above the primary has a non-zero origin;
+        // ignoring it puts the pill on the wrong screen entirely.
+        let (x, y) = pill_bottom_centre((1920, -200), (2560, 1440), (600, 128), 2.0);
+        assert_eq!(x, 1920 + (2560 - 600) / 2);
+        assert_eq!(y, -200 + 1440 - 128 - (PILL_BOTTOM_MARGIN * 2.0) as i32);
+    }
+
+    #[test]
+    fn never_places_the_pill_off_the_top_or_left_of_its_monitor() {
+        let (x, y) = pill_bottom_centre((0, 0), (200, 100), (300, 300), 1.0);
+        assert_eq!((x, y), (0, 0));
+    }
+}
+
 #[tauri::command]
 pub fn mark_dictation_capture_ready(app: tauri::AppHandle) {
     let flags = app.state::<AppFlags>();
