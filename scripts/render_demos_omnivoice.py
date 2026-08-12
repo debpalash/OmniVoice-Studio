@@ -113,6 +113,51 @@ def _git_sha() -> str:
         return "unknown"
 
 
+def watermark_file(path: Path, sample_rate: int, *, context: str) -> None:
+    """Stamp the provenance watermark into an already-written WAV (#1169).
+
+    These clips ship inside the app and play back to users as VoiceStudio
+    output, so they are synthetic audio leaving the app exactly like a
+    generated clip — they go through `mark_synthetic`, the one chokepoint
+    every producing route uses. `force=True` because a render script runs
+    outside the request path that carries the user's watermark preference.
+
+    It runs on the FILE, after loudness normalization, rather than on the
+    tensor before it: `loudnorm` re-encodes what it is given, and marking
+    first would put the watermark through a gain and true-peak limiter on
+    its way to disk.
+    """
+    import torch
+    import torchaudio
+
+    from services.watermark import mark_synthetic
+
+    waveform, rate = torchaudio.load(str(path))
+    marked = mark_synthetic(waveform, rate, context=context, force=True)
+    if marked is waveform and os.environ.get("OMNIVOICE_DEMO_ALLOW_UNMARKED") == "1":
+        print(f"  ! {path.name} is NOT watermarked (OMNIVOICE_DEMO_ALLOW_UNMARKED=1)")
+        return
+    if marked is waveform:
+        # `mark_synthetic` never raises — it degrades, so generation can't be
+        # broken by watermarking. A RENDER SCRIPT is the one caller where that
+        # is wrong: it exists to produce files a human then commits, and a
+        # warning on a scrolling console is not a gate. Fail, so the unmarked
+        # file cannot be mistaken for a finished asset.
+        raise RuntimeError(
+            f"{path.name} could not be watermarked, so it must not be committed. "
+            "AudioSeal is missing or its weights are not cached on this machine "
+            "(`uv sync --all-extras`, then re-run with the model cache warm). "
+            "Set OMNIVOICE_DEMO_ALLOW_UNMARKED=1 only for a local listen — never "
+            "for a render you intend to commit."
+        )
+    torchaudio.save(
+        str(path),
+        marked.to(torch.float32),
+        rate,
+        encoding="PCM_S", bits_per_sample=16,
+    )
+
+
 def _save_wav(audio_tensor, sample_rate: int, out_path: Path):
     """Save a torch tensor (C, T) or (T,) to a 16-bit PCM WAV."""
     import torch
@@ -140,6 +185,7 @@ def _save_wav(audio_tensor, sample_rate: int, out_path: Path):
         encoding="PCM_S", bits_per_sample=16,
     )
     _normalize_loudness(out_path, sample_rate)
+    watermark_file(out_path, sample_rate, context=f"demo:{out_path.stem}")
 
 
 # Preview clips are played back to back in a picker, so they have to sit at the
@@ -184,7 +230,10 @@ def _normalize_loudness(path: Path, sample_rate: int) -> None:
         if result.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0:
             print(f"  ! loudnorm failed for {path.name}: {result.stderr.strip()[:120]}")
             return
-        shutil.move(str(tmp), str(path))
+        # os.replace, not shutil.move: `path` already exists, so move delegates
+        # to os.rename — which raises FileExistsError on Windows and fails the
+        # render there. os.replace overwrites atomically on every platform.
+        os.replace(str(tmp), str(path))
     finally:
         tmp.unlink(missing_ok=True)
 

@@ -34,10 +34,19 @@ fi
 # own engine, anywhere; `say` is now the fallback, not the requirement.
 HAVE_SAY=0
 command -v say >/dev/null && HAVE_SAY=1
-if [ "$HAVE_SAY" = 0 ] && [ ! -f "${OUT_DIR}/source.src.wav" ]; then
-  echo "ERROR: no pre-rendered audio and no macOS 'say'." >&2
-  echo "Run: python3 scripts/render_dub_demo_audio.py" >&2
-  exit 1
+# Check EVERY track, not just the source. Checking one let a run start with
+# four of five present, reach a missing dubbed track, call `say` — which does
+# not exist off macOS — and leave a half-built bundle behind.
+if [ "$HAVE_SAY" = 0 ]; then
+  MISSING=""
+  for stem in source dubbed_es dubbed_fr dubbed_zh dubbed_ja; do
+    [ -f "${OUT_DIR}/${stem}.src.wav" ] || MISSING="${MISSING} ${stem}.src.wav"
+  done
+  if [ -n "$MISSING" ]; then
+    echo "ERROR: no macOS 'say', and these pre-rendered tracks are missing:${MISSING}" >&2
+    echo "Run: python3 scripts/render_dub_demo_audio.py" >&2
+    exit 1
+  fi
 fi
 if ! command -v python3 >/dev/null; then
   echo "ERROR: python3 not found — needed to emit manifest.json." >&2
