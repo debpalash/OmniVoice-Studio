@@ -112,7 +112,7 @@ jobs:
         run: bash scripts/uv-sync-retry.sh
 
       - name: Run pytest
-        run: uv run pytest tests/ -q --tb=short
+        run: uv run --no-sync pytest tests/ -q --tb=short
 
       - name: Cache bun deps
         uses: actions/cache@v4
