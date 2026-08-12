@@ -362,7 +362,7 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
           'The local VoiceStudio backend is running but stopped responding. This usually means a ' +
             'job (a generation or a transcription) is stuck holding the engine — often a model ' +
             'too heavy for the available memory on this machine. Check Settings → Logs → Backend ' +
-            'for the last thing it was doing; a smaller model or engine (Settings → Models) is ' +
+            'for the last thing it was doing; a smaller model or engine (Model Catalogue → Models) is ' +
             'the usual fix. Restarting the app clears it for now.',
           { status: 0, detail: failureDetail },
         );

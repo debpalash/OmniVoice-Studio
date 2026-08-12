@@ -199,7 +199,7 @@ def test_repair_failure_message_names_cause_and_mirror(model_manager, monkeypatc
         model_manager._load_model_sync()
     msg = str(exc_info.value)
     assert "incomplete" in msg  # the existing actionable class is preserved
-    assert "Settings → Models" in msg
+    assert "Model Catalogue → Models" in msg
     assert "hf-mirror.com" in msg  # NEW: the cause is named
     # …and the surfaced text now carries enough signal for the shared mirror
     # hint to fire on the 500-detail surface (main.py appends it).

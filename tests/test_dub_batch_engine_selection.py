@@ -1,5 +1,5 @@
 """Issue #312 class — dub generation and batch TTS must honor the active
-engine selection (Settings → Engines) instead of silently falling back to
+engine selection (Model Catalogue → Engines) instead of silently falling back to
 OmniVoice via services.model_manager.get_model(), and must refuse — with an
 actionable error naming alternatives — instead of mis-cloning when the
 active engine can't do reference-audio voice cloning.

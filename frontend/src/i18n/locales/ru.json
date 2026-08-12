@@ -17,12 +17,23 @@
     "gallery": "Галерея",
     "transcripts": "Стенограммы",
     "omnidrive": "ОмниДрайв",
+    "catalogue": "Каталог",
     "move_rail_right": "Сдвинуть рельс вправо",
     "move_rail_left": "Сдвинуть рельс влево",
     "flip_rail": "Перевернуть сторону рельса",
     "voice": "Голос",
     "audiobook": "Аудиокнига",
     "workspaces": "Рабочие пространства"
+  },
+  "catalogue": {
+    "title": "Каталог моделей",
+    "tab_engines": "Движки",
+    "tab_models": "Модели",
+    "moved_title": "Теперь в каталоге моделей",
+    "moved_engines_body": "Выбор движка по умолчанию для синтеза речи, расшифровки и LLM перенесён в раздел «Каталог моделей».",
+    "moved_models_body": "Просмотр, установка и удаление загруженных моделей перенесены в раздел «Каталог моделей».",
+    "open_engines": "Открыть движки",
+    "open_models": "Открыть модели"
   },
   "settings": {
     "remote_backend_recovery_title": "Не удалось подключиться к удалённому бэкенду",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Галерея",
     "label_transcriptions": "Транскрипции",
     "label_settings": "Настройки",
+    "label_catalogue": "Каталог моделей",
     "label_enterprise": "Коммерческая лицензия",
     "status_ready": "Готовый",
     "status_loading": "Загрузка…",

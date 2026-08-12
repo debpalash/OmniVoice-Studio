@@ -415,7 +415,7 @@ async def create_speech(req: SpeechRequest):
             detail=(
                 f"TTS engine '{backend.id}' did not finish loading within its "
                 f"model-load budget — on a first run this usually means the weight "
-                f"download is slow or stalled (check Settings → Models for "
+                f"download is slow or stalled (check Model Catalogue → Models for "
                 f"progress), not that generation failed. Retry once the model "
                 f"shows as installed."
             ),
@@ -517,9 +517,10 @@ async def create_transcription(
 ):
     """Transcribe audio to text. Compatible with OpenAI's POST /v1/audio/transcriptions."""
     from services.asr_backend import (
+        ASRModelMissingError,
         asr_model_missing_detail,
         asr_model_missing_error,
-        get_active_asr_backend,
+        load_active_asr_backend,
     )
 
     # TTS-only install: no ASR model on disk → actionable 409, BEFORE any
@@ -546,18 +547,25 @@ async def create_transcription(
         raise HTTPException(status_code=400, detail=f"Could not read audio file: {e}")
 
     try:
-        backend = get_active_asr_backend()
-
         # Run transcription in the thread pool to avoid blocking the event loop,
         # bounded so a stuck/starved ASR returns a 504 with guidance instead of
         # hanging the request forever (see run_transcribe_guarded).
         from services.asr_backend import run_transcribe_guarded
         word_ts = response_format == "verbose_json"
-        result = await run_transcribe_guarded(
-            _gpu_pool,
-            lambda: backend.transcribe(tmp_path, word_timestamps=word_ts),
-            what="OpenAI",
-        )
+
+        # `load_active_asr_backend`, not `get_active_asr_backend`: the latter is
+        # a pure selector, so a backend whose shallow `is_available()` probe
+        # passes but whose deep import chain is broken (whisperx →
+        # ctranslate2 failing to dlopen on a hardened kernel) reached
+        # `.transcribe()` and 500'd, even with a healthy engine next in line.
+        # The loader does select + ensure_loaded + degrade (#1185). It loads
+        # weights, so it belongs inside the pool with the transcribe call —
+        # never on the event loop.
+        def _run():
+            backend = load_active_asr_backend()
+            return backend.transcribe(tmp_path, word_timestamps=word_ts)
+
+        result = await run_transcribe_guarded(_gpu_pool, _run, what="OpenAI")
 
         # Extract the full text from segments
         segments = result.get("segments", [])
@@ -625,6 +633,14 @@ async def create_transcription(
 
     except HTTPException:
         raise
+    except ASRModelMissingError as e:
+        # A degraded-to candidate has no weights on disk. Same typed 409 the
+        # preflight above raises — never a 500, and never a silent multi-GB
+        # auto-download.
+        raise HTTPException(
+            status_code=409,
+            detail={**e.payload, "message": asr_model_missing_detail(e.payload)},
+        )
     except TimeoutError as e:
         # ASRTimeoutError (subclass): backend alive, ASR too heavy for compute.
         logger.warning("OpenAI transcription timed out: %s", e)

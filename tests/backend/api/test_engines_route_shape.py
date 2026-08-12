@@ -327,7 +327,7 @@ def test_select_llm_never_routing_gated(fresh_app, monkeypatch):
     assert r.status_code == 200, r.text
 
 
-# ── ASR selection via /engines/select (Settings → Engines ASR picker) ──────
+# ── ASR selection via /engines/select (Model Catalogue → Engines ASR picker) ──────
 #
 # The ASR family was always wired in _FAMILIES on paper, but no UI called it
 # and nothing exercised it — the Settings picker now does. Lock the contract:
@@ -447,7 +447,7 @@ def test_get_engines_asr_family_shape(fresh_app):
 # mlx-audio multiplexes 7+ curated models behind one backend id. Before this
 # fix there was NO way anywhere in the UI/API to pick which curated model
 # actually loads — it always defaulted to Kokoro even if the user had
-# downloaded e.g. Llama-OuteTTS via Settings → Models.
+# downloaded e.g. Llama-OuteTTS via Model Catalogue → Models.
 
 
 def _make_mlx_audio_available(monkeypatch):

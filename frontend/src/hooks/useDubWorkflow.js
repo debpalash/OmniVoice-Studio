@@ -356,7 +356,7 @@ export default function useDubWorkflow({
           // "ASR failed to load" there sent #1242's reporter after a model
           // that had loaded fine.
           streamDropError(
-            'Transcribe stream ended before any segments arrived, and the backend could not be reached to say why — check the backend log, and Settings → Models if the ASR model was still downloading.',
+            'Transcribe stream ended before any segments arrived, and the backend could not be reached to say why — check the backend log, and Model Catalogue → Models if the ASR model was still downloading.',
           ).then(reject, reject);
         });
       }),

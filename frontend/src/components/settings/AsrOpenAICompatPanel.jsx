@@ -1,5 +1,5 @@
 /**
- * Settings → Engines (ASR tab) → OpenAI-compatible remote ASR panel (#877).
+ * Model Catalogue → Engines (ASR tab) → OpenAI-compatible remote ASR panel (#877).
  *
  * A path to Qwen3-ASR, a self-hosted FunASR/SenseVoice server, LM Studio /
  * llama.cpp-style local servers, or OpenAI's own Whisper API. Configures the
@@ -93,7 +93,7 @@ export default function AsrOpenAICompatPanel({ onSaved = null }) {
       setApiKey('');
       setServer({ base_url: d.base_url || '', model: d.model || '' });
       setSaved(true);
-      // Tell the host (Settings → Engines) so the matrix refetches and the
+      // Tell the host (Model Catalogue → Engines) so the matrix refetches and the
       // engine's row can flip unavailable → available without a manual Refresh.
       onSaved?.();
       return true;

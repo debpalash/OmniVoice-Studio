@@ -17,12 +17,23 @@
     "gallery": "갤러리",
     "transcripts": "성적 증명서",
     "omnidrive": "옴니드라이브",
+    "catalogue": "카탈로그",
     "move_rail_right": "레일을 오른쪽으로 이동",
     "move_rail_left": "레일을 왼쪽으로 이동",
     "flip_rail": "레일 측면 뒤집기",
     "voice": "음성",
     "audiobook": "Audiobook",
     "workspaces": "작업 공간"
+  },
+  "catalogue": {
+    "title": "모델 카탈로그",
+    "tab_engines": "엔진",
+    "tab_models": "모델",
+    "moved_title": "이제 모델 카탈로그에 있습니다",
+    "moved_engines_body": "음성, 전사, LLM 기본 엔진 선택이 모델 카탈로그 작업 공간으로 이동했습니다.",
+    "moved_models_body": "내려받은 모델을 살펴보고 설치·삭제하는 기능이 모델 카탈로그 작업 공간으로 이동했습니다.",
+    "open_engines": "엔진 열기",
+    "open_models": "모델 열기"
   },
   "settings": {
     "remote_backend_recovery_title": "원격 백엔드에 연결할 수 없음",
@@ -1698,6 +1709,7 @@
     "label_gallery": "갤러리",
     "label_transcriptions": "전사",
     "label_settings": "설정",
+    "label_catalogue": "모델 카탈로그",
     "label_enterprise": "상업용 라이센스",
     "status_ready": "준비",
     "status_loading": "로드 중…",

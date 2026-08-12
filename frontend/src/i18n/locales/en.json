@@ -152,6 +152,7 @@
     "gallery": "Gallery",
     "transcripts": "Transcripts",
     "omnidrive": "OmniDrive",
+    "catalogue": "Catalogue",
     "settings": "Settings",
     "stories": "Stories",
     "audiobook": "Audiobook",
@@ -159,6 +160,16 @@
     "move_rail_left": "Move rail to the left",
     "flip_rail": "Flip rail side",
     "workspaces": "Workspaces"
+  },
+  "catalogue": {
+    "title": "Model Catalogue",
+    "tab_engines": "Engines",
+    "tab_models": "Models",
+    "moved_title": "Now in the Model Catalogue",
+    "moved_engines_body": "Choosing the default speech, transcription and LLM engine moved to the Model Catalogue workspace.",
+    "moved_models_body": "Browsing, installing and removing model downloads moved to the Model Catalogue workspace.",
+    "open_engines": "Open Engines",
+    "open_models": "Open Models"
   },
   "audiobook": {
     "cast": "Cast",
@@ -2235,6 +2246,7 @@
     "label_gallery": "Gallery",
     "label_transcriptions": "Transcriptions",
     "label_settings": "Settings",
+    "label_catalogue": "Model Catalogue",
     "label_enterprise": "Commercial License",
     "status_ready": "Ready",
     "status_loading": "Loading…",

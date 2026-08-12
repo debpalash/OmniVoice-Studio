@@ -20,7 +20,27 @@ export default function UiScaleSetup({
 }) {
   const { t } = useTranslation();
   const [viewport, setViewport] = useState(getViewport);
-  const suggestedScale = suggestUiScale(viewport);
+  // LATCHED at mount — do NOT re-derive this from `viewport`.
+  //
+  // Under Tauri the UI scale is applied as *native webview zoom*, which by
+  // design keeps the CSS viewport equal to the visible window (see
+  // utils/uiScaleEngine.js) — so applying a scale CHANGES `window.innerWidth`.
+  // Deriving the suggestion from a live viewport therefore fed this screen's
+  // own output back into its input:
+  //
+  //   suggest → setUiScale → native setZoom → viewport changes → resize →
+  //   setViewport → new suggestion → setUiScale → …
+  //
+  // and because `suggestUiScale` snaps to a discrete option it never settled.
+  // On a 1280×800 window: 0.889 → 0.9; at zoom 0.9 the viewport reports
+  // 1422×889 → 0.987 → 1.0; at zoom 1.0 it reports 1280×800 → 0.9 again. The
+  // first-run screen oscillated 0.9 ↔ 1.0 forever and visibly stuttered while
+  // completely idle.
+  //
+  // The suggestion is a screen-aware *starting point*, so one measurement of
+  // the pre-zoom viewport is all it was ever meant to be. `viewport` itself
+  // stays live for the "Screen: W × H" readout.
+  const [suggestedScale] = useState(() => suggestUiScale(getViewport()));
   const [selectedScale, setSelectedScale] = useState(() =>
     uiScale === 1 ? suggestUiScale(getViewport()) : uiScale,
   );

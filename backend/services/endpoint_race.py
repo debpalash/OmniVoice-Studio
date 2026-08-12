@@ -15,7 +15,7 @@ Principles (owner-set):
   endpoint gets probed first — never to decide. No geo-IP lookups, no
   third-party calls, no telemetry.
 - **Explicit choices are never auto-switched.** A user with an endpoint
-  configured anywhere (Settings → Models, ``HF_ENDPOINT`` env, the
+  configured anywhere (Model Catalogue → Models, ``HF_ENDPOINT`` env, the
   ``hf_endpoint`` pref) is in manual mode; auto applies only where nothing
   was chosen. ``OMNIVOICE_HF_ENDPOINT_MODE=manual`` is a hard env opt-out.
 - **Sticky, canonical-first decisions.** With both endpoints reachable the
@@ -272,7 +272,7 @@ def explicit_endpoint():
     """The endpoint the user explicitly configured, or "".
 
     Same resolution the download paths use: ``HF_ENDPOINT`` env (what
-    Settings → Models persists via user_env and what main.py loads at boot)
+    Model Catalogue → Models persists via user_env and what main.py loads at boot)
     with the ``hf_endpoint`` pref as fallback. Unlike
     ``core.failure.configured_hf_mirror`` this does NOT filter the official
     endpoint — explicitly choosing huggingface.co is still an explicit

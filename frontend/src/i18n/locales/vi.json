@@ -17,12 +17,23 @@
     "gallery": "Thư viện ảnh",
     "transcripts": "bảng điểm",
     "omnidrive": "OmniDrive",
+    "catalogue": "Danh mục",
     "move_rail_right": "Di chuyển đường ray sang phải",
     "move_rail_left": "Di chuyển đường ray sang trái",
     "flip_rail": "Mặt đường ray lật",
     "voice": "Giọng nói",
     "audiobook": "Sách nói",
     "workspaces": "Không gian làm việc"
+  },
+  "catalogue": {
+    "title": "Danh mục mô hình",
+    "tab_engines": "Engine",
+    "tab_models": "Mô hình",
+    "moved_title": "Đã chuyển sang Danh mục mô hình",
+    "moved_engines_body": "Việc chọn engine mặc định cho giọng nói, chuyển lời nói thành văn bản và LLM đã chuyển sang không gian làm việc Danh mục mô hình.",
+    "moved_models_body": "Việc duyệt, cài đặt và xoá mô hình đã tải đã chuyển sang không gian làm việc Danh mục mô hình.",
+    "open_engines": "Mở engine",
+    "open_models": "Mở mô hình"
   },
   "settings": {
     "remote_backend_recovery_title": "Không thể kết nối với backend từ xa",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Thư viện ảnh",
     "label_transcriptions": "Phiên âm",
     "label_settings": "Cài đặt",
+    "label_catalogue": "Danh mục mô hình",
     "label_enterprise": "Giấy phép thương mại",
     "status_ready": "Sẵn sàng",
     "status_loading": "Đang tải…",

@@ -69,7 +69,7 @@ We exclude every `nvidia.*` wheel from the Apple Silicon build (saves ~2 GB) and
 
 For us:
 - **Base DMG ships MPS + MLX path only.** Excludes `nvidia.*`, `triton`, `flash-attn`, anything CUDA-specific in the spec.
-- **Optional pack: VoxCPM2** (requires CUDA). Not installed by default. Settings → Engines → "Install VoxCPM2" triggers download from our `voxcpm2-cu128-v1.tar.gz` release asset.
+- **Optional pack: VoxCPM2** (requires CUDA). Not installed by default. Model Catalogue → Engines → "Install VoxCPM2" triggers download from our `voxcpm2-cu128-v1.tar.gz` release asset.
 - **Optional pack: pyannote** (HF-token gated). Default off. Settings → Speaker diarisation → "Enable" prompts for HF token, downloads + installs.
 - **Optional pack: MOSS-TTS-Nano.** Same pattern.
 

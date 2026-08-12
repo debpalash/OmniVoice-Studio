@@ -45,6 +45,8 @@ _REF_ALLOWLIST = (
     "Official Google Colab notebook",
     # owner-directed architecture work (remote/goal.md → goal_v2.md), no issue
     "Remote workers** sends individual jobs to GPUs",
+    # owner-requested workspace promotion (engines + model store out of Settings), no issue
+    "Model Catalogue** — a workspace of its own",
 )
 
 _HEADING = re.compile(r"^## \[([^\]]+)\](?:\s*[—–-]\s*(.*))?$")

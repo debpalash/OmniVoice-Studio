@@ -557,7 +557,7 @@ _prep_event_helper = dub_pipeline.prep_event  # alias; we keep the module-local 
 #: into one reference, which is how "made up" clone voices happen).
 CLONE_SKIP_HEURISTIC_MSG = (
     "auto voice cloning skipped: speaker labels are gap-based estimates — "
-    "set up diarization (Settings → Models → pyannote) for per-speaker clones"
+    "set up diarization (Model Catalogue → Models → pyannote) for per-speaker clones"
 )
 
 
@@ -1203,7 +1203,7 @@ async def dub_transcribe_stream(
                         f"unavailable, so the ASR engine's built-in speaker "
                         f"turns were used and the detected count may differ "
                         f"from the {num_speakers} you set. Set up diarization "
-                        f"(Settings → Models → pyannote) to enforce an exact "
+                        f"(Model Catalogue → Models → pyannote) to enforce an exact "
                         f"speaker count."
                     )
                 return resplit, {
@@ -1687,8 +1687,11 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
         # / mlx / pytorch based on what's installed + user preference. Works
         # identically on all platforms; the older mlx-vs-pytorch branching
         # here duplicated the logic in asr_backend.py and skipped WhisperX.
-        from services.asr_backend import get_active_asr_backend
-        _asr = get_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
+        # `load_*`, not `get_*`: the plain selector hands back engines whose
+        # shallow probe passed but whose deep import chain is broken, which
+        # then dies at `.transcribe()`. The loader degrades (#1185).
+        from services.asr_backend import load_active_asr_backend
+        _asr = load_active_asr_backend(asr_pipe=getattr(_model, "_asr_pipe", None))
         try:
             try:
                 logger.info("Transcribing full audio via %s ...", _asr.id)

@@ -25,7 +25,7 @@ on your own machine: no accounts, no API keys, no cloud.
 |---|---|---|
 | Speaker encoder + reference utterance | Reference clip in the **Voice Clone** workflow ("From audio") | No separate embedding step — zero-shot engines condition on the clip directly |
 | Saved speaker embeddings (`.npy`) | **Voice Profiles** — save a clone once, reuse it everywhere | Exportable as portable `.ovsvoice` bundles |
-| Synthesizer + vocoder choice (Tacotron 2 · WaveRNN / Griffin-Lim) | **TTS engine choice** — Settings → Engines | 14 engines, from CPU-realtime to GPU heavyweights; per-engine GPU preflight |
+| Synthesizer + vocoder choice (Tacotron 2 · WaveRNN / Griffin-Lim) | **TTS engine choice** — Model Catalogue → Engines | 14 engines, from CPU-realtime to GPU heavyweights; per-engine GPU preflight |
 | The Toolbox GUI (`demo_toolbox.py`) | The app itself | Record or drop a clip, type text, synthesize — same loop, no `python demo_toolbox.py` |
 | `demo_cli.py` / scripting your own pipeline | Local REST API (OpenAI-compatible, `http://localhost:3900/v1`), `omnivoice-infer` CLI, MCP server | See the [API section of the README](../../README.md#openai-api) |
 | Training your own encoder / synthesizer / vocoder | Partial — see ["What RTVC did that VoiceStudio doesn't"](#what-rtvc-did-that-omnivoice-doesnt) | Fine-tuning the bundled model is documented; RTVC-style three-stage research training is not what this project is |

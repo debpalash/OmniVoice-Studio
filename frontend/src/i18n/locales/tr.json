@@ -17,12 +17,23 @@
     "gallery": "Galeri",
     "transcripts": "Transkriptler",
     "omnidrive": "OmniDrive",
+    "catalogue": "Katalog",
     "move_rail_right": "Rayı sağa kaydır",
     "move_rail_left": "Rayı sola taşı",
     "flip_rail": "Ray tarafını çevir",
     "voice": "Ses",
     "audiobook": "Sesli kitap",
     "workspaces": "Çalışma alanları"
+  },
+  "catalogue": {
+    "title": "Model kataloğu",
+    "tab_engines": "Motorlar",
+    "tab_models": "Modeller",
+    "moved_title": "Artık model kataloğunda",
+    "moved_engines_body": "Varsayılan ses, deşifre ve LLM motorunu seçme işlemi Model kataloğu çalışma alanına taşındı.",
+    "moved_models_body": "İndirilen modellere göz atma, yükleme ve kaldırma işlemleri Model kataloğu çalışma alanına taşındı.",
+    "open_engines": "Motorları aç",
+    "open_models": "Modelleri aç"
   },
   "settings": {
     "remote_backend_recovery_title": "Uzak arka uca ulaşılamıyor",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Galeri",
     "label_transcriptions": "Transkripsiyonlar",
     "label_settings": "Ayarlar",
+    "label_catalogue": "Model kataloğu",
     "label_enterprise": "Ticari Lisans",
     "status_ready": "Hazır",
     "status_loading": "Yükleniyor…",

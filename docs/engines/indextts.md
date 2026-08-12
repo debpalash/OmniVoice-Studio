@@ -14,7 +14,7 @@ runtime. Existing user-managed IndexTTS-2 environments remain supported.
 IndexTTS 2.5 is not bundled because its source environment and model weights
 require substantial disk space.
 
-1. Open **Settings → Engines**.
+1. Open **Model Catalogue → Engines**.
 2. Expand **IndexTTS 2.5** and select **Install**.
 3. Keep VoiceStudio open while source, dependencies, and weights download.
 
@@ -89,7 +89,7 @@ IndexTTS-2 installations continue receiving their `target_tokens` control.
 
 ### Engine unavailable
 
-Use **Settings → Engines → IndexTTS 2.5 → Install**. For a manual install,
+Use **Model Catalogue → Engines → IndexTTS 2.5 → Install**. For a manual install,
 confirm that the configured directory contains:
 
 ```text

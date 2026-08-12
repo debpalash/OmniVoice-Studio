@@ -164,7 +164,7 @@ class IsolatedFasterWhisperBackend(SubprocessASRBackend):
         # Same CTranslate2 engine, same cuDNN 8 requirement (#1371). Crash
         # isolation means a missing cuDNN 8 kills only the child — so instead of
         # a dead backend the user gets a sidecar that fails every transcribe
-        # with no explanation. Report it here, where Settings → Engines shows it.
+        # with no explanation. Report it here, where Model Catalogue → Engines shows it.
         from services.asr_backend import _ctranslate2_cudnn_ok
 
         return _ctranslate2_cudnn_ok()

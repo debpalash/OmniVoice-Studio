@@ -17,12 +17,23 @@
     "gallery": "गैलरी",
     "transcripts": "प्रतिलेख",
     "omnidrive": "ओमनीड्राइव",
+    "catalogue": "कैटलॉग",
     "move_rail_right": "रेल को दाईं ओर ले जाएँ",
     "move_rail_left": "रेल को बाईं ओर ले जाएँ",
     "flip_rail": "रेल की ओर पलटें",
     "voice": "आवाज",
     "audiobook": "ऑडियोबुक",
     "workspaces": "वर्कस्पेस"
+  },
+  "catalogue": {
+    "title": "मॉडल कैटलॉग",
+    "tab_engines": "इंजन",
+    "tab_models": "मॉडल",
+    "moved_title": "अब मॉडल कैटलॉग में",
+    "moved_engines_body": "वाक्, प्रतिलेखन और LLM का डिफ़ॉल्ट इंजन चुनना अब मॉडल कैटलॉग वर्कस्पेस में है।",
+    "moved_models_body": "डाउनलोड किए गए मॉडल देखना, इंस्टॉल करना और हटाना अब मॉडल कैटलॉग वर्कस्पेस में है।",
+    "open_engines": "इंजन खोलें",
+    "open_models": "मॉडल खोलें"
   },
   "settings": {
     "remote_backend_recovery_title": "रिमोट बैकएंड से संपर्क नहीं हो सका",
@@ -1698,6 +1709,7 @@
     "label_gallery": "गैलरी",
     "label_transcriptions": "प्रतिलेखन",
     "label_settings": "सेटिंग्स",
+    "label_catalogue": "मॉडल कैटलॉग",
     "label_enterprise": "वाणिज्यिक लाइसेंस",
     "status_ready": "तैयार",
     "status_loading": "लोड हो रहा है...",

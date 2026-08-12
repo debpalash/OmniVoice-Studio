@@ -46,7 +46,7 @@ curl -s http://localhost:3900/v1/audio/transcriptions \
   -F file=@clip.wav -F model=whisper-1 -F response_format=json
 ```
 
-- `model`: `whisper-1` maps to the active ASR engine (WhisperX by default; the user picks in Settings → Engines).
+- `model`: `whisper-1` maps to the active ASR engine (WhisperX by default; the user picks in Model Catalogue → Engines).
 - `response_format`: `json`, `text`, `verbose_json` (per-segment timestamps), `srt`, or `vtt` — use `srt`/`vtt` directly when the user wants subtitles.
 
 ## Python (openai SDK)

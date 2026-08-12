@@ -95,8 +95,14 @@ export const GROUPS = [
         labelKey: 'settings.engines',
         defaultLabel: 'Engines',
         icon: Plug,
+        // Engine selection lives in the Model Catalogue workspace now; the
+        // category stays so the old name still finds it (it renders a pointer).
         keywords: [
           'engine',
+          'catalogue',
+          'catalog',
+          'model catalogue',
+          'default engine',
           'tts engine',
           'indextts',
           'cosyvoice',
@@ -122,6 +128,9 @@ export const GROUPS = [
           'models directory',
           'hugging face mirror',
           'hf_endpoint',
+          'catalogue',
+          'catalog',
+          'model store',
         ],
       },
       {
@@ -301,6 +310,12 @@ export const GROUPS = [
           'distributed',
           'enrollment token',
           'offload',
+          'join code',
+          'join',
+          'qr',
+          'lend gpu',
+          'share gpu',
+          'worker mode',
         ],
         keywordKeys: ['settings.workers_title', 'settings.workers_add'],
       },

@@ -68,6 +68,7 @@ describe('webUI feature coverage', () => {
       'gallery',
       'projects',
       'transcriptions',
+      'catalogue',
       'settings',
       'engines',
       'donate',

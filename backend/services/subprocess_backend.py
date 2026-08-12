@@ -495,7 +495,7 @@ class SubprocessBackend(TTSBackend):
         from services.binary_preflight import InvalidBinaryError, validate_executable
         _venv_hint = (
             f"the '{self.id}' engine's private environment is broken — "
-            f"reinstall the engine from Settings → Engines"
+            f"reinstall the engine from Model Catalogue → Engines"
         )
         validate_executable(python_path, hint=_venv_hint)
         # Basenames only — absolute paths embed the user's home directory,

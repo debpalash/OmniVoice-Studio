@@ -136,7 +136,7 @@ def _patched_guard(mm, generate_timeout):
 
 def test_speech_load_exceeding_load_budget_gets_the_load_error(client, monkeypatch):
     """A genuinely stalled download still fails — but with the load-specific
-    503 pointing at Settings → Models, not the 'too heavy for compute' text."""
+    503 pointing at Model Catalogue → Models, not the 'too heavy for compute' text."""
     import services.model_manager as mm
     import api.routers.openai_compat as oc
 
@@ -150,5 +150,5 @@ def test_speech_load_exceeding_load_budget_gets_the_load_error(client, monkeypat
     assert res.status_code == 503, res.text
     detail = res.json()["detail"]
     assert "model-load budget" in detail
-    assert "Settings → Models" in detail
+    assert "Model Catalogue → Models" in detail
     assert "too heavy" not in detail

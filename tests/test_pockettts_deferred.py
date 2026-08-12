@@ -59,7 +59,7 @@ def test_license_gate_fails_closed_then_allows_engine(monkeypatch, mock_settings
     ok, reason = _backend_cls().is_available()
     assert ok is False
     assert "license not accepted" in reason.lower()
-    assert "Settings" in reason and "Engines" in reason
+    assert "Model Catalogue → Engines" in reason
 
     mock_settings_store["pockettts"] = True
     assert _backend_cls().is_available() == (True, "ready (CPU-only)")

@@ -346,6 +346,8 @@ import time
 import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -920,6 +922,65 @@ def _cors_headers_for(request: Request) -> "dict[str, str]":
             "Vary": "Origin",
         }
     return {}
+
+
+# Largest `input` echo we put in a 422 body. Enough to see which field is
+# wrong, far too small to mirror an upload back at the client or the log.
+_VALIDATION_INPUT_MAX = 200
+
+
+def _safe_validation_input(value):
+    """Render a pydantic error's ``input`` as something JSON-encodable.
+
+    FastAPI's default handler runs ``jsonable_encoder(exc.errors())``, and for
+    a body-level validation failure ``errors()[i]["input"]`` is the RAW REQUEST
+    BODY. Two bugs fall out of that, both live before this handler existed:
+
+    1. ``jsonable_encoder`` decodes ``bytes`` as UTF-8, so ANY binary body
+       (a multipart audio upload posted to a JSON-body route — easy to do by
+       hand, and what several MCP/OpenAI-compat clients do on a bad path)
+       raised ``UnicodeDecodeError`` *inside the error handler*. The client got
+       a 500 where the request was merely malformed, and the escaping
+       exception dumped the entire body into omnivoice.log — a 145 KB WAV
+       wrote ~500 KB of log. For a local-first voice app that is user audio
+       landing on disk in a file we invite people to paste into bug reports.
+    2. Even when decodable, the whole body was mirrored into the response.
+
+    So: bytes are never decoded (only their length is reported), and every
+    echoed value is truncated. Pure — unit-testable without a request.
+    """
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return f"<{len(bytes(value))} bytes of binary data>"
+    if isinstance(value, str) and len(value) > _VALIDATION_INPUT_MAX:
+        return value[:_VALIDATION_INPUT_MAX] + f"… (+{len(value) - _VALIDATION_INPUT_MAX} chars)"
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """422 for a malformed request — never a 500, never an audio-sized body.
+
+    Mirrors FastAPI's default shape (``{"detail": [...]}``) so existing clients
+    and the frontend's error parsing are unaffected; only ``input`` is
+    sanitized (see :func:`_safe_validation_input`). Goes through
+    ``_cors_headers_for`` like every other hand-built error response here, so
+    the browser sees the real detail instead of a bare CORS failure.
+    """
+    safe = []
+    for err in exc.errors():
+        err = dict(err)
+        if "input" in err:
+            err["input"] = _safe_validation_input(err["input"])
+        # `ctx` can carry the triggering exception object, which is not
+        # JSON-encodable either.
+        if "ctx" in err:
+            err["ctx"] = {k: str(v) for k, v in dict(err["ctx"]).items()}
+        safe.append(err)
+    return JSONResponse(
+        status_code=422,
+        content=jsonable_encoder({"detail": safe}),
+        headers=_cors_headers_for(request),
+    )
 
 
 @app.exception_handler(Exception)

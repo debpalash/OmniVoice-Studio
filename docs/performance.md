@@ -38,7 +38,7 @@ Before touching any knob, check these — they account for most slowness reports
    - **Settings → About → Run self-check** (the `/system/diagnose` endpoint)
      warns explicitly: *"cpu (no GPU acceleration detected)"* with a hint
      about drivers.
-   - **Settings → Engines** shows a routing badge per engine — "GPU active",
+   - **Model Catalogue → Engines** shows a routing badge per engine — "GPU active",
      "CPU fallback", or "CPU" — with the *reason* shown as small text under
      the badge (full text on hover).
    Note: **GPU acceleration on Windows is NVIDIA/CUDA-only** — AMD and Intel
@@ -161,7 +161,7 @@ drain, or restart the backend, and then Flush.
   - **Unload all + flush** — the above **plus** fully unloads the resident
     TTS model. Frees the most memory; the next generation pays the ~8 s
     reload.
-- **Settings → Models** — rows whose weights are resident right now show an
+- **Model Catalogue → Models** — rows whose weights are resident right now show an
   "In memory" badge with the same per-model **Unload** button.
 
 **From a script** (the local API on port 3900), the same operations:
@@ -212,7 +212,7 @@ CPU ASR, the crash-isolated ASR engine).
   to 3-4 concurrent generations (API/batch workloads); ≤10 GB deliberately
   serializes.
 - **CPU-only**: expect ~2x slower than MPS, more against CUDA. Prefer the
-  smaller/faster engines (see Settings → Engines) and short reference clips.
+  smaller/faster engines (see Model Catalogue → Engines) and short reference clips.
 
 ## Measuring instead of guessing
 

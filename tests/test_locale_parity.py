@@ -58,7 +58,7 @@ _PLACEHOLDER_ALLOWLIST = {
 
 # Engine brand names that must never appear in a status string covering work a
 # *different* engine may be doing. ASR and TTS are both user-selectable
-# (Settings → Models), so "Transcribing with Whisper…" was a lie for anyone on
+# (Model Catalogue → Models), so "Transcribing with Whisper…" was a lie for anyone on
 # Parakeet or a transformers pipeline (#1352). Latin spellings only — several
 # locales transliterate ("ウィスパー", "Bisikan", "الهمس"), which no practical
 # pattern catches; the keys below are checked in every locale anyway, so the
@@ -323,7 +323,7 @@ def test_engine_agnostic_labels_name_no_engine(locale):
     """A stage label must not name the engine that happens to implement it.
 
     The dub overlay said "Transcribing with Whisper…" in all 21 languages while
-    ASR is a Settings → Models choice, so anyone on Parakeet or a transformers
+    ASR is a Model Catalogue → Models choice, so anyone on Parakeet or a transformers
     pipeline was told the wrong engine was running — and a user debugging a slow
     or failing transcription would go read Whisper's docs (#1352, thanks
     @paoloantinori!). The same trap is one line away for any future stage label,

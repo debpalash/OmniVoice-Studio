@@ -173,7 +173,7 @@ def _binary_repair_hint() -> str:
         f"the bundled GGUF runtime is not usable on this machine — build it "
         f"with `scripts/build-omnivoice-tts.sh --platform {_platform_slug()}`, "
         f"reinstall VoiceStudio, or switch to the default in-process "
-        f"OmniVoice engine (Settings → Engines)"
+        f"OmniVoice engine (Model Catalogue → Engines)"
     )
 
 
@@ -406,7 +406,7 @@ def _make_backend_class():
                         f"built — run `scripts/build-omnivoice-tts.sh "
                         f"--platform {_platform_slug()}`, reinstall "
                         f"VoiceStudio, or use the default in-process "
-                        f"OmniVoice engine (Settings → Engines)."
+                        f"OmniVoice engine (Model Catalogue → Engines)."
                     )
                 # Manifest-based SHA-256 verification (T-04-01).
                 manifest = _load_checksum_manifest()
@@ -855,7 +855,7 @@ def select_default_engine() -> str:
     Returns ``"omnivoice"`` (the existing in-process default) on any
     failure. The fallback is deliberately silent — a user who hits this
     code path still gets a working cloning engine; the failure surfaces
-    in the Settings → Engines Compatibility Matrix (Plan 02-04) so the
+    in the Model Catalogue → Engines Compatibility Matrix (Plan 02-04) so the
     user can investigate if they care to.
     """
     cls = _make_backend_class()

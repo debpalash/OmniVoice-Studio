@@ -43,7 +43,7 @@ def test_the_reported_error_names_the_engine_and_the_way_out():
     message = str(rewritten)
     assert "MLX Audio" in message, "the user must learn WHICH engine refused"
     assert "'bn'" in message, "...and which language it refused"
-    assert "Settings → Engines" in message, "...and where to fix it"
+    assert "Model Catalogue → Engines" in message, "...and where to fix it"
     # The engine's own list is still useful — keep it rather than hide it.
     assert "ar (Arabic)" in message
 
@@ -61,7 +61,7 @@ def test_every_wording_of_a_language_rejection_is_caught(reason):
     """Each engine multiplexes a different third-party library, so the class
     and the wording both vary — match on meaning."""
     rewritten = _language_rejection_or(RuntimeError(reason), _Engine(), "bn")
-    assert "Settings → Engines" in str(rewritten)
+    assert "Model Catalogue → Engines" in str(rewritten)
 
 
 def test_a_language_rejection_becomes_a_ValueError():
@@ -108,7 +108,7 @@ def test_the_wiring_rewrites_a_language_rejection_end_to_end():
     with pytest.raises(ValueError) as caught:
         _run(_Engine(), RuntimeError(REPORTED))
 
-    assert "Settings → Engines" in str(caught.value)
+    assert "Model Catalogue → Engines" in str(caught.value)
     assert "MLX Audio" in str(caught.value)
 
 
@@ -119,7 +119,7 @@ def test_an_oom_still_reaches_the_oom_path():
         _run(_Engine(), RuntimeError("CUDA out of memory. Tried to allocate 2.00 GiB"))
 
     message = str(caught.value)
-    assert "Settings → Engines" not in message, "an OOM is not a language problem"
+    assert "Model Catalogue → Engines" not in message, "an OOM is not a language problem"
     # _oom_friendly_reraise rewrites it into its own guidance.
     assert "memory" in message.lower()
 
@@ -133,7 +133,7 @@ def test_a_nameless_backend_still_names_itself():
 
     message = str(_language_rejection_or(ValueError(REPORTED), _Bare(), None))
     assert "_Bare" in message
-    assert "Settings → Engines" in message
+    assert "Model Catalogue → Engines" in message
 
 
 @pytest.mark.parametrize(
@@ -156,6 +156,6 @@ def test_a_model_failure_that_merely_says_unsupported_language_is_untouched(reas
     ["Unsupported language: bn", "Unsupported language 'bn'", "Unsupported language"],
 )
 def test_a_genuine_unsupported_language_still_matches(reason):
-    assert "Settings → Engines" in str(
+    assert "Model Catalogue → Engines" in str(
         _language_rejection_or(RuntimeError(reason), _Engine(), "bn")
     )

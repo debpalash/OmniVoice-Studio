@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { copyText } from '../utils/copyText';
 import { normalizeChannel } from '../utils/updateChannel';
-import { CheckCircle, RefreshCw, ArrowDownToLine } from 'lucide-react';
+import { ArrowDownToLine } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API, apiFetch } from '../api/client';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,6 @@ import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '..
 import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { resolveAboutVersion } from '../utils/appVersion';
-import { Badge } from '../ui';
 import { SettingsSection } from '../components/settings/primitives';
 import { useAppStore } from '../store';
 // Panels — re-hosted as-is; the redesign reorganizes them, not their logic.
@@ -33,8 +32,9 @@ import PermissionsPanel from '../components/settings/PermissionsPanel';
 import DictationDemo from '../components/DictationDemo';
 import UpdatesPanel from '../components/UpdatesPanel';
 import GeneralTab from '../components/settings/GeneralTab';
-import ModelStoreTab from '../components/settings/ModelStoreTab';
-import EnginesTab from '../components/settings/EnginesTab';
+// Engine selection + the model store moved to the Model Catalogue workspace
+// (pages/ModelCatalogue.jsx); these categories now signpost it.
+import CataloguePointer from '../components/settings/CataloguePointer';
 import HotkeyTab from '../components/settings/HotkeyTab';
 import TranslationTab from '../components/settings/TranslationTab';
 import NetworkTab from '../components/settings/NetworkTab';
@@ -119,6 +119,35 @@ export default function Settings() {
       setActiveRaw(visibleIds[0]);
     }
   }, [query, visibleIds, visibleSet, active]);
+
+  // ── Sidebar keyboard loop ──────────────────────────────────────────────────
+  // ⌘K / Ctrl+K focuses the filter from anywhere on the page; the search box
+  // hands focus down into the category list (Enter / ↓) and the list hands it
+  // back (↑ past the top). Same binding on every platform — only the keycap
+  // hint differs.
+  const searchRef = useRef(null);
+  const focusSearch = useCallback(() => {
+    const el = searchRef.current;
+    if (!el) return;
+    el.focus();
+    el.select?.();
+  }, []);
+  const focusActiveCategory = useCallback(() => {
+    // The rail is a roving-tabindex list: the active item is its only tab stop,
+    // so focusing it is "enter the list" regardless of which item that is.
+    document.querySelector('[data-testid^="settings-nav-"][aria-current="page"]')?.focus?.();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'k' && e.key !== 'K') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      focusSearch();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focusSearch]);
 
   // ── Shared data (TanStack Query — shared cache with App.jsx) ───────────────
   const { data: hw } = useSysinfo();
@@ -349,19 +378,6 @@ export default function Settings() {
     }
   };
 
-  const modelBadge =
-    status?.status === 'ready' ? (
-      <Badge tone="success">
-        <CheckCircle size={11} /> {t('models.ready_badge')}
-      </Badge>
-    ) : status?.status === 'loading' ? (
-      <Badge tone="warn">
-        <RefreshCw size={11} className="spinner" /> {t('models.loading_badge')}
-      </Badge>
-    ) : (
-      <Badge tone="warn">{t('models.idle_badge')}</Badge>
-    );
-
   const renderCategory = (id) => {
     switch (id) {
       case 'appearance':
@@ -372,15 +388,17 @@ export default function Settings() {
           </>
         );
       case 'engines':
-        return <EnginesTab />;
+        return <CataloguePointer area="engines" />;
       case 'models':
+        // What stays here is the storage-shaped remainder: where weights live
+        // on disk and which mirror they come from (both restart-bound, hence
+        // the category's `restart: true`). Browsing / installing / removing
+        // them is the Model Catalogue's Models pane.
         return (
           <>
             <StoragePanel />
             <HFMirrorPanel />
-            {/* OpenAI-compatible ASR config moved to Settings → Engines (ASR
-                tab) — configure/test/activate now live on one screen. */}
-            <ModelStoreTab info={info} modelBadge={modelBadge} />
+            <CataloguePointer area="models" />
           </>
         );
       case 'dictation':
@@ -486,13 +504,19 @@ export default function Settings() {
     <div className="h-full min-h-0 w-full [container-type:inline-size] [container-name:settings-shell]">
       <div className="flex h-full min-h-0 w-full box-border flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-5)_var(--space-7)_var(--space-7)] font-sans @min-[760px]/settings-shell:grid @min-[760px]/settings-shell:overflow-hidden @min-[760px]/settings-shell:[grid-template-columns:var(--settings-rail)_minmax(0,1fr)] @min-[760px]/settings-shell:[grid-template-rows:minmax(0,1fr)] @min-[760px]/settings-shell:gap-[var(--space-5)]">
         <aside className="mb-[var(--space-4)] @min-[760px]/settings-shell:mb-0 @min-[760px]/settings-shell:flex @min-[760px]/settings-shell:h-full @min-[760px]/settings-shell:min-h-0 @min-[760px]/settings-shell:flex-col @min-[760px]/settings-shell:overflow-hidden">
-          <SettingsSearch value={query} onChange={setQuery} />
+          <SettingsSearch
+            value={query}
+            onChange={setQuery}
+            inputRef={searchRef}
+            onEnterList={focusActiveCategory}
+          />
           <SettingsSidebar
             visibleIds={visibleSet}
             active={active}
             onSelect={setActive}
             query={query}
             onClearSearch={() => setQuery('')}
+            onFocusSearch={focusSearch}
           />
         </aside>
 

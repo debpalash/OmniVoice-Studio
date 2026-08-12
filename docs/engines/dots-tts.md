@@ -11,14 +11,14 @@ pins `transformers>=5.3` — the same isolation primitive used by
 [IndexTTS-2](indextts.md) and [MOSS-TTS-v1.5](moss-tts-v15.md).
 
 > **Opt-in, and never a default.** dots.tts is selected explicitly in
-> **Settings → Engines** (or `OMNIVOICE_TTS_BACKEND=dots-tts`). It is not
+> **Model Catalogue → Engines** (or `OMNIVOICE_TTS_BACKEND=dots-tts`). It is not
 > part of the default install.
 
 ## Platform support
 
 - **Linux / macOS only.** dots.tts's upstream package declares Linux and
   macOS classifiers and has **no Windows install path**. On Windows the
-  engine reports itself unavailable in **Settings → Engines** with a clear
+  engine reports itself unavailable in **Model Catalogue → Engines** with a clear
   reason — run VoiceStudio under WSL2 or use a Linux/macOS host.
 - **No MPS.** Upstream device selection is CUDA-or-CPU with no Metal branch,
   so on Apple Silicon the official package runs on **CPU** (slow but
@@ -60,7 +60,7 @@ dots.tts is **not** bundled (large checkpoint + conflicting `transformers`).
    source ~/.zshrc
    ```
 
-5. Restart VoiceStudio. dots.tts appears in **Settings → Engines** with
+5. Restart VoiceStudio. dots.tts appears in **Model Catalogue → Engines** with
    `available: true` and `isolation_mode: subprocess`.
 
 ## Venv resolution order

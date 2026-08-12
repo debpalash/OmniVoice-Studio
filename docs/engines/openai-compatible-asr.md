@@ -9,7 +9,7 @@ and claims no GPU.
 
 ## Setup
 
-Everything lives on one screen — **Settings → Engines**, **ASR** tab:
+Everything lives on one screen — **Model Catalogue → Engines**, **ASR** tab:
 
 1. The **OpenAI-compatible (remote server)** row shows as unavailable until
    a server is configured. The config panel appears **below the engine

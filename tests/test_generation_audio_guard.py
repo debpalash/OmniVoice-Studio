@@ -242,7 +242,7 @@ def test_sherpa_model_not_set_is_a_config_error_not_oom():
     # not set. Point it to a sherpa-onnx TTS model directory …" — a pure setup
     # problem — but the OOM catch-all told them (63 GB RAM) to press Flush for
     # memory they never ran out of. It must classify as a CONFIGURATION error:
-    # name the env var, point at Settings → Engines, and never mention memory
+    # name the env var, point at Model Catalogue → Engines, and never mention memory
     # or the Flush button.
     err = RuntimeError(
         "OMNIVOICE_SHERPA_MODEL not set. Point it to a sherpa-onnx TTS model "
@@ -252,7 +252,7 @@ def test_sherpa_model_not_set_is_a_config_error_not_oom():
         _oom_friendly_reraise(err)
     msg = str(ei.value)
     assert "OMNIVOICE_SHERPA_MODEL" in msg      # names the exact env var
-    assert "Settings" in msg                     # tells the user where to fix it
+    assert "Model Catalogue → Engines" in msg    # tells the user where to fix it
     assert "out of memory" not in msg
     assert "ran out of memory" not in msg
     assert "Flush" not in msg

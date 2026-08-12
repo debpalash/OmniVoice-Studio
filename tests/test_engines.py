@@ -209,7 +209,7 @@ def test_asr_env_override(monkeypatch):
     assert asr_backend.active_backend_id() == "pytorch-whisper"
 
 
-# ── ASR selection resolution (Settings → Engines ASR picker) ────────────────
+# ── ASR selection resolution (Model Catalogue → Engines ASR picker) ────────────────
 # Same env > prefs > auto-detect contract as TTS. The env var MUST keep
 # winning so existing `OMNIVOICE_ASR_BACKEND` pins don't change behavior now
 # that the Settings picker writes the prefs key.

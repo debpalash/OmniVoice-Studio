@@ -435,7 +435,7 @@ async def dub_generate(job_id: str, req: DubRequest):
 
     # ── Engine resolution (issue #312 class) ────────────────────────────────
     # Dub used to hardcode VoiceStudio via get_model() regardless of the engine
-    # selected in Settings → Engines — a SILENT fallback. Every real dub
+    # selected in Model Catalogue → Engines — a SILENT fallback. Every real dub
     # segment's ref_audio resolves to either an auto:<speaker>/auto-seg:<id>
     # clone cut from the source video or a saved voice-profile row (see
     # `_gen` below), so require_cloning=True: an engine that can't clone

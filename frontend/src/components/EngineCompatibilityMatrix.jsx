@@ -83,8 +83,8 @@ function reasonMentionsLicense(reason) {
  *     family. Used to render the "active" badge.
  *   - showFamilyTabs?: boolean  default true. The TTS/ASR/LLM tab strip
  *     (Radix Segmented — roving tabindex + arrow keys) presents one family
- *     at a time over the single shared GET /engines payload. Settings →
- *     Engines mounts exactly one matrix in this mode. Pass false to pin
+ *     at a time over the single shared GET /engines payload. The Model
+ *     Catalogue mounts exactly one matrix in this mode. Pass false to pin
  *     the matrix to `family` (no switcher; the header names the family).
  *   - onFamilyChange?: (family) => void  fires when the user switches the
  *     family tab, so a host can render family-specific companion panels
@@ -854,7 +854,7 @@ export default function EngineCompatibilityMatrix({
                         one backend id (Kokoro, CSM, OuteTTS, …); without this
                         picker there's no way to load anything but the default
                         (Kokoro) even after downloading a different model's
-                        weights in Settings → Models. Disabled while the row
+                        weights in Model Catalogue → Models. Disabled while the row
                         itself isn't available/selectable, matching the "Use"
                         button's gating. */}
                       {b.curated_models && b.curated_models.length > 0 && (

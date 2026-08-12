@@ -17,12 +17,23 @@
     "gallery": "Galleri",
     "transcripts": "Avskrifter",
     "omnidrive": "OmniDrive",
+    "catalogue": "Katalog",
     "move_rail_right": "Flytta skenan till höger",
     "move_rail_left": "Flytta skenan till vänster",
     "flip_rail": "Flip rail sida",
     "voice": "Röst",
     "audiobook": "Ljudbok",
     "workspaces": "Arbetsytor"
+  },
+  "catalogue": {
+    "title": "Modellkatalog",
+    "tab_engines": "Motorer",
+    "tab_models": "Modeller",
+    "moved_title": "Nu i modellkatalogen",
+    "moved_engines_body": "Att välja standardmotor för tal, transkribering och LLM finns nu i arbetsytan Modellkatalog.",
+    "moved_models_body": "Att bläddra bland, installera och ta bort nedladdade modeller finns nu i arbetsytan Modellkatalog.",
+    "open_engines": "Öppna motorer",
+    "open_models": "Öppna modeller"
   },
   "settings": {
     "remote_backend_recovery_title": "Det går inte att nå fjärrbackend",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Galleri",
     "label_transcriptions": "Transkriptioner",
     "label_settings": "Inställningar",
+    "label_catalogue": "Modellkatalog",
     "label_enterprise": "Kommersiell licens",
     "status_ready": "Klar",
     "status_loading": "Laddar...",

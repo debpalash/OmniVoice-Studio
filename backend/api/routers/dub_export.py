@@ -1434,13 +1434,20 @@ async def dub_qc_pass(job_id: str, lang: str = Query(None), drift_threshold: flo
         )
 
     def _recognize():
-        from services.asr_backend import get_active_asr_backend
-        backend = get_active_asr_backend()
+        # `load_*`, not `get_*`: the plain selector returns engines whose
+        # shallow probe passed but whose deep import chain is broken, which
+        # then 500s at `.transcribe()`. The loader degrades (#1185).
+        from services.asr_backend import load_active_asr_backend
+        backend = load_active_asr_backend()
         result = backend.transcribe(wav_path, word_timestamps=False)
         return result.get("segments", []), backend.id
 
     try:
-        from services.asr_backend import ASRTimeoutError, run_transcribe_guarded
+        from services.asr_backend import (
+            ASRModelMissingError,
+            ASRTimeoutError,
+            run_transcribe_guarded,
+        )
         from services.model_manager import _get_gpu_pool
         recognized, engine_id = await run_transcribe_guarded(
             _get_gpu_pool(), _recognize, what="QC",
@@ -1449,6 +1456,13 @@ async def dub_qc_pass(job_id: str, lang: str = Query(None), drift_threshold: flo
         # Backend is alive; ASR just couldn't finish in time. 504, not 500/connection.
         logger.warning("dub QC ASR pass timed out")
         raise HTTPException(status_code=504, detail=str(e))
+    except ASRModelMissingError as e:
+        # Degraded onto an engine with no weights on disk — typed 409 with the
+        # download CTA, matching the preflight above.
+        raise HTTPException(
+            status_code=409,
+            detail={**e.payload, "message": asr_model_missing_detail(e.payload)},
+        )
     except Exception as e:
         logger.exception("dub QC ASR pass failed")
         raise HTTPException(status_code=500, detail=f"QC transcription failed: {e}")

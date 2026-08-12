@@ -122,7 +122,7 @@ the default engine's taxonomy, so free-text instruct currently needs the API
 Setup: clone + install [CosyVoice](https://github.com/FunAudioLLM/CosyVoice)
 (non-trivial: `git clone --recursive`, its requirements, SoX), then set
 `OMNIVOICE_COSYVOICE_MODEL` to the model directory and select it in
-Settings → Engines. CUDA or CPU; MPS is unverified upstream.
+Model Catalogue → Engines. CUDA or CPU; MPS is unverified upstream.
 
 ### VoxCPM2 (opt-in)
 

@@ -17,12 +17,23 @@
     "gallery": "Galerie",
     "transcripts": "Transkripte",
     "omnidrive": "OmniDrive",
+    "catalogue": "Katalog",
     "move_rail_right": "Schiene nach rechts verschieben",
     "move_rail_left": "Schiene nach links verschieben",
     "flip_rail": "Schienenseite umdrehen",
     "voice": "Stimme",
     "audiobook": "Hörbuch",
     "workspaces": "Arbeitsbereiche"
+  },
+  "catalogue": {
+    "title": "Modellkatalog",
+    "tab_engines": "Engines",
+    "tab_models": "Modelle",
+    "moved_title": "Jetzt im Modellkatalog",
+    "moved_engines_body": "Die Auswahl der Standard-Engine für Sprache, Transkription und LLM befindet sich jetzt im Arbeitsbereich „Modellkatalog“.",
+    "moved_models_body": "Heruntergeladene Modelle durchsehen, installieren und entfernen befindet sich jetzt im Arbeitsbereich „Modellkatalog“.",
+    "open_engines": "Engines öffnen",
+    "open_models": "Modelle öffnen"
   },
   "settings": {
     "remote_backend_recovery_title": "Remote-Backend nicht erreichbar",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Galerie",
     "label_transcriptions": "Transkriptionen",
     "label_settings": "Einstellungen",
+    "label_catalogue": "Modellkatalog",
     "label_enterprise": "Kommerzielle Lizenz",
     "status_ready": "Bereit",
     "status_loading": "Laden…",

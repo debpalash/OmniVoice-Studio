@@ -17,12 +17,23 @@
     "gallery": "معرض",
     "transcripts": "النصوص",
     "omnidrive": "أومني درايف",
+    "catalogue": "الكتالوج",
     "move_rail_right": "حرك السكة إلى اليمين",
     "move_rail_left": "حرك السكة إلى اليسار",
     "flip_rail": "الوجه الجانب السكك الحديدية",
     "voice": "صوت",
     "audiobook": "كتاب مسموع",
     "workspaces": "مساحات العمل"
+  },
+  "catalogue": {
+    "title": "كتالوج النماذج",
+    "tab_engines": "المحركات",
+    "tab_models": "النماذج",
+    "moved_title": "أصبح ضمن كتالوج النماذج",
+    "moved_engines_body": "انتقل اختيار المحرك الافتراضي للنطق والتفريغ النصي ونماذج اللغة الكبيرة إلى مساحة عمل كتالوج النماذج.",
+    "moved_models_body": "انتقل تصفح النماذج المنزَّلة وتثبيتها وإزالتها إلى مساحة عمل كتالوج النماذج.",
+    "open_engines": "فتح المحركات",
+    "open_models": "فتح النماذج"
   },
   "settings": {
     "remote_backend_recovery_title": "تعذّر الوصول إلى الواجهة الخلفية البعيدة",
@@ -1698,6 +1709,7 @@
     "label_gallery": "معرض",
     "label_transcriptions": "النسخ",
     "label_settings": "الإعدادات",
+    "label_catalogue": "كتالوج النماذج",
     "label_enterprise": "رخصة تجارية",
     "status_ready": "جاهز",
     "status_loading": "جارٍ التحميل…",

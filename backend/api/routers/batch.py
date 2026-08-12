@@ -151,14 +151,17 @@ async def _run_batch_pipeline(job_id: str, job: dict):
     # ── 2. Transcribe ─────────────────────────────────────────────────
     _set_progress(job, "transcribe", 0)
 
-    from services.asr_backend import get_active_asr_backend
+    from services.asr_backend import load_active_asr_backend
     from services.model_manager import _gpu_pool, _cpu_pool, run_on_gpu_pool_guarded
     from services.segmentation import (
         segment_transcript, assign_speakers_heuristic,
     )
 
     def _transcribe():
-        backend = get_active_asr_backend()
+        # `load_*`, not `get_*`: the plain selector returns engines whose
+        # shallow probe passed but whose deep import chain is broken, failing
+        # the whole batch job at `.transcribe()` instead of degrading (#1185).
+        backend = load_active_asr_backend()
         result = backend.transcribe(audio_path, word_timestamps=True)
         detected_lang = result.get("language", "en")
         segments = segment_transcript(result, duration=duration)
@@ -191,7 +194,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
 
     # ── Engine resolution (issue #312 class) ────────────────────────────
     # Batch used to hardcode VoiceStudio via get_model() regardless of the
-    # engine selected in Settings → Engines. require_cloning only when a
+    # engine selected in Model Catalogue → Engines. require_cloning only when a
     # specific voice is pinned (job["voice_id"]) — an unpinned job is fine on
     # any active engine. Resolved ONCE for the whole job (every language
     # below shares the same active engine); an uncaught ValueError here

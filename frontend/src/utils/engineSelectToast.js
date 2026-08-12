@@ -25,7 +25,7 @@
  * don't). The engine still gets selected; the user just finds out now instead
  * of five minutes from now.
  *
- * Shared by Settings → Engines and the first-run WizardLibrary so both paths
+ * Shared by Model Catalogue → Engines and the first-run WizardLibrary so both paths
  * consume the echo identically.
  */
 import { toast } from 'react-hot-toast';
@@ -38,7 +38,7 @@ export function notifyEngineSelected(r, t, family = 'tts') {
   // else — benign cpu_only (a DirectML host explains itself on a normal pick)
   // and unavailable — is information, not a warning.
   const notice = routingNotice(r);
-  // Every engine pick lands here (Settings → Engines and the first-run
+  // Every engine pick lands here (Model Catalogue → Engines and the first-run
   // WizardLibrary both call it), which makes it the one place that reliably
   // knows the active engine just changed: drop the preflight's cached
   // /engines response, and hand it whatever caveat we are about to show so it

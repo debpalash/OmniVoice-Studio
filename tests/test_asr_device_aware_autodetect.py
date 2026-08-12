@@ -230,7 +230,7 @@ def test_env_pinned_parakeet_model_bypasses_language_gate(_fresh_capture_singlet
 def test_installing_parakeet_mid_session_rebuilds_capture_singleton(
         _fresh_capture_singleton, monkeypatch):
     """The warm-singleton cache key includes the parakeet gate, so installing
-    the model from Settings → Models takes effect on the next utterance —
+    the model from Model Catalogue → Models takes effect on the next utterance —
     not after an app restart (the stale-singleton regression)."""
     monkeypatch.setattr(ab.ParakeetMLXBackend, "is_available",
                         classmethod(lambda cls: (True, "ready")))
@@ -241,7 +241,7 @@ def test_installing_parakeet_mid_session_rebuilds_capture_singleton(
     assert isinstance(b1, ab.MLXWhisperBackend)
     # Warm reuse while nothing changed.
     assert ab.get_capture_asr_backend() is b1
-    installed["v"] = True  # user installs parakeet from Settings → Models
+    installed["v"] = True  # user installs parakeet from Model Catalogue → Models
     b2 = ab.get_capture_asr_backend()
     assert isinstance(b2, ab.ParakeetMLXBackend)
 

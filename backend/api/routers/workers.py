@@ -54,6 +54,12 @@ class EnrollRequest(BaseModel):
     ttl_seconds: int = Field(900, ge=60, le=24 * 3600)
 
 
+class JoinRequest(BaseModel):
+    """A join code, as pasted (or scanned) from the control plane."""
+
+    token: str = Field(..., max_length=4096)
+
+
 class TargetRequest(BaseModel):
     """`local`, or the id of an enrolled worker."""
 
@@ -136,6 +142,75 @@ async def set_enabled(request: EnableRequest) -> dict:
     else:
         await service.control_plane.stop()
     return service.control_plane.snapshot()
+
+
+@router.get("/agent")
+def agent_status() -> dict:
+    """The other side of the same feature: is THIS machine lending its GPU?
+
+    Separate from `GET /workers`, which answers for the control plane. A
+    machine can legitimately be both — a desktop that borrows a laptop's GPU
+    and lends its own to a colleague — so neither status can stand in for the
+    other.
+    """
+    from worker import agent as worker_agent  # noqa: PLC0415
+
+    return worker_agent.agent.status()
+
+
+@router.post("/agent/join")
+async def join_control_plane(request: JoinRequest) -> dict:
+    """Redeem a join code and start working for that control plane.
+
+    This is the endpoint that makes the feature reachable. Joining used to mean
+    setting OMNIVOICE_WORKER_MODE and OMNIVOICE_WORKER_TOKEN in the environment
+    and relaunching the app — a step most users will never take, on the machine
+    that is usually the least convenient to configure by hand.
+
+    The code is single-use and short-lived, so a failure here is nearly always
+    "expired" or "wrong address"; it is returned verbatim rather than as a bare
+    409, because the user's next action depends on which one it was.
+    """
+    from worker import agent as worker_agent  # noqa: PLC0415
+
+    token = request.token.strip()
+    if not token:
+        raise HTTPException(status_code=422, detail="Paste the join code first.")
+    await worker_agent.agent.stop()
+    try:
+        await worker_agent.agent.start(token_text=token)
+    except Exception as exc:
+        worker_agent.agent.last_error = str(exc)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    worker_agent.agent.last_error = ""
+    # Persisted only after the join actually worked: a machine that failed to
+    # enrol must not come back up trying again forever.
+    worker_agent.set_worker_mode_enabled(True)
+    return worker_agent.agent.status()
+
+
+@router.post("/agent/enabled")
+async def set_agent_enabled(request: EnableRequest) -> dict:
+    """Start or stop lending this machine, without forgetting the enrollment.
+
+    Off stops the agent and clears the setting, so nothing dials out; the
+    pinned certificate stays, which is what lets "on" resume without asking for
+    another code.
+    """
+    from worker import agent as worker_agent  # noqa: PLC0415
+
+    if request.enabled:
+        try:
+            await worker_agent.agent.start()
+        except Exception as exc:
+            worker_agent.agent.last_error = str(exc)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        worker_agent.agent.last_error = ""
+        worker_agent.set_worker_mode_enabled(True)
+    else:
+        await worker_agent.agent.stop()
+        worker_agent.set_worker_mode_enabled(False)
+    return worker_agent.agent.status()
 
 
 @router.post("/enrollments")

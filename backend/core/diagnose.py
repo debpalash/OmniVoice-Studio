@@ -200,12 +200,12 @@ def _check_engines() -> dict:
         return _check(
             "engines", "TTS engines", FAIL,
             f"{detail} - active engine '{active}' is unavailable: {reason}",
-            active_row.get("install_hint") or "Pick a different engine in Settings > Engines.",
+            active_row.get("install_hint") or "Pick a different engine in Model Catalogue > Engines.",
         )
     if not available:
         return _check(
             "engines", "TTS engines", FAIL, detail,
-            "No usable TTS engine. Install one from Settings > Engines.",
+            "No usable TTS engine. Install one from Model Catalogue > Engines.",
         )
     return _check("engines", "TTS engines", OK, detail)
 

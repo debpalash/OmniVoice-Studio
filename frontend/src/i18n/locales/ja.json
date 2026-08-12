@@ -17,12 +17,23 @@
     "gallery": "ギャラリー",
     "transcripts": "成績証明書",
     "omnidrive": "オムニドライブ",
+    "catalogue": "カタログ",
     "move_rail_right": "レールを右に移動します",
     "move_rail_left": "レールを左に移動します",
     "flip_rail": "レール側を反転",
     "voice": "声",
     "audiobook": "オーディオブック",
     "workspaces": "ワークスペース"
+  },
+  "catalogue": {
+    "title": "モデルカタログ",
+    "tab_engines": "エンジン",
+    "tab_models": "モデル",
+    "moved_title": "モデルカタログに移動しました",
+    "moved_engines_body": "音声・文字起こし・LLM の既定エンジンの選択は「モデルカタログ」ワークスペースに移動しました。",
+    "moved_models_body": "モデルの閲覧・インストール・削除は「モデルカタログ」ワークスペースに移動しました。",
+    "open_engines": "エンジンを開く",
+    "open_models": "モデルを開く"
   },
   "settings": {
     "remote_backend_recovery_title": "リモートバックエンドに接続できません",
@@ -1698,6 +1709,7 @@
     "label_gallery": "ギャラリー",
     "label_transcriptions": "転写",
     "label_settings": "設定",
+    "label_catalogue": "モデルカタログ",
     "label_enterprise": "商用ライセンス",
     "status_ready": "準備完了",
     "status_loading": "読み込み中…",

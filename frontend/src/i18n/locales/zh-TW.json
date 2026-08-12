@@ -17,12 +17,23 @@
     "gallery": "畫廊",
     "transcripts": "成績單",
     "omnidrive": "全方位驅動器",
+    "catalogue": "模型庫",
     "move_rail_right": "將軌道移至右側",
     "move_rail_left": "將導軌移至左側",
     "flip_rail": "翻轉導軌側",
     "voice": "語音",
     "audiobook": "有聲書",
     "workspaces": "工作區"
+  },
+  "catalogue": {
+    "title": "模型庫",
+    "tab_engines": "引擎",
+    "tab_models": "模型",
+    "moved_title": "已移至模型庫",
+    "moved_engines_body": "選擇預設的語音合成、語音轉寫與大型語言模型引擎已移至「模型庫」工作區。",
+    "moved_models_body": "瀏覽、安裝與移除已下載模型已移至「模型庫」工作區。",
+    "open_engines": "開啟引擎",
+    "open_models": "開啟模型"
   },
   "settings": {
     "remote_backend_recovery_title": "無法連線至遠端後端",
@@ -1698,6 +1709,7 @@
     "label_gallery": "畫廊",
     "label_transcriptions": "轉錄",
     "label_settings": "設定",
+    "label_catalogue": "模型庫",
     "label_enterprise": "商業許可",
     "status_ready": "準備好",
     "status_loading": "加載中...",

@@ -94,7 +94,7 @@ class PocketTTSBackend(SubprocessBackend):
             raise RuntimeError(platform_error)
         if not self._license_accepted():
             raise RuntimeError(
-                "PocketTTS license not accepted. Review it in Settings → Engines."
+                "PocketTTS license not accepted. Review it in Model Catalogue → Engines."
             )
         super().__init__()
 
@@ -104,7 +104,7 @@ class PocketTTSBackend(SubprocessBackend):
         # relying on every caller to evict its cached instance.
         if not self._license_accepted():
             raise RuntimeError(
-                "PocketTTS license not accepted. Review it in Settings → Engines."
+                "PocketTTS license not accepted. Review it in Model Catalogue → Engines."
             )
         return super().generate(*args, **kwargs)
 
@@ -114,7 +114,7 @@ class PocketTTSBackend(SubprocessBackend):
         # so revocation while waiting cannot reach the sidecar or return audio.
         if not self._license_accepted():
             raise RuntimeError(
-                "PocketTTS license not accepted. Review it in Settings → Engines."
+                "PocketTTS license not accepted. Review it in Model Catalogue → Engines."
             )
 
     @classmethod
@@ -137,7 +137,7 @@ class PocketTTSBackend(SubprocessBackend):
         # use behind an explicit local acknowledgement, matching the dialog.
         if not cls._license_accepted():
             return False, (
-                "PocketTTS license not accepted. Open Settings → Engines → "
+                "PocketTTS license not accepted. Open Model Catalogue → Engines → "
                 "PocketTTS and review the MIT code license, CC-BY-4.0 model "
                 "license, and gated-access conditions before enabling it."
             )

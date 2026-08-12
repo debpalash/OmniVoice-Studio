@@ -125,6 +125,7 @@
     "gallery": "音色库",
     "transcripts": "转录",
     "omnidrive": "OmniDrive",
+    "catalogue": "模型库",
     "settings": "设置",
     "stories": "故事",
     "move_rail_right": "将轨道移至右侧",
@@ -133,6 +134,16 @@
     "voice": "语音",
     "audiobook": "有声读物",
     "workspaces": "工作区"
+  },
+  "catalogue": {
+    "title": "模型库",
+    "tab_engines": "引擎",
+    "tab_models": "模型",
+    "moved_title": "已移至模型库",
+    "moved_engines_body": "选择默认的语音合成、语音转写和大模型引擎已移至“模型库”工作区。",
+    "moved_models_body": "浏览、安装和删除已下载模型已移至“模型库”工作区。",
+    "open_engines": "打开引擎",
+    "open_models": "打开模型"
   },
   "launchpad": {
     "greeting": "你好",
@@ -1704,6 +1715,7 @@
     "label_gallery": "音色库",
     "label_transcriptions": "转录",
     "label_settings": "设置",
+    "label_catalogue": "模型库",
     "label_enterprise": "商业许可",
     "status_ready": "准备好",
     "status_loading": "加载中...",

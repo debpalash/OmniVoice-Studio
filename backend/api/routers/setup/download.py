@@ -296,7 +296,7 @@ def _validate_snapshot_has_weights(repo_id: str, snapshot_path: str) -> None:
         f"{repo_id}: download finished but no model weights were found in the "
         "snapshot (largest file "
         f"{biggest} bytes). The download was likely interrupted — delete the "
-        "model in Settings → Models and install it again."
+        "model in Model Catalogue → Models and install it again."
     )
 
 

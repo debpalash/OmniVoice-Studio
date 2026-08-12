@@ -183,7 +183,7 @@ def _hf_endpoint_host() -> tuple[str, int]:
     """Host/port of the Hugging Face endpoint actually in effect.
 
     Mirror-aware: restricted-network users (e.g. behind the Great Firewall)
-    point HF_ENDPOINT at a mirror via Settings → Models → Hugging Face
+    point HF_ENDPOINT at a mirror via Model Catalogue → Models → Hugging Face
     mirror. Probing hardcoded huggingface.co would fail them even when their
     configured mirror works fine.
     """
@@ -281,7 +281,7 @@ def _network_check() -> dict:
             "id": "network", "label": "Network (configured endpoint)",
             "status": "warn",
             "detail": "The configured Hugging Face endpoint could not be validated.",
-            "fix": "Review the endpoint in Settings → Models, then re-check.",
+            "fix": "Review the endpoint in Model Catalogue → Models, then re-check.",
             "mirror_reachable": False,
         }
     net_ok = _probe_network(net_host, net_port)
@@ -496,10 +496,10 @@ def preflight():
         elif _rs == "unavailable":
             r_status, r_detail, r_fix = "fail", (
                 f"{_eng} can't run on this host: {_why or 'needs a GPU this machine lacks'}"), (
-                "Select an engine with a CPU path in Settings → Engines.")
+                "Select an engine with a CPU path in Model Catalogue → Engines.")
         else:  # "none" / unknown
             r_status, r_detail, r_fix = "warn", "No active TTS engine resolved for routing.", (
-                "Pick an engine in Settings → Engines.")
+                "Pick an engine in Model Catalogue → Engines.")
         checks.append({
             "id": "gpu_routing", "label": "Active engine routing",
             "status": r_status, "detail": r_detail, "fix": r_fix,

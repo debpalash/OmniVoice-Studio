@@ -17,12 +17,23 @@
     "gallery": "แกลเลอรี่",
     "transcripts": "ใบรับรองผลการเรียน",
     "omnidrive": "OmniDrive",
+    "catalogue": "แค็ตตาล็อก",
     "move_rail_right": "เลื่อนรางไปทางขวา",
     "move_rail_left": "เลื่อนรางไปทางซ้าย",
     "flip_rail": "รางพลิกด้านข้าง",
     "voice": "เสียง",
     "audiobook": "หนังสือเสียง",
     "workspaces": "พื้นที่ทำงาน"
+  },
+  "catalogue": {
+    "title": "แค็ตตาล็อกโมเดล",
+    "tab_engines": "เอนจิน",
+    "tab_models": "โมเดล",
+    "moved_title": "ย้ายไปที่แค็ตตาล็อกโมเดลแล้ว",
+    "moved_engines_body": "การเลือกเอนจินเริ่มต้นสำหรับเสียงพูด การถอดเสียง และ LLM ย้ายไปอยู่ในพื้นที่ทำงานแค็ตตาล็อกโมเดลแล้ว",
+    "moved_models_body": "การเรียกดู ติดตั้ง และลบโมเดลที่ดาวน์โหลดไว้ ย้ายไปอยู่ในพื้นที่ทำงานแค็ตตาล็อกโมเดลแล้ว",
+    "open_engines": "เปิดเอนจิน",
+    "open_models": "เปิดโมเดล"
   },
   "settings": {
     "remote_backend_recovery_title": "ไม่สามารถเชื่อมต่อแบ็กเอนด์ระยะไกลได้",
@@ -1698,6 +1709,7 @@
     "label_gallery": "แกลเลอรี่",
     "label_transcriptions": "การถอดเสียง",
     "label_settings": "การตั้งค่า",
+    "label_catalogue": "แค็ตตาล็อกโมเดล",
     "label_enterprise": "ใบอนุญาตการค้า",
     "status_ready": "พร้อม",
     "status_loading": "กำลังโหลด...",

@@ -20,6 +20,7 @@ import {
   FileText,
   BookOpen,
   BookMarked,
+  Boxes,
 } from 'lucide-react';
 
 /** The workspaces, in navigation order. `tKey` resolves as `nav.<tKey>`. */
@@ -32,6 +33,10 @@ export const NAV_ITEMS = [
   { id: 'gallery', Icon: Library, tKey: 'gallery', accent: '#b8bb26' },
   { id: 'transcriptions', Icon: FileText, tKey: 'transcripts', accent: '#d3869b' },
   { id: 'projects', Icon: FolderOpen, tKey: 'omnidrive', accent: '#83a598' },
+  // Engines + model weights. Sits last in the workspace list (immediately above
+  // Settings in the footer) because it configures the app rather than producing
+  // anything — it is where the defaults every other workspace runs on are set.
+  { id: 'catalogue', Icon: Boxes, tKey: 'catalogue', accent: '#689d6a' },
 ];
 
 /** Pinned to the end of the nav (rail footer / tab-strip tail). */

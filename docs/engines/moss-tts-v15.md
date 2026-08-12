@@ -13,7 +13,7 @@ interpreter, so MOSS runs behind
 `backend/services/subprocess_backend.py::SubprocessBackend`.
 
 > **Opt-in, and never a default.** MOSS-TTS-v1.5 is selected explicitly in
-> **Settings → Engines** (or `OMNIVOICE_TTS_BACKEND=moss-tts-v15`). It is
+> **Model Catalogue → Engines** (or `OMNIVOICE_TTS_BACKEND=moss-tts-v15`). It is
 > not part of the default install and does not change VoiceStudio's
 > out-of-the-box behaviour on any platform.
 
@@ -73,7 +73,7 @@ into an isolated venv on demand.
    [Environment]::SetEnvironmentVariable("OMNIVOICE_MOSS_TTS_V15_DIR","$env:USERPROFILE\code\MOSS-TTS","User")
    ```
 
-5. Restart VoiceStudio. MOSS-TTS-v1.5 appears in **Settings → Engines** with
+5. Restart VoiceStudio. MOSS-TTS-v1.5 appears in **Model Catalogue → Engines** with
    `available: true` and `isolation_mode: subprocess`.
 
 ## Venv resolution order

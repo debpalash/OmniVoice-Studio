@@ -8,8 +8,11 @@ raw audio bytes and get back transcribed text immediately.  Used by:
     • The MCP server's future `transcribe_audio` tool
     • CLI consumers that just want speech-to-text
 
-The ASR engine is whatever `get_active_asr_backend()` returns — WhisperX
-by default, or MLX Whisper on Apple Silicon when configured.
+The ASR engine is whatever `load_active_asr_backend()` returns — WhisperX
+by default, or MLX Whisper on Apple Silicon when configured. The *loader*,
+not the bare selector: it also runs `ensure_loaded()` and falls through to
+the next healthy engine when the selected one has a broken deep import chain
+(#1185), which the shallow `is_available()` probe cannot see.
 """
 from __future__ import annotations
 
@@ -97,8 +100,12 @@ async def transcribe_audio(
             if use_accurate:
                 # Accurate mode: full WhisperX with forced alignment —
                 # for when the user explicitly wants word-level timing.
-                from services.asr_backend import get_active_asr_backend
-                backend = get_active_asr_backend()
+                # `load_*`, not `get_*`: the selector alone hands back an
+                # engine whose shallow probe passed but whose deep import
+                # chain is broken, which then 500s at `.transcribe()`. The
+                # loader degrades to the next healthy engine (#1185).
+                from services.asr_backend import load_active_asr_backend
+                backend = load_active_asr_backend()
                 result = backend.transcribe(tmp.name, word_timestamps=True)
             else:
                 # Fast mode (default): use the fastest available engine
@@ -110,7 +117,11 @@ async def transcribe_audio(
             return result, backend.id
 
         from services.model_manager import _gpu_pool
-        from services.asr_backend import ASRTimeoutError, run_transcribe_guarded
+        from services.asr_backend import (
+            ASRModelMissingError,
+            ASRTimeoutError,
+            run_transcribe_guarded,
+        )
         t0 = time.perf_counter()
         try:
             result, engine_id = await run_transcribe_guarded(
@@ -121,6 +132,14 @@ async def transcribe_audio(
             # silent hang the UI reads as "can't reach the local backend".
             logger.warning("Capture transcription timed out: %s", e)
             raise HTTPException(status_code=504, detail=str(e))
+        except ASRModelMissingError as e:
+            # Degraded past the broken engine onto one with no weights on
+            # disk — same typed 409 (+ download CTA) as the preflight above,
+            # never a 500 and never a silent multi-GB auto-download.
+            raise HTTPException(
+                status_code=409,
+                detail={**e.payload, "message": asr_model_missing_detail(e.payload)},
+            )
         elapsed = round(time.perf_counter() - t0, 2)
 
         # Normalize result shape

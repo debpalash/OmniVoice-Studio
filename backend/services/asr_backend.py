@@ -131,13 +131,13 @@ def _isolated_engine_hint(streak: int) -> str:
         "%d consecutive ASR transcribe timeouts this session — pool resets are "
         "not recovering the hang. Recommend switching the ASR engine to "
         "'Faster-Whisper (crash-isolated subprocess)' [faster-whisper-isolated] "
-        "in Settings → Engines. Not switching automatically (#730).", streak,
+        "in Model Catalogue → Engines. Not switching automatically (#730).", streak,
     )
     return (
         f"This is {streak} transcribe timeouts in a row this session, so pool "
         "resets aren't recovering the underlying hang. Recommended: switch the "
         "ASR engine to 'Faster-Whisper (crash-isolated subprocess)' "
-        "(faster-whisper-isolated) in Settings → Engines — it runs "
+        "(faster-whisper-isolated) in Model Catalogue → Engines — it runs "
         "transcription in a separate process that can be force-killed to "
         "reclaim a hung transcribe and its VRAM. VoiceStudio never switches "
         "engines automatically."
@@ -181,8 +181,8 @@ async def run_transcribe_guarded(executor, fn, *, what: str = "ASR",
             "available compute. Most often the GPU is VRAM-starved: the resident "
             "TTS model and a large ASR model (large-v3) contend for memory. "
             "Capacity was restored automatically, but for a durable fix Flush the "
-            "TTS model to free VRAM, pick a smaller ASR model in Settings → "
-            f"Models, or set ASR to CPU. (Raise {timeout_env} "
+            "TTS model to free VRAM, pick a smaller ASR model in "
+            f"Model Catalogue → Models, or set ASR to CPU. (Raise {timeout_env} "
             "for very long transcribes.)"
         )
         hint = _isolated_engine_hint(streak)
@@ -2171,7 +2171,7 @@ class OpenAICompatASRBackend(ASRBackend):
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
         if not resolve_openai_compat_asr_base_url():
-            return False, "Configure a server endpoint in Settings → Engines"
+            return False, "Configure a server endpoint in Model Catalogue → Engines"
         try:
             import openai  # noqa: F401
         except ImportError:
@@ -2307,7 +2307,7 @@ _REGISTRY: dict[str, type[ASRBackend]] = _LazyASRRegistry({
 })
 
 
-# Short install hints surfaced as tooltips on the Settings → Engines UI
+# Short install hints surfaced as tooltips on the Model Catalogue → Engines UI
 # (parity with tts_backend._INSTALL_HINTS).
 _INSTALL_HINTS: dict[str, str] = {
     "whisperx":        "pip install whisperx  (CTranslate2 + wav2vec2 alignment; CUDA or CPU)",
@@ -2333,8 +2333,8 @@ _INSTALL_HINTS: dict[str, str] = {
     "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
     "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
     "openai-compat-asr": (
-        "No install needed — configure a server endpoint in Settings → "
-        "Engines. Points VoiceStudio at any OpenAI-compatible transcription "
+        "No install needed — configure a server endpoint in "
+        "Model Catalogue → Engines. Points VoiceStudio at any OpenAI-compatible "
         "server (a self-hosted Qwen3-ASR/FunASR/SenseVoice server, OpenAI's "
         "own Whisper API, or similar) — a path to Qwen3-ASR today, without "
         "waiting on a direct transformers integration."
@@ -2575,7 +2575,7 @@ def load_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
     import inside ``load_model``), so auto-detect can pick a backend that then
     dies at load with ``No module named 'lightning_fabric'`` — which used to
     fail ASR init wholesale even though the next engine in line works fine.
-    Instead: record the backend as broken (Settings → Engines shows why),
+    Instead: record the backend as broken (Model Catalogue → Engines shows why),
     re-select, and load the next candidate — mirroring how
     :func:`_probe_available` already swallows broken natives at probe time.
 
@@ -2609,7 +2609,7 @@ def load_active_asr_backend(*, asr_pipe=None) -> ASRBackend:
             # ModuleNotFoundError and its ImportError parent ("cannot import
             # name X" version skew) are the same env-rot class: the backend
             # cannot work in this process, but siblings with independent
-            # import chains can. Record it either way so Settings → Engines
+            # import chains can. Record it either way so Model Catalogue → Engines
             # reports the truth (unavailable + why + how to repair).
             reason = _deep_import_reason(type(backend), e)
             _DEEP_IMPORT_BROKEN[bid] = scrub_text(reason)
@@ -2688,7 +2688,13 @@ def transcribe_reference(audio_path: str) -> str | None:
                     "reference auto-transcription (no silent download).")
         return None
     try:
-        backend = get_active_asr_backend()
+        # `load_*`, not `get_*`: a backend whose shallow probe passes but whose
+        # deep import chain is broken would otherwise be handed back here and
+        # fail at `.transcribe()` below, costing every clone-without-transcript
+        # its reference text even with a healthy engine next in line (#1185).
+        # This path is best-effort, so a genuinely exhausted chain still just
+        # returns None and defers to the model's built-in fallback.
+        backend = load_active_asr_backend()
     except Exception as e:  # noqa: BLE001 — never let ASR break generation
         logger.warning("transcribe_reference: no ASR backend available (%s)", e)
         return None
@@ -2860,7 +2866,7 @@ def _parakeet_mlx_installed() -> bool:
     trigger a surprise multi-GB download (the asr_model_missing contract).
     Installed state comes from the same HF-cache helpers the model store uses
     (positive results memoized — see :func:`_repo_installed`), so the answer
-    matches the Settings → Models install badges. Never raises.
+    matches the Model Catalogue → Models install badges. Never raises.
     """
     try:
         repo = os.environ.get("ASR_MODEL_PARAKEET_MLX", _PARAKEET_MLX_DEFAULT)
@@ -2987,7 +2993,7 @@ def get_capture_asr_backend() -> ASRBackend:
         # Prefer an already-installed Parakeet TDT v3 on Apple Silicon (when
         # the language gate allows it — see _capture_prefers_parakeet). Gated
         # on the weights being on disk so this NEVER triggers a download —
-        # users opt in by installing the model from Settings → Models. The
+        # users opt in by installing the model from Model Catalogue → Models. The
         # gate's answer is part of the warm-singleton key so installing
         # parakeet mid-session rebuilds the singleton instead of serving the
         # stale whisper pick until restart (the memo in _repo_installed keeps
@@ -3170,7 +3176,7 @@ def _repo_installed(repo: str) -> bool:
     """``is_cached`` + ``cache_is_complete`` with a positive-only session memo.
 
     Installed state comes from the same HF-cache helpers the model store uses,
-    so the answer matches the Settings → Models install badges."""
+    so the answer matches the Model Catalogue → Models install badges."""
     if repo in _INSTALLED_REPO_MEMO:
         return True
     from api.routers.setup.models import cache_is_complete, get_model_catalog, is_cached
@@ -3194,7 +3200,7 @@ def asr_model_missing_error(*, purpose: str = "transcribe",
     ``sherpa_model_id`` lets the live-dictation WS pass its per-session
     ``?model=`` override. Installed state comes from the same HF-cache helpers
     the model store uses (see :func:`_repo_installed`), so the answer matches
-    the Settings → Models install badges.
+    the Model Catalogue → Models install badges.
 
     FAIL-OPEN rule: a repo the model catalog doesn't know (a custom
     ``ASR_MODEL_*`` pin, pytorch-whisper's default repo, an unrecognized
@@ -3247,8 +3253,8 @@ def asr_model_missing_detail(payload: dict) -> str:
     if rec.get("label"):
         return (
             "No speech-to-text model is installed. Download "
-            f"{rec['label']} ({rec['size_gb']} GB) from Settings → Models, "
+            f"{rec['label']} ({rec['size_gb']} GB) from Model Catalogue → Models, "
             "then retry."
         )
     return ("No speech-to-text model is installed. Download one from "
-            "Settings → Models, then retry.")
+            "Model Catalogue → Models, then retry.")

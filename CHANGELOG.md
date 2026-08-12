@@ -20,14 +20,36 @@ the frozen-backend fallback mirror it for their toolchains.
 - The watermark can be turned off in Settings, as the docs always said
 - Your other GPU can take the work now — send individual jobs to a second machine, opt-in
 - More than one person can share one GPU machine, without shell access to it or taking turns
+- A Model Catalogue workspace: every engine and model in one place, with the defaults set there
 - Workspace tabs in the title bar, if you prefer them to the icon rail (#1412)
 - macOS support now matches what the app actually delivers
 - Linux AppImage: a blank white window on rolling distros (Mesa 26.1+) now starts normally
 - Apple Silicon: transcription no longer needs a system ffmpeg, as the docs always said — thanks @gambletan! (#1436)
 - A failed audiobook chapter says why, instead of turning red and saying nothing
 
+### Fixed
+
+- The Linux app icon is no longer blank. Every AppImage since v0.4.2 shipped `.DirIcon` as an absolute symlink into the machine that built it (`/home/runner/work/…`), so the link dangled on every user's computer and file managers, app menus and desktop integration all drew nothing. The release build now verifies the icon resolves inside the bundle before publishing. (#1518)
+- The Linux desktop entry no longer ships an empty `Categories=`, which `desktop-file-validate` rejects and menu builders skip. (#1518)
+
+### Added
+
+- The demo audio the app has always advertised now actually ships: previews for all seven voice-design presets, the three dictation replay clips, and the dubbing demo's source video plus four dubbed languages with subtitles. Every one of those was a dead link before — the tooling that renders them required macOS, so on Windows and Linux the files were never built. (#1517)
+- Demo assets are rendered by VoiceStudio's own engine, so the tooling runs wherever the app does, and the demos are made by the thing they demonstrate. (#1517)
+
+### Added
+
+- A machine can now join a control plane from the app: Settings → System → Remote workers → **Lend this machine's GPU**, paste the join code, done — no environment variables and no restart. The address travels with the code, so the machine reconnects on its own afterwards. (#1516)
+- Join codes and connection strings are shown as a **QR code** alongside the text, with a live expiry countdown — scan it from the other machine instead of retyping forty characters. (#1516)
+- A **Compute** control in the status bar: pick local or a remote machine, turn remote workers on or off, and mint a join code without opening Settings. It appears only once you have opted in or enrolled a machine. (#1516)
+- A worker waiting for approval can be approved from its row. The panel labelled that state before but offered no way out of it. (#1516)
+
 ### Changed
 
+- Dictation shows the pill again: a capture puts a small always-on-top capsule near the bottom of the screen you are working on — listening, transcribing, the result, and any error — and takes it away when the session ends. It never takes focus, so the text still lands in the app you were typing into. On Wayland the compositor decides where it sits; everywhere else it is bottom-centred.
+- Remote workers reads as a device list: status dot, address, latency, a live task meter, resident models and last-seen per machine, with housekeeping actions revealed on hover and a three-step empty state. (#1516)
+- Engines and models moved out of Settings into a new Model Catalogue workspace, reachable from the icon rail (or the title-bar tabs); Settings → Engines and Settings → Models now point there, and Settings keeps the models directory and Hugging Face mirror.
+- The Settings sidebar is keyboard-navigable: ⌘K / Ctrl+K jumps to the filter, ↑/↓ and Home/End move between categories, and Enter or ↓ from the filter drops into the list. Matching text in a filtered category name is highlighted, and group headers stay pinned while the list scrolls.
 - The Launchpad has a quieter, more spacious look: borderless feature tiles that light up on hover or keyboard focus, plain-numeral counts, hairline section rules, and one shared page column for the hero, tiles, recent files and project lists.
 - Linux release smoke now validates linuxdeploy's wrapped custom launcher instead of rejecting a healthy AppImage. (#1506)
 - Remote GPU workers render audiobooks chapter by chapter, with automatic per-chapter local fallback and one combined notice if the worker drops out. (#1478)
@@ -45,6 +67,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Added
 
+- **Model Catalogue** — a workspace of its own for engines and models: browse every TTS, transcription and LLM engine with its device routing and install state, pick the default for each, and install or remove model weights, all from one screen instead of two Settings categories.
 - Remote GPU machines can now accept connections instead of dialling out, so several people can use the same box at once — each gets their own revocable connection string, with certificate-pinned TLS, a live list of who is connected, and a disconnect button. (#1496)
 - Remote GPU model downloads now use the normal Models install flow and show per-worker progress. (#1478)
 - Settings → System → **Remote workers** sends individual jobs to GPUs on your other machines while everything else stays here. Off by default; each machine is added with a single-use token and approved before any audio reaches it. See [docs/remote-workers.md](docs/remote-workers.md).
@@ -64,6 +87,10 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Wayland: the dictation shortcut now actually starts dictation. The desktop portal registered the key correctly — GNOME and KDE even showed it back — but every press was discarded while decoding the compositor's signal, so the hotkey did nothing on any Wayland session. (#1490)
+- The first-run "Choose a comfortable UI size" screen no longer stutters while you sit there. Applying a scale resizes the window's own viewport, which the screen was reading back to re-pick a size — so it flipped between two sizes forever without anyone touching it. (#1514)
+- Transcription now moves to the next working engine when the auto-picked one passes its availability check but breaks on first real use, instead of returning an internal error — the recovery dubbing already had. Affected accurate-mode transcription, the OpenAI-compatible API, batch, dub verify, and voice-clone reference text. (#1512)
+- A malformed request now gets a clear 422 instead of an internal error, and uploading a file to an endpoint that expects JSON no longer copies the whole upload into the app log — a 145 KB clip wrote roughly 500 KB of log, recording your audio in the file people paste into bug reports. (#1513)
 - The Simplified Chinese (zh-CN) translation no longer mistranslates brand names and technical terms — Discord, Tailscale, Hugging Face, IPA, and LLM (Cinematic) were rendered as nonsensical literal translations, and ~250 more awkward machine-translation strings are now natural Chinese. (#1508) — thanks @anyingiit!
 - Worker restart coverage now waits for the registration response to persist its identity instead of racing the client callback in CI. (#1505)
 - Dub language and export selections now restore without false schema warnings, and remote-worker port 7443 is identified instead of reported as a generic timeout. (#1504)

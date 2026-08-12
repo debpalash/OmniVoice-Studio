@@ -80,7 +80,7 @@ def test_validate_executable_raises_typed_error_with_hint(tmp_path):
     p = tmp_path / "engine-python"
     p.write_bytes(b"")
     with pytest.raises(InvalidBinaryError) as exc_info:
-        validate_executable(p, hint="reinstall the engine from Settings → Engines")
+        validate_executable(p, hint="reinstall the engine from Model Catalogue → Engines")
     err = exc_info.value
     assert isinstance(err, RuntimeError)  # select_default_engine catch contract
     assert err.path == p

@@ -106,7 +106,9 @@ def _fake_openai_transcribe(monkeypatch, *, verbose_ok=True, response=None, rais
 def test_unavailable_without_base_url(asr_mod):
     ok, msg = asr_mod.OpenAICompatASRBackend.is_available()
     assert ok is False
-    assert "Settings" in msg
+    # The hint must name where the endpoint is actually configured — the
+    # Model Catalogue's Engines pane, not the Settings category it used to be.
+    assert "Model Catalogue → Engines" in msg
 
 
 def test_available_once_base_url_configured(asr_mod, ss):

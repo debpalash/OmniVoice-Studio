@@ -17,12 +17,23 @@
     "gallery": "Galeri",
     "transcripts": "Transkrip",
     "omnidrive": "OmniDrive",
+    "catalogue": "Katalog",
     "move_rail_right": "Pindahkan rel ke kanan",
     "move_rail_left": "Pindahkan rel ke kiri",
     "flip_rail": "Balik sisi rel",
     "voice": "Suara",
     "audiobook": "Buku Audio",
     "workspaces": "Ruang kerja"
+  },
+  "catalogue": {
+    "title": "Katalog model",
+    "tab_engines": "Engine",
+    "tab_models": "Model",
+    "moved_title": "Kini di Katalog model",
+    "moved_engines_body": "Pemilihan engine default untuk suara, transkripsi, dan LLM kini ada di ruang kerja Katalog model.",
+    "moved_models_body": "Menjelajahi, memasang, dan menghapus model yang diunduh kini ada di ruang kerja Katalog model.",
+    "open_engines": "Buka engine",
+    "open_models": "Buka model"
   },
   "settings": {
     "remote_backend_recovery_title": "Backend jarak jauh tidak dapat dijangkau",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Galeri",
     "label_transcriptions": "Transkripsi",
     "label_settings": "Pengaturan",
+    "label_catalogue": "Katalog model",
     "label_enterprise": "Lisensi Komersial",
     "status_ready": "Siap",
     "status_loading": "Memuat…",

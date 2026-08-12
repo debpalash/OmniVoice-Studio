@@ -17,12 +17,23 @@
     "gallery": "Галерея",
     "transcripts": "Стенограми",
     "omnidrive": "OmniDrive",
+    "catalogue": "Каталог",
     "move_rail_right": "Перемістіть рейку вправо",
     "move_rail_left": "Перемістіть рейку вліво",
     "flip_rail": "Зворотна сторона рейки",
     "voice": "Голос",
     "audiobook": "Аудіокнига",
     "workspaces": "Робочі простори"
+  },
+  "catalogue": {
+    "title": "Каталог моделей",
+    "tab_engines": "Рушії",
+    "tab_models": "Моделі",
+    "moved_title": "Тепер у каталозі моделей",
+    "moved_engines_body": "Вибір типового рушія мовлення, розшифрування та LLM перенесено до розділу «Каталог моделей».",
+    "moved_models_body": "Перегляд, встановлення та видалення завантажених моделей перенесено до розділу «Каталог моделей».",
+    "open_engines": "Відкрити рушії",
+    "open_models": "Відкрити моделі"
   },
   "settings": {
     "remote_backend_recovery_title": "Не вдалося підключитися до віддаленого бекенду",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Галерея",
     "label_transcriptions": "транскрипції",
     "label_settings": "Налаштування",
+    "label_catalogue": "Каталог моделей",
     "label_enterprise": "Комерційна ліцензія",
     "status_ready": "Готовий",
     "status_loading": "Завантаження…",

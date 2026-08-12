@@ -260,7 +260,7 @@ def _preview_source(a: dict) -> tuple[str, str]:
     if _no_voice_model_downloaded():
         return "no_model", (
             "You're offline and no voice model is downloaded yet — "
-            "Settings → Models → Download."
+            "Model Catalogue → Models → Download."
         )
     return "rendering", "Rendering this preview on your machine — it may take a moment."
 
@@ -398,8 +398,8 @@ async def preview_archetype(
             if _no_voice_model_downloaded():
                 detail = (
                     "You're offline and no voice model is downloaded yet — "
-                    "Settings → Models → Download. (Or turn on pre-rendered "
-                    "voice previews in Settings → Models.)"
+                    "Model Catalogue → Models → Download. (Or turn on pre-rendered "
+                    "voice previews in Model Catalogue → Models.)"
                 )
             else:
                 detail = (
@@ -466,7 +466,7 @@ async def use_archetype(archetype_id: str, name: Optional[str] = Query(None)):
         if _no_voice_model_downloaded():
             detail = (
                 "Creating a voice needs the voice model — no voice model is "
-                "downloaded yet. Settings → Models → Download."
+                "downloaded yet. Model Catalogue → Models → Download."
             )
         else:
             detail = (

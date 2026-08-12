@@ -35,6 +35,7 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 const AudiobookTab = lazy(() => import('./pages/AudiobookTab'));
+const ModelCataloguePage = lazy(() => import('./pages/ModelCatalogue'));
 
 import Header from './components/Header';
 import NavRail from './components/NavRail';
@@ -142,10 +143,19 @@ function App() {
     return unsubscribe;
   }, [storeHydrated]);
 
-  const startupSuggestedScale = suggestUiScale({
-    width: typeof window === 'undefined' ? 1440 : window.innerWidth,
-    height: typeof window === 'undefined' ? 900 : window.innerHeight,
-  });
+  // Latched on first render — "startup" is the contract, not a per-render read.
+  // Tauri's native zoom keeps the CSS viewport equal to the visible window
+  // (utils/uiScaleEngine.js), so applying a scale changes `window.innerWidth`.
+  // Re-measuring here on every render made this value depend on the zoom it
+  // itself produces, which is the other half of the first-run oscillation
+  // fixed in UiScaleSetup.jsx — see the long comment there. A live read also
+  // can't be the "startup" suggestion by definition.
+  const [startupSuggestedScale] = useState(() =>
+    suggestUiScale({
+      width: typeof window === 'undefined' ? 1440 : window.innerWidth,
+      height: typeof window === 'undefined' ? 900 : window.innerHeight,
+    }),
+  );
   const effectiveUiScale = resolveUiScale({
     configured: uiScaleConfigured,
     previewed: uiScalePreviewed,
@@ -305,6 +315,7 @@ function App() {
     mode === 'enterprise' ||
     mode === 'contact' ||
     mode === 'transcriptions' ||
+    mode === 'catalogue' ||
     mode === 'stories' ||
     mode === 'audiobook' ||
     // Voice (studio) and Dub workspaces moved their saved voices /
@@ -1493,6 +1504,12 @@ function App() {
           <ErrorBoundary name="transcriptions">
             <Suspense fallback={<LazyFallback />}>
               <TranscriptionsPage />
+            </Suspense>
+          </ErrorBoundary>
+        ) : mode === 'catalogue' ? (
+          <ErrorBoundary name="catalogue">
+            <Suspense fallback={<LazyFallback />}>
+              <ModelCataloguePage />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'stories' ? (

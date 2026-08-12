@@ -1,5 +1,5 @@
 /**
- * Settings → Engines (ASR tab) → OpenAI-compatible remote ASR panel.
+ * Model Catalogue → Engines (ASR tab) → OpenAI-compatible remote ASR panel.
  *
  * The single Save button persists base URL + model + API key. Regression
  * coverage for the dirty/saved lifecycle: Save is disabled while the fields

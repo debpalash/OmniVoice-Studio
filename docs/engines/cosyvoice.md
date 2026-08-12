@@ -6,9 +6,9 @@ zero-shot voice cloning across 9+ languages with separate models for "base",
 
 ## Install
 
-CosyVoice is installed *per-engine* from the in-app **Settings → Engines** tab:
+CosyVoice is installed *per-engine* from the in-app **Model Catalogue → Engines** tab:
 
-1. Open **Settings → Engines**.
+1. Open **Model Catalogue → Engines**.
 2. Click **Install** next to "CosyVoice".
 3. The app fetches the engine source, creates a dedicated venv, syncs deps,
    and downloads model weights (~2 GB).

@@ -17,12 +17,23 @@
     "gallery": "Galerij",
     "transcripts": "Afschriften",
     "omnidrive": "OmniDrive",
+    "catalogue": "Catalogus",
     "move_rail_right": "Verplaats de rail naar rechts",
     "move_rail_left": "Verplaats de rail naar links",
     "flip_rail": "Draai de railzijde om",
     "voice": "Stem",
     "audiobook": "Audioboek",
     "workspaces": "Werkruimtes"
+  },
+  "catalogue": {
+    "title": "Modelcatalogus",
+    "tab_engines": "Engines",
+    "tab_models": "Modellen",
+    "moved_title": "Nu in de modelcatalogus",
+    "moved_engines_body": "Het kiezen van de standaard-engine voor spraak, transcriptie en LLM staat nu in de werkruimte Modelcatalogus.",
+    "moved_models_body": "Gedownloade modellen bekijken, installeren en verwijderen staat nu in de werkruimte Modelcatalogus.",
+    "open_engines": "Engines openen",
+    "open_models": "Modellen openen"
   },
   "settings": {
     "remote_backend_recovery_title": "Kan de externe backend niet bereiken",
@@ -1698,6 +1709,7 @@
     "label_gallery": "Galerij",
     "label_transcriptions": "Transcripties",
     "label_settings": "Instellingen",
+    "label_catalogue": "Modelcatalogus",
     "label_enterprise": "Commerciële licentie",
     "status_ready": "Klaar",
     "status_loading": "Laden…",

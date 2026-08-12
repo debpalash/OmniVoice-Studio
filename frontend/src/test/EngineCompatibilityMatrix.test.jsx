@@ -883,7 +883,7 @@ describe('EngineCompatibilityMatrix', () => {
     expect(screen.getByTestId('curated-model-select-mlx-audio')).toBeDisabled();
   });
 
-  // ── showFamilyTabs={false} — pinned per-family mount (Settings → Engines) ─
+  // ── showFamilyTabs={false} — pinned per-family mount (Model Catalogue → Engines) ─
   function multiFamilyResponse() {
     return {
       tts: {

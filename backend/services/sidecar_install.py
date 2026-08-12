@@ -6,7 +6,7 @@ version that conflicts with the parent's ``>=5.3``. They run as sidecars:
 a source checkout + a dedicated venv + (for IndexTTS-2) model weights in
 ``<checkout>/checkpoints/``. Until now provisioning that trio was four
 manual terminal steps; this module turns it into a resumable background
-job the Settings → Engines UI can start and poll.
+job the Model Catalogue → Engines UI can start and poll.
 
 Design notes (single source of truth for the choices):
 
@@ -844,7 +844,7 @@ def _step_verify(spec: SidecarSpec, job: dict) -> None:
         raise _StepError(
             f"Import probe failed to run: {exc}",
             "Re-run the install; if it keeps failing, delete the engine in "
-            "Settings → Engines and install again.",
+            "Model Catalogue → Engines and install again.",
         ) from exc
     if proc.returncode != 0:
         tail = proc.stderr.decode("utf-8", errors="replace")[-500:]

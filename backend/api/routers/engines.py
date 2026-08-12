@@ -178,7 +178,7 @@ async def uninstall_translation_engine(engine_id: str):
 # Sidecar engines (dedicated venv + source checkout + weights, isolated from
 # the parent's transformers>=5.3) used to require four manual terminal steps.
 # These routes drive services.sidecar_install: POST starts a resumable
-# background job, GET polls its step-by-step status (the Settings → Engines
+# background job, GET polls its step-by-step status (the Model Catalogue → Engines
 # Install button polls this), DELETE removes an app-managed install.
 #
 # Path namespace: /engines/sidecar/{engine_id}/… — NOT /engines/{engine_id}/…
@@ -582,7 +582,7 @@ def select_engine(req: SelectEngineRequest):
     # #981: mlx-audio multiplexes 7+ curated models behind one backend id —
     # persist the model pick alongside the backend id so the UI can actually
     # select which curated model gets loaded (previously it always defaulted
-    # to Kokoro no matter what the user downloaded in Settings → Models).
+    # to Kokoro no matter what the user downloaded in Model Catalogue → Models).
     if req.family == "tts" and req.backend_id == "mlx-audio" and req.model_id is not None:
         known_keys = tts_backend.MLXAudioBackend.CURATED_MODELS
         # Accept a curated key OR a raw HF repo id ("owner/name") — the same

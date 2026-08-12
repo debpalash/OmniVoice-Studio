@@ -1033,16 +1033,16 @@ def _timeout_guidance(
             f"The durable fix is a lighter engine (OmniVoice GGUF and "
             f"Supertonic-3 are tuned for small/no GPU) or shorter text; "
             f"Flush caches / Unload the resident model (top toolbar or "
-            f"Settings → Models) frees what little headroom there is. (Raise "
+            f"Model Catalogue → Models) frees what little headroom there is. (Raise "
             f"OMNIVOICE_GENERATE_TIMEOUT_S if you'd rather let long "
             f"generations run.)"
         )
     return common + (
         "most often the GPU is VRAM-starved (a resident model and this job "
         "contend for memory). For a durable fix, Flush caches / Unload the "
-        "resident model (top toolbar or Settings → Models) before retrying, "
+        "resident model (top toolbar or Model Catalogue → Models) before retrying, "
         "try shorter text, a lighter engine, or set the engine to CPU in "
-        "Settings → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very "
+        "Model Catalogue → Models. (Raise OMNIVOICE_GENERATE_TIMEOUT_S for very "
         "long single generations.)"
     )
 
@@ -1959,7 +1959,7 @@ def _load_model_sync():
                 # gigabytes for the same result, once per generate request.
                 raise RuntimeError(
                     f"The {asset_label} files for {repair_checkpoint} are damaged and a "
-                    "re-download did not fix them. Open Settings → Models, "
+                    "re-download did not fix them. Open Model Catalogue → Models, "
                     "delete the VoiceStudio TTS model, and install it again."
                     f"{_manual_cache_delete_hint(repair_checkpoint)}"
                 ) from exc
@@ -1990,7 +1990,7 @@ def _load_model_sync():
                     raise
                 raise RuntimeError(
                     f"The {asset_label} files for {repair_checkpoint} are still damaged "
-                    "after being re-downloaded. Open Settings → Models, "
+                    "after being re-downloaded. Open Model Catalogue → Models, "
                     "delete the VoiceStudio TTS model, and install it again."
                     f"{_manual_cache_delete_hint(repair_checkpoint)}"
                 ) from exc2
@@ -2046,7 +2046,7 @@ def _load_model_sync():
                             f"The TTS model cache for {checkpoint} is incomplete "
                             "(weights missing — usually an interrupted download)."
                             f"{_repair_failure_detail()} "
-                            "Open Settings → Models, delete the VoiceStudio TTS model, "
+                            "Open Model Catalogue → Models, delete the VoiceStudio TTS model, "
                             f"and install it again.{_manual_cache_delete_hint(checkpoint)}"
                         ) from e
                     _set_loading("loading_weights", f"Loading TTS weights on {device}…")
@@ -2072,21 +2072,21 @@ def _load_model_sync():
                                 except OSError as e3:
                                     raise RuntimeError(
                                         f"The TTS model cache for {checkpoint} is incomplete "
-                                        "and could not be auto-repaired. Open Settings → "
-                                        "Models, delete the VoiceStudio TTS model, and install "
+                                        "and could not be auto-repaired. Open Model "
+                                        "Catalogue → Models, delete the VoiceStudio TTS model, and install "
                                         f"it again.{_manual_cache_delete_hint(checkpoint)}"
                                     ) from e3
                             else:
                                 raise RuntimeError(
                                     f"The TTS model cache for {checkpoint} is incomplete and "
                                     f"could not be auto-repaired.{_repair_failure_detail()} "
-                                    "Open Settings → Models, delete the VoiceStudio TTS model, "
+                                    "Open Model Catalogue → Models, delete the VoiceStudio TTS model, "
                                     f"and install it again.{_manual_cache_delete_hint(checkpoint)}"
                                 ) from e2
                         else:
                             raise RuntimeError(
                                 f"The TTS model cache for {checkpoint} is incomplete and "
-                                "could not be auto-repaired. Open Settings → Models, delete "
+                                "could not be auto-repaired. Open Model Catalogue → Models, delete "
                                 "the VoiceStudio TTS model, and install it again."
                                 f"{_manual_cache_delete_hint(checkpoint)}"
                             ) from e2
@@ -2112,7 +2112,7 @@ def _load_model_sync():
                     raise
                 raise RuntimeError(
                     "The transcription model's files are damaged. Open "
-                    "Settings → Models, delete the transcription (ASR) model, "
+                    "Model Catalogue → Models, delete the transcription (ASR) model, "
                     "and install it again; or set OMNIVOICE_PRELOAD_TTS_ASR=0 "
                     "to stop preloading it alongside TTS."
                 ) from asr_exc

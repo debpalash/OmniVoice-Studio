@@ -56,7 +56,7 @@ Then point VoiceStudio at the clone and restart:
 - **macOS/Linux:** `export OMNIVOICE_CONFUCIUS4_TTS_DIR=/path/to/Confucius4-TTS`
 - **Windows (PowerShell):** `[Environment]::SetEnvironmentVariable("OMNIVOICE_CONFUCIUS4_TTS_DIR","C:\path\to\Confucius4-TTS","User")`
 
-Select **Confucius4-TTS** in Settings → Engines. The first synthesize triggers
+Select **Confucius4-TTS** in Model Catalogue → Engines. The first synthesize triggers
 the weight downloads above, then generates.
 
 ### Optional overrides

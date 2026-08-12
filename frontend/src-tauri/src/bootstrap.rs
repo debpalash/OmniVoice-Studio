@@ -893,7 +893,7 @@ const ROCM_TORCH_INDEX: &str = "https://download.pytorch.org/whl/rocm6.4";
 /// every app update when `uv.lock` changed. `--inexact` is the fix for #1029:
 /// plain `uv sync` UNINSTALLS every package not in the lockfile, which
 /// silently deleted user-pip-installed optional engines (voxcpm, kittentts —
-/// packages the app's own Settings → Engines hints tell users to install
+/// packages the app's own Model Catalogue → Engines hints tell users to install
 /// into this venv) on every single update. `--inexact` still installs/
 /// upgrades everything the lockfile demands — locked deps stay exactly
 /// correct — it just stops removing extras the user added on purpose.
@@ -1922,7 +1922,7 @@ mod tests {
     fn update_drift_sync_preserves_user_installed_engines() {
         // #1029: the routine update sync must carry --inexact so a
         // user-pip-installed optional engine (voxcpm, kittentts — packages
-        // the app's own Settings → Engines hints tell users to install into
+        // the app's own Model Catalogue → Engines hints tell users to install into
         // this venv) survives every update instead of being silently
         // uninstalled. --frozen must stay (lockfile is the resolution truth).
         assert!(DRIFT_SYNC_ARGS.contains(&"--inexact"),

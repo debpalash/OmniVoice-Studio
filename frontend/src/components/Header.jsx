@@ -16,6 +16,7 @@ import {
   Building2,
   Library,
   FileText,
+  Boxes,
   Trash2,
   Minus,
   Square,
@@ -78,6 +79,12 @@ const VIEW_META = {
     Icon: FileText,
     accent: '#d3869b',
     kickerKey: 'header.kicker_library',
+  },
+  catalogue: {
+    labelKey: 'header.label_catalogue',
+    Icon: Boxes,
+    accent: '#689d6a',
+    kickerKey: 'header.kicker_preferences',
   },
   settings: {
     labelKey: 'header.label_settings',
