@@ -158,6 +158,24 @@ def agent_status() -> dict:
     return worker_agent.agent.status()
 
 
+def _refuse_when_env_pinned(worker_agent) -> None:
+    """OMNIVOICE_WORKER_MODE wins over the setting everywhere else.
+
+    `worker_mode_enabled()` reads the variable first and `status()` reports the
+    machine as env-pinned, so a route that changed worker mode anyway would
+    contradict both: it writes a setting nothing consults, and the next restart
+    undoes whatever the user just saw happen.
+    """
+    if worker_agent.agent.status()["env_pinned"]:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "OMNIVOICE_WORKER_MODE controls this machine's worker mode. Unset it "
+                "and restart VoiceStudio to manage it from here."
+            ),
+        )
+
+
 @router.post("/agent/join")
 async def join_control_plane(request: JoinRequest) -> dict:
     """Redeem a join code and start working for that control plane.
@@ -176,6 +194,11 @@ async def join_control_plane(request: JoinRequest) -> dict:
     token = request.token.strip()
     if not token:
         raise HTTPException(status_code=422, detail="Paste the join code first.")
+    # Same rule as the toggle below: joining ENABLES worker mode, so under
+    # OMNIVOICE_WORKER_MODE it would write a setting the rest of the app
+    # ignores — and with the variable set to 0, hand the user a machine that
+    # says it joined and never lends anything (CodeRabbit).
+    _refuse_when_env_pinned(worker_agent)
     async with worker_agent.agent.lifecycle:
         # A rejoin replaces a working enrollment. Keep enough to put it back:
         # pinning the new certificate overwrites the old one on disk, so a
@@ -210,18 +233,7 @@ async def set_agent_enabled(request: EnableRequest) -> dict:
     """
     from worker import agent as worker_agent  # noqa: PLC0415
 
-    # OMNIVOICE_WORKER_MODE wins over the setting everywhere else (see
-    # worker_mode_enabled), and status() reports the machine as env-pinned. A
-    # toggle that changed anything here would contradict both: the setting is
-    # written and ignored, and the next restart undoes whatever just happened.
-    if worker_agent.agent.status()["env_pinned"]:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "OMNIVOICE_WORKER_MODE controls this machine's worker mode. Unset it "
-                "and restart VoiceStudio to manage it from here."
-            ),
-        )
+    _refuse_when_env_pinned(worker_agent)
     async with worker_agent.agent.lifecycle:
         if request.enabled:
             try:

@@ -174,7 +174,7 @@ def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tm
     rollback a mistyped code left the machine unable to reconnect to anything.
     """
     c, settings = client
-    _stub_agent(monkeypatch, never_registers="That code has expired.")
+    calls = _stub_agent(monkeypatch, never_registers="That code has expired.")
     pinned = tmp_path / "pinned.crt"
     pinned.write_bytes(b"previous-control-plane")
     settings["worker_mode_enabled"] = "true"
@@ -194,7 +194,14 @@ def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tm
     monkeypatch.setattr(worker_agent.agent, "start", _start_and_pin)
 
     assert c.post("/workers/agent/join", json={"token": "ovw_expired"}).status_code == 409
+    # The certificate the machine still needs, put back after the failed pin.
     assert pinned.read_bytes() == b"previous-control-plane"
+    # …and the agent it was running is dialling again. Without the rollback the
+    # machine sits stopped until someone notices and toggles it back on: the
+    # join stops the old agent before it knows the new code is any good.
+    assert calls[-1] == ("start", ""), (
+        f"expected the previous enrollment to be resumed, got {calls!r}"
+    )
     assert settings["worker_endpoint"] == "studio-mac:7443"
     assert settings["worker_mode_enabled"] == "true"
 
@@ -214,6 +221,25 @@ def test_an_env_pinned_machine_refuses_to_be_toggled(client, monkeypatch):
 
     assert response.status_code == 409
     assert "OMNIVOICE_WORKER_MODE" in response.json()["detail"]
+    assert "worker_mode_enabled" not in settings
+
+
+def test_an_env_pinned_machine_refuses_a_join_too(client, monkeypatch):
+    """Joining ENABLES worker mode, so the same rule applies as to the toggle.
+
+    Under OMNIVOICE_WORKER_MODE the join would persist a setting nothing
+    consults — and with the variable pinned off, hand the user a machine that
+    reports a successful join and never lends anything.
+    """
+    c, settings = client
+    calls = _stub_agent(monkeypatch)
+    monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "0")
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_abc123"})
+
+    assert response.status_code == 409
+    assert "OMNIVOICE_WORKER_MODE" in response.json()["detail"]
+    assert calls == []
     assert "worker_mode_enabled" not in settings
 
 
