@@ -109,7 +109,7 @@ jobs:
           version: 1.0
 
       - name: Install Python deps
-        run: uv sync
+        run: bash scripts/uv-sync-retry.sh
 
       - name: Run pytest
         run: uv run pytest tests/ -q --tb=short
