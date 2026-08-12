@@ -87,6 +87,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The Linux app icon is no longer blank: the AppImage shipped `.DirIcon` as a symlink into the machine that built it, so file managers and app menus drew nothing. (#1518)
+- The Linux desktop entry no longer ships an empty `Categories=`, which `desktop-file-validate` rejects and menu builders skip. (#1518)
 - Wayland: the dictation shortcut now actually starts dictation. The desktop portal registered the key correctly — GNOME and KDE even showed it back — but every press was discarded while decoding the compositor's signal, so the hotkey did nothing on any Wayland session. (#1490)
 - The first-run "Choose a comfortable UI size" screen no longer stutters while you sit there. Applying a scale resizes the window's own viewport, which the screen was reading back to re-pick a size — so it flipped between two sizes forever without anyone touching it. (#1514)
 - Transcription now moves to the next working engine when the auto-picked one passes its availability check but breaks on first real use, instead of returning an internal error — the recovery dubbing already had. Affected accurate-mode transcription, the OpenAI-compatible API, batch, dub verify, and voice-clone reference text. (#1512)
