@@ -15,11 +15,12 @@
  *     one-time connection string. There is no plaintext fallback.
  */
 import React, { useState } from 'react';
-import { Check, Copy, Link2, LogOut, Trash2, Wifi } from 'lucide-react';
+import { Link2, LogOut, Trash2, Wifi } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { askConfirm } from '../../utils/dialog';
+import OneTimeSecret from '../OneTimeSecret';
 import { SettingRow, SettingsSection, SettingsToggle } from './primitives';
 import { Badge, Button } from '../../ui';
 
@@ -51,7 +52,6 @@ export default function InboundNodePanel({ request }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [issued, setIssued] = useState(null);
-  const [copied, setCopied] = useState(false);
   const [paste, setPaste] = useState('');
   const [label, setLabel] = useState('');
   const [bind, setBind] = useState('');
@@ -97,7 +97,6 @@ export default function InboundNodePanel({ request }) {
       });
       setIssued(result);
       setLabel('');
-      setCopied(false);
     });
 
   const revoke = (key) =>
@@ -134,16 +133,6 @@ export default function InboundNodePanel({ request }) {
         method: 'DELETE',
       }),
     );
-
-  const copy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error(t('settings.workers_copy_failed', { defaultValue: 'Could not copy.' }));
-    }
-  };
 
   return (
     <>
@@ -207,7 +196,7 @@ export default function InboundNodePanel({ request }) {
                     {t('settings.inbound_bind_apply', { defaultValue: 'Apply' })}
                   </Button>
                   {data?.exposed ? (
-                    <Badge variant="warning">
+                    <Badge tone="warn">
                       {t('settings.inbound_exposed_badge', { defaultValue: 'On your network' })}
                     </Badge>
                   ) : null}
@@ -242,36 +231,18 @@ export default function InboundNodePanel({ request }) {
             />
 
             {issued ? (
-              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
-                <p className="text-sm">
-                  {t('settings.inbound_shown_once', {
-                    defaultValue:
-                      'Copy this now — it is not shown again. Give it only to {{label}}.',
-                    label: issued.label,
-                  })}
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 truncate text-xs" translate="no">
-                    {issued.connection_string}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => copy(issued.connection_string)}
-                  >
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied
-                      ? t('settings.workers_copied', { defaultValue: 'Copied' })
-                      : t('settings.workers_copy', { defaultValue: 'Copy' })}
-                  </Button>
-                </div>
-                <p className="text-xs opacity-70">
-                  {t('settings.inbound_shown_once_warning', {
-                    defaultValue:
-                      'Treat it like a password and send it privately. Its certificate fingerprint pins the encrypted connection to this GPU machine.',
-                  })}
-                </p>
-              </div>
+              <OneTimeSecret
+                value={issued.connection_string}
+                onDone={() => setIssued(null)}
+                headline={t('settings.inbound_shown_once', {
+                  defaultValue: 'Copy this now — it is not shown again. Give it only to {{label}}.',
+                  label: issued.label,
+                })}
+                note={t('settings.inbound_shown_once_warning', {
+                  defaultValue:
+                    'Treat it like a password and send it privately. Its certificate fingerprint pins the encrypted connection to this GPU machine.',
+                })}
+              />
             ) : null}
 
             {keys.length ? (
@@ -293,8 +264,13 @@ export default function InboundNodePanel({ request }) {
                         </span>
                       ) : null}
                     </span>
-                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => revoke(key)}>
-                      <Trash2 size={14} />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leading={<Trash2 size={14} />}
+                      disabled={busy}
+                      onClick={() => revoke(key)}
+                    >
                       {t('settings.inbound_revoke', { defaultValue: 'Remove' })}
                     </Button>
                   </div>
@@ -331,10 +307,10 @@ export default function InboundNodePanel({ request }) {
                     <Button
                       size="sm"
                       variant="ghost"
+                      leading={<LogOut size={14} />}
                       disabled={busy}
                       onClick={() => disconnect(session)}
                     >
-                      <LogOut size={14} />
                       {t('settings.inbound_disconnect', { defaultValue: 'Disconnect' })}
                     </Button>
                   </div>
@@ -395,8 +371,13 @@ export default function InboundNodePanel({ request }) {
                     t('settings.inbound_connecting', { defaultValue: 'connecting…' })}
               </span>
             </span>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => forget(row)}>
-              <Trash2 size={14} />
+            <Button
+              size="sm"
+              variant="ghost"
+              leading={<Trash2 size={14} />}
+              disabled={busy}
+              onClick={() => forget(row)}
+            >
               {t('settings.inbound_forget', { defaultValue: 'Remove' })}
             </Button>
           </div>

@@ -26,8 +26,15 @@ import { Cpu, Check, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../api/client';
 import { useAppStore } from '../store';
+import {
+  FELL_BACK_TEXT,
+  MENU_ITEM,
+  MENU_SURFACE,
+  StatusDot,
+  latencyLabel,
+  workersRequest as request,
+} from './computeTarget';
 
 // Two cadences: a slow tick that just keeps status honest, and a fast one
 // while work is in flight so the task count reads as live rather than lagging
@@ -58,49 +65,6 @@ const OP_BY_MODE = {
   transcriptions: 'asr',
   dictation: 'dictation',
 };
-
-/** ready → green, busy → amber, offline → red. */
-const DOT = {
-  ready: 'bg-emerald-400',
-  busy: 'bg-amber-400',
-  offline: 'bg-red-400',
-};
-
-function StatusDot({ status }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-block h-[6px] w-[6px] shrink-0 rounded-full ${DOT[status] || DOT.offline}`}
-    />
-  );
-}
-
-/** Latency is only meaningful for a machine across a network. */
-function latencyLabel(target) {
-  if (!target || target.is_local || !target.connected) return '';
-  const ms = target.latency_ms;
-  // 0 means "not measured yet", not "instantaneous" — say nothing rather than
-  // claim a suspiciously perfect link.
-  if (!ms) return '';
-  return ms < 1 ? '<1 ms' : `${Math.round(ms)} ms`;
-}
-
-async function request(path, { body, ...opts } = {}) {
-  const res = await apiFetch(path, {
-    ...opts,
-    ...(body === undefined
-      ? {}
-      : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  });
-  const payload = await res.json().catch(() => null);
-  if (!res.ok) {
-    const detail = payload?.detail;
-    throw new Error(
-      typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : `HTTP ${res.status}`,
-    );
-  }
-  return payload;
-}
 
 export default function GpuTarget() {
   const { t } = useTranslation();
@@ -209,11 +173,11 @@ export default function GpuTarget() {
         onClick={toggle}
         title={reason || undefined}
         aria-label={t('gpu.picker', { defaultValue: 'Where jobs run' })}
-        className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs opacity-80 hover:opacity-100"
+        className="inline-flex items-center gap-1.5 rounded-[5px] border-0 bg-transparent px-2 py-1 text-xs [font-family:inherit] [color:inherit] cursor-pointer opacity-75 hover:bg-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)] hover:opacity-100"
       >
         <Cpu size={13} />
         <StatusDot status={dotStatus} />
-        <span className={fellBack ? 'text-amber-400' : undefined}>{label}</span>
+        <span className={fellBack ? FELL_BACK_TEXT : undefined}>{label}</span>
         {chipLatency && <span className="opacity-60">{chipLatency}</span>}
         <ChevronDown size={11} />
       </button>
@@ -226,7 +190,7 @@ export default function GpuTarget() {
             <div
               data-slot="gpu-target-menu"
               style={{ top: anchor.top, right: anchor.right }}
-              className="fixed z-[9999] min-w-[240px] rounded-lg border border-transparent bg-[var(--chrome-bg)] p-1 shadow-lg"
+              className={`fixed z-[9999] min-w-[240px] ${MENU_SURFACE}`}
             >
               {targets.map((target) => (
                 // Any enrolled worker is selectable, including an offline one:
@@ -237,9 +201,7 @@ export default function GpuTarget() {
                   key={target.id}
                   type="button"
                   onClick={() => choose(target.id)}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-white/5 ${
-                    target.available ? '' : 'opacity-60'
-                  }`}
+                  className={`${MENU_ITEM} text-xs ${target.available ? '' : 'opacity-60'}`}
                 >
                   <span className="w-3">{target.id === chosen ? <Check size={12} /> : null}</span>
                   {target.is_local ? (
@@ -283,9 +245,7 @@ export default function GpuTarget() {
               ))}
               {reason && (fellBack || opIsLocalOnly) && (
                 <p
-                  className={`m-0 px-2 py-1 text-[11px] ${
-                    fellBack ? 'text-amber-400' : 'opacity-60'
-                  }`}
+                  className={`m-0 px-2 py-1 text-[11px] ${fellBack ? FELL_BACK_TEXT : 'opacity-60'}`}
                 >
                   {reason}
                 </p>

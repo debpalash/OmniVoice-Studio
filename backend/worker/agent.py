@@ -51,13 +51,74 @@ def _sweep_seconds_from_env(default: float = 60.0, floor: float = 1.0) -> float:
 IDLE_SWEEP_INTERVAL_SECONDS = _sweep_seconds_from_env()
 
 
+_WORKER_MODE_SETTING = "worker_mode_enabled"
+
+
 def worker_mode_enabled() -> bool:
-    return (os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    """Is this machine lending its GPU to someone else's control plane?
+
+    Environment first so a headless box can be a worker with no UI at all, then
+    settings for the desktop case — the same precedence as
+    ``service.remote_workers_enabled``. The settings half is what lets a user
+    join from the app and still be a worker after a restart; before it, joining
+    meant setting OMNIVOICE_WORKER_MODE and OMNIVOICE_WORKER_TOKEN by hand and
+    relaunching, which is the whole reason the feature was unreachable in the
+    UI.
+    """
+    env = (os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        return True
+    if env in ("0", "false", "no", "off"):
+        return False
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        stored = (settings_store.get_text(_WORKER_MODE_SETTING, "") or "").strip().lower()
+        return stored in ("1", "true", "yes", "on")
+    except Exception:
+        return False
+
+
+def set_worker_mode_enabled(enabled: bool) -> None:
+    from services import settings_store  # noqa: PLC0415
+
+    settings_store.set_text(_WORKER_MODE_SETTING, "true" if enabled else "false")
+
+
+_ENDPOINT_SETTING = "worker_endpoint"
+
+
+def _stored_endpoint() -> str:
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        return (settings_store.get_text(_ENDPOINT_SETTING, "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _remember_endpoint(endpoint: str) -> None:
+    if not endpoint:
+        return
+    try:
+        from services import settings_store  # noqa: PLC0415
+
+        settings_store.set_text(_ENDPOINT_SETTING, endpoint)
+    except Exception:
+        logger.debug("Could not remember the control-plane endpoint.", exc_info=True)
+
+
+def enrolled() -> bool:
+    """Has this machine ever completed a join?
+
+    The pinned control-plane certificate is written only by a successful
+    enrollment, so its presence is the honest answer — and it is what lets the
+    agent reconnect later without a fresh token.
+    """
+    try:
+        return os.path.exists(_paths()["pinned_cert"])
+    except Exception:
+        return False
 
 
 def _paths() -> dict[str, str]:
@@ -144,10 +205,27 @@ class WorkerAgent:
         self._task: Optional[asyncio.Task] = None
         self._idle_sweep: Optional[asyncio.Task] = None
         self._client = None
+        # Why the last start failed, kept so the panel can say "that token has
+        # expired" instead of leaving a toggle that silently springs back.
+        self.last_error: str = ""
+        self.endpoint: str = ""
 
     @property
     def running(self) -> bool:
         return self._task is not None and not self._task.done()
+
+    def status(self) -> dict:
+        """What the "lend this machine" panel renders, in one call."""
+        return {
+            "worker_mode": worker_mode_enabled(),
+            "running": self.running,
+            "enrolled": enrolled(),
+            "endpoint": self.endpoint
+            or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+            or _stored_endpoint(),
+            "last_error": self.last_error,
+            "env_pinned": bool((os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip()),
+        }
 
     async def start(self, *, token_text: str = "", endpoint: str = "") -> None:
         from worker import capabilities  # noqa: PLC0415
@@ -171,6 +249,12 @@ class WorkerAgent:
         token_text = token_text or (os.environ.get("OMNIVOICE_WORKER_TOKEN") or "").strip()
         if token_text:
             endpoint, certificate = await asyncio.to_thread(pin_certificate, token_text)
+            # The token carries the address; remembering it is what makes the
+            # NEXT launch work. Without this a machine that joined from the UI
+            # came back up enrolled but with nowhere to dial, and the only fix
+            # was an environment variable — the barrier the join flow exists to
+            # remove.
+            _remember_endpoint(endpoint)
         else:
             # Already enrolled: reuse the certificate pinned at join time.
             try:
@@ -178,16 +262,21 @@ class WorkerAgent:
                     certificate = fh.read()
             except (FileNotFoundError, PermissionError) as exc:
                 raise RuntimeError(
-                    "This machine has not been enrolled yet. Generate a token on the "
-                    "control plane (Settings → System → Remote workers) and start with "
-                    "OMNIVOICE_WORKER_TOKEN set."
+                    "This machine has not been enrolled yet. Ask for a join code on the "
+                    "control plane (Settings → System → Remote workers) and paste it into "
+                    "Lend this machine's GPU."
                 ) from exc
-            endpoint = endpoint or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+            endpoint = (
+                endpoint
+                or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+                or _stored_endpoint()
+            )
             if not endpoint:
                 raise RuntimeError(
-                    "Set OMNIVOICE_WORKER_ENDPOINT to the control plane's host:port, or "
-                    "start with a fresh OMNIVOICE_WORKER_TOKEN."
+                    "This machine does not know which control plane to dial. Paste a fresh "
+                    "join code, or set OMNIVOICE_WORKER_ENDPOINT to its host:port."
                 )
+        self.endpoint = endpoint
 
         # Unavailable engines are reported too, so the control plane can tell
         # "this worker has no such engine" from "it has it but the weights

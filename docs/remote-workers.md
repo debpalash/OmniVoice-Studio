@@ -35,23 +35,35 @@ Settings → System → Remote workers → turn on **Use remote workers**.
 The panel shows the address workers should connect to, and a **Generate token**
 button.
 
-**2. Generate an enrollment token.**
+**2. Generate a join code.**
 
-Copy it immediately. It is shown once, works once, and expires after 15
-minutes — only its hash is stored here, so it cannot be shown again. If you
-lose it, generate another.
+The panel shows it as text **and as a QR code**, with a countdown. Copy it, or
+scan the QR with your phone if the worker machine is across the room. It is
+shown once, works once, and expires after 15 minutes — only its hash is stored
+here, so it cannot be shown again. If you lose it, generate another.
 
 **3. On the worker machine:**
 
-Start OmniVoice in worker mode and give it the token:
+Settings → System → Remote workers → **Lend this machine's GPU** → paste the
+join code → **Join**. Nothing has to be restarted, and no environment variables
+are involved.
+
+The worker generates its own key pair on first run, presents the code once to
+enroll, and proves possession of that key on every later connection. The code
+is spent at that point and never used again. The control plane's address comes
+with it and is remembered, so the machine reconnects on its own after a
+restart; the same panel's switch stops and resumes that without asking for
+another code.
+
+Headless machines still take the environment route:
 
 ```bash
 OMNIVOICE_WORKER_TOKEN='ovw_…' OMNIVOICE_WORKER_MODE=1 omnivoice
 ```
 
-The worker generates its own key pair on first run, presents the token once to
-enroll, and proves possession of that key on every later connection. The token
-is spent at that point and never used again.
+`OMNIVOICE_WORKER_MODE` wins over the in-app switch when it is set, so a
+deployment that pins worker mode cannot be turned off from the UI — the panel
+says so instead of showing a switch that springs back.
 
 **4. Approve the worker.**
 
@@ -137,7 +149,10 @@ feature. The remaining operations are being ported one at a time.
 
 The picker knows this. It resolves against the surface you are on, so a chosen
 worker reads **Local** on a tab whose work has no remote path yet and names the
-reason, instead of showing a green dot next to a GPU that receives nothing.
+reason, instead of showing a green dot next to a GPU that receives nothing. The
+same choice is in the status bar at the bottom of the window — the **Compute**
+control, which also carries the master switch and can mint a join code without
+opening Settings. It appears only once you have opted in or enrolled a machine.
 The Dictation surface states that it always uses this machine without showing
 the generic "not ported yet" notice.
 
@@ -231,9 +246,14 @@ worker and never implicit.
 
 ## Turning it off
 
-Settings → System → Remote workers → toggle off. The listening socket closes
-and the background loops stop. Your enrolled workers and their settings are
-kept, so turning it back on does not mean setting everything up again.
+Settings → System → Remote workers → toggle off, or the **Compute** control in
+the status bar at the bottom of the window. The listening socket closes and the
+background loops stop. Your enrolled workers and their settings are kept, so
+turning it back on does not mean setting everything up again.
+
+On a machine that is lending its GPU, the switch in **Lend this machine's GPU**
+stops it taking work. The enrollment survives, so turning it back on needs no
+new code.
 
 ## Environment variables
 
@@ -247,8 +267,9 @@ kept, so turning it back on does not mean setting everything up again.
 | `OMNIVOICE_INBOUND_PORT` | Port to accept them on (default `7444`) |
 | `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` | How long a model may sit unused before its VRAM is handed back (default `600`, minimum `5`) |
 | `OMNIVOICE_IDLE_SWEEP_SECONDS` | How often that check runs (default `60`, minimum `1`) |
-| `OMNIVOICE_WORKER_MODE` | `1` on the worker machine |
-| `OMNIVOICE_WORKER_TOKEN` | Enrollment token, first run only |
+| `OMNIVOICE_WORKER_MODE` | `1` on the worker machine — overrides the in-app switch |
+| `OMNIVOICE_WORKER_TOKEN` | Join code, first run only (the in-app Join box is the usual route) |
+| `OMNIVOICE_WORKER_ENDPOINT` | Control plane to dial when no code is being redeemed; normally remembered from the code |
 
 `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` and `OMNIVOICE_IDLE_SWEEP_SECONDS` exist
 so the ten-minute unload can be watched in a minute while testing — set them
