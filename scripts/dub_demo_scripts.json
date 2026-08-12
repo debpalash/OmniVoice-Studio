@@ -1,0 +1,45 @@
+{
+  "_comment": "Single source of truth for the dubbing demo. Read by BOTH scripts/build_dub_demo.sh (video + manifest) and scripts/render_dub_demo_audio.py (engine-rendered audio). They used to carry their own copies of these five paragraphs, which is one edit away from a source video whose subtitles say something else.",
+  "voice_instruct": "female, young adult, moderate pitch",
+  "source": {
+    "code": "en",
+    "label": "English",
+    "language": "English",
+    "say_voice": "Samantha",
+    "script": "VoiceStudio is a desktop app for voice cloning, video dubbing, and voice design. It runs entirely on your machine. No accounts, no cloud, no API keys. Just open the app and start creating."
+  },
+  "dubbed": [
+    {
+      "code": "es",
+      "label": "Español",
+      "language": "Spanish",
+      "say_voice": "Mónica",
+      "dir": "ltr",
+      "script": "VoiceStudio es una aplicación de escritorio para clonación de voz, doblaje de vídeo y diseño de voz. Funciona completamente en tu máquina. Sin cuentas, sin nube, sin claves de API. Solo abre la aplicación y comienza a crear."
+    },
+    {
+      "code": "fr",
+      "label": "Français",
+      "language": "French",
+      "say_voice": "Thomas",
+      "dir": "ltr",
+      "script": "VoiceStudio est une application de bureau pour le clonage de voix, le doublage vidéo et la conception vocale. Elle fonctionne entièrement sur votre machine. Pas de compte, pas de cloud, pas de clé d'API. Ouvrez l'application et commencez à créer."
+    },
+    {
+      "code": "zh",
+      "label": "中文",
+      "language": "Chinese",
+      "say_voice": "Tingting",
+      "dir": "ltr",
+      "script": "VoiceStudio 是一款桌面应用，用于语音克隆、视频配音和声音设计。它完全在你的电脑上运行。无需账户，无需云端，无需 API 密钥。打开应用即可开始创作。"
+    },
+    {
+      "code": "ja",
+      "label": "日本語",
+      "language": "Japanese",
+      "say_voice": "Kyoko",
+      "dir": "ltr",
+      "script": "VoiceStudioは、ボイスクローン、ビデオ吹き替え、ボイスデザインのためのデスクトップアプリです。すべてお使いのコンピュータ上で動作します。アカウント、クラウド、APIキーは不要です。アプリを開けば、すぐに制作を始められます。"
+    }
+  ]
+}

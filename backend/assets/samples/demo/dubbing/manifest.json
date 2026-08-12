@@ -1,0 +1,47 @@
+{
+  "version": "0.3.0",
+  "rendered_by": "omnivoice engine + ffmpeg showwaves",
+  "rendered_at": "2026-08-12T19:47:29Z",
+  "license": "MIT (synthetic, no third-party IP)",
+  "source": {
+    "code": "en",
+    "label": "English",
+    "video": "source.mp4",
+    "srt": "source.srt",
+    "script": "VoiceStudio is a desktop app for voice cloning, video dubbing, and voice design. It runs entirely on your machine. No accounts, no cloud, no API keys. Just open the app and start creating."
+  },
+  "dubbed": [
+    {
+      "code": "es",
+      "label": "Español",
+      "video": "dubbed_es.mp4",
+      "srt": "dubbed_es.srt",
+      "dir": "ltr",
+      "script": "VoiceStudio es una aplicación de escritorio para clonación de voz, doblaje de vídeo y diseño de voz. Funciona completamente en tu máquina. Sin cuentas, sin nube, sin claves de API. Solo abre la aplicación y comienza a crear."
+    },
+    {
+      "code": "fr",
+      "label": "Français",
+      "video": "dubbed_fr.mp4",
+      "srt": "dubbed_fr.srt",
+      "dir": "ltr",
+      "script": "VoiceStudio est une application de bureau pour le clonage de voix, le doublage vidéo et la conception vocale. Elle fonctionne entièrement sur votre machine. Pas de compte, pas de cloud, pas de clé d'API. Ouvrez l'application et commencez à créer."
+    },
+    {
+      "code": "zh",
+      "label": "中文",
+      "video": "dubbed_zh.mp4",
+      "srt": "dubbed_zh.srt",
+      "dir": "ltr",
+      "script": "VoiceStudio 是一款桌面应用，用于语音克隆、视频配音和声音设计。它完全在你的电脑上运行。无需账户，无需云端，无需 API 密钥。打开应用即可开始创作。"
+    },
+    {
+      "code": "ja",
+      "label": "日本語",
+      "video": "dubbed_ja.mp4",
+      "srt": "dubbed_ja.srt",
+      "dir": "ltr",
+      "script": "VoiceStudioは、ボイスクローン、ビデオ吹き替え、ボイスデザインのためのデスクトップアプリです。すべてお使いのコンピュータ上で動作します。アカウント、クラウド、APIキーは不要です。アプリを開けば、すぐに制作を始められます。"
+    }
+  ]
+}

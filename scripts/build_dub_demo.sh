@@ -18,14 +18,25 @@
 
 set -e
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT_DIR="${REPO_ROOT}/backend/assets/demo/dubbing"
+OUT_DIR="${REPO_ROOT}/backend/assets/samples/demo/dubbing"
 mkdir -p "$OUT_DIR"
 
 # Compatibility: must run on macOS default bash 3.2 (no associative arrays,
 # no ${var@Q}). We sidestep both by passing scripts as env vars to python3
 # below. Just guard the basics.
-if ! command -v ffmpeg >/dev/null || ! command -v say >/dev/null; then
-  echo "ERROR: need both ffmpeg and macOS 'say'." >&2
+if ! command -v ffmpeg >/dev/null; then
+  echo "ERROR: ffmpeg not found." >&2
+  exit 1
+fi
+# `say` is macOS-only, which used to make this script macOS-only and left the
+# Dub workspace's demo player pointing at files no other platform could build.
+# scripts/render_dub_demo_audio.py renders the same five tracks with the app's
+# own engine, anywhere; `say` is now the fallback, not the requirement.
+HAVE_SAY=0
+command -v say >/dev/null && HAVE_SAY=1
+if [ "$HAVE_SAY" = 0 ] && [ ! -f "${OUT_DIR}/source.src.wav" ]; then
+  echo "ERROR: no pre-rendered audio and no macOS 'say'." >&2
+  echo "Run: python3 scripts/render_dub_demo_audio.py" >&2
   exit 1
 fi
 if ! command -v python3 >/dev/null; then
@@ -34,19 +45,26 @@ if ! command -v python3 >/dev/null; then
 fi
 
 # ── Scripts: source + 4 translations ─────────────────────────────────────
-# Each is ~20-25 seconds when spoken — short enough to keep the demo snappy,
-# long enough to show off pacing + accent. All translations preserve meaning;
-# they were drafted manually so the script is reproducible.
+# Read from scripts/dub_demo_scripts.json, which render_dub_demo_audio.py reads
+# too — two copies of the same five paragraphs is one edit away from a source
+# video whose subtitles say something else.
+SCRIPTS_JSON="${REPO_ROOT}/scripts/dub_demo_scripts.json"
+read_script() {
+  SCRIPTS_JSON="$SCRIPTS_JSON" CODE="$1" python3 -c "
+import json, os, sys
+spec = json.load(open(os.environ['SCRIPTS_JSON'], encoding='utf-8'))
+code = os.environ['CODE']
+entry = spec['source'] if code == 'en' else next(
+    e for e in spec['dubbed'] if e['code'] == code)
+sys.stdout.write(entry['script'])
+"
+}
 
-EN_SCRIPT="VoiceStudio is a desktop app for voice cloning, video dubbing, and voice design. It runs entirely on your machine. No accounts, no cloud, no API keys. Just open the app and start creating."
-
-ES_SCRIPT="VoiceStudio es una aplicación de escritorio para clonación de voz, doblaje de vídeo y diseño de voz. Funciona completamente en tu máquina. Sin cuentas, sin nube, sin claves de API. Solo abre la aplicación y comienza a crear."
-
-FR_SCRIPT="VoiceStudio est une application de bureau pour le clonage de voix, le doublage vidéo et la conception vocale. Elle fonctionne entièrement sur votre machine. Pas de compte, pas de cloud, pas de clé d'API. Ouvrez l'application et commencez à créer."
-
-ZH_SCRIPT="VoiceStudio 是一款桌面应用，用于语音克隆、视频配音和声音设计。它完全在你的电脑上运行。无需账户，无需云端，无需 API 密钥。打开应用即可开始创作。"
-
-JA_SCRIPT="VoiceStudioは、ボイスクローン、ビデオ吹き替え、ボイスデザインのためのデスクトップアプリです。すべてお使いのコンピュータ上で動作します。アカウント、クラウド、APIキーは不要です。アプリを開けば、すぐに制作を始められます。"
+EN_SCRIPT="$(read_script en)"
+ES_SCRIPT="$(read_script es)"
+FR_SCRIPT="$(read_script fr)"
+ZH_SCRIPT="$(read_script zh)"
+JA_SCRIPT="$(read_script ja)"
 
 # ── render_lang(code, voice, text) ──────────────────────────────────────
 #   Produces: $OUT_DIR/{source|dubbed_$code}.mp4 + matching .srt
@@ -62,9 +80,16 @@ render_lang() {
   local mp4="${OUT_DIR}/${stem}.mp4"
   local srt="${OUT_DIR}/${stem}.srt"
 
-  say -v "$voice" -o "$aiff" "$text"
-  ffmpeg -y -loglevel error -i "$aiff" -ar 44100 -ac 1 "$wav"
-  rm -f "$aiff"
+  local prerendered="${OUT_DIR}/${stem}.src.wav"
+  AUDIO_SOURCE="$voice"
+  if [ -f "$prerendered" ]; then
+    AUDIO_SOURCE="omnivoice"
+    ffmpeg -y -loglevel error -i "$prerendered" -ar 44100 -ac 1 "$wav"
+  else
+    say -v "$voice" -o "$aiff" "$text"
+    ffmpeg -y -loglevel error -i "$aiff" -ar 44100 -ac 1 "$wav"
+    rm -f "$aiff"
+  fi
 
   # Visual: showwaves p2p mode over a dark gradient with a colored line.
   # `nullsrc` + `geq` would let us make a static gradient backdrop, but
@@ -96,8 +121,14 @@ EOF
 
   local size
   size=$(du -h "$mp4" | awk '{print $1}')
-  echo "  ✓ ${stem}.mp4 ($size, $voice)"
+  echo "  ✓ ${stem}.mp4 ($size, ${AUDIO_SOURCE})"
 }
+
+if [ -f "${OUT_DIR}/source.src.wav" ]; then
+  RENDERED_BY="omnivoice engine + ffmpeg showwaves"
+else
+  RENDERED_BY="macOS say + ffmpeg showwaves"
+fi
 
 echo "── Source video (English) ────────────────────────────────"
 render_lang en  Samantha "$EN_SCRIPT"
@@ -113,7 +144,7 @@ echo ""
 echo "── Manifest ──────────────────────────────────────────────"
 # bash 3.2 (default on macOS) lacks ${var@Q}; pass scripts as env vars to
 # Python so escaping of unicode + quotes is handled correctly.
-OUT_DIR="$OUT_DIR" \
+OUT_DIR="$OUT_DIR" RENDERED_BY="$RENDERED_BY" \
 EN_SCRIPT="$EN_SCRIPT" ES_SCRIPT="$ES_SCRIPT" FR_SCRIPT="$FR_SCRIPT" \
 ZH_SCRIPT="$ZH_SCRIPT" JA_SCRIPT="$JA_SCRIPT" \
 python3 - <<'PY'
@@ -121,8 +152,8 @@ import json, datetime, os
 out = os.path.join(os.environ["OUT_DIR"], "manifest.json")
 manifest = {
   "version": "0.3.0",
-  "rendered_by": "macOS say + ffmpeg showwaves (bootstrap)",
-  "rendered_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+  "rendered_by": os.environ.get("RENDERED_BY", "macOS say + ffmpeg showwaves"),
+  "rendered_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
   "license": "MIT (synthetic, no third-party IP)",
   "source": {
     "code": "en", "label": "English",

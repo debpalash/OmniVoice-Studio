@@ -158,3 +158,8 @@ tests/probe/reports/
 # Local architecture/planning scratch (goal docs, review briefs, council
 # reports). Working notes for whoever is driving a change, not a repo artifact.
 /remote/
+
+# Dubbing-demo intermediates. The .mp4/.srt/manifest.json in this directory ARE
+# committed (they ship with the app); the per-language source WAVs are just the
+# inputs scripts/render_dub_demo_audio.py hands to scripts/build_dub_demo.sh.
+backend/assets/samples/demo/dubbing/*.src.wav
