@@ -134,12 +134,22 @@ def watermark_file(path: Path, sample_rate: int, *, context: str) -> None:
 
     waveform, rate = torchaudio.load(str(path))
     marked = mark_synthetic(waveform, rate, context=context, force=True)
-    if marked is waveform:
-        # Watermarking unavailable (no model weights on this machine). Say so
-        # loudly: committing an unmarked demo asset is the failure this exists
-        # to prevent.
-        print(f"  ! {path.name} was NOT watermarked — do not commit this render")
+    if marked is waveform and os.environ.get("OMNIVOICE_DEMO_ALLOW_UNMARKED") == "1":
+        print(f"  ! {path.name} is NOT watermarked (OMNIVOICE_DEMO_ALLOW_UNMARKED=1)")
         return
+    if marked is waveform:
+        # `mark_synthetic` never raises — it degrades, so generation can't be
+        # broken by watermarking. A RENDER SCRIPT is the one caller where that
+        # is wrong: it exists to produce files a human then commits, and a
+        # warning on a scrolling console is not a gate. Fail, so the unmarked
+        # file cannot be mistaken for a finished asset.
+        raise RuntimeError(
+            f"{path.name} could not be watermarked, so it must not be committed. "
+            "AudioSeal is missing or its weights are not cached on this machine "
+            "(`uv sync --all-extras`, then re-run with the model cache warm). "
+            "Set OMNIVOICE_DEMO_ALLOW_UNMARKED=1 only for a local listen — never "
+            "for a render you intend to commit."
+        )
     torchaudio.save(
         str(path),
         marked.to(torch.float32),
