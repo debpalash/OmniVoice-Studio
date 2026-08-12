@@ -61,7 +61,20 @@ jobs:
         # so their tests can exercise the real import path, not the
         # "package not installed" fallback. Smoke job below stays on bare
         # `uv sync` because smoke only hits /health + fixture profiles.
-        run: uv sync --all-extras
+        #
+        # Retried because one dependency — en-core-web-sm — resolves to a
+        # direct GitHub release URL, and github.com intermittently answers
+        # `http2 error: refused stream before processing any application
+        # logic`. uv's own 3 retries all land inside the same few seconds and
+        # fail together, which has cost otherwise-green runs (#1517, #1518).
+        # Backing off between whole attempts is what actually clears it.
+        run: |
+          for attempt in 1 2 3; do
+            uv sync --all-extras && exit 0
+            echo "::warning::uv sync failed (attempt $attempt/3) — retrying"
+            sleep $((attempt * 20))
+          done
+          exit 1
 
       # HF_HUB_OFFLINE=1 is a recurrence guard, not an optimization: a test
       # that reaches huggingface.co fails fast and loud instead of silently
@@ -71,7 +84,7 @@ jobs:
       # interactions in tests are stubbed; anything that trips this is a
       # test-isolation bug.
       - name: Run pytest
-        run: uv run pytest tests/ -q --tb=short
+        run: uv run --no-sync pytest tests/ -q --tb=short
         env:
           HF_HUB_OFFLINE: "1"
 
@@ -99,7 +112,7 @@ jobs:
       # longer stubs sys.modules, so mixed sessions with tests/ are safe;
       # the separate session is kept for cheaper, clearer CI output.
       - name: Run pytest (backend/tests, isolated)
-        run: uv run pytest backend/tests/ -q --tb=short
+        run: uv run --no-sync pytest backend/tests/ -q --tb=short
         env:
           HF_HUB_OFFLINE: "1"  # same no-silent-downloads guard as tests/
 
