@@ -38,7 +38,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install deps
-        run: uv sync
+        run: bash scripts/uv-sync-retry.sh
 
       - name: Run eval suites (non-gating)
         continue-on-error: true

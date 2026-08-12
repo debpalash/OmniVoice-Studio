@@ -23,6 +23,12 @@ jobs:
   test:
     name: Tests (backend + frontend)
     runs-on: ubuntu-22.04
+    env:
+      # Same restricted-network resilience the smoke matrix already sets. This
+      # job resolves the same direct-URL dependency and had none of it, which
+      # is why it was the one that kept dying (see scripts/uv-sync-retry.sh).
+      UV_HTTP_TIMEOUT: "120"
+      UV_HTTP_RETRIES: "5"
     steps:
       - uses: actions/checkout@v4
 
@@ -68,13 +74,7 @@ jobs:
         # logic`. uv's own 3 retries all land inside the same few seconds and
         # fail together, which has cost otherwise-green runs (#1517, #1518).
         # Backing off between whole attempts is what actually clears it.
-        run: |
-          for attempt in 1 2 3; do
-            uv sync --all-extras && exit 0
-            echo "::warning::uv sync failed (attempt $attempt/3) — retrying"
-            sleep $((attempt * 20))
-          done
-          exit 1
+        run: bash scripts/uv-sync-retry.sh --all-extras
 
       # HF_HUB_OFFLINE=1 is a recurrence guard, not an optimization: a test
       # that reaches huggingface.co fails fast and loud instead of silently
@@ -380,7 +380,7 @@ jobs:
         # backend host. The Intel-Mac leg separately pins the documented
         # unsupported contract: its UI is a remote-backend client only (#889).
         if: matrix.backend_supported
-        run: uv sync --extra pockettts
+        run: bash scripts/uv-sync-retry.sh --extra pockettts
 
       - name: Verify the documented Intel Mac contract
         if: ${{ !matrix.backend_supported }}

@@ -174,7 +174,7 @@ jobs:
       - name: pip-audit (Python)
         continue-on-error: true
         run: |
-          uv sync
+          bash scripts/uv-sync-retry.sh
           uv run --with pip-audit pip-audit
 
       # Pin a floor: `bun audit` was added in bun 1.2.x, so guarantee it exists.
