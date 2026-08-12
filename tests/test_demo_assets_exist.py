@@ -64,18 +64,23 @@ def test_the_demo_mount_points_where_this_test_thinks_it_does():
     assert 'app.mount("/demo_audio"' in main_py
 
 
-@pytest.mark.parametrize(
-    "preset",
-    [p for p in _personalities() if p.get("preview_url")],
-    ids=lambda p: p["id"],
-)
-def test_every_voice_design_preview_exists(preset):
-    path = _resolve(preset["preview_url"])
-    assert os.path.isfile(path), (
-        f"{preset['id']} advertises {preset['preview_url']} but {path} is missing. "
-        "Render it with scripts/render_demos_omnivoice.py --only design."
-    )
-    assert os.path.getsize(path) > 8000, f"{path} is too small to be real audio"
+def test_every_voice_design_preview_exists():
+    """Every preset that advertises a preview has the audio to back it.
+
+    Presets are read inside the test, not in a `parametrize` argument:
+    parametrize is evaluated at COLLECTION time, which would import app code
+    before any test runs and leave `core.personalities` in `sys.modules` for
+    every later test to inherit.
+    """
+    presets = [p for p in _personalities() if p.get("preview_url")]
+    assert presets, "no voice-design preset advertises a preview"
+    for preset in presets:
+        path = _resolve(preset["preview_url"])
+        assert os.path.isfile(path), (
+            f"{preset['id']} advertises {preset['preview_url']} but {path} is missing. "
+            "Render it with scripts/render_demos_omnivoice.py --only design."
+        )
+        assert os.path.getsize(path) > 8000, f"{path} is too small to be real audio"
 
 
 def _dictation_wavs() -> list[str]:

@@ -35,6 +35,9 @@ OUT_DIR = BACKEND_DIR / "assets" / "samples" / "demo" / "dubbing"
 SCRIPTS_JSON = REPO_ROOT / "scripts" / "dub_demo_scripts.json"
 
 sys.path.insert(0, str(BACKEND_DIR))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from render_demos_omnivoice import watermark_file  # noqa: E402 — needs sys.path above
 
 # The videos are built at 44.1 kHz; rendering straight to it saves the shell
 # script a resample step and keeps every track at one rate.
@@ -80,6 +83,10 @@ def _render(model, text: str, language: str, instruct: str, out: Path, sample_ra
     else:
         tmp.unlink(missing_ok=True)
         print(f"  ! loudnorm skipped for {out.name}: {result.stderr.strip()[:100]}")
+    # These tracks are muxed into a video that ships in the app, so they carry
+    # the same provenance mark as any other synthetic audio the app produces
+    # (#1169). Last step, after loudnorm — see watermark_file.
+    watermark_file(out, VIDEO_SAMPLE_RATE, context=f"demo:dub:{out.stem}")
 
 
 def main() -> None:
