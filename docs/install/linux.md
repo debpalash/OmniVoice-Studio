@@ -94,6 +94,12 @@ is declined or the portal is unavailable, Settings keeps the previous shortcut
 and reports the registration failure. The configured shortcut still works while
 the VoiceStudio window is focused.
 
+While a dictation is running, VoiceStudio shows a small always-on-top capsule.
+It sits near the bottom of the screen your pointer is on — except on Wayland,
+where the protocol gives applications no say in their own placement and the
+compositor decides where it appears. The capsule works the same either way; only
+its position is out of the app's hands there.
+
 If the global shortcut stops working, restart your desktop's portal service,
 then save the shortcut again in **Settings → Hotkey** to reopen consent. Portal
 packages and support vary by desktop; use the backend recommended by your

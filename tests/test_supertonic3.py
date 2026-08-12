@@ -216,7 +216,10 @@ def test_license_gate(mock_settings_store):
     assert ok is False, (
         f"expected ok=False with license unaccepted, got ({ok!r}, {msg!r})"
     )
-    assert "Settings" in msg and "Engines" in msg, (
+    # Engines moved out of Settings into the Model Catalogue workspace, so the
+    # hint names that; what must not drift is that it names a place the user
+    # can actually reach the accept button from.
+    assert "Model Catalogue" in msg and "Engines" in msg, (
         f"reason should point the user at Model Catalogue → Engines: {msg!r}"
     )
     assert "license" in msg.lower()
@@ -250,8 +253,8 @@ def test_optional_dep_missing(monkeypatch, mock_settings_store):
 
     ok, msg = Supertonic3Backend.is_available()
     assert ok is False
-    assert any(needle in msg for needle in ("uv add", "Settings", "supertonic")), (
-        f"install hint should mention 'uv add' or 'Settings': {msg!r}"
+    assert any(needle in msg for needle in ("uv add", "Model Catalogue", "supertonic")), (
+        f"install hint should mention 'uv add' or Model Catalogue: {msg!r}"
     )
 
 

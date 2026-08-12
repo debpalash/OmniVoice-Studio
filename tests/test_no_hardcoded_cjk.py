@@ -81,6 +81,13 @@ _ALLOWED_FILES = {
     # Demo-audio generation scripts (multilingual TTS sample text)
     "scripts/build_demos.sh",
     "scripts/build_dub_demo.sh",
+    "scripts/dub_demo_scripts.json",              # the five dub paragraphs + their native language labels
+    # Rendered dubbing-demo bundle: the demo IS a dub into Chinese and
+    # Japanese, so its subtitles and manifest carry that text as data. Not UI
+    # strings — nothing here is translated, it is the content being shown.
+    "backend/assets/samples/demo/dubbing/dubbed_zh.srt",
+    "backend/assets/samples/demo/dubbing/dubbed_ja.srt",
+    "backend/assets/samples/demo/dubbing/manifest.json",
 }
 
 
