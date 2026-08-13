@@ -10,6 +10,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- The catalogue's LLM row now names the provider and model that actually answer, with a door straight into LLM Provider settings — and a backlink pointing the other way. (#1538)
 - The Launchpad hero wears the project's signal-field waveform artwork, feathered into the dark chrome. (#1533)
 - Switch TTS, ASR and LLM engines from the status bar or workspace, with ready-only choices, memory status and environment-pin protection. (#1530)
 - The engine catalogue frames uninstalled engines as "Add more engines" with a "What it needs" explainer, instead of a wall of unavailable rows. (#1531)

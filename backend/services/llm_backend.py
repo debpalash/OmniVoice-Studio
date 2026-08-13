@@ -251,8 +251,31 @@ def list_backends() -> list[dict]:
             "effective_device": "network",
             "routing_status": "n/a",
             "routing_reason": None,
+            # The openai-compat family entry and the LLM Providers panel are
+            # ONE system (this backend resolves through the active provider),
+            # but the UI presented them as unrelated. Naming the resolved
+            # provider + model here lets the catalogue row say which endpoint
+            # actually answers, instead of a generic family label.
+            "hint": _provider_hint(bid) if ok else None,
         })
     return out
+
+
+def _provider_hint(bid: str) -> str | None:
+    """``Provider · model`` for the openai-compat row, None for everything else."""
+    if bid != "openai-compat":
+        return None
+    try:
+        from services import llm_providers
+        p = llm_providers.active_provider()
+        if p is None:
+            return None
+        model = llm_providers.resolve_model(p)
+        return f"{p.display_name} · {model}" if model else p.display_name
+    except Exception:
+        # The hint is decoration; a provider-registry hiccup must not take
+        # down the whole engines listing.
+        return None
 
 
 def active_backend_id() -> str:

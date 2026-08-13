@@ -23,6 +23,7 @@ import {
   getSidecarInstallStatus,
 } from '../api/engines';
 import { listLoadedModels, unloadLoadedModel } from '../api/system';
+import { useAppStore } from '../store';
 import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
 import { Badge, Button, Select, Table, Tabs } from '../ui';
@@ -1273,6 +1274,22 @@ export default function EngineCompatibilityMatrix({
                         aria-label={`Use ${b.display_name}`}
                       >
                         {t('engines.use')}
+                      </Button>
+                    )}
+                    {/* The openai-compat family entry and the LLM Providers
+                        panel are one system (the backend resolves through the
+                        active provider); this is the door between the two, so
+                        picking the family and configuring the endpoint stop
+                        being separate discoveries. */}
+                    {activeFamily === 'llm' && b.id === 'openai-compat' && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => useAppStore.getState().openSettingsTab?.('llm-providers')}
+                        aria-label={t('engines.configureProviders')}
+                        data-testid="configure-llm-providers"
+                      >
+                        {t('engines.configureProviders')}
                       </Button>
                     )}
                     {/* TTS-05: license-acceptance entry point. Surfaced when
