@@ -1,5 +1,7 @@
 //! Backend process management: spawn, port probing, log paths.
 
+use std::io::SeekFrom;
+use std::collections::HashMap;
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -9,6 +11,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use once_cell::sync::Lazy;
 use tauri::Manager;
 
 use crate::bootstrap::{
