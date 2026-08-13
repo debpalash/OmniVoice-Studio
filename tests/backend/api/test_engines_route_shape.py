@@ -66,7 +66,7 @@ def fresh_app(monkeypatch, tmp_path):
 def _client(app, host="127.0.0.1"):
     """TestClient anchored to a loopback (or non-loopback) client tuple.
 
-    `require_loopback` reads `request.client.host`; the default
+    The admin dependency reads `request.client.host`; the default
     TestClient tuple is `('testclient', 50000)` which the dep rejects.
     """
     from fastapi.testclient import TestClient
@@ -98,6 +98,14 @@ def test_engines_response_includes_new_fields(fresh_app):
         assert isinstance(entry["gpu_compat"], list)
         assert all(isinstance(x, str) for x in entry["gpu_compat"])
         assert entry["isolation_mode"] in {"in-process", "subprocess"}
+
+
+def test_engines_response_marks_environment_pinned_families(fresh_app, monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "pytorch-whisper")
+    body = _client(fresh_app).get("/engines").json()
+
+    assert body["asr"]["env_override"] is True
+    assert body["tts"]["env_override"] is False
 
 
 def test_all_families_share_the_11_key_shape(fresh_app):
@@ -614,12 +622,56 @@ def test_engine_health_unknown_id(fresh_app):
     assert "unknown engine id" in r.json()["detail"]
 
 
-def test_engine_health_loopback_only(fresh_app):
-    """Non-loopback client tuple is rejected by require_loopback."""
+def test_engine_health_is_admin_gated(fresh_app):
+    """Non-loopback desktop traffic is rejected by require_admin."""
     client = _client(fresh_app, host="10.0.0.5")
     r = client.get("/engines/omnivoice/health")
     assert r.status_code == 403
-    assert r.json()["detail"] == "loopback origin required"
+    assert r.json()["detail"] == "loopback origin or admin API key required"
+
+
+def test_server_mode_engine_mutations_require_api_key(fresh_app, monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    client = _client(fresh_app, host="172.17.0.1")
+
+    requests = [
+        ("post", "/engines/translation/deep-translator/install", None),
+        ("delete", "/engines/translation/deep-translator", None),
+        ("post", "/engines/sidecar/indextts2/install", None),
+        ("delete", "/engines/sidecar/indextts2/install", None),
+        ("post", "/engines/omnivoice/selftest", None),
+        ("post", "/engines/select", {}),
+    ]
+    for method, path, body in requests:
+        response = client.request(method.upper(), path, json=body)
+        assert response.status_code == 403, path
+
+
+def test_server_mode_engine_health_requires_api_key(fresh_app, monkeypatch):
+    """Health is a GET but can spawn a sidecar, so it is not discovery."""
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    client = _client(fresh_app, host="172.17.0.1")
+
+    response = client.get("/engines/omnivoice/health")
+
+    assert response.status_code == 403
+
+
+def test_server_mode_sidecar_install_stays_desktop_only(fresh_app, monkeypatch):
+    """An API key cannot remotely trigger the mutable-source installer."""
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+    client = _client(fresh_app, host="172.17.0.1")
+
+    response = client.post(
+        "/engines/sidecar/indextts2/install",
+        headers={"authorization": "Bearer s3cret"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "desktop origin required"
 
 
 def test_engine_health_caches_instance_across_calls(fresh_app, monkeypatch):
@@ -747,10 +799,10 @@ def test_selftest_unknown_id_is_404(fresh_app):
     assert "unknown TTS engine id" in r.json()["detail"]
 
 
-def test_selftest_loopback_only(fresh_app):
+def test_selftest_is_admin_gated(fresh_app):
     r = _client(fresh_app, host="10.0.0.9").post("/engines/omnivoice/selftest")
     assert r.status_code == 403
-    assert r.json()["detail"] == "loopback origin required"
+    assert r.json()["detail"] == "loopback origin or admin API key required"
 
 
 def test_selftest_captures_synth_exception_without_500(fresh_app):

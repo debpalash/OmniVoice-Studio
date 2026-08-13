@@ -214,17 +214,17 @@ def _app():
 
 @pytest.fixture
 def client(db):
-    """A client that satisfies the loopback gate.
+    """A client that satisfies the admin gate.
 
     The gate is real and is exercised separately below; overriding it here
     keeps every other test about the endpoint's own behaviour.
     """
     from fastapi.testclient import TestClient
 
-    from api.dependencies import require_loopback
+    from api.dependencies import require_admin
 
     app = _app()
-    app.dependency_overrides[require_loopback] = lambda: None
+    app.dependency_overrides[require_admin] = lambda: None
     return TestClient(app)
 
 
@@ -237,6 +237,20 @@ def test_management_endpoints_are_loopback_only(db):
     assert unguarded.get("/workers").status_code == 403
     assert unguarded.post("/workers/enrollments", json={}).status_code == 403
     assert unguarded.delete("/workers/anything").status_code == 403
+
+
+def test_server_mode_worker_mutations_require_api_key(db, monkeypatch):
+    """Bare Docker discovery stays usable; its worker controls stay closed."""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    remote = TestClient(_app(), client=("172.17.0.1", 50000))
+
+    assert remote.get("/workers").status_code == 200
+    assert remote.post("/workers/enabled", json={"enabled": True}).status_code == 403
+    assert remote.post("/workers/agent/join", json={"token": "hostile"}).status_code == 403
+    assert remote.delete("/workers/anything").status_code == 403
 
 
 def test_listing_workers_is_safe_when_the_feature_is_off(client):

@@ -77,7 +77,7 @@ def main() -> int:
         # Loopback security: a non-loopback origin must be rejected on system
         # routes. Use a bare client (no `with`) so we don't re-enter the app
         # lifespan — re-entry rebinds the module-level task queue to a new event
-        # loop and crashes. The require_loopback dependency only inspects
+        # loop and crashes. The require_admin dependency only inspects
         # request.client.host, which doesn't need lifespan state.
         nl = TestClient(app)  # default client host 'testclient' = non-loopback
         ctx["loopback_reject_status"] = nl.get("/system/info").status_code

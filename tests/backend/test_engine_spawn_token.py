@@ -43,7 +43,7 @@ def fresh_app(monkeypatch, tmp_path):
 
 
 def _client(app):
-    """TestClient anchored to a loopback client tuple so require_loopback
+    """TestClient anchored to a loopback client tuple so require_admin
     treats requests as local. The default TestClient client tuple is
     ('testclient', 50000), which the dep rejects."""
     from fastapi.testclient import TestClient
@@ -78,7 +78,7 @@ def test_post_hf_token_loopback_succeeds(fresh_app, monkeypatch):
 
 def test_post_hf_token_non_loopback_returns_403(fresh_app):
     """A non-loopback origin (simulated via TestClient client tuple) is
-    rejected with 403 per the require_loopback dep."""
+    rejected with 403 per the require_admin dep."""
     from fastapi.testclient import TestClient
     with TestClient(fresh_app, client=("10.0.0.5", 12345)) as c:
         r = c.post("/api/settings/hf-token", json={"token": SAMPLE_TOKEN})
@@ -175,7 +175,7 @@ def test_get_hf_token_state_fresh_busts_whoami_cache(fresh_app, monkeypatch):
 
 
 def test_get_hf_token_state_loopback_only(fresh_app):
-    """GET state is on the same loopback-only router; non-loopback → 403."""
+    """GET state is on the same admin router; non-loopback desktop → 403."""
     from fastapi.testclient import TestClient
     with TestClient(fresh_app, client=("10.0.0.5", 12345)) as c:
         r = c.get("/api/settings/hf-token/state")

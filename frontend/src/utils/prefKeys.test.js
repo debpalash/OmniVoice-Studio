@@ -88,7 +88,9 @@ describe('prefKeys registry', () => {
       localStorage.setItem('ov_stories_global_speed', '1.2');
       localStorage.setItem('omni_ui', '{"uiScale":1.1}');
       localStorage.setItem('dismissed_lang_suggestion', 'true');
-      // Must survive:
+      // Connection target, the not-yet-migrated legacy master (the user's only
+      // copy until the first successful session exchange consumes it), and
+      // user data all survive.
       localStorage.setItem('ov_backend_url', 'http://192.168.1.10:7842');
       localStorage.setItem('ov_api_key', 'k');
       localStorage.setItem('omni_transcriptions', '[{"text":"hi"}]');

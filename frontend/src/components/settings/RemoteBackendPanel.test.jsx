@@ -12,6 +12,16 @@ vi.mock('../../api/client', () => ({
   API: 'http://127.0.0.1:3900',
 }));
 
+const authMocks = vi.hoisted(() => ({
+  exchangeApiKey: vi.fn(),
+  clearAdminSession: vi.fn(),
+}));
+vi.mock('../../api/authSession', async (importOriginal) => ({
+  ...(await importOriginal()),
+  exchangeApiKey: authMocks.exchangeApiKey,
+  clearAdminSession: authMocks.clearAdminSession,
+}));
+
 // Shared confirmation dialog (Tauri-aware) — controlled per test.
 const { askConfirm } = vi.hoisted(() => ({ askConfirm: vi.fn() }));
 vi.mock('../../utils/dialog', () => ({ askConfirm }));
@@ -43,11 +53,21 @@ describe('RemoteBackendPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
+    authMocks.exchangeApiKey.mockResolvedValue({
+      transport: 'bearer',
+      expiresAt: Date.now() / 1000 + 60,
+    });
+    authMocks.clearAdminSession.mockImplementation(() =>
+      sessionStorage.removeItem('ov_admin_session'),
+    );
     reload = vi.fn();
   });
 
   const setUrl = (value) =>
     fireEvent.change(screen.getByTestId('remote-backend-url'), { target: { value } });
+  const setKey = (value) =>
+    fireEvent.change(screen.getByTestId('remote-backend-key'), { target: { value } });
   const clickSave = () => fireEvent.click(screen.getByTestId('remote-backend-save'));
 
   it('rejects an invalid URL instead of saving and reloading into a broken app', async () => {
@@ -97,6 +117,71 @@ describe('RemoteBackendPanel', () => {
     expect(localStorage.getItem('ov_backend_url')).toBe('http://gpu-box:3900');
   });
 
+  it('exchanges a test credential only after the public health probe succeeds', async () => {
+    global.fetch = vi.fn().mockResolvedValue(healthResponse('0.4.2'));
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://gpu-box:3900');
+    setKey('master-secret');
+
+    fireEvent.click(screen.getByTestId('remote-backend-test'));
+
+    await screen.findByText('OK — 0.4.2 on cuda');
+    expect(authMocks.exchangeApiKey).toHaveBeenCalledWith('master-secret', {
+      apiBase: 'http://gpu-box:3900',
+    });
+    expect(screen.getByTestId('remote-backend-key')).toHaveValue('');
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+    expect(global.fetch.mock.invocationCallOrder[0]).toBeLessThan(
+      authMocks.exchangeApiKey.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not exchange or retain a credential when the health probe fails', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://gpu-box:3900');
+    setKey('master-secret');
+
+    fireEvent.click(screen.getByTestId('remote-backend-test'));
+
+    await screen.findByText(/Failed/);
+    expect(authMocks.exchangeApiKey).not.toHaveBeenCalled();
+    expect(screen.getByTestId('remote-backend-key')).toHaveValue('');
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+  });
+
+  it('blocks save and reload when credential exchange fails', async () => {
+    askConfirm.mockResolvedValue(true);
+    authMocks.exchangeApiKey.mockRejectedValueOnce(
+      Object.assign(new Error('generic'), { status: 401 }),
+    );
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://gpu-box:3900');
+    setKey('master-secret');
+
+    clickSave();
+
+    await screen.findByText(/HTTP 401/);
+    expect(localStorage.getItem('ov_backend_url')).toBeNull();
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+    expect(screen.getByTestId('remote-backend-key')).toHaveValue('');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('does not exchange the same credential twice after Test succeeds', async () => {
+    global.fetch = vi.fn().mockResolvedValue(healthResponse('0.4.2'));
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://gpu-box:3900');
+    setKey('master-secret');
+    fireEvent.click(screen.getByTestId('remote-backend-test'));
+    await screen.findByText('OK — 0.4.2 on cuda');
+
+    clickSave();
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(authMocks.exchangeApiKey).toHaveBeenCalledOnce();
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
   it('classifies a wrong 7443 service and succeeds when retried with the HTTP API', async () => {
     global.fetch = vi
       .fn()
@@ -113,14 +198,37 @@ describe('RemoteBackendPanel', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('offers an explicit disable action that clears the remote URL and key', () => {
+  it('offers an explicit disable action that clears the remote URL and key', async () => {
     localStorage.setItem('ov_backend_url', 'http://old-box:3900');
     localStorage.setItem('ov_api_key', 'secret');
     render(<RemoteBackendPanel reload={reload} />);
     fireEvent.click(screen.getByTestId('remote-backend-disable'));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(localStorage.getItem('ov_backend_url')).toBeNull();
     expect(localStorage.getItem('ov_api_key')).toBeNull();
-    expect(reload).toHaveBeenCalledOnce();
+    expect(authMocks.clearAdminSession).toHaveBeenCalled();
+  });
+
+  it('clears a restored session before switching targets without a new key', async () => {
+    localStorage.setItem('ov_backend_url', 'http://old-box:3900');
+    sessionStorage.setItem(
+      'ov_admin_session',
+      JSON.stringify({
+        token: `ovs_admin_session_${'S'.repeat(43)}`,
+        expiresAt: Date.now() / 1000 + 3600,
+        apiBase: 'http://old-box:3900',
+      }),
+    );
+    askConfirm.mockResolvedValue(true);
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://new-box:3900');
+
+    clickSave();
+
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    expect(authMocks.exchangeApiKey).not.toHaveBeenCalled();
+    expect(authMocks.clearAdminSession).toHaveBeenCalledOnce();
+    expect(localStorage.getItem('ov_backend_url')).toBe('http://new-box:3900');
   });
 
   it('clears both settings and reloads without confirmation when the URL is emptied', async () => {
@@ -128,13 +236,20 @@ describe('RemoteBackendPanel', () => {
     localStorage.setItem('ov_api_key', 'k');
     render(<RemoteBackendPanel reload={reload} />);
     setUrl('');
-    fireEvent.change(screen.getByTestId('remote-backend-key'), { target: { value: '' } });
+    setKey('');
     clickSave();
 
     await waitFor(() => expect(reload).toHaveBeenCalled());
     expect(askConfirm).not.toHaveBeenCalled();
     expect(localStorage.getItem('ov_backend_url')).toBeNull();
     expect(localStorage.getItem('ov_api_key')).toBeNull();
+    expect(authMocks.clearAdminSession).toHaveBeenCalled();
+  });
+
+  it('never pre-fills the master credential from legacy localStorage', () => {
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    render(<RemoteBackendPanel reload={reload} />);
+    expect(screen.getByTestId('remote-backend-key')).toHaveValue('');
   });
 
   it('renders localized strings and labelled inputs (no hardcoded-English bypass)', () => {

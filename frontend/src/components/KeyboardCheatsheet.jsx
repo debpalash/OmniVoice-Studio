@@ -19,6 +19,8 @@ export default function KeyboardCheatsheet({ open, onClose }) {
       title: t('keyboard.nav'),
       items: [
         ['?', t('keyboard.nav_cheatsheet')],
+        [t('keyboard.nav_enginePickerKey'), t('engines.matrixTitle')],
+        [t('keyboard.nav_workspacesKey'), t('keyboard.nav')],
         ['Esc', t('keyboard.nav_closeModal')],
         ['Cmd/Ctrl+S', t('keyboard.nav_save')],
       ],

@@ -98,14 +98,16 @@ impl PortalShortcutState {
 
 const DESKTOP_ID: &str = "com.debpalash.omnivoice-studio";
 
-fn desktop_entry_exists() -> bool {
+fn user_entry_path() -> Option<std::path::PathBuf> {
+    dirs_next::data_dir().map(|dir| {
+        dir.join("applications")
+            .join(format!("{DESKTOP_ID}.desktop"))
+    })
+}
+
+/// A packaged (system-dir) entry — deb installs manage their own; never touch.
+fn system_entry_exists() -> bool {
     let filename = format!("{DESKTOP_ID}.desktop");
-    let user_entry = dirs_next::data_dir()
-        .map(|dir| dir.join("applications").join(&filename))
-        .is_some_and(|path| path.is_file());
-    if user_entry {
-        return true;
-    }
     std::env::var_os("XDG_DATA_DIRS")
         .map(|dirs| {
             std::env::split_paths(&dirs)
@@ -119,6 +121,54 @@ fn desktop_entry_exists() -> bool {
                     .is_file()
             })
         })
+}
+
+/// The `[Desktop Entry]` group's Exec target, unquoted. `None` when the main
+/// group has no usable Exec line — which GLib treats the same as a missing
+/// program. Scoped to the main group deliberately: a `[Desktop Action …]`
+/// group carries its own `Exec=`, and accepting it would retain an entry GLib
+/// still cannot resolve (CodeRabbit, #1526).
+fn entry_exec_target(content: &str) -> Option<std::path::PathBuf> {
+    let mut in_main_group = false;
+    let mut exec = None;
+    for line in content.lines() {
+        let line = line.trim_start();
+        if line.starts_with('[') {
+            in_main_group = line == "[Desktop Entry]";
+            continue;
+        }
+        if in_main_group {
+            if let Some(value) = line.strip_prefix("Exec=") {
+                exec = Some(value);
+                break;
+            }
+        }
+    }
+    let raw = exec?.trim();
+    let unquoted = raw
+        .strip_prefix('"')
+        .and_then(|rest| rest.split('"').next())
+        .unwrap_or_else(|| raw.split_whitespace().next().unwrap_or(raw));
+    if unquoted.is_empty() {
+        return None;
+    }
+    Some(std::path::PathBuf::from(unquoted))
+}
+
+/// Whether a user-local identity entry must be rewritten before the portal
+/// will accept it.
+///
+/// GLib refuses to resolve a desktop entry whose Exec program does not exist
+/// (`GDesktopAppInfo` returns NULL), and the portal then rejects the bind with
+/// "App info not found" — the shortcut silently dies for the whole session.
+/// A dev entry pointing at a `target/debug` binary goes stale exactly this
+/// way: a `cargo clean`, a moved checkout, or anything that relocates the
+/// binary breaks system-wide dictation with only a log line to show for it.
+fn entry_needs_rewrite(content: &str, exec_exists: impl Fn(&std::path::Path) -> bool) -> bool {
+    match entry_exec_target(content) {
+        Some(target) => !exec_exists(&target),
+        None => true,
+    }
 }
 
 fn desktop_exec_path() -> Result<std::path::PathBuf, String> {
@@ -144,19 +194,31 @@ fn desktop_exec_value(path: &std::path::Path) -> String {
 /// Deb packages already install one; dev builds and standalone AppImages may
 /// not. Add an invisible identity entry only when none exists.
 fn ensure_desktop_identity() -> Result<(), String> {
-    if desktop_entry_exists() {
+    if system_entry_exists() {
         return Ok(());
     }
-    let applications = dirs_next::data_dir()
-        .ok_or("could not locate the user data directory")?
-        .join("applications");
-    std::fs::create_dir_all(&applications)
-        .map_err(|error| format!("could not create applications directory: {error}"))?;
+    let path = user_entry_path().ok_or("could not locate the user data directory")?;
+    if let Ok(existing) = std::fs::read_to_string(&path) {
+        if !entry_needs_rewrite(&existing, |target| target.exists()) {
+            return Ok(());
+        }
+        // Stale: GLib returns NULL for an entry whose Exec is gone, and the
+        // portal then refuses the bind ("App info not found"). Rewrite with
+        // where the app actually is NOW. The user dir with our app id is ours
+        // to manage — packaged entries live in the system dirs handled above.
+        log::info!(
+            "Wayland portal identity at {} points at a missing program — rewriting",
+            path.display()
+        );
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("could not create applications directory: {error}"))?;
+    }
     let entry = format!(
         "[Desktop Entry]\nType=Application\nName=VoiceStudio\nExec={}\nTerminal=false\nNoDisplay=true\nStartupWMClass=VoiceStudio\nX-VoiceStudio-Generated=true\n",
         desktop_exec_value(&desktop_exec_path()?)
     );
-    let path = applications.join(format!("{DESKTOP_ID}.desktop"));
     std::fs::write(&path, entry)
         .map_err(|error| format!("could not create {}: {error}", path.display()))?;
     log::info!("Installed Wayland portal identity at {}", path.display());
@@ -634,6 +696,46 @@ mod tests {
     fn rejects_modifier_free_or_ambiguous_accelerators() {
         assert_eq!(portal_trigger("Space"), None);
         assert_eq!(portal_trigger("Ctrl+K+L"), None);
+    }
+
+    #[test]
+    fn a_stale_identity_entry_is_rewritten() {
+        // The class from 2026-08-13: the entry's Exec pointed at a binary that
+        // had been moved. GLib then resolves the entry to NULL and the portal
+        // refuses the bind with "App info not found" — system-wide dictation
+        // silently dead for the whole session.
+        let stale = "[Desktop Entry]\nType=Application\nExec=/gone/omnivoice-studio\n";
+        assert!(super::entry_needs_rewrite(stale, |_| false));
+
+        let healthy = "[Desktop Entry]\nType=Application\nExec=\"/opt/VoiceStudio.AppImage\"\n";
+        assert!(!super::entry_needs_rewrite(healthy, |path| {
+            path == std::path::Path::new("/opt/VoiceStudio.AppImage")
+        }));
+    }
+
+    #[test]
+    fn exec_targets_parse_quoted_legacy_and_missing_lines() {
+        use super::entry_exec_target;
+        // Current writer: quoted.
+        assert_eq!(
+            entry_exec_target("[Desktop Entry]\nExec=\"/tmp/Voice Studio/app\"\n").as_deref(),
+            Some(std::path::Path::new("/tmp/Voice Studio/app"))
+        );
+        // Pre-quoting entries from older builds still parse.
+        assert_eq!(
+            entry_exec_target("[Desktop Entry]\nExec=/home/u/target/debug/omnivoice-studio\n")
+                .as_deref(),
+            Some(std::path::Path::new("/home/u/target/debug/omnivoice-studio"))
+        );
+        // No Exec at all resolves to NULL in GLib — treat as needing rewrite.
+        assert_eq!(entry_exec_target("[Desktop Entry]\nType=Application\n"), None);
+        assert!(super::entry_needs_rewrite("[Desktop Entry]\n", |_| true));
+        // An action group's Exec is NOT the entry's Exec: GLib still resolves
+        // the entry to NULL without a main-group Exec, so accepting this would
+        // keep exactly the stale entry the rewrite exists to replace.
+        let action_only = "[Desktop Entry]\nType=Application\n[Desktop Action new]\nExec=/bin/true\n";
+        assert_eq!(entry_exec_target(action_only), None);
+        assert!(super::entry_needs_rewrite(action_only, |_| true));
     }
 
     #[test]

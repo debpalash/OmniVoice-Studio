@@ -12,6 +12,7 @@
  * to the launchpad rather than half-load a stale project state.
  */
 import type { StateCreator } from 'zustand';
+import type { EngineFamily } from '../api/types';
 
 export type AppMode =
   | 'launchpad'
@@ -33,6 +34,7 @@ export type AppMode =
 
 /** Which pane the Model Catalogue workspace opens on. */
 export type CatalogueTab = 'engines' | 'models';
+export type CatalogueTarget = CatalogueTab | { pane?: CatalogueTab; family?: EngineFamily };
 
 /**
  * The Voice workspace's "Define voice" method (was the Clone/Design tab
@@ -79,6 +81,8 @@ export interface UiSlice {
    * replaced the old Engines / Model Store panels.
    */
   pendingCatalogueTab: CatalogueTab | null;
+  /** Optional engine family to focus after entering the catalogue. */
+  pendingCatalogueFamily: EngineFamily | null;
   isSidebarCollapsed: boolean;
   isSidebarProjectsCollapsed: boolean;
   sidebarTab: SidebarTab;
@@ -98,10 +102,11 @@ export interface UiSlice {
   setPendingProfileId: (id: string | null) => void;
   setPendingSettingsTab: (tab: string | null) => void;
   setPendingCatalogueTab: (tab: CatalogueTab | null) => void;
+  setPendingCatalogueFamily: (family: EngineFamily | null) => void;
   /** Navigate to Settings on a specific tab in one call. */
   openSettingsTab: (tab: string) => void;
   /** Navigate to the Model Catalogue on a specific pane in one call. */
-  openCatalogue: (tab?: CatalogueTab) => void;
+  openCatalogue: (target?: CatalogueTarget) => void;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
   setIsSidebarProjectsCollapsed: (collapsed: boolean) => void;
   setSidebarTab: (tab: SidebarTab) => void;
@@ -127,6 +132,7 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   pendingProfileId: null,
   pendingSettingsTab: null,
   pendingCatalogueTab: null,
+  pendingCatalogueFamily: null,
   isSidebarCollapsed: false,
   isSidebarProjectsCollapsed: false,
   sidebarTab: 'projects',
@@ -148,8 +154,13 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   setPendingProfileId: (id) => set({ pendingProfileId: id }),
   setPendingSettingsTab: (tab) => set({ pendingSettingsTab: tab }),
   setPendingCatalogueTab: (tab) => set({ pendingCatalogueTab: tab }),
+  setPendingCatalogueFamily: (family) => set({ pendingCatalogueFamily: family }),
   openSettingsTab: (tab) => set({ pendingSettingsTab: tab, mode: 'settings' }),
-  openCatalogue: (tab = 'engines') => set({ pendingCatalogueTab: tab, mode: 'catalogue' }),
+  openCatalogue: (target = 'engines') => {
+    const { pane = 'engines', family = null } =
+      typeof target === 'string' ? { pane: target } : target;
+    set({ pendingCatalogueTab: pane, pendingCatalogueFamily: family, mode: 'catalogue' });
+  },
   setIsSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
   setIsSidebarProjectsCollapsed: (collapsed) => set({ isSidebarProjectsCollapsed: collapsed }),
   setSidebarTab: (tab) => set({ sidebarTab: tab }),

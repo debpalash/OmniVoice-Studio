@@ -78,6 +78,14 @@ describe('scrubText — frontend twin of backend/core/scrub.py', () => {
 });
 
 describe('buildBugReportUrl — encoded length ceiling', () => {
+  beforeEach(() => {
+    // Hermetic like the sibling describe: without this stub the builder
+    // fetches real backend facts, and a dev machine with a wedged local
+    // backend (port open, never answering) hangs this test past its timeout.
+    // The subject here is encoding math, not reachability.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+  });
+
   it('keeps the ENCODED body under the ceiling even when the raw body is dense', async () => {
     // A body full of chars that expand under encodeURIComponent (newlines,
     // spaces, backticks) must still yield a URL comfortably under ~8k.

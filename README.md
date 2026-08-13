@@ -99,7 +99,7 @@ Three flagships, five more headliners, and a dozen under the fold.
 - 🧩 **Extensible** — subclass `TTSBackend`, add any engine in ~50 lines.
 - 🎒 **Portable personas** — export voices as `.ovsvoice` bundles: identity + watermark.
 - ♾️ **Unlimited TTS** — sentence-chunked generation, no length cap, streaming via WebSocket.
-- 🌐 **Remote backend** — point the UI at a remote server; Tailscale-friendly, bearer auth.
+- 🌐 **Remote backend** — point the UI at a remote server; Tailscale-friendly, short-lived session auth.
 - 🧠 **Dictation + LLM** — local-LLM cleanup of transcripts, optional echo cancellation.
 
 </details>
@@ -406,7 +406,7 @@ Ships two [skills](https://skills.sh):
 | **Dictation** | Global system-wide hotkey (`⌘+⇧+Space`), frameless floating widget, streaming ASR via WebSocket, auto-paste, customizable hotkey, local-LLM transcript refinement |
 | **Batch Pipeline** | Full batch TTS: extract → transcribe → translate → generate → mix → export, with live progress tracking |
 | **MCP Server** | VoiceStudio as a local TTS/STT provider for Claude, Cursor, and any MCP client |
-| **Remote Backend** | Point the desktop UI at a remote backend URL with bearer auth (Tailscale-documented) |
+| **Remote Backend** | Point the desktop UI at a remote backend with short-lived session auth (Tailscale-documented) |
 | **Reliability** | Stall watchdog on bootstrap splash, per-engine GPU compatibility matrix, actionable errors for non-executable engine binaries, setuptools auto-repair |
 
 </details>

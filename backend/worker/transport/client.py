@@ -657,8 +657,25 @@ class WorkerClient:
                 )
             )
             return
-        await self._send(pb.WorkerMessage(accepted=pb.TaskAccepted(ref=assignment.ref)))
+        # Reserve the slot BEFORE the accept-send await: awaiting yields to
+        # the event loop, and a concurrently delivered assignment would read
+        # the un-reserved counter and over-accept past capacity (#1536 — a
+        # capacity-1 worker accepted a second task on a slow runner). Message
+        # order on the stream survives the swap: _send enqueues synchronously
+        # (put_nowait before any suspension), so ACCEPTED is in the outbox
+        # before this handler ever yields to the just-created _run task.
         self._running[key] = asyncio.create_task(self._run(assignment))
+        try:
+            await self._send(pb.WorkerMessage(accepted=pb.TaskAccepted(ref=assignment.ref)))
+        except BaseException:
+            # BaseException, not Exception: a handler CANCELLED mid-send must
+            # release the slot too, or the reserved task keeps running work
+            # the scheduler never saw accepted — and double-executes after
+            # reassignment. The stream-death case lands here as well.
+            task = self._running.pop(key, None)
+            if task is not None:
+                task.cancel()
+            raise
 
     async def _run(self, assignment: pb.TaskAssignment) -> None:
         key = self._key(assignment.ref)

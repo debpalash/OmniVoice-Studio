@@ -1,9 +1,9 @@
-"""`require_loopback` gate contract (issue #261).
+"""Server-mode origin and admin gate contracts (issue #261).
 
 The gate must stay strict on the desktop build (non-loopback → 403, which is the
-PR #81 trust boundary), but become a no-op in the headless Docker server mode,
-where Docker's NAT makes the loopback origin unenforceable and exposure is
-governed by the port mapping + the share PIN instead.
+PR #81 trust boundary). Docker NAT makes the host operator appear non-loopback,
+so bare server mode keeps read-only discovery open while every mutation still
+requires the long admin API key.
 """
 from types import SimpleNamespace
 
@@ -28,6 +28,10 @@ def is_local_host(*args, **kwargs):
 
 def require_admin(*args, **kwargs):
     return _dependency("require_admin")(*args, **kwargs)
+
+
+def require_admin_action(*args, **kwargs):
+    return _dependency("require_admin_action")(*args, **kwargs)
 
 
 def require_desktop(*args, **kwargs):
@@ -88,7 +92,7 @@ def test_falsey_server_mode_keeps_gate_strict(monkeypatch, val):
 # Trusted local networks (OMNIVOICE_TRUSTED_NETWORKS) — issue #1170.
 # A self-hoster can name CIDRs treated as trusted by the CONSUMPTION gates
 # (PIN/API-key/WS), so a LAN or reverse proxy is exempted. Admin gates
-# (require_loopback) stay true-loopback-only — two-tier privilege model.
+# (require_admin) stay true-loopback-only — two-tier privilege model.
 
 
 @pytest.mark.parametrize("host", ["127.0.0.1", "::1", "localhost"])
@@ -178,12 +182,101 @@ def _req_full(host, *, headers=None, query=None, cookies=None, pin=None, method=
     )
 
 
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+def test_legacy_loopback_guard_fails_closed_for_server_mode_mutations(
+    monkeypatch, method
+):
+    """A stale route guard must not reopen writes in a bare Docker server.
+
+    ``require_admin`` is the explicit dependency for privileged routers, but
+    this fallback closes the whole bug class: a future mutation that
+    accidentally keeps ``require_loopback`` still requires the long API key.
+    """
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        require_loopback(_req_full("172.17.0.1", method=method))
+
+    assert exc.value.status_code == 403
+
+
+def test_legacy_loopback_guard_allows_authenticated_server_mode_mutation(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+
+    require_loopback(
+        _req_full(
+            "172.17.0.1",
+            method="POST",
+            headers={"authorization": "Bearer s3cret"},
+        )
+    )
+
+
+def test_server_mode_side_effectful_get_requires_api_key(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        require_admin_action(_req_full("172.17.0.1", method="GET"))
+
+    assert exc.value.status_code == 403
+
+
+def test_server_mode_side_effectful_get_accepts_api_key(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+
+    require_admin_action(
+        _req_full(
+            "172.17.0.1",
+            method="GET",
+            headers={"authorization": "Bearer s3cret"},
+        )
+    )
+
+
+def test_side_effectful_get_rejects_remote_api_key_outside_server_mode(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_SERVER_MODE", raising=False)
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+
+    with pytest.raises(HTTPException) as exc:
+        require_admin_action(
+            _req_full(
+                "10.0.0.5",
+                method="GET",
+                headers={"authorization": "Bearer s3cret"},
+            )
+        )
+
+    assert exc.value.status_code == 403
+
+
+def test_side_effectful_get_rejects_pin_and_trusted_network(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_TRUSTED_NETWORKS", "10.0.0.0/8")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        require_admin_action(
+            _req_full(
+                "10.1.2.3",
+                method="GET",
+                pin="123456",
+                headers={"x-omnivoice-pin": "123456"},
+            )
+        )
+
+    assert exc.value.status_code == 403
+
+
 # Server mode + trusted network + credential — issue #1213.
 # Regression for the two-tier collapse: with OMNIVOICE_SERVER_MODE=1 the
 # loopback origin is unenforceable, so admin can't require true loopback. But a
-# configured credential (API key / PIN) must still gate admin — a trusted-network
-# client that presents NO credential must NOT reach /system/* or /api/settings/*
-# just because is_local_host exempts it from the consumption middleware.
+# configured API key must still gate admin — a trusted-network client that
+# presents NO key must NOT reach /system/* or /api/settings/* just because
+# is_local_host exempts it from the consumption middleware.
 
 
 def test_server_mode_trusted_network_no_credential_reaches_admin(monkeypatch):
@@ -232,21 +325,36 @@ def test_server_mode_admin_rejects_wrong_api_key(monkeypatch):
     assert exc.value.status_code == 403
 
 
-def test_server_mode_pin_does_not_unlock_admin(monkeypatch):
+def test_server_mode_pin_only_keeps_admin_loopback_only(monkeypatch):
     # CodeRabbit #1213: the 6-digit share PIN is a CONSUMPTION credential and is
     # brute-forceable (10^6, no lockout), so it must NEVER gate the RCE-class
-    # admin surface. With a PIN set but no API key, admin is still *gated* (not
-    # left open) — but only loopback or the long API key can reach it. Presenting
-    # even the correct PIN over the network does NOT unlock admin.
+    # admin surface. Once a PIN is configured, bare read-only discovery closes;
+    # presenting that PIN still cannot authorize either a read or a write.
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.setenv("OMNIVOICE_TRUSTED_NETWORKS", "10.0.0.0/8")
     monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
-    # No PIN presented → 403.
+    # No PIN presented → discovery denied.
     with pytest.raises(HTTPException):
         require_loopback(_req_full("10.1.2.3", pin="1234"))
-    # Correct PIN presented → STILL 403 (the PIN never gates admin).
+    # Correct PIN presented → STILL denied (the PIN never gates admin).
     with pytest.raises(HTTPException):
-        require_loopback(_req_full("10.1.2.3", pin="1234", headers={"x-omnivoice-pin": "1234"}))
+        require_loopback(
+            _req_full(
+                "10.1.2.3",
+                pin="1234",
+                headers={"x-omnivoice-pin": "1234"},
+            )
+        )
+    # Mutations are denied for the same reason.
+    with pytest.raises(HTTPException):
+        require_loopback(
+            _req_full(
+                "10.1.2.3",
+                pin="1234",
+                method="POST",
+                headers={"x-omnivoice-pin": "1234"},
+            )
+        )
     # Loopback admin still needs no credential (the local operator path)…
     require_loopback(_req_full("127.0.0.1", pin="1234"))
     # …and the trusted client keeps its consumption exemption.
@@ -261,9 +369,9 @@ def test_server_mode_loopback_admin_never_needs_credential(monkeypatch):
     require_loopback(_req_full("127.0.0.1"))  # must not raise
 
 
-# GHAS #506/#440/#441: require_loopback permits an unconfigured bare Docker
-# server for compatibility. RCE/filesystem-capable routers use the stricter,
-# method-aware admin gate instead.
+# GHAS #506/#440/#441: bare Docker retains read-only discovery for bootstrap.
+# RCE/filesystem-capable routers use the method-aware admin gate, while the
+# legacy loopback guard independently fails closed on accidental mutations.
 
 
 @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
@@ -281,10 +389,12 @@ def test_server_mode_admin_read_keeps_bare_docker_bootstrap(monkeypatch):
     require_admin(_req_full("172.17.0.1", method="GET"))
 
 
-def test_server_mode_admin_read_keeps_pin_only_discovery(monkeypatch):
+def test_server_mode_admin_read_rejects_pin_only_deployment(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
-    require_admin(_req_full("172.17.0.1", method="GET", pin="123456"))
+    with pytest.raises(HTTPException) as exc:
+        require_admin(_req_full("172.17.0.1", method="GET", pin="123456"))
+    assert exc.value.status_code == 403
 
 
 def test_server_mode_admin_mutation_allows_api_key(monkeypatch):
@@ -295,6 +405,44 @@ def test_server_mode_admin_mutation_allows_api_key(monkeypatch):
         method="POST",
         headers={"authorization": "Bearer s3cret"},
     ))
+
+
+def test_whitespace_only_api_key_cannot_authorize_admin_mutation(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "   ")
+
+    for credential in (
+        {"query": {"api_key": "   "}},
+        {"cookies": {"ov_key": "   "}},
+    ):
+        with pytest.raises(HTTPException) as exc:
+            require_admin(
+                _req_full("172.17.0.1", method="POST", **credential)
+            )
+        assert exc.value.status_code == 403
+
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "  s3cret  ")
+    require_admin(
+        _req_full("172.17.0.1", method="POST", query={"api_key": " s3cret "})
+    )
+
+
+def test_whitespace_query_does_not_shadow_admin_key_cookie(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+
+    request = _req_full(
+        "172.17.0.1",
+        method="POST",
+        query={"api_key": "   "},
+        cookies={"ov_key": "s3cret"},
+        headers={
+            "origin": "http://voice.test",
+            "x-voicestudio-csrf": "1",
+        },
+    )
+    request.url = SimpleNamespace(scheme="http", netloc="voice.test")
+    require_admin(request)
 
 
 def test_server_mode_desktop_capability_rejects_remote_api_key(monkeypatch):
@@ -322,3 +470,36 @@ def test_is_local_host_unwraps_ipv4_mapped_ipv6(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_TRUSTED_NETWORKS", "192.168.1.0/24")
     assert is_local_host("::ffff:192.168.1.5") is True
     assert is_local_host("::ffff:8.8.8.8") is False
+
+
+def test_side_effectful_get_cookie_session_requires_same_origin_csrf(monkeypatch, request):
+    from services.admin_sessions import admin_session_store
+
+    admin_session_store.clear()
+    request.addfinalizer(admin_session_store.clear)
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
+    session = admin_session_store.issue("s3cret")
+
+    missing = _req_full(
+        "172.17.0.1",
+        method="GET",
+        cookies={"ov_session": session.token},
+    )
+    missing.url = SimpleNamespace(scheme="http", netloc="voice.test")
+    with pytest.raises(HTTPException) as exc:
+        require_admin_action(missing)
+    assert exc.value.status_code == 403
+
+    allowed = _req_full(
+        "172.17.0.1",
+        method="GET",
+        cookies={"ov_session": session.token},
+        headers={
+            "origin": "http://voice.test",
+            "x-voicestudio-csrf": "1",
+            "sec-fetch-site": "same-origin",
+        },
+    )
+    allowed.url = SimpleNamespace(scheme="http", netloc="voice.test")
+    require_admin_action(allowed)

@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     holder,
+    authenticatedWsUrl: vi.fn(async (path) => `ws://test${path}&ws_ticket=one-use`),
     invoke: async (cmd, args) => {
       holder.calls.push([cmd, args]);
       if (cmd === 'check_accessibility') return holder.a11y;
@@ -47,9 +48,11 @@ vi.mock('../store', () => ({
   useAppStore: Object.assign((sel) => sel(mocks.state), { getState: () => mocks.state }),
 }));
 vi.mock('../api/client', () => ({
+  API: 'http://test',
   wsUrl: (p) => `ws://test${p}`,
   apiFetch: vi.fn(async () => ({ json: async () => ({}) })),
 }));
+vi.mock('../api/authSession', () => ({ authenticatedWsUrl: mocks.authenticatedWsUrl }));
 vi.mock('../pages/Transcriptions', () => ({ addTranscription: vi.fn() }));
 vi.mock('../utils/copyText', () => ({ copyText: vi.fn(async () => {}) }));
 vi.mock('react-hot-toast', () => ({ toast: { error: vi.fn() } }));
@@ -132,6 +135,10 @@ describe('CaptureWidget', () => {
     mocks.holder.paste = async () => undefined;
     mocks.holder.calls = [];
     mocks.holder.onFrame = null;
+    mocks.authenticatedWsUrl.mockClear();
+    mocks.authenticatedWsUrl.mockImplementation(
+      async (path) => `ws://test${path}${path.includes('?') ? '&' : '?'}ws_ticket=one-use`,
+    );
     mocks.state.dictationMode = 'toggle';
     mocks.state.dictationModelId = 'sherpa-parakeet-tdt-v3';
     FakeWebSocket.instances = [];
@@ -186,6 +193,10 @@ describe('CaptureWidget', () => {
 
     const ws = await startSession();
     expect(ws.url).toContain('/ws/transcribe?pcm=1&sr=16000');
+    expect(mocks.authenticatedWsUrl).toHaveBeenCalledWith('/ws/transcribe?pcm=1&sr=16000', {
+      apiBase: 'http://test',
+    });
+    expect(ws.url).toContain('ws_ticket=one-use');
     expect(mocks.holder.onFrame).toBeTypeOf('function');
 
     act(() => mocks.holder.onFrame(new Float32Array([0.25, -0.25])));

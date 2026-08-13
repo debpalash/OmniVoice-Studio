@@ -7,6 +7,12 @@ This is **opt-in and off by default**. Until you turn it on and approve a
 worker, nothing leaves your computer, no port is opened, and the app behaves
 exactly as it did before.
 
+Worker management is an admin surface. In Docker/server mode, viewing status
+works during bare bootstrap, but joining, enabling, approving, issuing keys,
+disconnecting, or removing machines remotely requires `OMNIVOICE_API_KEY`.
+The share PIN and trusted-network exemptions authorize playback, not worker
+administration.
+
 > **Not the same as [Remote backend](remote-gpu.md).** That points this app at
 > a backend running somewhere else, so the whole app — your projects, your
 > voices, your history — lives on that machine. This keeps everything here and
@@ -157,10 +163,11 @@ The Dictation surface states that it always uses this machine without showing
 the generic "not ported yet" notice.
 
 For protocol development, a task can also be placed by hand with
-`POST /workers/tasks` — a **development-only** endpoint. It is loopback-only,
+`POST /workers/tasks` — a **development-only** endpoint. It is admin-gated,
 sits behind the same opt-in as everything else here, takes a mandatory
-deadline, submits one task and waits for it. It is not a stable API and goes
-away once generation routes itself.
+deadline, submits one task and waits for it. On desktop that means loopback;
+in server mode a remote caller needs `OMNIVOICE_API_KEY`. It is not a stable
+API and goes away once generation routes itself.
 
 ## How work is placed
 

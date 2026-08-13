@@ -10,6 +10,13 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- The catalogue's LLM row now names the provider and model that actually answer, with a door straight into LLM Provider settings — and a backlink pointing the other way. (#1538)
+- The Launchpad hero wears the project's signal-field waveform artwork, feathered into the dark chrome. (#1533)
+- Switch TTS, ASR and LLM engines from the status bar or workspace, with ready-only choices, memory status and environment-pin protection. (#1530)
+- The engine catalogue frames uninstalled engines as "Add more engines" with a "What it needs" explainer, instead of a wall of unavailable rows. (#1531)
+- Docker/server mode now requires an API key for remote changes and side-effectful admin checks across workers, engines, media tools, MCP, pronunciation, diagnostics, and LLM providers. (#1525)
+- The remote UI now exchanges its administrator key for a short-lived session, keeps masters out of browser storage and WebSocket URLs, and validates bounded sessions without occupancy-dependent scans. (#1528) — thanks @bultodepapas!
+- The unified Support page no longer throws while opening a section in browsers or test environments without `scrollIntoView`. (#1525)
 - A faster, cleaner Dub workspace for multilingual production (#1489)
 - VoiceStudio now gives the app, desktop chrome, documentation, and package metadata one clear identity
 - A local-first creative studio: voice cloning, design, dubbing, dictation, stories, audiobooks, and transcription without a subscription meter
@@ -29,6 +36,9 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- AMD/ROCm hosts no longer crash ASR with "CUDA driver version is insufficient": ROCm torch reports itself as CUDA, but whisperx/faster-whisper run on CTranslate2, which is NVIDIA-only — they now take the CPU path there, and auto-detect prefers pytorch-whisper, which genuinely uses the HIP GPU. (#1529)
+- Crash reports now carry the crashed run's own stderr: the shared error log is append-only with per-run offsets, so a restart can no longer overwrite the dying process's final output with the replacement's healthy startup. (#1510)
+- Wayland: a stale portal identity no longer kills the dictation shortcut for the whole session. The desktop entry the app writes for the GlobalShortcuts portal could point at a binary that has since moved (a `cargo clean`, a relocated AppImage) — GNOME then refuses the bind with "App info not found" and the hotkey silently dies. The entry is validated and rewritten at startup now. (#1526)
 - The guard that keeps transcription on the degrading ASR loader now scans the whole backend, not just the routers — a service that transcribes on a request's behalf skipped `ensure_loaded()` just as thoroughly. (#1519) — thanks @ahov520!
 - The Linux app icon is no longer blank. Every AppImage since v0.4.2 shipped `.DirIcon` as an absolute symlink into the machine that built it (`/home/runner/work/…`), so the link dangled on every user's computer and file managers, app menus and desktop integration all drew nothing. The release build now verifies the icon resolves inside the bundle before publishing. (#1518)
 - The Linux desktop entry no longer ships an empty `Categories=`, which `desktop-file-validate` rejects and menu builders skip. (#1518)
@@ -50,7 +60,8 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Changed
 
 - Gallery personas now preview through the local backend, retain their complete voice-design recipe, and open directly in Voice, Stories, or Audiobook. (no issue — owner request)
-- Sponsoring, commercial licensing and contact now share one compact tabbed page; every entry point opens the right one without a long scroll. (#1522)
+- Support amount choices now use every theme's shared card, accent and focus tokens. (#1530)
+- Sponsoring, commercial licensing and getting in touch are one page now. They answered the same question between them and each used to live somewhere else, so they are three sections on a single scroll — the footer heart, the commercial-licence links and Contact all land on it, at the section you asked for. (#1522)
 - Model Catalogue switches panes with tabs instead of a two-state toggle, and the Engine Compatibility Matrix's TTS / ASR / LLM switcher is now tabs too — arrow-key navigable, and each tab still shows the engine it would use. (#1522)
 - Engines you can actually use sort to the top of the compatibility matrix, and an unavailable engine's name recedes instead of the whole row fading — the status badge and GPU chips that say *why* it is unavailable stay legible. (#1522)
 - Remote workers reads as a device list: status dot, address, latency, a live task meter, resident models and last-seen per machine, with housekeeping actions revealed on hover and a three-step empty state. (#1516)

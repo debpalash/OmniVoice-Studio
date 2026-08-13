@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store';
 import { useTranslation } from 'react-i18next';
 
-import { wsUrl as buildWsUrl, apiFetch } from '../api/client';
+import { API, apiFetch } from '../api/client';
+import { authenticatedWsUrl } from '../api/authSession';
 import { addTranscription } from '../pages/Transcriptions';
 import { describeMicError, detectPlatform, micErrorMessage, micHintKey } from '../utils/micError';
 import { checkMicrophone, openMicrophoneSettings } from '../utils/permissions';
@@ -898,8 +899,10 @@ export default function CaptureWidget({ onDismiss }) {
 
       // Open WebSocket BEFORE starting capture.
       try {
-        // Scheme + host + remote api key all derive from the API base
-        // (Wave 2.3) — window.location lies inside the Tauri webview.
+        // Scheme + host derive from the API base (window.location lies inside
+        // the Tauri webview). A remote bearer session is converted to a fresh,
+        // path-bound WebSocket ticket; neither the master nor session token is
+        // ever placed in this URL.
         //   • sherpa → ?model=<id>&sr=16000  (raw int16 PCM, live partials)
         //   • AEC    → ?aec=1&sr=16000       (tagged raw PCM, NLMS canceller)
         //   • both   → ?model=<id>&aec=1&sr=16000
@@ -911,7 +914,8 @@ export default function CaptureWidget({ onDismiss }) {
         if (pcmFallback) params.push('pcm=1');
         if (pcmMode) params.push('sr=16000');
         const wsPath = params.length ? `/ws/transcribe?${params.join('&')}` : '/ws/transcribe';
-        const ws = new WebSocket(buildWsUrl(wsPath));
+        const endpoint = await authenticatedWsUrl(wsPath, { apiBase: API });
+        const ws = new WebSocket(endpoint);
         ws.binaryType = 'arraybuffer';
         const failRawPcmSession = () => {
           if (
@@ -1113,7 +1117,7 @@ export default function CaptureWidget({ onDismiss }) {
           }
         };
         wsRef.current = ws;
-      } catch (err) {
+      } catch {
         wsRef.current = null;
         if (pcmMode) {
           // Raw-PCM has no POST fallback — a socket that can't even be
@@ -1121,13 +1125,13 @@ export default function CaptureWidget({ onDismiss }) {
           // recording into the void.
           stream.getTracks().forEach((tr) => tr.stop());
           streamRef.current = null;
-          setErrorInfo({ kind: 'server', message: String(err?.message || err) });
+          setErrorInfo({ kind: 'server', message: '' });
           setState('error');
           return;
         }
         // Legacy path continues below: the recorder still buffers chunks and
         // the POST /transcribe fallback delivers the result on stop.
-        console.warn('ws open failed — will fall back to POST /transcribe:', err);
+        console.warn('ws open failed — will fall back to POST /transcribe');
       }
 
       if (pcmMode) {

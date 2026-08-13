@@ -11,7 +11,10 @@ def _app_with_pin(pin="123456"):
 
 def teardown_function():
     from main import app
+    from services.admin_sessions import admin_session_store
+
     app.state.network_share = ns.ShareState()  # reset → middleware inert
+    admin_session_store.clear()
 
 
 def test_inert_when_no_pin():
@@ -38,9 +41,69 @@ def test_non_loopback_with_valid_pin_passes():
     assert r.status_code != 401
 
 
+def test_non_ascii_invalid_pin_fails_closed_instead_of_raising():
+    c = TestClient(_app_with_pin("654321"), client=("10.0.0.5", 1))
+
+    response = c.get("/api/voices", params={"pin": "clé-incorrecte"})
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "PIN required"}
+
+
 def test_spa_shell_served_without_pin():
     c = TestClient(_app_with_pin(), client=("10.0.0.5", 1))
     assert c.get("/health").status_code == 200
+
+
+def test_session_exchange_reaches_its_master_key_guard_before_the_pin_gate(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "master-key")
+    c = TestClient(_app_with_pin(), client=("10.0.0.5", 1))
+
+    response = c.post(
+        "/api/auth/session",
+        json={"transport": "cookie"},
+        headers={"Authorization": "Bearer wrong"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "API key required"}
+
+
+def test_master_exchange_does_not_bypass_pin_on_normal_routes(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "master-key")
+    c = TestClient(_app_with_pin("654321"), client=("10.0.0.5", 1))
+
+    issued = c.post(
+        "/api/auth/session",
+        json={"transport": "cookie"},
+        headers={"Authorization": "Bearer master-key"},
+    )
+
+    assert issued.status_code == 204
+    without_pin = c.get("/api/voices")
+    assert without_pin.status_code == 401
+    assert without_pin.json() == {"detail": "PIN required"}
+    with_both = c.get("/api/voices", headers={"X-OmniVoice-Pin": "654321"})
+    assert with_both.status_code not in {401, 403}
+
+
+def test_cors_wraps_both_auth_gates_and_answers_credentialless_preflight(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_API_KEY", "master-key")
+    c = TestClient(_app_with_pin("654321"), client=("10.0.0.5", 1))
+    cors = {
+        "Origin": "tauri://localhost",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization,x-omnivoice-pin",
+    }
+
+    preflight = c.options("/api/voices", headers=cors)
+    rejected = c.get("/api/voices", headers={"Origin": "tauri://localhost"})
+
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == "tauri://localhost"
+    assert "authorization" in preflight.headers["access-control-allow-headers"].lower()
+    assert rejected.status_code == 401
+    assert rejected.headers["access-control-allow-origin"] == "tauri://localhost"
 
 
 def test_middleware_is_plain_asgi_not_buffering():

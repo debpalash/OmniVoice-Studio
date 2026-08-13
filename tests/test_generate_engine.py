@@ -84,7 +84,7 @@ def client():
     # module's event loop and broke teardown when the full suite mixes it
     # with the non-lifespan TestClients every other test file uses
     # (test_api.py pattern). Loopback client addr: required by the
-    # router-level require_loopback dependency.
+    # router-level require_admin dependency.
     from fastapi.testclient import TestClient
     from main import app
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   _adaptLastRunCrash,
   acknowledgeBackendCrash,
@@ -7,6 +7,7 @@ import {
   getUnacknowledgedBackendCrash,
   type LastRunCrashRecord,
 } from '../utils/backendCrash';
+import { ADMIN_SESSION_STORAGE_KEY } from '../api/authSession';
 
 // #1164: outside the Tauri shell the crash getters must fall back to the
 // backend's own run-sentinel forensics (GET /system/last-run-crash) and adapt
@@ -64,7 +65,14 @@ describe('_adaptLastRunCrash — run-sentinel record → CrashMarker shape', () 
 });
 
 describe('browser fallback — getLastBackendCrash / ack over HTTP', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
   afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -77,6 +85,26 @@ describe('browser fallback — getLastBackendCrash / ack over HTTP', () => {
     expect(marker).not.toBeNull();
     expect(marker?.exit_desc).toBe('process ended uncleanly (previous run)');
     expect(String(fetchMock.mock.calls[0][0])).toContain('/system/last-run-crash');
+  });
+
+  it('uses only the short-lived session and deletes a legacy master', async () => {
+    const { API } = await import('../api/client');
+    const session = `ovs_admin_session_${'S'.repeat(43)}`;
+    sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({ token: session, expiresAt: Date.now() / 1000 + 3600, apiBase: API }),
+    );
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(record()));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getLastBackendCrash();
+
+    const options = fetchMock.mock.calls[0][1];
+    expect(new Headers(options.headers).get('Authorization')).toBe(`Bearer ${session}`);
+    expect(new Headers(options.headers).get('Authorization')).not.toContain('legacy-master');
+    expect(options.credentials).toBe('include');
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
   });
 
   it('getUnacknowledgedBackendCrash filters an already-acknowledged record', async () => {

@@ -7,6 +7,7 @@ const { requestDictationCapture, toast } = vi.hoisted(() => ({
 }));
 
 vi.mock('../utils/dictationCapture', () => ({ requestDictationCapture }));
+vi.mock('../components/EngineQuickSwitch', () => ({ default: () => null }));
 vi.mock('../hooks/useEffectiveDictationShortcut', () => ({
   useEffectiveDictationShortcut: () => ({
     info: {

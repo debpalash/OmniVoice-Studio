@@ -206,6 +206,20 @@ def test_rest_crud_roundtrip(client):
     assert client.delete("/api/mcp/bindings/claude-code").status_code == 404
 
 
+def test_server_mode_binding_mutations_require_api_key(client, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    remote = TestClient(client.app, client=("172.17.0.1", 50000))
+
+    assert remote.get("/api/mcp/bindings").status_code == 200
+    assert remote.put(
+        "/api/mcp/bindings", json={"client_id": "attacker"}
+    ).status_code == 403
+    assert remote.delete("/api/mcp/bindings/attacker").status_code == 403
+
+
 def test_rest_rejects_empty_client_id(client):
     r = client.put("/api/mcp/bindings", json={"client_id": ""})
     assert r.status_code == 422  # pydantic min_length

@@ -44,7 +44,10 @@ vi.mock('../api/hooks', async (importOriginal) => {
     useTauriLogs: () => ({ data: null, refetch: vi.fn() }),
   };
 });
-vi.mock('../api/system', () => ({
+vi.mock('../api/system', async (importOriginal) => ({
+  // Partial: the footer's other chrome (engine quick switch, compute chip)
+  // keeps whatever it imports from here without this file tracking it.
+  ...(await importOriginal()),
   clearSystemLogs: vi.fn(),
   clearTauriLogs: vi.fn(),
   // The poll behind useNotifications — the filter under test runs REAL.

@@ -9,13 +9,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 from services import mcp_bindings
 
 router = APIRouter(
     prefix="/api/mcp",
     tags=["mcp"],
-    dependencies=[Depends(require_loopback)],
+    dependencies=[Depends(require_admin)],
 )
 
 

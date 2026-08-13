@@ -217,6 +217,22 @@ def test_crud_roundtrip(client):
     assert client.get("/pronunciation").json() == []
 
 
+def test_server_mode_pronunciation_mutations_require_api_key(client, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    remote = TestClient(client.app, client=("172.17.0.1", 50000))
+
+    assert remote.get("/pronunciation").status_code == 200
+    assert remote.post(
+        "/pronunciation", json={"term": "GIF", "replacement": "jiff"}
+    ).status_code == 403
+    assert remote.post(
+        "/pronunciation/import", json={"entries": [], "replace": True}
+    ).status_code == 403
+
+
 def test_create_rejects_blank_term(client):
     assert client.post("/pronunciation", json={"term": "   "}).status_code == 400
 

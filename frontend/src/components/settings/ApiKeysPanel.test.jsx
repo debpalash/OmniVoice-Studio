@@ -188,6 +188,9 @@ describe('ApiKeysPanel', () => {
     expect(screen.queryByText(/not set/i)).toBeNull();
     expect(container.querySelectorAll('.apikeys-row').length).toBe(0);
 
+    // API requests wait for the credential-scrubbing bootstrap before they
+    // reach fetch, so do not assume the effect invokes fetch synchronously.
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledOnce());
     resolveFetch({
       ok: true,
       status: 200,

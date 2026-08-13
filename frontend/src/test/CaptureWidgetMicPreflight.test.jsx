@@ -38,6 +38,7 @@ vi.mock('@tauri-apps/api/window', () => ({
 
 // Keep the api/history/model-CTA side modules out of this test's blast radius.
 vi.mock('../api/client', () => ({
+  API: 'http://test',
   wsUrl: (p) => `ws://test${p}`,
   apiFetch: vi.fn(),
 }));

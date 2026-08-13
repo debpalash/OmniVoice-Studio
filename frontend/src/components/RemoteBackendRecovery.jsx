@@ -31,7 +31,7 @@ export default function RemoteBackendRecovery({
           <Button variant="primary" onClick={onRetry}>
             {t('bootstrap.retry')}
           </Button>
-          <Button variant="subtle" onClick={() => disableRemoteBackend(reload)}>
+          <Button variant="subtle" onClick={() => void disableRemoteBackend(reload)}>
             {t('settings.remote_backend_use_local')}
           </Button>
           <Button variant="ghost" onClick={onOpenSettings}>

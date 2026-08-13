@@ -22,9 +22,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useModels, useInstallModel } from '../api/hooks';
+import { useEngines, useModels, useInstallModel, useSelectEngine } from '../api/hooks';
 import { setupDownloadStreamUrl } from '../api/setup';
-import { listEngines, selectEngine } from '../api/engines';
 import { notifyEngineSelected } from '../utils/engineSelectToast';
 import MirrorRescue from './MirrorRescue';
 import { Badge, Button } from '../ui';
@@ -237,7 +236,9 @@ export default function WizardLibrary() {
   const { t } = useTranslation();
   const modelsQuery = useModels();
   const installMutation = useInstallModel();
-  const [engines, setEngines] = useState(null);
+  const { data: engineInventory } = useEngines();
+  const selectMutation = useSelectEngine();
+  const engines = engineInventory?.tts ?? null;
   const [progress, setProgress] = useState({}); // { repo_id: { phase, files } }
   const [showTail, setShowTail] = useState(false);
   const [switching, setSwitching] = useState(null);
@@ -254,22 +255,6 @@ export default function WizardLibrary() {
     const d = modelsQuery.data;
     return Array.isArray(d) ? [] : (d?.platform_tags ?? []);
   }, [modelsQuery.data]);
-
-  // Engines: TTS family only on first run — the family the studio speaks with.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const all = await listEngines();
-        if (!cancelled) setEngines(all?.tts ?? null);
-      } catch {
-        /* backend mid-boot — the wizard polls models anyway */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // One SSE stream for all rows (same channel the Settings store uses).
   useEffect(() => {
@@ -312,8 +297,7 @@ export default function WizardLibrary() {
   const useEngine = async (id) => {
     setSwitching(id);
     try {
-      const r = await selectEngine('tts', id);
-      setEngines((e) => (e ? { ...e, active: r.active } : e));
+      const r = await selectMutation.mutateAsync({ family: 'tts', backendId: id });
       // Consume the routing echo: warn when the pick lands on a CPU fallback
       // on this host, otherwise confirm the switch. See notifyEngineSelected.
       notifyEngineSelected(r, t, 'tts');

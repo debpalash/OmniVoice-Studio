@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Keep toast side-channels out of the test (timers, portals).
 vi.mock('react-hot-toast', () => ({
@@ -27,15 +28,25 @@ vi.mock('../../api/system', () => ({
 // The ASR tab mounts AsrOpenAICompatPanel, which loads its config over the
 // api client — mocked so switching tabs never hits the network here.
 const apiJson = vi.fn();
+const apiFetch = vi.fn();
 vi.mock('../../api/client', () => ({
   apiJson: (...a) => apiJson(...a),
-  apiFetch: vi.fn(),
+  apiFetch: (...a) => apiFetch(...a),
   apiPost: vi.fn(),
 }));
 
 import { listEngines, selectEngine } from '../../api/engines';
 import { listLoadedModels } from '../../api/system';
 import EnginesTab from './EnginesTab';
+
+function renderEnginesTab() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <EnginesTab />
+    </QueryClientProvider>,
+  );
+}
 
 function entry(id, name) {
   return {
@@ -83,12 +94,19 @@ describe('EnginesTab', () => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(ENGINES);
     listLoadedModels.mockResolvedValue({ models: [], count: 0 });
+    apiFetch.mockResolvedValue({
+      json: async () => ({
+        base_url: 'http://localhost:8000/v1',
+        model: 'qwen3-asr',
+        has_key: false,
+      }),
+    });
     // AsrOpenAICompatPanel's GET on mount (ASR tab only).
     apiJson.mockResolvedValue({ base_url: '', model: 'whisper-1', has_key: false });
   });
 
   it('renders ONE tabbed section — TTS/ASR/LLM tab strip, one family at a time', async () => {
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     // One settings card, not three stacked per-family matrices.
@@ -110,7 +128,7 @@ describe('EnginesTab', () => {
   });
 
   it('switching to the ASR tab shows ASR engines without refetching /engines', async () => {
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     clickFamilyTab('ASR');
@@ -122,16 +140,30 @@ describe('EnginesTab', () => {
   });
 
   it('fetches GET /engines exactly once on mount', async () => {
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
     expect(listEngines).toHaveBeenCalledTimes(1);
   });
 
   it('probes GET /model/loaded exactly once on mount', async () => {
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
     await waitFor(() => expect(listLoadedModels).toHaveBeenCalled());
     expect(listLoadedModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches the shared inventory after saving OpenAI-compatible ASR config', async () => {
+    renderEnginesTab();
+    await screen.findByText('VoiceStudio (test)');
+    clickFamilyTab('ASR');
+    await screen.findByTestId('asr-openai-compat-model');
+
+    fireEvent.change(screen.getByTestId('asr-openai-compat-model'), {
+      target: { value: 'qwen3-asr' },
+    });
+    fireEvent.click(screen.getByTestId('asr-openai-compat-save'));
+
+    await waitFor(() => expect(listEngines).toHaveBeenCalledTimes(2));
   });
 
   it('clicking Use on an ASR engine selects it with family="asr"', async () => {
@@ -143,7 +175,7 @@ describe('EnginesTab', () => {
       effective_device: 'cpu',
       routing_reason: null,
     });
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
 
     clickFamilyTab('ASR');
@@ -156,7 +188,7 @@ describe('EnginesTab', () => {
   });
 
   it('mounts the OpenAI-compatible ASR config panel on the ASR tab only', async () => {
-    render(<EnginesTab />);
+    renderEnginesTab();
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
     // TTS tab: no ASR config panel.
     expect(screen.queryByTestId('asr-openai-compat-base-url')).not.toBeInTheDocument();

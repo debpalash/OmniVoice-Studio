@@ -23,6 +23,7 @@ import {
   getSidecarInstallStatus,
 } from '../api/engines';
 import { listLoadedModels, unloadLoadedModel } from '../api/system';
+import { useAppStore } from '../store';
 import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
 import { Badge, Button, Select, Table, Tabs } from '../ui';
@@ -226,6 +227,10 @@ export default function EngineCompatibilityMatrix({
   showFamilyTabs = true,
   onFamilyChange = null,
   reloadToken = 0,
+  // The catalogue passes its app-wide query here. Keeping the standalone
+  // fallback preserves the matrix's injectable API seam for isolated hosts
+  // and its extensive focused test suite.
+  sharedEngines = null,
   // Injectable API layer — lets the RTL suite mock it without module-level
   // vi.mock incantations, and keeps the "one GET /engines per Settings open"
   // contract overridable by hosts.
@@ -242,9 +247,15 @@ export default function EngineCompatibilityMatrix({
   apiInstallStatus = getSidecarInstallStatus,
 }) {
   const { t } = useTranslation();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [localData, setLocalData] = useState(null);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localError, setLocalError] = useState(null);
+  const sharedRefetch = sharedEngines?.refetch;
+  const isShared = Boolean(sharedEngines);
+  const sharedReloadToken = useRef(reloadToken);
+  const data = sharedEngines?.data ?? localData;
+  const loading = isShared ? sharedEngines.isLoading : localLoading;
+  const error = sharedEngines?.error ?? localError;
   const [activeFamily, setActiveFamily] = useState(family);
   // Phase 3 Plan 03-01 / TTS-05: which engine has its license dialog
   // currently open, or null. Only one dialog is ever open at a time.
@@ -288,26 +299,42 @@ export default function EngineCompatibilityMatrix({
   }, [apiListLoadedModels]);
 
   const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const fresh = await apiListEngines();
-      setData(fresh);
-    } catch (e) {
-      const msg = e?.message || String(e);
-      setError(msg);
-      toastErrorWithReport(t('engines.loadFailed', { message: msg }), e);
-    } finally {
-      setLoading(false);
+    if (sharedRefetch) {
+      const result = await sharedRefetch();
+      if (result.error) {
+        const message = result.error?.message || String(result.error);
+        toastErrorWithReport(t('engines.loadFailed', { message }), result.error);
+      }
+    } else {
+      setLocalLoading(true);
+      setLocalError(null);
+      try {
+        setLocalData(await apiListEngines());
+      } catch (requestError) {
+        const message = requestError?.message || String(requestError);
+        setLocalError(requestError);
+        toastErrorWithReport(t('engines.loadFailed', { message }), requestError);
+      } finally {
+        setLocalLoading(false);
+      }
     }
     refreshResidency();
-  }, [apiListEngines, refreshResidency, t]);
+  }, [apiListEngines, refreshResidency, sharedRefetch, t]);
 
   useEffect(() => {
-    reload();
+    if (isShared) {
+      if (sharedReloadToken.current !== reloadToken) {
+        sharedReloadToken.current = reloadToken;
+        void reload();
+        return;
+      }
+      refreshResidency();
+      return;
+    }
+    void reload();
     // reloadToken: an external bump (e.g. the ASR config panel just saved a
     // server URL) refetches so availability + "Use" reflect the new config.
-  }, [reload, reloadToken]);
+  }, [reload, reloadToken, refreshResidency, isShared]);
 
   // Unload a resident engine's model/sidecar by its /model/loaded id. Safe by
   // contract: the model reloads lazily on the next generation.
@@ -598,7 +625,8 @@ export default function EngineCompatibilityMatrix({
         className="engine-matrix engine-matrix--error flex flex-col gap-[8px] items-center p-[16px]"
         role="alert"
       >
-        <AlertTriangle size={14} /> {t('engines.couldNotLoad', { message: error })}
+        <AlertTriangle size={14} />{' '}
+        {t('engines.couldNotLoad', { message: error.message || String(error) })}
         <Button size="sm" variant="subtle" onClick={reload} leading={<RefreshCw size={11} />}>
           {t('engines.retry')}
         </Button>
@@ -726,7 +754,7 @@ export default function EngineCompatibilityMatrix({
           data-testid="engine-list-scroll"
           aria-label={t('engines.engineCompatLabel', { family: activeFamily })}
         >
-          {backends.map((b) => {
+          {backends.map((b, index) => {
             const isActive = b.id === activeBackendId;
             const health = healthByEngine[b.id];
             const selfTest = selfTestByEngine[b.id];
@@ -781,6 +809,20 @@ export default function EngineCompatibilityMatrix({
             ) : null;
             return (
               <React.Fragment key={b.id}>
+                {(index === 0 || (backends[index - 1]?.available && !b.available)) && (
+                  <div
+                    className={cn(
+                      'px-[var(--space-2)] pt-[4px] font-mono text-[10px] font-semibold uppercase tracking-[0.08em]',
+                      MUTED,
+                    )}
+                  >
+                    {/* Section framing, not status: "ready to use" vs "add
+                        more" frames the grey majority as headroom to unlock
+                        rather than a mostly-broken app (13 of 16 rows read as
+                        failures under a plain "Not installed" caption). */}
+                    {b.available ? t('engines.sectionReady') : t('engines.sectionMore')}
+                  </div>
+                )}
                 <div
                   role="row"
                   data-engine-id={b.id}
@@ -1232,6 +1274,22 @@ export default function EngineCompatibilityMatrix({
                         aria-label={`Use ${b.display_name}`}
                       >
                         {t('engines.use')}
+                      </Button>
+                    )}
+                    {/* The openai-compat family entry and the LLM Providers
+                        panel are one system (the backend resolves through the
+                        active provider); this is the door between the two, so
+                        picking the family and configuring the endpoint stop
+                        being separate discoveries. */}
+                    {activeFamily === 'llm' && b.id === 'openai-compat' && (
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => useAppStore.getState().openSettingsTab?.('llm-providers')}
+                        aria-label={t('engines.configureProviders')}
+                        data-testid="configure-llm-providers"
+                      >
+                        {t('engines.configureProviders')}
                       </Button>
                     )}
                     {/* TTS-05: license-acceptance entry point. Surfaced when

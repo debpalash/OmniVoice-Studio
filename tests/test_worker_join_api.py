@@ -24,14 +24,14 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 from api.routers import workers as workers_router
 from worker import agent as worker_agent
 
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    """The workers router with the loopback guard stubbed out."""
+    """The workers router with the admin guard stubbed out."""
     settings: dict[str, str] = {}
 
     class _Store:
@@ -59,7 +59,7 @@ def client(monkeypatch, tmp_path):
 
     app = FastAPI()
     app.include_router(workers_router.router)
-    app.dependency_overrides[require_loopback] = lambda: None
+    app.dependency_overrides[require_admin] = lambda: None
     with TestClient(app) as c:
         yield c, settings
 

@@ -12,7 +12,7 @@ env var that exempts trusted callers:
 | Gate | Turn on with | Guards | Applies to |
 |---|---|---|---|
 | **Share PIN** | the in-app Network share toggle | casual LAN-share guests, one session | non-loopback **HTTP** |
-| **API key** | `OMNIVOICE_API_KEY` env var on the backend | a durable remote credential | non-loopback **HTTP + WebSocket** |
+| **API key** | `OMNIVOICE_API_KEY` env var on the backend | direct clients and first-party session bootstrap | non-loopback **HTTP + WebSocket** |
 | **Trusted networks** | `OMNIVOICE_TRUSTED_NETWORKS` env var | *exempts* the two gates above | non-loopback **consumption** routes only |
 
 Loopback traffic (`127.0.0.1`, `::1`, `localhost`) is **never** gated — local
@@ -25,7 +25,9 @@ tools keep working unchanged whichever gate is set.
 > desktop-only even with a key (see [Admin routes](#admin-routes-and-server-mode)).
 
 > Both gates can be active at once. The PIN and the API key are independent; when
-> both are set, each is checked on the paths it covers.
+> both are set, each is checked on the paths it covers. Session exchange validates
+> the master key before the PIN gate so the UI can bootstrap safely; ordinary HTTP
+> requests still require the PIN afterward, and the UI prompts for it next.
 
 ---
 
@@ -42,14 +44,14 @@ present it. Supply it any one of three ways:
 
 | Where | How |
 |---|---|
-| Header | `X-VoiceStudio-Pin: <pin>` |
+| Header | `X-OmniVoice-Pin: <pin>` |
 | Query param | `?pin=<pin>` |
 | Cookie | `ov_pin=<pin>` — the backend sets this automatically after the first valid PIN, so browser sessions only prove it once |
 
 ```bash
 # From another device on the LAN — with the PIN
 curl http://<host>:3900/v1/audio/voices \
-  -H "X-VoiceStudio-Pin: 123456"
+  -H "X-OmniVoice-Pin: 123456"
 ```
 
 A missing or wrong PIN returns:
@@ -75,9 +77,11 @@ Notes on the PIN gate (`NetworkAccessMiddleware`, `backend/main.py`):
 
 ## API key
 
-The API key is the durable credential for running the backend somewhere and
-driving it remotely — a GPU box on your tailnet, a Docker container, a
-reverse-proxied host. Set it on the **backend** process:
+The API key is the backend's durable root credential for a GPU box, Docker
+container, or reverse-proxied host. Direct API clients may send it on each
+request. The first-party browser/Tauri UI instead exchanges it once for a
+short-lived administrator session and never stores the master. Set it on the
+**backend** process:
 
 ```bash
 # Generate a strong key and start the backend with it
@@ -87,14 +91,16 @@ uv run uvicorn backend.main:app --host 0.0.0.0 --port 3900
 ```
 
 While `OMNIVOICE_API_KEY` is set, every **non-loopback HTTP and WebSocket**
-request must present it (the SPA shell paths below are the only HTTP exception).
-Supply it any one of three ways:
+request must present an accepted credential. SPA shell paths remain public;
+`POST /api/auth/session` passes through the middleware only so its route can
+validate the master and perform the one-time exchange. Direct-client
+compatibility accepts:
 
 | Where | How |
 |---|---|
-| Header | `Authorization: Bearer <key>` — **preferred**; the one place a key isn't at risk of landing in a log |
-| Cookie | `ov_key=<key>` — set automatically after the first authenticated HTTP request; the safer fallback for browser WebSockets |
-| Query param | `?api_key=<key>` — last resort (browser WebSockets can't set headers). **A key in a URL leaks into proxy/access logs and browser history** — prefer the header or cookie |
+| Header | `Authorization: Bearer <key>` — **preferred** for scripts and SDKs |
+| Legacy cookie | `ov_key=<key>` — accepted only for compatibility and migrated by the first-party UI; the backend no longer creates it |
+| Legacy query param | `?api_key=<key>` — compatibility only. **A key in a URL leaks into proxy/access logs and browser history** |
 
 ```bash
 # Prefer an encrypted transport (Tailscale Serve / TLS) for a real key; plain
@@ -133,12 +139,48 @@ code **1008** (policy violation) instead of a JSON body.
 Notes on the API-key gate (`BearerKeyMiddleware`, `backend/main.py`):
 
 - The key is compared in **constant time** and is **never logged**.
+- The backend never copies the master into a response cookie. Browser clients
+  receive only `ov_session`, an opaque, HttpOnly, SameSite=Strict credential.
 - The SPA shell paths bypass the gate on **HTTP** so a remote UI can load and
   show what's wrong; WebSockets have no such exemption.
 - **Plain HTTP is sniffable** — a Bearer key over `http://` on a hostile
   network can be read off the wire. Use Tailscale (WireGuard) or TLS for
   anything beyond a fully trusted LAN. See
   [docs/remote-gpu.md](remote-gpu.md) for the full remote-backend setup.
+
+### First-party administrator sessions
+
+The bundled UI uses a narrower protocol:
+
+1. `POST /api/auth/session` receives the master in an `Authorization` header
+   exactly once and selects `{"transport":"cookie"}` for exact same-origin
+   browsers or `{"transport":"bearer"}` for Tauri/cross-origin clients.
+2. Cookie transport returns `204` and sets `ov_session` as HttpOnly,
+   SameSite=Strict, path `/`, with an eight-hour maximum lifetime. Bearer
+   transport returns an opaque `ovs_admin_session_…` value which the UI keeps
+   in **sessionStorage only**, bound to the exact backend base URL. Bearer JSON
+   responses include both `expires_at` and a bounded `expires_in`; the UI uses
+   the relative lifetime when available so clock skew between a remote GPU host
+   and the browser cannot reject a valid session. `expires_at` remains for
+   backward compatibility with older clients and servers.
+3. `DELETE /api/auth/session` revokes the session. Removing or rotating
+   `OMNIVOICE_API_KEY`, backend restart, explicit logout, and the eight-hour
+   deadline also invalidate it.
+
+The master is never written to localStorage/sessionStorage, never returned by
+the backend, and never placed in a WebSocket URL. Legacy `ov_api_key` browser
+storage is deleted before migration waits on the network. All auth responses,
+including errors, carry `Cache-Control: no-store`.
+
+Failed session exchanges are limited per client to ten attempts in a rolling
+60-second window and then return `429` with `Retry-After`. A correct master key
+is always evaluated and clears the failure window, so an attacker cannot lock
+an operator out by deliberately exhausting the limit.
+
+Cookie-authenticated mutations require both an exact allowed `Origin` and
+`X-VoiceStudio-CSRF: 1`. Side-effectful GET actions additionally require the
+browser's `Sec-Fetch-Site: same-origin`. Bearer/header clients are not subject
+to the ambient-cookie CSRF check.
 
 ---
 
@@ -149,12 +191,21 @@ own inline guard (`backend/api/routers/capture_ws.py`) *in addition to* the
 API-key middleware. A non-loopback client reaches it only if it is **either**:
 
 - on a [trusted network](#trusted-networks) (`is_local_host` passes), **or**
-- presenting the **API key** — as `Authorization: Bearer <key>`, the `ov_key`
-  cookie, or `?api_key=<key>` (URL keys leak into logs — prefer the cookie).
+- presenting a direct-client **API key** in `Authorization`, or through a
+  legacy `ov_key`/`?api_key=` transport.
 
 ```
 ws://gpu-box:3900/ws/transcribe?api_key=<key>
 ```
+
+That URL form is retained for non-browser compatibility only. The first-party
+UI never constructs it. A bearer administrator session first calls
+`POST /api/auth/ws-ticket` and puts only the returned `ws_ticket` in the URL.
+Tickets are scoped to `/ws/transcribe` or `/ws/events`, expire after 30 seconds,
+return the same bounded `expires_in`/`expires_at` pair, and are consumed
+atomically at most once. Same-origin UI WebSockets use the
+HttpOnly session cookie and must pass exact `Origin` validation; `null`, missing,
+and lookalike origins are rejected.
 
 The **share PIN does not authorize dictation** — the PIN gate is HTTP-only, and
 the dictation guard checks only the API key (or trusted-network membership). A
@@ -196,10 +247,11 @@ time, so in production **restart the backend** to apply a change. Default empty
 ## Admin routes and server mode
 
 Admin routes — `/system/*` (including `set-env`, **RCE-class**),
-`/api/settings/*`, engine install/uninstall, media tools, MCP bindings — sit on
-a stricter gate (`require_admin`, `backend/api/dependencies.py`) than
-consumption. On the desktop build they are **true-loopback-only**: no PIN, key,
-or trusted network reaches them from another machine.
+`/api/settings/*`, engine selection/install/uninstall, media tools, MCP
+bindings, pronunciation settings, and remote-worker management — sit on a
+stricter gate (`require_admin`, `backend/api/dependencies.py`) than consumption.
+On the desktop build they are **true-loopback-only**: no PIN, key, or trusted
+network reaches them from another machine.
 
 In **server mode** (`OMNIVOICE_SERVER_MODE=1`, the Docker image) the loopback
 origin is unenforceable — NAT rewrites the source and even a
@@ -207,16 +259,23 @@ origin is unenforceable — NAT rewrites the source and even a
 requirement is dropped (issue #261, else the operator is 403'd out of their own
 `/system/*`). It is replaced by a **credential rule**, not removed:
 
-- **No API key configured** → read-only admin discovery remains available for
-  the bare Docker bootstrap flow, but `POST`/`PUT`/`PATCH`/`DELETE` requests are
-  denied. Set `OMNIVOICE_API_KEY` before changing settings remotely.
-- **A credential is configured** → admin requires the **API key** (`Authorization:
-  Bearer` / `?api_key` / `ov_key` cookie), or genuine loopback. The **6-digit
-  share PIN does not gate admin** (it is brute-forceable), and trusted-network
-  membership never does either. A **PIN-only** server-mode deployment therefore
-  allows remote read-only discovery but blocks remote mutations; remote writes
-  require the long API key. Discovery never returns the share PIN itself; only
-  loopback or a caller already authenticated with the API key can read it.
+- **No credential configured** (neither API key nor share PIN) → read-only
+  admin discovery remains available for the bare Docker bootstrap flow, but
+  `POST`/`PUT`/`PATCH`/`DELETE` requests are denied. Side-effectful GET actions
+  are denied too: engine health may start a sidecar, deep diagnostics may load
+  a model, and LLM provider discovery makes a request with the saved provider
+  credential. Set `OMNIVOICE_API_KEY` before changing settings or triggering
+  those actions remotely.
+- **An API key is configured** → admin requires that **API key** (direct-client
+  `Authorization` / legacy query or cookie), a valid short-lived administrator
+  session, or genuine loopback. The **6-digit share PIN does not gate admin**
+  (it is brute-forceable), and trusted-network membership never does either. A
+  **PIN-only** server-mode deployment therefore keeps admin routes loopback-only;
+  remote admin starts from the long API key.
+
+Managed sidecar installation remains true-loopback-only even with an API key.
+Its installer fetches mutable source and creates an editable environment, so it
+must be run directly on that machine until the source supply chain is pinned.
 
 Host paths are never selected through HTTP. The native Tauri process validates
 model-cache and export destinations plus custom FFmpeg/FFprobe binaries, writes
@@ -261,13 +320,30 @@ the default list, so restate the loopback/Tauri origins alongside your own. (The
 same origin.) If you only moved the Vite dev server's port, set
 `OMNIVOICE_UI_PORT` instead and the default list follows it.
 
+CORS wraps both authentication gates: credentialless browser preflights are
+answered before PIN/API-key enforcement, and gate-generated `401` responses
+retain CORS headers so the UI can read the actual failure and prompt for the
+right credential.
+
+TLS-terminating proxies must establish the effective scheme at the ASGI server
+boundary. Uvicorn's proxy-header handling trusts loopback by default, which
+covers Tailscale Serve; a custom proxy on another address must be listed with
+`--forwarded-allow-ips=<proxy-ip>` (and proxy headers must remain enabled).
+VoiceStudio deliberately does not trust a raw `X-Forwarded-Proto` header inside
+the application: once Uvicorn accepts a trusted proxy, the resolved ASGI scheme
+drives exact-Origin checks and the session cookie's `Secure` attribute.
+For a public path prefix such as `/studio`, either strip that prefix before
+forwarding or configure the ASGI `root_path` to the same value. WebSocket ticket
+validation removes only that trusted, configured prefix; it never accepts an
+arbitrary path merely because it ends in `/ws/events` or `/ws/transcribe`.
+
 ## Status codes
 
 | Code | Meaning | What to do |
 |---|---|---|
 | **401** | Consumption auth failed — `{"detail": "PIN required"}` or `{"detail": "API key required"}`. | Supply the PIN / key (header, cookie, or query param above). A WebSocket surfaces this as close code **1008**. |
-| **403** | Authorization failed: loopback/native access was required, a server-mode mutation lacked the API key, or a native path capability was invalid, expired, or for a different operation. | A PIN cannot grant admin or filesystem access. Run native operations from the desktop app; configure and present the API key for remote server-mode mutations; reopen the native picker if a one-shot capability expired. |
-| **429** | **Not an auth failure.** The GPU pool is saturated (admission control) or a model download is rate-limited. Ships with `Retry-After` and `X-VoiceStudio-Retryable: true`. | Back off for `Retry-After` seconds and retry the identical request. |
+| **403** | Authorization failed: loopback/native access was required, cookie Origin/CSRF validation failed, a server-mode mutation lacked an admin credential, or a native path capability was invalid/expired. | A PIN cannot grant admin or filesystem access. Re-authenticate the UI; scripts should use the API-key header; run native operations from the desktop app. |
+| **429** | A failed administrator-session exchange exceeded its per-client limit, the GPU pool is saturated, or a model download is rate-limited. Ships with `Retry-After`; workload throttles also carry `X-VoiceStudio-Retryable: true`. | Back off for `Retry-After` seconds. For authentication, verify the master before retrying; a correct master is never locked out. |
 
 ---
 

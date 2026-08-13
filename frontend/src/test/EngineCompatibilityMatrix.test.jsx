@@ -1635,4 +1635,43 @@ describe('EngineCompatibilityMatrix', () => {
     expect(screen.queryByTestId('manual-install-kittentts')).not.toBeInTheDocument();
     expect(screen.queryByTestId('install-kittentts')).not.toBeInTheDocument();
   });
+
+  it('opens the LLM Providers panel from the openai-compat row and names the provider', async () => {
+    const { useAppStore } = await import('../store');
+    const response = routingResponse();
+    response.llm.backends.push({
+      id: 'openai-compat',
+      display_name: 'OpenAI-compatible',
+      available: true,
+      reason: null,
+      install_hint: null,
+      last_error: null,
+      isolation_mode: 'in-process',
+      gpu_compat: [],
+      effective_device: 'network',
+      routing_status: 'n/a',
+      routing_reason: null,
+      // The backend's proof that this family entry and the Providers panel
+      // are one system: the row names the endpoint that actually answers.
+      hint: 'OrcaRouter · gpt-4o-mini',
+    });
+    const original = useAppStore.getState().openSettingsTab;
+    const openSettingsTab = vi.fn();
+    useAppStore.setState({ openSettingsTab });
+    try {
+      render(
+        <EngineCompatibilityMatrix
+          family="llm"
+          apiListEngines={vi.fn().mockResolvedValue(response)}
+          apiGetEngineHealth={vi.fn()}
+        />,
+      );
+      await waitFor(() => screen.getByText('OpenAI-compatible'));
+      expect(screen.getByText('OrcaRouter · gpt-4o-mini')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('configure-llm-providers'));
+      expect(openSettingsTab).toHaveBeenCalledWith('llm-providers');
+    } finally {
+      useAppStore.setState({ openSettingsTab: original });
+    }
+  });
 });

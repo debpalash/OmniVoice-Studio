@@ -12,10 +12,10 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 
 logger = logging.getLogger("omnivoice.api")
-router = APIRouter(dependencies=[Depends(require_loopback)])
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 class CustomPathRequest(BaseModel):

@@ -8,14 +8,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-vi.mock('../api/hooks', () => ({
+// Partial mocks: the footer's other chrome (engine quick switch, compute
+// chip) keeps whatever these modules gain next without this file tracking it.
+vi.mock('../api/hooks', async (importOriginal) => ({
+  ...(await importOriginal()),
   useSystemLogs: () => ({ data: null, refetch: vi.fn() }),
   useTauriLogs: () => ({ data: null, refetch: vi.fn() }),
   useNotifications: () => ({ data: null }),
   useVisibleNotifications: () => ({ data: null, notifications: [] }),
   isDismissibleNotification: () => false,
 }));
-vi.mock('../api/system', () => ({
+vi.mock('../api/system', async (importOriginal) => ({
+  ...(await importOriginal()),
   clearSystemLogs: vi.fn(),
   clearTauriLogs: vi.fn(),
 }));

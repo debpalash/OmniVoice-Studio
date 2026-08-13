@@ -22,6 +22,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Brain, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { apiJson, apiFetch, apiPost } from '../../api/client';
+import { useAppStore } from '../../store';
 import { SettingsSection, SettingRow, SettingsInput } from './primitives';
 import { Button, Badge, Select } from '../../ui';
 
@@ -228,6 +229,19 @@ export default function LLMProvidersPanel() {
       title={t('settings.llm_providers')}
       description={t('settings.llmp_desc')}
     >
+      {/* Backlink half of the catalogue↔providers door: the provider picked
+          here is what the catalogue's LLM family actually calls through. */}
+      <p className="m-0 text-[length:var(--text-xs)] text-[color:var(--chrome-fg-muted)]">
+        {t('settings.llmp_catalogue_note')}{' '}
+        <button
+          type="button"
+          className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--text-xs)] text-[color:var(--chrome-accent)] underline-offset-2 hover:underline"
+          onClick={() => useAppStore.getState().openCatalogue?.({ pane: 'engines', family: 'llm' })}
+          data-testid="llmp-open-catalogue"
+        >
+          {t('settings.llmp_catalogue_link')}
+        </button>
+      </p>
       <SettingRow
         title={t('settings.llmp_provider')}
         hint={t('settings.llmp_provider_hint')}

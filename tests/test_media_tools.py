@@ -432,7 +432,7 @@ def test_router_ytdlp_routes_not_shadowed_by_tool_param(mt, monkeypatch):
     assert r.json()["state"] == "running"
 
 
-def test_router_is_loopback_gated(mt):
+def test_router_is_admin_gated(mt):
     from main import app
     c = TestClient(app)  # client.host = 'testclient' → non-loopback
     for method, path in [
@@ -442,4 +442,21 @@ def test_router_is_loopback_gated(mt):
         ("post", "/media-tools/ytdlp/update"),
     ]:
         r = getattr(c, method)(path)
-        assert r.status_code == 403, f"{path} must be loopback-only"
+        assert r.status_code == 403, f"{path} must be admin-only"
+
+
+def test_server_mode_media_tool_mutations_require_api_key(mt, monkeypatch):
+    from main import app
+
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+    remote = TestClient(app, client=("172.17.0.1", 50000))
+
+    assert remote.get("/media-tools/status").status_code == 200
+    for path in (
+        "/media-tools/acquire",
+        "/media-tools/ytdlp/update",
+        "/media-tools/ytdlp/restore",
+        "/media-tools/ffmpeg/use-system",
+    ):
+        assert remote.post(path).status_code == 403, path

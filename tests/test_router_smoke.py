@@ -40,7 +40,7 @@ def client():
 
     # `client=("127.0.0.1", 50000)` so `request.client.host` resolves to a
     # loopback address — the system router is gated by a router-level
-    # `require_loopback` dependency. Smoke tests are happy-path tests and
+    # `require_admin` dependency. Smoke tests are happy-path tests and
     # should pass the gate.
     return TestClient(app, client=("127.0.0.1", 50000))
 

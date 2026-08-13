@@ -36,6 +36,8 @@
     "open_models": "Modellen openen"
   },
   "settings": {
+    "remote_backend_test": "Verbinding testen",
+    "remote_backend_save": "Opslaan en herladen",
     "remote_backend_recovery_title": "Kan de externe backend niet bereiken",
     "remote_backend_recovery_hint": "Je kunt de externe backend later wijzigen via Instellingen → Delen.",
     "remote_backend_use_local": "Lokale backend gebruiken",
@@ -58,6 +60,8 @@
     "credentials": "Inloggegevens",
     "llm_providers": "LLM-providers",
     "llmp_desc": "Drijft de Cinematic- en Autofit-vertaling aan — de LLM herschrijft elke regel zodat die binnen het tijdsbudget van zijn segment past en de videotiming behouden blijft. Sleutels worden versleuteld opgeslagen; lokale providers (Ollama/LM Studio) blijven volledig offline.",
+    "llmp_catalogue_note": "De als actief gemarkeerde provider antwoordt zodra de LLM-enginefamilie in de catalogus op \"OpenAI-compatibel\" staat.",
+    "llmp_catalogue_link": "LLM-familie in de catalogus openen",
     "llmp_provider": "Provider",
     "llmp_provider_hint": "Kies een provider om te configureren. De actieve wordt gebruikt voor Cinematic/Autofit-vertaling. Lokale providers hebben geen sleutel nodig, maar hun server moet wel draaien.",
     "llmp_local_tag": "lokaal",
@@ -282,7 +286,36 @@
     "models_dir_effective": "Nu in gebruik",
     "models_dir_configured": "Geconfigureerd",
     "models_dir_default": "Standaard wordt gebruikt",
-    "models_dir_restart": "↻ Start VoiceStudio opnieuw om de nieuwe locatie te gebruiken."
+    "models_dir_restart": "↻ Start VoiceStudio opnieuw om de nieuwe locatie te gebruiken.",
+    "worker_join": "Koppelen",
+    "worker_join_code": "Koppelcode",
+    "worker_join_code_hint": "Eenmalig te gebruiken en verloopt over 15 minuten. Genereer hem op de machine die het werk gaat versturen.",
+    "worker_join_desc": "Laat een andere kopie van VoiceStudio taken naar deze machine sturen. Plak de koppelcode die daar werd getoond — of scan de QR met je telefoon en plak hem hier.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE is ingesteld in de omgeving van deze machine, dus die bepaalt het — wijzig het daar.",
+    "worker_join_no_endpoint": "Geen control plane onthouden.",
+    "worker_join_ok": "Gekoppeld. Deze machine neemt nu werk aan.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Aan een andere koppelen",
+    "worker_join_stopped": "Gestopt",
+    "worker_join_take_work": "Werk aannemen van",
+    "worker_join_title": "De GPU van deze machine uitlenen",
+    "worker_join_working": "Aan het werk",
+    "workers_add_hint_qr": "Genereer een token, scan daarna de QR vanaf de andere machine of plak de code in de instellingen voor Externe workers van die machine.",
+    "workers_approve": "Goedkeuren",
+    "workers_last_seen": "laatst gezien {{when}}",
+    "workers_qr_alt": "QR-code met deze code — scan hem vanaf de andere machine",
+    "workers_secret_done": "Klaar",
+    "workers_seen_hr": "{{count}} u geleden",
+    "workers_seen_min": "{{count}} min geleden",
+    "workers_seen_now": "zojuist",
+    "workers_step_1": "Installeer VoiceStudio op de machine met de GPU.",
+    "workers_step_2": "Genereer hierboven een token.",
+    "workers_step_3": "Scan daar de QR, of plak de code in de instellingen voor Externe workers van die machine.",
+    "workers_summary_none": "Niemand verbonden",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Verlopen — genereer een nieuwe",
+    "workers_token_expires_in": "Verloopt over {{time}}",
+    "workers_token_qr_hint": "Op de andere machine: Instellingen → Systeem → Externe workers → Koppelen, en scan of plak daar."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -552,7 +585,16 @@
     "seed_placeholder": "elke keer willekeurig",
     "seed_keep": "Bewaar dit zaad",
     "seed_reroll": "Nieuw zaad",
-    "seed_reroll_hint": "Rol een nieuw willekeurig zaadje en bewaar het"
+    "seed_reroll_hint": "Rol een nieuw willekeurig zaadje en bewaar het",
+    "generating_done_status": "Generatie voltooid",
+    "generating_status": "Audio genereren…",
+    "identity": "Identiteit",
+    "identity_auto": "Automatisch — het model beslist",
+    "insert": "Invoegen",
+    "insert_token": "Expressietoken invoegen",
+    "script": "Script",
+    "starting_points": "Startpunten",
+    "voice_kicker": "Stem"
   },
   "about": {
     "app": "App",
@@ -668,6 +710,7 @@
     "ready": "klaar",
     "unavailable": "niet beschikbaar",
     "use": "Gebruik",
+    "configureProviders": "Providers configureren",
     "loading": "Motoren laden…",
     "refresh": "Vernieuwen",
     "matrixTitle": "Motorcompatibiliteitsmatrix",
@@ -677,7 +720,9 @@
     "activeEngine": "Actief {{family}}: {{engine}}",
     "engineCompatLabel": "{{family}} motorcompatibiliteit",
     "active": "actief",
-    "whyUnavailable": "Waarom niet beschikbaar?",
+    "whyUnavailable": "Wat het nodig heeft",
+    "sectionReady": "Klaar voor gebruik",
+    "sectionMore": "Meer motoren toevoegen",
     "lastError": "Laatste fout: {{error}}",
     "installedAndReady": "Geïnstalleerd en klaar",
     "notInstalled": "Niet geïnstalleerd",
@@ -1591,7 +1636,9 @@
     "searchIssues": "Vergelijkbare problemen zoeken",
     "unexpected": "Onverwachte fout: {{message}}",
     "backend_shutting_down": "VoiceStudio wordt afgesloten. Open de app opnieuw en probeer het nog eens.",
-    "crash_broken_env": "Hij stierf tijdens het laden van zijn eigen Python-afhankelijkheden, dus dit gaat niet over geheugen of je GPU — de omgeving is onvolledig of half bijgewerkt blijven staan. Gebruik \"Clean & Retry\" bij Instellingen → Logs → Backend: dat bouwt hem helemaal opnieuw op en repareert hem ter plekke, zonder je stemmen of projecten aan te raken. Blijft het misgaan, dan noemen de crashdetails het pakket dat niet te importeren was."
+    "crash_broken_env": "Hij stierf tijdens het laden van zijn eigen Python-afhankelijkheden, dus dit gaat niet over geheugen of je GPU — de omgeving is onvolledig of half bijgewerkt blijven staan. Gebruik \"Wissen & Opnieuw proberen\" bij Instellingen → Logs → Backend: dat bouwt hem helemaal opnieuw op en repareert hem ter plekke, zonder je stemmen of projecten aan te raken. Blijft het misgaan, dan noemen de crashdetails het pakket dat niet te importeren was.",
+    "crash_vram_default": "Op kleinere GPU's is de gebruikelijke oorzaak dat het VRAM-geheugen opraakt bij het laden van het ASR-model bovenop het TTS-model: ontlaad eerst het TTS-model, of kies een kleiner ASR-model in Modelcatalogus → Modellen.",
+    "stream_cut_backend_alive": "De stream stopte te vroeg, maar de backend draait nog — hij is dus niet gecrasht. In een server- of containeropstelling is dit meestal een reverse proxy of load balancer die de verbinding buffert of door een time-out afbreekt: schakel responsbuffering voor deze route uit (nginx: proxy_buffering off; X-Accel-Buffering: no) en verhoog de leestime-out ervan. Draai je de desktopapp direct, of op localhost zonder proxy, dan bevestigt dat het."
   },
   "keyboard": {
     "title": "Sneltoetsen",
@@ -1599,6 +1646,8 @@
     "or": "of",
     "nav": "Navigatie",
     "nav_cheatsheet": "Laat dit spiekbriefje zien",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Modaal sluiten / annuleren",
     "nav_save": "Project opslaan / trimmen vastleggen",
     "segmentEditor": "Segmenteditor",
@@ -2534,5 +2583,22 @@
       "longform": "verhaalvertelling",
       "asr": "transcriptie"
     }
+  },
+  "compute": {
+    "add_machine": "Machine toevoegen",
+    "manage": "Instellingen voor externe workers",
+    "off_hint": "Alles draait op deze machine. Zet Extern aan om een andere te gebruiken.",
+    "quick_settings": "Rekenkracht — waar taken draaien",
+    "remote": "Extern",
+    "title": "Waar taken draaien",
+    "token_once": "Scan of plak dit op de andere machine. Wordt maar één keer getoond."
+  },
+  "voices": {
+    "active": "Actieve stem",
+    "active_clone_recipe": "Gekloond van je referentieclip",
+    "cta_clone": "Zet een clip van 3 s neer in Stem ← om er een te klonen",
+    "cta_design": "Beschrijf een stem in Stem ← om die te ontwerpen",
+    "new": "Nieuwe stem",
+    "none_selected": "Geen stem geselecteerd — beschrijf er een, zet audio neer of kies hieronder."
   }
 }

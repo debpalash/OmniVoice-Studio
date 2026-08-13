@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.logging_utils import log_safe
-from api.dependencies import require_admin
+from api.dependencies import require_admin, require_admin_action
 
 logger = logging.getLogger("omnivoice.api.settings")
 
@@ -92,8 +92,8 @@ def get_hf_token_state(fresh: bool = Query(False)):
 
 
 # ── Performance settings (INST-12) ────────────────────────────────────────
-# Threat T-02-04: same loopback guard as the hf-token endpoints via the
-# router-level `require_loopback` dep.
+# Threat T-02-04: same admin guard as the hf-token endpoints via the
+# router-level `require_admin` dep.
 
 
 _TORCH_COMPILE_KEY = "perf.torch_compile_disabled"
@@ -481,7 +481,10 @@ def _local_models(base_url: str, api_key: str):
         return None
 
 
-@router.get("/llm-providers/{provider_id}/models")
+@router.get(
+    "/llm-providers/{provider_id}/models",
+    dependencies=[Depends(require_admin_action)],
+)
 def list_llm_provider_models(provider_id: str):
     """List model ids the provider's key can access (OpenAI-compat /models).
 

@@ -338,7 +338,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                     None
                 };
             if let Some((exit_info, real_exit)) = process_dead {
-                let err_tail = crate::backend::read_error_log_tail(30);
+                let err_tail = crate::backend::read_error_log_tail_for_run(30);
                 // #941: persist the forensics for every true process death —
                 // startup crashes included — unless the app is shutting down
                 // or a retry flow deliberately killed the child.
@@ -347,7 +347,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                         crate::crash::record_crash(crate::crash::marker_now(
                             exit,
                             backend_uptime_s(app),
-                            crate::backend::read_error_log_tail(CRASH_STDERR_TAIL_LINES),
+                            crate::backend::read_error_log_tail_for_run(CRASH_STDERR_TAIL_LINES),
                         ));
                     }
                 }
@@ -443,7 +443,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
             }
             std::thread::sleep(Duration::from_millis(500));
         }
-        let err_tail = crate::backend::read_error_log_tail(20);
+        let err_tail = crate::backend::read_error_log_tail_for_run(20);
         let msg = if err_tail.is_empty() {
             "Backend did not respond within 300 s".to_string()
         } else {
@@ -587,10 +587,10 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
         crate::crash::record_crash(crate::crash::marker_now(
             &exit,
             uptime_s,
-            crate::backend::read_error_log_tail(CRASH_STDERR_TAIL_LINES),
+            crate::backend::read_error_log_tail_for_run(CRASH_STDERR_TAIL_LINES),
         ));
         if restart_budget_exhausted(&mut restart_times, Instant::now()) {
-            let tail = crate::backend::read_error_log_tail(30);
+            let tail = crate::backend::read_error_log_tail_for_run(30);
             let msg = format!(
                 "The backend kept crashing ({} times in {} min; last death: {}) and couldn't \
                  be kept running. Use Clean & Retry, or check Settings → Logs → Backend.{}",

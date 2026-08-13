@@ -373,7 +373,16 @@
     "define_by_design": "By design",
     "define_from_audio": "From audio",
     "define_voice": "Define voice",
-    "save_design_as_profile": "Save design as profile"
+    "save_design_as_profile": "Save design as profile",
+    "generating_done_status": "Generation finished",
+    "generating_status": "Generating audio…",
+    "identity": "Identity",
+    "identity_auto": "Auto — the model decides",
+    "insert": "Insert",
+    "insert_token": "Insert expression token",
+    "script": "Script",
+    "starting_points": "Starting points",
+    "voice_kicker": "Voice"
   },
   "settings": {
     "title": "Settings",
@@ -407,6 +416,8 @@
     "credentials": "Credentials",
     "llm_providers": "LLM Providers",
     "llmp_desc": "Powers Cinematic & Autofit translation — the LLM rewrites each line to fit its segment's time budget so the video timing holds. Keys are stored encrypted; local providers (Ollama/LM Studio) stay fully offline.",
+    "llmp_catalogue_note": "The provider marked active is what answers whenever the LLM engine family is set to OpenAI-compatible in the catalogue.",
+    "llmp_catalogue_link": "Open the LLM family in the catalogue",
     "llmp_provider": "Provider",
     "llmp_provider_hint": "Pick a provider to configure. The active one is used for Cinematic/Autofit translation. Local providers need no key but require their server to be running.",
     "llmp_local_tag": "local",
@@ -850,7 +861,36 @@
     "models_dir_effective": "Effective now",
     "models_dir_configured": "Configured",
     "models_dir_default": "Using default",
-    "models_dir_restart": "↻ Restart VoiceStudio to use the new location."
+    "models_dir_restart": "↻ Restart VoiceStudio to use the new location.",
+    "worker_join": "Join",
+    "worker_join_code": "Join code",
+    "worker_join_code_hint": "Single-use and expires in 15 minutes. Generate it on the machine that will send the work.",
+    "worker_join_desc": "Let another copy of VoiceStudio send jobs to this machine. Paste the join code it showed you — or scan its QR with your phone and paste it here.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE is set in this machine’s environment, so it decides — change it there.",
+    "worker_join_no_endpoint": "No control plane remembered.",
+    "worker_join_ok": "Joined. This machine is now taking work.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Join a different one",
+    "worker_join_stopped": "Stopped",
+    "worker_join_take_work": "Take work from",
+    "worker_join_title": "Lend this machine's GPU",
+    "worker_join_working": "Working",
+    "workers_add_hint_qr": "Generate a token, then scan the QR from the other machine or paste the code into its Remote workers settings.",
+    "workers_approve": "Approve",
+    "workers_last_seen": "last seen {{when}}",
+    "workers_qr_alt": "QR code carrying this code — scan it from the other machine",
+    "workers_secret_done": "Done",
+    "workers_seen_hr": "{{count}}h ago",
+    "workers_seen_min": "{{count}}m ago",
+    "workers_seen_now": "just now",
+    "workers_step_1": "Install VoiceStudio on the machine with the GPU.",
+    "workers_step_2": "Generate a token above.",
+    "workers_step_3": "Scan the QR there, or paste the code into its Remote workers settings.",
+    "workers_summary_none": "Nobody connected",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Expired — generate a new one",
+    "workers_token_expires_in": "Expires in {{time}}",
+    "workers_token_qr_hint": "On the other machine: Settings → System → Remote workers → Join, then scan or paste."
   },
   "about": {
     "app": "App",
@@ -1960,6 +2000,7 @@
     "ready": "ready",
     "unavailable": "Unavailable",
     "use": "Use",
+    "configureProviders": "Configure providers",
     "loading": "Loading engines…",
     "refresh": "Refresh",
     "matrixTitle": "Engine Compatibility Matrix",
@@ -1974,7 +2015,9 @@
     "activeEngine": "Active {{family}}: {{engine}}",
     "engineCompatLabel": "{{family}} engine compatibility",
     "active": "active",
-    "whyUnavailable": "Why unavailable?",
+    "whyUnavailable": "What it needs",
+    "sectionReady": "Ready to use",
+    "sectionMore": "Add more engines",
     "lastError": "Last error: {{error}}",
     "installedAndReady": "Installed and ready",
     "notInstalled": "Not installed",
@@ -2052,7 +2095,9 @@
     "searchIssues": "Search similar issues",
     "unexpected": "Unexpected error: {{message}}",
     "backend_shutting_down": "VoiceStudio is shutting down. Reopen the app and try again.",
-    "crash_broken_env": "It died while loading its own Python dependencies, so this is not about memory or your GPU — the environment is incomplete or was left half-updated. Use \"Clean & Retry\" in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in place, without touching your voices or projects. If it still fails afterwards, the crash details name the exact package that would not import."
+    "crash_broken_env": "It died while loading its own Python dependencies, so this is not about memory or your GPU — the environment is incomplete or was left half-updated. Use \"Clean & Retry\" in Settings → Logs → Backend, which rebuilds it from scratch; that repairs it in place, without touching your voices or projects. If it still fails afterwards, the crash details name the exact package that would not import.",
+    "crash_vram_default": "On smaller GPUs the usual cause is running out of VRAM while loading the ASR model on top of the TTS model: flush the TTS model first, or pick a smaller ASR model in Model Catalogue → Models.",
+    "stream_cut_backend_alive": "The stream ended early, but the backend is still running — so it did not crash. In a served or containerised setup this is usually a reverse proxy or load balancer buffering or timing out the connection: disable response buffering for this route (nginx: proxy_buffering off; X-Accel-Buffering: no) and raise its read timeout. Running the desktop app directly, or on localhost without a proxy, will confirm it."
   },
   "crash": {
     "notice": "The voice backend crashed ({{exit}}) {{ago}} ago and is being restarted automatically.",
@@ -2136,6 +2181,8 @@
     "or": "or",
     "nav": "Navigation",
     "nav_cheatsheet": "Show this cheatsheet",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Close modal / cancel",
     "nav_save": "Save project / commit trim",
     "segmentEditor": "Segment editor",
@@ -3039,5 +3086,22 @@
       "longform": "story narration",
       "asr": "transcription"
     }
+  },
+  "compute": {
+    "add_machine": "Add a machine",
+    "manage": "Remote worker settings",
+    "off_hint": "Everything runs on this machine. Turn Remote on to use another.",
+    "quick_settings": "Compute — where jobs run",
+    "remote": "Remote",
+    "title": "Where jobs run",
+    "token_once": "Scan or paste this on the other machine. Shown once."
+  },
+  "voices": {
+    "active": "Active voice",
+    "active_clone_recipe": "Cloned from your reference clip",
+    "cta_clone": "Drop a 3s clip in Voice ← to clone one",
+    "cta_design": "Describe one in Voice ← to design it",
+    "new": "New voice",
+    "none_selected": "No voice selected — describe one, drop audio, or pick below."
   }
 }

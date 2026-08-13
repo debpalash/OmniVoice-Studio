@@ -11,7 +11,7 @@ from core.prefs import set_ as prefs_set, delete as prefs_delete
 from services import network_share
 from services import tailscale as _tailscale
 from api.schemas import SysinfoResponse, SystemInfoResponse, ModelStatusResponse
-from api.dependencies import is_loopback, require_admin
+from api.dependencies import is_loopback, require_admin, require_admin_action
 from fastapi.responses import FileResponse, StreamingResponse
 import torch
 import shutil
@@ -1089,7 +1089,10 @@ async def diagnostic_bundle(network: bool = Query(False, description="Include th
 # ── Self-check diagnostics ────────────────────────────────────────────────
 
 
-@router.get("/system/diagnose")
+@router.get(
+    "/system/diagnose",
+    dependencies=[Depends(require_admin_action)],
+)
 async def system_diagnose(
     network: bool = Query(True, description="Include the HuggingFace hub reachability probe"),
     deep: bool = Query(False, description="Also load the active engine and synthesize a short utterance (may cold-load the model — minutes on first run)"),

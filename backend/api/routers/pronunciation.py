@@ -7,7 +7,7 @@ CRUD for the DB-backed, per-language pronunciation dictionary the
 before synthesis (see ``services/pronunciation.apply_pronunciation`` and the
 generate path), so a saved entry actually changes the audio on every engine.
 
-Endpoints (loopback-only, like the dictation router):
+Endpoints (admin-gated; loopback or authenticated server mode):
     GET    /pronunciation              → list every entry
     POST   /pronunciation              → create one entry
     PUT    /pronunciation/{entry_id}   → update an entry (partial)
@@ -30,12 +30,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 from core.db import db_conn
 from services.pronunciation import apply_pronunciation, entries_for_language
 
 logger = logging.getLogger("omnivoice.pronunciation")
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 _VALID_TYPES = ("respelling", "ipa", "cmu")
 _ALL_LANG = "*"
@@ -133,7 +133,7 @@ class PronImportRequest(BaseModel):
 # ── CRUD ─────────────────────────────────────────────────────────────────────
 
 
-@router.get("/pronunciation", dependencies=[Depends(require_loopback)])
+@router.get("/pronunciation")
 def list_entries():
     with db_conn() as conn:
         rows = conn.execute(
@@ -143,7 +143,7 @@ def list_entries():
     return [_row_to_dict(r) for r in rows]
 
 
-@router.post("/pronunciation", dependencies=[Depends(require_loopback)])
+@router.post("/pronunciation")
 def create_entry(entry: PronEntry):
     term = entry.term.strip()
     if not term:
@@ -171,7 +171,7 @@ def create_entry(entry: PronEntry):
     return _row_to_dict(row)
 
 
-@router.put("/pronunciation/{entry_id}", dependencies=[Depends(require_loopback)])
+@router.put("/pronunciation/{entry_id}")
 def update_entry(entry_id: str, patch: PronEntryUpdate):
     with db_conn() as conn:
         existing = conn.execute(
@@ -226,7 +226,7 @@ def update_entry(entry_id: str, patch: PronEntryUpdate):
     return _row_to_dict(row)
 
 
-@router.delete("/pronunciation/{entry_id}", dependencies=[Depends(require_loopback)])
+@router.delete("/pronunciation/{entry_id}")
 def delete_entry(entry_id: str):
     with db_conn() as conn:
         cur = conn.execute("DELETE FROM pronunciation_entries WHERE id = ?", (entry_id,))
@@ -236,7 +236,7 @@ def delete_entry(entry_id: str):
 # ── Dry-run + import/export ───────────────────────────────────────────────────
 
 
-@router.post("/pronunciation/test", dependencies=[Depends(require_loopback)])
+@router.post("/pronunciation/test")
 def test_substitution(req: PronTestRequest):
     """Show the post-substitution text for ``req.text`` — no model call.
 
@@ -258,7 +258,7 @@ def test_substitution(req: PronTestRequest):
     }
 
 
-@router.get("/pronunciation/export", dependencies=[Depends(require_loopback)])
+@router.get("/pronunciation/export")
 def export_entries():
     """Every entry as a JSON-serializable list (round-trips ``/import``)."""
     with db_conn() as conn:
@@ -273,7 +273,7 @@ def export_entries():
     ]}
 
 
-@router.post("/pronunciation/import", dependencies=[Depends(require_loopback)])
+@router.post("/pronunciation/import")
 def import_entries(req: PronImportRequest):
     """Bulk-add entries. ``replace=true`` clears the table first.
 

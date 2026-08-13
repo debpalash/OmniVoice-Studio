@@ -1,11 +1,20 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '../i18n';
 
 import DubHeader from '../components/dub/DubHeader';
 
 const t = i18n.t.bind(i18n);
+
+// DubHeader mounts EngineQuickSwitch, whose useEngines query needs a client.
+// One client at module scope: an inline `new QueryClient()` would be a fresh
+// client on every wrapper render, so a rerender() drops the query cache.
+const queryClient = new QueryClient();
+const wrapper = ({ children }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+);
 
 function makeProps(overrides = {}) {
   return {
@@ -37,7 +46,7 @@ function makeProps(overrides = {}) {
 describe('DubHeader — polished workflow actions', () => {
   it('keeps all three actions visible, ordered, accessible, and wired', () => {
     const props = makeProps();
-    render(<DubHeader {...props} />);
+    render(<DubHeader {...props} />, { wrapper });
 
     const group = screen.getByTestId('dub-primary-actions');
     const buttons = within(group).getAllByRole('button');
@@ -67,7 +76,7 @@ describe('DubHeader — polished workflow actions', () => {
   });
 
   it('wraps and stretches actions in mini shells without changing their labels', () => {
-    render(<DubHeader {...makeProps()} />);
+    render(<DubHeader {...makeProps()} />, { wrapper });
 
     const group = screen.getByTestId('dub-primary-actions');
     expect(group).toHaveClass('flex-wrap', '[.shell-mini_&]:w-full');
@@ -77,7 +86,7 @@ describe('DubHeader — polished workflow actions', () => {
   });
 
   it('exposes verification progress and preserves disabled action guards', () => {
-    const { rerender } = render(<DubHeader {...makeProps({ qcRunning: true })} />);
+    const { rerender } = render(<DubHeader {...makeProps({ qcRunning: true })} />, { wrapper });
     const verify = screen.getByRole('button', { name: t('dub.qc_btn') });
     expect(verify).toBeDisabled();
     expect(verify).toHaveAttribute('aria-busy', 'true');

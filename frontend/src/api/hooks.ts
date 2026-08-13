@@ -14,6 +14,8 @@ import * as archetypesApi from './archetypes';
 import type { ArchetypeFilters } from './archetypes';
 import * as communityApi from './community';
 import type { CommunityFilters } from './community';
+import * as enginesApi from './engines';
+import type { AllEnginesResponse, EngineFamily } from './types';
 
 // ── Keys (prevents typos, enables targeted invalidation) ─────────────────
 export const queryKeys = {
@@ -26,6 +28,7 @@ export const queryKeys = {
   models: ['models'] as const,
   recommendations: ['recommendations'] as const,
   preflight: ['preflight'] as const,
+  engines: ['engines'] as const,
   setupStatus: ['setup-status'] as const,
   galleryVoices: (params?: any) => ['gallery-voices', params] as const,
   galleryCategories: ['gallery-categories'] as const,
@@ -171,6 +174,39 @@ export function usePreflight() {
   });
 }
 
+/**
+ * The app-wide engine inventory.  Engine selection affects more than the
+ * catalogue (for example Audiobook's expressive controls), so every consumer
+ * must share this cache rather than take its own one-off snapshot.
+ *
+ * `queryFn` is injectable for the compatibility-matrix test seam.
+ */
+export function useEngines(queryFn: () => Promise<AllEnginesResponse> = enginesApi.listEngines) {
+  return useQuery({
+    queryKey: queryKeys.engines,
+    queryFn,
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+/** Select an engine and invalidate every view derived from `/engines`. */
+export function useSelectEngine() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      family,
+      backendId,
+      modelId,
+    }: {
+      family: EngineFamily;
+      backendId: string;
+      modelId?: string;
+    }) => enginesApi.selectEngine(family, backendId, modelId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.engines }),
+  });
+}
+
 export function useSetupStatus() {
   return useQuery({
     queryKey: queryKeys.setupStatus,
@@ -230,6 +266,9 @@ export function useInstallModel() {
       qc.invalidateQueries({ queryKey: queryKeys.models });
       qc.invalidateQueries({ queryKey: queryKeys.setupStatus });
       qc.invalidateQueries({ queryKey: queryKeys.recommendations });
+      // Some model installs make an engine selectable; refresh every engine
+      // indicator rather than leaving a stale unavailable snapshot behind.
+      qc.invalidateQueries({ queryKey: queryKeys.engines });
     },
   });
 }
@@ -242,6 +281,7 @@ export function useDeleteModel() {
       qc.invalidateQueries({ queryKey: queryKeys.models });
       qc.invalidateQueries({ queryKey: queryKeys.setupStatus });
       qc.invalidateQueries({ queryKey: queryKeys.recommendations });
+      qc.invalidateQueries({ queryKey: queryKeys.engines });
     },
   });
 }

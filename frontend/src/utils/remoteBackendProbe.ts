@@ -1,4 +1,5 @@
 import { LS_API_KEY, LS_BACKEND_URL } from '../api/client.ts';
+import { clearAdminSession, revokeAdminSession } from '../api/authSession.ts';
 
 export type RemoteProbeKind = 'tls' | 'cors' | 'network' | 'timeout' | 'http' | 'wrong_port';
 
@@ -8,22 +9,46 @@ export type RemoteProbeResult =
 
 const MAX_HEALTH_BYTES = 16 * 1024;
 
-export function configuredRemoteBackend(): { url: string; key: string } | null {
+export function configuredRemoteBackend(): { url: string } | null {
   try {
     const url = localStorage.getItem(LS_BACKEND_URL)?.trim().replace(/\/+$/, '') || '';
-    return url ? { url, key: localStorage.getItem(LS_API_KEY)?.trim() || '' } : null;
+    // Older releases durably stored the master. Never read it here — startup
+    // must never attach it to a probe or ordinary API request — and never
+    // delete it either: api/client.ts migrates it into a scoped session and
+    // removes it on the first SUCCESSFUL exchange. Wiping it before that
+    // migration succeeds strands a user whose backend is unreachable at launch.
+    return url ? { url } : null;
   } catch {
     return null;
   }
 }
 
-export function disableRemoteBackend(reload: () => void): void {
+export async function disableRemoteBackend(reload: () => void): Promise<void> {
+  let target = '';
+  try {
+    target = localStorage.getItem(LS_BACKEND_URL)?.trim().replace(/\/+$/, '') || '';
+  } catch {
+    // Recovery must continue even when browser storage is unavailable.
+  }
   try {
     localStorage.removeItem(LS_BACKEND_URL);
-    localStorage.removeItem(LS_API_KEY);
-  } finally {
-    reload();
+  } catch {
+    // Best effort: the next reload still starts without the in-memory target.
   }
+  try {
+    localStorage.removeItem(LS_API_KEY);
+  } catch {
+    // Best effort for browsers that block persistent storage.
+  }
+  if (target) {
+    try {
+      await revokeAdminSession(target);
+    } catch {
+      // Local logout and recovery must not depend on backend reachability.
+    }
+  }
+  clearAdminSession();
+  reload();
 }
 
 function transportKind(url: URL, error: unknown): RemoteProbeKind {
@@ -64,7 +89,6 @@ async function readBoundedBody(response: Response): Promise<string | null> {
 
 export async function probeRemoteBackend(
   rawUrl: string,
-  key = '',
   { fetchImpl = fetch, timeoutMs = 5000 }: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<RemoteProbeResult> {
   const rawTarget = rawUrl.trim().replace(/\/+$/, '');
@@ -92,7 +116,6 @@ export async function probeRemoteBackend(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetchImpl(`${target}/health`, {
-      headers: key ? { Authorization: `Bearer ${key}` } : {},
       signal: controller.signal,
       cache: 'no-store',
     });

@@ -2,10 +2,9 @@
  * Settings → Sharing → Remote backend panel (parity program Wave 2.3).
  *
  * Point this app at a VoiceStudio backend running elsewhere (a GPU box over
- * Tailscale, a Docker deployment). Stores the URL + API key in localStorage
- * — they are CLIENT-side settings — and reloads the app so api/client.ts
- * re-resolves the base. "Test" hits {url}/health (with the key) and shows
- * the remote's version + device.
+ * Tailscale, a Docker deployment). Persists only the URL. A supplied master
+ * credential is exchanged for a short-lived session and removed from the UI;
+ * it never enters localStorage or an ordinary health request.
  *
  * Saving is guarded: the URL must be a parseable http(s):// URL (a typo'd
  * base would brick every API call after the reload), and saving a URL that
@@ -19,6 +18,7 @@ import { Server } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Trans, useTranslation } from 'react-i18next';
 import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
+import { clearAdminSession, exchangeApiKey, getAdminSession } from '../../api/authSession';
 import { askConfirm } from '../../utils/dialog';
 import { disableRemoteBackend, probeRemoteBackend } from '../../utils/remoteBackendProbe';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
@@ -43,60 +43,133 @@ export function isValidBackendUrl(value) {
   }
 }
 
+function storedBackendUrl() {
+  try {
+    return localStorage.getItem(LS_BACKEND_URL) || '';
+  } catch {
+    return '';
+  }
+}
+
+function removeLegacyMaster() {
+  try {
+    localStorage.removeItem(LS_API_KEY);
+  } catch {
+    // A blocked storage API is equivalent to the legacy key not being usable.
+  }
+}
+
 export default function RemoteBackendPanel({ reload = () => window.location.reload() }) {
   const { t } = useTranslation();
-  const [url, setUrl] = useState(() => localStorage.getItem(LS_BACKEND_URL) || '');
-  const [key, setKey] = useState(() => localStorage.getItem(LS_API_KEY) || '');
+  const [url, setUrl] = useState(storedBackendUrl);
+  const [key, setKey] = useState('');
   const [probe, setProbe] = useState(null); // {ok, detail, target}
   const [testing, setTesting] = useState(false);
-  const hasSavedRemote = Boolean(localStorage.getItem(LS_BACKEND_URL));
+  const [saving, setSaving] = useState(false);
+  const [authenticatedTarget, setAuthenticatedTarget] = useState(null);
+  const [initialTarget] = useState(() => (storedBackendUrl() || API).trim().replace(/\/+$/, ''));
+  const [restoredSessionTarget] = useState(() => getAdminSession(initialTarget)?.apiBase ?? null);
+  const hasSavedRemote = Boolean(storedBackendUrl());
 
   const normalized = url.trim().replace(/\/+$/, '');
 
   const onTest = async () => {
+    if (testing || saving) return;
     setTesting(true);
     setProbe(null);
     const target = normalized || API;
+    const master = key.trim();
+    // Retain the secret only in this in-flight stack frame. A pending legacy
+    // master in localStorage is left alone: a mere connection test must not
+    // consume the key the bootstrap migration still needs to retry.
+    setKey('');
     try {
-      setProbe(await probeRemoteBackend(target, key.trim()));
+      const result = await probeRemoteBackend(target);
+      if (!result.ok || !master) {
+        setProbe(result);
+        return;
+      }
+      try {
+        await exchangeApiKey(master, { apiBase: target });
+        setAuthenticatedTarget(target);
+        setProbe(result);
+      } catch (error) {
+        setAuthenticatedTarget(null);
+        setProbe({
+          ok: false,
+          kind: error?.status ? 'http' : 'network',
+          status: error?.status,
+          target,
+        });
+      }
     } finally {
       setTesting(false);
     }
   };
 
   const onSave = async () => {
-    if (normalized) {
-      if (!isValidBackendUrl(normalized)) {
-        toast.error(
-          t('settings.remote_backend_invalid_url', {
-            defaultValue:
-              'Enter a valid URL starting with http:// or https:// (e.g. http://gpu-box:3900).',
-          }),
-        );
-        return;
+    if (testing || saving) return;
+    setSaving(true);
+    const master = key.trim();
+    setKey('');
+    try {
+      if (normalized) {
+        if (!isValidBackendUrl(normalized)) {
+          toast.error(
+            t('settings.remote_backend_invalid_url', {
+              defaultValue:
+                'Enter a valid URL starting with http:// or https:// (e.g. http://gpu-box:3900).',
+            }),
+          );
+          return;
+        }
+        // A wrong base bricks every API call after the reload — if this exact
+        // URL hasn't passed a connection test, make the user confirm.
+        const verified = probe?.ok && probe.target === normalized;
+        if (!verified) {
+          const go = await askConfirm(
+            t('settings.remote_backend_confirm_unverified', {
+              defaultValue:
+                "This backend URL hasn't passed a connection test. Save it and reload anyway? " +
+                "If it's wrong, the app can't reach any backend until you change it back here.",
+            }),
+            t('settings.remote_backend_confirm_title', { defaultValue: 'Use unverified backend?' }),
+          );
+          if (!go) return;
+        }
+        if (master) {
+          try {
+            await exchangeApiKey(master, { apiBase: normalized });
+            setAuthenticatedTarget(normalized);
+          } catch (error) {
+            setAuthenticatedTarget(null);
+            setProbe({
+              ok: false,
+              kind: error?.status ? 'http' : 'network',
+              status: error?.status,
+              target: normalized,
+            });
+            return;
+          }
+        } else if ((authenticatedTarget ?? restoredSessionTarget ?? initialTarget) !== normalized) {
+          clearAdminSession();
+        }
+        localStorage.setItem(LS_BACKEND_URL, normalized);
+      } else {
+        // Disabling the remote backend is an explicit discard: the pending
+        // legacy master goes with the connection it belonged to. Everywhere
+        // else the durable key is consumed only by a successful exchange
+        // (exchangeApiKey removes it), so an unreachable backend can't strand
+        // the user by destroying their only copy.
+        localStorage.removeItem(LS_BACKEND_URL);
+        clearAdminSession();
+        removeLegacyMaster();
       }
-      // A wrong base bricks every API call after the reload — if this exact
-      // URL hasn't passed a connection test, make the user confirm.
-      const verified = probe?.ok && probe.target === normalized;
-      if (!verified) {
-        const go = await askConfirm(
-          t('settings.remote_backend_confirm_unverified', {
-            defaultValue:
-              "This backend URL hasn't passed a connection test. Save it and reload anyway? " +
-              "If it's wrong, the app can't reach any backend until you change it back here.",
-          }),
-          t('settings.remote_backend_confirm_title', { defaultValue: 'Use unverified backend?' }),
-        );
-        if (!go) return;
-      }
-      localStorage.setItem(LS_BACKEND_URL, normalized);
-    } else {
-      localStorage.removeItem(LS_BACKEND_URL);
+      // api/client.ts resolves the base once at module load.
+      reload();
+    } finally {
+      setSaving(false);
     }
-    if (key.trim()) localStorage.setItem(LS_API_KEY, key.trim());
-    else localStorage.removeItem(LS_API_KEY);
-    // api/client.ts resolves the base once at module load.
-    reload();
   };
 
   return (
@@ -141,6 +214,8 @@ export default function RemoteBackendPanel({ reload = () => window.location.relo
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
+            autoComplete="off"
+            disabled={testing || saving}
             placeholder={t('settings.remote_backend_key_placeholder', {
               defaultValue: 'value of OMNIVOICE_API_KEY on the server',
             })}
@@ -156,19 +231,26 @@ export default function RemoteBackendPanel({ reload = () => window.location.relo
           size="sm"
           onClick={onTest}
           loading={testing}
-          disabled={testing}
+          disabled={testing || saving}
           data-testid="remote-backend-test"
         >
           {t('settings.remote_backend_test', { defaultValue: 'Test connection' })}
         </Button>
-        <Button variant="subtle" size="sm" onClick={onSave} data-testid="remote-backend-save">
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={onSave}
+          loading={saving}
+          disabled={testing || saving}
+          data-testid="remote-backend-save"
+        >
           {t('settings.remote_backend_save', { defaultValue: 'Save & reload' })}
         </Button>
         {hasSavedRemote && (
           <Button
             variant="subtle"
             size="sm"
-            onClick={() => disableRemoteBackend(reload)}
+            onClick={() => void disableRemoteBackend(reload)}
             data-testid="remote-backend-disable"
           >
             {t('settings.remote_backend_use_local')}

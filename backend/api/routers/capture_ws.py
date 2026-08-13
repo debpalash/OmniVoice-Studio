@@ -153,8 +153,8 @@ def _select_sherpa_spec(websocket: WebSocket):
 async def ws_transcribe(websocket: WebSocket):
     """Stream audio in, get partial + final transcription out."""
     # Loopback origin guard — refuse anything not from 127.0.0.1, ::1, or
-    # localhost. HTTP routers use Depends(require_loopback) at router level;
-    # WebSocket dependency injection differs across FastAPI versions, so we
+    # localhost. Privileged HTTP routers use Depends(require_admin) at router
+    # level; WebSocket dependency injection differs across FastAPI versions, so we
     # inline the check before accept(). Without it, any local process could
     # stream the user's microphone over this endpoint.
     # Wave 2.3 (remote backend): a non-loopback client that presents the

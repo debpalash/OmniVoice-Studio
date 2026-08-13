@@ -26,13 +26,23 @@ import {
   recordBackendContact,
   unreachableBackendMessage,
 } from '../utils/backendContact.ts';
+import {
+  CSRF_HEADER_NAME,
+  LEGACY_API_KEY_STORAGE_KEY,
+  clearAdminSession,
+  exchangeApiKey,
+  getAdminSession,
+  isSameOriginApi,
+} from './authSession.ts';
 
 const viteEnv = import.meta.env ?? {};
 // Remote-backend settings (Wave 2.3): user-configured in Settings → Sharing.
 // localStorage so the choice survives restarts; read once at module load —
 // the Settings panel reloads the app on save.
 export const LS_BACKEND_URL = 'ov_backend_url';
-export const LS_API_KEY = 'ov_api_key';
+// Compatibility name used only to delete data written by older releases.
+// New code must never persist the configured master credential.
+export const LS_API_KEY = LEGACY_API_KEY_STORAGE_KEY;
 // Pure + exported for unit testing — takes env + window so tests don't need to
 // re-import the module or stub import.meta.env.
 export function _resolveApiBase(env: any, win: any): string {
@@ -64,40 +74,25 @@ export function _resolveApiBase(env: any, win: any): string {
 }
 export const API = _resolveApiBase(viteEnv, typeof window !== 'undefined' ? window : undefined);
 
-function _apiKey(): string | null {
+function sessionPin(): string | null {
   try {
-    return typeof localStorage !== 'undefined' ? localStorage.getItem(LS_API_KEY) : null;
+    return typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem('ov_pin');
   } catch {
+    // Cookie-authenticated and loopback requests must still work when a
+    // privacy policy blocks Web Storage.
     return null;
-  }
-}
-
-/** Persist the durable remote API key (trimmed). localStorage so it survives
- * reloads; read back by `_apiKey()` on every request. Returns false (without
- * writing) when the value is empty-after-trim or storage is unavailable, so the
- * caller can avoid reloading into a loop. */
-export function saveApiKey(v: string): boolean {
-  const t = v.trim();
-  if (!t) return false;
-  try {
-    localStorage.setItem(LS_API_KEY, t);
-    return true;
-  } catch {
-    return false;
   }
 }
 
 /** Build a ws:// or wss:// URL for a backend WebSocket endpoint.
  *
  * Scheme derives from the API base itself (NOT window.location — a Tauri
- * webview pointing at an https remote must still get wss), and the remote
- * API key rides as ?api_key= because browser WebSockets can't set headers. */
+ * webview pointing at an https remote must still get wss). Credentials are
+ * intentionally excluded; authenticated callers obtain a one-use ticket via
+ * `authenticatedWsUrl` in authSession.ts. */
 export function wsUrl(path: string): string {
   const base = API.replace(/^http/, 'ws').replace(/\/+$/, '');
-  const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
-  const key = _apiKey();
-  if (!key) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(key)}`;
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 /**
@@ -106,9 +101,9 @@ export function wsUrl(path: string): string {
  * the effects.
  *   • ?pin=<pin>     (query)    — LAN-share QR. Returned as `pin` (session).
  *   • #api_key=<key> (fragment) — remote-backend deep link. Returned as `apiKey`
- *     (durable). Read from the FRAGMENT because fragments aren't sent to the
- *     server, so the durable secret stays out of request logs; the PIN stays in
- *     the query since the QR flow needs the server to see it.
+ *     for one immediate exchange. Read from the FRAGMENT because fragments
+ *     aren't sent to the server, so the root secret stays out of request logs;
+ *     the PIN stays in the query since the QR flow needs the server to see it.
  * A stray legacy ?api_key= in the query is scrubbed from `cleanUrl` but NOT
  * returned — reading it would resend the secret to the server on reload, the
  * very leak the fragment avoids. `scrubbed` is true when any credential param
@@ -143,15 +138,95 @@ export function _parseDeepLinkCredentials(href: string): {
   };
 }
 
-// On load, capture deep-link credentials (?pin= from the QR query, #api_key=
-// from a remote-backend fragment) so apiFetch attaches them automatically, then
-// scrub them from the address bar (one-shot — see _parseDeepLinkCredentials).
+type BootstrapWindow = {
+  location: { href: string };
+  history: { replaceState: (data: unknown, unused: string, url?: string | URL | null) => void };
+};
+
+/** One-shot migration seam kept injectable so ordering is regression-tested:
+ * scrub the URL synchronously, read (never re-write) the durable master, then
+ * perform the only request that may carry it. The durable copy is deleted only
+ * after that exchange SUCCEEDS: deleting it first stranded remote-backend
+ * users whose backend was unreachable at first launch after upgrade — the
+ * failed exchange destroyed their only copy of the admin key. On failure the
+ * key stays put so the next launch retries this migration. */
+export async function _bootstrapBrowserCredentials(
+  win: BootstrapWindow,
+  {
+    apiBase = API,
+    sessionStore,
+    localStore,
+    exchange = exchangeApiKey,
+  }: {
+    apiBase?: string;
+    sessionStore?: Pick<Storage, 'setItem'> | null;
+    localStore?: Pick<Storage, 'getItem' | 'removeItem'> | null;
+    exchange?: typeof exchangeApiKey;
+  } = {},
+): Promise<void> {
+  if (sessionStore === undefined) {
+    try {
+      sessionStore = sessionStorage;
+    } catch {
+      sessionStore = null;
+    }
+  }
+  if (localStore === undefined) {
+    try {
+      localStore = localStorage;
+    } catch {
+      localStore = null;
+    }
+  }
+  const { pin, apiKey, cleanUrl, scrubbed } = _parseDeepLinkCredentials(win.location.href);
+  if (scrubbed) {
+    try {
+      win.history.replaceState(null, '', cleanUrl);
+    } catch {
+      /* keep deleting retained credentials even if history is unavailable */
+    }
+  }
+
+  let master = apiKey;
+  try {
+    const legacy = localStore?.getItem(LS_API_KEY) ?? null;
+    if (!master) master = legacy;
+  } catch {
+    /* a fragment exchange can still proceed */
+  }
+  if (pin) {
+    try {
+      sessionStore?.setItem('ov_pin', pin);
+    } catch {
+      /* blocked PIN storage must not prevent the exchange */
+    }
+  }
+  if (master) {
+    // A rejected/unreachable exchange throws past this point, leaving the
+    // durable key in place for the next launch's retry (the module-load catch
+    // below still raises the auth gate). Only a session that actually exists
+    // may consume the stored master.
+    await exchange(master, { apiBase });
+    try {
+      localStore?.removeItem(LS_API_KEY);
+    } catch {
+      /* storage unavailable; exchangeApiKey performed the same best-effort deletion */
+    }
+  }
+}
+
+// On load, capture deep-link credentials, scrub the address bar synchronously,
+// and exchange a master key exactly once. Historical durable master storage is
+// read before the first await and deleted only once the exchange succeeds, so
+// an unreachable backend leaves it for the next launch to retry. apiFetch
+// waits for this one-shot migration so no request races ahead with an
+// unauthenticated first call.
+let authBootstrapPromise: Promise<void> = Promise.resolve();
 if (typeof window !== 'undefined') {
   try {
-    const { pin, apiKey, cleanUrl, scrubbed } = _parseDeepLinkCredentials(window.location.href);
-    if (pin) sessionStorage.setItem('ov_pin', pin);
-    if (apiKey) saveApiKey(apiKey);
-    if (scrubbed) window.history.replaceState(null, '', cleanUrl);
+    authBootstrapPromise = _bootstrapBrowserCredentials(window).catch(() => {
+      window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode: 'apikey' } }));
+    });
   } catch {
     /* noop */
   }
@@ -171,6 +246,21 @@ export class ApiError extends Error {
 export function apiUrl(path?: string): string {
   if (!path) return API;
   return path.startsWith('http') ? path : `${API}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+/** Whether an already-resolved request URL stays inside the configured API
+ * origin and path prefix. Absolute URLs remain supported for public media, but
+ * they must never inherit backend credentials by accident. */
+export function _isApiTarget(target: string, apiBase: string = API): boolean {
+  try {
+    const base = new URL(apiBase.replace(/\/+$/, '') + '/');
+    const url = new URL(target);
+    if (url.origin !== base.origin) return false;
+    const prefix = base.pathname.replace(/\/+$/, '');
+    return !prefix || url.pathname === prefix || url.pathname.startsWith(`${prefix}/`);
+  } catch {
+    return false;
+  }
 }
 
 // Stamped on EVERY response by the backend's BackendMarkerMiddleware and
@@ -243,18 +333,25 @@ const RECONCILE_INTERVAL_MS = 1000;
 export type ApiFetchOptions = RequestInit & { retryTransport?: boolean };
 
 export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promise<Response> {
-  const pin = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ov_pin') : null;
-  const key = _apiKey();
-  // Only modify the request when a PIN/API key is set, so the default call
-  // shape (e.g. FormData posts with no headers / no Content-Type override)
-  // is preserved exactly.
-  const extra: Record<string, string> = {};
-  if (pin) extra['X-OmniVoice-Pin'] = pin;
-  if (key) extra['Authorization'] = `Bearer ${key}`;
+  await authBootstrapPromise;
+  const requestUrl = apiUrl(path);
+  const backendTarget = _isApiTarget(requestUrl);
+  const pin = backendTarget ? sessionPin() : null;
+  const session = backendTarget ? getAdminSession(API) : null;
   const { retryTransport = true, ...requestOpts } = opts;
-  const finalOpts: RequestInit = Object.keys(extra).length
-    ? { ...requestOpts, headers: { ...(requestOpts.headers as Record<string, string>), ...extra } }
-    : requestOpts;
+  const headers = new Headers(requestOpts.headers);
+  if (pin) headers.set('X-OmniVoice-Pin', pin);
+  if (session) headers.set('Authorization', `Bearer ${session.token}`);
+  // Same-origin browser clients authenticate through an HttpOnly cookie. The
+  // marker makes ambient-cookie mutations fail closed under the backend's
+  // exact-Origin CSRF policy; browser-managed Sec-Fetch-Site supplies the
+  // additional guard for side-effectful GET routes.
+  if (backendTarget && isSameOriginApi(API)) headers.set(CSRF_HEADER_NAME, '1');
+  const finalOpts: RequestInit = {
+    ...requestOpts,
+    headers,
+    ...(backendTarget ? { credentials: 'include' as RequestCredentials } : {}),
+  };
   const signal = finalOpts.signal as AbortSignal | null | undefined;
   let lastDetail = '';
   // The shell's last word on the backend. When it still says `ready` after we've
@@ -270,12 +367,12 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     let res: Response;
     try {
-      res = await fetch(apiUrl(path), finalOpts);
+      res = await fetch(requestUrl, finalOpts);
       // Any response — success or HTTP error alike — proves the backend
       // process is alive and answering. Recording it lets a LATER transport
       // failure say "it was answering Xs ago and stopped" instead of the
       // one-size "can't reach" (#1164).
-      recordBackendContact();
+      if (backendTarget) recordBackendContact();
     } catch (e) {
       // A thrown fetch (TypeError "Failed to fetch" / "NetworkError") means the
       // request never reached the backend — it's still starting up, crashed, or
@@ -421,8 +518,8 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
       // or a reverse proxy with no route for this path. Echoing that page
       // ("NOT_FOUND bom1::…") sends the user chasing a page that never
       // existed; name the actual problem instead: where requests are going.
-      if (res.status === 404 && !backendShaped) {
-        throw new ApiError(misroutedBackendMessage(apiUrl(path)), {
+      if (backendTarget && res.status === 404 && !backendShaped) {
+        throw new ApiError(misroutedBackendMessage(requestUrl), {
           status: res.status,
           detail,
         });
@@ -431,13 +528,14 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
       // "API key required" (BearerKeyMiddleware, OMNIVOICE_API_KEY) vs anything
       // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
       // detail is the only discriminator (only two 401 sites exist backend-side).
-      if (res.status === 401 && typeof window !== 'undefined') {
+      if (backendTarget && res.status === 401 && typeof window !== 'undefined') {
         // readError's declared `string` return isn't guaranteed at runtime —
         // `j.detail` can be a structured object/array on a future 401. Match only
         // real strings (avoids both a `.toLowerCase()` crash and `String()` itself
         // throwing on a malformed object); anything else falls back to PIN.
         const mode =
           typeof detail === 'string' && detail.toLowerCase().includes('api key') ? 'apikey' : 'pin';
+        if (mode === 'apikey') clearAdminSession();
         window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
       }
       // Structured details (e.g. the typed asr_model_missing 409) carry a

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { _parseDeepLinkCredentials } from './client';
+import {
+  API,
+  _bootstrapBrowserCredentials,
+  _isApiTarget,
+  _parseDeepLinkCredentials,
+  wsUrl,
+} from './client';
+import { ADMIN_SESSION_STORAGE_KEY, CSRF_HEADER_NAME } from './authSession';
 
 describe('apiFetch PIN header', () => {
   let realFetch: typeof globalThis.fetch;
@@ -21,7 +28,8 @@ describe('apiFetch PIN header', () => {
     }) as any;
     const { apiFetch } = await import('./client');
     await apiFetch('/system/info');
-    expect((seen.headers || {})['X-OmniVoice-Pin']).toBe('424242');
+    expect(new Headers(seen.headers).get('X-OmniVoice-Pin')).toBe('424242');
+    expect(seen.credentials).toBe('include');
   });
 
   it('omits the header when no pin', async () => {
@@ -32,7 +40,27 @@ describe('apiFetch PIN header', () => {
     }) as any;
     const { apiFetch } = await import('./client');
     await apiFetch('/system/info');
-    expect((seen.headers || {})['X-OmniVoice-Pin']).toBeUndefined();
+    expect(new Headers(seen.headers).get('X-OmniVoice-Pin')).toBeNull();
+  });
+
+  it('keeps cookie and loopback requests usable when Web Storage is blocked', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = fetchMock as any;
+
+    try {
+      const { apiFetch } = await import('./client');
+      await expect(apiFetch('/system/info')).resolves.toMatchObject({ ok: true });
+    } finally {
+      getItem.mockRestore();
+    }
+
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
+    expect(headers.get('X-OmniVoice-Pin')).toBeNull();
+    expect(headers.get('Authorization')).toBeNull();
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include');
   });
 
   it('turns a thrown fetch into an actionable ApiError (backend unreachable)', async () => {
@@ -52,6 +80,85 @@ describe('apiFetch PIN header', () => {
     // is preserved, plus mode/last-contact for the bug-report prefill.
     expect(String(err.detail.transport)).toMatch(/Failed to fetch/);
     expect(err.detail).toMatchObject({ mode: 'dev', attempts: 4 });
+  });
+});
+
+describe('apiFetch short-lived admin authentication', () => {
+  let realFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('attaches only the backend-bound short-lived session, never the persisted master', async () => {
+    const session = `ovs_admin_session_${'S'.repeat(43)}`;
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({ token: session, expiresAt: Date.now() / 1000 + 3600, apiBase: API }),
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = fetchMock as any;
+
+    const { apiFetch } = await import('./client');
+    await apiFetch('/system/info');
+
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
+    expect(headers.get('Authorization')).toBe(`Bearer ${session}`);
+    expect(headers.get('Authorization')).not.toContain('legacy-master');
+  });
+
+  it('builds credential-free legacy WebSocket URLs even if old storage is populated', () => {
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const url = wsUrl('/ws/events?view=active');
+    expect(url).toContain('/ws/events?view=active');
+    expect(url).not.toContain('api_key');
+    expect(url).not.toContain('legacy-master');
+  });
+
+  it('never sends backend credentials to an absolute foreign URL', async () => {
+    const session = `ovs_admin_session_${'S'.repeat(43)}`;
+    sessionStorage.setItem('ov_pin', '424242');
+    sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({ token: session, expiresAt: Date.now() / 1000 + 3600, apiBase: API }),
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = fetchMock as any;
+
+    const { apiFetch } = await import('./client');
+    await apiFetch('https://voice.example.evil.test/public.wav', {
+      credentials: 'omit',
+      headers: { 'X-Public-Media': '1' },
+    });
+
+    const [target, init] = fetchMock.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(target).toBe('https://voice.example.evil.test/public.wav');
+    expect(headers.get('Authorization')).toBeNull();
+    expect(headers.get('X-OmniVoice-Pin')).toBeNull();
+    expect(headers.get(CSRF_HEADER_NAME)).toBeNull();
+    expect(headers.get('X-Public-Media')).toBe('1');
+    expect(init?.credentials).toBe('omit');
+  });
+
+  it('binds credentials to the exact configured API path prefix', () => {
+    expect(_isApiTarget('https://voice.test/studio/v1/audio', 'https://voice.test/studio')).toBe(
+      true,
+    );
+    expect(_isApiTarget('https://voice.test/studio-evil/v1', 'https://voice.test/studio')).toBe(
+      false,
+    );
+    expect(_isApiTarget('https://voice.test/other', 'https://voice.test/studio')).toBe(false);
+    expect(_isApiTarget('https://voice.test.evil/v1', 'https://voice.test')).toBe(false);
   });
 });
 
@@ -89,6 +196,14 @@ describe('apiFetch 401 routing', () => {
     dispatch.mock.calls.map((c) => c[0]).find((e) => (e as Event).type === 'ov:auth-required');
 
   it('dispatches ov:auth-required {mode:"apikey"} on an "API key required" 401', async () => {
+    sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        token: `ovs_admin_session_${'S'.repeat(43)}`,
+        expiresAt: Date.now() / 1000 + 3600,
+        apiBase: API,
+      }),
+    );
     globalThis.fetch = stub401('API key required');
     const { apiFetch } = await import('./client');
     try {
@@ -98,6 +213,7 @@ describe('apiFetch 401 routing', () => {
     }
     expect(authEvent()).toBeTruthy();
     expect((authEvent() as any).detail.mode).toBe('apikey');
+    expect(sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY)).toBeNull();
   });
 
   it('dispatches ov:auth-required {mode:"pin"} on a "PIN required" 401', async () => {
@@ -229,5 +345,129 @@ describe('_parseDeepLinkCredentials', () => {
     expect(r.apiKey).toBeNull();
     expect(r.scrubbed).toBe(false);
     expect(r.cleanUrl).toBe('/path?page=2#top');
+  });
+});
+
+describe('_bootstrapBrowserCredentials', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('scrubs the fragment before exchanging exactly once, deleting legacy storage on success', async () => {
+    const order: string[] = [];
+    localStorage.setItem('ov_api_key', 'older-master');
+    const win = {
+      location: { href: 'https://voice.test/app?pin=1234#api_key=fragment-master&tab=voices' },
+      history: {
+        replaceState: (_data: unknown, _unused: string, url?: string | URL | null) => {
+          order.push(`scrub:${String(url)}`);
+        },
+      },
+    };
+    const exchange = vi.fn(async (master) => {
+      order.push('exchange');
+      expect(master).toBe('fragment-master');
+      // The durable key survives until the backend accepts the exchange — a
+      // failure at this point must leave it for the next launch to retry.
+      expect(localStorage.getItem('ov_api_key')).toBe('older-master');
+    });
+
+    await _bootstrapBrowserCredentials(win, {
+      apiBase: 'https://voice.test',
+      exchange: exchange as any,
+    });
+
+    expect(sessionStorage.getItem('ov_pin')).toBe('1234');
+    expect(order).toEqual(['scrub:/app#tab=voices', 'exchange']);
+    expect(exchange).toHaveBeenCalledOnce();
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+  });
+
+  it('retains the stored master when the backend is unreachable (no stranding)', async () => {
+    // The upgrade-day disaster this guards against: a remote-backend user's
+    // only copy of OMNIVOICE_API_KEY lives in localStorage, and the backend is
+    // down at first launch. The failed exchange must NOT consume the key.
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const exchange = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(
+      _bootstrapBrowserCredentials(
+        { location: { href: 'https://voice.test/' }, history: { replaceState: vi.fn() } },
+        { apiBase: 'https://voice.test', exchange },
+      ),
+    ).rejects.toThrow();
+
+    expect(exchange).toHaveBeenCalledWith('legacy-master', { apiBase: 'https://voice.test' });
+    expect(localStorage.getItem('ov_api_key')).toBe('legacy-master');
+  });
+
+  it('re-runs the migration on the next launch and consumes the key once it succeeds', async () => {
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const exchange = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ transport: 'bearer', expiresAt: Date.now() / 1000 + 60 });
+    const launch = () =>
+      _bootstrapBrowserCredentials(
+        { location: { href: 'https://voice.test/' }, history: { replaceState: vi.fn() } },
+        { apiBase: 'https://voice.test', exchange },
+      );
+
+    // Launch 1: backend unreachable — key survives.
+    await expect(launch()).rejects.toThrow();
+    expect(localStorage.getItem('ov_api_key')).toBe('legacy-master');
+
+    // Launch 2: backend back — the retained key is retried and then removed.
+    await launch();
+    expect(exchange).toHaveBeenNthCalledWith(2, 'legacy-master', {
+      apiBase: 'https://voice.test',
+    });
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+  });
+
+  it('consumes a legacy stored master without writing it anywhere else', async () => {
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const exchange = vi.fn().mockResolvedValue({ transport: 'bearer' });
+
+    await _bootstrapBrowserCredentials(
+      {
+        location: { href: 'https://voice.test/' },
+        history: { replaceState: vi.fn() },
+      },
+      { apiBase: 'https://voice.test', exchange },
+    );
+
+    expect(exchange).toHaveBeenCalledWith('legacy-master', { apiBase: 'https://voice.test' });
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+    expect(sessionStorage.getItem('ov_api_key')).toBeNull();
+  });
+
+  it('still deletes and exchanges the master when PIN session storage is blocked', async () => {
+    localStorage.setItem('ov_api_key', 'legacy-master');
+    const replaceState = vi.fn();
+    const exchange = vi.fn().mockResolvedValue({ transport: 'bearer' });
+
+    await _bootstrapBrowserCredentials(
+      {
+        location: { href: 'https://voice.test/?pin=1234#api_key=fragment-master' },
+        history: { replaceState },
+      },
+      {
+        apiBase: 'https://voice.test',
+        sessionStore: {
+          setItem: vi.fn(() => {
+            throw new DOMException('blocked');
+          }),
+        },
+        exchange,
+      },
+    );
+
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/');
+    expect(localStorage.getItem('ov_api_key')).toBeNull();
+    expect(exchange).toHaveBeenCalledWith('fragment-master', {
+      apiBase: 'https://voice.test',
+    });
   });
 });

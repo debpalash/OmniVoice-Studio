@@ -74,7 +74,7 @@ def client():
 
     `client=("127.0.0.1", 50000)` makes `request.client.host` resolve to a
     loopback address — required because `backend/api/routers/system.py` is
-    now gated by a router-level `require_loopback` dependency. Tests that
+    now gated by a router-level `require_admin` dependency. Tests that
     deliberately exercise the non-loopback rejection path build their own
     plain `TestClient(app)` (which defaults to host='testclient').
     """
@@ -551,7 +551,7 @@ class TestStreamingTTS:
 def test_set_env_rejects_non_loopback():
     """A TestClient that does NOT override `client=` sets
     `request.client.host = 'testclient'` (non-loopback). The router-level
-    `require_loopback` dependency must return 403 and must NOT mutate
+    `require_admin` dependency must return 403 and must NOT mutate
     os.environ. NOTE: the project-wide `client` fixture is now built with a
     loopback override so most tests see protected routes — this test
     instantiates its own plain client to exercise the rejection path."""

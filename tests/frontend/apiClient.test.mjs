@@ -97,7 +97,7 @@ test('apiPost json body sets Content-Type + stringified body', async () => {
     assert.equal(calls.length, 1);
     const { init } = calls[0];
     assert.equal(init.method, 'POST');
-    assert.equal(init.headers['Content-Type'], 'application/json');
+    assert.equal(new Headers(init.headers).get('content-type'), 'application/json');
     assert.equal(init.body, JSON.stringify({ repo_id: 'k2-fsa/OmniVoice' }));
   } finally {
     globalThis.fetch = originalFetch;
@@ -117,7 +117,7 @@ test('apiPost passes FormData without stringify + no Content-Type override', asy
     await apiPost('/generate', fd);
     assert.equal(calls[0].init.body, fd);
     // Browser sets multipart boundary; we must NOT force a JSON header.
-    assert.equal(calls[0].init.headers, undefined);
+    assert.equal(new Headers(calls[0].init.headers).has('content-type'), false);
   } finally {
     globalThis.fetch = originalFetch;
   }

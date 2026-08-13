@@ -262,16 +262,115 @@ pub fn backend_log_path() -> PathBuf {
 }
 
 /// Read the last N lines from backend_err.log for diagnostic messages.
+///
+/// Whole-file view — bootstrap phases (uv sync et al.) that predate any
+/// backend run use this. Anything reporting on a specific backend process
+/// (crash markers, death diagnostics) must use [`read_error_log_tail_for_run`]
+/// instead: the file outlives runs, so an unbounded tail can attribute one
+/// run's output to another (#1510).
 pub fn read_error_log_tail(max_lines: usize) -> String {
     let err_path = backend_log_path().with_file_name("backend_err.log");
-    match fs::read_to_string(&err_path) {
-        Ok(content) => {
-            let lines: Vec<&str> = content.lines().collect();
-            let start = lines.len().saturating_sub(max_lines);
-            lines[start..].join("\n")
+    read_error_log_tail_at(&err_path, 0, max_lines)
+}
+
+// ── Per-run crash evidence (#1510) ────────────────────────────────────────
+//
+// backend_err.log is one file shared by every backend run in an app session,
+// and it used to be TRUNCATED on each spawn. Both properties destroyed crash
+// evidence: a respawn wiped the dead process's final words, and any tail read
+// after the replacement started could attach the new run's healthy startup to
+// the old run's crash marker — exactly the undiagnosable report in #1510.
+// The file is append-only now, each spawn records where its run begins, and
+// death paths read only their own run's slice.
+
+/// Byte offset in backend_err.log where the CURRENT run's output begins.
+/// Set by `spawn_backend` before the child starts writing.
+static ERR_LOG_RUN_START: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Rotate once the shared file gets this big (append-only would otherwise
+/// grow across runs forever). Generous: evidence beats disk here.
+const ERR_LOG_ROTATE_BYTES: u64 = 1024 * 1024;
+
+/// Where the current backend run's slice of backend_err.log begins.
+pub fn err_log_run_start() -> u64 {
+    ERR_LOG_RUN_START.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Last N lines of the CURRENT run's slice of backend_err.log.
+///
+/// This is the reader every death path must use: it cannot see another run's
+/// output, so a crash marker carries the dying process's words or nothing.
+pub fn read_error_log_tail_for_run(max_lines: usize) -> String {
+    let err_path = backend_log_path().with_file_name("backend_err.log");
+    read_error_log_tail_at(&err_path, err_log_run_start(), max_lines)
+}
+
+/// Tail of `path` starting at byte `start` (whole file when `start` is 0 or
+/// no longer valid — an externally replaced/shrunk file must degrade to the
+/// old whole-file behaviour, never to a silent empty capture).
+fn read_error_log_tail_at(path: &Path, start: u64, max_lines: usize) -> String {
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return String::new(),
+    };
+    let start = usize::try_from(start).unwrap_or(0);
+    let slice = if start > 0 && start <= content.len() && content.is_char_boundary(start) {
+        &content[start..]
+    } else {
+        &content[..]
+    };
+    let lines: Vec<&str> = slice.lines().collect();
+    let from = lines.len().saturating_sub(max_lines);
+    lines[from..].join("\n")
+}
+
+/// The previous run's stderr-drainer thread. Joined (bounded) before a new
+/// spawn records its offset, so a dying run's still-buffered stderr cannot be
+/// appended AFTER the new run's start offset and get attributed to the new
+/// run. (Full per-child offset binding isn't needed: spawns are serialized by
+/// the #1223 spawn-once flow, so the only race left was this buffered tail.)
+static ERR_LOG_DRAINER: Mutex<Option<std::thread::JoinHandle<()>>> = Mutex::new(None);
+
+/// Wait briefly for the previous run's stderr drainer to flush. A wedged
+/// drainer (pipe held open by an orphaned grandchild) must not block a
+/// respawn forever — after the bound we proceed; the offset then simply
+/// includes whatever the old run still manages to write, which degrades to
+/// attributing too MUCH to the new run, never to destroying evidence.
+fn join_previous_err_drainer(bound: Duration) {
+    let handle = ERR_LOG_DRAINER.lock().ok().and_then(|mut g| g.take());
+    if let Some(handle) = handle {
+        let deadline = std::time::Instant::now() + bound;
+        while !handle.is_finished() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
         }
-        Err(_) => String::new(),
+        if handle.is_finished() {
+            let _ = handle.join();
+        }
     }
+}
+
+/// Open backend_err.log for a new run: append-only (a respawn must not
+/// destroy the previous run's evidence), rotated when oversized, with the
+/// run's start offset returned for `ERR_LOG_RUN_START`.
+fn open_err_log_for_run(err_path: &Path) -> (Option<fs::File>, u64) {
+    let len = fs::metadata(err_path).map(|m| m.len()).unwrap_or(0);
+    if len > ERR_LOG_ROTATE_BYTES {
+        let rotated = err_path.with_file_name("backend_err.log.1");
+        // Rename preferred (keeps the old evidence in .1); on failure —
+        // e.g. the file is still held open on Windows — fall back to
+        // truncating, which is exactly the pre-#1510 behaviour.
+        if fs::rename(err_path, &rotated).is_err() {
+            let file = fs::File::create(err_path).ok();
+            return (file, 0);
+        }
+    }
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(err_path)
+        .ok();
+    let start = fs::metadata(err_path).map(|m| m.len()).unwrap_or(0);
+    (file, start)
 }
 
 /// Human-readable diagnostic for a failed `Command::spawn()` of the backend.
@@ -281,6 +380,21 @@ pub fn read_error_log_tail(max_lines: usize) -> String {
 /// process "never started" and we previously surfaced "no error output
 /// captured". Writing this to backend_err.log lets read_error_log_tail show the
 /// real OS error + an actionable hint instead.
+/// Replace the user's home-directory prefix with `~`. This diagnostic is
+/// retained in backend_err.log across runs and lands verbatim in bug
+/// reports, so the username must not travel with it.
+fn redact_home(text: &str) -> String {
+    for var in ["HOME", "USERPROFILE"] {
+        if let Ok(home) = std::env::var(var) {
+            let home = home.trim_end_matches(['/', '\\']);
+            if home.len() > 1 && text.starts_with(home) {
+                return format!("~{}", &text[home.len()..]);
+            }
+        }
+    }
+    text.to_string()
+}
+
 fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
     // Platform-specific tail (cfg! resolves to this build's target OS, i.e. the
     // OS it runs on) — don't show AppImage/loader wording to macOS/Windows users.
@@ -305,7 +419,7 @@ fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
          Interpreter present on disk: {}\n\
          OS error: {}\n\n\
          {} Use \"Clean & Retry\" to rebuild the environment.",
-        python.display(),
+        redact_home(&python.display().to_string()),
         python.exists(),
         err,
         os_hint,
@@ -379,7 +493,24 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     }
 
     let stdout_file = fs::File::create(&log_path).ok();
-    let err_log_file = fs::File::create(&err_path).ok();
+    // Append + per-run offset, never truncate: the previous run's stderr is
+    // crash evidence until someone reads it (#1510). Flush the previous
+    // drainer first so old buffered lines land BEFORE this run's offset.
+    join_previous_err_drainer(Duration::from_secs(2));
+    let (err_log_file, err_log_start) = open_err_log_for_run(&err_path);
+    ERR_LOG_RUN_START.store(err_log_start, std::sync::atomic::Ordering::SeqCst);
+    if let Some(ref f) = err_log_file {
+        use std::io::Write;
+        let mut f = f;
+        let _ = writeln!(
+            f,
+            "──── backend run starting (unix {}s) ────",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        );
+    }
 
     let mut env: Vec<(String, String)> = vec![("PYTHONUNBUFFERED".into(), "1".into())];
     // Pin the child's OMNIVOICE_PORT to the value Rust resolved so Python's
@@ -493,7 +624,16 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
             // real exec error instead of "no error output captured".
             let diag = spawn_failure_diagnostic(&python, &e);
             log::error!("{}", diag);
-            let _ = fs::write(&err_path, &diag);
+            // Append (not overwrite): the run header above already marks this
+            // run's slice, and earlier runs' evidence stays intact.
+            if let Ok(mut f) = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&err_path)
+            {
+                use std::io::Write;
+                let _ = writeln!(f, "{}", diag);
+            }
             return None;
         }
     };
@@ -516,7 +656,9 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
 
     if let Some(stderr_pipe) = child.stderr.take() {
         let app_clone = app.clone();
-        std::thread::spawn(move || {
+        // Tracked (not detached): the next spawn joins this handle so this
+        // run's buffered tail flushes before the next run's offset is taken.
+        let drainer = std::thread::spawn(move || {
             use std::io::Write;
             let reader = BufReader::new(stderr_pipe);
             let mut log_file = err_log_file;
@@ -528,6 +670,9 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
                 }
             }
         });
+        if let Ok(mut guard) = ERR_LOG_DRAINER.lock() {
+            *guard = Some(drainer);
+        }
     }
 
     Some(child)
@@ -646,5 +791,132 @@ mod tests {
         assert!(!same_app_version("0.0.1"));
         // unversioned (pre-app_version backend) is stale by definition
         assert!(!same_app_version(""));
+    }
+
+    // ── Per-run crash evidence (#1510) ───────────────────────────────────
+    // The reported failure shape: a crash marker whose stderr tail was the
+    // REPLACEMENT process's healthy startup, because the shared err log was
+    // truncated on respawn and read unbounded afterwards.
+
+    #[test]
+    fn a_respawn_preserves_the_previous_runs_evidence() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+
+        let (file, start) = open_err_log_for_run(&path);
+        assert_eq!(start, 0);
+        writeln!(file.unwrap(), "run1: fatal abort, last words").unwrap();
+
+        // Respawn: pre-#1510 this truncated the file (File::create), turning
+        // the dead run's final output into nothing.
+        let (file2, start2) = open_err_log_for_run(&path);
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(
+            content.contains("run1: fatal abort"),
+            "respawn destroyed the previous run's evidence: {content:?}"
+        );
+        assert_eq!(
+            start2 as usize,
+            content.len(),
+            "run2 must begin at the old EOF"
+        );
+        drop(file2);
+    }
+
+    #[test]
+    fn a_run_bounded_tail_cannot_show_another_runs_output() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+
+        let (file, _) = open_err_log_for_run(&path);
+        writeln!(file.unwrap(), "run1: Traceback — the actual crash").unwrap();
+        let (file2, start2) = open_err_log_for_run(&path);
+        writeln!(file2.unwrap(), "run2: OmniVoice model loaded successfully.").unwrap();
+
+        // The dead run's slice: only its own words.
+        let run1 = read_error_log_tail_at(&path, 0, 10);
+        assert!(run1.contains("the actual crash"));
+        // The replacement's slice: its startup, and NEVER run1's crash —
+        // and, symmetrically, a marker bounded to run1's slice could never
+        // have contained run2's healthy startup (the #1510 report).
+        let run2 = read_error_log_tail_at(&path, start2, 10);
+        assert!(run2.contains("model loaded successfully"));
+        assert!(
+            !run2.contains("the actual crash"),
+            "run-bounded tail leaked another run's output: {run2:?}"
+        );
+    }
+
+    #[test]
+    fn an_invalid_offset_degrades_to_the_whole_file_not_to_silence() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+        fs::write(&path, "only line\n").unwrap();
+        // Offset beyond EOF (file replaced/shrunk externally): evidence
+        // beats precision — degrade to the whole file, never to "".
+        assert_eq!(read_error_log_tail_at(&path, 10_000, 10), "only line");
+    }
+
+    #[test]
+    fn a_dying_runs_buffered_stderr_flushes_before_the_next_offset() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+        fs::write(&path, "run1: early line\n").unwrap();
+
+        // A drainer still flushing the dead run's buffered tail…
+        let p = path.clone();
+        let late = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(120));
+            let mut f = fs::OpenOptions::new().append(true).open(&p).unwrap();
+            writeln!(f, "run1: buffered last words").unwrap();
+        });
+        *ERR_LOG_DRAINER.lock().unwrap() = Some(late);
+
+        // …must land BEFORE the next run records where its output begins.
+        join_previous_err_drainer(Duration::from_secs(2));
+        let (_file, start) = open_err_log_for_run(&path);
+        let run2 = read_error_log_tail_at(&path, start, 10);
+        assert!(
+            !run2.contains("buffered last words"),
+            "old run's buffered stderr was attributed to the new run: {run2:?}"
+        );
+        assert!(fs::read_to_string(&path)
+            .unwrap()
+            .contains("buffered last words"));
+    }
+
+    #[test]
+    fn the_spawn_diagnostic_never_carries_the_users_home_path() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var("HOME").ok();
+        std::env::set_var("HOME", "/home/realname");
+        let diag = spawn_failure_diagnostic(
+            Path::new("/home/realname/.local/share/app/venv/bin/python"),
+            &io::Error::new(io::ErrorKind::NotFound, "nope"),
+        );
+        match saved {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+        assert!(!diag.contains("/home/realname"), "home path leaked: {diag}");
+        assert!(diag.contains("~/.local/share/app/venv/bin/python"));
+    }
+
+    #[test]
+    fn an_oversized_log_rotates_instead_of_growing_forever() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+        fs::write(&path, "x".repeat((ERR_LOG_ROTATE_BYTES + 1) as usize)).unwrap();
+
+        let (_file, start) = open_err_log_for_run(&path);
+        assert_eq!(start, 0, "a rotated log starts the new run at offset 0");
+        let rotated = path.with_file_name("backend_err.log.1");
+        assert!(
+            rotated.exists(),
+            "old evidence must survive rotation in the sibling file"
+        );
     }
 }

@@ -36,6 +36,8 @@
     "open_models": "Otwórz modele"
   },
   "settings": {
+    "remote_backend_test": "Testuj połączenie",
+    "remote_backend_save": "Zapisz i wczytaj ponownie",
     "remote_backend_recovery_title": "Nie można połączyć się ze zdalnym backendem",
     "remote_backend_recovery_hint": "Zdalny backend możesz później zmienić w Ustawienia → Udostępnianie.",
     "remote_backend_use_local": "Użyj lokalnego backendu",
@@ -58,6 +60,8 @@
     "credentials": "Dane uwierzytelniające",
     "llm_providers": "Dostawcy LLM",
     "llmp_desc": "Zasila tłumaczenie Cinematic i Autofit — LLM przeredagowuje każdą linię tak, aby zmieściła się w budżecie czasowym swojego segmentu i synchronizacja wideo została zachowana. Klucze są przechowywane w postaci zaszyfrowanej; lokalni dostawcy (Ollama/LM Studio) działają całkowicie offline.",
+    "llmp_catalogue_note": "Dostawca oznaczony jako aktywny odpowiada zawsze, gdy rodzina silników LLM w katalogu jest ustawiona na „zgodny z OpenAI”.",
+    "llmp_catalogue_link": "Otwórz rodzinę LLM w katalogu",
     "llmp_provider": "Dostawca",
     "llmp_provider_hint": "Wybierz dostawcę do skonfigurowania. Aktywny jest używany do tłumaczenia Cinematic/Autofit. Lokalni dostawcy nie wymagają klucza, ale ich serwer musi być uruchomiony.",
     "llmp_local_tag": "lokalny",
@@ -282,7 +286,36 @@
     "models_dir_effective": "Używane teraz",
     "models_dir_configured": "Skonfigurowano",
     "models_dir_default": "Używana domyślna",
-    "models_dir_restart": "↻ Uruchom ponownie VoiceStudio, aby użyć nowej lokalizacji."
+    "models_dir_restart": "↻ Uruchom ponownie VoiceStudio, aby użyć nowej lokalizacji.",
+    "worker_join": "Dołącz",
+    "worker_join_code": "Kod dołączania",
+    "worker_join_code_hint": "Jednorazowy, wygasa po 15 minutach. Wygeneruj go na komputerze, który będzie wysyłać zadania.",
+    "worker_join_desc": "Pozwól innej kopii VoiceStudio wysyłać zadania na ten komputer. Wklej kod dołączania, który ci pokazała — albo zeskanuj jej kod QR telefonem i wklej go tutaj.",
+    "worker_join_env": "W środowisku tego komputera ustawiono OMNIVOICE_WORKER_MODE, więc to ta zmienna decyduje — zmień ją tam.",
+    "worker_join_no_endpoint": "Brak zapamiętanego węzła sterującego.",
+    "worker_join_ok": "Dołączono. Ten komputer przyjmuje teraz zadania.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Dołącz do innego",
+    "worker_join_stopped": "Zatrzymano",
+    "worker_join_take_work": "Przyjmuj zadania od",
+    "worker_join_title": "Użycz GPU tego komputera",
+    "worker_join_working": "Pracuje",
+    "workers_add_hint_qr": "Wygeneruj token, a następnie zeskanuj kod QR z drugiego komputera albo wklej kod w jego ustawieniach „Zdalne workery”.",
+    "workers_approve": "Zatwierdź",
+    "workers_last_seen": "ostatnio widziany {{when}}",
+    "workers_qr_alt": "Kod QR z tym kodem — zeskanuj go z drugiego komputera",
+    "workers_secret_done": "Gotowe",
+    "workers_seen_hr": "{{count}} godz. temu",
+    "workers_seen_min": "{{count}} min temu",
+    "workers_seen_now": "przed chwilą",
+    "workers_step_1": "Zainstaluj VoiceStudio na komputerze z GPU.",
+    "workers_step_2": "Wygeneruj token powyżej.",
+    "workers_step_3": "Zeskanuj tam kod QR albo wklej kod w jego ustawieniach „Zdalne workery”.",
+    "workers_summary_none": "Nikt nie jest połączony",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Wygasł — wygeneruj nowy",
+    "workers_token_expires_in": "Wygasa za {{time}}",
+    "workers_token_qr_hint": "Na drugim komputerze: Ustawienia → Systemu → Zdalne workery → Dołącz, potem zeskanuj albo wklej."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -552,7 +585,16 @@
     "seed_placeholder": "za każdym razem losowo",
     "seed_keep": "Zachowaj to ziarno",
     "seed_reroll": "Nowe ziarno",
-    "seed_reroll_hint": "Rzuć nowe losowe ziarno i zachowaj je"
+    "seed_reroll_hint": "Rzuć nowe losowe ziarno i zachowaj je",
+    "generating_done_status": "Generowanie zakończone",
+    "generating_status": "Generowanie dźwięku…",
+    "identity": "Tożsamość",
+    "identity_auto": "Auto — decyduje model",
+    "insert": "Wstaw",
+    "insert_token": "Wstaw token ekspresji",
+    "script": "Skrypt",
+    "starting_points": "Punkty wyjścia",
+    "voice_kicker": "Głos"
   },
   "about": {
     "app": "Aplikacja",
@@ -668,6 +710,7 @@
     "ready": "gotowy",
     "unavailable": "niedostępne",
     "use": "Użyj",
+    "configureProviders": "Skonfiguruj dostawców",
     "loading": "Ładowanie silników…",
     "refresh": "Odśwież",
     "matrixTitle": "Matryca kompatybilności silników",
@@ -677,7 +720,9 @@
     "activeEngine": "Aktywny {{family}}: {{engine}}",
     "engineCompatLabel": "{{family}} kompatybilność silnika",
     "active": "aktywny",
-    "whyUnavailable": "Dlaczego niedostępne?",
+    "whyUnavailable": "Czego potrzebuje",
+    "sectionReady": "Gotowe do użycia",
+    "sectionMore": "Dodaj więcej silników",
     "lastError": "Ostatni błąd: {{error}}",
     "installedAndReady": "Zainstalowany i gotowy",
     "notInstalled": "Nie zainstalowano",
@@ -1591,7 +1636,9 @@
     "searchIssues": "Szukaj podobnych problemów",
     "unexpected": "Nieoczekiwany błąd: {{message}}",
     "backend_shutting_down": "VoiceStudio się zamyka. Otwórz aplikację ponownie i spróbuj jeszcze raz.",
-    "crash_broken_env": "Zakończył się podczas ładowania własnych zależności Pythona, więc nie chodzi o pamięć ani o kartę graficzną — środowisko jest niekompletne albo zostało zaktualizowane w połowie. Użyj „Clean & Retry” w Ustawienia → Logi → Backend: odbudowuje je od zera i naprawia w miejscu, nie ruszając twoich głosów ani projektów. Jeśli nadal się nie udaje, szczegóły awarii wskazują pakiet, którego nie dało się zaimportować."
+    "crash_broken_env": "Zakończył się podczas ładowania własnych zależności Pythona, więc nie chodzi o pamięć ani o kartę graficzną — środowisko jest niekompletne albo zostało zaktualizowane w połowie. Użyj „Wyczyść i ponów” w Ustawienia → Logi → Backend: odbudowuje je od zera i naprawia w miejscu, nie ruszając twoich głosów ani projektów. Jeśli nadal się nie udaje, szczegóły awarii wskazują pakiet, którego nie dało się zaimportować.",
+    "crash_vram_default": "Na mniejszych GPU zwykłą przyczyną jest brak pamięci VRAM podczas ładowania modelu ASR obok już załadowanego modelu TTS: najpierw zwolnij model TTS albo wybierz mniejszy model ASR w Katalogu modeli → Modele.",
+    "stream_cut_backend_alive": "Strumień urwał się przedwcześnie, ale backend nadal działa — a więc nie uległ awarii. W konfiguracji serwerowej lub kontenerowej zwykle oznacza to, że odwrotne proxy albo load balancer buforuje połączenie lub przerywa je po limicie czasu: wyłącz buforowanie odpowiedzi dla tej trasy (nginx: proxy_buffering off; X-Accel-Buffering: no) i zwiększ jego limit czasu odczytu. Uruchomienie aplikacji desktopowej bezpośrednio albo na localhost bez proxy pozwoli to potwierdzić."
   },
   "keyboard": {
     "title": "Skróty klawiaturowe",
@@ -1599,6 +1646,8 @@
     "or": "lub",
     "nav": "Nawigacja",
     "nav_cheatsheet": "Pokaż tę ściągawkę",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Zamknij modalne / anuluj",
     "nav_save": "Zapisz projekt / zatwierdź przycięcie",
     "segmentEditor": "Edytor segmentów",
@@ -2534,5 +2583,22 @@
       "longform": "narracja opowiadań",
       "asr": "transkrypcja"
     }
+  },
+  "compute": {
+    "add_machine": "Dodaj komputer",
+    "manage": "Ustawienia zdalnych workerów",
+    "off_hint": "Wszystko działa na tym komputerze. Włącz „Zdalnie”, aby użyć innego.",
+    "quick_settings": "Obliczenia — gdzie wykonywane są zadania",
+    "remote": "Zdalnie",
+    "title": "Gdzie wykonywane są zadania",
+    "token_once": "Zeskanuj lub wklej to na drugim komputerze. Pokazywane tylko raz."
+  },
+  "voices": {
+    "active": "Aktywny głos",
+    "active_clone_recipe": "Sklonowany z twojego klipu referencyjnego",
+    "cta_clone": "Upuść 3-sekundowy klip w „Głos” ←, aby sklonować głos",
+    "cta_design": "Opisz głos w „Głos” ←, aby go zaprojektować",
+    "new": "Nowy głos",
+    "none_selected": "Nie wybrano głosu — opisz go, upuść audio albo wybierz poniżej."
   }
 }

@@ -520,12 +520,10 @@ class WhisperXBackend(ASRBackend):
     def _pick_device() -> tuple[str, str]:
         # CUDA fp16 when available; otherwise CPU int8 (fastest CPU path,
         # negligible WER regression vs fp32 for whisper-large-v3).
-        try:
-            import torch
-            if torch.cuda.is_available():
-                return "cuda", "float16"
-        except Exception:
-            pass
+        # _ctranslate2_cuda_ok, not torch.cuda.is_available: ROCm torch also
+        # answers True there, and CTranslate2 has no HIP backend (#1529).
+        if _ctranslate2_cuda_ok():
+            return "cuda", "float16"
         return "cpu", "int8"
 
     # Peak VRAM (GB) to load *and transcribe* whisper large-v3 per CTranslate2
@@ -981,12 +979,10 @@ class FasterWhisperBackend(ASRBackend):
         #   - Apple Silicon / CPU → CPU int8 (fastest on CPU, negligible
         #     WER regression vs fp32 for whisper-large-v3)
         device, compute_type = "cpu", "int8"
-        try:
-            import torch
-            if torch.cuda.is_available():
-                device, compute_type = "cuda", "float16"
-        except Exception:
-            pass
+        # _ctranslate2_cuda_ok, not torch.cuda.is_available: ROCm torch also
+        # answers True there, and CTranslate2 has no HIP backend (#1529).
+        if _ctranslate2_cuda_ok():
+            device, compute_type = "cuda", "float16"
         logger.info(
             "faster-whisper loading %s on %s (%s)",
             self._model_name, device, compute_type,
@@ -2464,6 +2460,45 @@ def _mps_available() -> bool:
         return False
 
 
+def _cuda_reported_available() -> bool:
+    """``torch.cuda.is_available()`` verbatim — True on real CUDA *and* HIP."""
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001 — no torch
+        return False
+
+
+def _rocm_torch() -> bool:
+    """True when torch is the ROCm (HIP) build.
+
+    ROCm torch masquerades as CUDA: ``torch.cuda.is_available()`` answers True
+    and tensors live on ``"cuda"`` devices, but the CUDA *runtime libraries*
+    other packages ship are still NVIDIA-only. ``torch.version.hip`` is the
+    one honest tell.
+    """
+    try:
+        import torch
+
+        return getattr(torch.version, "hip", None) is not None
+    except Exception:  # noqa: BLE001 — no torch
+        return False
+
+
+def _ctranslate2_cuda_ok() -> bool:
+    """Whether CTranslate2 (whisperx / faster-whisper) may use ``"cuda"``.
+
+    CTranslate2 has NO HIP backend. On a ROCm host torch says cuda is
+    available (HIP), the device string is handed to CTranslate2, and its
+    NVIDIA CUDA runtime dies with "CUDA driver version is insufficient for
+    CUDA runtime version" — the #1529 report, an AMD RX 7900 XTX in the
+    :rocm Docker image. Real CUDA only; ROCm hosts take the CPU path here
+    (auto-detect prefers pytorch-whisper there, which does use HIP).
+    """
+    return _cuda_reported_available() and not _rocm_torch()
+
+
 def _auto_detect() -> str:
     """Pick the best available ASR engine **for this hardware**.
 
@@ -2495,6 +2530,14 @@ def _auto_detect() -> str:
     """
     if _mps_available() and _probe_available(MLXWhisperBackend):
         return "mlx-whisper"
+    # Same class as the Apple case, on the ROCm axis (#1529): whisperx and
+    # faster-whisper are CTranslate2, which has no HIP backend — on a ROCm
+    # host they run on the CPU while the GPU sits idle (and before
+    # _ctranslate2_cuda_ok they died outright trying NVIDIA's runtime).
+    # pytorch-whisper is a pure transformers pipeline riding torch itself,
+    # so it genuinely uses the HIP GPU there.
+    if _rocm_torch() and _cuda_reported_available() and _probe_available(PyTorchWhisperBackend):
+        return "pytorch-whisper"
     if _probe_available(WhisperXBackend):
         return "whisperx"
     if _probe_available(FasterWhisperBackend):

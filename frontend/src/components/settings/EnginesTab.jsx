@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { addBreadcrumb } from '../../utils/breadcrumbs';
-import { selectEngine } from '../../api/engines';
+import { useEngines, useSelectEngine } from '../../api/hooks';
 import { notifyEngineSelected } from '../../utils/engineSelectToast';
 import EngineCompatibilityMatrix from '../EngineCompatibilityMatrix';
 import AsrOpenAICompatPanel from './AsrOpenAICompatPanel';
@@ -17,22 +17,23 @@ import { SETTINGS_SECTION_SURFACE } from './primitives';
  *  tabindex + arrow keys, active engine named in each tab caption) now
  *  presents one family at a time instead, over compact fixed-height rows.
  *
- *  Data contract is unchanged: the single mounted matrix issues exactly one
- *  GET /engines + one GET /model/loaded per Settings open (switching tabs
- *  re-slices the same payload — no refetch), `openSettingsTab('engines')`
- *  still lands here, and `OMNIVOICE_*_BACKEND` env vars still win over any
- *  pick made in the UI.
+ *  The mounted matrix reads the app-wide `/engines` cache and issues one
+ *  `/model/loaded` probe. Switching tabs only re-slices that shared payload;
+ *  selection and installs invalidate it for every consumer.
  *
  *  The ASR tab additionally mounts the OpenAI-compatible remote ASR config
  *  panel below the matrix — configure server URL / model / key, test the
  *  connection, then activate with the engine's own "Use" button. Saving in
  *  the panel bumps `configVersion`, which refetches the matrix so the
  *  engine's row flips unavailable → available without a manual Refresh. */
-export default function EnginesTab() {
+export default function EnginesTab({ initialFamily = 'tts', onFamilyChange }) {
   const { t } = useTranslation();
-  const [family, setFamily] = useState('tts');
+  const [family, setFamily] = useState(initialFamily);
   const [configVersion, setConfigVersion] = useState(0);
+  const enginesQuery = useEngines();
+  const selectMutation = useSelectEngine();
   const onAsrConfigSaved = useCallback(() => setConfigVersion((v) => v + 1), []);
+  useEffect(() => setFamily(initialFamily), [initialFamily]);
 
   // Plan 02-04 / ENGINE-06 — engine selection is wired through the
   // matrix component's optional onSelect callback so the matrix doubles
@@ -46,7 +47,7 @@ export default function EnginesTab() {
     async (family, backendId, modelId) => {
       try {
         addBreadcrumb(`engine:${family}=${backendId}`);
-        const r = await selectEngine(family, backendId, modelId);
+        const r = await selectMutation.mutateAsync({ family, backendId, modelId });
         // Consume the routing echo: warn (not a bare success) when the pick
         // lands on a CPU fallback on this host. See notifyEngineSelected.
         notifyEngineSelected(r, t, family);
@@ -54,7 +55,7 @@ export default function EnginesTab() {
         toast.error(e.message || t('engines.switch_failed'));
       }
     },
-    [t],
+    [selectMutation, t],
   );
 
   return (
@@ -65,9 +66,13 @@ export default function EnginesTab() {
         aria-label={t('settings.engines')}
       >
         <EngineCompatibilityMatrix
-          family="tts"
+          family={family}
+          sharedEngines={enginesQuery}
           onSelect={onSelect}
-          onFamilyChange={setFamily}
+          onFamilyChange={(next) => {
+            setFamily(next);
+            onFamilyChange?.(next);
+          }}
           reloadToken={configVersion}
         />
       </section>

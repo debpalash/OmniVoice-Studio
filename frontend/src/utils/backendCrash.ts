@@ -19,6 +19,12 @@
  */
 
 import i18next from 'i18next';
+import {
+  CSRF_HEADER_NAME,
+  LEGACY_API_KEY_STORAGE_KEY,
+  getAdminSession,
+  isSameOriginApi,
+} from '../api/authSession.ts';
 
 export interface BackendCrashMarker {
   /** Unix seconds when the death was detected. */
@@ -110,11 +116,11 @@ export function hasCrashEvidence(marker: BackendCrashMarker): boolean {
 
 const HTTP_FALLBACK_TIMEOUT_MS = 2500;
 
-/** Auth headers a non-desktop deployment may need (LAN-share PIN, remote API
- * key) — mirrors apiFetch's injection. We deliberately do NOT call apiFetch:
+/** Auth context a non-desktop deployment may need (LAN-share PIN, ephemeral
+ * admin session) — mirrors apiFetch's injection. We deliberately do NOT call apiFetch:
  * its give-up path calls back into this module, and its retry cascade would
  * stall the very error message this fallback exists to enrich. */
-function _fallbackHeaders(): Record<string, string> {
+function _fallbackHeaders(apiBase: string): Record<string, string> {
   const headers: Record<string, string> = {};
   try {
     const pin = sessionStorage.getItem('ov_pin');
@@ -123,11 +129,13 @@ function _fallbackHeaders(): Record<string, string> {
     /* noop */
   }
   try {
-    const key = localStorage.getItem('ov_api_key');
-    if (key) headers['Authorization'] = `Bearer ${key}`;
+    localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY);
   } catch {
     /* noop */
   }
+  const session = getAdminSession(apiBase);
+  if (session) headers['Authorization'] = `Bearer ${session.token}`;
+  if (isSameOriginApi(apiBase)) headers[CSRF_HEADER_NAME] = '1';
   return headers;
 }
 
@@ -139,13 +147,14 @@ async function fetchLastRunCrash(): Promise<BackendCrashMarker | null> {
   try {
     // Dynamic import: api/client.ts statically imports this module, so a
     // static import back would be a cycle. apiUrl is only needed at call time.
-    const { apiUrl } = await import('../api/client.ts');
+    const { API, apiUrl } = await import('../api/client.ts');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), HTTP_FALLBACK_TIMEOUT_MS);
     try {
       const res = await fetch(apiUrl('/system/last-run-crash'), {
         signal: controller.signal,
-        headers: _fallbackHeaders(),
+        headers: _fallbackHeaders(API),
+        credentials: 'include',
       });
       if (!res.ok) return null;
       const body = (await res.json()) as {
@@ -185,10 +194,11 @@ export async function acknowledgeBackendCrash(): Promise<void> {
   if (!inTauri()) {
     // Browser/dev/Docker: watermark the backend's run-sentinel record.
     try {
-      const { apiUrl } = await import('../api/client.ts');
+      const { API, apiUrl } = await import('../api/client.ts');
       await fetch(apiUrl('/system/last-run-crash/ack'), {
         method: 'POST',
-        headers: _fallbackHeaders(),
+        headers: _fallbackHeaders(API),
+        credentials: 'include',
       });
     } catch {
       /* backend unreachable — the notice will simply resurface, which is honest */
@@ -413,13 +423,14 @@ export function crashAge(marker: Pick<BackendCrashMarker, 'ts'>, nowMs = Date.no
  *  path and must not add a visible stall. Any error means "cannot tell". */
 async function _probeBackendAlive(): Promise<boolean> {
   try {
-    const { apiUrl } = await import('../api/client.ts');
+    const { API, apiUrl } = await import('../api/client.ts');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
     try {
       const res = await fetch(apiUrl('/system/info'), {
         signal: controller.signal,
-        headers: _fallbackHeaders(),
+        headers: _fallbackHeaders(API),
+        credentials: 'include',
       });
       return res.ok;
     } finally {

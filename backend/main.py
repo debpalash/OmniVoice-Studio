@@ -341,7 +341,6 @@ if not os.environ.get("OMNIVOICE_DISABLE_FILE_LOG"):
 logger = logging.getLogger("omnivoice.api")
 
 import asyncio
-import secrets
 import time
 import threading
 from contextlib import asynccontextmanager
@@ -375,7 +374,15 @@ from services.model_manager import (
 )
 from services import network_share
 
-from api.dependencies import is_local_host  # loopback + OMNIVOICE_TRUSTED_NETWORKS
+from core.auth import (
+    CredentialTransport,
+    PrincipalKind,
+    credential_matches,
+    is_local_host,
+    principal_for,
+    remote_api_key,
+)
+from core.csrf import SAFE_HTTP_METHODS, cookie_csrf_allowed, origin_allowed
 
 from api.routers import (
     system,
@@ -412,6 +419,7 @@ from api.routers import (
     pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
     settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
     media_tools as media_tools_router,  # Audio tools: ffmpeg/ffprobe/yt-dlp management
+    auth as auth_router,
 )
 from utils import hf_progress
 
@@ -1107,7 +1115,12 @@ class NetworkAccessMiddleware:
         if is_local_host(client):
             return await self.app(scope, receive, send)
         path = scope["path"]
-        if path in _SHELL_PATHS or path.startswith("/assets/") or path.startswith("/favicon"):
+        if (
+            path in _SHELL_PATHS
+            or path.startswith("/assets/")
+            or path.startswith("/favicon")
+            or path == "/api/auth/session"
+        ):
             return await self.app(scope, receive, send)
         supplied = (
             request.headers.get("x-omnivoice-pin")
@@ -1115,7 +1128,7 @@ class NetworkAccessMiddleware:
             or request.cookies.get("ov_pin")
             or ""
         )
-        if not secrets.compare_digest(supplied, pin):
+        if not credential_matches(supplied, pin):
             resp = JSONResponse({"detail": "PIN required"}, status_code=401)
             return await resp(scope, receive, send)
         # Valid PIN. Set the cookie by wrapping send to inject Set-Cookie on the
@@ -1157,9 +1170,10 @@ class BackendMarkerMiddleware:
 
         async def send_with_marker(message):
             if message["type"] == "http.response.start":
-                MutableHeaders(scope=message).setdefault(
-                    BACKEND_MARKER_HEADER, _backend_marker_value()
-                )
+                headers = MutableHeaders(scope=message)
+                headers.setdefault(BACKEND_MARKER_HEADER, _backend_marker_value())
+                if str(scope.get("path", "")).startswith("/api/auth/"):
+                    headers["cache-control"] = "no-store"
             await send(message)
 
         return await self.app(scope, receive, send_with_marker)
@@ -1179,11 +1193,12 @@ def _backend_marker_value() -> str:
 
 class BearerKeyMiddleware:
     """When OMNIVOICE_API_KEY is set, non-loopback clients must present it on
-    every HTTP + WebSocket request: ``Authorization: Bearer <key>``,
-    ``?api_key=<key>`` (browser WebSockets cannot set headers), or the
-    ``ov_key`` cookie (set on the first successful HTTP auth). Loopback
-    always bypasses — the desktop default is unchanged — and the SPA shell
-    paths stay reachable so a remote UI can load and show what's wrong.
+    every HTTP + WebSocket request. Durable API-key transports remain compatible;
+    the first-party UI may instead present a short-lived admin session. The
+    middleware never reflects a presented master key into browser state.
+
+    Loopback always bypasses — the desktop default is unchanged — and the SPA
+    shell paths stay reachable so a remote UI can load and show what's wrong.
 
     Inert when the env var is unset (the default). Pure ASGI for the same
     no-buffering reason as NetworkAccessMiddleware above. Plain-HTTP caveat
@@ -1197,27 +1212,28 @@ class BearerKeyMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] not in ("http", "websocket"):
             return await self.app(scope, receive, send)
-        key = os.environ.get("OMNIVOICE_API_KEY") or ""
+        key = remote_api_key() or ""
         if not key:
-            return await self.app(scope, receive, send)
-        client = scope["client"][0] if scope.get("client") else None
-        if is_local_host(client):
             return await self.app(scope, receive, send)
         path = scope.get("path", "")
         if scope["type"] == "http" and (
-            path in _SHELL_PATHS or path.startswith("/assets/") or path.startswith("/favicon")
+            path in _SHELL_PATHS
+            or path.startswith("/assets/")
+            or path.startswith("/favicon")
+            or path == "/api/auth/session"
         ):
             return await self.app(scope, receive, send)
 
         from starlette.requests import HTTPConnection
 
         conn = HTTPConnection(scope)
-        auth = conn.headers.get("authorization", "")
-        supplied = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-        if not supplied:
-            supplied = conn.query_params.get("api_key") or conn.cookies.get("ov_key") or ""
-
-        if not secrets.compare_digest(supplied, key):
+        principal = principal_for(conn)
+        if principal.kind not in {
+            PrincipalKind.LOOPBACK,
+            PrincipalKind.TRUSTED_NETWORK,
+            PrincipalKind.API_KEY,
+            PrincipalKind.ADMIN_SESSION,
+        }:
             if scope["type"] == "websocket":
                 # Reject the handshake; 1008 = policy violation.
                 await receive()  # consume websocket.connect
@@ -1225,17 +1241,31 @@ class BearerKeyMiddleware:
                 return
             resp = JSONResponse({"detail": "API key required"}, status_code=401)
             return await resp(scope, receive, send)
-
-        if scope["type"] == "http" and conn.cookies.get("ov_key") != key:
-            async def send_with_cookie(message):
-                if message["type"] == "http.response.start":
-                    headers = MutableHeaders(scope=message)
-                    headers.append(
-                        "set-cookie", f"ov_key={key}; Path=/; SameSite=Lax"
-                    )
-                await send(message)
-
-            return await self.app(scope, receive, send_with_cookie)
+        if (
+            scope["type"] == "http"
+            and str(scope.get("method", "GET")).upper() not in SAFE_HTTP_METHODS
+            and principal.transport
+            in {CredentialTransport.COOKIE, CredentialTransport.LEGACY_COOKIE}
+            and not cookie_csrf_allowed(conn)
+        ):
+            resp = JSONResponse(
+                {"detail": "browser origin rejected"},
+                status_code=403,
+            )
+            return await resp(scope, receive, send)
+        if (
+            scope["type"] == "websocket"
+            and principal.transport
+            in {
+                CredentialTransport.COOKIE,
+                CredentialTransport.LEGACY_COOKIE,
+                CredentialTransport.WS_TICKET,
+            }
+            and not origin_allowed(conn)
+        ):
+            await receive()
+            await send({"type": "websocket.close", "code": 1008})
+            return
         return await self.app(scope, receive, send)
 
 
@@ -1257,6 +1287,20 @@ _allowed = os.environ.get(
     f"http://localhost:{_ui},http://127.0.0.1:{_ui},tauri://localhost,http://tauri.localhost",
 ).split(",")
 
+# Inert unless a PIN is set. CORS is registered after both auth gates below so
+# Starlette places it outside them: browser preflights carry no credentials and
+# must reach CORS before either gate can reject the request.
+app.add_middleware(NetworkAccessMiddleware)
+
+# Remote-backend bearer gate (parity program Wave 2.3 / §R2). Inert unless
+# OMNIVOICE_API_KEY is set. Distinct from the PIN gate above: the PIN guards
+# casual LAN-share guests for one session; the API key is the durable
+# credential for running this backend remotely (Tailscale / Docker GPU box).
+# Covers WebSockets too — the PIN gate never did, because every WS endpoint
+# carried its own loopback guard; remote mode is exactly the case where a
+# keyed non-loopback client must reach them.
+app.add_middleware(BearerKeyMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _allowed if o.strip()],
@@ -1269,23 +1313,10 @@ app.add_middleware(
     expose_headers=["Content-Disposition", BACKEND_MARKER_HEADER],
 )
 
-# Registered AFTER CORS so CORS remains the outermost layer (CORS headers are
-# applied even to the 401 PIN-required responses). Inert unless a PIN is set.
-app.add_middleware(NetworkAccessMiddleware)
-
-# Remote-backend bearer gate (parity program Wave 2.3 / §R2). Inert unless
-# OMNIVOICE_API_KEY is set. Distinct from the PIN gate above: the PIN guards
-# casual LAN-share guests for one session; the API key is the durable
-# credential for running this backend remotely (Tailscale / Docker GPU box).
-# Covers WebSockets too — the PIN gate never did, because every WS endpoint
-# carried its own loopback guard; remote mode is exactly the case where a
-# keyed non-loopback client must reach them.
-app.add_middleware(BearerKeyMiddleware)
-
 # Registered LAST, which in Starlette means OUTERMOST — so the marker lands on
-# every response, including the two gates' 401s above and StaticFiles' bare
-# "Not Found". Its absence is what lets a client conclude "whatever answered
-# me is not a VoiceStudio backend" (#1385).
+# every response. CORS is immediately inside it and outside both auth gates, so
+# preflights and gate-generated 401s retain the browser contract. The marker's
+# absence lets a client conclude that the responder is not VoiceStudio (#1385).
 app.add_middleware(BackendMarkerMiddleware)
 
 # Register canonical audio MIME types before any StaticFiles mount.
@@ -1362,6 +1393,7 @@ app.include_router(longform_jobs.router)
 app.include_router(pronunciation.router)  # Expressive-TTS Spec 01: pronunciation dictionary
 app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
 app.include_router(media_tools_router.router)  # Settings → Audio tools + wizard media-engine self-heal
+app.include_router(auth_router.router)  # short-lived first-party remote admin sessions
 from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
 from api.routers import workers as workers_router  # noqa: E402
 app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings

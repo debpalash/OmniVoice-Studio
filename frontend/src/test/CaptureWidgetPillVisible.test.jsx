@@ -38,6 +38,7 @@ vi.mock('../store', () => ({
   useAppStore: Object.assign((sel) => sel(mocks.state), { getState: () => mocks.state }),
 }));
 vi.mock('../api/client', () => ({
+  API: 'http://test',
   wsUrl: (p) => `ws://test${p}`,
   apiFetch: vi.fn(async () => ({ json: async () => ({}) })),
 }));

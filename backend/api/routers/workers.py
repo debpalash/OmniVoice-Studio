@@ -28,7 +28,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from api.dependencies import require_loopback
+from api.dependencies import require_admin
 from worker import registry, routing, service
 
 logger = logging.getLogger("omnivoice.worker")
@@ -39,9 +39,9 @@ logger = logging.getLogger("omnivoice.worker")
 # the task's own deadline does.
 _DISCONNECT_POLL_SECONDS = 1.0
 
-# Management is loopback-only: these endpoints mint join tokens and revoke
-# machines, so they follow the same rule as the app's other privileged routes.
-router = APIRouter(prefix="/workers", tags=["workers"], dependencies=[Depends(require_loopback)])
+# Management is admin-gated: these endpoints mint join tokens and revoke
+# machines, so Docker writes require the API key while desktop stays loopback.
+router = APIRouter(prefix="/workers", tags=["workers"], dependencies=[Depends(require_admin)])
 
 
 class EnableRequest(BaseModel):

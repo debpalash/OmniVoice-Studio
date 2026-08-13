@@ -32,6 +32,7 @@ vi.mock('@tauri-apps/api/window', () => ({
 }));
 
 vi.mock('../api/client', () => ({
+  API: 'http://test',
   wsUrl: (p) => `ws://test${p}`,
   apiFetch: vi.fn(),
 }));

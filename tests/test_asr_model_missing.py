@@ -299,11 +299,11 @@ class TestEndpoints:
 
     def test_capture_ws_sends_typed_error_frame(self, client):
         # The WS loopback guard moved to the shared is_local_host() helper
-        # (#1170), which reads _LOOPBACK_HOSTS from api.dependencies — so
-        # whitelist Starlette's "testclient" host there, not on capture_ws.
-        from api import dependencies as _deps
-        with patch.object(_deps, "_LOOPBACK_HOSTS",
-                          frozenset(_deps._LOOPBACK_HOSTS) | {"testclient"}), \
+        # (#1170), whose canonical host classification now lives in core.auth.
+        # Whitelist Starlette's synthetic host at that single source of truth.
+        from core import auth as _auth
+        with patch.object(_auth, "_LOOPBACK_HOSTS",
+                          frozenset(_auth._LOOPBACK_HOSTS) | {"testclient"}), \
              _dictation_whisper_missing():
             with client.websocket_connect("/ws/transcribe") as ws:
                 msg = ws.receive_json()
@@ -319,13 +319,13 @@ class TestEndpoints:
         sherpa pref while Whisper weights are missing."""
         import types
 
-        from api import dependencies as _deps
         from api.routers.setup import models as setup_models
+        from core import auth as _auth
         from services import asr_backend, sherpa_dictation
 
         persisted = types.SimpleNamespace(id="persisted", repo_id="k2/persisted")
-        with patch.object(_deps, "_LOOPBACK_HOSTS",
-                          frozenset(_deps._LOOPBACK_HOSTS) | {"testclient"}), \
+        with patch.object(_auth, "_LOOPBACK_HOSTS",
+                          frozenset(_auth._LOOPBACK_HOSTS) | {"testclient"}), \
              patch.object(sherpa_dictation, "get_spec",
                           lambda mid: persisted if mid == "persisted" else None), \
              patch.object(sherpa_dictation, "is_installed", lambda spec: True), \

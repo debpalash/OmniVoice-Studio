@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import RemoteBackendRecovery from './RemoteBackendRecovery';
 
 describe('RemoteBackendRecovery', () => {
@@ -25,9 +25,10 @@ describe('RemoteBackendRecovery', () => {
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
-  it('clears the remote URL and API key before reloading locally', () => {
+  it('clears the remote URL and API key before reloading locally', async () => {
     localStorage.setItem('ov_backend_url', 'https://gpu-box:3900');
     localStorage.setItem('ov_api_key', 'secret');
+    sessionStorage.setItem('ov_admin_session', 'session');
     const reload = vi.fn();
     render(
       <RemoteBackendRecovery
@@ -38,8 +39,9 @@ describe('RemoteBackendRecovery', () => {
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Use local backend' }));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(localStorage.getItem('ov_backend_url')).toBeNull();
     expect(localStorage.getItem('ov_api_key')).toBeNull();
-    expect(reload).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('ov_admin_session')).toBeNull();
   });
 });
