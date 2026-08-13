@@ -4,21 +4,26 @@
 //     facet filters to explore hundreds. (core.archetypes / /archetypes API)
 //   • My Imports — a neutral importer: paste any URL you have the rights to, or
 //     upload a file, trim it, save it. The project ships no celebrity catalog.
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, Store, Upload } from 'lucide-react';
 import { Segmented } from '../ui';
 import { archetypePreviewUrl, useArchetypeAsProfile } from '../api/archetypes';
+import { addCommunityItem, communityPreviewUrl } from '../api/community';
 import { previewVoiceUrl } from '../api/gallery';
 import { useAppStore } from '../store';
-import { apiUrl } from '../api/client';
+import { apiFetch } from '../api/client';
 import { playBlobAudio } from '../utils/media';
 import { stopActivePlayback } from '../utils/playback';
+import { nextCastColor } from '../utils/storyCast';
+import { instructToVdStates } from '../utils/voiceInstruct';
 import ArchetypesZone from '../components/gallery/ArchetypesZone';
 import CommunityZone from '../components/gallery/CommunityZone';
 import ImportsZone from '../components/gallery/ImportsZone';
 
-export default function VoiceGallery() {
+const NOOP = () => {};
+
+export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
   const { t } = useTranslation();
 
   const zone = useAppStore((s) => s.galleryZone);
@@ -35,62 +40,160 @@ export default function VoiceGallery() {
   const setPendingProfileId = useAppStore((s) => s.setPendingProfileId);
   const setInstruct = useAppStore((s) => s.setInstruct);
   const setVdStates = useAppStore((s) => s.setVdStates);
-  const vdStates = useAppStore((s) => s.vdStates);
+  const setLanguage = useAppStore((s) => s.setLanguage);
+  const upsertCastMember = useAppStore((s) => s.upsertCastMember);
+  const setOutputPrefs = useAppStore((s) => s.setOutputPrefs);
+  const convertMode = useAppStore((s) => s.convertMode);
 
   const [playingId, setPlayingId] = useState(null);
   const [loadingPreviewId, setLoadingPreviewId] = useState(null);
+  const [materializingId, setMaterializingId] = useState(null);
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
+  const materializingRef = useRef(false);
 
-  const flash = (msg) => {
+  const flash = useCallback((msg) => {
     setNotice(msg);
     if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(null), 3500);
-  };
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
 
   // Fetch a preview clip and play it through the shared playback path
   // (playBlobAudio handles the Tauri "blob: URLs are dead in media elements"
   // detour — this page used to carry its own copy of that logic). The claim
   // routes to the global mini-player with the voice name as its label, and
   // starting any other playback stops this one (#316).
-  const playUrl = async (fullUrl, id, label, fallbackUrl = null) => {
-    if (playingId === id) {
-      stopActivePlayback(); // onDone('stopped') below resets playingId
-      return;
-    }
-    setLoadingPreviewId(id);
-    try {
-      // no-store: preview audio is re-rendered server-side when an archetype is
-      // fixed/changed, but the URL is stable. Without this the WebView's HTTP
-      // cache replays the first clip it ever fetched (a stale render) forever.
-      const resp = await fetch(fullUrl, { cache: 'no-store' });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const blob = await resp.blob();
-      setPlayingId(id);
-      await playBlobAudio(blob, {
-        label,
-        // A present, verified gallery file can still be undecodable. The media
-        // element reports that asynchronously, so retry from the backend's
-        // explicit local-render path here rather than leaving a silent card.
-        onDone: (reason) => {
-          setPlayingId((cur) => (cur === id ? null : cur));
-          if (reason === 'error' && fallbackUrl) {
-            void playUrl(fallbackUrl, id, label);
-          }
-        },
-      });
-    } catch (e) {
-      setPlayingId((cur) => (cur === id ? null : cur));
-      flash(
-        t('gallery.preview_failed', {
-          message: e?.message || String(e),
-          defaultValue: 'Preview unavailable: {{message}}',
-        }),
-      );
-    } finally {
-      setLoadingPreviewId(null);
-    }
-  };
+  const playUrl = useCallback(
+    async (url, id, label, fallbackUrl = null) => {
+      if (playingId === id) {
+        stopActivePlayback(); // onDone('stopped') below resets playingId
+        return;
+      }
+      setLoadingPreviewId(id);
+      try {
+        // no-store: preview audio is re-rendered server-side when an archetype is
+        // fixed/changed, but the URL is stable. Without this the WebView's HTTP
+        // cache replays the first clip it ever fetched (a stale render) forever.
+        const resp = await apiFetch(url, { cache: 'no-store' });
+        const blob = await resp.blob();
+        setPlayingId(id);
+        await playBlobAudio(blob, {
+          label,
+          // A present, verified gallery file can still be undecodable. The media
+          // element reports that asynchronously, so retry from the backend's
+          // explicit local-render path here rather than leaving a silent card.
+          onDone: (reason) => {
+            setPlayingId((cur) => (cur === id ? null : cur));
+            if (reason === 'error' && fallbackUrl) {
+              void playUrl(fallbackUrl, id, label);
+            }
+          },
+        });
+      } catch (e) {
+        setPlayingId((cur) => (cur === id ? null : cur));
+        flash(
+          t('gallery.preview_failed', {
+            message: e?.message || String(e),
+            defaultValue: 'Preview unavailable: {{message}}',
+          }),
+        );
+      } finally {
+        setLoadingPreviewId(null);
+      }
+    },
+    [flash, playingId, t],
+  );
+
+  const openDesigner = useCallback(
+    (item) => {
+      clearSelectedProfile();
+      setPendingProfileId(null);
+      setVdStates(instructToVdStates(item.instruct || ''));
+      setInstruct('');
+      setLanguage(item.language || 'Auto');
+      setDefineMethod('design');
+      setMode('studio');
+    },
+    [
+      clearSelectedProfile,
+      setDefineMethod,
+      setInstruct,
+      setLanguage,
+      setMode,
+      setPendingProfileId,
+      setVdStates,
+    ],
+  );
+
+  const placeProfile = useCallback(
+    (profile, target = 'studio') => {
+      if (target === 'studio') {
+        clearSelectedProfile();
+        setPendingProfileId(profile.profile_id);
+        setMode('studio');
+        return;
+      }
+      if (target === 'stories') {
+        const cast = useAppStore.getState().cast || [];
+        if (!cast.some((member) => member.profileId === profile.profile_id)) {
+          upsertCastMember({
+            id: `voice_${profile.profile_id}`,
+            name: profile.name,
+            color: nextCastColor(cast),
+            profileId: profile.profile_id,
+          });
+        }
+        convertMode('stories');
+        setMode('stories');
+        return;
+      }
+      setOutputPrefs({ defaultVoice: profile.profile_id });
+      convertMode('audiobook');
+      setMode('audiobook');
+    },
+    [
+      clearSelectedProfile,
+      convertMode,
+      setMode,
+      setOutputPrefs,
+      setPendingProfileId,
+      upsertCastMember,
+    ],
+  );
+
+  const materialize = useCallback(
+    async (item, createProfile, target) => {
+      // A ref closes the double-click window before React can paint `disabled`.
+      if (materializingRef.current) return;
+      materializingRef.current = true;
+      setMaterializingId(item.id);
+      try {
+        const profile = await createProfile(item.id, item.name);
+        placeProfile(profile, target);
+      } catch (e) {
+        flash(
+          t('gallery.use_failed', {
+            message: e?.message || String(e),
+            defaultValue: 'Could not create that voice: {{message}}',
+          }),
+        );
+      } finally {
+        materializingRef.current = false;
+        setMaterializingId(null);
+      }
+    },
+    [flash, placeProfile, t],
+  );
+
+  const communityPlaybackId = (item) =>
+    `community:${item._source_repo || item.source || 'default'}:${item.id}`;
 
   const zoneItems = [
     {
@@ -158,30 +261,11 @@ export default function VoiceGallery() {
           onPreview={(a) =>
             playUrl(archetypePreviewUrl(a.id), a.id, a.name, archetypePreviewUrl(a.id, true))
           }
-          onUse={async (a) => {
-            try {
-              // eslint-disable-next-line react-hooks/rules-of-hooks -- useArchetypeAsProfile is an API call, not a React hook
-              const r = await useArchetypeAsProfile(a.id, a.name);
-              // Hand the new profile to the synthesis view and jump there so the
-              // user lands ready-to-generate instead of hunting for it in the list.
-              setPendingProfileId(r.profile_id);
-              setMode('studio');
-              setDefineMethod('audio');
-            } catch (e) {
-              flash(
-                t('gallery.use_failed', {
-                  message: e?.message || String(e),
-                  defaultValue: 'Could not create that voice: {{message}}',
-                }),
-              );
-            }
-          }}
-          onDesign={(a) => {
-            setVdStates({ ...vdStates, ...a.attrs });
-            setInstruct('');
-            setMode('studio');
-            setDefineMethod('design');
-          }}
+          onUse={(a) => materialize(a, useArchetypeAsProfile, 'studio')}
+          onUseInStories={(a) => materialize(a, useArchetypeAsProfile, 'stories')}
+          onUseAsAudiobookDefault={(a) => materialize(a, useArchetypeAsProfile, 'audiobook')}
+          onDesign={openDesigner}
+          materializingId={materializingId}
         />
       ) : zone === 'community' ? (
         <CommunityZone
@@ -190,21 +274,28 @@ export default function VoiceGallery() {
           loadingPreviewId={loadingPreviewId}
           favorites={favorites}
           toggleFavorite={toggleFavorite}
-          onPlayAudio={(url, id, name) => playUrl(url, id, name)}
+          onPreview={(item) =>
+            playUrl(
+              communityPreviewUrl(item.id),
+              communityPlaybackId(item),
+              item.name,
+              item.type === 'preset' ? communityPreviewUrl(item.id, true) : null,
+            )
+          }
           flash={flash}
-          onDesign={(instruct) => {
-            setVdStates({ ...vdStates });
-            setInstruct(instruct);
-            setMode('studio');
-            setDefineMethod('design');
-          }}
+          onDesign={openDesigner}
+          onUse={(item) => materialize(item, addCommunityItem, 'studio')}
+          onUseInStories={(item) => materialize(item, addCommunityItem, 'stories')}
+          onUseAsAudiobookDefault={(item) => materialize(item, addCommunityItem, 'audiobook')}
+          materializingId={materializingId}
         />
       ) : (
         <ImportsZone
           t={t}
           playingId={playingId}
           loadingPreviewId={loadingPreviewId}
-          onPlayGallery={(v) => playUrl(apiUrl(previewVoiceUrl(v.id)), v.id, v.name)}
+          onPlayGallery={(v) => playUrl(previewVoiceUrl(v.id), v.id, v.name)}
+          onUseProfile={placeProfile}
           flash={flash}
         />
       )}

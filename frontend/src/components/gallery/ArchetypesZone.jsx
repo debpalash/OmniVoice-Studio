@@ -59,6 +59,9 @@ export default function ArchetypesZone({
   onPreview,
   onUse,
   onDesign,
+  onUseInStories,
+  onUseAsAudiobookDefault,
+  materializingId,
 }) {
   const [favOnly, setFavOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -111,10 +114,15 @@ export default function ArchetypesZone({
     isFavorite: favSet.has(a.id),
     isPlaying: playingId === a.id,
     isLoadingPreview: loadingPreviewId === a.id,
+    previewLocked: Boolean(loadingPreviewId),
     onPreview,
     onUse,
     onDesign,
+    onUseInStories,
+    onUseAsAudiobookDefault,
     onToggleFavorite: toggleFavorite,
+    isMaterializing: materializingId === a.id,
+    materializationLocked: Boolean(materializingId),
   });
 
   const facetToggle =

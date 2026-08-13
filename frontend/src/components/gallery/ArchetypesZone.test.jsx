@@ -91,4 +91,46 @@ describe('ArchetypeCard accessibility', () => {
     );
     expect(screen.getByRole('button', { name: 'Open in Designer' })).toBeInTheDocument();
   });
+
+  it('exposes the Stories and Audiobook handoffs from More actions', async () => {
+    const onUseInStories = vi.fn();
+    const onUseAsAudiobookDefault = vi.fn();
+    const archetype = {
+      id: 'narrator',
+      name: 'Narrator',
+      language: 'English',
+      use_case: 'narration',
+      facets: { gender: 'female', age: 'adult', pitch: 'moderate pitch' },
+      attrs: {},
+    };
+    render(
+      <ArchetypeCard
+        a={archetype}
+        t={t}
+        isFavorite={false}
+        isPlaying={false}
+        isLoadingPreview={false}
+        onPreview={vi.fn()}
+        onUse={vi.fn()}
+        onDesign={vi.fn()}
+        onToggleFavorite={vi.fn()}
+        onUseInStories={onUseInStories}
+        onUseAsAudiobookDefault={onUseAsAudiobookDefault}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More actions' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Use in Stories' }));
+    expect(onUseInStories).toHaveBeenCalledWith(archetype);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More actions' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Set as Audiobook default' }));
+    expect(onUseAsAudiobookDefault).toHaveBeenCalledWith(archetype);
+  });
 });

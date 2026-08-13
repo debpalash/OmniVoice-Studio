@@ -1,5 +1,6 @@
 import React from 'react';
-import { Play, Loader, Star, Wand2, UserPlus } from 'lucide-react';
+import { BookOpen, Ellipsis, Headphones, Loader, Play, Star, UserPlus, Wand2 } from 'lucide-react';
+import { Menu } from '../../ui';
 import {
   ArchetypeAvatar,
   AccentFlag,
@@ -19,6 +20,12 @@ export default function ArchetypeCard({
   onUse,
   onDesign,
   onToggleFavorite,
+  onUseInStories,
+  onUseAsAudiobookDefault,
+  favoriteId = a.id,
+  previewLocked = false,
+  isMaterializing = false,
+  materializationLocked = false,
 }) {
   const color = USE_CASE_COLOR[a.use_case] || '#83a598';
   const sub = [a.facets.gender, a.facets.age, a.facets.pitch]
@@ -44,7 +51,11 @@ export default function ArchetypeCard({
     : '';
 
   return (
-    <div className={`${cardBase} ${cardState}`} style={{ '--card-accent': color }}>
+    <div
+      data-testid="gallery-persona-card"
+      className={`${cardBase} ${cardState}`}
+      style={{ '--card-accent': color }}
+    >
       {/* Header — the name is the focal point; metadata recedes (smaller, muted). */}
       <div className="flex items-start gap-[10px]">
         <ArchetypeAvatar item={a} size={40} />
@@ -65,7 +76,7 @@ export default function ArchetypeCard({
               ? 'text-[#fabd2f]'
               : 'text-[var(--color-fg-subtle)] opacity-70 group-hover:opacity-100 hover:text-[#fabd2f]'
           }`}
-          onClick={() => onToggleFavorite(a.id)}
+          onClick={() => onToggleFavorite(favoriteId)}
           title={t('gallery.favorite', { defaultValue: 'Favorite' })}
           aria-label={t('gallery.favorite', { defaultValue: 'Favorite' })}
           aria-pressed={isFavorite}
@@ -98,8 +109,10 @@ export default function ArchetypeCard({
       <div className="mt-auto flex items-center gap-[6px] pt-[9px]">
         <button
           type="button"
-          className="inline-flex items-center gap-[6px] px-[9px] py-[6px] rounded-[6px] bg-transparent text-[var(--color-fg-muted)] text-[0.68rem] cursor-pointer transition-colors hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--color-fg)]"
+          className="inline-flex items-center gap-[6px] px-[9px] py-[6px] rounded-[6px] bg-transparent text-[var(--color-fg-muted)] text-[0.68rem] cursor-pointer transition-colors hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--color-fg)] disabled:cursor-not-allowed disabled:opacity-50"
           onClick={() => onPreview(a)}
+          disabled={previewLocked}
+          aria-busy={isLoadingPreview}
           title={t('gallery.preview', { defaultValue: 'Preview' })}
         >
           {isLoadingPreview ? (
@@ -113,21 +126,65 @@ export default function ArchetypeCard({
         </button>
         <button
           type="button"
-          className="flex-1 inline-flex items-center justify-center gap-[6px] px-[10px] py-[6px] rounded-[6px] bg-[color-mix(in_srgb,var(--card-accent)_13%,transparent)] text-[var(--card-accent)] text-[0.7rem] font-semibold cursor-pointer transition-colors hover:bg-[var(--card-accent)] hover:text-[var(--color-fg-inverse)] focus-visible:bg-[var(--card-accent)] focus-visible:text-[var(--color-fg-inverse)]"
+          className="flex-1 inline-flex items-center justify-center gap-[6px] px-[10px] py-[6px] rounded-[6px] bg-[color-mix(in_srgb,var(--card-accent)_13%,transparent)] text-[var(--card-accent)] text-[0.7rem] font-semibold cursor-pointer transition-colors hover:bg-[var(--card-accent)] hover:text-[var(--color-fg-inverse)] focus-visible:bg-[var(--card-accent)] focus-visible:text-[var(--color-fg-inverse)] disabled:cursor-not-allowed disabled:opacity-50"
           onClick={() => onUse(a)}
+          disabled={materializationLocked}
+          aria-busy={isMaterializing}
         >
-          <UserPlus size={14} aria-hidden="true" />{' '}
+          {isMaterializing ? (
+            <Loader className="spin" size={14} aria-hidden="true" />
+          ) : (
+            <UserPlus size={14} aria-hidden="true" />
+          )}{' '}
           {t('gallery.use_voice', { defaultValue: 'Use voice' })}
         </button>
-        <button
-          type="button"
-          className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 rounded-[8px] bg-transparent text-[var(--color-fg-muted)] cursor-pointer opacity-50 transition-[opacity,color,background-color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--card-accent)]"
-          onClick={() => onDesign(a)}
-          title={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
-          aria-label={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
-        >
-          <Wand2 size={14} aria-hidden="true" />
-        </button>
+        {onDesign ? (
+          <button
+            type="button"
+            className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 rounded-[8px] bg-transparent text-[var(--color-fg-muted)] cursor-pointer opacity-50 transition-[opacity,color,background-color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--card-accent)]"
+            onClick={() => onDesign(a)}
+            disabled={materializationLocked}
+            title={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
+            aria-label={t('gallery.open_designer', { defaultValue: 'Open in Designer' })}
+          >
+            <Wand2 size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {onUseInStories || onUseAsAudiobookDefault ? (
+          <Menu
+            placement="bottom-end"
+            disabled={materializationLocked}
+            items={[
+              onUseInStories
+                ? {
+                    id: 'stories',
+                    icon: BookOpen,
+                    label: t('gallery.use_in_stories', { defaultValue: 'Use in Stories' }),
+                    onSelect: () => onUseInStories(a),
+                  }
+                : null,
+              onUseAsAudiobookDefault
+                ? {
+                    id: 'audiobook',
+                    icon: Headphones,
+                    label: t('gallery.set_audiobook_default', {
+                      defaultValue: 'Set as Audiobook default',
+                    }),
+                    onSelect: () => onUseAsAudiobookDefault(a),
+                  }
+                : null,
+            ].filter(Boolean)}
+          >
+            <button
+              type="button"
+              className="inline-flex items-center justify-center w-[30px] h-[30px] flex-shrink-0 rounded-[8px] bg-transparent text-[var(--color-fg-muted)] cursor-pointer opacity-50 transition-[opacity,color,background-color] duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[var(--chrome-hover-bg)] hover:text-[var(--card-accent)] disabled:cursor-not-allowed disabled:opacity-30"
+              aria-label={t('gallery.more_actions', { defaultValue: 'More actions' })}
+              title={t('gallery.more_actions', { defaultValue: 'More actions' })}
+            >
+              <Ellipsis size={15} aria-hidden="true" />
+            </button>
+          </Menu>
+        ) : null}
       </div>
     </div>
   );

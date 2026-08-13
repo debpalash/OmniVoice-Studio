@@ -175,9 +175,12 @@ export interface Profile {
   id: string;
   name: string;
   kind: ProfileKind;
+  language?: string;
   language_code?: string;
   ref_audio?: string;
   ref_text?: string;
+  instruct?: string;
+  vd_states?: string | null;
   description?: string;
   created_at?: string;
   is_locked?: boolean;

@@ -13,6 +13,7 @@ import { playBlobAudio } from '../utils/media';
 import { PRESETS } from '../utils/constants';
 import {
   instructToFormValue,
+  instructToVdStates,
   mergeDescribedAttrs,
   buildDesignInstruct,
 } from '../utils/voiceInstruct';
@@ -95,25 +96,40 @@ export default function useProfiles({ loadHistory, loadProfiles }) {
     (profile) => {
       setSelectedProfile(profile.id);
       setRefText(profile.ref_text || '');
-      setInstruct(profile.instruct || '');
-      if (profile.language && profile.language !== 'Auto') setLanguage(profile.language);
+      // Profile selection replaces the whole voice context. An Auto-language
+      // profile must reset an explicit language left by the previous voice.
+      setLanguage(profile.language || 'Auto');
       // The profile's kind picks the "Define voice" method implicitly: design
       // profiles open the design controls, everything else the audio path.
       setDefineMethod(profile.kind === 'design' ? 'design' : 'audio');
       // Design profiles (0005) carry their category picks — restore the sliders
       // so selecting one makes it re-editable, not just re-usable.
-      if (profile.kind === 'design' && profile.vd_states) {
-        try {
-          const parsed = JSON.parse(profile.vd_states);
-          // #983: a profile saved by an older/foreign client (or hand-edited)
-          // can carry a partial shape — mergeDescribedAttrs (already used for
-          // the "describe your voice" restore path) guarantees every
-          // CATEGORIES key is present, defaulting missing/unknown ones to
-          // 'Auto', so DesignMethodPanel never sees an undefined category.
-          if (parsed && typeof parsed === 'object') setVdStates(mergeDescribedAttrs(parsed));
-        } catch {
-          /* malformed stored state — sliders keep their current values */
+      if (profile.kind === 'design') {
+        // Always replace the prior recipe. Older/imported design profiles may
+        // have no vd_states (or malformed JSON); their validator-safe instruct
+        // still reconstructs the controls, and an empty recipe resets every
+        // category to Auto instead of leaking the previously selected voice.
+        let next = instructToVdStates(profile.instruct || '');
+        if (profile.vd_states) {
+          try {
+            const parsed = JSON.parse(profile.vd_states);
+            // #983: a profile saved by an older/foreign client (or hand-edited)
+            // can carry a partial shape — mergeDescribedAttrs guarantees every
+            // CATEGORIES key is present and validates every value.
+            if (parsed && typeof parsed === 'object') {
+              next = mergeDescribedAttrs({ ...next, ...parsed });
+            }
+          } catch {
+            /* instruct-derived fallback above is already complete */
+          }
         }
+        setVdStates(next);
+        // The profile recipe already lives in the sliders. Mirroring it into
+        // free text makes buildDesignInstruct report every token as a duplicate
+        // and can resurrect stale prose from older profiles.
+        setInstruct('');
+      } else {
+        setInstruct(profile.instruct || '');
       }
     },
     [setRefText, setInstruct, setLanguage, setVdStates, setDefineMethod],

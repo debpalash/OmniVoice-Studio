@@ -32,9 +32,7 @@ const EMAIL = 'VoiceStudio@palash.dev';
 const WEBSITE_URL = 'https://palash.dev';
 const X_URL = 'https://x.com/idebpalash';
 
-// Guidance sections — each is a card with an icon, a heading, and a
-// "use this when…" sentence so a user lands on the RIGHT channel instead of a
-// bare link list. `kind` picks how the CTA behaves:
+// Compact action cards for every outward channel. `kind` picks CTA behaviour:
 //   bug      → reuse ReportBugButton (prefilled GitHub issue + scrubbed diag)
 //   external → open a URL in the browser (via openExternal / real <a rel>)
 //   internal → route to another in-app page (Support), no duplication here
@@ -46,9 +44,6 @@ const SECTIONS = [
     kind: 'bug',
     titleKey: 'contact.bug_title',
     titleDefault: 'Report a bug',
-    descKey: 'contact.bug_desc',
-    descDefault:
-      'Hit a crash or something that behaved unexpectedly? The in-app reporter opens a prefilled GitHub issue with scrubbed diagnostics — your OS, GPU and active engine — while home folders and secrets are stripped out. Nothing is sent until you review it and click Submit.',
     ctaKey: 'contact.bug_cta',
     ctaDefault: 'Open bug reporter',
   },
@@ -60,9 +55,6 @@ const SECTIONS = [
     url: ISSUES_URL,
     titleKey: 'contact.feature_title',
     titleDefault: 'Request a feature or ask',
-    descKey: 'contact.feature_desc',
-    descDefault:
-      'Have an idea, a question, or a workflow that feels clunky? Open a GitHub issue so it is tracked in the open and others can weigh in — a quick search first often finds it already discussed.',
     ctaKey: 'contact.feature_cta',
     ctaDefault: 'Open GitHub Issues',
   },
@@ -74,9 +66,6 @@ const SECTIONS = [
     url: DISCORD_URL,
     titleKey: 'contact.community_title',
     titleDefault: 'Get help & community',
-    descKey: 'contact.community_desc',
-    descDefault:
-      'The fastest place for setup help and troubleshooting, and a friendly spot to share the dubs and voices you make. Come say hi and see what everyone is building.',
     ctaKey: 'contact.community_cta',
     ctaDefault: 'Join the Discord',
   },
@@ -88,9 +77,6 @@ const SECTIONS = [
     url: X_URL,
     titleKey: 'contact.follow_title',
     titleDefault: 'Follow along on X',
-    descKey: 'contact.follow_desc',
-    descDefault:
-      'Release notes, new engines, and the occasional look at what is being built next. Handy if you would rather not sit in a chat server.',
     ctaKey: 'contact.follow_cta',
     ctaDefault: 'Follow on X',
   },
@@ -101,9 +87,6 @@ const SECTIONS = [
     kind: 'internal',
     titleKey: 'contact.support_title',
     titleDefault: 'Support the project',
-    descKey: 'contact.support_desc',
-    descDefault:
-      'VoiceStudio is free and runs entirely on your machine. If it saves you time, a one-off tip keeps development going — every bit genuinely helps.',
     ctaKey: 'contact.support_cta',
     ctaDefault: 'See ways to support',
   },
@@ -115,9 +98,6 @@ const SECTIONS = [
     url: SECURITY_URL,
     titleKey: 'contact.security_title',
     titleDefault: 'Report a security issue',
-    descKey: 'contact.security_desc',
-    descDefault:
-      'Found a vulnerability? Please do not open a public issue. Report it privately through GitHub Security Advisories so it can be fixed before it is disclosed.',
     ctaKey: 'contact.security_cta',
     ctaDefault: 'Report privately',
   },
@@ -161,23 +141,18 @@ function ExternalCta({
 /**
  * The contact channels, as a SECTION rather than a page.
  *
- * Each way to reach the project is a card with an icon, a heading and a
- * sentence of guidance, so people pick the right channel (bug / feature /
- * community / support / security) instead of guessing from a flat link list.
- *
  * Sponsor, commercial licensing and contact were three separate destinations
  * for one question — "how do I reach these people / support this" — so they
  * now live together on SupportPage. This exports the body; the page shell
  * (back button, aurora, scroll container) belongs to the host.
  */
-export function ContactSections() {
+export function ContactSections({ onSupport }) {
   const { t } = useTranslation();
 
-  // "Support the project" stays INSIDE the app rather than linking out to
-  // Ko-fi: the support section is right above this one now, so sending people
-  // to a browser for something on the same page would be absurd.
-  const goSupport = () =>
-    document.getElementById('support-give')?.scrollIntoView({ block: 'start' });
+  const goSupport = () => {
+    if (onSupport) onSupport();
+    else document.getElementById('support-give')?.scrollIntoView({ block: 'start' });
+  };
 
   const renderCta = (s) => {
     const label = t(s.ctaKey, { defaultValue: s.ctaDefault });
@@ -195,7 +170,7 @@ export function ContactSections() {
   return (
     <>
       <section
-        className="grid grid-cols-[repeat(auto-fit,minmax(248px,1fr))] gap-3"
+        className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-2.5"
         aria-label={t('contact.channels_label', { defaultValue: 'Ways to get in touch' })}
       >
         {SECTIONS.map((s) => {
@@ -204,24 +179,21 @@ export function ContactSections() {
             <Card
               key={s.id}
               style={{ '--card-hue': s.hue }}
-              className="h-full items-start gap-3 rounded-lg border-border bg-transparent p-5 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
+              className="h-full flex-row flex-wrap items-center gap-2.5 rounded-md border-border bg-transparent p-3 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
             >
-              <span className="flex size-11 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_12%,transparent)] text-[var(--card-hue)]">
-                <Icon size={20} />
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_12%,transparent)] text-[var(--card-hue)]">
+                <Icon size={17} />
               </span>
-              <h3 className="font-serif text-[1.2rem] font-medium leading-snug text-[var(--chrome-fg)]">
+              <h3 className="min-w-[120px] flex-1 font-serif text-[1rem] font-medium leading-snug text-[var(--chrome-fg)]">
                 {t(s.titleKey, { defaultValue: s.titleDefault })}
               </h3>
-              <p className="font-sans text-[0.82rem] leading-[1.6] text-[var(--chrome-fg-muted)]">
-                {t(s.descKey, { defaultValue: s.descDefault })}
-              </p>
-              <div className="mt-auto pt-1">{renderCta(s)}</div>
+              <div className="shrink-0">{renderCta(s)}</div>
             </Card>
           );
         })}
       </section>
 
-      <div className="flex flex-wrap items-center justify-center gap-2.5">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <ExternalCta
           href={`mailto:${EMAIL}`}
           label={t('contact.email', { defaultValue: 'Email' })}

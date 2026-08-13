@@ -1,15 +1,9 @@
-// The merged support page — sponsor, commercial licence and contact are three
-// sections of one scroll now, and `initialView` decides which one you land on.
-//
-// The subtle part is that App.jsx renders SupportPage in the SAME tree position
-// for `donate`, `enterprise` and `contact`, so React keeps one instance alive
-// and only swaps props. A view change is therefore a prop change, not a mount —
-// which is exactly how "support scrolls to the top" got missed: the effect
-// treated 'support' as already-there and left you on whichever section you had
-// navigated from.
+// Support, commercial licensing and contact share one compact tabbed page.
+// App.jsx renders SupportPage in the SAME tree position for all three routes,
+// so a changed `initialView` must update the active tab after mount too.
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('../api/external', () => ({ openExternal: vi.fn() }));
 // Partial mock: only the network call is stubbed. GoalBar imports the real
@@ -22,60 +16,51 @@ vi.mock('../api/donation', async (importOriginal) => ({
 
 import SupportPage from '../pages/SupportPage';
 
-/** Ids that were scrolled to, in order.
- *
- * `scrollIntoView` does not exist in this DOM environment, so it is stubbed on
- * the prototype — before the first render, since the effect fires on mount. The
- * stub records `this.id`, which is what makes "landed on the right section"
- * assertable at all. */
-const scrolledTo = [];
-
 beforeEach(() => {
-  scrolledTo.length = 0;
-  Element.prototype.scrollIntoView = vi.fn(function scrollIntoViewStub() {
-    scrolledTo.push(this.id);
-  });
-  // The effect defers to rAF so layout has happened; run it synchronously.
-  vi.stubGlobal('requestAnimationFrame', (cb) => {
-    cb(0);
-    return 1;
-  });
-  vi.stubGlobal('cancelAnimationFrame', () => {});
+  vi.clearAllMocks();
 });
 
-describe('the merged support page', () => {
-  it('carries all three sections on one scroll', () => {
+// Radix Tabs activate on pointer down; drive them like a real pointer.
+const clickTab = (name) => {
+  const tab = screen.getByRole('tab', { name });
+  fireEvent.pointerDown(tab, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
+};
+
+describe('the compact support page', () => {
+  it('shows one destination at a time behind three tabs', () => {
     render(<SupportPage onBack={() => {}} />);
-    for (const id of ['support-give', 'support-license', 'support-contact']) {
-      expect(document.getElementById(id)).toBeInTheDocument();
-    }
-    // Contact's channels came along with it, not just its heading.
-    expect(screen.getByRole('heading', { name: 'Report a bug' })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByRole('tab', { name: 'Support' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Support VoiceStudio' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Report a bug' })).toBeNull();
   });
 
-  it('lands on the section the route asked for', () => {
+  it('updates the active tab when the reused route changes', () => {
     const { rerender } = render(<SupportPage onBack={() => {}} initialView="support" />);
     rerender(<SupportPage onBack={() => {}} initialView="contact" />);
-    expect(scrolledTo).toContain('support-contact');
+    expect(screen.getByRole('tab', { name: 'Contact' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Report a bug' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Support VoiceStudio' })).toBeNull();
   });
 
-  it('lands on the licence section for the enterprise route', () => {
-    // `mode === 'enterprise'` passes initialView="license" — the third
-    // destination, and the one a broken mapping would hide: every section
-    // renders either way, so only the scroll target proves it.
-    const { rerender } = render(<SupportPage onBack={() => {}} initialView="support" />);
-    rerender(<SupportPage onBack={() => {}} initialView="license" />);
-    expect(scrolledTo).toContain('support-license');
+  it('opens the licence tab for the enterprise route', () => {
+    render(<SupportPage onBack={() => {}} initialView="license" />);
+    expect(screen.getByRole('tab', { name: 'Commercial License' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Ship AI voices in production' }),
+    ).toBeInTheDocument();
   });
 
-  it('goes back to the top when the route returns to support', () => {
-    // THE REGRESSION: the same instance is reused across donate / enterprise /
-    // contact, so a 'support' view that skipped scrolling left the footer heart
-    // showing the contact section you were already on.
-    const { rerender } = render(<SupportPage onBack={() => {}} initialView="contact" />);
-    expect(scrolledTo).toEqual(['support-contact']);
-
-    rerender(<SupportPage onBack={() => {}} initialView="support" />);
-    expect(scrolledTo).toEqual(['support-contact', 'support-give']);
+  it('switches destinations from the tab rail', () => {
+    render(<SupportPage onBack={() => {}} />);
+    clickTab('Contact');
+    expect(screen.getByRole('heading', { name: 'Report a bug' })).toBeInTheDocument();
+    clickTab('Support');
+    expect(screen.getByRole('heading', { name: 'Support VoiceStudio' })).toBeInTheDocument();
   });
 });

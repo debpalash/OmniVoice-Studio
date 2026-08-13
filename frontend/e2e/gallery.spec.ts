@@ -9,7 +9,7 @@ test.describe('VoiceStudio Gallery', () => {
 
   test('facet dropdowns use the dark theme, not the OS-default light surface', async ({ page }) => {
     await gotoMode(page, 'gallery');
-    const select = page.locator('select.facet-select').first();
+    const select = page.getByRole('combobox', { name: 'Archetypes' });
     await expect(select).toBeVisible();
     // Regression guard for the undefined-var fallback: the fixed style resolves
     // --chrome-hover-bg → rgba(255,255,255,0.04), NOT an opaque UA light surface
@@ -25,7 +25,7 @@ test.describe('VoiceStudio Gallery', () => {
     await gotoMode(page, 'gallery');
 
     // Cards load from the backend; wait for the first one.
-    const designerBtn = page.locator('.archetype-card .designer-btn').first();
+    const designerBtn = page.getByRole('button', { name: /Open in Designer/i }).first();
     await expect(designerBtn).toBeVisible({ timeout: 20_000 });
     await designerBtn.click();
 

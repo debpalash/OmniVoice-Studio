@@ -7,14 +7,13 @@ import {
   Building2,
   Shield,
   Zap,
-  Users,
   Headphones,
   Mail,
   Star,
   MessageCircle,
   Gem,
 } from 'lucide-react';
-import { Button, Badge } from '../ui';
+import { Button, Badge, Tabs } from '../ui';
 import { Card } from '@/components/ui/card';
 import { openExternal } from '../api/external';
 import GoalBar from '../components/donate/GoalBar';
@@ -28,23 +27,8 @@ import { KOFI_URL, PAYPAL_URL } from '../utils/donateLinks';
 import { SPONSORS, SPONSOR_TIERS, SPONSOR_CONTACT } from '../config/sponsors';
 import { ContactSections } from './ContactPage';
 
-/** Anchor ids the three legacy routes (donate / enterprise / contact) land on. */
-const SECTION_IDS = {
-  support: 'support-give',
-  license: 'support-license',
-  contact: 'support-contact',
-};
-
-/** A hairline, not a heading: the sections already headline themselves, and
- *  the point of merging them was fewer edges, not more chrome. */
-function SectionDivider() {
-  return (
-    <hr
-      aria-hidden="true"
-      className="m-0 h-px border-0 bg-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)]"
-    />
-  );
-}
+const VIEWS = ['support', 'license', 'contact'];
+const viewFromRoute = (view) => (VIEWS.includes(view) ? view : 'support');
 // Suggested amounts — ladder starts at $10; middle ($20) is "most common".
 const SUGGESTED_AMOUNTS = [
   { value: 10, label: '$10' },
@@ -53,14 +37,8 @@ const SUGGESTED_AMOUNTS = [
 ];
 
 const METHODS = [
-  { id: 'kofi', label: 'Ko-fi', descriptionKey: 'donate.coffee_desc', url: KOFI_URL, icon: '☕' },
-  {
-    id: 'paypal',
-    label: 'PayPal',
-    descriptionKey: 'donate.paypal_desc',
-    url: PAYPAL_URL,
-    icon: '💳',
-  },
+  { id: 'kofi', label: 'Ko-fi', url: KOFI_URL, icon: '☕' },
+  { id: 'paypal', label: 'PayPal', url: PAYPAL_URL, icon: '💳' },
 ];
 
 // Donate/support accent tracks the themed brand token (per-[data-theme]) so the
@@ -75,34 +53,23 @@ function methodUrl(method, amount) {
   return method.url;
 }
 
-// Shared "rich link" card — a clickable row with an icon bubble, title + body,
-// and a trailing external-link affordance. `hue` tints the icon bubble + hover.
-function LinkCard({ icon, label, desc, value, hue, onClick }) {
+// Compact payment button. `hue` tints the icon bubble + hover.
+function LinkCard({ icon, label, hue, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{ '--card-hue': hue }}
-      className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border bg-transparent px-3.5 py-2.5 text-left transition-colors hover:border-transparent hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
+      className="flex min-h-10 w-full items-center gap-2.5 overflow-hidden rounded-md border border-border bg-transparent px-3 py-2 text-left transition-colors hover:border-transparent hover:bg-[color-mix(in_srgb,var(--card-hue)_6%,transparent)]"
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)] text-[1.1rem]">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_10%,transparent)] text-base">
         {icon}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-mono text-xs font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
-          {label}
-        </span>
-        <span className="block font-sans text-[0.68rem] leading-snug text-[var(--chrome-fg-muted)]">
-          {desc}
-        </span>
-        {value && (
-          <span className="mt-1 block break-all font-mono text-[11px] text-[var(--chrome-fg-muted)] opacity-85">
-            {value}
-          </span>
-        )}
+      <span className="min-w-0 flex-1 font-mono text-xs font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
+        {label}
       </span>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border text-[var(--chrome-fg-muted)]">
-        <ExternalLink size={14} />
+      <span className="flex size-6 shrink-0 items-center justify-center text-[var(--chrome-fg-muted)]">
+        <ExternalLink size={13} />
       </span>
     </button>
   );
@@ -111,7 +78,7 @@ function LinkCard({ icon, label, desc, value, hue, onClick }) {
 // Section label: a mono uppercase caption with a trailing hairline.
 function SectionTitle({ children }) {
   return (
-    <div className="mb-2.5 flex items-center gap-3">
+    <div className="mb-2 flex items-center gap-3">
       <span className="whitespace-nowrap font-mono text-[var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
         {children}
       </span>
@@ -143,13 +110,13 @@ function SponsorLogo({ sponsor }) {
         defaultValue: 'Visit {{name}}, a VoiceStudio sponsor',
         name: sponsor.name,
       })}
-      className="flex min-h-[64px] items-center justify-center rounded-md border border-border bg-transparent px-4 py-3 transition-colors hover:border-transparent hover:bg-[var(--chrome-hover-bg)]"
+      className="flex min-h-11 items-center justify-center rounded-md border border-border bg-transparent px-3 py-2 transition-colors hover:border-transparent hover:bg-[var(--chrome-hover-bg)]"
     >
       <img
         src={sponsor.logoUrl}
         alt={sponsor.name}
         loading="lazy"
-        className="max-h-10 w-auto max-w-full object-contain"
+        className="max-h-8 w-auto max-w-full object-contain"
       />
     </a>
   );
@@ -168,43 +135,49 @@ function SponsorsSection() {
   if (untiered.length) groups.push(['', untiered]);
 
   return (
-    <section>
+    <section className="min-w-0">
       <SectionTitle>{t('support.sponsors_title', { defaultValue: 'Sponsors' })}</SectionTitle>
-      <p className="mb-3.5 font-sans text-[0.75rem] leading-[1.6] text-[var(--chrome-fg-muted)]">
-        {t('support.sponsors_lead', {
-          defaultValue:
-            'The companies and people keeping VoiceStudio free, local, and open source.',
-        })}
-      </p>
 
       {SPONSORS.length === 0 ? (
-        // Empty state — an outlined "your logo here" slot, not a bare message.
         <div
           data-testid="sponsors-empty"
-          className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong bg-[color-mix(in_srgb,var(--color-brand)_4%,transparent)] px-6 py-8 text-center"
+          className="flex flex-wrap items-center gap-2.5 rounded-md border border-dashed border-border-strong bg-[color-mix(in_srgb,var(--color-brand)_4%,transparent)] p-3"
         >
-          <span className="flex size-9 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)] text-[var(--color-brand)]">
-            <Gem size={18} />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)] text-[var(--color-brand)]">
+            <Gem size={16} />
           </span>
-          <span className="font-serif text-[1.05rem] text-[var(--chrome-fg)]">
-            {t('support.sponsors_empty_title', {
-              defaultValue: 'Be the first to sponsor VoiceStudio',
+          <span className="min-w-[150px] flex-1">
+            <span className="block font-serif text-[0.9rem] leading-tight text-[var(--chrome-fg)]">
+              {t('support.sponsors_empty_title', {
+                defaultValue: 'Be the first to sponsor VoiceStudio',
+              })}
+            </span>
+            <span className="block font-mono text-[0.6rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
+              {t('support.sponsors_empty_desc', { defaultValue: 'Your logo here' })}
+            </span>
+          </span>
+          <Button
+            variant="primary"
+            size="sm"
+            leading={<Gem size={13} />}
+            onClick={() => openExternal(SPONSOR_CONTACT.githubIssue)}
+            aria-label={t('support.sponsors_become_aria', {
+              defaultValue: 'Become a sponsor — opens a prefilled GitHub issue in your browser',
             })}
-          </span>
-          <span className="font-mono text-[0.68rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
-            {t('support.sponsors_empty_desc', { defaultValue: 'Your logo here' })}
-          </span>
+          >
+            {t('support.sponsors_become', { defaultValue: 'Become a sponsor' })}
+          </Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2.5">
           {groups.map(([tier, list]) => (
             <div key={tier || 'untiered'}>
               {tier && (
-                <div className="mb-2 font-mono text-[0.62rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
+                <div className="mb-1.5 font-mono text-[0.6rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-dim)]">
                   {t(`support.sponsors_tier_${tier}`, { defaultValue: tier })}
                 </div>
               )}
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2">
                 {list.map((s) => (
                   <SponsorLogo key={s.name} sponsor={s} />
                 ))}
@@ -214,33 +187,28 @@ function SponsorsSection() {
         </div>
       )}
 
-      {/* Become a sponsor — opens the prefilled GitHub issue (zero-token,
-          user-reviewed), then a one-line explainer linking to SPONSORS.md. */}
-      <div className="mt-4 flex flex-col items-center gap-2.5 text-center">
-        <Button
-          variant="primary"
-          leading={<Gem size={14} />}
-          onClick={() => openExternal(SPONSOR_CONTACT.githubIssue)}
-          aria-label={t('support.sponsors_become_aria', {
-            defaultValue: 'Become a sponsor — opens a prefilled GitHub issue in your browser',
-          })}
-        >
-          {t('support.sponsors_become', { defaultValue: 'Become a sponsor' })}
-        </Button>
-        <p className="max-w-[440px] font-sans text-[0.7rem] leading-[1.55] text-[var(--chrome-fg-muted)]">
-          {t('support.sponsors_perk', {
-            defaultValue:
-              'Sponsors get their logo in the app, in the README, and a slot on the project site.',
-          })}{' '}
+      {SPONSORS.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            leading={<Gem size={13} />}
+            onClick={() => openExternal(SPONSOR_CONTACT.githubIssue)}
+            aria-label={t('support.sponsors_become_aria', {
+              defaultValue: 'Become a sponsor — opens a prefilled GitHub issue in your browser',
+            })}
+          >
+            {t('support.sponsors_become', { defaultValue: 'Become a sponsor' })}
+          </Button>
           <button
             type="button"
             onClick={() => openExternal(SPONSOR_CONTACT.docsUrl)}
-            className="font-semibold text-[var(--chrome-accent)] hover:underline"
+            className="font-sans text-[0.7rem] font-semibold text-[var(--chrome-accent)] hover:underline"
           >
             {t('support.sponsors_learn_more', { defaultValue: 'What sponsors get' })}
           </button>
-        </p>
-      </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -262,146 +230,126 @@ function SupportView() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)]">
+    <div className="flex flex-col gap-4">
+      <header className="flex items-center justify-center gap-3 text-center">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_12%,transparent)]">
           <Heart
-            size={24}
+            size={20}
             className="text-[var(--color-brand)] [fill:color-mix(in_srgb,var(--color-brand)_35%,transparent)] drop-shadow-[0_0_12px_color-mix(in_srgb,var(--color-brand)_50%,transparent)]"
           />
         </span>
-        <h2 className="relative inline-block font-serif text-[2rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
+        <h2 className="relative inline-block font-serif text-[1.7rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
           {t('donate.hero_title')}
           <span className="lp-hero__sweep" aria-hidden="true" />
         </h2>
-        <p className="mx-auto mt-2.5 max-w-[480px] font-sans text-[0.8rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
-          {t('donate.hero_desc')}
-        </p>
-      </div>
+      </header>
 
-      {/* ── "Fund Claude Max" goal bar + social proof ──────────────────── */}
-      <Card className="gap-3 rounded-lg border-border bg-[color-mix(in_srgb,var(--chrome-accent)_4%,transparent)] p-[18px] py-4 shadow-none">
-        <GoalBar progress={progress} />
-        <div className="flex items-center justify-center gap-1.5 font-mono text-[0.7rem] tracking-[0.01em] text-[var(--chrome-fg-muted)]">
-          <Users size={13} className="text-[var(--chrome-accent)]" />
-          <span>
-            {t('donate.goal.social_proof', {
-              defaultValue: 'Join {{count}} supporters funding local AI',
-              count: progress.sponsorCount,
-            })}
-          </span>
-        </div>
-      </Card>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <Card className="gap-0 rounded-md border-border bg-[color-mix(in_srgb,var(--chrome-accent)_4%,transparent)] p-4 shadow-none">
+            <GoalBar progress={progress} />
+          </Card>
 
-      {/* ── Step 1: pick an amount (none pre-selected; middle is "most common"). ──
-          Selecting only *records* the amount — the supporter then chooses
-          Ko-fi or PayPal below, and PayPal carries the amount through. */}
-      <section>
-        <SectionTitle>
-          {t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
-        </SectionTitle>
-        <div
-          className="grid grid-cols-4 gap-2"
-          role="group"
-          aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
-        >
-          {SUGGESTED_AMOUNTS.map((a) => {
-            const selected = amount === a.value;
-            return (
+          <section>
+            <SectionTitle>
+              {t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
+            </SectionTitle>
+            <div
+              className="grid grid-cols-4 gap-1.5"
+              role="group"
+              aria-label={t('donate.suggested_title', { defaultValue: 'Pick an amount' })}
+            >
+              {SUGGESTED_AMOUNTS.map((a) => {
+                const selected = amount === a.value;
+                return (
+                  <button
+                    key={a.value}
+                    type="button"
+                    aria-pressed={selected}
+                    aria-label={
+                      a.common
+                        ? `${a.label} — ${t('donate.most_common', { defaultValue: 'most common' })}`
+                        : a.label
+                    }
+                    onClick={() => setAmount(selected ? null : a.value)}
+                    className={`flex min-h-10 items-center justify-center rounded-md border px-1.5 py-1.5 transition-colors ${
+                      selected
+                        ? 'border-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)]'
+                        : `${a.common ? 'border-transparent' : 'border-border'} hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]`
+                    }`}
+                  >
+                    <span className="font-serif text-[0.95rem] font-medium text-[var(--chrome-fg)]">
+                      {a.label}
+                    </span>
+                  </button>
+                );
+              })}
               <button
-                key={a.value}
                 type="button"
-                aria-pressed={selected}
-                onClick={() => setAmount(selected ? null : a.value)}
-                className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-1.5 py-2 transition-colors ${
-                  selected
+                aria-pressed={amount === 'custom'}
+                onClick={() => setAmount(amount === 'custom' ? null : 'custom')}
+                className={`flex min-h-10 items-center justify-center rounded-md border px-1.5 py-1.5 transition-colors ${
+                  amount === 'custom'
                     ? 'border-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)]'
-                    : `${a.common ? 'border-transparent' : 'border-border'} hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]`
+                    : 'border-border hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]'
                 }`}
               >
-                <span className="font-serif text-[1.05rem] font-medium text-[var(--chrome-fg)]">
-                  {a.label}
+                <span className="font-mono text-[0.7rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+                  {t('donate.custom', { defaultValue: 'Custom' })}
                 </span>
-                {a.common && (
-                  <Badge tone="brand" size="xs" className="text-[0.54rem] tracking-[0.06em]">
-                    {t('donate.most_common', { defaultValue: 'most common' })}
-                  </Badge>
-                )}
               </button>
-            );
-          })}
-          <button
-            type="button"
-            aria-pressed={amount === 'custom'}
-            onClick={() => setAmount(amount === 'custom' ? null : 'custom')}
-            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-1.5 py-2 transition-colors ${
-              amount === 'custom'
-                ? 'border-[var(--chrome-accent)] bg-[var(--chrome-accent-bg)]'
-                : 'border-border hover:border-transparent hover:bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)]'
-            }`}
-          >
-            <span className="font-mono text-[0.78rem] uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
-              {t('donate.custom', { defaultValue: 'Custom' })}
-            </span>
-          </button>
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle>
+              {typeof amount === 'number'
+                ? t('donate.choose_method_amount', {
+                    defaultValue: 'Continue with ${{amount}}',
+                    amount,
+                  })
+                : t('donate.choose_method', { defaultValue: 'Choose how to give' })}
+            </SectionTitle>
+            <div className="grid grid-cols-2 gap-2">
+              {METHODS.map((m) => (
+                <LinkCard
+                  key={m.id}
+                  icon={m.icon}
+                  label={m.label}
+                  hue={DONATE_HUE}
+                  onClick={() =>
+                    openExternal(methodUrl(m, typeof amount === 'number' ? amount : null))
+                  }
+                />
+              ))}
+            </div>
+          </section>
         </div>
-      </section>
 
-      {/* ── Step 2: pick where (Ko-fi or PayPal). GitHub Sponsors isn't
-          available; the supporter chooses, and PayPal carries the amount. ── */}
-      <section>
-        <SectionTitle>
-          {typeof amount === 'number'
-            ? t('donate.choose_method_amount', {
-                defaultValue: 'Continue with ${{amount}}',
-                amount,
-              })
-            : t('donate.choose_method', { defaultValue: 'Choose how to give' })}
-        </SectionTitle>
-        <div className="grid grid-cols-1 gap-2.5">
-          {METHODS.map((m) => (
-            <LinkCard
-              key={m.id}
-              icon={m.icon}
-              label={m.label}
-              desc={t(m.descriptionKey)}
-              hue={DONATE_HUE}
-              onClick={() => openExternal(methodUrl(m, typeof amount === 'number' ? amount : null))}
-            />
-          ))}
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <SponsorsSection />
+          <section>
+            <SectionTitle>{t('support.other_ways')}</SectionTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="subtle"
+                size="sm"
+                leading={<Star size={13} />}
+                onClick={() => openExternal('https://github.com/debpalash/VoiceStudio')}
+              >
+                {t('support.star_github')}
+              </Button>
+              <Button
+                variant="subtle"
+                size="sm"
+                leading={<MessageCircle size={13} />}
+                onClick={() => openExternal('https://discord.gg/bzQavDfVV9')}
+              >
+                {t('support.join_discord')}
+              </Button>
+            </div>
+          </section>
         </div>
-      </section>
-
-      {/* Non-monetary ways to help — gives people who can't (or don't want to)
-          donate a real way to support, and balances out the panel. */}
-      <section>
-        <SectionTitle>{t('support.other_ways')}</SectionTitle>
-        <div className="flex flex-wrap justify-center gap-2.5">
-          <Button
-            variant="subtle"
-            size="sm"
-            leading={<Star size={14} />}
-            onClick={() => openExternal('https://github.com/debpalash/VoiceStudio')}
-          >
-            {t('support.star_github')}
-          </Button>
-          <Button
-            variant="subtle"
-            size="sm"
-            leading={<MessageCircle size={14} />}
-            onClick={() => openExternal('https://discord.gg/bzQavDfVV9')}
-          >
-            {t('support.join_discord')}
-          </Button>
-        </div>
-      </section>
-
-      {/* Sponsors — org-level support with an in-app logo slot. Distinct from
-          the individual donate ladder above. */}
-      <SponsorsSection />
-
-      <div className="pb-5 text-center font-mono text-[0.72rem] tracking-[0.02em] text-[var(--chrome-fg-dim)]">
-        {t('donate.footer')}
       </div>
     </div>
   );
@@ -415,67 +363,50 @@ const LICENSE_MAILTO =
 
 function LicenseView() {
   const { t } = useTranslation();
-  // The three reasons that actually drive a commercial-license decision — the
-  // full benefit grid + FAQ was noise; what matters is "you own it", "no
-  // per-minute cost", "direct support". Everything else is one email away.
   const WHY_ITEMS = [
-    { icon: Shield, label: t('enterprise.benefit_ip'), desc: t('enterprise.benefit_ip_desc') },
-    { icon: Zap, label: t('enterprise.benefit_cost'), desc: t('enterprise.benefit_cost_desc') },
-    {
-      icon: Headphones,
-      label: t('enterprise.benefit_support'),
-      desc: t('enterprise.benefit_support_desc'),
-    },
+    { icon: Shield, label: t('enterprise.benefit_ip') },
+    { icon: Zap, label: t('enterprise.benefit_cost') },
+    { icon: Headphones, label: t('enterprise.benefit_support') },
   ];
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
+    <div className="flex flex-col gap-4">
+      <header className="text-center">
         <Badge tone="neutral" size="sm">
           {t('enterprise.badge')}
         </Badge>
-        <h2 className="relative mt-2.5 inline-block font-serif text-[2.4rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
+        <h2 className="relative mt-2 inline-block font-serif text-[1.8rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
           {t('enterprise.hero_title')}
           <span className="lp-hero__sweep" aria-hidden="true" />
         </h2>
-        <p className="mx-auto mt-4 max-w-[540px] font-sans text-[0.85rem] leading-[1.65] text-[var(--chrome-fg-muted)]">
+        <p className="mx-auto mt-3 max-w-[680px] font-sans text-[0.78rem] leading-[1.5] text-[var(--chrome-fg-muted)]">
           {t('enterprise.hero_simple', {
             defaultValue:
               'VoiceStudio is free and open-source under the AGPL-3.0 — including for commercial and internal business use. You only need a commercial license to embed it in a closed-source product without AGPL’s copyleft obligations.',
           })}
         </p>
-      </div>
+      </header>
 
-      <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
-        {WHY_ITEMS.map(({ icon: Icon, label, desc }) => (
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2">
+        {WHY_ITEMS.map(({ icon: Icon, label }) => (
           <Card
             key={label}
-            className="gap-0 rounded-md border-border bg-transparent p-4 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
+            className="flex-row items-center gap-2.5 rounded-md border-border bg-transparent p-3 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
           >
-            <span className="mb-2.5 flex size-[30px] items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_10%,transparent)] text-[var(--color-brand)]">
-              <Icon size={16} />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--color-brand)_10%,transparent)] text-[var(--color-brand)]">
+              <Icon size={15} />
             </span>
-            <div className="mb-1 font-mono text-[0.75rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
+            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg)]">
               {label}
-            </div>
-            <div className="font-sans text-[0.72rem] leading-[1.5] text-[var(--chrome-fg-muted)]">
-              {desc}
             </div>
           </Card>
         ))}
       </section>
 
-      {/* One clear next step: pricing is quoted per deployment, so the action
-          is simply "tell me about your use case". */}
       <section>
-        <Card className="items-center gap-3.5 rounded-md border-border bg-[color-mix(in_srgb,#fe8019_5%,transparent)] p-6 text-center shadow-none">
-          <p className="m-0 max-w-[540px] leading-[1.5] text-[var(--chrome-fg-muted)]">
-            {t('enterprise.contact_lead', {
-              defaultValue:
-                'Pricing is quoted per deployment so it fits your team and workload. Tell me your use case and I’ll get you a quote.',
-            })}
-          </p>
+        <Card className="flex-row flex-wrap items-center justify-center gap-3 rounded-md border-border bg-[color-mix(in_srgb,#fe8019_5%,transparent)] p-4 text-center shadow-none">
           <Button
             variant="subtle"
+            size="sm"
             leading={<Mail size={13} />}
             onClick={() => openExternal(LICENSE_MAILTO)}
             className="border-transparent bg-[color-mix(in_srgb,#fe8019_18%,transparent)] font-semibold text-[var(--chrome-fg)] hover:border-transparent hover:bg-[color-mix(in_srgb,#fe8019_28%,transparent)]"
@@ -496,42 +427,25 @@ function LicenseView() {
   );
 }
 
-/**
- * SupportPage — unifies the donate ("Support") and commercial-license panels
- * behind a single charming segmented toggle. Both legacy modes ('donate',
- * 'enterprise') route here with the matching initialView, so every existing
- * entry point (footer heart, dub/export "commercial license" links) still
- * works — they just land on the right tab.
- */
 export default function SupportPage({ onBack, initialView = 'support' }) {
   const { t } = useTranslation();
+  const [view, setView] = useState(() => viewFromRoute(initialView));
 
-  // Sponsoring, buying a commercial licence and getting in touch were three
-  // destinations answering one question, and every one of them made you leave
-  // to find the others. They are one page now: three sections, in the order
-  // people actually need them, on a single scroll. `initialView` is kept —
-  // every existing entry point (footer heart, the dub/export "commercial
-  // licence" links, Contact) still passes it — but it now scrolls to a
-  // section instead of hiding the other two.
-  const sectionRef = React.useRef(null);
-  React.useEffect(() => {
-    // Every view scrolls, including 'support'. App.jsx renders SupportPage in
-    // the same tree position for donate / enterprise / contact, so React keeps
-    // ONE instance and only swaps props — treating 'support' as "already at the
-    // top" left the footer heart showing whichever section you were last on
-    // (CodeRabbit).
-    const id = SECTION_IDS[initialView] || SECTION_IDS.support;
-    // rAF: the panel has to be laid out before an offset means anything.
-    const frame = requestAnimationFrame(() => {
-      sectionRef.current
-        ?.querySelector(`#${id}`)
-        ?.scrollIntoView({ block: 'start', behavior: 'auto' });
-    });
-    return () => cancelAnimationFrame(frame);
+  // App.jsx reuses this component across donate / enterprise / contact and
+  // changes only the prop, so route changes must also move the active tab.
+  useEffect(() => {
+    setView(viewFromRoute(initialView));
   }, [initialView]);
 
+  const tabItems = [
+    { id: 'support', label: t('support.tab_support'), icon: Heart },
+    { id: 'license', label: t('support.tab_license'), icon: Building2 },
+    { id: 'contact', label: t('logs.contact', { defaultValue: 'Contact' }), icon: MessageCircle },
+  ];
+  const panelLabel = tabItems.find((item) => item.id === view)?.label;
+
   return (
-    <div className="relative isolate flex flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)]">
+    <div className="relative isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--chrome-bg)] [container-type:inline-size] [container-name:support-shell]">
       {/* Aurora backdrop — shared with the Launchpad */}
       <div className="lp-aurora" aria-hidden="true">
         <span className="lp-aurora__blob lp-aurora__blob--pink" />
@@ -539,46 +453,46 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
         <span className="lp-aurora__blob lp-aurora__blob--amber" />
       </div>
 
-      <div className="relative z-[2] flex items-center justify-between gap-3 px-11 pt-4">
+      <div className="relative z-[2] flex shrink-0 items-center justify-between gap-3 px-8 pt-3">
         <Button variant="subtle" size="sm" onClick={onBack} leading={<ArrowLeft size={14} />}>
           {t('donate.back')}
         </Button>
+        <Tabs
+          items={tabItems}
+          value={view}
+          onChange={setView}
+          size="sm"
+          aria-label={t('support.toggle_label')}
+        />
         <span className="w-24 shrink-0" aria-hidden="true" />
       </div>
 
-      <div
-        ref={sectionRef}
-        className="relative z-[1] mx-auto flex w-full max-w-[720px] flex-col gap-12 px-8 pb-16 pt-2"
+      <main
+        id={`support-${view === 'license' ? 'license' : view === 'contact' ? 'contact' : 'give'}`}
+        role="tabpanel"
+        aria-label={panelLabel}
+        className="relative z-[1] mx-auto flex min-h-0 w-full max-w-[820px] flex-1 flex-col justify-center overflow-y-auto px-6 py-3"
+        key={view}
       >
-        <section id={SECTION_IDS.support} aria-label={t('support.tab_support')}>
+        {view === 'support' ? (
           <SupportView />
-        </section>
-
-        <SectionDivider />
-
-        <section id={SECTION_IDS.license} aria-label={t('support.tab_license')}>
+        ) : view === 'license' ? (
           <LicenseView />
-        </section>
-
-        <SectionDivider />
-
-        <section
-          id={SECTION_IDS.contact}
-          aria-label={t('contact.channels_label', { defaultValue: 'Ways to get in touch' })}
-          className="flex flex-col gap-6"
-        >
-          <div className="text-center">
-            <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
-              <MessageCircle size={24} className="text-[#f3a5b6]" />
-            </span>
-            <h2 className="relative inline-block font-serif text-[2rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
-              {t('contact.hero_title', { defaultValue: 'We\u2019d love to hear from you' })}
-              <span className="lp-hero__sweep" aria-hidden="true" />
-            </h2>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <header className="flex items-center justify-center gap-3 text-center">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
+                <MessageCircle size={20} className="text-[#f3a5b6]" />
+              </span>
+              <h2 className="relative inline-block font-serif text-[1.7rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
+                {t('contact.hero_title', { defaultValue: 'We\u2019d love to hear from you' })}
+                <span className="lp-hero__sweep" aria-hidden="true" />
+              </h2>
+            </header>
+            <ContactSections onSupport={() => setView('support')} />
           </div>
-          <ContactSections />
-        </section>
-      </div>
+        )}
+      </main>
     </div>
   );
 }

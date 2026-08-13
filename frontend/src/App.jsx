@@ -396,6 +396,7 @@ function App() {
     handleLockProfile,
     handleUnlockProfile,
   } = useProfiles({ loadHistory, loadProfiles });
+  const clearSelectedProfile = useCallback(() => setSelectedProfile(null), [setSelectedProfile]);
 
   const {
     refAudio,
@@ -1496,7 +1497,7 @@ function App() {
         ) : mode === 'gallery' ? (
           <ErrorBoundary name="gallery">
             <Suspense fallback={<LazyFallback />}>
-              <VoiceGallery />
+              <VoiceGallery clearSelectedProfile={clearSelectedProfile} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'transcriptions' ? (

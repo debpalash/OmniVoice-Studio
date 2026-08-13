@@ -391,7 +391,7 @@ Ships two [skills](https://skills.sh):
 |----------|----------|
 | **Longform** | Audiobook editor (text/EPUB/PDF → chaptered .m4b) with multi-voice cast, expressive controls, live per-chapter progress + Stop, and a one-click sample; Stories multi-voice editor, two-pass loudnorm mastering, crash-resume for interrupted renders, pronunciation control + SSML-lite prosody |
 | **Dubbing** | Full pipeline (transcribe→translate→synthesize→mux), scene-aware splitting, lip-sync scoring, streaming TTS, per-speaker voice assignment, Smart Fit timing + second-pass QC, paste-in translations from any external tool, dedicated Dub home |
-| **Voice** | Zero-shot cloning, voice design, A/B comparison, voice preview widget, gallery with favorites/tags (its voices selectable in every picker — Studio, Audiobook, Stories, Dubbing), portable persona bundles (`.ovsvoice`), voice console workspace |
+| **Voice** | Zero-shot cloning, voice design, A/B comparison, voice preview widget, gallery with working preview/use/designer actions and one-step handoffs to Studio, Stories, and Audiobook (its voices are also selectable in Dubbing), portable persona bundles (`.ovsvoice`), voice console workspace |
 | **Audio** | Demucs vocal isolation, per-segment gain, selective track export, stem/SRT/VTT/MP3 export, unlimited-length TTS via sentence-chunked generation |
 | **Multi-Lang** | Translate All preserves the primary language plus every extra language chip; Generate renders and exports one retained track per language with sequential GPU execution |
 | **Diarization** | Pyannote ML diarization, auto speaker clone extraction, per-speaker voice assignment |
