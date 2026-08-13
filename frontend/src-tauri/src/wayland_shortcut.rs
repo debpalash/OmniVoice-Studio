@@ -123,13 +123,28 @@ fn system_entry_exists() -> bool {
         })
 }
 
-/// The Exec target of a desktop entry, unquoted. `None` when there is no
-/// usable Exec line — which GLib treats the same as a missing program.
+/// The `[Desktop Entry]` group's Exec target, unquoted. `None` when the main
+/// group has no usable Exec line — which GLib treats the same as a missing
+/// program. Scoped to the main group deliberately: a `[Desktop Action …]`
+/// group carries its own `Exec=`, and accepting it would retain an entry GLib
+/// still cannot resolve (CodeRabbit, #1526).
 fn entry_exec_target(content: &str) -> Option<std::path::PathBuf> {
-    let raw = content
-        .lines()
-        .find_map(|line| line.strip_prefix("Exec="))?
-        .trim();
+    let mut in_main_group = false;
+    let mut exec = None;
+    for line in content.lines() {
+        let line = line.trim_start();
+        if line.starts_with('[') {
+            in_main_group = line == "[Desktop Entry]";
+            continue;
+        }
+        if in_main_group {
+            if let Some(value) = line.strip_prefix("Exec=") {
+                exec = Some(value);
+                break;
+            }
+        }
+    }
+    let raw = exec?.trim();
     let unquoted = raw
         .strip_prefix('"')
         .and_then(|rest| rest.split('"').next())
@@ -703,17 +718,24 @@ mod tests {
         use super::entry_exec_target;
         // Current writer: quoted.
         assert_eq!(
-            entry_exec_target("Exec=\"/tmp/Voice Studio/app\"\n").as_deref(),
+            entry_exec_target("[Desktop Entry]\nExec=\"/tmp/Voice Studio/app\"\n").as_deref(),
             Some(std::path::Path::new("/tmp/Voice Studio/app"))
         );
         // Pre-quoting entries from older builds still parse.
         assert_eq!(
-            entry_exec_target("Exec=/home/u/target/debug/omnivoice-studio\n").as_deref(),
+            entry_exec_target("[Desktop Entry]\nExec=/home/u/target/debug/omnivoice-studio\n")
+                .as_deref(),
             Some(std::path::Path::new("/home/u/target/debug/omnivoice-studio"))
         );
         // No Exec at all resolves to NULL in GLib — treat as needing rewrite.
         assert_eq!(entry_exec_target("[Desktop Entry]\nType=Application\n"), None);
         assert!(super::entry_needs_rewrite("[Desktop Entry]\n", |_| true));
+        // An action group's Exec is NOT the entry's Exec: GLib still resolves
+        // the entry to NULL without a main-group Exec, so accepting this would
+        // keep exactly the stale entry the rewrite exists to replace.
+        let action_only = "[Desktop Entry]\nType=Application\n[Desktop Action new]\nExec=/bin/true\n";
+        assert_eq!(entry_exec_target(action_only), None);
+        assert!(super::entry_needs_rewrite(action_only, |_| true));
     }
 
     #[test]
