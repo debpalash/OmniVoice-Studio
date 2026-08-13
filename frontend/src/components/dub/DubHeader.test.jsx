@@ -6,8 +6,11 @@ import i18n from '../../i18n';
 import DubHeader from './DubHeader';
 
 // DubHeader mounts EngineQuickSwitch, whose useEngines query needs a client.
+// One client at module scope: an inline `new QueryClient()` would be a fresh
+// client on every wrapper render, so a rerender() drops the query cache.
+const queryClient = new QueryClient();
 const wrapper = ({ children }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
 
 describe('DubHeader command bar', () => {

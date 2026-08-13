@@ -8,8 +8,11 @@ import AudiobookHero from '../components/audiobook/AudiobookHero';
 const t = (key) => key;
 
 // AudiobookHero mounts EngineQuickSwitch, whose useEngines query needs a client.
+// One client at module scope: an inline `new QueryClient()` would be a fresh
+// client on every wrapper render, so a rerender() drops the query cache.
+const queryClient = new QueryClient();
 const wrapper = ({ children }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
 
 function renderHero(overrides = {}) {
