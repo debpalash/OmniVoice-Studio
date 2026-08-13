@@ -20,6 +20,13 @@ the frozen-backend fallback mirror it for their toolchains.
 - Dictation works on Wayland now — the portal shortcut actually fires (#1490, #1526) — and the recording pill is back on every desktop.
 - The Launchpad wears the project's signal-field waveform artwork over a quieter, borderless layout. (#1533)
 - The catalogue reads as headroom, not breakage: available engines sort first, uninstalled ones say what they need (#1531), and the LLM row names the provider that actually answers (#1538).
+- Gallery voices can be saved as local profiles — audio lands in your profile store with validated, content-addressed references. (#1542)
+
+<img src="https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/quick-switch.gif" alt="Switching TTS engines from the status bar" width="820" />
+
+| The Model Catalogue | The Voice Gallery |
+| --- | --- |
+| <img src="https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/catalogue.png" alt="Model Catalogue — engines pane" width="420" /> | <img src="https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/gallery-save.png" alt="Voice Gallery — save a voice as a profile" width="420" /> |
 
 ### Changed
 
@@ -50,6 +57,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Added
 
+- Gallery personas preview through the local backend, keep their full voice-design recipe, and open directly in Voice, Stories, or Audiobook — and can be saved as local profiles with validated audio references. (#1542)
 - The demo audio the app has always advertised now actually ships: previews for all seven voice-design presets, the three dictation replay clips, and the dubbing demo's source video plus four dubbed languages with subtitles. Every one of those was a dead link before — the tooling that renders them required macOS, so on Windows and Linux the files were never built. (#1517)
 - Demo assets are rendered by VoiceStudio's own engine, so the tooling runs wherever the app does, and the demos are made by the thing they demonstrate. (#1517)
 - A machine can now join a control plane from the app: Settings → System → Remote workers → **Lend this machine's GPU**, paste the join code, done — no environment variables and no restart. The address travels with the code, so the machine reconnects on its own afterwards. (#1516)
@@ -204,6 +212,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### CI
 
+- Windows CI falls back to a static ffmpeg build when the Chocolatey feed is down, instead of failing the run. (#1542)
 - The stdio wire protocol every engine sidecar speaks is now tested once across all nine of them, instead of against a single engine — a bug in any one sidecar's copy gets caught — thanks @paoloantinori! (#1408)
 - Windows smoke tests stopped silently passing a broken ffmpeg install, and every smoke leg is now budgeted for a cold dependency install. (#1290)
 - Test suites no longer leak config paths or model-manager shutdown state into one another, which had been failing unrelated pull requests. (#1269)
