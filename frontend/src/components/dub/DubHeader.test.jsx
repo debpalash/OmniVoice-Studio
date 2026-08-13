@@ -1,8 +1,14 @@
 import { render, screen, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import i18n from '../../i18n';
 import DubHeader from './DubHeader';
+
+// DubHeader mounts EngineQuickSwitch, whose useEngines query needs a client.
+const wrapper = ({ children }) => (
+  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+);
 
 describe('DubHeader command bar', () => {
   it('keeps project identity, compact pipeline, and batch action in one production bar', () => {
@@ -32,6 +38,7 @@ describe('DubHeader command bar', () => {
           onPipelineStep={vi.fn()}
         />
       </I18nextProvider>,
+      { wrapper },
     );
 
     const bar = screen.getByTestId('dub-command-bar');

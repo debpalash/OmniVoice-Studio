@@ -9,11 +9,17 @@ const { clearTauriLogs, toastError, toastSuccess } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }));
 
-vi.mock('../api/system', () => ({
+// Partial mocks: only what the test drives is stubbed. The footer renders
+// more consumers of these modules than this test cares about (engine quick
+// switch, compute chip), and a hand-written module object silently drops
+// whichever export they gain next.
+vi.mock('../api/system', async (importOriginal) => ({
+  ...(await importOriginal()),
   clearSystemLogs: vi.fn(),
   clearTauriLogs,
 }));
-vi.mock('../api/hooks', () => ({
+vi.mock('../api/hooks', async (importOriginal) => ({
+  ...(await importOriginal()),
   useSystemLogs: () => ({ data: null, refetch: vi.fn() }),
   useTauriLogs: () => ({ data: null, refetch: vi.fn() }),
   useVisibleNotifications: () => ({ notifications: [] }),

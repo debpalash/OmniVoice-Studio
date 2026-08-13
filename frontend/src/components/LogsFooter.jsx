@@ -640,7 +640,7 @@ export default function LogsFooter() {
             )}
           </button>
           <ComputeQuickSettings />
-          <EngineQuickSwitch shortcutTarget />
+          <EngineQuickSwitch shortcutTarget dropUp />
           <NetworkToggle />
           <button
             type="button"

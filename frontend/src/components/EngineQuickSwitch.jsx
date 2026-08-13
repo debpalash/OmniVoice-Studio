@@ -6,6 +6,7 @@ import { listLoadedModels } from '../api/system';
 import { useEngines, useSelectEngine } from '../api/hooks';
 import { notifyEngineSelected } from '../utils/engineSelectToast';
 import { useAppStore } from '../store';
+import { MENU_SURFACE } from './computeTarget';
 
 /**
  * A compact TTS/ASR/LLM picker for chrome that needs to expose the active
@@ -16,6 +17,10 @@ export default function EngineQuickSwitch({
   family = 'tts',
   className = '',
   shortcutTarget = false,
+  // The footer chip opens upward (nothing below the last row on screen);
+  // workspace-header chips must open downward or the popover clips off the
+  // top of the viewport.
+  dropUp = false,
 }) {
   const { t } = useTranslation();
   const rootRef = useRef(null);
@@ -120,7 +125,9 @@ export default function EngineQuickSwitch({
         <div
           role="dialog"
           aria-label={t('engines.engineCompatLabel', { family: family.toUpperCase() })}
-          className="absolute bottom-[calc(100%+8px)] right-0 z-[60] flex w-[272px] flex-col gap-[4px] rounded-[var(--chrome-radius)] border border-[color:var(--chrome-border)] bg-[var(--chrome-bg-elevated,var(--chrome-bg))] p-[8px] shadow-xl"
+          className={`absolute right-0 z-[60] flex w-[272px] flex-col gap-[4px] p-[8px] ${
+            dropUp ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'
+          } ${MENU_SURFACE}`}
         >
           {locked && (
             <p className="m-[4px] text-[11px] leading-[1.4] text-[color:var(--chrome-fg-muted)]">
