@@ -19,6 +19,7 @@ import { useAppStore } from '../store';
 import ReadinessChecklist from '../components/ReadinessChecklist';
 import LaunchpadDeck from '../components/LaunchpadDeck';
 import useShellNarrow from '../hooks/useShellNarrow';
+import signalField from '../assets/signal-field.webp';
 
 // Shared utility-class strings for the Launchpad project/section rows. Migrated
 // from the former `.lp-project-card`/`.lp-section-title`/`.proj-*` global rules
@@ -168,8 +169,20 @@ export default function Launchpad({
       {/* Hero — an eyebrow, one serif line, one sentence. Everything that used
           to compete with it (boxed number pill, filled CTA) is now quiet type;
           a hairline underneath does the separating that a card would have. */}
-      <div className="relative z-[1] mx-auto w-full max-w-[1180px] px-[44px] pb-[26px] pt-[38px] @max-[900px]/launchpad:px-[20px] @max-[900px]/launchpad:pb-[20px] @max-[900px]/launchpad:pt-[26px]">
-        <div className="flex justify-between items-start gap-[24px] flex-wrap">
+      <div className="relative z-[1] mx-auto w-full max-w-[1180px] overflow-hidden px-[44px] pb-[26px] pt-[38px] @max-[900px]/launchpad:px-[20px] @max-[900px]/launchpad:pb-[20px] @max-[900px]/launchpad:pt-[26px]">
+        {/* The signal-field waveform (the same cover the project wears on the
+            web) bleeds in from the right, where the hero has only air — the
+            mask ends it well before the text column, and a bottom fade keeps
+            the hairline underneath crisp. Decorative: hidden from readers,
+            inert to the pointer. */}
+        <img
+          src={signalField}
+          alt=""
+          aria-hidden="true"
+          data-testid="launchpad-signal-field"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[62%] select-none object-cover object-right opacity-60 mix-blend-screen [mask-image:radial-gradient(80%_72%_at_66%_54%,black_22%,transparent_68%),linear-gradient(270deg,transparent,black_16%)] [mask-composite:intersect] @max-[900px]/launchpad:w-[78%] @max-[900px]/launchpad:opacity-40"
+        />
+        <div className="relative flex justify-between items-start gap-[24px] flex-wrap">
           <div className="max-w-[640px]">
             <div className="mb-[14px] flex items-center gap-[8px]">
               <span

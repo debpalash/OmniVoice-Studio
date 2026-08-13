@@ -10,6 +10,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- The Launchpad hero wears the project's signal-field waveform artwork, feathered into the dark chrome. (#1533)
 - Switch TTS, ASR and LLM engines from the status bar or workspace, with ready-only choices, memory status and environment-pin protection. (#1530)
 - Docker/server mode now requires an API key for remote changes and side-effectful admin checks across workers, engines, media tools, MCP, pronunciation, diagnostics, and LLM providers. (#1525)
 - The unified Support page no longer throws while opening a section in browsers or test environments without `scrollIntoView`. (#1525)
