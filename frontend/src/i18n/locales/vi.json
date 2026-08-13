@@ -58,7 +58,7 @@
     "credentials": "Xác thực",
     "llm_providers": "Nhà cung cấp LLM",
     "llmp_desc": "Cung cấp năng lực cho bản dịch Cinematic và Autofit — LLM viết lại từng dòng cho vừa quỹ thời gian của phân đoạn để giữ đúng nhịp thời gian của video. Khóa được lưu ở dạng mã hóa; nhà cung cấp cục bộ (Ollama/LM Studio) hoạt động hoàn toàn ngoại tuyến.",
-    "llmp_catalogue_note": "Nhà cung cấp này sẽ trả lời khi nhóm engine LLM trong danh mục được đặt là \"tương thích OpenAI\".",
+    "llmp_catalogue_note": "Nhà cung cấp được đánh dấu đang hoạt động là bên trả lời khi nhóm engine LLM trong danh mục được đặt là \"tương thích OpenAI\".",
     "llmp_catalogue_link": "Mở nhóm LLM trong danh mục",
     "llmp_provider": "Nhà cung cấp",
     "llmp_provider_hint": "Chọn nhà cung cấp để cấu hình. Nhà cung cấp đang hoạt động sẽ được dùng cho bản dịch Cinematic/Autofit. Nhà cung cấp cục bộ không cần khóa nhưng máy chủ của chúng phải đang chạy.",

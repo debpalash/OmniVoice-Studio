@@ -58,7 +58,7 @@
     "credentials": "資格情報",
     "llm_providers": "LLM プロバイダー",
     "llmp_desc": "Cinematic・Autofit 翻訳を支える機能です。LLM が各行をセグメントの時間枠に収まるように書き換え、動画のタイミングを保ちます。キーは暗号化して保存され、ローカルプロバイダー（Ollama/LM Studio）は完全にオフラインで動作します。",
-    "llmp_catalogue_note": "カタログで LLM エンジンファミリーが「OpenAI 互換」に設定されている間は、このプロバイダーが応答します。",
+    "llmp_catalogue_note": "カタログで LLM エンジンファミリーが「OpenAI 互換」に設定されている間は、アクティブに設定されたプロバイダーが応答します。",
     "llmp_catalogue_link": "カタログで LLM ファミリーを開く",
     "llmp_provider": "プロバイダー",
     "llmp_provider_hint": "設定するプロバイダーを選択してください。アクティブなプロバイダーが Cinematic/Autofit 翻訳に使用されます。ローカルプロバイダーはキー不要ですが、サーバーが起動している必要があります。",

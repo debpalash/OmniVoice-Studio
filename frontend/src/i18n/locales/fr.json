@@ -58,7 +58,7 @@
     "credentials": "Identifiants",
     "llm_providers": "Fournisseurs LLM",
     "llmp_desc": "Alimente la traduction Cinematic et Autofit — le LLM reformule chaque ligne pour respecter le budget temps de son segment afin de préserver le timing de la vidéo. Les clés sont stockées chiffrées ; les fournisseurs locaux (Ollama/LM Studio) restent entièrement hors ligne.",
-    "llmp_catalogue_note": "Ce fournisseur répond dès que la famille de moteurs LLM du catalogue est réglée sur « compatible OpenAI ».",
+    "llmp_catalogue_note": "Le fournisseur marqué comme actif est celui qui répond dès que la famille de moteurs LLM du catalogue est réglée sur « compatible OpenAI ».",
     "llmp_catalogue_link": "Ouvrir la famille LLM dans le catalogue",
     "llmp_provider": "Fournisseur",
     "llmp_provider_hint": "Choisissez un fournisseur à configurer. Le fournisseur actif est utilisé pour la traduction Cinematic/Autofit. Les fournisseurs locaux ne nécessitent aucune clé, mais leur serveur doit être en cours d'exécution.",

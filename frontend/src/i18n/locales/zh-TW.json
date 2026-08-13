@@ -58,7 +58,7 @@
     "credentials": "金鑰憑證",
     "llm_providers": "LLM 提供者",
     "llmp_desc": "為 Cinematic 與 Autofit 翻譯提供支援：LLM 會改寫每一行，使其符合所在片段的時間預算，以維持影片時序。金鑰以加密方式儲存；本機提供者（Ollama/LM Studio）完全離線運作。",
-    "llmp_catalogue_note": "當目錄中的 LLM 引擎系列設為「OpenAI 相容」時，即由此提供者回應。",
+    "llmp_catalogue_note": "當目錄中的 LLM 引擎系列設為「OpenAI 相容」時，即由標記為使用中的提供者回應。",
     "llmp_catalogue_link": "在目錄中開啟 LLM 系列",
     "llmp_provider": "提供者",
     "llmp_provider_hint": "選擇要設定的提供者。目前啟用的提供者將用於 Cinematic/Autofit 翻譯。本機提供者無需金鑰，但其伺服器必須處於執行狀態。",

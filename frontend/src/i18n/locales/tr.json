@@ -58,7 +58,7 @@
     "credentials": "Kimlik Bilgileri",
     "llm_providers": "LLM sağlayıcıları",
     "llmp_desc": "Cinematic ve Autofit çevirisini çalıştırır — LLM her satırı, bölümünün süre bütçesine sığacak şekilde yeniden yazar; böylece videonun zamanlaması korunur. Anahtarlar şifrelenmiş olarak saklanır; yerel sağlayıcılar (Ollama/LM Studio) tamamen çevrimdışı kalır.",
-    "llmp_catalogue_note": "Katalogda LLM motor ailesi \"OpenAI uyumlu\" olarak ayarlandığında yanıt veren sağlayıcı budur.",
+    "llmp_catalogue_note": "Katalogda LLM motor ailesi \"OpenAI uyumlu\" olarak ayarlandığında, etkin olarak işaretlenen sağlayıcı yanıt verir.",
     "llmp_catalogue_link": "Katalogda LLM ailesini aç",
     "llmp_provider": "Sağlayıcı",
     "llmp_provider_hint": "Yapılandırmak için bir sağlayıcı seçin. Etkin olan, Cinematic/Autofit çevirisi için kullanılır. Yerel sağlayıcılar anahtar gerektirmez ama sunucularının çalışıyor olması gerekir.",

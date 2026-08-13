@@ -58,7 +58,7 @@
     "credentials": "Anmeldedaten",
     "llm_providers": "LLM-Anbieter",
     "llmp_desc": "Treibt die Cinematic- und Autofit-Übersetzung an — das LLM formuliert jede Zeile so um, dass sie ins Zeitbudget ihres Segments passt und das Video-Timing erhalten bleibt. Schlüssel werden verschlüsselt gespeichert; lokale Anbieter (Ollama/LM Studio) bleiben vollständig offline.",
-    "llmp_catalogue_note": "Dieser Anbieter antwortet, wann immer die LLM-Engine-Familie im Katalog auf „OpenAI-kompatibel“ steht.",
+    "llmp_catalogue_note": "Der als aktiv markierte Anbieter antwortet, wann immer die LLM-Engine-Familie im Katalog auf „OpenAI-kompatibel“ steht.",
     "llmp_catalogue_link": "LLM-Familie im Katalog öffnen",
     "llmp_provider": "Anbieter",
     "llmp_provider_hint": "Anbieter zum Konfigurieren auswählen. Der aktive wird für die Cinematic/Autofit-Übersetzung verwendet. Lokale Anbieter benötigen keinen Schlüssel, ihr Server muss jedoch laufen.",
