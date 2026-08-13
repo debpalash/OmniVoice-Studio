@@ -120,7 +120,7 @@ Three flagships, five more headliners, and a dozen under the fold.
 <br/>
 
 - 📚 **Model Catalogue** — one workspace for every TTS/ASR/LLM engine and model: defaults, device routing, install or remove weights — and quick-switch engines from anywhere with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd>.
-- 🖧 **Remote GPU workers** — send jobs to GPUs on your other machines: join code + QR enrolment, per-worker model installs with live progress, chapter-by-chapter audiobook rendering with local fallback. Off by default; see [docs/remote-workers.md](docs/remote-workers.md).
+- 🖧 **Remote GPU workers** — send jobs to GPUs on your other machines: join code + QR enrolment, Remote Model Downloads with per-worker live progress, chapter-by-chapter audiobook rendering with local fallback. Off by default; see [docs/remote-workers.md](docs/remote-workers.md).
 - 🔊 **Vocal Isolation** — Demucs-powered: splits speech from music and keeps the background bed.
 - 👥 **Speaker Diarization** — Pyannote + WhisperX auto-identify who said what.
 - 📦 **Batch Queue** — drop 50 videos, walk away; per-job progress bars.
