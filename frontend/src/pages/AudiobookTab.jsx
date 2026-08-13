@@ -8,7 +8,7 @@ import {
   audiobookImport,
 } from '../api/audiobook';
 import { audioUrl } from '../api/generate';
-import { listEngines } from '../api/engines';
+import { useEngines } from '../api/hooks';
 import { consumeLongformStream } from '../utils/longformStream';
 import { useAppStore } from '../store';
 import { overridesToRequest } from '../components/audiobook/AudiobookOverrides';
@@ -61,23 +61,12 @@ export default function AudiobookTab({ profiles = [] }) {
   const setLanguage = (v) => setOutputPrefs({ language: v || 'Auto' });
   const overrides = useAppStore((s) => s.overrides);
   const setLongformOverrides = useAppStore((s) => s.setLongformOverrides);
-  // Show emotion controls only when the active engine understands them
-  // (IndexTTS2). Fetched once on mount; degrades to hidden if the probe fails.
-  const [emotionSupported, setEmotionSupported] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    listEngines()
-      .then((r) => {
-        if (!alive) return;
-        const active = r?.tts?.active;
-        const b = (r?.tts?.backends || []).find((x) => x.id === active);
-        setEmotionSupported(!!b?.supports_emotion);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Derived from the shared engine cache so a switch elsewhere updates these
+  // controls immediately instead of leaving a stale mount-time snapshot.
+  const { data: engines } = useEngines();
+  const activeTts = engines?.tts?.active;
+  const emotionSupported = !!engines?.tts?.backends?.find((engine) => engine.id === activeTts)
+    ?.supports_emotion;
   const [plan, setPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [generating, setGenerating] = useState(false);

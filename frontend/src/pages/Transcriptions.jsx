@@ -11,6 +11,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Copy, Trash2, Search, Clock, Languages, FileText, Download } from 'lucide-react';
 import { Button } from '../ui';
+import EngineQuickSwitch from '../components/EngineQuickSwitch';
 import { toast } from 'react-hot-toast';
 import { toMillis } from '../utils/relativeTime';
 import { useEffectiveDictationShortcut } from '../hooks/useEffectiveDictationShortcut';
@@ -159,6 +160,7 @@ export default function TranscriptionsPage() {
           </span>
         </div>
         <div className="txn-header__right flex items-center gap-[6px]">
+          <EngineQuickSwitch family="asr" />
           <Button size="sm" variant="primary" onClick={startCapture}>
             <Mic size={13} /> {t('transcriptions.capture')}
           </Button>

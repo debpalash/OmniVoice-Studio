@@ -8,7 +8,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
 vi.mock('../components/settings/EnginesTab', () => ({
-  default: () => <div data-testid="stub-engines" />,
+  default: ({ initialFamily }) => <div data-testid="stub-engines">{initialFamily}</div>,
 }));
 vi.mock('../components/settings/ModelStoreTab', () => ({
   default: ({ modelBadge }) => <div data-testid="stub-models">{modelBadge}</div>,
@@ -35,7 +35,11 @@ describe('ModelCatalogue', () => {
   beforeEach(() => {
     localStorage.clear();
     act(() => {
-      useAppStore.setState({ mode: 'catalogue', pendingCatalogueTab: null });
+      useAppStore.setState({
+        mode: 'catalogue',
+        pendingCatalogueTab: null,
+        pendingCatalogueFamily: null,
+      });
     });
   });
 
@@ -78,6 +82,15 @@ describe('ModelCatalogue', () => {
     expect(useAppStore.getState().pendingCatalogueTab).toBeNull();
   });
 
+  it('honours an engine-family deep link and clears it after hand-off', () => {
+    act(() => {
+      useAppStore.getState().openCatalogue({ pane: 'engines', family: 'asr' });
+    });
+    render(<ModelCatalogue />);
+    expect(screen.getByTestId('stub-engines')).toHaveTextContent('asr');
+    expect(useAppStore.getState().pendingCatalogueFamily).toBeNull();
+  });
+
   it('passes the loaded-model badge down to the model store pane', () => {
     act(() => {
       useAppStore.setState({ pendingCatalogueTab: 'models' });
@@ -104,5 +117,13 @@ describe('openCatalogue', () => {
       useAppStore.getState().openCatalogue();
     });
     expect(useAppStore.getState().pendingCatalogueTab).toBe('engines');
+  });
+
+  it('accepts an object deep link with a family', () => {
+    act(() => {
+      useAppStore.getState().openCatalogue({ pane: 'engines', family: 'llm' });
+    });
+    expect(useAppStore.getState().pendingCatalogueTab).toBe('engines');
+    expect(useAppStore.getState().pendingCatalogueFamily).toBe('llm');
   });
 });

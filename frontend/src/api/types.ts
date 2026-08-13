@@ -24,7 +24,7 @@ type EffectiveDevice = GPUTarget | 'network';
 // `n/a` is LLM-only; resolve_routing only ever returns the first four.
 type RoutingStatus = 'accelerated' | 'cpu_fallback' | 'cpu_only' | 'unavailable' | 'n/a';
 
-interface EngineBackend {
+export interface EngineBackend {
   id: string;
   display_name: string;
   available: boolean;
@@ -76,8 +76,10 @@ export interface CuratedModel {
   repo_id: string;
 }
 
-interface EngineFamilyResponse {
+export interface EngineFamilyResponse {
   active: string;
+  /** A process environment pin wins over a saved UI selection. */
+  env_override?: boolean;
   backends: EngineBackend[];
 }
 

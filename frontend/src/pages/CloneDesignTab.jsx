@@ -7,12 +7,13 @@ import { Segmented } from '../ui';
 import { useAppStore } from '../store';
 import { API, apiPost, apiFetch } from '../api/client';
 import { mergeDescribedAttrs } from '../utils/voiceInstruct';
-import { listEngines } from '../api/engines';
+import { useEngines } from '../api/hooks';
 import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/playback';
 import ScriptPanel from '../components/clone/ScriptPanel';
 import AudioMethodPanel from '../components/clone/AudioMethodPanel';
 import DesignMethodPanel from '../components/clone/DesignMethodPanel';
 import ActionBar from '../components/clone/ActionBar';
+import EngineQuickSwitch from '../components/EngineQuickSwitch';
 
 export default function CloneDesignTab(props) {
   const {
@@ -174,15 +175,10 @@ export default function CloneDesignTab(props) {
     setVdStates(resetVd);
   };
 
-  // Engine readiness — used by the demo "Hear demo" fallback. Polls every
-  // 15s so a freshly-finished model download flips the button back to live
-  // synthesis without a manual refresh.
-  const { data: enginesData } = useQuery({
-    queryKey: ['engines-readiness'],
-    queryFn: listEngines,
-    refetchInterval: 15000,
-    staleTime: 5000,
-  });
+  // Engine readiness for the demo fallback. Model installs invalidate this
+  // shared query, so a newly-ready engine replaces the demo without a stale
+  // local snapshot or a second poller.
+  const { data: enginesData } = useEngines();
   const anyTtsReady = !!(enginesData?.tts?.backends || []).some((b) => b.available);
 
   // Demo coach-mark: when the user is on the "From audio" method with the
@@ -328,21 +324,24 @@ export default function CloneDesignTab(props) {
                 <Volume2 className="label-icon" size={14} />{' '}
                 {t('clone.voice_kicker', { defaultValue: 'Voice' })}
               </span>
-              <Segmented
-                size="sm"
-                value={defineMethod}
-                onChange={setDefineMethod}
-                items={[
-                  {
-                    value: 'audio',
-                    label: t('clone.define_from_audio', { defaultValue: 'From audio' }),
-                  },
-                  {
-                    value: 'design',
-                    label: t('clone.define_by_design', { defaultValue: 'By design' }),
-                  },
-                ]}
-              />
+              <div className="flex items-center gap-[6px]">
+                <EngineQuickSwitch />
+                <Segmented
+                  size="sm"
+                  value={defineMethod}
+                  onChange={setDefineMethod}
+                  items={[
+                    {
+                      value: 'audio',
+                      label: t('clone.define_from_audio', { defaultValue: 'From audio' }),
+                    },
+                    {
+                      value: 'design',
+                      label: t('clone.define_by_design', { defaultValue: 'By design' }),
+                    },
+                  ]}
+                />
+              </div>
             </div>
 
             {defineMethod === 'audio' ? (

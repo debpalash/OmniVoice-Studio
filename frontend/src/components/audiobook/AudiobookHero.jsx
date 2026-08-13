@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { BookMarked, BookOpen, FileUp, ListTree, Loader, Sparkles, Square } from 'lucide-react';
 
 import { Button } from '../../ui';
+import EngineQuickSwitch from '../EngineQuickSwitch';
 
 /** The inviting front door for the long-form workflow: context, path, and actions. */
 export default function AudiobookHero({
@@ -32,6 +33,7 @@ export default function AudiobookHero({
           <h2 className="m-0 [font-family:var(--font-serif)] text-[var(--text-lg)] font-semibold text-fg">
             {t('audiobook.title')}
           </h2>
+          <EngineQuickSwitch />
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-[4px]">

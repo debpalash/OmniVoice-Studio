@@ -13,8 +13,8 @@
  * Deliberately a COMPOSITION, not a rewrite: the panes mount the existing
  * `EnginesTab` (engine matrix + the OpenAI-compatible ASR config) and
  * `ModelStoreTab` unchanged, so their data contracts, tests and behaviour carry
- * over untouched — one GET /engines + one GET /model/loaded per open, the same
- * install/delete flows, the same env-var-wins semantics.
+ * over untouched — the shared engine cache, the same install/delete flows, and
+ * the same env-var-wins semantics.
  *
  * `pendingCatalogueTab` is the one-shot deep-link hand-off (mirrors Settings'
  * `pendingSettingsTab`): a caller sets the pane and navigates here, this page
@@ -31,7 +31,9 @@ import ModelStoreTab from '../components/settings/ModelStoreTab';
 
 /** Persisted across visits so the workspace reopens where you left it. */
 const PANE_KEY = 'omnivoice.catalogue.pane';
+const FAMILY_KEY = 'omnivoice.catalogue.engine-family';
 const PANES = ['engines', 'models'];
+const FAMILIES = ['tts', 'asr', 'llm'];
 
 function readStoredPane() {
   try {
@@ -42,14 +44,28 @@ function readStoredPane() {
   }
 }
 
+function readStoredFamily() {
+  try {
+    const stored = localStorage.getItem(FAMILY_KEY);
+    return FAMILIES.includes(stored) ? stored : 'tts';
+  } catch {
+    return 'tts';
+  }
+}
+
 export default function ModelCatalogue() {
   const { t } = useTranslation();
   const pendingCatalogueTab = useAppStore((s) => s.pendingCatalogueTab);
+  const pendingCatalogueFamily = useAppStore((s) => s.pendingCatalogueFamily);
   const setPendingCatalogueTab = useAppStore((s) => s.setPendingCatalogueTab);
+  const setPendingCatalogueFamily = useAppStore((s) => s.setPendingCatalogueFamily);
   // Seed from the deep-link so the first paint is already the requested pane —
   // seeding from storage and correcting in an effect would flash the wrong one.
   const [pane, setPaneRaw] = useState(() =>
     PANES.includes(pendingCatalogueTab) ? pendingCatalogueTab : readStoredPane(),
+  );
+  const [family, setFamilyRaw] = useState(() =>
+    FAMILIES.includes(pendingCatalogueFamily) ? pendingCatalogueFamily : readStoredFamily(),
   );
 
   const setPane = useCallback((next) => {
@@ -60,14 +76,31 @@ export default function ModelCatalogue() {
       /* private mode / quota — the pane still switches, it just won't persist */
     }
   }, []);
+  const setFamily = useCallback((next) => {
+    setFamilyRaw(next);
+    try {
+      localStorage.setItem(FAMILY_KEY, next);
+    } catch {
+      /* private mode / quota — the family still switches */
+    }
+  }, []);
 
   // Consume the one-shot deep-link (including a repeat request for the pane
   // we're already on, which must still clear).
   useEffect(() => {
     if (!pendingCatalogueTab) return;
     if (PANES.includes(pendingCatalogueTab)) setPane(pendingCatalogueTab);
+    if (FAMILIES.includes(pendingCatalogueFamily)) setFamily(pendingCatalogueFamily);
     setPendingCatalogueTab(null);
-  }, [pendingCatalogueTab, setPendingCatalogueTab, setPane]);
+    setPendingCatalogueFamily(null);
+  }, [
+    pendingCatalogueTab,
+    pendingCatalogueFamily,
+    setPendingCatalogueFamily,
+    setPendingCatalogueTab,
+    setFamily,
+    setPane,
+  ]);
 
   const { data: info } = useSystemInfo();
   const { data: status } = useModelStatus();
@@ -141,7 +174,7 @@ export default function ModelCatalogue() {
           className="min-w-0 [&>*:first-child]:mt-0 @min-[760px]/catalogue-shell:min-h-0 @min-[760px]/catalogue-shell:flex-1 @min-[760px]/catalogue-shell:overflow-y-auto @min-[760px]/catalogue-shell:overscroll-contain"
         >
           {pane === 'engines' ? (
-            <EnginesTab />
+            <EnginesTab initialFamily={family} onFamilyChange={setFamily} />
           ) : (
             <ModelStoreTab info={info} modelBadge={modelBadge} />
           )}

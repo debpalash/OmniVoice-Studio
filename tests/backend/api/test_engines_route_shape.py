@@ -100,6 +100,14 @@ def test_engines_response_includes_new_fields(fresh_app):
         assert entry["isolation_mode"] in {"in-process", "subprocess"}
 
 
+def test_engines_response_marks_environment_pinned_families(fresh_app, monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "pytorch-whisper")
+    body = _client(fresh_app).get("/engines").json()
+
+    assert body["asr"]["env_override"] is True
+    assert body["tts"]["env_override"] is False
+
+
 def test_all_families_share_the_11_key_shape(fresh_app):
     client = _client(fresh_app)
     body = client.get("/engines").json()

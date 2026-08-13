@@ -41,6 +41,15 @@ _FAMILIES = {
     "llm": (llm_backend, "llm_backend"),
 }
 
+
+def _family_payload(family: str, module):
+    """Public inventory plus whether an environment pin owns this family."""
+    return {
+        "active": module.active_backend_id(),
+        "env_override": bool(os.environ.get(f"OMNIVOICE_{family.upper()}_BACKEND")),
+        "backends": public_backends(module.list_backends()),
+    }
+
 def _is_hf_repo_id(value: str) -> bool:
     """Validate the route's ``owner/repo`` contract in bounded time."""
     if not isinstance(value, str) or len(value) > 96 or value.count("/") != 1:
@@ -55,34 +64,25 @@ def _is_hf_repo_id(value: str) -> bool:
 @router.get("/engines")
 def list_all_engines():
     return {
-        "tts": {
-            "active": tts_backend.active_backend_id(),
-            "backends": public_backends(tts_backend.list_backends()),
-        },
-        "asr": {
-            "active": asr_backend.active_backend_id(),
-            "backends": public_backends(asr_backend.list_backends()),
-        },
-        "llm": {
-            "active": llm_backend.active_backend_id(),
-            "backends": public_backends(llm_backend.list_backends()),
-        },
+        "tts": _family_payload("tts", tts_backend),
+        "asr": _family_payload("asr", asr_backend),
+        "llm": _family_payload("llm", llm_backend),
     }
 
 
 @router.get("/engines/tts")
 def list_tts_backends():
-    return {"active": tts_backend.active_backend_id(), "backends": public_backends(tts_backend.list_backends())}
+    return _family_payload("tts", tts_backend)
 
 
 @router.get("/engines/asr")
 def list_asr_backends():
-    return {"active": asr_backend.active_backend_id(), "backends": public_backends(asr_backend.list_backends())}
+    return _family_payload("asr", asr_backend)
 
 
 @router.get("/engines/llm")
 def list_llm_backends():
-    return {"active": llm_backend.active_backend_id(), "backends": public_backends(llm_backend.list_backends())}
+    return _family_payload("llm", llm_backend)
 
 
 @router.get("/engines/effects/presets", response_model=EffectPresetsResponse)
