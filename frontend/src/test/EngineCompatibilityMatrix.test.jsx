@@ -69,6 +69,46 @@ describe('EngineCompatibilityMatrix', () => {
     vi.useRealTimers();
   });
 
+  it('lists available engines first, keeping registration order inside each group', async () => {
+    // The fixture is deliberately interleaved (available, UNavailable,
+    // available). A matrix that renders it in payload order buries a usable
+    // engine under one you cannot select, which is the whole reason to sort:
+    // this list is something you pick FROM.
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        activeId="omnivoice"
+        apiListEngines={vi.fn().mockResolvedValue(makeEnginesResponse())}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await screen.findByText('OmniVoice (test)');
+
+    const order = Array.from(document.querySelectorAll('.engine-matrix__name')).map(
+      (el) => el.textContent,
+    );
+    expect(order).toEqual(['OmniVoice (test)', 'IndexTTS2 (test)', 'KittenTTS (test)']);
+  });
+
+  it("dims an unavailable engine's name without fading its evidence", async () => {
+    // Fading the whole row took the status badge and GPU chips with it — the
+    // two things that say WHY the engine is unavailable.
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        activeId="omnivoice"
+        apiListEngines={vi.fn().mockResolvedValue(makeEnginesResponse())}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    const unavailable = await screen.findByText('KittenTTS (test)');
+    const available = screen.getByText('IndexTTS2 (test)');
+
+    expect(unavailable.className).toContain('color-mix');
+    expect(available.className).not.toContain('color-mix');
+    expect(unavailable.closest('.engine-matrix__row').className).not.toContain('opacity-');
+  });
+
   it('renders one row per backend with the documented columns', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     render(

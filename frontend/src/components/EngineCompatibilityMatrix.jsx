@@ -329,7 +329,18 @@ export default function EngineCompatibilityMatrix({
   );
 
   const familyData = data?.[activeFamily];
-  const backends = useMemo(() => (familyData?.backends || []).map(normalizeEntry), [familyData]);
+  // Available engines first, unavailable after — the list is something you
+  // pick FROM, and burying a usable engine under four you cannot select makes
+  // you read the whole matrix to find it. Within each group the backend's own
+  // order is preserved (it is meaningful: registration order puts the defaults
+  // first), so this only lifts the rows you can act on.
+  const backends = useMemo(() => {
+    const rows = (familyData?.backends || []).map(normalizeEntry);
+    return rows
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => Number(b.row.available) - Number(a.row.available) || a.index - b.index)
+      .map(({ row }) => row);
+  }, [familyData]);
   const families = useMemo(
     () => Object.keys(FAMILY_META).filter((f) => data?.[f]?.backends),
     [data],
@@ -780,7 +791,12 @@ export default function EngineCompatibilityMatrix({
                     'mx-[var(--space-2)] rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]',
                     isActive &&
                       'bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)] shadow-[inset_2px_0_0_var(--chrome-accent)]',
-                    !b.available && 'opacity-[0.78]',
+                    // Dim the TEXT of an unavailable row, not the row: fading
+                    // the whole thing took the status badge and GPU chips down
+                    // with it, and those are exactly what tells you WHY it is
+                    // unavailable. Text recedes; the evidence stays legible.
+                    !b.available &&
+                      'engine-matrix__row--unavailable text-[color:var(--chrome-fg-muted)]',
                   )}
                 >
                   {/* Line 1: mark + name (truncated, never wraps) + badges.
@@ -793,9 +809,21 @@ export default function EngineCompatibilityMatrix({
                     )}
                   >
                     <span className="flex min-w-0 items-center gap-[6px]">
-                      <EngineMark id={b.id} size={18} className="shrink-0" />
+                      <EngineMark
+                        id={b.id}
+                        size={18}
+                        className={cn('shrink-0', !b.available && 'opacity-60')}
+                      />
                       <span
-                        className="engine-matrix__name min-w-0 truncate whitespace-nowrap font-semibold leading-[1.2] text-[length:var(--text-sm)] text-[color:var(--chrome-fg,currentColor)]"
+                        className={cn(
+                          'engine-matrix__name min-w-0 truncate whitespace-nowrap font-semibold leading-[1.2] text-[length:var(--text-sm)]',
+                          // The name pins its own colour, so the row-level dim
+                          // cannot reach it — it has to recede here or the row
+                          // reads as available at a glance.
+                          b.available
+                            ? 'text-[color:var(--chrome-fg,currentColor)]'
+                            : 'text-[color:color-mix(in_srgb,var(--chrome-fg)_58%,transparent)]',
+                        )}
                         title={b.display_name}
                       >
                         {b.display_name}
