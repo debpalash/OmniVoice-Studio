@@ -25,7 +25,7 @@ import {
 import { listLoadedModels, unloadLoadedModel } from '../api/system';
 import { copyText } from '../utils/copyText';
 import { ChevronRight } from 'lucide-react';
-import { Badge, Button, Segmented, Select, Table } from '../ui';
+import { Badge, Button, Select, Table, Tabs } from '../ui';
 import { cn } from '@/lib/utils';
 import EngineMark from './EngineMark';
 import SupertonicLicenseDialog from './SupertonicLicenseDialog';
@@ -82,7 +82,7 @@ function reasonMentionsLicense(reason) {
  *   - activeId?: string  the currently-active backend id for this
  *     family. Used to render the "active" badge.
  *   - showFamilyTabs?: boolean  default true. The TTS/ASR/LLM tab strip
- *     (Radix Segmented — roving tabindex + arrow keys) presents one family
+ *     (Radix Tabs — roving tabindex + arrow keys) presents one family
  *     at a time over the single shared GET /engines payload. The Model
  *     Catalogue mounts exactly one matrix in this mode. Pass false to pin
  *     the matrix to `family` (no switcher; the header names the family).
@@ -630,7 +630,7 @@ export default function EngineCompatibilityMatrix({
       </header>
 
       {showFamilyTabs && families.length > 1 && (
-        <Segmented
+        <Tabs
           size="sm"
           className="engine-matrix__tabs w-full [&>*]:flex-1"
           value={activeFamily}
@@ -641,7 +641,7 @@ export default function EngineCompatibilityMatrix({
           items={families.map((f) => {
             const FamilyIcon = FAMILY_META[f].icon;
             return {
-              value: f,
+              id: f,
               title: t('engines.activeEngine', {
                 family: FAMILY_META[f].label,
                 engine: data[f].active,

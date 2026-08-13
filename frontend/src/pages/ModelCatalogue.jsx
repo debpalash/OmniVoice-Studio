@@ -25,7 +25,7 @@ import { Boxes, CheckCircle, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useModelStatus, useSystemInfo } from '../api/hooks';
-import { Badge, Segmented } from '../ui';
+import { Badge, Tabs } from '../ui';
 import EnginesTab from '../components/settings/EnginesTab';
 import ModelStoreTab from '../components/settings/ModelStoreTab';
 
@@ -87,10 +87,14 @@ export default function ModelCatalogue() {
       <Badge tone="warn">{t('models.idle_badge')}</Badge>
     );
 
+  // Tabs, not a two-state Segmented: these are two workspaces of a catalogue,
+  // not one setting with an on/off reading, and the room to add a third pane
+  // later is free. Tabs also carry roving tabindex + role="tab" from the
+  // primitive, which the switch had to describe with an aria-label.
   const paneItems = useMemo(
     () => [
-      { value: 'engines', label: t('catalogue.tab_engines') },
-      { value: 'models', label: t('catalogue.tab_models') },
+      { id: 'engines', label: t('catalogue.tab_engines') },
+      { id: 'models', label: t('catalogue.tab_models') },
     ],
     [t],
   );
@@ -117,10 +121,11 @@ export default function ModelCatalogue() {
           <h1 className="m-0 min-w-0 flex-auto truncate [font-family:var(--font-sans)] text-[length:var(--text-lg)] font-semibold tracking-[-0.015em] text-[color:var(--chrome-fg)]">
             {t('catalogue.title')}
           </h1>
-          <Segmented
+          <Tabs
             items={paneItems}
             value={pane}
             onChange={setPane}
+            size="sm"
             aria-label={t('catalogue.title')}
             data-testid="catalogue-pane-switch"
           />

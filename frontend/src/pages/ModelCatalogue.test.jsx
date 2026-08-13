@@ -21,6 +21,16 @@ vi.mock('../api/hooks', () => ({
 import { useAppStore } from '../store';
 import ModelCatalogue from './ModelCatalogue';
 
+// Radix Tabs activate on POINTER DOWN, not click — a bare fireEvent.click
+// leaves the pane unchanged and reads as a broken switcher. Drive the tab the
+// way a pointer does.
+const clickTab = (name) => {
+  const tab = screen.getByRole('tab', { name });
+  fireEvent.pointerDown(tab, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  fireEvent.mouseDown(tab, { button: 0 });
+  fireEvent.click(tab);
+};
+
 describe('ModelCatalogue', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -34,14 +44,14 @@ describe('ModelCatalogue', () => {
     expect(screen.getByTestId('stub-engines')).toBeInTheDocument();
     expect(screen.queryByTestId('stub-models')).toBeNull();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Models' }));
+    clickTab('Models');
     expect(screen.getByTestId('stub-models')).toBeInTheDocument();
     expect(screen.queryByTestId('stub-engines')).toBeNull();
   });
 
   it('remembers the pane across visits', () => {
     const first = render(<ModelCatalogue />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Models' }));
+    clickTab('Models');
     first.unmount();
 
     render(<ModelCatalogue />);

@@ -31,7 +31,6 @@ const LogsFooter = lazy(() => import('./components/LogsFooter'));
 const ProjectsPage = lazy(() => import('./pages/Projects'));
 const VoiceGallery = lazy(() => import('./pages/VoiceGallery'));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
-const ContactPage = lazy(() => import('./pages/ContactPage'));
 const TranscriptionsPage = lazy(() => import('./pages/Transcriptions'));
 const StoriesEditor = lazy(() => import('./components/StoriesEditor'));
 const AudiobookTab = lazy(() => import('./pages/AudiobookTab'));
@@ -1539,7 +1538,9 @@ function App() {
         ) : mode === 'contact' ? (
           <ErrorBoundary name="contact">
             <Suspense fallback={<LazyFallback />}>
-              <ContactPage onBack={() => setMode('launchpad')} />
+              {/* Same page as donate / enterprise — it scrolls to the contact
+                  section. Three routes, one destination. */}
+              <SupportPage initialView="contact" onBack={() => setMode('launchpad')} />
             </Suspense>
           </ErrorBoundary>
         ) : mode === 'launchpad' ? (

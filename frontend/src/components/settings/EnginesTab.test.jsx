@@ -62,13 +62,20 @@ const ENGINES = {
   llm: { active: 'off', backends: [entry('off', 'Off (test)')] },
 };
 
-/** Click the family tab whose label text is `label` (TTS / ASR / LLM). */
+/** Click the family tab whose label text is `label` (TTS / ASR / LLM).
+ *
+ * Radix Tabs activate on POINTER DOWN, not click — a bare fireEvent.click
+ * leaves the family unchanged, which reads as a matrix that ignores its own
+ * tabs. Drive it the way a pointer does. */
 function clickFamilyTab(label) {
   const tab = Array.from(document.querySelectorAll('.engine-matrix__tab-family')).find(
     (el) => el.textContent === label,
   );
   expect(tab).toBeTruthy();
-  fireEvent.click(tab.closest('button'));
+  const trigger = tab.closest('button');
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  fireEvent.mouseDown(trigger, { button: 0 });
+  fireEvent.click(trigger);
 }
 
 describe('EnginesTab', () => {

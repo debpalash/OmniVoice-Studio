@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft,
   ArrowRight,
   ExternalLink,
   MessageCircle,
@@ -18,7 +17,6 @@ import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button.tsx';
 import { cn } from '@/lib/utils';
 import { openExternal } from '../api/external';
-import { useAppStore } from '../store';
 import ReportBugButton from '../components/ReportBugButton';
 
 // One home for every outward channel. The repo/Discord/security URLs match the
@@ -160,28 +158,26 @@ function ExternalCta({
 
 // Small mono caption with a trailing hairline — matches the Support page's
 // SectionTitle so the two pages read as one family.
-function SectionCaption({ children }) {
-  return (
-    <div className="mb-3 flex items-center gap-3">
-      <span className="whitespace-nowrap font-mono text-[var(--chrome-label-size)] font-semibold uppercase tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
-        {children}
-      </span>
-      <span className="h-px flex-1 bg-border" />
-    </div>
-  );
-}
-
 /**
- * ContactPage — a genuinely useful "Get in touch" page: each way to reach the
- * project is a card with an icon, a heading, and a sentence of guidance so
- * users pick the right channel (bug / feature / community / support / security)
- * instead of guessing from a flat link list. Reached via `mode === 'contact'`.
+ * The contact channels, as a SECTION rather than a page.
+ *
+ * Each way to reach the project is a card with an icon, a heading and a
+ * sentence of guidance, so people pick the right channel (bug / feature /
+ * community / support / security) instead of guessing from a flat link list.
+ *
+ * Sponsor, commercial licensing and contact were three separate destinations
+ * for one question — "how do I reach these people / support this" — so they
+ * now live together on SupportPage. This exports the body; the page shell
+ * (back button, aurora, scroll container) belongs to the host.
  */
-export default function ContactPage({ onBack }) {
+export function ContactSections() {
   const { t } = useTranslation();
-  // Support lives on its own page (donate mode) — link to it, never duplicate
-  // the Ko-fi/PayPal surface here.
-  const goSupport = () => useAppStore.getState().setMode?.('donate');
+
+  // "Support the project" stays INSIDE the app rather than linking out to
+  // Ko-fi: the support section is right above this one now, so sending people
+  // to a browser for something on the same page would be absurd.
+  const goSupport = () =>
+    document.getElementById('support-give')?.scrollIntoView({ block: 'start' });
 
   const renderCta = (s) => {
     const label = t(s.ctaKey, { defaultValue: s.ctaDefault });
@@ -197,98 +193,55 @@ export default function ContactPage({ onBack }) {
   };
 
   return (
-    <div className="relative isolate flex flex-1 flex-col overflow-y-auto bg-[var(--chrome-bg)]">
-      <div className="lp-aurora" aria-hidden="true">
-        <span className="lp-aurora__blob lp-aurora__blob--pink" />
-        <span className="lp-aurora__blob lp-aurora__blob--green" />
-        <span className="lp-aurora__blob lp-aurora__blob--amber" />
-      </div>
+    <>
+      <section
+        className="grid grid-cols-[repeat(auto-fit,minmax(248px,1fr))] gap-3"
+        aria-label={t('contact.channels_label', { defaultValue: 'Ways to get in touch' })}
+      >
+        {SECTIONS.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Card
+              key={s.id}
+              style={{ '--card-hue': s.hue }}
+              className="h-full items-start gap-3 rounded-lg border-border bg-transparent p-5 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
+            >
+              <span className="flex size-11 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_12%,transparent)] text-[var(--card-hue)]">
+                <Icon size={20} />
+              </span>
+              <h3 className="font-serif text-[1.2rem] font-medium leading-snug text-[var(--chrome-fg)]">
+                {t(s.titleKey, { defaultValue: s.titleDefault })}
+              </h3>
+              <p className="font-sans text-[0.82rem] leading-[1.6] text-[var(--chrome-fg-muted)]">
+                {t(s.descKey, { defaultValue: s.descDefault })}
+              </p>
+              <div className="mt-auto pt-1">{renderCta(s)}</div>
+            </Card>
+          );
+        })}
+      </section>
 
-      <div className="relative z-[2] flex items-center justify-between gap-3 px-11 pt-4">
-        <Button variant="subtle" size="sm" onClick={onBack} leading={<ArrowLeft size={14} />}>
-          {t('donate.back')}
-        </Button>
-        <span className="w-24 shrink-0" aria-hidden="true" />
-      </div>
-
-      <div className="relative z-[1] mx-auto flex w-full max-w-[820px] flex-1 flex-col gap-9 px-8 pb-14 pt-2">
-        {/* Friendly, generously-spaced header */}
-        <header className="text-center">
-          <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-lg border border-transparent bg-[color-mix(in_srgb,#d3869b_12%,transparent)]">
-            <MessageCircle
-              size={26}
-              className="text-[#f3a5b6] drop-shadow-[0_0_12px_rgba(243,165,182,0.5)]"
-            />
-          </span>
-          <h2 className="relative inline-block font-serif text-[2.4rem] font-normal leading-tight tracking-[-0.02em] text-[var(--chrome-fg)]">
-            {t('contact.hero_title', { defaultValue: 'We’d love to hear from you' })}
-            <span className="lp-hero__sweep" aria-hidden="true" />
-          </h2>
-          <p className="mx-auto mt-4 max-w-[560px] font-sans text-[0.9rem] leading-[1.7] text-[var(--chrome-fg-muted)]">
-            {t('contact.hero_desc', {
-              defaultValue:
-                'VoiceStudio is built in the open and shaped by the people who use it. Whether you’ve found a bug, have a feature in mind, need a hand getting set up, or just want to share what you made — there’s a channel below for it.',
-            })}
-          </p>
-        </header>
-
-        {/* Guidance cards — CSS-grid auto-fit reflows on the SHELL's own width
-            (2–3 across → 1), so it stays correct under --ui-scale zoom without
-            any viewport @media. */}
-        <section
-          className="grid grid-cols-[repeat(auto-fit,minmax(248px,1fr))] gap-3"
-          aria-label={t('contact.channels_label', { defaultValue: 'Ways to get in touch' })}
-        >
-          {SECTIONS.map((s) => {
-            const Icon = s.icon;
-            return (
-              <Card
-                key={s.id}
-                style={{ '--card-hue': s.hue }}
-                className="h-full items-start gap-3 rounded-lg border-border bg-transparent p-5 shadow-none transition-colors hover:border-border-strong hover:bg-[var(--chrome-hover-bg)]"
-              >
-                <span className="flex size-11 items-center justify-center rounded-md border border-transparent bg-[color-mix(in_srgb,var(--card-hue)_12%,transparent)] text-[var(--card-hue)]">
-                  <Icon size={20} />
-                </span>
-                <h3 className="font-serif text-[1.2rem] font-medium leading-snug text-[var(--chrome-fg)]">
-                  {t(s.titleKey, { defaultValue: s.titleDefault })}
-                </h3>
-                <p className="font-sans text-[0.82rem] leading-[1.6] text-[var(--chrome-fg-muted)]">
-                  {t(s.descKey, { defaultValue: s.descDefault })}
-                </p>
-                <div className="mt-auto pt-1">{renderCta(s)}</div>
-              </Card>
-            );
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        <ExternalCta
+          href={`mailto:${EMAIL}`}
+          label={t('contact.email', { defaultValue: 'Email' })}
+          ariaLabel={t('contact.email_desc', {
+            defaultValue: 'Email — licensing, partnerships, or anything private',
           })}
-        </section>
-
-        {/* Quieter, direct channels — kept from the previous page so email
-            (licensing / anything private) and the project site stay reachable. */}
-        <section>
-          <SectionCaption>
-            {t('contact.other_ways', { defaultValue: 'Other ways to reach me' })}
-          </SectionCaption>
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <ExternalCta
-              href={`mailto:${EMAIL}`}
-              label={t('contact.email', { defaultValue: 'Email' })}
-              ariaLabel={t('contact.email_desc', {
-                defaultValue: 'Email — licensing, partnerships, or anything private',
-              })}
-              leading={<Mail size={13} />}
-              trailing={null}
-            />
-            <ExternalCta
-              href={WEBSITE_URL}
-              label={t('contact.website', { defaultValue: 'Website' })}
-              ariaLabel={t('contact.website_desc', {
-                defaultValue: 'Website — more about the project and the maker',
-              })}
-              leading={<Globe size={13} />}
-            />
-          </div>
-        </section>
+          leading={<Mail size={13} />}
+          trailing={null}
+        />
+        <ExternalCta
+          href={WEBSITE_URL}
+          label={t('contact.website', { defaultValue: 'Website' })}
+          ariaLabel={t('contact.website_desc', {
+            defaultValue: 'Website — more about the project and the maker',
+          })}
+          leading={<Globe size={13} />}
+        />
       </div>
-    </div>
+    </>
   );
 }
+
+export default ContactSections;

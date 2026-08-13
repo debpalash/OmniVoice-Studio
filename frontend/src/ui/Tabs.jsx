@@ -76,6 +76,7 @@ export default function Tabs({
               key={item.id}
               value={item.id}
               className={`ui-tabs__tab ${active ? 'is-active' : ''} ${tabClass}`}
+              title={item.title}
               style={active && item.accent ? { '--ui-tab-accent': item.accent } : undefined}
             >
               {Icon && <Icon size={12} className="ui-tabs__icon" />}
