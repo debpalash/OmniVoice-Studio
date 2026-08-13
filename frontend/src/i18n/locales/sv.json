@@ -288,7 +288,7 @@
     "worker_join_code_hint": "Engångskod som går ut om 15 minuter. Skapa den på maskinen som ska skicka jobben.",
     "worker_join_desc": "Låt en annan kopia av VoiceStudio skicka jobb till den här maskinen. Klistra in anslutningskoden den visade — eller skanna dess QR-kod med telefonen och klistra in den här.",
     "worker_join_env": "OMNIVOICE_WORKER_MODE är satt i den här maskinens miljö, så den avgör — ändra den där.",
-    "worker_join_no_endpoint": "Inget kontrollplan sparat.",
+    "worker_join_no_endpoint": "Ingen kontrollplan sparad.",
     "worker_join_ok": "Ansluten. Den här maskinen tar nu emot jobb.",
     "worker_join_placeholder": "ovw_…",
     "worker_join_rejoin": "Anslut till en annan",
@@ -1626,7 +1626,7 @@
     "searchIssues": "Sök liknande problem",
     "unexpected": "Oväntat fel: {{message}}",
     "backend_shutting_down": "VoiceStudio stängs av. Öppna appen igen och försök på nytt.",
-    "crash_broken_env": "Den dog när den läste in sina egna Python-beroenden, så det handlar varken om minne eller om din GPU — miljön är ofullständig eller halvuppdaterad. Använd ”Clean & Retry” under Inställningar → Loggar → Backend, som bygger om den från grunden och reparerar den på plats utan att röra dina röster eller projekt. Misslyckas det ändå anger kraschdetaljerna exakt vilket paket som inte gick att importera.",
+    "crash_broken_env": "Den dog när den läste in sina egna Python-beroenden, så det handlar varken om minne eller om din GPU — miljön är ofullständig eller halvuppdaterad. Använd ”Rensa & Försök igen” under Inställningar → Loggar → Backend, som bygger om den från grunden och reparerar den på plats utan att röra dina röster eller projekt. Misslyckas det ändå anger kraschdetaljerna exakt vilket paket som inte gick att importera.",
     "crash_vram_default": "På mindre GPU:er är den vanliga orsaken att VRAM-minnet tar slut när ASR-modellen läses in ovanpå TTS-modellen: ladda ur TTS-modellen först, eller välj en mindre ASR-modell under Modellkatalog → Modeller.",
     "stream_cut_backend_alive": "Strömmen avbröts i förtid, men backend körs fortfarande — den kraschade alltså inte. I en serverad eller containerbaserad miljö beror det oftast på en omvänd proxy eller lastbalanserare som buffrar anslutningen eller bryter den efter en tidsgräns: stäng av svarsbuffring för den här rutten (nginx: proxy_buffering off; X-Accel-Buffering: no) och höj dess tidsgräns för läsning. Att köra skrivbordsappen direkt, eller på localhost utan proxy, bekräftar det."
   },

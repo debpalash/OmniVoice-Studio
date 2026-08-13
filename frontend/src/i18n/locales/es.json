@@ -1626,8 +1626,8 @@
     "searchIssues": "Buscar problemas similares",
     "unexpected": "Error inesperado: {{message}}",
     "backend_shutting_down": "VoiceStudio se está cerrando. Vuelve a abrir la aplicación e inténtalo de nuevo.",
-    "crash_broken_env": "Murió mientras cargaba sus propias dependencias de Python, así que no es cuestión de memoria ni de tu GPU: el entorno está incompleto o quedó a medio actualizar. Usa «Clean & Retry» en Configuración → Registros → Backend, que lo reconstruye desde cero y lo repara sin tocar tus voces ni tus proyectos. Si sigue fallando, los detalles del fallo indican el paquete exacto que no se pudo importar.",
-    "crash_vram_default": "En GPU más pequeñas, la causa habitual es quedarse sin VRAM al cargar el modelo ASR junto con el modelo TTS: descarga primero el modelo TTS, o elige un modelo ASR más pequeño en Catálogo de modelos → Modelos.",
+    "crash_broken_env": "Murió mientras cargaba sus propias dependencias de Python, así que no es cuestión de memoria ni de tu GPU: el entorno está incompleto o quedó a medio actualizar. Usa «Limpiar y reintentar» en Configuración → Registros → Backend, que lo reconstruye desde cero y lo repara sin tocar tus voces ni tus proyectos. Si sigue fallando, los detalles del fallo indican el paquete exacto que no se pudo importar.",
+    "crash_vram_default": "En GPU más pequeñas, la causa habitual es quedarse sin VRAM al cargar el modelo ASR junto con el modelo TTS: libera primero el modelo TTS de la memoria, o elige un modelo ASR más pequeño en Catálogo de modelos → Modelos.",
     "stream_cut_backend_alive": "El stream terminó antes de tiempo, pero el backend sigue en ejecución — así que no se bloqueó. En una instalación servida o en contenedor, esto suele deberse a un proxy inverso o balanceador de carga que almacena en búfer la conexión o la corta por tiempo de espera: desactiva el almacenamiento en búfer de la respuesta para esta ruta (nginx: proxy_buffering off; X-Accel-Buffering: no) y aumenta su tiempo de espera de lectura. Ejecutar la aplicación de escritorio directamente, o en localhost sin proxy, lo confirmará."
   },
   "keyboard": {
