@@ -515,9 +515,12 @@ export default function SupportPage({ onBack, initialView = 'support' }) {
   // section instead of hiding the other two.
   const sectionRef = React.useRef(null);
   React.useEffect(() => {
-    if (initialView === 'support') return; // already at the top
-    const id = SECTION_IDS[initialView];
-    if (!id) return;
+    // Every view scrolls, including 'support'. App.jsx renders SupportPage in
+    // the same tree position for donate / enterprise / contact, so React keeps
+    // ONE instance and only swaps props — treating 'support' as "already at the
+    // top" left the footer heart showing whichever section you were last on
+    // (CodeRabbit).
+    const id = SECTION_IDS[initialView] || SECTION_IDS.support;
     // rAF: the panel has to be laid out before an offset means anything.
     const frame = requestAnimationFrame(() => {
       sectionRef.current
