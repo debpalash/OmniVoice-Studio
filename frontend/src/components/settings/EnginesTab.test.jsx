@@ -28,9 +28,10 @@ vi.mock('../../api/system', () => ({
 // The ASR tab mounts AsrOpenAICompatPanel, which loads its config over the
 // api client — mocked so switching tabs never hits the network here.
 const apiJson = vi.fn();
+const apiFetch = vi.fn();
 vi.mock('../../api/client', () => ({
   apiJson: (...a) => apiJson(...a),
-  apiFetch: vi.fn(),
+  apiFetch: (...a) => apiFetch(...a),
   apiPost: vi.fn(),
 }));
 
@@ -93,6 +94,13 @@ describe('EnginesTab', () => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(ENGINES);
     listLoadedModels.mockResolvedValue({ models: [], count: 0 });
+    apiFetch.mockResolvedValue({
+      json: async () => ({
+        base_url: 'http://localhost:8000/v1',
+        model: 'qwen3-asr',
+        has_key: false,
+      }),
+    });
     // AsrOpenAICompatPanel's GET on mount (ASR tab only).
     apiJson.mockResolvedValue({ base_url: '', model: 'whisper-1', has_key: false });
   });
@@ -142,6 +150,20 @@ describe('EnginesTab', () => {
     await waitFor(() => screen.getByText('VoiceStudio (test)'));
     await waitFor(() => expect(listLoadedModels).toHaveBeenCalled());
     expect(listLoadedModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches the shared inventory after saving OpenAI-compatible ASR config', async () => {
+    renderEnginesTab();
+    await screen.findByText('VoiceStudio (test)');
+    clickFamilyTab('ASR');
+    await screen.findByTestId('asr-openai-compat-model');
+
+    fireEvent.change(screen.getByTestId('asr-openai-compat-model'), {
+      target: { value: 'qwen3-asr' },
+    });
+    fireEvent.click(screen.getByTestId('asr-openai-compat-save'));
+
+    await waitFor(() => expect(listEngines).toHaveBeenCalledTimes(2));
   });
 
   it('clicking Use on an ASR engine selects it with family="asr"', async () => {

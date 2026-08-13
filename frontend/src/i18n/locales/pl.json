@@ -1596,6 +1596,8 @@
     "or": "lub",
     "nav": "Nawigacja",
     "nav_cheatsheet": "Pokaż tę ściągawkę",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Zamknij modalne / anuluj",
     "nav_save": "Zapisz projekt / zatwierdź przycięcie",
     "segmentEditor": "Edytor segmentów",

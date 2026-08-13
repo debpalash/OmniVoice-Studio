@@ -251,6 +251,7 @@ export default function EngineCompatibilityMatrix({
   const [localError, setLocalError] = useState(null);
   const sharedRefetch = sharedEngines?.refetch;
   const isShared = Boolean(sharedEngines);
+  const sharedReloadToken = useRef(reloadToken);
   const data = sharedEngines?.data ?? localData;
   const loading = isShared ? sharedEngines.isLoading : localLoading;
   const error = sharedEngines?.error ?? localError;
@@ -321,6 +322,11 @@ export default function EngineCompatibilityMatrix({
 
   useEffect(() => {
     if (isShared) {
+      if (sharedReloadToken.current !== reloadToken) {
+        sharedReloadToken.current = reloadToken;
+        void reload();
+        return;
+      }
       refreshResidency();
       return;
     }

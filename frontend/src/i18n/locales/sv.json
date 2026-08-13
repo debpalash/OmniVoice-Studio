@@ -1596,6 +1596,8 @@
     "or": "eller",
     "nav": "Navigering",
     "nav_cheatsheet": "Visa detta cheatsheet",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Stäng modal / avbryt",
     "nav_save": "Spara projekt / commit trim",
     "segmentEditor": "Segmentredigerare",

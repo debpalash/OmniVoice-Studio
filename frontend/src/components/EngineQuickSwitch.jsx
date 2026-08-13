@@ -12,7 +12,11 @@ import { useAppStore } from '../store';
  * engine without growing a second engine-management surface. The matrix stays
  * the detailed view; this lists only engines that are ready to be used.
  */
-export default function EngineQuickSwitch({ family = 'tts', className = '' }) {
+export default function EngineQuickSwitch({
+  family = 'tts',
+  className = '',
+  shortcutTarget = false,
+}) {
   const { t } = useTranslation();
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -60,13 +64,14 @@ export default function EngineQuickSwitch({ family = 'tts', className = '' }) {
   // In-webview shortcut bridge. This stays a DOM event (not a Tauri global
   // shortcut), so every desktop and browser build behaves the same way.
   useEffect(() => {
+    if (!shortcutTarget) return undefined;
     const show = () => {
       setSwitchError('');
       setOpen(true);
     };
     window.addEventListener('engine-quick-switch', show);
     return () => window.removeEventListener('engine-quick-switch', show);
-  }, []);
+  }, [shortcutTarget]);
 
   if (!active || available.length === 0) return null;
 

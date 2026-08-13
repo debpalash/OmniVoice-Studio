@@ -1596,6 +1596,8 @@
     "or": "या",
     "nav": "नेविगेशन",
     "nav_cheatsheet": "यह चीटशीट दिखाओ",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "मोडल बंद करें / रद्द करें",
     "nav_save": "प्रोजेक्ट सहेजें/कमिट ट्रिम करें",
     "segmentEditor": "खंड संपादक",

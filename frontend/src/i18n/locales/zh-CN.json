@@ -1602,6 +1602,8 @@
     "or": "或",
     "nav": "导航",
     "nav_cheatsheet": "显示此备忘单",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "关闭模式/取消",
     "nav_save": "保存项目 / 提交裁剪",
     "segmentEditor": "段编辑器",

@@ -1596,6 +1596,8 @@
     "or": "或",
     "nav": "導航",
     "nav_cheatsheet": "顯示此備忘單",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "關閉模式/取消",
     "nav_save": "保存項目/提交修剪",
     "segmentEditor": "段編輯器",

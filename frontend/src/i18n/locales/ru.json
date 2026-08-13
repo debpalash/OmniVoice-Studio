@@ -1596,6 +1596,8 @@
     "or": "или",
     "nav": "Навигация",
     "nav_cheatsheet": "Показать эту шпаргалку",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Закрыть модально/отменить",
     "nav_save": "Сохранить проект/зафиксировать обрезку",
     "segmentEditor": "Редактор сегментов",

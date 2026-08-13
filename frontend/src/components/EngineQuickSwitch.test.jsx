@@ -29,11 +29,11 @@ const inventory = (env_override = false) => ({
   llm: { active: 'off', backends: [] },
 });
 
-function renderPicker() {
+function renderPicker(props = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <EngineQuickSwitch />
+      <EngineQuickSwitch {...props} />
     </QueryClientProvider>,
   );
 }
@@ -70,5 +70,21 @@ describe('EngineQuickSwitch', () => {
 
     expect(screen.getByText(/set via an environment variable/i)).toBeInTheDocument();
     expect(screen.getByText('IndexTTS 2').closest('button')).toBeDisabled();
+  });
+
+  it('opens only the designated picker from the global shortcut bridge', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <EngineQuickSwitch />
+        <EngineQuickSwitch shortcutTarget />
+      </QueryClientProvider>,
+    );
+    await screen.findAllByRole('button', { name: /active tts: omnivoice/i });
+
+    fireEvent(window, new Event('engine-quick-switch'));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });

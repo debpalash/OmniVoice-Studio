@@ -1596,6 +1596,8 @@
     "or": "oder",
     "nav": "Navigation",
     "nav_cheatsheet": "Zeige diesen Spickzettel",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Modal schließen / abbrechen",
     "nav_save": "Projekt speichern / Trimmen festschreiben",
     "segmentEditor": "Segmenteditor",

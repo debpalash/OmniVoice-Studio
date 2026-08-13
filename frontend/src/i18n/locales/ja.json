@@ -1596,6 +1596,8 @@
     "or": "または",
     "nav": "ナビゲーション",
     "nav_cheatsheet": "このチートシートを表示する",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "モーダルを閉じる/キャンセル",
     "nav_save": "プロジェクトの保存 / トリムのコミット",
     "segmentEditor": "セグメントエディター",

@@ -1596,6 +1596,8 @@
     "or": "hoặc",
     "nav": "Điều hướng",
     "nav_cheatsheet": "Hiển thị bảng cheat này",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Đóng phương thức / hủy",
     "nav_save": "Lưu dự án / cam kết cắt",
     "segmentEditor": "Trình chỉnh sửa phân đoạn",

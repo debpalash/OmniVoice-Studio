@@ -1596,6 +1596,8 @@
     "or": "หรือ",
     "nav": "การนำทาง",
     "nav_cheatsheet": "แสดงสูตรโกงนี้",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "ปิดกิริยา / ยกเลิก",
     "nav_save": "บันทึกโปรเจ็กต์ / คอมมิตการตัดแต่ง",
     "segmentEditor": "ตัวแก้ไขส่วน",

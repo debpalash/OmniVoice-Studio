@@ -806,7 +806,7 @@ function App() {
     const handler = (e) => {
       // In-webview navigation only: using DOM keydown keeps this identical in
       // browser, macOS, Windows and Linux builds (unlike OS-level hotkeys).
-      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
         const key = e.key.toLowerCase();
         if (key === 'e') {
           e.preventDefault();

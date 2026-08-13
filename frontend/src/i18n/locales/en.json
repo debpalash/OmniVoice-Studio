@@ -2133,6 +2133,8 @@
     "or": "or",
     "nav": "Navigation",
     "nav_cheatsheet": "Show this cheatsheet",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Close modal / cancel",
     "nav_save": "Save project / commit trim",
     "segmentEditor": "Segment editor",

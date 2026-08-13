@@ -1596,6 +1596,8 @@
     "or": "أو",
     "nav": "الملاحة",
     "nav_cheatsheet": "عرض ورقة الغش هذه",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "إغلاق مشروط / إلغاء",
     "nav_save": "حفظ المشروع/الالتزام بالقطع",
     "segmentEditor": "محرر المقطع",

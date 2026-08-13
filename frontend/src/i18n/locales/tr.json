@@ -1596,6 +1596,8 @@
     "or": "veya",
     "nav": "Navigasyon",
     "nav_cheatsheet": "Bu kopya sayfasını göster",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Modu kapat / iptal et",
     "nav_save": "Projeyi kaydet/kesmeyi tamamla",
     "segmentEditor": "Segment düzenleyici",

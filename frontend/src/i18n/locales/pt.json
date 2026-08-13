@@ -1596,6 +1596,8 @@
     "or": "ou",
     "nav": "Navegação",
     "nav_cheatsheet": "Mostrar esta folha de dicas",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Fechar modal/cancelar",
     "nav_save": "Salvar projeto/comprometer corte",
     "segmentEditor": "Editor de segmento",

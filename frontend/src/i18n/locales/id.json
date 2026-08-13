@@ -1596,6 +1596,8 @@
     "or": "atau",
     "nav": "Navigasi",
     "nav_cheatsheet": "Tunjukkan lembar contekan ini",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Tutup modal / batalkan",
     "nav_save": "Simpan proyek/komit trim",
     "segmentEditor": "Editor segmen",

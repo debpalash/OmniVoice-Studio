@@ -1596,6 +1596,8 @@
     "or": "ou",
     "nav": "Navigation",
     "nav_cheatsheet": "Afficher cette aide-mémoire",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Fermer modal / annuler",
     "nav_save": "Enregistrer le projet/commettre le trim",
     "segmentEditor": "Editeur de segments",

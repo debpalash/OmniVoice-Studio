@@ -1596,6 +1596,8 @@
     "or": "або",
     "nav": "Навігація",
     "nav_cheatsheet": "Покажіть цю шпаргалку",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Закрити режим / скасувати",
     "nav_save": "Зберегти проект / зафіксувати обрізку",
     "segmentEditor": "Редактор сегментів",

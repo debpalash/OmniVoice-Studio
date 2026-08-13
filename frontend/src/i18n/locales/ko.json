@@ -1596,6 +1596,8 @@
     "or": "또는",
     "nav": "네비게이션",
     "nav_cheatsheet": "이 치트시트를 보여주세요",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "모달 닫기/취소",
     "nav_save": "프로젝트 저장/트림 커밋",
     "segmentEditor": "세그먼트 편집기",

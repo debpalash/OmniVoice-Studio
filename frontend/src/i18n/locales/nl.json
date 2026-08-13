@@ -1596,6 +1596,8 @@
     "or": "of",
     "nav": "Navigatie",
     "nav_cheatsheet": "Laat dit spiekbriefje zien",
+    "nav_enginePickerKey": "Cmd/Ctrl+E",
+    "nav_workspacesKey": "Cmd/Ctrl+1–9",
     "nav_closeModal": "Modaal sluiten / annuleren",
     "nav_save": "Project opslaan / trimmen vastleggen",
     "segmentEditor": "Segmenteditor",
