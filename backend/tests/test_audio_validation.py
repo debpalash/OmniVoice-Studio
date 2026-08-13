@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import struct
-from pathlib import Path
 
 from core.audio_validation import is_playable_wav, resolve_regular_file
 

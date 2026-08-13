@@ -547,6 +547,11 @@ def _download_voice_audio(item: dict, out_path: Path, *, client=None) -> None:
                                     detail="Community voice audio exceeded the download size limit.",
                                 )
                         except ValueError:
+                            # A non-numeric Content-Length header is the
+                            # server's problem, not a reason to refuse the
+                            # download — the streamed byte counter below
+                            # still enforces the same cap on what actually
+                            # arrives.
                             pass
                     for chunk in response.iter_bytes():
                         if not chunk:
