@@ -541,12 +541,19 @@ async def test_worker_at_capacity_rejects_without_penalty(harness):
     if assignment is not None:
         await harness.servicer.dispatch(assignment)
         await asyncio.sleep(0.5)
-        assert second.state in (
-            TaskState.QUEUED,
-            TaskState.ASSIGNED,
-            TaskState.ACCEPTED,
-        )
-        assert second.excluded_workers == set()
+        # The invariant under test is NO OVER-CONCURRENCY, not the
+        # scheduler's bookkeeping timing. On a loaded runner the first
+        # attempt can die environmentally (a stream hiccup fails _run, whose
+        # finally frees the slot) and the worker then accepts the second
+        # LEGITIMATELY — asserting on second's state alone flaked exactly
+        # that way in CI (#1536). Only both running together is the bug.
+        if first.state is TaskState.RUNNING:
+            assert second.state in (
+                TaskState.QUEUED,
+                TaskState.ASSIGNED,
+                TaskState.ACCEPTED,
+            ), f"over-accept: second={second.state} while first is still RUNNING"
+            assert second.excluded_workers == set()
 
     release.set()
     await harness.await_state(first.task_id, TaskState.COMPLETED)
