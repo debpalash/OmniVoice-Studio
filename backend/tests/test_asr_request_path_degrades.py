@@ -215,31 +215,57 @@ _SELECTOR_ALLOWED: dict[str, str] = {
 
 
 def _selector_call_lines(source: str) -> list[int]:
-    """Lines where the raw selector is CALLED — alias-aware, code-only.
+    """Lines where THIS module's selector is called — resolved, not matched.
 
-    A regex over lines gets this wrong in both directions: it misses
-    ``from services.asr_backend import get_active_asr_backend as pick`` and it
-    fires on the name inside docstrings, string literals and trailing comments.
-    The AST sees calls and nothing else (CodeRabbit, #1523).
+    Three ways to get this wrong, all of them seen in review:
+
+    * a line regex misses ``import get_active_asr_backend as pick`` and fires
+      on the name inside docstrings and comments (#1523);
+    * matching any call named ``get_active_asr_backend`` also reports a local
+      helper or an unrelated object's method that happens to share the name
+      (CodeRabbit, #1524).
+
+    So bindings are resolved first: a bare call counts only if the name was
+    imported FROM services.asr_backend, and an attribute call only if it hangs
+    off a module alias for it.
     """
     tree = ast.parse(source)
 
-    aliases = {_SELECTOR}
+    home = _HOME_MODULE.removesuffix(".py").replace("/", ".")  # services.asr_backend
+    tail = home.rsplit(".", 1)[-1]  # asr_backend
+
+    functions: set[str] = set()  # names bound to the selector itself
+    modules: set[str] = set()  # names bound to the module holding it
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module == home or module.endswith(f".{tail}") or module == tail:
+                for name in node.names:
+                    if name.name == _SELECTOR:
+                        functions.add(name.asname or name.name)
+            elif module and home.startswith(f"{module}."):
+                # from services import asr_backend
+                for name in node.names:
+                    if name.name == tail:
+                        modules.add(name.asname or name.name)
+        elif isinstance(node, ast.Import):
             for name in node.names:
-                if name.name == _SELECTOR and name.asname:
-                    aliases.add(name.asname)
+                if name.name == home or name.name.endswith(f".{tail}"):
+                    modules.add(name.asname or name.name.split(".")[0])
 
     lines = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
-        # Bare or aliased: pick(...)   ·   Attribute: asr_backend.get_active…(…)
-        if isinstance(func, ast.Name) and func.id in aliases:
+        if isinstance(func, ast.Name) and func.id in functions:
             lines.append(node.lineno)
-        elif isinstance(func, ast.Attribute) and func.attr == _SELECTOR:
+        elif (
+            isinstance(func, ast.Attribute)
+            and func.attr == _SELECTOR
+            and isinstance(func.value, ast.Name)
+            and func.value.id in modules
+        ):
             lines.append(node.lineno)
     return sorted(lines)
 
@@ -256,6 +282,39 @@ def _offenders(paths, root):
             continue
         found.extend(f"{rel}:{line}" for line in hits)
     return found
+
+
+@pytest.mark.parametrize(
+    ("label", "source", "flagged"),
+    [
+        (
+            "direct import",
+            "from services.asr_backend import get_active_asr_backend\nget_active_asr_backend()\n",
+            True,
+        ),
+        (
+            "aliased import",
+            "from services.asr_backend import get_active_asr_backend as pick\npick()\n",
+            True,
+        ),
+        (
+            "module attribute",
+            "from services import asr_backend\nasr_backend.get_active_asr_backend()\n",
+            True,
+        ),
+        # False positives teach people to add allowlist entries for code that
+        # was never the bug — which is how a guard stops being believed.
+        (
+            "unrelated local function of the same name",
+            "def get_active_asr_backend():\n    return 1\n\nget_active_asr_backend()\n",
+            False,
+        ),
+        ("unrelated object method", "registry.get_active_asr_backend()\n", False),
+        ('name only in a docstring', '\"\"\"once called get_active_asr_backend().\"\"\"\n', False),
+    ],
+)
+def test_the_guard_resolves_the_selector_instead_of_matching_its_name(label, source, flagged):
+    assert bool(_selector_call_lines(source)) is flagged, label
 
 
 def test_routers_use_the_degrading_loader():
