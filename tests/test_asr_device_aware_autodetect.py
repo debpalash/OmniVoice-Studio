@@ -394,3 +394,53 @@ def test_parakeet_mlx_real_transcribe_smoke(tmp_path):
             assert w["word"] and w["start"] <= w["end"]
     for chunk in out["chunks"]:
         assert chunk["text"] and len(chunk["timestamp"]) == 2
+
+
+# ── ROCm (#1529): the Apple lesson repeated on the AMD axis ─────────────────
+# ROCm torch masquerades as CUDA (torch.cuda.is_available() is True, devices
+# are "cuda"), but CTranslate2 has no HIP backend — whisperx handed "cuda" to
+# NVIDIA's runtime on an RX 7900 XTX and died with "CUDA driver version is
+# insufficient for CUDA runtime version". pytorch-whisper rides torch itself,
+# so it is the engine that actually uses the HIP GPU.
+
+
+def test_rocm_host_picks_pytorch_whisper_not_ctranslate2(monkeypatch):
+    """The #1529 regression: before the fix this returned "whisperx"."""
+    monkeypatch.setattr(ab, "_mps_available", lambda: False)
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: True)
+    monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
+    monkeypatch.setattr(
+        ab, "_probe_available", _probe({"whisperx", "faster-whisper", "pytorch-whisper"})
+    )
+    assert ab._auto_detect() == "pytorch-whisper"
+
+
+def test_rocm_host_without_transformers_still_degrades_to_whisperx_on_cpu(monkeypatch):
+    """pytorch-whisper unavailable → whisperx is still correct, on the CPU."""
+    monkeypatch.setattr(ab, "_mps_available", lambda: False)
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: True)
+    monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
+    monkeypatch.setattr(ab, "_probe_available", _probe({"whisperx", "faster-whisper"}))
+    assert ab._auto_detect() == "whisperx"
+
+
+def test_real_cuda_is_untouched_by_the_rocm_branch(monkeypatch):
+    monkeypatch.setattr(ab, "_mps_available", lambda: False)
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: False)
+    monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
+    monkeypatch.setattr(
+        ab, "_probe_available", _probe({"whisperx", "faster-whisper", "pytorch-whisper"})
+    )
+    assert ab._auto_detect() == "whisperx"
+
+
+def test_ctranslate2_never_gets_cuda_on_a_rocm_build(monkeypatch):
+    """The crash itself: whisperx's device pick must refuse HIP-flavoured cuda."""
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: True)
+    monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
+    assert ab._ctranslate2_cuda_ok() is False
+    assert ab.WhisperXBackend._pick_device() == ("cpu", "int8")
+
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: False)
+    assert ab._ctranslate2_cuda_ok() is True
+    assert ab.WhisperXBackend._pick_device() == ("cuda", "float16")
