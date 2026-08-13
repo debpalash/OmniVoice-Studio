@@ -324,6 +324,31 @@ fn read_error_log_tail_at(path: &Path, start: u64, max_lines: usize) -> String {
     lines[from..].join("\n")
 }
 
+/// The previous run's stderr-drainer thread. Joined (bounded) before a new
+/// spawn records its offset, so a dying run's still-buffered stderr cannot be
+/// appended AFTER the new run's start offset and get attributed to the new
+/// run. (Full per-child offset binding isn't needed: spawns are serialized by
+/// the #1223 spawn-once flow, so the only race left was this buffered tail.)
+static ERR_LOG_DRAINER: Mutex<Option<std::thread::JoinHandle<()>>> = Mutex::new(None);
+
+/// Wait briefly for the previous run's stderr drainer to flush. A wedged
+/// drainer (pipe held open by an orphaned grandchild) must not block a
+/// respawn forever — after the bound we proceed; the offset then simply
+/// includes whatever the old run still manages to write, which degrades to
+/// attributing too MUCH to the new run, never to destroying evidence.
+fn join_previous_err_drainer(bound: Duration) {
+    let handle = ERR_LOG_DRAINER.lock().ok().and_then(|mut g| g.take());
+    if let Some(handle) = handle {
+        let deadline = std::time::Instant::now() + bound;
+        while !handle.is_finished() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if handle.is_finished() {
+            let _ = handle.join();
+        }
+    }
+}
+
 /// Open backend_err.log for a new run: append-only (a respawn must not
 /// destroy the previous run's evidence), rotated when oversized, with the
 /// run's start offset returned for `ERR_LOG_RUN_START`.
@@ -355,6 +380,21 @@ fn open_err_log_for_run(err_path: &Path) -> (Option<fs::File>, u64) {
 /// process "never started" and we previously surfaced "no error output
 /// captured". Writing this to backend_err.log lets read_error_log_tail show the
 /// real OS error + an actionable hint instead.
+/// Replace the user's home-directory prefix with `~`. This diagnostic is
+/// retained in backend_err.log across runs and lands verbatim in bug
+/// reports, so the username must not travel with it.
+fn redact_home(text: &str) -> String {
+    for var in ["HOME", "USERPROFILE"] {
+        if let Ok(home) = std::env::var(var) {
+            let home = home.trim_end_matches(['/', '\\']);
+            if home.len() > 1 && text.starts_with(home) {
+                return format!("~{}", &text[home.len()..]);
+            }
+        }
+    }
+    text.to_string()
+}
+
 fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
     // Platform-specific tail (cfg! resolves to this build's target OS, i.e. the
     // OS it runs on) — don't show AppImage/loader wording to macOS/Windows users.
@@ -379,7 +419,7 @@ fn spawn_failure_diagnostic(python: &Path, err: &std::io::Error) -> String {
          Interpreter present on disk: {}\n\
          OS error: {}\n\n\
          {} Use \"Clean & Retry\" to rebuild the environment.",
-        python.display(),
+        redact_home(&python.display().to_string()),
         python.exists(),
         err,
         os_hint,
@@ -454,7 +494,9 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
 
     let stdout_file = fs::File::create(&log_path).ok();
     // Append + per-run offset, never truncate: the previous run's stderr is
-    // crash evidence until someone reads it (#1510).
+    // crash evidence until someone reads it (#1510). Flush the previous
+    // drainer first so old buffered lines land BEFORE this run's offset.
+    join_previous_err_drainer(Duration::from_secs(2));
     let (err_log_file, err_log_start) = open_err_log_for_run(&err_path);
     ERR_LOG_RUN_START.store(err_log_start, std::sync::atomic::Ordering::SeqCst);
     if let Some(ref f) = err_log_file {
@@ -614,7 +656,9 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
 
     if let Some(stderr_pipe) = child.stderr.take() {
         let app_clone = app.clone();
-        std::thread::spawn(move || {
+        // Tracked (not detached): the next spawn joins this handle so this
+        // run's buffered tail flushes before the next run's offset is taken.
+        let drainer = std::thread::spawn(move || {
             use std::io::Write;
             let reader = BufReader::new(stderr_pipe);
             let mut log_file = err_log_file;
@@ -626,6 +670,9 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
                 }
             }
         });
+        if let Ok(mut guard) = ERR_LOG_DRAINER.lock() {
+            *guard = Some(drainer);
+        }
     }
 
     Some(child)
@@ -810,6 +857,52 @@ mod tests {
         // Offset beyond EOF (file replaced/shrunk externally): evidence
         // beats precision — degrade to the whole file, never to "".
         assert_eq!(read_error_log_tail_at(&path, 10_000, 10), "only line");
+    }
+
+    #[test]
+    fn a_dying_runs_buffered_stderr_flushes_before_the_next_offset() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("backend_err.log");
+        fs::write(&path, "run1: early line\n").unwrap();
+
+        // A drainer still flushing the dead run's buffered tail…
+        let p = path.clone();
+        let late = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(120));
+            let mut f = fs::OpenOptions::new().append(true).open(&p).unwrap();
+            writeln!(f, "run1: buffered last words").unwrap();
+        });
+        *ERR_LOG_DRAINER.lock().unwrap() = Some(late);
+
+        // …must land BEFORE the next run records where its output begins.
+        join_previous_err_drainer(Duration::from_secs(2));
+        let (_file, start) = open_err_log_for_run(&path);
+        let run2 = read_error_log_tail_at(&path, start, 10);
+        assert!(
+            !run2.contains("buffered last words"),
+            "old run's buffered stderr was attributed to the new run: {run2:?}"
+        );
+        assert!(fs::read_to_string(&path)
+            .unwrap()
+            .contains("buffered last words"));
+    }
+
+    #[test]
+    fn the_spawn_diagnostic_never_carries_the_users_home_path() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var("HOME").ok();
+        std::env::set_var("HOME", "/home/realname");
+        let diag = spawn_failure_diagnostic(
+            Path::new("/home/realname/.local/share/app/venv/bin/python"),
+            &io::Error::new(io::ErrorKind::NotFound, "nope"),
+        );
+        match saved {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+        assert!(!diag.contains("/home/realname"), "home path leaked: {diag}");
+        assert!(diag.contains("~/.local/share/app/venv/bin/python"));
     }
 
     #[test]
