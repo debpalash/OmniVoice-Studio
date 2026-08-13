@@ -59,6 +59,15 @@ describe('the merged support page', () => {
     expect(scrolledTo).toContain('support-contact');
   });
 
+  it('lands on the licence section for the enterprise route', () => {
+    // `mode === 'enterprise'` passes initialView="license" — the third
+    // destination, and the one a broken mapping would hide: every section
+    // renders either way, so only the scroll target proves it.
+    const { rerender } = render(<SupportPage onBack={() => {}} initialView="support" />);
+    rerender(<SupportPage onBack={() => {}} initialView="license" />);
+    expect(scrolledTo).toContain('support-license');
+  });
+
   it('goes back to the top when the route returns to support', () => {
     // THE REGRESSION: the same instance is reused across donate / enterprise /
     // contact, so a 'support' view that skipped scrolling left the footer heart
