@@ -540,7 +540,18 @@ async def test_worker_at_capacity_rejects_without_penalty(harness):
     assignment = harness.scheduler.next_assignment()
     if assignment is not None:
         await harness.servicer.dispatch(assignment)
-        await asyncio.sleep(0.5)
+        # Deterministic wait, not sleep-as-sync: the worker's answer settles
+        # the second task out of its dispatch states (QUEUED on a capacity
+        # rejection, RUNNING on an over-accept) — poll until it does.
+        deadline = asyncio.get_running_loop().time() + 10
+        while (
+            second.state in (TaskState.ASSIGNED, TaskState.ACCEPTED)
+            and asyncio.get_running_loop().time() < deadline
+        ):
+            await asyncio.sleep(0.05)
+        # Capacity rejections are penalty-free no matter how the first
+        # attempt is faring — the worker is never excluded for being honest.
+        assert second.excluded_workers == set()
         # The invariant under test is NO OVER-CONCURRENCY, not the
         # scheduler's bookkeeping timing. On a loaded runner the first
         # attempt can die environmentally (a stream hiccup fails _run, whose
@@ -553,10 +564,44 @@ async def test_worker_at_capacity_rejects_without_penalty(harness):
                 TaskState.ASSIGNED,
                 TaskState.ACCEPTED,
             ), f"over-accept: second={second.state} while first is still RUNNING"
-            assert second.excluded_workers == set()
 
     release.set()
     await harness.await_state(first.task_id, TaskState.COMPLETED)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_accept_send_releases_the_reserved_slot(harness):
+    """The slot is reserved before the accept-send await (#1536); a handler
+    cancelled while that send is in flight must release it again — the
+    scheduler never saw the accept, so keeping the reserved task running
+    means double-execution after reassignment."""
+    await harness.connect_worker()
+    client = harness.client
+    blocker = asyncio.Event()
+
+    async def _stuck_send(message, **kw):
+        await blocker.wait()
+
+    original_send = client._send
+    client._send = _stuck_send
+    try:
+        assignment = pb.TaskAssignment(
+            ref=pb.TaskRef(task_id="t-cancel", attempt_id="a1", session_epoch=client._epoch)
+        )
+        handler = asyncio.create_task(client._on_assignment(assignment))
+        deadline = asyncio.get_running_loop().time() + 5
+        while not client._running and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0)
+        assert client._running, "the slot was never reserved"
+        handler.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await handler
+        assert not client._running, (
+            "a cancelled accept-send left the reserved task in _running"
+        )
+    finally:
+        client._send = original_send
+        blocker.set()
 
 
 @pytest.mark.asyncio

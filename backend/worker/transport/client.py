@@ -667,9 +667,11 @@ class WorkerClient:
         self._running[key] = asyncio.create_task(self._run(assignment))
         try:
             await self._send(pb.WorkerMessage(accepted=pb.TaskAccepted(ref=assignment.ref)))
-        except Exception:
-            # The stream is dying; don't run work the scheduler never saw
-            # accepted — it would double-execute after reassignment.
+        except BaseException:
+            # BaseException, not Exception: a handler CANCELLED mid-send must
+            # release the slot too, or the reserved task keeps running work
+            # the scheduler never saw accepted — and double-executes after
+            # reassignment. The stream-death case lands here as well.
             task = self._running.pop(key, None)
             if task is not None:
                 task.cancel()
