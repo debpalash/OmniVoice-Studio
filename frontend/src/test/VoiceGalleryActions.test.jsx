@@ -32,6 +32,12 @@ const mocks = vi.hoisted(() => {
       instruct: 'female, high pitch, american accent',
       language: 'Spanish',
     },
+    archetypeB: {
+      id: 'a2',
+      name: 'Second Voice',
+      instruct: 'male, low pitch, british accent',
+      language: 'English',
+    },
     community: {
       id: 'c1',
       name: 'Community Voice',
@@ -74,6 +80,7 @@ vi.mock('../components/gallery/ArchetypesZone', () => ({
   default: (props) => (
     <div>
       <button onClick={() => props.onPreview(mocks.archetype)}>Preview archetype</button>
+      <button onClick={() => props.onPreview(mocks.archetypeB)}>Preview archetype B</button>
       <button onClick={() => props.onUse(mocks.archetype)}>Use archetype</button>
       <button onClick={() => props.onDesign(mocks.archetype)}>Design archetype</button>
       <button onClick={() => props.onUseInStories(mocks.archetype)}>Stories archetype</button>
@@ -94,7 +101,9 @@ vi.mock('../components/gallery/CommunityZone', () => ({
 }));
 vi.mock('../components/gallery/ImportsZone', () => ({ default: () => null }));
 
-import VoiceGallery from '../pages/VoiceGallery';
+// App module is imported at test runtime (in beforeEach, after mocks reset) —
+// never at module scope — so mocks are in place before the component loads.
+let VoiceGallery;
 
 const completeRecipe = {
   Gender: 'female',
@@ -106,12 +115,13 @@ const completeRecipe = {
 };
 
 describe('VoiceGallery persona actions', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mocks.state.galleryZone = 'archetypes';
     mocks.state.cast = [{ id: 'narrator', name: 'Narrator', color: '#fabd2f', profileId: null }];
     mocks.apiFetch.mockResolvedValue({ blob: () => Promise.resolve(new Blob()) });
     mocks.playBlobAudio.mockResolvedValue(undefined);
+    ({ default: VoiceGallery } = await import('../pages/VoiceGallery'));
   });
 
   it('opens the wand with a fresh complete recipe, language, and no stale profile', () => {
@@ -192,6 +202,67 @@ describe('VoiceGallery persona actions', () => {
       expect(mocks.addCommunityItem).toHaveBeenCalledWith('c1', 'Community Voice'),
     );
     expect(mocks.state.setPendingProfileId).toHaveBeenCalledWith('community-1');
+  });
+
+  it('drops a preview that resolves after unmount (no playback, no state)', async () => {
+    let resolveFetch;
+    mocks.apiFetch.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    const { unmount } = render(<VoiceGallery />);
+
+    fireEvent.click(screen.getByText('Preview archetype'));
+    unmount();
+    resolveFetch({ blob: () => Promise.resolve(new Blob()) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.playBlobAudio).not.toHaveBeenCalled();
+  });
+
+  it('drops a materialization that resolves after unmount (no late navigation)', async () => {
+    let finish;
+    mocks.useArchetypeAsProfile.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { unmount } = render(<VoiceGallery />);
+
+    fireEvent.click(screen.getByText('Use archetype'));
+    unmount();
+    finish({ profile_id: 'late-1', name: 'Late Voice' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.state.setPendingProfileId).not.toHaveBeenCalled();
+    expect(mocks.state.setMode).not.toHaveBeenCalled();
+  });
+
+  it('ignores a decode-error retry once a newer preview superseded it', async () => {
+    // First preview: capture onDone so the decode error can fire late.
+    let firstDone;
+    mocks.playBlobAudio.mockImplementationOnce(async (_blob, meta) => {
+      firstDone = meta.onDone;
+    });
+    render(<VoiceGallery />);
+
+    fireEvent.click(screen.getByText('Preview archetype'));
+    await waitFor(() => expect(firstDone).toBeDefined());
+
+    fireEvent.click(screen.getByText('Preview archetype B'));
+    await waitFor(() =>
+      expect(mocks.apiFetch).toHaveBeenCalledWith('/archetypes/a2/preview', { cache: 'no-store' }),
+    );
+
+    firstDone('error');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // The superseded preview must not restart old playback via its fallback.
+    expect(mocks.apiFetch).not.toHaveBeenCalledWith(
+      '/archetypes/a1/preview?local=true',
+      expect.anything(),
+    );
   });
 
   it('does not navigate when materialization fails', async () => {

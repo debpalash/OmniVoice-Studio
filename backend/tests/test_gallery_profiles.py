@@ -1,6 +1,8 @@
 """Gallery-import profile materialization contracts."""
 from __future__ import annotations
 
+import shutil
+import sqlite3
 import time
 import uuid
 from pathlib import Path
@@ -161,6 +163,70 @@ def test_gallery_profile_does_not_rewrite_a_namespaced_import_collision(client):
     assert collision["description"] == "user-owned metadata"
     assert collision_audio.read_bytes() == b"user-owned audio"
     assert created["personality"] == personality
+
+
+def _part_files() -> set[Path]:
+    return set(Path(gallery.VOICES_DIR).glob("*.part")) | set(
+        Path(gallery.VOICES_DIR).glob(".*.part")
+    )
+
+
+def test_audio_copy_never_holds_the_db_write_lock(client, monkeypatch):
+    """The bulk file copy must happen BEFORE the BEGIN IMMEDIATE transaction.
+
+    While the copy runs, another backend writer takes (and releases) SQLite's
+    write lock. If materialization copied inside its own write transaction,
+    this concurrent writer would hit `database is locked` and the test fails.
+    """
+    from core.config import DB_PATH
+
+    voice_id, _ = _gallery_voice()
+    real_copy2 = shutil.copy2
+    concurrent_writes = []
+
+    def copy_and_probe(src, dst, **kwargs):
+        probe = sqlite3.connect(DB_PATH, timeout=0.5)
+        try:
+            probe.execute("BEGIN IMMEDIATE")
+            probe.execute(
+                "UPDATE voice_gallery SET category = category WHERE id = ?",
+                (voice_id,),
+            )
+            probe.commit()
+            concurrent_writes.append(True)
+        finally:
+            probe.close()
+        return real_copy2(src, dst, **kwargs)
+
+    monkeypatch.setattr(gallery.shutil, "copy2", copy_and_probe)
+
+    response = client.post(f"/gallery/voices/{voice_id}/to-profile")
+
+    assert response.status_code == 200
+    assert concurrent_writes == [True]
+    assert _part_files() == set()
+
+
+def test_failed_copy_leaves_no_temp_droppings_or_profile_row(client, monkeypatch):
+    """A copy that dies mid-write must not leave .part files or a DB row."""
+    voice_id, _ = _gallery_voice()
+
+    def exploding_copy(src, dst, **kwargs):
+        Path(dst).write_bytes(b"partial bytes")
+        raise OSError("disk full mid-copy")
+
+    monkeypatch.setattr(gallery.shutil, "copy2", exploding_copy)
+
+    with pytest.raises(OSError, match="disk full mid-copy"):
+        client.post(f"/gallery/voices/{voice_id}/to-profile")
+
+    assert _part_files() == set()
+    with db_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM voice_profiles WHERE personality = ?",
+            (f"gallery:{voice_id}",),
+        ).fetchall()
+    assert rows == []
 
 
 def test_gallery_preview_serves_outputs_file_without_root_relative_redirect(client):

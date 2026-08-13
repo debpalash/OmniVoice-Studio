@@ -31,13 +31,14 @@ def test_oversized_declared_wav_payload_is_not_treated_as_playable(tmp_path):
     assert not is_playable_wav(path)
 
 
-def test_profile_wav_resolution_rejects_escape_and_symlink(tmp_path):
+def test_profile_wav_resolution_rejects_escape_and_symlink(tmp_path, symlinks_supported):
     root = tmp_path / "voices"
     root.mkdir()
     outside = tmp_path / "outside.wav"
     outside.write_bytes(b"outside")
-    (root / "linked.wav").symlink_to(outside)
 
     assert resolve_regular_file(root, "../outside.wav") is None
     assert resolve_regular_file(root, str(outside)) is None
-    assert resolve_regular_file(root, "linked.wav") is None
+    if symlinks_supported:  # Windows needs Developer Mode to create symlinks
+        (root / "linked.wav").symlink_to(outside)
+        assert resolve_regular_file(root, "linked.wav") is None

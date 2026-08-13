@@ -366,19 +366,36 @@ async def upload_voice_clip(
     }
 
 
-def _copy_profile_audio(source: Path, destination: Path) -> None:
-    """Copy an imported clip without exposing a partial profile audio file."""
-    destination.parent.mkdir(parents=True, exist_ok=True)
+def _stage_profile_audio(source: Path, directory: Path) -> Path:
+    """Copy an imported clip to a hidden temp file inside ``directory``.
+
+    The temp lives in the destination directory itself so a later
+    ``os.replace`` to the final name is an atomic same-filesystem rename —
+    cheap enough to run while holding a DB write lock, unlike the copy.
+    Callers own cleanup of the returned path if they never publish it.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(
-        dir=str(destination.parent), prefix=f".{destination.name}-", suffix=".part",
+        dir=str(directory), prefix=".gallery-import-", suffix=".part",
     )
     os.close(fd)
     try:
         shutil.copy2(source, tmp_name)
-        os.replace(tmp_name, destination)
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(tmp_name)
+        raise
+    return Path(tmp_name)
+
+
+def _copy_profile_audio(source: Path, destination: Path) -> None:
+    """Copy an imported clip without exposing a partial profile audio file."""
+    staged = _stage_profile_audio(source, destination.parent)
+    try:
+        os.replace(staged, destination)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(staged)
         raise
 
 
@@ -450,7 +467,31 @@ def _materialize_gallery_profile(
     personality = f"gallery:{voice_id}"
     copied_path: Optional[Path] = None
     created = False
+    staged_path: Optional[Path] = None
+    staged_source: Optional[Path] = None
     try:
+        # Stage the (potentially large) audio copy BEFORE taking SQLite's
+        # write lock: copying inside BEGIN IMMEDIATE would stall every other
+        # backend writer for the whole copy. The staged temp lives in
+        # VOICES_DIR itself, so publishing it inside the transaction is an
+        # atomic same-filesystem os.replace. This pre-read is advisory only —
+        # the locked transaction below re-reads and re-decides everything.
+        copy_needed = False
+        with db_conn() as conn:
+            pre_row = conn.execute(
+                "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,),
+            ).fetchone()
+            if pre_row is not None:
+                pre_source = Path(pre_row["audio_path"])
+                if pre_source.is_file():
+                    pre_existing = _existing_gallery_profile(conn, dict(pre_row), pre_source)
+                    copy_needed = pre_existing is None or not _gallery_profile_audio_is_current(
+                        pre_existing, pre_source,
+                    )
+        if copy_needed:
+            staged_path = _stage_profile_audio(pre_source, Path(VOICES_DIR))
+            staged_source = pre_source
+
         with db_conn() as conn:
             # The identity is not globally UNIQUE because personality is shared
             # with other import mechanisms. Serialize this check+insert in
@@ -466,12 +507,26 @@ def _materialize_gallery_profile(
             source = Path(voice["audio_path"])
             if not source.is_file():
                 raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+            def _install_audio(destination: Path) -> None:
+                """Publish the staged copy under the lock via atomic rename."""
+                nonlocal staged_path
+                if staged_path is not None and staged_source == source:
+                    os.replace(staged_path, destination)
+                    staged_path = None
+                else:
+                    # Rare race: the gallery row changed between the advisory
+                    # pre-read and taking the lock, so any staged bytes may be
+                    # from the wrong source. Fall back to the blocking copy
+                    # rather than publish stale audio.
+                    _copy_profile_audio(source, destination)
+
             existing = _existing_gallery_profile(conn, voice, source)
             if existing is not None:
                 ref_filename = _gallery_profile_audio_filename(existing["id"], source)
                 if not _gallery_profile_audio_is_current(existing, source):
                     ref_path = Path(VOICES_DIR) / ref_filename
-                    _copy_profile_audio(source, ref_path)
+                    _install_audio(ref_path)
                     copied_path = ref_path
                 conn.execute(
                     "UPDATE voice_profiles SET ref_audio_path=?, ref_text='', instruct='', "
@@ -488,7 +543,7 @@ def _materialize_gallery_profile(
                 profile_name = (requested_name or voice["name"]).strip() or voice["name"]
                 ref_filename = _gallery_profile_audio_filename(profile_id, source)
                 copied_path = Path(VOICES_DIR) / ref_filename
-                _copy_profile_audio(source, copied_path)
+                _install_audio(copied_path)
                 conn.execute(
                     """INSERT INTO voice_profiles
                        (id, name, ref_audio_path, ref_text, instruct, language, seed,
@@ -507,6 +562,12 @@ def _materialize_gallery_profile(
             with contextlib.suppress(OSError):
                 copied_path.unlink()
         raise
+    finally:
+        # Staged but never published (failure, or a concurrent request healed
+        # the profile first) — never leave .part droppings in VOICES_DIR.
+        if staged_path is not None:
+            with contextlib.suppress(OSError):
+                os.unlink(staged_path)
 
     event_bus.emit(
         "profiles", {"action": "created" if created else "updated", "id": result["profile_id"]},

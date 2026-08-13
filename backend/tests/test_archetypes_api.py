@@ -162,7 +162,7 @@ def test_preview_serves_cached_wav_without_model(client):
 
 
 # ── Materialize-on-use idempotency (dedup, no re-render) ───────────────────────
-def test_use_is_idempotent_dedup(client, tmp_path, monkeypatch):
+def test_use_is_idempotent_dedup(client, tmp_path, monkeypatch, symlinks_supported):
     """The 2nd `/use` of the same archetype reuses its one materialized profile
     and does NOT render again — the guarantee that materialize-on-select in any
     voice picker can't spawn duplicate rows on repeated picks.
@@ -249,22 +249,24 @@ def test_use_is_idempotent_dedup(client, tmp_path, monkeypatch):
     assert repaired_corrupt.status_code == 200
     assert render_calls["n"] == 4
 
-    outside = tmp_path / "outside.wav"
-    outside_bytes = _write_wav(outside)
-    audio_path.unlink()
-    audio_path.symlink_to(outside)
-    repaired_symlink = client.post(f"/archetypes/{sample['id']}/use")
-    assert repaired_symlink.status_code == 200
-    assert render_calls["n"] == 5
-    assert not audio_path.is_symlink()
-    assert outside.read_bytes() == outside_bytes
+    if symlinks_supported:  # Windows needs Developer Mode to create symlinks
+        outside = tmp_path / "outside.wav"
+        outside_bytes = _write_wav(outside)
+        audio_path.unlink()
+        audio_path.symlink_to(outside)
+        repaired_symlink = client.post(f"/archetypes/{sample['id']}/use")
+        assert repaired_symlink.status_code == 200
+        assert render_calls["n"] == 5
+        assert not audio_path.is_symlink()
+        assert outside.read_bytes() == outside_bytes
 
     # A valid header with a missing payload is not playable and must self-heal.
+    renders_before = render_calls["n"]
     truncated = _wav_bytes()[:44]
     audio_path.write_bytes(truncated)
     repaired_truncated = client.post(f"/archetypes/{sample['id']}/use")
     assert repaired_truncated.status_code == 200
-    assert render_calls["n"] == 6
+    assert render_calls["n"] == renders_before + 1
     assert audio_path.read_bytes() != truncated
 
 

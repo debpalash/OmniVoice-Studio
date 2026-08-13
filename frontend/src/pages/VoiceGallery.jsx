@@ -51,6 +51,15 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
   const materializingRef = useRef(false);
+  // Stale-async guards: gallery operations can outlive their trigger — a
+  // preview fetch resolving after the page unmounted, a decode-error retry
+  // firing after the user picked another voice, or a save-as-profile finishing
+  // after the user left (which would redirect them into a workspace they had
+  // already navigated away from). Each async operation captures the current
+  // generation token and re-checks it before playback, navigation, and every
+  // setState; unmount and each newer operation of the same kind invalidate it.
+  const previewSeq = useRef(0);
+  const materializeSeq = useRef(0);
 
   const flash = useCallback((msg) => {
     setNotice(msg);
@@ -60,6 +69,8 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
 
   useEffect(
     () => () => {
+      previewSeq.current += 1;
+      materializeSeq.current += 1;
       if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     },
     [],
@@ -76,6 +87,8 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
         stopActivePlayback(); // onDone('stopped') below resets playingId
         return;
       }
+      const gen = ++previewSeq.current;
+      const stale = () => previewSeq.current !== gen;
       setLoadingPreviewId(id);
       try {
         // no-store: preview audio is re-rendered server-side when an archetype is
@@ -83,6 +96,7 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
         // cache replays the first clip it ever fetched (a stale render) forever.
         const resp = await apiFetch(url, { cache: 'no-store' });
         const blob = await resp.blob();
+        if (stale()) return;
         setPlayingId(id);
         await playBlobAudio(blob, {
           label,
@@ -90,6 +104,7 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
           // element reports that asynchronously, so retry from the backend's
           // explicit local-render path here rather than leaving a silent card.
           onDone: (reason) => {
+            if (stale()) return;
             setPlayingId((cur) => (cur === id ? null : cur));
             if (reason === 'error' && fallbackUrl) {
               void playUrl(fallbackUrl, id, label);
@@ -97,6 +112,7 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
           },
         });
       } catch (e) {
+        if (stale()) return;
         setPlayingId((cur) => (cur === id ? null : cur));
         flash(
           t('gallery.preview_failed', {
@@ -105,7 +121,7 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
           }),
         );
       } finally {
-        setLoadingPreviewId(null);
+        if (!stale()) setLoadingPreviewId(null);
       }
     },
     [flash, playingId, t],
@@ -173,11 +189,15 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
       // A ref closes the double-click window before React can paint `disabled`.
       if (materializingRef.current) return;
       materializingRef.current = true;
+      const gen = ++materializeSeq.current;
+      const stale = () => materializeSeq.current !== gen;
       setMaterializingId(item.id);
       try {
         const profile = await createProfile(item.id, item.name);
+        if (stale()) return;
         placeProfile(profile, target);
       } catch (e) {
+        if (stale()) return;
         flash(
           t('gallery.use_failed', {
             message: e?.message || String(e),
@@ -186,7 +206,7 @@ export default function VoiceGallery({ clearSelectedProfile = NOOP }) {
         );
       } finally {
         materializingRef.current = false;
-        setMaterializingId(null);
+        if (!stale()) setMaterializingId(null);
       }
     },
     [flash, placeProfile, t],

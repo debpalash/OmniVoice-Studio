@@ -413,7 +413,9 @@ def test_recorded_download_rejects_non_audio_bytes(tmp_path):
 
 
 # ── Materialization ───────────────────────────────────────────────────────────
-def test_community_use_is_idempotent_design_profile(client, tmp_path, monkeypatch):
+def test_community_use_is_idempotent_design_profile(
+    client, tmp_path, monkeypatch, symlinks_supported,
+):
     from core import event_bus
     from core.db import db_conn, init_db
     from api.routers import archetypes as arch_router
@@ -473,14 +475,15 @@ def test_community_use_is_idempotent_design_profile(client, tmp_path, monkeypatc
     assert repaired_corrupt.status_code == 200
     assert profile_audio.read_bytes() == _wav_bytes()
 
-    outside = tmp_path / "outside.wav"
-    outside_bytes = _write_wav(outside)
-    profile_audio.unlink()
-    profile_audio.symlink_to(outside)
-    repaired_symlink = client.post("/community/items/p1/use")
-    assert repaired_symlink.status_code == 200
-    assert not profile_audio.is_symlink()
-    assert outside.read_bytes() == outside_bytes
+    if symlinks_supported:  # Windows needs Developer Mode to create symlinks
+        outside = tmp_path / "outside.wav"
+        outside_bytes = _write_wav(outside)
+        profile_audio.unlink()
+        profile_audio.symlink_to(outside)
+        repaired_symlink = client.post("/community/items/p1/use")
+        assert repaired_symlink.status_code == 200
+        assert not profile_audio.is_symlink()
+        assert outside.read_bytes() == outside_bytes
 
 
 def test_community_staged_repair_preserves_concurrently_edited_profile(

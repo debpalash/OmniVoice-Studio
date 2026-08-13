@@ -49,7 +49,36 @@ if not os.environ.get("OMNIVOICE_ENV_FILE"):
 os.environ["OMNIVOICE_MODEL"] = "test"
 
 
+import functools
+import shutil
+
 import pytest
+
+
+@functools.lru_cache(maxsize=1)
+def supports_symlinks() -> bool:
+    """True when this process may create symlinks. On Windows,
+    ``os.symlink`` raises OSError without Developer Mode or admin rights, so
+    symlink-dependent assertions must be skipped there rather than fail."""
+    probe_dir = tempfile.mkdtemp(prefix="omnivoice-symlink-probe-")
+    try:
+        target = os.path.join(probe_dir, "target")
+        with open(target, "w", encoding="utf-8"):
+            pass
+        try:
+            os.symlink(target, os.path.join(probe_dir, "link"))
+        except (OSError, NotImplementedError):
+            return False
+        return True
+    finally:
+        shutil.rmtree(probe_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="session")
+def symlinks_supported() -> bool:
+    """Bool fixture over :func:`supports_symlinks` for guarding the
+    symlink-only assertions of a test while its other assertions still run."""
+    return supports_symlinks()
 
 
 @pytest.fixture

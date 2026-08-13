@@ -133,7 +133,9 @@ export default function ArchetypesZone({
       : 'flex flex-col gap-[6px]';
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+    // data-testid: stable e2e hook — locale-independent, unlike the translated
+    // aria-labels/headings inside (see e2e/gallery.spec.ts).
+    <div data-testid="archetypes-zone" className="flex-1 min-h-0 flex flex-col overflow-y-auto">
       <div className="shrink-0 mb-[8px] pb-[8px] border-b border-transparent">
         <div className="flex items-center gap-[6px] min-w-0">
           <Select
