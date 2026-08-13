@@ -282,7 +282,36 @@
     "models_dir_effective": "Utilisé actuellement",
     "models_dir_configured": "Configuré",
     "models_dir_default": "Valeur par défaut",
-    "models_dir_restart": "↻ Redémarrez VoiceStudio pour utiliser le nouvel emplacement."
+    "models_dir_restart": "↻ Redémarrez VoiceStudio pour utiliser le nouvel emplacement.",
+    "worker_join": "Rejoindre",
+    "worker_join_code": "Code d'association",
+    "worker_join_code_hint": "À usage unique, expire dans 15 minutes. Générez-le sur la machine qui enverra les tâches.",
+    "worker_join_desc": "Autorisez une autre copie de VoiceStudio à envoyer des tâches à cette machine. Collez le code d'association qu'elle vous a montré — ou scannez son QR avec votre téléphone et collez-le ici.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE est défini dans l'environnement de cette machine, c'est donc lui qui décide — modifiez-le là-bas.",
+    "worker_join_no_endpoint": "Aucun plan de contrôle mémorisé.",
+    "worker_join_ok": "Association réussie. Cette machine accepte désormais des tâches.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "En rejoindre une autre",
+    "worker_join_stopped": "Arrêté",
+    "worker_join_take_work": "Accepter des tâches de",
+    "worker_join_title": "Prêter le GPU de cette machine",
+    "worker_join_working": "Au travail",
+    "workers_add_hint_qr": "Générez un jeton, puis scannez le QR depuis l'autre machine ou collez le code dans ses paramètres Workers distants.",
+    "workers_approve": "Approuver",
+    "workers_last_seen": "vu pour la dernière fois {{when}}",
+    "workers_qr_alt": "Code QR contenant ce code — à scanner depuis l'autre machine",
+    "workers_secret_done": "Terminé",
+    "workers_seen_hr": "il y a {{count}} h",
+    "workers_seen_min": "il y a {{count}} min",
+    "workers_seen_now": "à l'instant",
+    "workers_step_1": "Installez VoiceStudio sur la machine équipée du GPU.",
+    "workers_step_2": "Générez un jeton ci-dessus.",
+    "workers_step_3": "Scannez-y le QR, ou collez le code dans ses paramètres Workers distants.",
+    "workers_summary_none": "Personne n'est connecté",
+    "workers_summary_online": "{{count}} en ligne",
+    "workers_token_expired": "Expiré — générez-en un nouveau",
+    "workers_token_expires_in": "Expire dans {{time}}",
+    "workers_token_qr_hint": "Sur l'autre machine : Paramètres → Système → Workers distants → Rejoindre, puis scannez ou collez."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "À partir de l'audio",
     "define_voice": "Définir la voix",
     "save_design_as_profile": "Enregistrer la conception en tant que profil",
+    "generating_done_status": "Génération terminée",
+    "generating_status": "Génération de l'audio…",
+    "identity": "Identité",
+    "identity_auto": "Auto — le modèle décide",
+    "insert": "Insérer",
+    "insert_token": "Insérer un jeton d'expression",
+    "script": "Scénario",
+    "starting_points": "Points de départ",
+    "voice_kicker": "Voix",
     "seed_label": "Semence",
     "seed_placeholder": "aléatoire à chaque fois",
     "seed_keep": "Gardez cette graine",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Rechercher des problèmes similaires",
     "unexpected": "Erreur inattendue : {{message}}",
     "backend_shutting_down": "VoiceStudio est en cours de fermeture. Rouvrez l’application et réessayez.",
-    "crash_broken_env": "Il est mort en chargeant ses propres dépendances Python : ce n'est donc ni la mémoire ni votre GPU, mais un environnement incomplet ou à moitié mis à jour. Utilisez « Clean & Retry » dans Paramètres → Journaux → Backend, qui le reconstruit de zéro et le répare sur place, sans toucher à vos voix ni à vos projets. Si l'échec persiste, les détails du plantage nomment le paquet qui refusait de s'importer."
+    "crash_broken_env": "Il est mort en chargeant ses propres dépendances Python : ce n'est donc ni la mémoire ni votre GPU, mais un environnement incomplet ou à moitié mis à jour. Utilisez « Clean & Retry » dans Paramètres → Journaux → Backend, qui le reconstruit de zéro et le répare sur place, sans toucher à vos voix ni à vos projets. Si l'échec persiste, les détails du plantage nomment le paquet qui refusait de s'importer.",
+    "crash_vram_default": "Sur les GPU plus modestes, la cause habituelle est un manque de VRAM lors du chargement du modèle ASR en plus du modèle TTS : déchargez d'abord le modèle TTS, ou choisissez un modèle ASR plus petit dans Catalogue de modèles → Modèles.",
+    "stream_cut_backend_alive": "Le flux s'est terminé prématurément, mais le backend tourne toujours — il n'a donc pas planté. Dans une installation servie ou conteneurisée, c'est généralement un reverse proxy ou un répartiteur de charge qui met la connexion en tampon ou la coupe par timeout : désactivez la mise en tampon des réponses pour cette route (nginx: proxy_buffering off; X-Accel-Buffering: no) et augmentez son délai de lecture. Lancer l'application de bureau directement, ou sur localhost sans proxy, permettra de le confirmer."
   },
   "keyboard": {
     "title": "Raccourcis clavier",
@@ -2533,5 +2573,22 @@
       "longform": "narration d'histoires",
       "asr": "transcription"
     }
+  },
+  "compute": {
+    "add_machine": "Ajouter une machine",
+    "manage": "Paramètres des workers distants",
+    "off_hint": "Tout s'exécute sur cette machine. Activez Distant pour en utiliser une autre.",
+    "quick_settings": "Calcul — où les tâches s'exécutent",
+    "remote": "Distant",
+    "title": "Où les tâches s'exécutent",
+    "token_once": "Scannez-le ou collez-le sur l'autre machine. Affiché une seule fois."
+  },
+  "voices": {
+    "active": "Voix active",
+    "active_clone_recipe": "Clonée à partir de votre extrait de référence",
+    "cta_clone": "Déposez un extrait de 3 s dans Voix ← pour en cloner une",
+    "cta_design": "Décrivez-en une dans Voix ← pour la concevoir",
+    "new": "Nouvelle voix",
+    "none_selected": "Aucune voix sélectionnée — décrivez-en une, déposez un audio ou choisissez ci-dessous."
   }
 }

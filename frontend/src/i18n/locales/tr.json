@@ -282,7 +282,36 @@
     "models_dir_effective": "Şu anda kullanılan",
     "models_dir_configured": "Yapılandırılan",
     "models_dir_default": "Varsayılan kullanılıyor",
-    "models_dir_restart": "↻ Yeni konumu kullanmak için VoiceStudio’yu yeniden başlatın."
+    "models_dir_restart": "↻ Yeni konumu kullanmak için VoiceStudio’yu yeniden başlatın.",
+    "worker_join": "Katıl",
+    "worker_join_code": "Katılım kodu",
+    "worker_join_code_hint": "Tek kullanımlıktır ve 15 dakika içinde geçerliliğini yitirir. İşi gönderecek makinede oluşturun.",
+    "worker_join_desc": "Başka bir VoiceStudio kopyasının bu makineye iş göndermesine izin verin. Orada gösterilen katılım kodunu yapıştırın — veya QR'ını telefonunuzla tarayıp buraya yapıştırın.",
+    "worker_join_env": "Bu makinenin ortamında OMNIVOICE_WORKER_MODE ayarlı olduğundan karar onundur — değişikliği orada yapın.",
+    "worker_join_no_endpoint": "Kayıtlı bir kontrol düzlemi yok.",
+    "worker_join_ok": "Katıldı. Bu makine artık iş alıyor.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Başka birine katıl",
+    "worker_join_stopped": "Durduruldu",
+    "worker_join_take_work": "İş alınan kaynak",
+    "worker_join_title": "Bu makinenin GPU'sunu ödünç ver",
+    "worker_join_working": "Çalışıyor",
+    "workers_add_hint_qr": "Bir belirteç oluşturun, ardından diğer makineden QR'ı tarayın veya kodu o makinenin Uzak işçiler ayarlarına yapıştırın.",
+    "workers_approve": "Onayla",
+    "workers_last_seen": "son görülme {{when}}",
+    "workers_qr_alt": "Bu kodu taşıyan QR kodu — diğer makineden tarayın",
+    "workers_secret_done": "Bitti",
+    "workers_seen_hr": "{{count}} sa önce",
+    "workers_seen_min": "{{count}} dk önce",
+    "workers_seen_now": "az önce",
+    "workers_step_1": "GPU'lu makineye VoiceStudio'yu kurun.",
+    "workers_step_2": "Yukarıda bir belirteç oluşturun.",
+    "workers_step_3": "Orada QR'ı tarayın veya kodu o makinenin Uzak işçiler ayarlarına yapıştırın.",
+    "workers_summary_none": "Bağlı kimse yok",
+    "workers_summary_online": "{{count}} çevrimiçi",
+    "workers_token_expired": "Süresi doldu — yenisini oluşturun",
+    "workers_token_expires_in": "{{time}} içinde süresi dolacak",
+    "workers_token_qr_hint": "Diğer makinede: Ayarlar → Sistem → Uzak işçiler → Katıl, sonra tarayın veya yapıştırın."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "Sesten",
     "define_voice": "Sesi tanımla",
     "save_design_as_profile": "Tasarımı profil olarak kaydet",
+    "generating_done_status": "Oluşturma tamamlandı",
+    "generating_status": "Ses oluşturuluyor…",
+    "identity": "Ses kimliği",
+    "identity_auto": "Otomatik — model karar verir",
+    "insert": "Ekle",
+    "insert_token": "İfade belirteci ekle",
+    "script": "Metin",
+    "starting_points": "Başlangıç noktaları",
+    "voice_kicker": "Ses",
     "seed_label": "tohum",
     "seed_placeholder": "her seferinde rastgele",
     "seed_keep": "Bu tohumu sakla",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Benzer sorunları ara",
     "unexpected": "Beklenmeyen hata: {{message}}",
     "backend_shutting_down": "VoiceStudio kapanıyor. Uygulamayı yeniden açıp tekrar dene.",
-    "crash_broken_env": "Kendi Python bağımlılıklarını yüklerken sonlandı; yani sorun bellek ya da ekran kartınız değil — ortam eksik veya yarım güncellenmiş durumda. Ayarlar → Günlükler → Arka uç bölümündeki \"Clean & Retry\" seçeneğini kullanın: ortamı sıfırdan yeniden kurar ve seslerinize ya da projelerinize dokunmadan yerinde onarır. Yine de başarısız olursa, çökme ayrıntıları içe aktarılamayan paketin adını verir."
+    "crash_broken_env": "Kendi Python bağımlılıklarını yüklerken sonlandı; yani sorun bellek ya da ekran kartınız değil — ortam eksik veya yarım güncellenmiş durumda. Ayarlar → Günlükler → Arka uç bölümündeki \"Clean & Retry\" seçeneğini kullanın: ortamı sıfırdan yeniden kurar ve seslerinize ya da projelerinize dokunmadan yerinde onarır. Yine de başarısız olursa, çökme ayrıntıları içe aktarılamayan paketin adını verir.",
+    "crash_vram_default": "Küçük GPU'larda en yaygın neden, TTS modeli yüklüyken ASR modelini de yüklerken VRAM'in tükenmesidir: önce TTS modelini bellekten kaldırın veya Model kataloğu → Modeller bölümünden daha küçük bir ASR modeli seçin.",
+    "stream_cut_backend_alive": "Akış erken sona erdi ama arka uç hâlâ çalışıyor — yani çökmedi. Sunucu veya konteyner kurulumlarında bunun nedeni genellikle bir ters vekilin (reverse proxy) ya da yük dengeleyicinin bağlantıyı arabelleğe alması veya zaman aşımına uğratmasıdır: bu yol için yanıt arabelleğe almayı kapatın (nginx: proxy_buffering off; X-Accel-Buffering: no) ve okuma zaman aşımını artırın. Masaüstü uygulamasını doğrudan ya da vekil olmadan localhost üzerinde çalıştırmak bunu doğrular."
   },
   "keyboard": {
     "title": "Klavye kısayolları",
@@ -2533,5 +2573,22 @@
       "longform": "hikâye seslendirme",
       "asr": "deşifre"
     }
+  },
+  "compute": {
+    "add_machine": "Makine ekle",
+    "manage": "Uzak işçi ayarları",
+    "off_hint": "Her şey bu makinede çalışır. Başka bir makine kullanmak için Uzak'ı açın.",
+    "quick_settings": "Hesaplama — işlerin çalıştığı yer",
+    "remote": "Uzak",
+    "title": "İşlerin çalıştığı yer",
+    "token_once": "Bunu diğer makinede tarayın veya yapıştırın. Yalnızca bir kez gösterilir."
+  },
+  "voices": {
+    "active": "Etkin ses",
+    "active_clone_recipe": "Referans klibinizden klonlandı",
+    "cta_clone": "Klonlamak için Ses ← paneline 3 sn'lik bir klip bırakın",
+    "cta_design": "Tasarlamak için Ses ← panelinde tarif edin",
+    "new": "Yeni ses",
+    "none_selected": "Ses seçilmedi — birini tarif edin, ses dosyası bırakın veya aşağıdan seçin."
   }
 }

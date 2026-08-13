@@ -282,7 +282,36 @@
     "models_dir_effective": "目前使用",
     "models_dir_configured": "已設定",
     "models_dir_default": "使用預設值",
-    "models_dir_restart": "↻ 重新啟動 VoiceStudio 以使用新位置。"
+    "models_dir_restart": "↻ 重新啟動 VoiceStudio 以使用新位置。",
+    "worker_join": "加入",
+    "worker_join_code": "加入碼",
+    "worker_join_code_hint": "一次性使用，15 分鐘後失效。請在要傳送工作的那台機器上產生。",
+    "worker_join_desc": "讓另一份 VoiceStudio 把工作傳送到本機。貼上它顯示的加入碼——或用手機掃描它的 QR 碼後貼到這裡。",
+    "worker_join_env": "本機環境已設定 OMNIVOICE_WORKER_MODE，以它為準——請到那裡變更。",
+    "worker_join_no_endpoint": "沒有已記住的控制平面。",
+    "worker_join_ok": "已加入。本機現在開始接收工作。",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "加入另一台",
+    "worker_join_stopped": "已停止",
+    "worker_join_take_work": "工作來源",
+    "worker_join_title": "出借本機的 GPU",
+    "worker_join_working": "工作中",
+    "workers_add_hint_qr": "產生權杖，然後在另一台機器上掃描此 QR 碼，或將加入碼貼到它的「遠端工作機」設定中。",
+    "workers_approve": "核准",
+    "workers_last_seen": "上次上線 {{when}}",
+    "workers_qr_alt": "含有此加入碼的 QR 碼——請用另一台機器掃描",
+    "workers_secret_done": "完成",
+    "workers_seen_hr": "{{count}} 小時前",
+    "workers_seen_min": "{{count}} 分鐘前",
+    "workers_seen_now": "剛剛",
+    "workers_step_1": "在有 GPU 的機器上安裝 VoiceStudio。",
+    "workers_step_2": "在上方產生權杖。",
+    "workers_step_3": "在那台機器上掃描 QR 碼，或將加入碼貼到它的「遠端工作機」設定中。",
+    "workers_summary_none": "沒有已連線的工作機",
+    "workers_summary_online": "{{count}} 台上線",
+    "workers_token_expired": "已過期——請重新產生",
+    "workers_token_expires_in": "{{time}} 後過期",
+    "workers_token_qr_hint": "在另一台機器上：設定 → 系統 → 遠端工作機 → 加入，然後掃描或貼上。"
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "從音訊",
     "define_voice": "定義聲音",
     "save_design_as_profile": "將設計另存為語音設定檔",
+    "generating_done_status": "生成完成",
+    "generating_status": "正在生成音訊…",
+    "identity": "聲音特質",
+    "identity_auto": "自動 — 由模型決定",
+    "insert": "插入",
+    "insert_token": "插入表達標記",
+    "script": "文稿",
+    "starting_points": "起點",
+    "voice_kicker": "語音",
     "seed_label": "種子",
     "seed_placeholder": "每次都是隨機的",
     "seed_keep": "保留這個種子",
@@ -1588,7 +1626,9 @@
     "searchIssues": "搜尋類似問題",
     "unexpected": "未預期的錯誤：{{message}}",
     "backend_shutting_down": "VoiceStudio 正在關閉。請重新開啟應用程式後再試。",
-    "crash_broken_env": "它在載入自身的 Python 相依套件時結束，因此與記憶體或顯示卡無關——執行環境不完整，或更新到一半就停住了。請在 設定 → 記錄 → 後端 中使用「Clean & Retry」，它會從頭重建環境並就地修復，不會動到你的聲音或專案。若之後仍然失敗，當機詳情會指出無法匯入的確切套件。"
+    "crash_broken_env": "它在載入自身的 Python 相依套件時結束，因此與記憶體或顯示卡無關——執行環境不完整，或更新到一半就停住了。請在 設定 → 記錄 → 後端 中使用「Clean & Retry」，它會從頭重建環境並就地修復，不會動到你的聲音或專案。若之後仍然失敗，當機詳情會指出無法匯入的確切套件。",
+    "crash_vram_default": "在較小的 GPU 上，常見原因是在 TTS 模型仍載入時再載入 ASR 模型，導致顯示記憶體（VRAM）不足：請先卸載 TTS 模型，或在 模型庫 → 模型 中選擇較小的 ASR 模型。",
+    "stream_cut_backend_alive": "串流提前結束，但後端仍在執行——因此它並沒有當機。在伺服器或容器化部署中，這通常是反向代理或負載平衡器在緩衝連線或使其逾時：請為此路由停用回應緩衝（nginx: proxy_buffering off; X-Accel-Buffering: no）並調高讀取逾時。直接執行桌面應用程式，或在沒有代理的 localhost 上執行，即可確認。"
   },
   "keyboard": {
     "title": "鍵盤快速鍵",
@@ -2533,5 +2573,22 @@
       "longform": "故事朗讀",
       "asr": "轉錄"
     }
+  },
+  "compute": {
+    "add_machine": "新增機器",
+    "manage": "遠端工作機設定",
+    "off_hint": "所有工作都在本機執行。要使用其他機器，請開啟遠端。",
+    "quick_settings": "運算 — 工作執行位置",
+    "remote": "遠端",
+    "title": "工作執行位置",
+    "token_once": "在另一台機器上掃描或貼上。僅顯示一次。"
+  },
+  "voices": {
+    "active": "使用中的聲音",
+    "active_clone_recipe": "從你的參考片段克隆而來",
+    "cta_clone": "在 語音 ← 中放入 3 秒片段即可克隆",
+    "cta_design": "在 語音 ← 中描述即可設計",
+    "new": "新增聲音",
+    "none_selected": "尚未選擇聲音——描述一個、放入音訊，或從下方挑選。"
   }
 }

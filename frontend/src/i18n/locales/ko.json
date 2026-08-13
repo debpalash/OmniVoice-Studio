@@ -282,7 +282,36 @@
     "models_dir_effective": "현재 사용 중",
     "models_dir_configured": "설정됨",
     "models_dir_default": "기본값 사용",
-    "models_dir_restart": "↻ 새 위치를 사용하려면 VoiceStudio를 다시 시작하세요."
+    "models_dir_restart": "↻ 새 위치를 사용하려면 VoiceStudio를 다시 시작하세요.",
+    "worker_join": "참여",
+    "worker_join_code": "참여 코드",
+    "worker_join_code_hint": "일회용이며 15분 후 만료됩니다. 작업을 보낼 컴퓨터에서 생성하세요.",
+    "worker_join_desc": "다른 VoiceStudio가 이 컴퓨터로 작업을 보낼 수 있게 합니다. 그쪽에 표시된 참여 코드를 붙여 넣거나, QR을 휴대폰으로 스캔해 여기에 붙여 넣으세요.",
+    "worker_join_env": "이 컴퓨터의 환경에 OMNIVOICE_WORKER_MODE가 설정되어 있어 그 값이 우선합니다. 변경은 거기에서 하세요.",
+    "worker_join_no_endpoint": "기억된 컨트롤 플레인이 없습니다.",
+    "worker_join_ok": "참여했습니다. 이 컴퓨터가 이제 작업을 받고 있습니다.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "다른 곳에 참여",
+    "worker_join_stopped": "중지됨",
+    "worker_join_take_work": "작업을 받는 곳",
+    "worker_join_title": "이 컴퓨터의 GPU 빌려주기",
+    "worker_join_working": "작업 중",
+    "workers_add_hint_qr": "토큰을 생성한 뒤 다른 컴퓨터에서 QR을 스캔하거나, 그 컴퓨터의 원격 워커 설정에 코드를 붙여 넣으세요.",
+    "workers_approve": "승인",
+    "workers_last_seen": "마지막 접속 {{when}}",
+    "workers_qr_alt": "이 코드를 담은 QR 코드 — 다른 컴퓨터에서 스캔하세요",
+    "workers_secret_done": "완료",
+    "workers_seen_hr": "{{count}}시간 전",
+    "workers_seen_min": "{{count}}분 전",
+    "workers_seen_now": "방금 전",
+    "workers_step_1": "GPU가 있는 컴퓨터에 VoiceStudio를 설치하세요.",
+    "workers_step_2": "위에서 토큰을 생성하세요.",
+    "workers_step_3": "거기에서 QR을 스캔하거나, 그 컴퓨터의 원격 워커 설정에 코드를 붙여 넣으세요.",
+    "workers_summary_none": "연결된 워커 없음",
+    "workers_summary_online": "{{count}}대 온라인",
+    "workers_token_expired": "만료됨 — 새로 생성하세요",
+    "workers_token_expires_in": "{{time}} 후 만료",
+    "workers_token_qr_hint": "다른 컴퓨터에서: 설정 → 시스템 → 원격 워커 → 참여로 이동한 뒤 스캔하거나 붙여 넣으세요."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "오디오에서",
     "define_voice": "음성 정의",
     "save_design_as_profile": "디자인을 프로필로 저장",
+    "generating_done_status": "생성 완료",
+    "generating_status": "오디오 생성 중…",
+    "identity": "목소리 특성",
+    "identity_auto": "자동 — 모델이 결정합니다",
+    "insert": "삽입",
+    "insert_token": "표현 토큰 삽입",
+    "script": "대본",
+    "starting_points": "시작점",
+    "voice_kicker": "음성",
     "seed_label": "종자",
     "seed_placeholder": "매번 무작위로",
     "seed_keep": "이 씨앗을 보관하세요",
@@ -1588,7 +1626,9 @@
     "searchIssues": "유사한 문제 검색",
     "unexpected": "예기치 않은 오류: {{message}}",
     "backend_shutting_down": "VoiceStudio를 종료하는 중입니다. 앱을 다시 열고 시도하세요.",
-    "crash_broken_env": "자체 Python 의존성을 불러오는 도중에 종료됐습니다. 메모리나 GPU 문제가 아니라 환경이 불완전하거나 업데이트가 중간에 멈춘 상태입니다. 설정 → 로그 → 백엔드 의 \"Clean & Retry\"를 사용하세요. 환경을 처음부터 다시 만들어 그 자리에서 복구하며, 음성이나 프로젝트는 건드리지 않습니다. 그래도 실패하면 크래시 세부 정보에 가져오지 못한 패키지 이름이 나옵니다."
+    "crash_broken_env": "자체 Python 의존성을 불러오는 도중에 종료됐습니다. 메모리나 GPU 문제가 아니라 환경이 불완전하거나 업데이트가 중간에 멈춘 상태입니다. 설정 → 로그 → 백엔드 의 \"Clean & Retry\"를 사용하세요. 환경을 처음부터 다시 만들어 그 자리에서 복구하며, 음성이나 프로젝트는 건드리지 않습니다. 그래도 실패하면 크래시 세부 정보에 가져오지 못한 패키지 이름이 나옵니다.",
+    "crash_vram_default": "작은 GPU에서는 TTS 모델이 로드된 상태에서 ASR 모델을 불러오는 동안 VRAM이 부족한 것이 흔한 원인입니다. 먼저 TTS 모델을 언로드하거나, 모델 카탈로그 → 모델에서 더 작은 ASR 모델을 선택하세요.",
+    "stream_cut_backend_alive": "스트림이 일찍 끝났지만 백엔드는 계속 실행 중입니다. 즉, 크래시는 아닙니다. 서버 또는 컨테이너 환경에서는 보통 리버스 프록시나 로드 밸런서가 연결을 버퍼링하거나 시간 초과시키는 것이 원인입니다. 이 경로의 응답 버퍼링을 끄고(nginx: proxy_buffering off; X-Accel-Buffering: no) 읽기 시간 제한을 늘리세요. 데스크톱 앱을 직접 실행하거나 프록시 없이 localhost에서 실행해 보면 확인할 수 있습니다."
   },
   "keyboard": {
     "title": "키보드 단축키",
@@ -2533,5 +2573,22 @@
       "longform": "스토리 내레이션",
       "asr": "전사"
     }
+  },
+  "compute": {
+    "add_machine": "컴퓨터 추가",
+    "manage": "원격 워커 설정",
+    "off_hint": "모든 작업이 이 컴퓨터에서 실행됩니다. 다른 컴퓨터를 사용하려면 원격을 켜세요.",
+    "quick_settings": "컴퓨팅 — 작업 실행 위치",
+    "remote": "원격",
+    "title": "작업 실행 위치",
+    "token_once": "다른 컴퓨터에서 이 코드를 스캔하거나 붙여 넣으세요. 한 번만 표시됩니다."
+  },
+  "voices": {
+    "active": "사용 중인 음성",
+    "active_clone_recipe": "참조 클립에서 복제됨",
+    "cta_clone": "음성 ← 에 3초 클립을 놓아 복제하세요",
+    "cta_design": "음성 ← 에서 설명해 디자인하세요",
+    "new": "새 음성",
+    "none_selected": "선택된 음성이 없습니다 — 설명하거나, 오디오를 놓거나, 아래에서 선택하세요."
   }
 }

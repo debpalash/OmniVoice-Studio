@@ -282,7 +282,36 @@
     "models_dir_effective": "Derzeit verwendet",
     "models_dir_configured": "Konfiguriert",
     "models_dir_default": "Standard wird verwendet",
-    "models_dir_restart": "↻ Starte VoiceStudio neu, um den neuen Speicherort zu verwenden."
+    "models_dir_restart": "↻ Starte VoiceStudio neu, um den neuen Speicherort zu verwenden.",
+    "worker_join": "Beitreten",
+    "worker_join_code": "Beitrittscode",
+    "worker_join_code_hint": "Nur einmal gültig, läuft in 15 Minuten ab. Erzeugen Sie ihn auf dem Rechner, der die Aufträge senden wird.",
+    "worker_join_desc": "Lassen Sie eine andere VoiceStudio-Instanz Aufträge an diesen Rechner senden. Fügen Sie den dort angezeigten Beitrittscode ein — oder scannen Sie den QR-Code mit Ihrem Handy und fügen Sie ihn hier ein.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE ist in der Umgebung dieses Rechners gesetzt und hat daher Vorrang — ändern Sie es dort.",
+    "worker_join_no_endpoint": "Keine Control Plane gespeichert.",
+    "worker_join_ok": "Beigetreten. Dieser Rechner nimmt jetzt Aufträge an.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Einem anderen beitreten",
+    "worker_join_stopped": "Gestoppt",
+    "worker_join_take_work": "Aufträge annehmen von",
+    "worker_join_title": "Die GPU dieses Rechners verleihen",
+    "worker_join_working": "Arbeitet",
+    "workers_add_hint_qr": "Erzeugen Sie ein Token, scannen Sie dann den QR-Code vom anderen Rechner oder fügen Sie den Code dort in den Remote-Worker-Einstellungen ein.",
+    "workers_approve": "Freigeben",
+    "workers_last_seen": "zuletzt gesehen {{when}}",
+    "workers_qr_alt": "QR-Code mit diesem Code — vom anderen Rechner scannen",
+    "workers_secret_done": "Fertig",
+    "workers_seen_hr": "vor {{count}} h",
+    "workers_seen_min": "vor {{count}} min",
+    "workers_seen_now": "gerade eben",
+    "workers_step_1": "Installieren Sie VoiceStudio auf dem Rechner mit der GPU.",
+    "workers_step_2": "Erzeugen Sie oben ein Token.",
+    "workers_step_3": "Scannen Sie dort den QR-Code oder fügen Sie den Code in die dortigen Remote-Worker-Einstellungen ein.",
+    "workers_summary_none": "Niemand verbunden",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Abgelaufen — erzeugen Sie ein neues",
+    "workers_token_expires_in": "Läuft ab in {{time}}",
+    "workers_token_qr_hint": "Auf dem anderen Rechner: Einstellungen → System → Remote-Worker → Beitreten, dann scannen oder einfügen."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "Aus Audio",
     "define_voice": "Stimme definieren",
     "save_design_as_profile": "Design als Profil speichern",
+    "generating_done_status": "Generierung abgeschlossen",
+    "generating_status": "Audio wird generiert…",
+    "identity": "Identität",
+    "identity_auto": "Auto — das Modell entscheidet",
+    "insert": "Einfügen",
+    "insert_token": "Ausdrucks-Token einfügen",
+    "script": "Skript",
+    "starting_points": "Ausgangspunkte",
+    "voice_kicker": "Stimme",
     "seed_label": "Samen",
     "seed_placeholder": "jedes Mal zufällig",
     "seed_keep": "Behalte diesen Samen",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Ähnliche Probleme suchen",
     "unexpected": "Unerwarteter Fehler: {{message}}",
     "backend_shutting_down": "VoiceStudio wird beendet. Öffnen Sie die App erneut und versuchen Sie es noch einmal.",
-    "crash_broken_env": "Er ist beim Laden seiner eigenen Python-Abhängigkeiten gestorben — es geht also weder um Speicher noch um deine GPU, sondern um eine unvollständige oder halb aktualisierte Umgebung. Nutze „Clean & Retry“ unter Einstellungen → Logs → Backend: Das baut sie von Grund auf neu und repariert sie an Ort und Stelle, ohne deine Stimmen oder Projekte anzurühren. Schlägt es danach weiter fehl, nennen die Absturzdetails das Paket, das sich nicht importieren ließ."
+    "crash_broken_env": "Er ist beim Laden seiner eigenen Python-Abhängigkeiten gestorben — es geht also weder um Speicher noch um deine GPU, sondern um eine unvollständige oder halb aktualisierte Umgebung. Nutze „Clean & Retry“ unter Einstellungen → Logs → Backend: Das baut sie von Grund auf neu und repariert sie an Ort und Stelle, ohne deine Stimmen oder Projekte anzurühren. Schlägt es danach weiter fehl, nennen die Absturzdetails das Paket, das sich nicht importieren ließ.",
+    "crash_vram_default": "Auf kleineren GPUs ist die übliche Ursache, dass beim Laden des ASR-Modells zusätzlich zum TTS-Modell der VRAM ausgeht: Entladen Sie zuerst das TTS-Modell, oder wählen Sie unter Modellkatalog → Modelle ein kleineres ASR-Modell.",
+    "stream_cut_backend_alive": "Der Stream endete vorzeitig, aber das Backend läuft noch — es ist also nicht abgestürzt. In einem Server- oder Container-Setup liegt das meist an einem Reverse-Proxy oder Load-Balancer, der die Verbindung puffert oder per Timeout beendet: Deaktivieren Sie das Response-Buffering für diese Route (nginx: proxy_buffering off; X-Accel-Buffering: no) und erhöhen Sie das Lese-Timeout. Wenn Sie die Desktop-App direkt oder auf localhost ohne Proxy ausführen, lässt sich das bestätigen."
   },
   "keyboard": {
     "title": "Tastaturkürzel",
@@ -2533,5 +2573,22 @@
       "longform": "Story-Vertonung",
       "asr": "Transkription"
     }
+  },
+  "compute": {
+    "add_machine": "Rechner hinzufügen",
+    "manage": "Remote-Worker-Einstellungen",
+    "off_hint": "Alles läuft auf diesem Rechner. Schalten Sie Remote ein, um einen anderen zu nutzen.",
+    "quick_settings": "Rechenleistung — wo Aufträge laufen",
+    "remote": "Remote",
+    "title": "Wo Aufträge laufen",
+    "token_once": "Auf dem anderen Rechner scannen oder einfügen. Wird nur einmal angezeigt."
+  },
+  "voices": {
+    "active": "Aktive Stimme",
+    "active_clone_recipe": "Aus Ihrem Referenzclip geklont",
+    "cta_clone": "Legen Sie einen 3-Sekunden-Clip in Stimme ← ab, um eine zu klonen",
+    "cta_design": "Beschreiben Sie eine in Stimme ←, um sie zu designen",
+    "new": "Neue Stimme",
+    "none_selected": "Keine Stimme ausgewählt — beschreiben Sie eine, legen Sie Audio ab oder wählen Sie unten eine aus."
   }
 }

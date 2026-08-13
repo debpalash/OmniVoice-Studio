@@ -282,7 +282,36 @@
     "models_dir_effective": "Används nu",
     "models_dir_configured": "Konfigurerad",
     "models_dir_default": "Använder standard",
-    "models_dir_restart": "↻ Starta om VoiceStudio för att använda den nya platsen."
+    "models_dir_restart": "↻ Starta om VoiceStudio för att använda den nya platsen.",
+    "worker_join": "Anslut",
+    "worker_join_code": "Anslutningskod",
+    "worker_join_code_hint": "Engångskod som går ut om 15 minuter. Skapa den på maskinen som ska skicka jobben.",
+    "worker_join_desc": "Låt en annan kopia av VoiceStudio skicka jobb till den här maskinen. Klistra in anslutningskoden den visade — eller skanna dess QR-kod med telefonen och klistra in den här.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE är satt i den här maskinens miljö, så den avgör — ändra den där.",
+    "worker_join_no_endpoint": "Inget kontrollplan sparat.",
+    "worker_join_ok": "Ansluten. Den här maskinen tar nu emot jobb.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Anslut till en annan",
+    "worker_join_stopped": "Stoppad",
+    "worker_join_take_work": "Ta emot jobb från",
+    "worker_join_title": "Låna ut den här maskinens GPU",
+    "worker_join_working": "Arbetar",
+    "workers_add_hint_qr": "Skapa en token, skanna sedan QR-koden från den andra maskinen eller klistra in koden i dess inställningar för Fjärrarbetare.",
+    "workers_approve": "Godkänn",
+    "workers_last_seen": "senast sedd {{when}}",
+    "workers_qr_alt": "QR-kod med den här koden — skanna den från den andra maskinen",
+    "workers_secret_done": "Klar",
+    "workers_seen_hr": "för {{count}} tim sedan",
+    "workers_seen_min": "för {{count}} min sedan",
+    "workers_seen_now": "nyss",
+    "workers_step_1": "Installera VoiceStudio på maskinen med GPU:n.",
+    "workers_step_2": "Skapa en token ovan.",
+    "workers_step_3": "Skanna QR-koden där, eller klistra in koden i dess inställningar för Fjärrarbetare.",
+    "workers_summary_none": "Ingen ansluten",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Har gått ut — skapa en ny",
+    "workers_token_expires_in": "Går ut om {{time}}",
+    "workers_token_qr_hint": "På den andra maskinen: Inställningar → System → Fjärrarbetare → Anslut, skanna eller klistra sedan in."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -552,7 +581,16 @@
     "seed_placeholder": "slumpmässigt varje gång",
     "seed_keep": "Behåll detta frö",
     "seed_reroll": "Nytt frö",
-    "seed_reroll_hint": "Rulla ett nytt slumpmässigt frö och behåll det"
+    "seed_reroll_hint": "Rulla ett nytt slumpmässigt frö och behåll det",
+    "generating_done_status": "Genereringen är klar",
+    "generating_status": "Genererar ljud…",
+    "identity": "Identitet",
+    "identity_auto": "Auto — modellen bestämmer",
+    "insert": "Infoga",
+    "insert_token": "Infoga uttryckstoken",
+    "script": "Manus",
+    "starting_points": "Utgångspunkter",
+    "voice_kicker": "Röst"
   },
   "about": {
     "app": "App",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Sök liknande problem",
     "unexpected": "Oväntat fel: {{message}}",
     "backend_shutting_down": "VoiceStudio stängs av. Öppna appen igen och försök på nytt.",
-    "crash_broken_env": "Den dog när den läste in sina egna Python-beroenden, så det handlar varken om minne eller om din GPU — miljön är ofullständig eller halvuppdaterad. Använd ”Clean & Retry” under Inställningar → Loggar → Backend, som bygger om den från grunden och reparerar den på plats utan att röra dina röster eller projekt. Misslyckas det ändå anger kraschdetaljerna exakt vilket paket som inte gick att importera."
+    "crash_broken_env": "Den dog när den läste in sina egna Python-beroenden, så det handlar varken om minne eller om din GPU — miljön är ofullständig eller halvuppdaterad. Använd ”Clean & Retry” under Inställningar → Loggar → Backend, som bygger om den från grunden och reparerar den på plats utan att röra dina röster eller projekt. Misslyckas det ändå anger kraschdetaljerna exakt vilket paket som inte gick att importera.",
+    "crash_vram_default": "På mindre GPU:er är den vanliga orsaken att VRAM-minnet tar slut när ASR-modellen läses in ovanpå TTS-modellen: ladda ur TTS-modellen först, eller välj en mindre ASR-modell under Modellkatalog → Modeller.",
+    "stream_cut_backend_alive": "Strömmen avbröts i förtid, men backend körs fortfarande — den kraschade alltså inte. I en serverad eller containerbaserad miljö beror det oftast på en omvänd proxy eller lastbalanserare som buffrar anslutningen eller bryter den efter en tidsgräns: stäng av svarsbuffring för den här rutten (nginx: proxy_buffering off; X-Accel-Buffering: no) och höj dess tidsgräns för läsning. Att köra skrivbordsappen direkt, eller på localhost utan proxy, bekräftar det."
   },
   "keyboard": {
     "title": "Kortkommandon",
@@ -2533,5 +2573,22 @@
       "longform": "berättarröst",
       "asr": "transkribering"
     }
+  },
+  "compute": {
+    "add_machine": "Lägg till en maskin",
+    "manage": "Inställningar för fjärrarbetare",
+    "off_hint": "Allt körs på den här maskinen. Slå på Fjärr för att använda en annan.",
+    "quick_settings": "Beräkning — var jobben körs",
+    "remote": "Fjärr",
+    "title": "Var jobben körs",
+    "token_once": "Skanna eller klistra in detta på den andra maskinen. Visas bara en gång."
+  },
+  "voices": {
+    "active": "Aktiv röst",
+    "active_clone_recipe": "Klonad från ditt referensklipp",
+    "cta_clone": "Släpp ett 3-sekundersklipp i Röst ← för att klona en",
+    "cta_design": "Beskriv en röst i Röst ← för att designa den",
+    "new": "Ny röst",
+    "none_selected": "Ingen röst vald — beskriv en, släpp ljud eller välj nedan."
   }
 }

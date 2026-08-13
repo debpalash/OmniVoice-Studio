@@ -282,7 +282,36 @@
     "models_dir_effective": "現在使用中",
     "models_dir_configured": "設定済み",
     "models_dir_default": "既定値を使用",
-    "models_dir_restart": "↻ 新しい場所を使用するには VoiceStudio を再起動してください。"
+    "models_dir_restart": "↻ 新しい場所を使用するには VoiceStudio を再起動してください。",
+    "worker_join": "参加",
+    "worker_join_code": "参加コード",
+    "worker_join_code_hint": "使い切りで、15 分で期限切れになります。作業を送る側のマシンで生成してください。",
+    "worker_join_desc": "別の VoiceStudio からこのマシンにジョブを送れるようにします。表示された参加コードを貼り付けるか、その QR をスマートフォンでスキャンしてここに貼り付けてください。",
+    "worker_join_env": "このマシンの環境変数に OMNIVOICE_WORKER_MODE が設定されているため、そちらが優先されます。変更はそちらで行ってください。",
+    "worker_join_no_endpoint": "記憶されたコントロールプレーンはありません。",
+    "worker_join_ok": "参加しました。このマシンは作業を受け付けています。",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "別のものに参加",
+    "worker_join_stopped": "停止中",
+    "worker_join_take_work": "作業の受け取り元",
+    "worker_join_title": "このマシンの GPU を貸す",
+    "worker_join_working": "作業中",
+    "workers_add_hint_qr": "トークンを生成し、もう一方のマシンから QR をスキャンするか、そのマシンの「リモートワーカー」設定にコードを貼り付けてください。",
+    "workers_approve": "承認",
+    "workers_last_seen": "最終確認 {{when}}",
+    "workers_qr_alt": "このコードを含む QR コード — もう一方のマシンからスキャンしてください",
+    "workers_secret_done": "完了",
+    "workers_seen_hr": "{{count}} 時間前",
+    "workers_seen_min": "{{count}} 分前",
+    "workers_seen_now": "たった今",
+    "workers_step_1": "GPU のあるマシンに VoiceStudio をインストールします。",
+    "workers_step_2": "上でトークンを生成します。",
+    "workers_step_3": "そのマシンで QR をスキャンするか、そのマシンの「リモートワーカー」設定にコードを貼り付けます。",
+    "workers_summary_none": "接続なし",
+    "workers_summary_online": "{{count}} 台オンライン",
+    "workers_token_expired": "期限切れ — 新しく生成してください",
+    "workers_token_expires_in": "あと {{time}} で期限切れ",
+    "workers_token_qr_hint": "もう一方のマシンで: 設定 → システム → リモートワーカー → 参加 を開き、スキャンするか貼り付けてください。"
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "音声から",
     "define_voice": "音声の定義",
     "save_design_as_profile": "デザインをプロファイルとして保存",
+    "generating_done_status": "生成が完了しました",
+    "generating_status": "音声を生成中…",
+    "identity": "声の個性",
+    "identity_auto": "自動 — モデルが判断します",
+    "insert": "挿入",
+    "insert_token": "表現トークンを挿入",
+    "script": "台本",
+    "starting_points": "出発点",
+    "voice_kicker": "声",
     "seed_label": "種子",
     "seed_placeholder": "毎回ランダム",
     "seed_keep": "この種を保管しておいてください",
@@ -1588,7 +1626,9 @@
     "searchIssues": "類似の問題を検索",
     "unexpected": "予期しないエラー: {{message}}",
     "backend_shutting_down": "VoiceStudio を終了しています。アプリを開き直してからもう一度お試しください。",
-    "crash_broken_env": "自身の Python 依存関係を読み込んでいる最中に停止しました。メモリや GPU の問題ではなく、環境が不完全か、更新が中途半端なまま残っています。設定 → ログ → バックエンド の「Clean & Retry」を実行してください。環境をゼロから作り直してその場で修復し、音声やプロジェクトには手を触れません。それでも失敗する場合は、クラッシュ詳細に読み込めなかったパッケージ名が出ています。"
+    "crash_broken_env": "自身の Python 依存関係を読み込んでいる最中に停止しました。メモリや GPU の問題ではなく、環境が不完全か、更新が中途半端なまま残っています。設定 → ログ → バックエンド の「Clean & Retry」を実行してください。環境をゼロから作り直してその場で修復し、音声やプロジェクトには手を触れません。それでも失敗する場合は、クラッシュ詳細に読み込めなかったパッケージ名が出ています。",
+    "crash_vram_default": "小さめの GPU では、TTS モデルを読み込んだまま ASR モデルを読み込む際に VRAM が不足するのがよくある原因です。先に TTS モデルをアンロードするか、モデルカタログ → モデル でより小さい ASR モデルを選んでください。",
+    "stream_cut_backend_alive": "ストリームは途中で終了しましたが、バックエンドはまだ動作しています。つまりクラッシュではありません。サーバー経由やコンテナ環境では、リバースプロキシやロードバランサーが接続をバッファリングまたはタイムアウトさせているのがよくある原因です。このルートのレスポンスバッファリングを無効にし（nginx: proxy_buffering off; X-Accel-Buffering: no）、読み取りタイムアウトを延ばしてください。デスクトップアプリを直接実行するか、プロキシなしの localhost で実行すれば確認できます。"
   },
   "keyboard": {
     "title": "キーボードショートカット",
@@ -2533,5 +2573,22 @@
       "longform": "ストーリー朗読",
       "asr": "文字起こし"
     }
+  },
+  "compute": {
+    "add_machine": "マシンを追加",
+    "manage": "リモートワーカー設定",
+    "off_hint": "すべてこのマシンで実行されます。他のマシンを使うにはリモートをオンにしてください。",
+    "quick_settings": "コンピュート — ジョブの実行場所",
+    "remote": "リモート",
+    "title": "ジョブの実行場所",
+    "token_once": "もう一方のマシンでこれをスキャンするか貼り付けてください。表示は一度だけです。"
+  },
+  "voices": {
+    "active": "アクティブな声",
+    "active_clone_recipe": "リファレンスクリップからクローンされました",
+    "cta_clone": "「声」← に 3 秒のクリップをドロップしてクローン",
+    "cta_design": "「声」← で説明してデザイン",
+    "new": "新しい声",
+    "none_selected": "声が選択されていません — 説明するか、音声をドロップするか、下から選んでください。"
   }
 }

@@ -282,7 +282,36 @@
     "models_dir_effective": "Sedang digunakan",
     "models_dir_configured": "Dikonfigurasi",
     "models_dir_default": "Menggunakan bawaan",
-    "models_dir_restart": "↻ Mulai ulang VoiceStudio untuk memakai lokasi baru."
+    "models_dir_restart": "↻ Mulai ulang VoiceStudio untuk memakai lokasi baru.",
+    "worker_join": "Gabung",
+    "worker_join_code": "Kode gabung",
+    "worker_join_code_hint": "Sekali pakai dan kedaluwarsa dalam 15 menit. Buat di mesin yang akan mengirim pekerjaan.",
+    "worker_join_desc": "Izinkan salinan VoiceStudio lain mengirim pekerjaan ke mesin ini. Tempelkan kode gabung yang ditampilkannya — atau pindai QR-nya dengan ponsel Anda lalu tempelkan di sini.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE disetel di lingkungan mesin ini, jadi itulah yang menentukan — ubah di sana.",
+    "worker_join_no_endpoint": "Tidak ada control plane yang tersimpan.",
+    "worker_join_ok": "Bergabung. Mesin ini sekarang menerima pekerjaan.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Gabung ke yang lain",
+    "worker_join_stopped": "Berhenti",
+    "worker_join_take_work": "Menerima pekerjaan dari",
+    "worker_join_title": "Pinjamkan GPU mesin ini",
+    "worker_join_working": "Bekerja",
+    "workers_add_hint_qr": "Buat token, lalu pindai QR dari mesin yang lain atau tempelkan kodenya ke pengaturan Pekerja jarak jauh di sana.",
+    "workers_approve": "Setujui",
+    "workers_last_seen": "terakhir terlihat {{when}}",
+    "workers_qr_alt": "Kode QR yang memuat kode ini — pindai dari mesin yang lain",
+    "workers_secret_done": "Selesai",
+    "workers_seen_hr": "{{count}} jam lalu",
+    "workers_seen_min": "{{count}} mnt lalu",
+    "workers_seen_now": "baru saja",
+    "workers_step_1": "Pasang VoiceStudio di mesin yang memiliki GPU.",
+    "workers_step_2": "Buat token di atas.",
+    "workers_step_3": "Pindai QR di sana, atau tempelkan kodenya ke pengaturan Pekerja jarak jauh di sana.",
+    "workers_summary_none": "Tidak ada yang terhubung",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Kedaluwarsa — buat yang baru",
+    "workers_token_expires_in": "Kedaluwarsa dalam {{time}}",
+    "workers_token_qr_hint": "Di mesin yang lain: Pengaturan → Sistem → Pekerja jarak jauh → Gabung, lalu pindai atau tempelkan."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "Dari audio",
     "define_voice": "Tentukan suara",
     "save_design_as_profile": "Simpan desain sebagai profil",
+    "generating_done_status": "Pembuatan selesai",
+    "generating_status": "Membuat audio…",
+    "identity": "Identitas",
+    "identity_auto": "Otomatis — model yang menentukan",
+    "insert": "Sisipkan",
+    "insert_token": "Sisipkan token ekspresi",
+    "script": "Naskah",
+    "starting_points": "Titik awal",
+    "voice_kicker": "Suara",
     "seed_label": "Benih",
     "seed_placeholder": "acak setiap saat",
     "seed_keep": "Simpan benih ini",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Cari masalah serupa",
     "unexpected": "Kesalahan tak terduga: {{message}}",
     "backend_shutting_down": "VoiceStudio sedang ditutup. Buka kembali aplikasinya lalu coba lagi.",
-    "crash_broken_env": "Ia mati saat memuat dependensi Python-nya sendiri, jadi ini bukan soal memori atau GPU Anda — lingkungannya tidak lengkap atau tertinggal setengah diperbarui. Gunakan \"Clean & Retry\" di Pengaturan → Log → Backend, yang membangunnya ulang dari nol dan memperbaikinya di tempat, tanpa menyentuh suara atau proyek Anda. Jika masih gagal, detail crash menyebutkan paket persis yang gagal diimpor."
+    "crash_broken_env": "Ia mati saat memuat dependensi Python-nya sendiri, jadi ini bukan soal memori atau GPU Anda — lingkungannya tidak lengkap atau tertinggal setengah diperbarui. Gunakan \"Clean & Retry\" di Pengaturan → Log → Backend, yang membangunnya ulang dari nol dan memperbaikinya di tempat, tanpa menyentuh suara atau proyek Anda. Jika masih gagal, detail crash menyebutkan paket persis yang gagal diimpor.",
+    "crash_vram_default": "Pada GPU yang lebih kecil, penyebab umumnya adalah kehabisan VRAM saat memuat model ASR di atas model TTS: kosongkan model TTS terlebih dahulu, atau pilih model ASR yang lebih kecil di Katalog model → Model.",
+    "stream_cut_backend_alive": "Stream berakhir lebih awal, tetapi backend masih berjalan — jadi backend tidak mogok. Pada penyiapan server atau kontainer, ini biasanya karena reverse proxy atau load balancer yang mem-buffer atau memutus koneksi karena batas waktu: nonaktifkan buffering respons untuk rute ini (nginx: proxy_buffering off; X-Accel-Buffering: no) dan naikkan batas waktu bacanya. Menjalankan aplikasi desktop secara langsung, atau di localhost tanpa proxy, akan memastikannya."
   },
   "keyboard": {
     "title": "Pintasan keyboard",
@@ -2533,5 +2573,22 @@
       "longform": "narasi cerita",
       "asr": "transkripsi"
     }
+  },
+  "compute": {
+    "add_machine": "Tambahkan mesin",
+    "manage": "Pengaturan pekerja jarak jauh",
+    "off_hint": "Semuanya berjalan di mesin ini. Aktifkan Jarak jauh untuk memakai mesin lain.",
+    "quick_settings": "Komputasi — tempat pekerjaan berjalan",
+    "remote": "Jarak jauh",
+    "title": "Tempat pekerjaan berjalan",
+    "token_once": "Pindai atau tempelkan ini di mesin yang lain. Hanya ditampilkan sekali."
+  },
+  "voices": {
+    "active": "Suara aktif",
+    "active_clone_recipe": "Dikloning dari klip referensi Anda",
+    "cta_clone": "Letakkan klip 3 detik di Suara ← untuk mengkloning suara",
+    "cta_design": "Deskripsikan suara di Suara ← untuk mendesainnya",
+    "new": "Suara baru",
+    "none_selected": "Belum ada suara yang dipilih — deskripsikan satu, letakkan audio, atau pilih di bawah."
   }
 }

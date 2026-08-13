@@ -282,7 +282,36 @@
     "models_dir_effective": "Em uso agora",
     "models_dir_configured": "Configurado",
     "models_dir_default": "Usando o padrão",
-    "models_dir_restart": "↻ Reinicie o VoiceStudio para usar o novo local."
+    "models_dir_restart": "↻ Reinicie o VoiceStudio para usar o novo local.",
+    "worker_join": "Associar",
+    "worker_join_code": "Código de associação",
+    "worker_join_code_hint": "De uso único e expira em 15 minutos. Gere-o na máquina que vai enviar o trabalho.",
+    "worker_join_desc": "Permita que outra cópia do VoiceStudio envie trabalhos para esta máquina. Cole o código de associação que ela mostrou — ou escaneie o QR dela com o telefone e cole-o aqui.",
+    "worker_join_env": "OMNIVOICE_WORKER_MODE está definido no ambiente desta máquina, então é ele que decide — altere-o lá.",
+    "worker_join_no_endpoint": "Nenhum plano de controle memorizado.",
+    "worker_join_ok": "Associado. Esta máquina agora aceita trabalho.",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "Associar a outro",
+    "worker_join_stopped": "Parado",
+    "worker_join_take_work": "Aceitar trabalho de",
+    "worker_join_title": "Emprestar a GPU desta máquina",
+    "worker_join_working": "Em atividade",
+    "workers_add_hint_qr": "Gere um token, depois escaneie o QR a partir da outra máquina ou cole o código nas configurações de Workers remotos dela.",
+    "workers_approve": "Aprovar",
+    "workers_last_seen": "visto pela última vez {{when}}",
+    "workers_qr_alt": "Código QR com este código — escaneie-o a partir da outra máquina",
+    "workers_secret_done": "Concluído",
+    "workers_seen_hr": "há {{count}} h",
+    "workers_seen_min": "há {{count}} min",
+    "workers_seen_now": "agora mesmo",
+    "workers_step_1": "Instale o VoiceStudio na máquina com a GPU.",
+    "workers_step_2": "Gere um token acima.",
+    "workers_step_3": "Escaneie o QR lá, ou cole o código nas configurações de Workers remotos dela.",
+    "workers_summary_none": "Ninguém conectado",
+    "workers_summary_online": "{{count}} online",
+    "workers_token_expired": "Expirado — gere um novo",
+    "workers_token_expires_in": "Expira em {{time}}",
+    "workers_token_qr_hint": "Na outra máquina: Configurações → Sistema → Workers remotos → Associar, depois escaneie ou cole."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -548,6 +577,15 @@
     "define_from_audio": "A partir de áudio",
     "define_voice": "Definir voz",
     "save_design_as_profile": "Salvar design como perfil",
+    "generating_done_status": "Geração concluída",
+    "generating_status": "Gerando áudio…",
+    "identity": "Identidade",
+    "identity_auto": "Auto — o modelo decide",
+    "insert": "Inserir",
+    "insert_token": "Inserir token de expressão",
+    "script": "Roteiro",
+    "starting_points": "Pontos de partida",
+    "voice_kicker": "Voz",
     "seed_label": "Semente",
     "seed_placeholder": "aleatório de cada vez",
     "seed_keep": "Guarde esta semente",
@@ -1588,7 +1626,9 @@
     "searchIssues": "Pesquisar problemas semelhantes",
     "unexpected": "Erro inesperado: {{message}}",
     "backend_shutting_down": "O VoiceStudio está sendo encerrado. Reabra o aplicativo e tente novamente.",
-    "crash_broken_env": "Ele morreu enquanto carregava as próprias dependências de Python, então não é questão de memória nem da sua GPU — o ambiente está incompleto ou ficou atualizado pela metade. Use \"Clean & Retry\" em Configurações → Logs → Backend, que o reconstrói do zero e o repara no lugar, sem tocar nas suas vozes ou projetos. Se continuar falhando, os detalhes da falha nomeiam o pacote exato que não importava."
+    "crash_broken_env": "Ele morreu enquanto carregava as próprias dependências de Python, então não é questão de memória nem da sua GPU — o ambiente está incompleto ou ficou atualizado pela metade. Use \"Clean & Retry\" em Configurações → Logs → Backend, que o reconstrói do zero e o repara no lugar, sem tocar nas suas vozes ou projetos. Se continuar falhando, os detalhes da falha nomeiam o pacote exato que não importava.",
+    "crash_vram_default": "Em GPUs menores, a causa habitual é ficar sem VRAM ao carregar o modelo ASR junto com o modelo TTS: descarregue primeiro o modelo TTS, ou escolha um modelo ASR menor em Catálogo de modelos → Modelos.",
+    "stream_cut_backend_alive": "O stream terminou mais cedo, mas o backend continua em execução — portanto, não travou. Em uma instalação servida ou em contêiner, isso geralmente é um proxy reverso ou balanceador de carga fazendo buffer da conexão ou encerrando-a por tempo limite: desative o buffering de resposta para esta rota (nginx: proxy_buffering off; X-Accel-Buffering: no) e aumente o tempo limite de leitura. Executar o aplicativo desktop diretamente, ou em localhost sem proxy, confirmará isso."
   },
   "keyboard": {
     "title": "Atalhos de teclado",
@@ -2533,5 +2573,22 @@
       "longform": "narração de histórias",
       "asr": "transcrição"
     }
+  },
+  "compute": {
+    "add_machine": "Adicionar uma máquina",
+    "manage": "Configurações de workers remotos",
+    "off_hint": "Tudo é executado nesta máquina. Ative Remoto para usar outra.",
+    "quick_settings": "Computação — onde os trabalhos são executados",
+    "remote": "Remoto",
+    "title": "Onde os trabalhos são executados",
+    "token_once": "Escaneie ou cole isto na outra máquina. Mostrado apenas uma vez."
+  },
+  "voices": {
+    "active": "Voz ativa",
+    "active_clone_recipe": "Clonada a partir do seu clipe de referência",
+    "cta_clone": "Solte um clipe de 3 s em Voz ← para clonar uma",
+    "cta_design": "Descreva uma em Voz ← para desenhá-la",
+    "new": "Nova voz",
+    "none_selected": "Nenhuma voz selecionada — descreva uma, solte um áudio ou escolha abaixo."
   }
 }

@@ -256,6 +256,15 @@
     "define_from_audio": "从音频",
     "define_voice": "定义声音",
     "save_design_as_profile": "将设计保存为声音配置",
+    "generating_done_status": "生成完成",
+    "generating_status": "正在生成音频…",
+    "identity": "声音特征",
+    "identity_auto": "自动 — 由模型决定",
+    "insert": "插入",
+    "insert_token": "插入表达标记",
+    "script": "文稿",
+    "starting_points": "起点",
+    "voice_kicker": "语音",
     "seed_label": "种子",
     "seed_placeholder": "每次都是随机的",
     "seed_keep": "保留这个种子",
@@ -509,7 +518,36 @@
     "models_dir_effective": "当前使用",
     "models_dir_configured": "已配置",
     "models_dir_default": "使用默认值",
-    "models_dir_restart": "↻ 重启 VoiceStudio 以使用新位置。"
+    "models_dir_restart": "↻ 重启 VoiceStudio 以使用新位置。",
+    "worker_join": "加入",
+    "worker_join_code": "加入码",
+    "worker_join_code_hint": "一次性使用，15 分钟后过期。请在发送任务的那台机器上生成。",
+    "worker_join_desc": "让另一份 VoiceStudio 把任务发送到本机。粘贴它显示的加入码——或用手机扫描它的二维码，然后粘贴到这里。",
+    "worker_join_env": "本机环境中设置了 OMNIVOICE_WORKER_MODE，以它为准——请到环境变量里修改。",
+    "worker_join_no_endpoint": "没有已记住的控制平面。",
+    "worker_join_ok": "已加入。本机现在开始接收任务。",
+    "worker_join_placeholder": "ovw_…",
+    "worker_join_rejoin": "加入另一台",
+    "worker_join_stopped": "已停止",
+    "worker_join_take_work": "任务来源",
+    "worker_join_title": "出借本机的 GPU",
+    "worker_join_working": "工作中",
+    "workers_add_hint_qr": "生成令牌，然后在另一台机器上扫描此二维码，或将加入码粘贴到它的“远程工作机”设置中。",
+    "workers_approve": "批准",
+    "workers_last_seen": "上次在线 {{when}}",
+    "workers_qr_alt": "包含此加入码的二维码——请用另一台机器扫描",
+    "workers_secret_done": "完成",
+    "workers_seen_hr": "{{count}} 小时前",
+    "workers_seen_min": "{{count}} 分钟前",
+    "workers_seen_now": "刚刚",
+    "workers_step_1": "在有 GPU 的机器上安装 VoiceStudio。",
+    "workers_step_2": "在上方生成令牌。",
+    "workers_step_3": "在那台机器上扫描二维码，或将加入码粘贴到它的“远程工作机”设置中。",
+    "workers_summary_none": "没有已连接的工作机",
+    "workers_summary_online": "{{count}} 台在线",
+    "workers_token_expired": "已过期——请重新生成",
+    "workers_token_expires_in": "{{time}} 后过期",
+    "workers_token_qr_hint": "在另一台机器上：设置 → 系统 → 远程工作机 → 加入，然后扫描或粘贴。"
   },
   "about": {
     "app": "应用",
@@ -1594,7 +1632,9 @@
     "searchIssues": "搜索类似问题",
     "unexpected": "意外错误：{{message}}",
     "backend_shutting_down": "VoiceStudio 正在关闭。请重新打开应用后再试。",
-    "crash_broken_env": "它在加载自身的 Python 依赖时退出，因此与内存或显卡无关——运行环境不完整，或更新到一半就停下了。请在 设置 → 日志 → 后端 中使用“清理并重试”，它会从头重建环境并就地修复，不会动你的声音或项目。如果之后仍然失败，崩溃详情会指出无法导入的具体软件包。"
+    "crash_broken_env": "它在加载自身的 Python 依赖时退出，因此与内存或显卡无关——运行环境不完整，或更新到一半就停下了。请在 设置 → 日志 → 后端 中使用“清理并重试”，它会从头重建环境并就地修复，不会动你的声音或项目。如果之后仍然失败，崩溃详情会指出无法导入的具体软件包。",
+    "crash_vram_default": "在较小的 GPU 上，常见原因是在 TTS 模型仍占用显存时加载 ASR 模型，导致显存（VRAM）不足：请先卸载 TTS 模型，或在 模型库 → 模型 中选择更小的 ASR 模型。",
+    "stream_cut_backend_alive": "音频流提前结束，但后端仍在运行——因此它并没有崩溃。在服务器或容器化部署中，这通常是反向代理或负载均衡器在缓冲连接或使其超时：请为此路由禁用响应缓冲（nginx: proxy_buffering off; X-Accel-Buffering: no）并调高读取超时。直接运行桌面应用，或在没有代理的 localhost 上运行，即可确认。"
   },
   "keyboard": {
     "title": "键盘快捷键",
@@ -2540,5 +2580,22 @@
       "longform": "故事朗读",
       "asr": "转录"
     }
+  },
+  "compute": {
+    "add_machine": "添加机器",
+    "manage": "远程工作机设置",
+    "off_hint": "所有任务都在本机运行。要使用其他机器，请开启远程。",
+    "quick_settings": "计算 — 任务运行位置",
+    "remote": "远程",
+    "title": "任务运行位置",
+    "token_once": "在另一台机器上扫描或粘贴。只显示一次。"
+  },
+  "voices": {
+    "active": "当前声音",
+    "active_clone_recipe": "从你的参考音频克隆",
+    "cta_clone": "在 语音 ← 中拖入 3 秒音频即可克隆",
+    "cta_design": "在 语音 ← 中描述即可设计",
+    "new": "新建声音",
+    "none_selected": "未选择声音——描述一个、拖入音频，或从下方选择。"
   }
 }
