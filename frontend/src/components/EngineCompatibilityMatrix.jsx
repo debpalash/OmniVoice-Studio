@@ -815,7 +815,11 @@ export default function EngineCompatibilityMatrix({
                       MUTED,
                     )}
                   >
-                    {b.available ? t('engines.available') : t('engines.notInstalled')}
+                    {/* Section framing, not status: "ready to use" vs "add
+                        more" frames the grey majority as headroom to unlock
+                        rather than a mostly-broken app (13 of 16 rows read as
+                        failures under a plain "Not installed" caption). */}
+                    {b.available ? t('engines.sectionReady') : t('engines.sectionMore')}
                   </div>
                 )}
                 <div
