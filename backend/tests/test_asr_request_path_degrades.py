@@ -48,6 +48,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 _ROUTERS = Path(__file__).resolve().parents[1] / "api" / "routers"
+_BACKEND = Path(__file__).resolve().parents[1]
 
 # The exact failure this regression is built from: an ImportError raised by the
 # *deep* chain (dlopen of a CTranslate2 shared object), not a missing module.
@@ -224,4 +225,31 @@ def test_routers_use_the_degrading_loader():
         "probe passes but whose deep import chain is broken reaches "
         ".transcribe() and 500s the request (#1185, #1512).\n  "
         + "\n  ".join(offenders)
+    )
+
+
+# Routers are where the bug was found, but not the only place it can live: a
+# service or engine module that transcribes on a request's behalf skips
+# ensure_loaded() just as thoroughly. Scan the whole backend, so the guard
+# cannot be sidestepped by moving the call one module down the stack.
+# (Broader scan contributed on #1519 — thanks @ahov520!)
+_HOME_MODULE = "asr_backend.py"
+
+
+def test_no_module_outside_asr_backend_calls_the_raw_selector():
+    offenders = []
+    for path in sorted(_BACKEND.rglob("*.py")):
+        rel = path.relative_to(_BACKEND).as_posix()
+        if path.name == _HOME_MODULE or rel.startswith("tests/") or path.name in _SELECTOR_ALLOWED:
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.lstrip()
+            if _CALL.search(line) and not stripped.startswith("#"):
+                offenders.append(f"{rel}:{i}: {line.strip()}")
+
+    assert not offenders, (
+        "Only services/asr_backend.py may call the raw get_active_asr_backend() "
+        "selector — everywhere else must use load_active_asr_backend(), which "
+        "runs ensure_loaded() and degrades past an engine whose deep import "
+        "chain is broken (#1185, #1512, #1519).\n  " + "\n  ".join(offenders)
     )
