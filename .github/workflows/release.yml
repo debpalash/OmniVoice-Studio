@@ -781,22 +781,10 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 "$WORK/appimagetool" --no-appstream "$ROOT" "$APPIMAGE"
           cd "$GITHUB_WORKSPACE/frontend"
           bunx tauri signer sign "$APPIMAGE"
-          NEW_SIG=$(cat "$APPIMAGE.sig")
           gh release upload "$TAG" "$APPIMAGE" "$APPIMAGE.sig" --clobber --repo "$GITHUB_REPOSITORY"
-          # latest.json carries the OLD linux signature — patch it in place.
-          # Absence of latest.json is fine (another platform's job may write it
-          # later); any OTHER failure must fail this step, or the repacked
-          # AppImage ships paired with a stale updater signature.
-          HAS_MANIFEST=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]|contains(["latest.json"])')
-          if [ "$HAS_MANIFEST" = "true" ]; then
-            gh release download "$TAG" --pattern latest.json --output "$WORK/latest.json" --repo "$GITHUB_REPOSITORY"
-            PATCHED=$(python3 -c 'import json,sys; p,sig=sys.argv[1],sys.argv[2]; d=json.load(open(p)); n=sum(1 for k,v in d.get("platforms",{}).items() if k.startswith("linux") and not v.update({"signature":sig})); json.dump(d,open(p,"w"),indent=2); print(n)' "$WORK/latest.json" "$NEW_SIG")
-            [ "$PATCHED" -ge 1 ] || { echo "latest.json exists but carries no linux platform — refusing to ship a stale signature"; exit 1; }
-            gh release upload "$TAG" "$WORK/latest.json" --clobber --repo "$GITHUB_REPOSITORY"
-            echo "patched $PATCHED linux signature(s) in latest.json"
-          else
-            echo "no latest.json on the release yet — nothing to patch"
-          fi
+          # latest.json is NOT patched here: every tauri-action leg re-uploads
+          # the shared manifest, so an in-leg patch races the other platforms —
+          # the repair-updater-manifest job below is the single final writer.
           echo "repacked, re-signed, re-uploaded"
 
       - name: Installer smoke (Linux)
@@ -912,6 +900,45 @@ jobs:
   # the tag (v0.3.20 shipped with only the Linux AppImage that way). `needs:
   # [build]` guarantees the release already exists; `--clobber` makes a re-run
   # idempotent. This can never create a second release.
+  # The Linux leg may repack + re-sign its AppImage (see the repair step in
+  # the build matrix); every tauri-action leg also re-uploads the SHARED
+  # latest.json, so patching the manifest inside any leg races the others.
+  # This job runs once after the whole matrix as the single final writer:
+  # it makes the manifest's linux signature agree with the .sig asset that
+  # actually shipped, and refuses to leave a mismatch behind.
+  repair-updater-manifest:
+    needs: [build, preview-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Data, not shell source — same zizmor rule as the leg step.
+      TAG: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
+    steps:
+      - name: Align latest.json's linux signature with the shipped .sig asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK="$(mktemp -d)"
+          HAS_MANIFEST=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]|contains(["latest.json"])')
+          if [ "$HAS_MANIFEST" != "true" ]; then
+            echo "no latest.json on the release — nothing to align"; exit 0
+          fi
+          gh release download "$TAG" --pattern latest.json --output "$WORK/latest.json" --repo "$GITHUB_REPOSITORY"
+          gh release download "$TAG" --pattern "*.AppImage.sig" --dir "$WORK" --repo "$GITHUB_REPOSITORY" || true
+          SIG_FILE=$(find "$WORK" -name "*.AppImage.sig" | head -1)
+          if [ -z "$SIG_FILE" ]; then
+            echo "no AppImage .sig asset on the release — nothing to align"; exit 0
+          fi
+          NEW_SIG=$(cat "$SIG_FILE")
+          CHANGED=$(python3 -c 'import json,sys; p,sig=sys.argv[1],sys.argv[2]; d=json.load(open(p)); n=sum(1 for k,v in d.get("platforms",{}).items() if k.startswith("linux") and v.get("signature")!=sig and not v.update({"signature":sig})); json.dump(d,open(p,"w"),indent=2); print(n)' "$WORK/latest.json" "$NEW_SIG")
+          if [ "$CHANGED" -ge 1 ]; then
+            gh release upload "$TAG" "$WORK/latest.json" --clobber --repo "$GITHUB_REPOSITORY"
+            echo "aligned $CHANGED linux signature(s) with the shipped .sig"
+          else
+            echo "manifest already agrees with the shipped .sig — no write"
+          fi
+
   uninstall-scripts:
     needs: [build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
