@@ -45,6 +45,55 @@
 > [!WARNING]
 > **活跃 Beta 阶段。** 各版本之间可能出现故障——如需最新修复，请从源码运行。非常欢迎 Bug 报告和 PR：[提交 Issue](https://github.com/debpalash/VoiceStudio/issues) 或 [加入 Discord](https://discord.gg/bzQavDfVV9)。
 
+<a id="quickstart"></a>
+
+## ⚡ 快速开始
+
+<div align="center">
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
+  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
+  <br/>
+  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
+</div>
+
+选择你的操作系统，按指南从头到尾操作：
+
+- 🍎 **macOS** — [docs/install/macos.md](docs/install/macos.md)
+- 🪟 **Windows** — [docs/install/windows.md](docs/install/windows.md)
+- 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
+- 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
+
+**三步克隆出你的第一个声音：**
+
+1. **安装并启动。** 首次启动会自动搭建 Python 运行环境并下载模型权重——启动画面会逐步显示进度（仅首次，需要几分钟；之后即开即用）。
+2. 从启动台打开**语音克隆**，拖入任意声音的 **3 秒音频**。
+3. **输入一句话，点击生成。** 音频完全属于你——在你的设备上生成和保存，支持 646 种语言。
+
+觉得慢？[docs/performance.md](docs/performance.md) 讲清了生成时间到底花在哪里、有哪些调优开关，以及“它变慢了”的三个经典原因。各引擎/设备的实测数据见 [docs/benchmarks.md](docs/benchmarks.md)。
+
+> 正在从 **[CorentinJ/Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning)**（现已归档）迁移过来？我们有专门的迁移指南：[docs/migration/real-time-voice-cloning.md](docs/migration/real-time-voice-cloning.md)。
+
+<details>
+<summary><b>🧰 卡住了？自检、Token 与受限网络</b></summary>
+
+<br/>
+
+先运行内置自检——在应用中打开 **设置 → 关于 → “运行自检”**，或在源码检出目录中执行
+`uv run python backend/main.py --diagnose`（加 `--deep` 还会实际加载当前引擎进行测试）。然后查看
+[docs/install/troubleshooting.md](docs/install/troubleshooting.md) 中排名前
+10 的安装错误。运行时出错时，应用内的错误界面会直接深链到对应条目；**设置 → 关于 →
+“保存诊断包”** 会把脱敏日志与自检报告打包，方便附在 Bug 报告里。
+
+Hugging Face Token 的配置见
+[docs/setup/huggingface-token.md](docs/setup/huggingface-token.md)。说话人分离相关的模型访问门槛见
+[docs/features/diarization.md](docs/features/diarization.md)。下载速度、⚡ 快速下载（Xet）状态，以及受限网络 / 镜像选项见
+[docs/downloading-models.md](docs/downloading-models.md)。
+
+</details>
+
+---
+
 <a id="features"></a>
 
 ## ✨ 功能
@@ -107,49 +156,6 @@
 - ♾️ **无限长 TTS** — 按句分块生成，没有长度上限，可经 WebSocket 流式输出。
 - 🌐 **远程后端** — 让 UI 指向远程服务器；对 Tailscale 友好，支持 Bearer 认证。
 - 🧠 **听写 + LLM** — 用本地 LLM 润色转录文本，可选回声消除。
-
-</details>
-
----
-
-<a id="quickstart"></a>
-
-## ⚡ 快速开始
-
-<div align="center">
-  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/macOS-DMG_(Apple_Silicon)-000?style=for-the-badge&logo=apple&logoColor=white" alt="下载 macOS DMG" /></a>
-  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
-  <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
-  <br/>
-  <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
-</div>
-
-选择你的操作系统，按指南从头到尾操作：
-
-- 🍎 **macOS** — [docs/install/macos.md](docs/install/macos.md)
-- 🪟 **Windows** — [docs/install/windows.md](docs/install/windows.md)
-- 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
-- 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
-
-觉得慢？[docs/performance.md](docs/performance.md) 讲清了生成时间到底花在哪里、有哪些调优开关，以及“它变慢了”的三个经典原因。
-
-> 正在从 **[CorentinJ/Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning)**（现已归档）迁移过来？我们有专门的迁移指南：[docs/migration/real-time-voice-cloning.md](docs/migration/real-time-voice-cloning.md)。
-
-<details>
-<summary><b>🧰 卡住了？自检、Token 与受限网络</b></summary>
-
-<br/>
-
-先运行内置自检——在应用中打开 **设置 → 关于 → “运行自检”**，或在源码检出目录中执行
-`uv run python backend/main.py --diagnose`（加 `--deep` 还会实际加载当前引擎进行测试）。然后查看
-[docs/install/troubleshooting.md](docs/install/troubleshooting.md) 中排名前
-10 的安装错误。运行时出错时，应用内的错误界面会直接深链到对应条目；**设置 → 关于 →
-“保存诊断包”** 会把脱敏日志与自检报告打包，方便附在 Bug 报告里。
-
-Hugging Face Token 的配置见
-[docs/setup/huggingface-token.md](docs/setup/huggingface-token.md)。说话人分离相关的模型访问门槛见
-[docs/features/diarization.md](docs/features/diarization.md)。下载速度、⚡ 快速下载（Xet）状态，以及受限网络 / 镜像选项见
-[docs/downloading-models.md](docs/downloading-models.md)。
 
 </details>
 

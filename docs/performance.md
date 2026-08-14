@@ -229,6 +229,9 @@ uv run python scripts/bench_pipeline.py tts clone  # just these stages
 If you report a performance issue, pasting its table (plus your platform and
 RAM/VRAM) turns a guessing game into a bisect.
 
+Measured results per engine/device — and how to contribute yours — live in
+[benchmarks.md](benchmarks.md).
+
 ## Things that look like knobs but aren't
 
 - **Deleting and re-adding a voice** doesn't speed anything up; the reference
