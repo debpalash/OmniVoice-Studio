@@ -731,6 +731,60 @@ jobs:
           find "$INSTALL" -type f -path '*backend*main.py' | grep -q . || fail "backend source main.py missing"
           echo "OK — MSI installed shell + uv + backend resources"
 
+      # linuxdeploy re-links .DirIcon as an ABSOLUTE symlink into the build
+      # machine AFTER tauri's files-map has placed the real icon bytes — the
+      # exact bug #1518 guarded against, resurfacing on the first real tag
+      # build (v0.5.0). The seam tauri-action leaves us is post-upload: repack
+      # the AppImage with the icon as a REGULAR FILE, re-sign it (the updater
+      # signature covered the old bytes), and clobber the draft release's
+      # asset + the linux signature inside latest.json. The smoke below then
+      # validates the repaired artifact, not the broken one.
+      - name: Repair AppImage .DirIcon, re-sign, re-upload
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage -name "*.AppImage" | head -1)
+          APPIMAGE=$(realpath "$APPIMAGE")
+          WORK="$(mktemp -d)"; cd "$WORK"
+          "$APPIMAGE" --appimage-extract >/dev/null
+          ROOT="$WORK/squashfs-root"
+          ICON=$(readlink -f "$ROOT/.DirIcon" 2>/dev/null || true)
+          if [ -n "$ICON" ] && [ -f "$ICON" ] && case "$ICON" in "$ROOT"/*) true;; *) false;; esac; then
+            echo ".DirIcon already resolves inside the bundle — no repair needed"
+            exit 0
+          fi
+          # The real bytes are at the AppDir root (linuxdeploy put them there
+          # before mislinking). Ship a regular file: nothing left to dangle.
+          SRC=$(find "$ROOT" -maxdepth 1 -name "*.png" | head -1)
+          [ -n "$SRC" ] || SRC=$(find "$ROOT/usr/share/icons" -name "*.png" | head -1)
+          [ -n "$SRC" ] || { echo "no icon bytes found in bundle"; exit 1; }
+          rm -f "$ROOT/.DirIcon"
+          cp "$SRC" "$ROOT/.DirIcon"
+          curl -fsSL --retry 3 -o "$WORK/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$WORK/appimagetool"
+          # Same FUSE-less trick the build itself uses.
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 "$WORK/appimagetool" --no-appstream "$ROOT" "$APPIMAGE"
+          cd "$GITHUB_WORKSPACE/frontend"
+          bunx tauri signer sign "$APPIMAGE"
+          NEW_SIG=$(cat "$APPIMAGE.sig")
+          TAG="${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}"
+          gh release upload "$TAG" "$APPIMAGE" "$APPIMAGE.sig" --clobber --repo "$GITHUB_REPOSITORY"
+          # latest.json carries the OLD linux signature — patch it in place.
+          if gh release download "$TAG" --pattern latest.json --output "$WORK/latest.json" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
+            python3 -c 'import json,sys; p,sig=sys.argv[1],sys.argv[2]; d=json.load(open(p)); n=sum(1 for k,v in d.get("platforms",{}).items() if k.startswith("linux") and not v.update({"signature":sig})); json.dump(d,open(p,"w"),indent=2); print(f"patched {n} linux signature(s)")' "$WORK/latest.json" "$NEW_SIG"
+            gh release upload "$TAG" "$WORK/latest.json" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            echo "no latest.json on the release yet — nothing to patch"
+          fi
+          echo "repacked, re-signed, re-uploaded"
+
       - name: Installer smoke (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 5
