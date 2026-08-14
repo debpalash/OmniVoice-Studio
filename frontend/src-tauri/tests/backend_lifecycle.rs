@@ -38,8 +38,15 @@ static HARNESS: Mutex<()> = Mutex::new(());
 /// script, then dying the scripted death. A no-op in a normal test pass.
 #[test]
 fn scenario_child() {
-    if std::env::var("OMNIVOICE_SCENARIO").is_err() {
-        return;
+    // The gate value is the PID of the process that ARMED the scenario (the
+    // parent harness). The parent's own libtest also runs this test — in a
+    // parallel local `cargo test` it could observe the armed env and start
+    // fault-injecting itself (binding the port, idling 600s). Only a
+    // DIFFERENT process — the spawned child — may play the backend.
+    match std::env::var("OMNIVOICE_SCENARIO") {
+        Ok(v) if v.parse::<u32>() == Ok(std::process::id()) => return, // the parent itself
+        Ok(_) => {}
+        Err(_) => return,
     }
     let get = |k: &str| std::env::var(k).unwrap_or_default();
     let get_ms = |k: &str| get(k).parse::<u64>().ok();
@@ -184,7 +191,9 @@ impl TestApp {
             ])
             .unwrap(),
         );
-        std::env::set_var("OMNIVOICE_SCENARIO", "1");
+        // Armed with OUR pid: the in-process scenario_child test sees its own
+        // pid and stays inert; only the spawned child (a different pid) runs.
+        std::env::set_var("OMNIVOICE_SCENARIO", std::process::id().to_string());
         if !scenario.stderr.is_empty() {
             std::env::set_var("OMNIVOICE_SCENARIO_STDERR", scenario.stderr);
         }
