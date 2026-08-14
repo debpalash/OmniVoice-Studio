@@ -510,6 +510,12 @@ async def _cancel_and_await_tasks(*tasks, timeout: float = 3.0) -> None:
 _phase_a_built = False
 _phase_a_finalized = False
 _router_modules: "list" = []
+# Executor-thread lifecycle markers: cancelling the deferred-startup TASK
+# cannot stop the THREAD already inside blocking import work, so shutdown
+# waits (bounded) on _phase_a_finished when a build actually started —
+# otherwise interpreter teardown races the imports (#1000 class).
+_phase_a_started = threading.Event()
+_phase_a_finished = threading.Event()
 
 
 def _phase_a_build() -> None:
@@ -521,6 +527,17 @@ def _phase_a_build() -> None:
     global model_loads_reset_shutdown
     if _phase_a_built:
         return
+    _phase_a_started.set()
+    try:
+        _phase_a_build_inner()
+    finally:
+        _phase_a_finished.set()
+
+
+def _phase_a_build_inner() -> None:
+    global _phase_a_built, ModelLoadInterruptedByShutdown
+    global model_loads_begin_shutdown, idle_worker, preload_model
+    global model_loads_reset_shutdown
 
     _startup_progress.begin_step("env_prefs")
     # Legacy (≤v0.3.7) Translation-LLM rows (env.TRANSLATE_*) must migrate
@@ -767,7 +784,10 @@ async def _deferred_startup(app: FastAPI) -> None:
             f"FATAL: backend startup failed during '{_step or 'startup'}': {exc}",
             file=sys.stderr, flush=True,
         )
-        time.sleep(1.0)
+        # Async, not time.sleep: the whole point of this beat is letting the
+        # event loop serve one last /startup/progress poll with the failed
+        # step — a blocking sleep would freeze the loop instead.
+        await asyncio.sleep(1.0)
         os._exit(1)
 
 
@@ -976,11 +996,18 @@ async def lifespan(app: FastAPI):
     if _startup_task is not None and not _startup_task.done():
         _startup_task.cancel()
         try:
-            await asyncio.wait_for(_startup_task, timeout=20.0)
+            await asyncio.wait_for(_startup_task, timeout=5.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):
             pass
         except Exception:
             pass
+    # Cancelling the task can't stop the executor THREAD already inside
+    # Phase A's blocking imports — wait (bounded) for the thread itself so
+    # interpreter teardown doesn't race a mid-`import torch` (#1000 class).
+    # Only when a build actually started and hasn't finished, so a shutdown
+    # before Phase A began pays nothing.
+    if _phase_a_started.is_set() and not _phase_a_finished.is_set():
+        await asyncio.to_thread(_phase_a_finished.wait, 20.0)
     # Stop accepting remote work early in shutdown: a worker that reconnects
     # to a half-torn-down control plane is worse than one that simply finds it
     # gone and backs off.

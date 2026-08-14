@@ -58,8 +58,10 @@ def test_progress_endpoint_answers_long_before_readiness(tmp_path):
             "--host", "127.0.0.1", "--port", str(port),
         ],
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        # DEVNULL, not PIPE: nothing drains the pipe, and a cold uvicorn +
+        # torch boot writes enough to fill the OS buffer and wedge the child.
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     try:
         deadline = time.monotonic() + 8.0
@@ -180,7 +182,7 @@ def test_phase_a_preserves_the_963_ordering_invariant():
     tree = ast.parse(src)
     fn = next(
         n for n in ast.walk(tree)
-        if isinstance(n, ast.FunctionDef) and n.name == "_phase_a_build"
+        if isinstance(n, ast.FunctionDef) and n.name == "_phase_a_build_inner"
     )
     seg = ast.get_source_segment(src, fn)
     order = [

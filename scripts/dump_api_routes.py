@@ -58,7 +58,7 @@ def load_app():
     os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
     # Early-bind refactor: a bare (non-pytest) import defers routers behind
     # the startup gate — this dump needs the fully-built app at import.
-    os.environ.setdefault("OMNIVOICE_EAGER_INIT", "1")
+    os.environ["OMNIVOICE_EAGER_INIT"] = "1"
     sys.path.insert(0, str(_REPO / "backend"))
     from main import app
     return app
