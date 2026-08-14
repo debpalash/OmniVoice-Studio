@@ -365,6 +365,19 @@ jobs:
             echo "choco attempt $i did not produce ffmpeg — retrying in $((i * 30))s"
             sleep $((i * 30))
           done
+          # Chocolatey is one distribution channel, not the dependency. When
+          # its feed is down across every retry (2026-08-13: three attempts,
+          # three 'installed 0/1'), fall back to the static gyan.dev release
+          # build GitHub mirror — the same binary, no feed in the path.
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            echo "::warning::choco feed down — falling back to static ffmpeg build"
+            curl -fsSL --retry 3 -o /tmp/ffmpeg.zip \
+              https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip
+            unzip -q /tmp/ffmpeg.zip -d /tmp/ffmpeg
+            bindir=$(dirname "$(find /tmp/ffmpeg -name ffmpeg.exe | head -1)")
+            echo "$bindir" >> "$GITHUB_PATH"
+            export PATH="$bindir:$PATH"
+          fi
           ffmpeg -version
 
       - name: System deps (Linux)

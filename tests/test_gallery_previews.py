@@ -28,6 +28,7 @@ import io
 import importlib.util
 import json
 import tarfile
+import wave
 from pathlib import Path
 
 import httpx
@@ -82,6 +83,18 @@ class Signer:
 def _mp3(seed: bytes) -> bytes:
     """Stand-in preview bytes — content is irrelevant, its digest is not."""
     return b"ID3" + seed * 16
+
+
+def _wav(seed: bytes) -> bytes:
+    """Small valid PCM WAV used when the route's decoder boundary is under test."""
+    payload = (seed or b"\x00") * 64
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(1)
+        wav.setframerate(8_000)
+        wav.writeframes(payload)
+    return buf.getvalue()
 
 
 class StubGallery:
@@ -530,16 +543,18 @@ def test_offline_gallery_miss_still_renders_locally(client, sandbox, stub, monke
     offline_client = stub.client()
     monkeypatch.setattr(gallery, "_client", lambda client=None: offline_client)
 
+    local_wav = _wav(b"O")
+
     async def _render(_item, path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"RIFF-offline-local")
+        path.write_bytes(local_wav)
 
     monkeypatch.setattr("api.routers.archetypes._render_archetype_wav", _render)
     item, _ = _first_archetype()
     resp = client.get(f"/archetypes/{item['id']}/preview")
     assert resp.status_code == 200
     assert resp.headers["X-OmniVoice-Preview-Source"] == "local"
-    assert resp.content == b"RIFF-offline-local"
+    assert resp.content == local_wav
     assert not [r for r in caplog.records if r.levelno >= 30]
 
 
@@ -548,15 +563,17 @@ def test_local_retry_bypasses_present_gallery_file(client, sandbox, monkeypatch)
     item, key = _first_archetype()
     gallery.preview_path(key).write_bytes(_mp3(b"undecodable"))
 
+    local_wav = _wav(b"L")
+
     async def _render(_item, path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"RIFF-local-render")
+        path.write_bytes(local_wav)
 
     monkeypatch.setattr("api.routers.archetypes._render_archetype_wav", _render)
     resp = client.get(f"/archetypes/{item['id']}/preview?local=true")
     assert resp.status_code == 200
     assert resp.headers["X-OmniVoice-Preview-Source"] == "local"
-    assert resp.content == b"RIFF-local-render"
+    assert resp.content == local_wav
 
 
 def test_preview_state_is_three_states(client, sandbox, monkeypatch):

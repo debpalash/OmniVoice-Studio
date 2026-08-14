@@ -1,18 +1,24 @@
-import os
-import json
-import uuid
-import time
 import asyncio
+import contextlib
+import json
 import logging
-from typing import Optional, List
+import os
+import re
+import shutil
+import tempfile
+import time
+import uuid
 from pathlib import Path
+from typing import List, Optional
+
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.db import db_conn
 from core.config import VOICES_DIR, OUTPUTS_DIR
 from core import event_bus
+from core.audio_validation import resolve_regular_file
 from core.file_cleanup import FileCleanupError, unlink_if_present
 from services.ffmpeg_utils import spawn_subprocess
 
@@ -360,46 +366,223 @@ async def upload_voice_clip(
     }
 
 
+def _stage_profile_audio(source: Path, directory: Path) -> Path:
+    """Copy an imported clip to a hidden temp file inside ``directory``.
+
+    The temp lives in the destination directory itself so a later
+    ``os.replace`` to the final name is an atomic same-filesystem rename —
+    cheap enough to run while holding a DB write lock, unlike the copy.
+    Callers own cleanup of the returned path if they never publish it.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(directory), prefix=".gallery-import-", suffix=".part",
+    )
+    os.close(fd)
+    try:
+        shutil.copy2(source, tmp_name)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    return Path(tmp_name)
+
+
+def _copy_profile_audio(source: Path, destination: Path) -> None:
+    """Copy an imported clip without exposing a partial profile audio file."""
+    staged = _stage_profile_audio(source, destination.parent)
+    try:
+        os.replace(staged, destination)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(staged)
+        raise
+
+
+def _gallery_profile_audio_filename(profile_id: str, source: Path) -> str:
+    """Return the canonical, portable filename for a My Imports profile."""
+    safe_id = (
+        profile_id if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", profile_id or "")
+        else uuid.uuid5(uuid.NAMESPACE_URL, str(profile_id)).hex[:16]
+    )
+    suffix = source.suffix.lower()
+    if not re.fullmatch(r"\.[a-z0-9]{1,8}", suffix):
+        suffix = ".wav"
+    return f"{safe_id}_gallery{suffix}"
+
+
+def _is_materialized_gallery_profile(row, voice: dict, audio_filename: str) -> bool:
+    """Recognize only rows created by this materializer, not identity collisions."""
+    return bool(
+        row["personality"] == f"gallery:{voice['id']}"
+        and row["ref_audio_path"] == audio_filename
+        and row["ref_text"] == ""
+        and row["instruct"] == ""
+        and row["language"] == "Auto"
+        and row["seed"] is None
+        and row["kind"] == "clone"
+        and not row["vd_states"]
+        and row["description"] == (voice.get("description") or "")
+        and not row["is_locked"]
+        and not row["verified_own_voice"]
+        and not row["locked_audio_path"]
+    )
+
+
+def _existing_gallery_profile(conn, voice: dict, source: Path):
+    personality = f"gallery:{voice['id']}"
+    rows = conn.execute(
+        "SELECT * FROM voice_profiles WHERE personality=? ORDER BY created_at, id",
+        (personality,),
+    ).fetchall()
+    for row in rows:
+        expected = _gallery_profile_audio_filename(row["id"], source)
+        if _is_materialized_gallery_profile(row, voice, expected):
+            return row
+    return None
+
+
+def _gallery_profile_audio_is_current(row, source: Path) -> bool:
+    """Detect missing/replaced copies without re-hashing unchanged imports."""
+    destination = resolve_regular_file(VOICES_DIR, row["ref_audio_path"])
+    if destination is None:
+        return False
+    try:
+        source_stat = source.stat()
+        destination_stat = destination.stat()
+        # copy2 preserves mtime; size + nanosecond mtime catches ordinary edits
+        # and partial writes while keeping repeated Use clicks inexpensive.
+        return (
+            source_stat.st_size == destination_stat.st_size
+            and source_stat.st_mtime_ns == destination_stat.st_mtime_ns
+        )
+    except OSError:
+        return False
+
+
+def _materialize_gallery_profile(
+    voice_id: str, requested_name: Optional[str] = None,
+) -> dict:
+    """Idempotently materialize/heal one My Imports clip as a clone profile."""
+    personality = f"gallery:{voice_id}"
+    copied_path: Optional[Path] = None
+    created = False
+    staged_path: Optional[Path] = None
+    staged_source: Optional[Path] = None
+    try:
+        # Stage the (potentially large) audio copy BEFORE taking SQLite's
+        # write lock: copying inside BEGIN IMMEDIATE would stall every other
+        # backend writer for the whole copy. The staged temp lives in
+        # VOICES_DIR itself, so publishing it inside the transaction is an
+        # atomic same-filesystem os.replace. This pre-read is advisory only —
+        # the locked transaction below re-reads and re-decides everything.
+        copy_needed = False
+        with db_conn() as conn:
+            pre_row = conn.execute(
+                "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,),
+            ).fetchone()
+            if pre_row is not None:
+                pre_source = Path(pre_row["audio_path"])
+                if pre_source.is_file():
+                    pre_existing = _existing_gallery_profile(conn, dict(pre_row), pre_source)
+                    copy_needed = pre_existing is None or not _gallery_profile_audio_is_current(
+                        pre_existing, pre_source,
+                    )
+        if copy_needed:
+            staged_path = _stage_profile_audio(pre_source, Path(VOICES_DIR))
+            staged_source = pre_source
+
+        with db_conn() as conn:
+            # The identity is not globally UNIQUE because personality is shared
+            # with other import mechanisms. Serialize this check+insert in
+            # SQLite so simultaneous Use clicks cannot both create a row.
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,),
+            ).fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Voice not found")
+
+            voice = dict(row)
+            source = Path(voice["audio_path"])
+            if not source.is_file():
+                raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+            def _install_audio(destination: Path) -> None:
+                """Publish the staged copy under the lock via atomic rename."""
+                nonlocal staged_path
+                if staged_path is not None and staged_source == source:
+                    os.replace(staged_path, destination)
+                    staged_path = None
+                else:
+                    # Rare race: the gallery row changed between the advisory
+                    # pre-read and taking the lock, so any staged bytes may be
+                    # from the wrong source. Fall back to the blocking copy
+                    # rather than publish stale audio.
+                    _copy_profile_audio(source, destination)
+
+            existing = _existing_gallery_profile(conn, voice, source)
+            if existing is not None:
+                ref_filename = _gallery_profile_audio_filename(existing["id"], source)
+                if not _gallery_profile_audio_is_current(existing, source):
+                    ref_path = Path(VOICES_DIR) / ref_filename
+                    _install_audio(ref_path)
+                    copied_path = ref_path
+                conn.execute(
+                    "UPDATE voice_profiles SET ref_audio_path=?, ref_text='', instruct='', "
+                    "language='Auto', seed=NULL, description=?, kind='clone', vd_states=NULL, "
+                    "personality=? WHERE id=?",
+                    (
+                        ref_filename, voice["description"] or "", personality,
+                        existing["id"],
+                    ),
+                )
+                result = {"profile_id": existing["id"], "name": existing["name"]}
+            else:
+                profile_id = str(uuid.uuid4())[:8]
+                profile_name = (requested_name or voice["name"]).strip() or voice["name"]
+                ref_filename = _gallery_profile_audio_filename(profile_id, source)
+                copied_path = Path(VOICES_DIR) / ref_filename
+                _install_audio(copied_path)
+                conn.execute(
+                    """INSERT INTO voice_profiles
+                       (id, name, ref_audio_path, ref_text, instruct, language, seed,
+                        personality, is_locked, locked_audio_path, description, kind,
+                        vd_states, created_at)
+                       VALUES (?, ?, ?, '', '', 'Auto', NULL, ?, 0, '', ?, 'clone', NULL, ?)""",
+                    (
+                        profile_id, profile_name, ref_filename, personality,
+                        voice["description"] or "", time.time(),
+                    ),
+                )
+                created = True
+                result = {"profile_id": profile_id, "name": profile_name}
+    except BaseException:
+        if copied_path is not None:
+            with contextlib.suppress(OSError):
+                copied_path.unlink()
+        raise
+    finally:
+        # Staged but never published (failure, or a concurrent request healed
+        # the profile first) — never leave .part droppings in VOICES_DIR.
+        if staged_path is not None:
+            with contextlib.suppress(OSError):
+                os.unlink(staged_path)
+
+    event_bus.emit(
+        "profiles", {"action": "created" if created else "updated", "id": result["profile_id"]},
+    )
+    return result
+
+
 @router.post("/gallery/voices/{voice_id}/save-as-profile")
 async def save_voice_as_profile(
     voice_id: str,
     profile_name: str = Query(..., description="Name for the voice profile"),
 ):
     """Save a gallery voice as a voice profile for cloning."""
-    with db_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)
-        ).fetchone()
-
-        if not row:
-            raise HTTPException(status_code=404, detail="Voice not found")
-
-        profile_id = str(uuid.uuid4())[:8]
-        import shutil
-
-        ext = os.path.splitext(row["audio_path"])[1]
-        new_audio_path = os.path.join(VOICES_DIR, f"{profile_id}{ext}")
-        shutil.copy(row["audio_path"], new_audio_path)
-
-        conn.execute(
-            """
-            INSERT INTO voice_profiles (id, name, ref_audio_path, ref_text, instruct, language, seed, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                profile_id,
-                profile_name,
-                f"{profile_id}{ext}",
-                row["description"] or "",
-                row["character"] or "",
-                "Auto",
-                None,
-                time.time(),
-            ),
-        )
-    event_bus.emit("profiles", {"action": "created", "id": profile_id})
-
-    return {"profile_id": profile_id, "name": profile_name}
+    result = await asyncio.to_thread(_materialize_gallery_profile, voice_id, profile_name)
+    return {"profile_id": result["profile_id"], "name": result["name"]}
 
 
 @router.get("/gallery/voices/{voice_id}/preview")
@@ -415,22 +598,10 @@ def preview_voice(voice_id: str):
 
     audio_path = row["audio_path"]
 
-    # Debug logging
-    is_absolute = os.path.isabs(audio_path)
-    path_exists = os.path.exists(audio_path) if audio_path else False
-
-    # If absolute path, serve directly or redirect
-    if is_absolute and path_exists:
-        # Get just the relative path from outputs dir
-        outputs_path = str(OUTPUTS_DIR)
-        if audio_path.startswith(outputs_path):
-            # Remove outputs_dir prefix to get relative path within outputs
-            rel_path = os.path.relpath(audio_path, outputs_path)
-            # The audio_path is like: /Users/user4/.../outputs/voice_gallery/file.wav
-            # rel_path becomes: voice_gallery/file.wav
-            # We want to serve from /audio/ so: /audio/voice_gallery/file.wav
-            return RedirectResponse(f"/audio/{rel_path}")
-        return FileResponse(audio_path, media_type="audio/wav")
+    if os.path.isabs(audio_path) and os.path.exists(audio_path):
+        # Serve the file from this API route so deployments mounted below a
+        # path prefix do not lose that prefix while following a redirect.
+        return FileResponse(audio_path)
 
     raise HTTPException(
         status_code=404,
@@ -503,33 +674,5 @@ def batch_delete_voices(body: dict):
 @router.post("/gallery/voices/{voice_id}/to-profile")
 def voice_to_profile(voice_id: str):
     """Create a voice profile from a gallery clip."""
-    with db_conn() as conn:
-        row = conn.execute("SELECT * FROM voice_gallery WHERE id = ?", (voice_id,)).fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Voice not found")
-
-        voice = dict(row)
-        audio_path = voice["audio_path"]
-        if not os.path.exists(audio_path):
-            raise HTTPException(status_code=404, detail="Audio file not found on disk")
-
-        import shutil
-        import uuid
-
-        profile_id = str(uuid.uuid4())[:8]
-        # Copy audio to voices dir
-        dest_filename = f"{profile_id}_gallery.wav"
-        dest_path = os.path.join(VOICES_DIR, dest_filename)
-        shutil.copy2(audio_path, dest_path)
-
-        import time
-        now = time.time()
-        conn.execute(
-            """INSERT INTO voice_profiles
-               (id, name, ref_audio_path, ref_text, instruct, seed, is_locked, locked_audio_path, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (profile_id, voice["name"], dest_filename, "", None, None, 0, None, now, now),
-        )
-    event_bus.emit("profiles", {"action": "created", "id": profile_id})
-
-    return {"success": True, "profile_id": profile_id, "name": voice["name"]}
+    result = _materialize_gallery_profile(voice_id)
+    return {"success": True, "profile_id": result["profile_id"], "name": result["name"]}

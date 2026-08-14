@@ -19,7 +19,9 @@ interface CommunityItem {
   author?: string;
   license?: string;
   source?: string;
+  _source_repo?: string;
   is_community?: boolean;
+  attrs?: Record<string, string>;
 }
 
 export interface CommunityPage {
@@ -59,3 +61,7 @@ export const addCommunityItem = (
   const q = name ? `?name=${encodeURIComponent(name)}` : '';
   return apiJson(`/community/items/${encodeURIComponent(id)}/use${q}`, { method: 'POST' });
 };
+
+/** Same-origin preview path for both designed presets and recorded voices. */
+export const communityPreviewUrl = (id: string, local = false): string =>
+  `/community/items/${encodeURIComponent(id)}/preview${local ? '?local=true' : ''}`;

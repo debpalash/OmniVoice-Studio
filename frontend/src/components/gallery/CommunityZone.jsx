@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
 import { Loader, Send } from 'lucide-react';
 import { useCommunityItems } from '../../api/hooks';
-import { addCommunityItem, communitySubmitUrl } from '../../api/community';
+import { communitySubmitUrl } from '../../api/community';
 import { openExternal } from '../../api/external';
 import ArchetypeCard from './ArchetypeCard';
+
+const itemKey = (item) => `community:${item._source_repo || item.source || 'default'}:${item.id}`;
 
 // ── Community zone (marketplace) ─────────────────────────────────────────────
 export default function CommunityZone({
@@ -12,9 +14,13 @@ export default function CommunityZone({
   loadingPreviewId,
   favorites,
   toggleFavorite,
-  onPlayAudio,
+  onPreview,
   flash,
   onDesign,
+  onUse,
+  onUseInStories,
+  onUseAsAudiobookDefault,
+  materializingId,
 }) {
   const itemsQ = useCommunityItems({ limit: 100 });
   const items = itemsQ.data?.items || [];
@@ -66,49 +72,22 @@ export default function CommunityZone({
         <div className="grid grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-[10px]">
           {items.map((it) => (
             <ArchetypeCard
-              key={it.id}
+              key={itemKey(it)}
               a={it}
               t={t}
-              isFavorite={favSet.has(it.id)}
-              isPlaying={playingId === it.id}
-              isLoadingPreview={loadingPreviewId === it.id}
+              favoriteId={itemKey(it)}
+              isFavorite={favSet.has(itemKey(it))}
+              isPlaying={playingId === itemKey(it)}
+              isLoadingPreview={loadingPreviewId === itemKey(it)}
+              previewLocked={Boolean(loadingPreviewId)}
               onToggleFavorite={toggleFavorite}
-              onPreview={(item) =>
-                item.audio?.url
-                  ? onPlayAudio(item.audio.url, item.id, item.name)
-                  : flash(
-                      t('gallery.no_preview', {
-                        defaultValue: 'No preview — add it with "Use voice" to hear it.',
-                      }),
-                    )
-              }
-              onUse={async (item) => {
-                try {
-                  const r = await addCommunityItem(item.id, item.name);
-                  flash(
-                    t('gallery.saved_as_profile', {
-                      defaultValue: 'Added "{{name}}" to your voices.',
-                      name: r.name,
-                    }),
-                  );
-                } catch (e) {
-                  flash(
-                    t('gallery.use_failed', {
-                      message: e?.message || String(e),
-                      defaultValue: 'Could not create that voice: {{message}}',
-                    }),
-                  );
-                }
-              }}
-              onDesign={(item) =>
-                item.instruct
-                  ? onDesign(item.instruct)
-                  : flash(
-                      t('gallery.no_designer', {
-                        defaultValue: 'Recorded voice — use "Use voice" instead.',
-                      }),
-                    )
-              }
+              onPreview={onPreview}
+              onUse={onUse}
+              onDesign={it.type === 'preset' && it.instruct ? onDesign : null}
+              onUseInStories={onUseInStories}
+              onUseAsAudiobookDefault={onUseAsAudiobookDefault}
+              isMaterializing={materializingId === it.id}
+              materializationLocked={Boolean(materializingId)}
             />
           ))}
         </div>

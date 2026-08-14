@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildDesignInstruct, instructToFormValue, designModeProfileId } from './voiceInstruct';
+import {
+  buildDesignInstruct,
+  instructToFormValue,
+  instructToVdStates,
+  designModeProfileId,
+} from './voiceInstruct';
 
 // plan-05 (#132): the Voice Design payload must be a validator-safe instruct —
 // one valid tag per category, no unsupported free-text — so Synthesize stops
@@ -99,6 +104,62 @@ describe('buildDesignInstruct', () => {
     const { instruct, unsupported } = buildDesignInstruct({ Gender: 'nonbinary' }, '');
     expect(instruct).toBe('');
     expect(unsupported).toEqual([]);
+  });
+});
+
+describe('instructToVdStates', () => {
+  const allAuto = {
+    Gender: 'Auto',
+    Age: 'Auto',
+    Pitch: 'Auto',
+    Style: 'Auto',
+    EnglishAccent: 'Auto',
+    ChineseDialect: 'Auto',
+  };
+
+  it('returns a complete shape and replaces every stale category', () => {
+    const stale = {
+      Gender: 'male',
+      Age: 'elderly',
+      Pitch: 'low pitch',
+      Style: 'whisper',
+      EnglishAccent: 'british accent',
+      ChineseDialect: 'Auto',
+    };
+
+    const replacement = instructToVdStates('female, high pitch');
+
+    expect({ ...stale, ...replacement }).toEqual({
+      ...allAuto,
+      Gender: 'female',
+      Pitch: 'high pitch',
+    });
+  });
+
+  it('ignores unknown and conflicting tokens while keeping the first valid category value', () => {
+    expect(
+      instructToVdStates('MALE, female, cinematic, high pitch, very low pitch, whisper'),
+    ).toEqual({
+      ...allAuto,
+      Gender: 'male',
+      Pitch: 'high pitch',
+      Style: 'whisper',
+    });
+  });
+
+  it('accepts a full-width Chinese comma and defaults omitted categories to Auto', () => {
+    expect(instructToVdStates('female，young adult，american accent')).toEqual({
+      ...allAuto,
+      Gender: 'female',
+      Age: 'young adult',
+      EnglishAccent: 'american accent',
+    });
+  });
+
+  it('returns the complete all-Auto shape for empty or unusable input', () => {
+    expect(instructToVdStates('')).toEqual(allAuto);
+    expect(instructToVdStates('unknown prose')).toEqual(allAuto);
+    expect(instructToVdStates(null)).toEqual(allAuto);
   });
 });
 

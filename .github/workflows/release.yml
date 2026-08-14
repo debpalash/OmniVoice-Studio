@@ -731,6 +731,62 @@ jobs:
           find "$INSTALL" -type f -path '*backend*main.py' | grep -q . || fail "backend source main.py missing"
           echo "OK — MSI installed shell + uv + backend resources"
 
+      # linuxdeploy re-links .DirIcon as an ABSOLUTE symlink into the build
+      # machine AFTER tauri's files-map has placed the real icon bytes — the
+      # exact bug #1518 guarded against, resurfacing on the first real tag
+      # build (v0.5.0). The seam tauri-action leaves us is post-upload: repack
+      # the AppImage with the icon as a REGULAR FILE, re-sign it (the updater
+      # signature covered the old bytes), and clobber the draft release's
+      # asset + the linux signature inside latest.json. The smoke below then
+      # validates the repaired artifact, not the broken one.
+      - name: Repair AppImage .DirIcon, re-sign, re-upload
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Data, not shell source (zizmor template-injection): a crafted ref
+          # must never expand inside a script that holds the signing key.
+          TAG: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/appimage -name "*.AppImage" | head -1)
+          APPIMAGE=$(realpath "$APPIMAGE")
+          WORK="$(mktemp -d)"; cd "$WORK"
+          "$APPIMAGE" --appimage-extract >/dev/null
+          ROOT="$WORK/squashfs-root"
+          ICON=$(readlink -f "$ROOT/.DirIcon" 2>/dev/null || true)
+          if [ -n "$ICON" ] && [ -f "$ICON" ] && case "$ICON" in "$ROOT"/*) true;; *) false;; esac; then
+            echo ".DirIcon already resolves inside the bundle — no repair needed"
+            exit 0
+          fi
+          # The real bytes are at the AppDir root (linuxdeploy put them there
+          # before mislinking). Ship a regular file: nothing left to dangle.
+          SRC=$(find "$ROOT" -maxdepth 1 -name "*.png" | head -1)
+          [ -n "$SRC" ] || SRC=$(find "$ROOT/usr/share/icons" -name "*.png" | head -1)
+          [ -n "$SRC" ] || { echo "no icon bytes found in bundle"; exit 1; }
+          rm -f "$ROOT/.DirIcon"
+          cp "$SRC" "$ROOT/.DirIcon"
+          # Pinned immutable release + checksum: this binary runs with the
+          # updater signing key and a release-write token in its environment,
+          # so a mutable 'continuous' asset is not acceptable supply chain.
+          AIT_URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+          AIT_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+          curl -fsSL --retry 3 -o "$WORK/appimagetool" "$AIT_URL"
+          echo "$AIT_SHA256  $WORK/appimagetool" | sha256sum -c - || { echo "appimagetool checksum mismatch"; exit 1; }
+          chmod +x "$WORK/appimagetool"
+          # Same FUSE-less trick the build itself uses.
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 "$WORK/appimagetool" --no-appstream "$ROOT" "$APPIMAGE"
+          cd "$GITHUB_WORKSPACE/frontend"
+          bunx tauri signer sign "$APPIMAGE"
+          gh release upload "$TAG" "$APPIMAGE" "$APPIMAGE.sig" --clobber --repo "$GITHUB_REPOSITORY"
+          # latest.json is NOT patched here: every tauri-action leg re-uploads
+          # the shared manifest, so an in-leg patch races the other platforms —
+          # the repair-updater-manifest job below is the single final writer.
+          echo "repacked, re-signed, re-uploaded"
+
       - name: Installer smoke (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 5
@@ -844,6 +900,50 @@ jobs:
   # the tag (v0.3.20 shipped with only the Linux AppImage that way). `needs:
   # [build]` guarantees the release already exists; `--clobber` makes a re-run
   # idempotent. This can never create a second release.
+  # The Linux leg may repack + re-sign its AppImage (see the repair step in
+  # the build matrix); every tauri-action leg also re-uploads the SHARED
+  # latest.json, so patching the manifest inside any leg races the others.
+  # This job runs once after the whole matrix as the single final writer:
+  # it makes the manifest's linux signature agree with the .sig asset that
+  # actually shipped, and refuses to leave a mismatch behind.
+  repair-updater-manifest:
+    needs: [build, preview-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Data, not shell source — same zizmor rule as the leg step.
+      TAG: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
+    steps:
+      - name: Align latest.json's linux signature with the shipped .sig asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK="$(mktemp -d)"
+          HAS_MANIFEST=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]|contains(["latest.json"])')
+          if [ "$HAS_MANIFEST" != "true" ]; then
+            echo "no latest.json on the release — nothing to align"; exit 0
+          fi
+          gh release download "$TAG" --pattern latest.json --output "$WORK/latest.json" --repo "$GITHUB_REPOSITORY"
+          # Same fail-closed rule as the manifest: absence is checked against
+          # the asset LIST; an actual download failure must fail the job, or
+          # the manifest keeps a signature nobody shipped.
+          HAS_SIG=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name|select(endswith(".AppImage.sig"))]|length > 0')
+          if [ "$HAS_SIG" != "true" ]; then
+            echo "no AppImage .sig asset on the release — nothing to align"; exit 0
+          fi
+          gh release download "$TAG" --pattern "*.AppImage.sig" --dir "$WORK" --repo "$GITHUB_REPOSITORY"
+          SIG_FILE=$(find "$WORK" -name "*.AppImage.sig" | head -1)
+          [ -n "$SIG_FILE" ] || { echo "sig asset listed but download produced nothing"; exit 1; }
+          NEW_SIG=$(cat "$SIG_FILE")
+          CHANGED=$(python3 -c 'import json,sys; p,sig=sys.argv[1],sys.argv[2]; d=json.load(open(p)); n=sum(1 for k,v in d.get("platforms",{}).items() if k.startswith("linux") and v.get("signature")!=sig and not v.update({"signature":sig})); json.dump(d,open(p,"w"),indent=2); print(n)' "$WORK/latest.json" "$NEW_SIG")
+          if [ "$CHANGED" -ge 1 ]; then
+            gh release upload "$TAG" "$WORK/latest.json" --clobber --repo "$GITHUB_REPOSITORY"
+            echo "aligned $CHANGED linux signature(s) with the shipped .sig"
+          else
+            echo "manifest already agrees with the shipped .sig — no write"
+          fi
+
   uninstall-scripts:
     needs: [build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

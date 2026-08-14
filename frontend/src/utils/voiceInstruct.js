@@ -67,6 +67,36 @@ export function buildDesignInstruct(vdStates = {}, freeText = '') {
 }
 
 /**
+ * Convert a persona's validator-token instruct into a fresh, complete vdStates
+ * object. This is intentionally a projection, not a merge: Gallery hand-offs
+ * must replace every prior slider value, including categories the persona omits.
+ *
+ * Unknown tokens are ignored. If multiple valid tokens claim one category, the
+ * first wins and later conflicts are ignored, so malformed external persona data
+ * can never produce conflicting controls or reach the engine unchanged.
+ *
+ * @param {string} instruct comma-separated validator tokens
+ * @returns {Record<string, string>} complete vdStates (every category present)
+ */
+export function instructToVdStates(instruct = '') {
+  const out = Object.fromEntries(Object.keys(CATEGORIES).map((cat) => [cat, 'Auto']));
+  const claimed = new Set();
+
+  for (const raw of String(instruct || '').split(/[,，]/)) {
+    const normalized = raw.trim().toLowerCase();
+    if (!normalized) continue;
+    const cat = TAG_TO_CATEGORY[normalized];
+    if (!cat || claimed.has(cat)) continue;
+    const canonical = CATEGORIES[cat].find((value) => value.toLowerCase() === normalized);
+    if (!canonical || canonical === 'Auto') continue;
+    out[cat] = canonical;
+    claimed.add(cat);
+  }
+
+  return out;
+}
+
+/**
  * Which `profile_id` (if any) to forward in DESIGN mode.
  *
  * Design mode generates a voice from attributes (the `instruct` built from the

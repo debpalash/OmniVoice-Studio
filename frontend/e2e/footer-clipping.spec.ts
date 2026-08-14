@@ -27,7 +27,7 @@ test.describe('LogsFooter never covers page content @ 900x600', () => {
 
   test('gallery: bottom-most voice card stays above the collapsed footer', async ({ page }) => {
     await gotoMode(page, 'gallery');
-    const cards = page.locator('.archetype-card');
+    const cards = page.getByTestId('gallery-persona-card');
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
 
     const top = await footerTop(page);
@@ -45,7 +45,7 @@ test.describe('LogsFooter never covers page content @ 900x600', () => {
     page,
   }) => {
     await gotoMode(page, 'gallery');
-    const cards = page.locator('.archetype-card');
+    const cards = page.getByTestId('gallery-persona-card');
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
 
     // Expand the logs panel (chevron toggle in the collapsed bar).

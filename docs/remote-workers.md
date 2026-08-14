@@ -1,6 +1,6 @@
 # Remote GPU workers
 
-Run OmniVoice on this machine, but hand individual jobs to GPUs on your other
+Run VoiceStudio on this machine, but hand individual jobs to GPUs on your other
 machines. Results come back here.
 
 This is **opt-in and off by default**. Until you turn it on and approve a
@@ -23,7 +23,7 @@ administration.
 
 ## What you need
 
-* OmniVoice on both machines, on versions no more than two releases apart.
+* VoiceStudio on both machines, on versions no more than two releases apart.
 * The worker machine must be able to **reach** this one over the network. Same
   LAN is enough at home; across networks, a VPN such as
   [Tailscale](https://tailscale.com/) is the reliable answer. The worker dials
@@ -204,7 +204,7 @@ The row tells you what happened in words — "Paused after 3 failures … retryi
 in 45s" — and **Resume** clears it immediately when you've fixed the machine.
 
 **You quit the app mid-task.** Remote work keeps running on the worker. On next
-launch OmniVoice recovers those tasks and reconciles with each worker about
+launch VoiceStudio recovers those tasks and reconciles with each worker about
 what is genuinely still in flight.
 
 **Version or feature mismatch.** The protocol keeps a two-release compatibility

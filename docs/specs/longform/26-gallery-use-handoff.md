@@ -1,5 +1,7 @@
 # Spec — TASK #26: Gallery "Use in Stories" / "Set as Audiobook default" + create-voice handoff
 
+> **Implemented (2026-08-13).** Gallery and Community persona cards now materialize once and hand the returned profile directly to Studio, the current Stories cast, or the current Audiobook default. The implementation uses the unified `longformSlice` that superseded the store additions proposed below; the remainder of this document preserves the original design record.
+
 ## TL;DR
 
 Today the Gallery's "Use voice" action materializes an archetype/community voice into a profile and hard-codes a handoff into the **Studio** synthesis view (`frontend/src/pages/VoiceGallery.jsx:199-210` for archetypes; `frontend/src/App.jsx:254-268` for the studio-side pickup). There is no path from the Gallery into the **Stories** cast or the **Audiobook** default narrator. This task adds two quick-actions to gallery + community cards — "Use in Stories" and "Set as Audiobook default" — that (a) materialize the voice into a real profile (same backend call as today) and (b) land it in the right destination: appended to the Stories cast as a new character, or set as the persisted Audiobook default voice. The Audiobook default currently has no store binding at all, so this task also promotes it from local `useState` to a persisted store field.

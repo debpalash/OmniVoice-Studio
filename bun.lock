@@ -15,7 +15,7 @@
     },
     "frontend": {
       "name": "omnivoice-studio",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "dependencies": {
         "@fontsource-variable/inter": "^5.2.8",
         "@fontsource-variable/source-serif-4": "^5.2.9",

@@ -26,8 +26,10 @@ Design notes
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -37,6 +39,7 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from core import archetypes
+from core.audio_validation import is_playable_wav, resolve_regular_file
 from core.config import OUTPUTS_DIR, VOICES_DIR
 from services import gallery
 
@@ -67,6 +70,153 @@ def _preview_key(a: dict) -> str:
     return hashlib.sha256(
         f"{a['instruct']}|{a['language']}".encode("utf-8")
     ).hexdigest()[:16]
+
+
+def _design_profile_values(a: dict) -> tuple[str, str]:
+    """Canonical instruct + complete picker state for a designed archetype."""
+    return a["instruct"], json.dumps(a["attrs"], sort_keys=True)
+
+
+def _profile_audio_path(ref_audio_path: object) -> Optional[Path]:
+    """Resolve only a regular, non-symlinked file inside ``VOICES_DIR``."""
+    return resolve_regular_file(VOICES_DIR, ref_audio_path)
+
+
+def _materialized_audio_is_current(row, a: dict) -> bool:
+    """Whether an existing row still has the sample described by its metadata."""
+    expected_filename = _profile_audio_filename(row["id"])
+    path = _profile_audio_path(row["ref_audio_path"])
+    return bool(
+        row["ref_audio_path"] == expected_filename
+        and is_playable_wav(path)
+        and row["instruct"] == a["instruct"]
+        and row["language"] == a["language"]
+        and row["ref_text"] == a["sample_script"]
+        and row["seed"] == _PREVIEW_SEED
+    )
+
+
+def _profile_audio_filename(profile_id: str) -> str:
+    safe_id = (
+        profile_id if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", profile_id or "")
+        else hashlib.sha256(str(profile_id).encode("utf-8")).hexdigest()[:16]
+    )
+    return f"{safe_id}.wav"
+
+
+def _archetype_personality(a: dict) -> str:
+    return f"archetype:{a['id']}"
+
+
+def _legacy_archetype_profile(conn, a: dict):
+    """Adopt only a row that an older archetype materializer could have made."""
+    row = conn.execute(
+        "SELECT * FROM voice_profiles WHERE personality=? LIMIT 1",
+        (a["id"],),
+    ).fetchone()
+    if row is None:
+        return None
+    expected_audio = _profile_audio_filename(row["id"])
+    try:
+        states_match = (
+            not row["vd_states"] or json.loads(row["vd_states"]) == a["attrs"]
+        )
+    except (TypeError, ValueError):
+        states_match = False
+    if (
+        row["ref_audio_path"] == expected_audio
+        and row["instruct"] == a["instruct"]
+        and row["language"] == a["language"]
+        and row["ref_text"] == a["sample_script"]
+        and row["seed"] == _PREVIEW_SEED
+        and row["kind"] in (None, "", "clone", "design")
+        and not row["is_locked"]
+        and not row["verified_own_voice"]
+        and states_match
+    ):
+        return row
+    return None
+
+
+def _is_materialized_archetype_row(row, a: dict) -> bool:
+    """Recognize rows owned by this materializer without trusting identity text alone."""
+    try:
+        states_match = json.loads(row["vd_states"]) == a["attrs"]
+    except (TypeError, ValueError):
+        return False
+    return bool(
+        row["personality"] == _archetype_personality(a)
+        and row["kind"] == "design"
+        and row["seed"] == _PREVIEW_SEED
+        and row["ref_audio_path"] == _profile_audio_filename(row["id"])
+        and row["instruct"] == a["instruct"]
+        and row["language"] == a["language"]
+        and row["ref_text"] == a["sample_script"]
+        and states_match
+        and not row["is_locked"]
+        and not row["verified_own_voice"]
+    )
+
+
+def _existing_archetype_profile(conn, a: dict):
+    rows = conn.execute(
+        "SELECT * FROM voice_profiles WHERE personality=? ORDER BY created_at, id",
+        (_archetype_personality(a),),
+    ).fetchall()
+    owned = next((row for row in rows if _is_materialized_archetype_row(row, a)), None)
+    return owned if owned is not None else _legacy_archetype_profile(conn, a)
+
+
+async def _render_profile_audio(
+    a: dict, profile_id: str, *, publish: bool = True,
+) -> tuple[str, Path]:
+    """Render one validated sample, optionally staging it for a later CAS."""
+    audio_filename = _profile_audio_filename(profile_id)
+    safe_id = Path(audio_filename).stem
+    audio_path = Path(VOICES_DIR) / audio_filename
+    if publish:
+        await _render_wav_atomic(a, audio_path, prefix=f".{safe_id}-")
+    else:
+        audio_path.parent.mkdir(parents=True, exist_ok=True)
+        audio_path = audio_path.parent / f".{safe_id}-{uuid.uuid4().hex}.staged.wav"
+        try:
+            await _render_archetype_wav(a, audio_path)
+            if not is_playable_wav(audio_path):
+                raise RuntimeError("the voice engine produced an invalid WAV")
+        except BaseException:
+            with __import__("contextlib").suppress(OSError):
+                audio_path.unlink()
+            raise
+    return audio_filename, audio_path
+
+
+async def _render_wav_atomic(a: dict, out_path: Path, *, prefix: str = ".render-") -> Path:
+    """Render and validate a WAV before atomically replacing *out_path*."""
+    audio_path = Path(out_path)
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = audio_path.parent / f"{prefix}{uuid.uuid4().hex}.wav"
+    try:
+        await _render_archetype_wav(a, tmp_path)
+        if not is_playable_wav(tmp_path):
+            raise RuntimeError("the voice engine produced an invalid WAV")
+        os.replace(tmp_path, audio_path)
+    finally:
+        with __import__("contextlib").suppress(OSError):
+            tmp_path.unlink()
+    return audio_path
+
+
+def _heal_materialized_profile(conn, row, a: dict, audio_filename: str) -> None:
+    """Repair profiles created before archetype `/use` persisted design kind."""
+    instruct, vd_states = _design_profile_values(a)
+    conn.execute(
+        "UPDATE voice_profiles SET kind='design', instruct=?, vd_states=?, language=?, "
+        "ref_text=?, seed=?, ref_audio_path=?, personality=? WHERE id=?",
+        (
+            instruct, vd_states, a["language"], a["sample_script"], _PREVIEW_SEED,
+            audio_filename, _archetype_personality(a), row["id"],
+        ),
+    )
 
 
 # A non-empty script is always required — synthesizing empty text yields
@@ -255,7 +405,7 @@ def _preview_source(a: dict) -> tuple[str, str]:
             "Pre-rendered preview from the voice gallery — a fixed reference "
             "rendering, not a render from your current engine."
         )
-    if (_PREVIEW_DIR / f"{key}.wav").exists():
+    if is_playable_wav(_PREVIEW_DIR / f"{key}.wav"):
         return "cached", ""
     if _no_voice_model_downloaded():
         return "no_model", (
@@ -388,9 +538,9 @@ async def preview_archetype(
         )
 
     cache_path = _PREVIEW_DIR / f"{key}.wav"
-    if not cache_path.exists():
+    if not is_playable_wav(cache_path):
         try:
-            await _render_archetype_wav(a, cache_path)
+            await _render_wav_atomic(a, cache_path, prefix=".preview-")
         except Exception as e:  # model missing / OOM / inference failure
             logger.error("Archetype preview render failed", exc_info=True)
             # Two different failures, two different answers. Without a model
@@ -442,70 +592,122 @@ async def use_archetype(archetype_id: str, name: Optional[str] = Query(None)):
     # Idempotent (dedup): an archetype materializes to exactly ONE voice profile.
     # Picking the same gallery voice again — from any picker (Gallery grid,
     # VoiceSelector, …) — must reuse that one row instead of rendering + inserting
-    # a fresh duplicate every time. The `personality` column already carries the
-    # source archetype id (stamped by the INSERT below), so it's the natural
-    # dedup key; the expensive render + INSERT only run on first use.
+    # a fresh duplicate every time. Use a namespaced personality identity so an
+    # imported persona cannot collide with and be rewritten by an archetype id.
     with db_conn() as conn:
-        existing = conn.execute(
-            "SELECT id, name FROM voice_profiles WHERE personality = ? LIMIT 1",
-            (a["id"],),
-        ).fetchone()
+        existing = _existing_archetype_profile(conn, a)
+
+    profile_id = existing["id"] if existing is not None else str(uuid.uuid4())[:8]
+    audio_path: Optional[Path] = None
+    if existing is not None and _materialized_audio_is_current(existing, a):
+        audio_filename = existing["ref_audio_path"]
+    else:
+        try:
+            audio_filename, audio_path = await _render_profile_audio(
+                a, profile_id, publish=existing is None,
+            )
+        except Exception as e:
+            logger.error("Archetype 'use' render failed", exc_info=True)
+            # Same actionable/diagnostic split as /preview — minus the gallery
+            # suggestion, which cannot help here.
+            if _no_voice_model_downloaded():
+                detail = (
+                    "Creating a voice needs the voice model — no voice model is "
+                    "downloaded yet. Model Catalogue → Models → Download."
+                )
+            else:
+                detail = (
+                    "Couldn't create a voice from this archetype — the voice engine "
+                    f"reported: {e}"
+                )
+            raise HTTPException(status_code=503, detail=detail) from e
+
     if existing is not None:
-        return {"profile_id": existing["id"], "name": existing["name"]}
-
-    profile_id = str(uuid.uuid4())[:8]
-    audio_filename = f"{profile_id}.wav"
-    audio_path = Path(VOICES_DIR) / audio_filename
-
-    try:
-        await _render_archetype_wav(a, audio_path)
-    except Exception as e:
-        logger.error("Archetype 'use' render failed", exc_info=True)
-        # Same actionable/diagnostic split as /preview — minus the gallery
-        # suggestion, which cannot help here.
-        if _no_voice_model_downloaded():
-            detail = (
-                "Creating a voice needs the voice model — no voice model is "
-                "downloaded yet. Model Catalogue → Models → Download."
+        with db_conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            current = conn.execute(
+                "SELECT * FROM voice_profiles WHERE id=?", (existing["id"],),
+            ).fetchone()
+            owned = _existing_archetype_profile(conn, a)
+            still_owned = current is not None and (
+                owned is not None and owned["id"] == current["id"]
             )
+            if still_owned:
+                if audio_path is not None:
+                    destination = Path(VOICES_DIR) / audio_filename
+                    os.replace(audio_path, destination)
+                    audio_path = None
+                _heal_materialized_profile(conn, current, a, audio_filename)
+                existing_result = {"profile_id": current["id"], "name": current["name"]}
+            else:
+                existing_result = None
+        if existing_result is not None:
+            event_bus.emit("profiles", {"action": "updated", "id": existing_result["profile_id"]})
+            return existing_result
+        # The row was edited/deleted while rendering. Preserve it and use the
+        # validated staged sample for a fresh canonical materialization.
+        profile_id = str(uuid.uuid4())[:8]
+        audio_filename = _profile_audio_filename(profile_id)
+        destination = Path(VOICES_DIR) / audio_filename
+        if audio_path is None:
+            try:
+                audio_filename, audio_path = await _render_profile_audio(a, profile_id)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=503, detail="Couldn't create a voice from this archetype.",
+                ) from e
         else:
-            detail = (
-                "Couldn't create a voice from this archetype — the voice engine "
-                f"reported: {e}"
-            )
-        raise HTTPException(status_code=503, detail=detail)
+            os.replace(audio_path, destination)
+            audio_path = destination
+
+    if audio_path is None:  # defensive: a new profile always rendered above
+        raise RuntimeError("new archetype profile has no rendered audio")
 
     profile_name = (name or a["name"]).strip() or a["name"]
     try:
         with db_conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             # Re-check under the write connection right before inserting: a
             # concurrent /use for the same archetype may have inserted while we
             # were rendering (the pre-render SELECT above raced). Reuse that row
             # and drop our just-rendered sample instead of creating a duplicate.
-            # (personality is NOT globally unique — marketplace/persona imports
-            # reuse the column — so a UNIQUE index isn't an option; this closes
-            # the realistic window for the single-user desktop app.)
-            dup = conn.execute(
-                "SELECT id, name FROM voice_profiles WHERE personality = ? LIMIT 1",
-                (a["id"],),
-            ).fetchone()
+            # `personality` is not globally UNIQUE, so serialize and re-check.
+            dup = _existing_archetype_profile(conn, a)
             if dup is not None:
+                duplicate_audio = dup["ref_audio_path"]
+                if not _materialized_audio_is_current(dup, a):
+                    duplicate_audio = _profile_audio_filename(dup["id"])
+                    _duplicate_path = Path(VOICES_DIR) / duplicate_audio
+                    _duplicate_path.parent.mkdir(parents=True, exist_ok=True)
+                    os.replace(audio_path, _duplicate_path)
+                    audio_path = None
+                _heal_materialized_profile(conn, dup, a, duplicate_audio)
                 with __import__("contextlib").suppress(OSError):
-                    os.remove(audio_path)
-                return {"profile_id": dup["id"], "name": dup["name"]}
-            conn.execute(
-                "INSERT INTO voice_profiles "
-                "(id, name, ref_audio_path, ref_text, instruct, language, seed, personality, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    profile_id, profile_name, audio_filename, a["sample_script"],
-                    a["instruct"], a["language"], _PREVIEW_SEED, a["id"], time.time(),
-                ),
-            )
+                    if audio_path is not None:
+                        os.remove(audio_path)
+                duplicate_result = {"profile_id": dup["id"], "name": dup["name"]}
+            else:
+                duplicate_result = None
+            if duplicate_result is None:
+                instruct, vd_states = _design_profile_values(a)
+                conn.execute(
+                    "INSERT INTO voice_profiles "
+                    "(id, name, ref_audio_path, ref_text, instruct, language, seed, personality, "
+                    "created_at, kind, vd_states) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'design', ?)",
+                    (
+                        profile_id, profile_name, audio_filename, a["sample_script"],
+                        instruct, a["language"], _PREVIEW_SEED,
+                        _archetype_personality(a), time.time(), vd_states,
+                    ),
+                )
     except Exception:
         with __import__("contextlib").suppress(OSError):
-            os.remove(audio_path)
+            if audio_path is not None:
+                os.remove(audio_path)
         raise
 
+    if duplicate_result is not None:
+        event_bus.emit("profiles", {"action": "updated", "id": duplicate_result["profile_id"]})
+        return duplicate_result
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
     return {"profile_id": profile_id, "name": profile_name}

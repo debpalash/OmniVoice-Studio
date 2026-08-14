@@ -2,7 +2,10 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { playBlobAudio } = vi.hoisted(() => ({ playBlobAudio: vi.fn() }));
+const { apiFetch, playBlobAudio } = vi.hoisted(() => ({
+  apiFetch: vi.fn(),
+  playBlobAudio: vi.fn(),
+}));
 
 vi.mock('../utils/media', () => ({ playBlobAudio }));
 vi.mock('../utils/playback', () => ({ stopActivePlayback: vi.fn() }));
@@ -12,7 +15,12 @@ vi.mock('../api/archetypes', () => ({
   useArchetypeAsProfile: vi.fn(),
 }));
 vi.mock('../api/gallery', () => ({ previewVoiceUrl: vi.fn() }));
-vi.mock('../api/client', () => ({ apiUrl: (url) => url }));
+vi.mock('../api/community', () => ({
+  addCommunityItem: vi.fn(),
+  communityPreviewUrl: (id, local = false) =>
+    `/community/items/${id}/preview${local ? '?local=true' : ''}`,
+}));
+vi.mock('../api/client', () => ({ apiFetch }));
 vi.mock('../store', () => ({
   useAppStore: (selector) =>
     selector({
@@ -30,6 +38,10 @@ vi.mock('../store', () => ({
       setPendingProfileId: vi.fn(),
       setInstruct: vi.fn(),
       setVdStates: vi.fn(),
+      setLanguage: vi.fn(),
+      upsertCastMember: vi.fn(),
+      setOutputPrefs: vi.fn(),
+      convertMode: vi.fn(),
       vdStates: {},
     }),
 }));
@@ -47,7 +59,7 @@ import VoiceGallery from '../pages/VoiceGallery';
 describe('VoiceGallery archetype preview fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(new Blob()) });
+    apiFetch.mockResolvedValue({ blob: () => Promise.resolve(new Blob()) });
   });
 
   it('retries a gallery decode error through the local-render endpoint', async () => {
@@ -57,8 +69,8 @@ describe('VoiceGallery archetype preview fallback', () => {
 
     fireEvent.click(render(<VoiceGallery />).getByText('Preview'));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
-    expect(global.fetch.mock.calls.map(([url]) => url)).toEqual([
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(2));
+    expect(apiFetch.mock.calls.map(([url]) => url)).toEqual([
       'http://backend/archetypes/voice-1/preview',
       'http://backend/archetypes/voice-1/preview?local=true',
     ]);
