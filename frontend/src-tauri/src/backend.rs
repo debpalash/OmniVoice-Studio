@@ -289,6 +289,16 @@ pub fn kill_orphan_on_port(port: u16) {
 // ── Log paths ─────────────────────────────────────────────────────────────
 
 pub fn backend_log_path() -> PathBuf {
+    // Support/test override: point logs (and the crash-marker store, which
+    // derives from this path) somewhere explicit. The fault-injection
+    // harness gives every scenario its own tempdir through this.
+    if let Ok(dir) = std::env::var("OMNIVOICE_LOG_DIR") {
+        if !dir.trim().is_empty() {
+            let log_dir = PathBuf::from(dir);
+            let _ = fs::create_dir_all(&log_dir);
+            return log_dir.join("backend.log");
+        }
+    }
     let log_dir = if cfg!(target_os = "macos") {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
         PathBuf::from(home).join("Library/Logs/OmniVoice")
@@ -517,6 +527,29 @@ fn analytics_env(baked_token: Option<&str>, baked_host: Option<&str>) -> Vec<(St
     out
 }
 
+/// Parse the `OMNIVOICE_BACKEND_CMD` override: a JSON array (`["prog","a"]`)
+/// when it starts with `[` — the form the harness uses, so paths with spaces
+/// survive — else whitespace-split. `None` for unset/empty/unparseable.
+pub fn parse_backend_cmd_override(raw: &str) -> Option<Vec<String>> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let argv: Vec<String> = if raw.starts_with('[') {
+        serde_json::from_str(raw).ok()?
+    } else {
+        raw.split_whitespace().map(str::to_string).collect()
+    };
+    if argv.is_empty() || argv[0].trim().is_empty() {
+        return None;
+    }
+    Some(argv)
+}
+
+fn backend_cmd_override() -> Option<Vec<String>> {
+    parse_backend_cmd_override(&std::env::var("OMNIVOICE_BACKEND_CMD").ok()?)
+}
+
 pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
     let log_path = backend_log_path();
     let err_path = log_path.with_file_name("backend_err.log");
@@ -526,12 +559,22 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         err_path.display(),
     );
 
-    let (python, backend_dir) = match ensure_venv_ready(app, progress) {
-        Some(x) => x,
-        None => {
-            log::error!("Venv bootstrap failed — backend not started");
-            return None;
-        }
+    // Fault-injection / QA seam: OMNIVOICE_BACKEND_CMD runs the given argv
+    // as "the backend". Venv bootstrap and ffmpeg resolution are skipped
+    // (they can install toolchains or touch the network); everything else —
+    // the err-log run offset, the drainer threads, env pinning, real OS
+    // pipes, the spawn-failure diagnostic — stays exactly real, which is
+    // the point: the lifecycle harness exercises genuine process deaths.
+    let cmd_override = backend_cmd_override();
+    let (python, backend_dir) = match cmd_override {
+        Some(ref argv) => (PathBuf::from(&argv[0]), PathBuf::new()),
+        None => match ensure_venv_ready(app, progress) {
+            Some(x) => x,
+            None => {
+                log::error!("Venv bootstrap failed — backend not started");
+                return None;
+            }
+        },
     };
 
     if let Some(p) = progress {
@@ -610,18 +653,20 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
     }
     // Analytics destination (#1123) — see analytics_env() below for why.
     env.extend(analytics_env(option_env!("VITE_POSTHOG_KEY"), option_env!("VITE_POSTHOG_HOST")));
-    let app_data = app.path().app_local_data_dir().unwrap_or_default();
-    if let Some(ffmpeg_path) = resolve_ffmpeg(app, &app_data) {
-        env.push(("FFMPEG_PATH".into(), ffmpeg_path.to_string_lossy().into()));
-    }
-    if let Some(ffprobe_path) = resolve_ffprobe(app, &app_data) {
-        let ffprobe_str: String = ffprobe_path.to_string_lossy().into();
-        env.push(("FFPROBE_PATH".into(), ffprobe_str.clone()));
-        // Issue #76: OMNIVOICE_FFPROBE_PATH is the canonical name going
-        // forward — explicit, namespaced, and unambiguously the path of a
-        // file (not a PATH-style command name). FFPROBE_PATH stays for
-        // backward compat with prior backend releases.
-        env.push(("OMNIVOICE_FFPROBE_PATH".into(), ffprobe_str));
+    if cmd_override.is_none() {
+        let app_data = app.path().app_local_data_dir().unwrap_or_default();
+        if let Some(ffmpeg_path) = resolve_ffmpeg(app, &app_data) {
+            env.push(("FFMPEG_PATH".into(), ffmpeg_path.to_string_lossy().into()));
+        }
+        if let Some(ffprobe_path) = resolve_ffprobe(app, &app_data) {
+            let ffprobe_str: String = ffprobe_path.to_string_lossy().into();
+            env.push(("FFPROBE_PATH".into(), ffprobe_str.clone()));
+            // Issue #76: OMNIVOICE_FFPROBE_PATH is the canonical name going
+            // forward — explicit, namespaced, and unambiguously the path of a
+            // file (not a PATH-style command name). FFPROBE_PATH stays for
+            // backward compat with prior backend releases.
+            env.push(("OMNIVOICE_FFPROBE_PATH".into(), ffprobe_str));
+        }
     }
     let mut cmd = Command::new(&python);
     cmd.env_remove("PYTHONHOME").env_remove("PYTHONPATH").env_remove("LD_LIBRARY_PATH");
@@ -640,18 +685,25 @@ pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Opt
         // nvidia-smi probe already uses (setup.rs).
         cmd.creation_flags(0x0800_0000 | 0x0000_0200);
     }
+    match cmd_override {
+        Some(ref argv) => {
+            cmd.args(&argv[1..]);
+        }
+        None => {
+            cmd.args([
+                "-m",
+                "uvicorn",
+                "main:app",
+                "--app-dir",
+                backend_dir.to_string_lossy().as_ref(),
+                "--host",
+                "127.0.0.1",
+                "--port",
+                &backend_port().to_string(),
+            ]);
+        }
+    }
     let mut child = match cmd
-        .args([
-            "-m",
-            "uvicorn",
-            "main:app",
-            "--app-dir",
-            backend_dir.to_string_lossy().as_ref(),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &backend_port().to_string(),
-        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -836,6 +888,27 @@ mod tests {
             }
         });
         port
+    }
+
+    #[test]
+    fn backend_cmd_override_parses_json_and_whitespace_forms() {
+        // JSON form (the harness's): paths with spaces survive.
+        assert_eq!(
+            parse_backend_cmd_override(r#"["/tmp/my dir/prog", "arg1"]"#),
+            Some(vec!["/tmp/my dir/prog".into(), "arg1".into()])
+        );
+        // Whitespace form (manual QA): OMNIVOICE_BACKEND_CMD="/bin/false x".
+        assert_eq!(
+            parse_backend_cmd_override("/bin/false x"),
+            Some(vec!["/bin/false".into(), "x".into()])
+        );
+        // Unset/empty/garbage never activates the seam — production behavior
+        // is byte-identical without the env var.
+        assert_eq!(parse_backend_cmd_override(""), None);
+        assert_eq!(parse_backend_cmd_override("   "), None);
+        assert_eq!(parse_backend_cmd_override("[not json"), None);
+        assert_eq!(parse_backend_cmd_override("[]"), None);
+        assert_eq!(parse_backend_cmd_override(r#"[""]"#), None);
     }
 
     #[test]

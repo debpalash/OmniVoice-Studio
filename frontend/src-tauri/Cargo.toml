@@ -100,3 +100,6 @@ zbus = "5.16"
 # Scoped-reset tests build real directory trees to prove the delete guard only
 # ever removes paths inside a validated OmniVoice root.
 tempfile = "3"
+# MockRuntime app for the backend-lifecycle fault-injection harness
+# (tests/backend_lifecycle.rs) — feature-unifies onto the main dep.
+tauri = { version = "2.11.0", features = ["test"] }

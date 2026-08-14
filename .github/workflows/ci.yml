@@ -271,6 +271,17 @@ jobs:
         working-directory: frontend/src-tauri
         run: cargo test --lib --target ${{ matrix.rust_target }} --message-format=short
 
+      # Backend-lifecycle fault-injection harness: real child processes die
+      # scripted deaths through the OMNIVOICE_BACKEND_CMD seam, and each
+      # scenario asserts the user-visible diagnosis names the actual cause
+      # (port conflict / traceback root cause / spawn failure / timeout /
+      # crash-loop exhaustion / signal 9 / deliberate replace / deferred-
+      # startup step). Serial: the scenarios share process-global state
+      # (env vars, crash store, kill-intended flag) by design.
+      - name: Cargo test (backend lifecycle harness)
+        working-directory: frontend/src-tauri
+        run: cargo test --test backend_lifecycle --target ${{ matrix.rust_target }} --message-format=short -- --test-threads=1
+
   # ── Cross-platform Python runtime smoke (Phase 0 GATE-02) ───────────────
   # Loads the frozen tests/fixtures/omnivoice_data/ fixture and boots the
   # FastAPI app in-process via TestClient on macOS/Windows/Linux. Catches

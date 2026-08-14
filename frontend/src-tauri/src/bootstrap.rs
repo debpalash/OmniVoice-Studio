@@ -293,7 +293,7 @@ pub fn respawn_backend(
 /// the venv — is removed and the bootstrap re-runs once, recreating it through
 /// the normal `CreatingVenv` / `InstallingDeps` setup path instead of
 /// surfacing the same dead-end failure on every retry.
-pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle: &Arc<Mutex<BootstrapStage>>) {
     let mut venv_heal_attempted = false;
     'bootstrap: loop {
         let child = crate::backend::spawn_backend(app, Some(stage_handle));
@@ -305,7 +305,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         // instead of a silent 300s wait. An old backend (no endpoint) yields
         // None and the wait looks exactly as it did before.
         let mut last_step = String::new();
-        while start.elapsed() < Duration::from_secs(300) {
+        while start.elapsed() < startup_budget() {
             if crate::backend::backend_ready(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
                 // #567/#570/#571: once Ready, keep watching the backend child
@@ -459,9 +459,13 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         }
         let err_tail = crate::backend::read_error_log_tail_for_run(20);
         let msg = if err_tail.is_empty() {
-            "Backend did not respond within 300 s".to_string()
+            format!("Backend did not respond within {} s", startup_budget().as_secs())
         } else {
-            format!("Backend did not respond within 300 s. Last stderr output:\n{}", err_tail)
+            format!(
+                "Backend did not respond within {} s. Last stderr output:\n{}",
+                startup_budget().as_secs(),
+                err_tail
+            )
         };
         set_stage(stage_handle, BootstrapStage::Failed { message: msg });
         return;
@@ -522,7 +526,7 @@ const CRASH_STDERR_TAIL_LINES: usize = 40;
 const MAX_RESTARTS: usize = 3;
 const RESTART_WINDOW: Duration = Duration::from_secs(600);
 
-fn app_is_quitting(app: &tauri::AppHandle) -> bool {
+fn app_is_quitting<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     app.try_state::<AppFlags>()
         .map(|f| f.quitting.load(Ordering::SeqCst))
         .unwrap_or(false)
@@ -531,7 +535,7 @@ fn app_is_quitting(app: &tauri::AppHandle) -> bool {
 /// Store the freshly spawned backend child (and its spawn time, for the crash
 /// marker's `uptime_s`), and re-arm the death watchers: any deliberate-kill
 /// window ends the moment a new child is tracked.
-fn track_backend_child(app: &tauri::AppHandle, child: Option<std::process::Child>) {
+fn track_backend_child<R: tauri::Runtime>(app: &tauri::AppHandle<R>, child: Option<std::process::Child>) {
     let state = app.state::<BackendState>();
     if let Ok(mut guard) = state.process.lock() {
         *guard = child;
@@ -544,7 +548,7 @@ fn track_backend_child(app: &tauri::AppHandle, child: Option<std::process::Child
 }
 
 /// Seconds since the tracked backend child was spawned (0 when unknown).
-fn backend_uptime_s(app: &tauri::AppHandle) -> u64 {
+fn backend_uptime_s<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> u64 {
     app.try_state::<BackendState>()
         .and_then(|s| s.spawned_at.lock().ok().and_then(|g| *g))
         .map(|t| t.elapsed().as_secs())
@@ -554,7 +558,7 @@ fn backend_uptime_s(app: &tauri::AppHandle) -> u64 {
 /// Returns `Some(BackendExit)` if the tracked backend child has exited,
 /// `None` if it is still running (or none is tracked — which we never treat as
 /// a death to respawn, to avoid fighting a deliberate teardown).
-fn backend_child_exit(app: &tauri::AppHandle) -> Option<BackendExit> {
+fn backend_child_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<BackendExit> {
     let state = app.try_state::<BackendState>()?;
     let mut guard = state.process.lock().ok()?;
     match guard.as_mut() {
@@ -565,6 +569,30 @@ fn backend_child_exit(app: &tauri::AppHandle) -> Option<BackendExit> {
         },
         None => None,
     }
+}
+
+/// How long the launch poll waits for the backend to become Ready before
+/// declaring Failed. 300s in production; `OMNIVOICE_STARTUP_BUDGET_S`
+/// exists for the fault-injection harness (a slow-start scenario must not
+/// sleep five minutes in CI) and for support triage on pathological disks.
+fn startup_budget() -> Duration {
+    std::env::var("OMNIVOICE_STARTUP_BUDGET_S")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|&s| s > 0)
+        .map(Duration::from_secs)
+        .unwrap_or(Duration::from_secs(300))
+}
+
+/// The supervisor's death-detection poll interval. 2s in production;
+/// `OMNIVOICE_SUPERVISOR_POLL_MS` shrinks it for the harness only.
+fn supervisor_poll() -> Duration {
+    std::env::var("OMNIVOICE_SUPERVISOR_POLL_MS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|&ms| ms > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(Duration::from_secs(2))
 }
 
 /// Drop restart timestamps older than `RESTART_WINDOW` and report whether the
@@ -595,10 +623,10 @@ fn restart_backoff_delay(recent_restarts: usize) -> Duration {
 /// during shutdown. Death is detected only via a *confirmed process exit*
 /// (`try_wait`), never a slow health probe, so a busy-but-alive backend is
 /// never killed.
-fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle: &Arc<Mutex<BootstrapStage>>) {
     let mut restart_times: Vec<Instant> = Vec::new();
     loop {
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(supervisor_poll());
         if app_is_quitting(app) {
             return;
         }
@@ -2127,6 +2155,30 @@ mod tests {
             "deaths older than the window must be pruned, not counted"
         );
         assert!(aged.is_empty(), "stale timestamps should have been dropped");
+    }
+
+    /// Env-mutating tests in THIS module serialize on their own lock (cargo
+    /// runs tests in threads; the harness binary has its own).
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn timing_overrides_default_to_production_values() {
+        // The env overrides exist for the fault-injection harness only —
+        // production timing must not drift when they are unset.
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("OMNIVOICE_STARTUP_BUDGET_S");
+        std::env::remove_var("OMNIVOICE_SUPERVISOR_POLL_MS");
+        assert_eq!(startup_budget(), Duration::from_secs(300));
+        assert_eq!(supervisor_poll(), Duration::from_secs(2));
+        // Zero/garbage never yields a degenerate loop.
+        std::env::set_var("OMNIVOICE_STARTUP_BUDGET_S", "0");
+        std::env::set_var("OMNIVOICE_SUPERVISOR_POLL_MS", "abc");
+        assert_eq!(startup_budget(), Duration::from_secs(300));
+        assert_eq!(supervisor_poll(), Duration::from_secs(2));
+        std::env::set_var("OMNIVOICE_STARTUP_BUDGET_S", "6");
+        assert_eq!(startup_budget(), Duration::from_secs(6));
+        std::env::remove_var("OMNIVOICE_STARTUP_BUDGET_S");
+        std::env::remove_var("OMNIVOICE_SUPERVISOR_POLL_MS");
     }
 
     #[test]
