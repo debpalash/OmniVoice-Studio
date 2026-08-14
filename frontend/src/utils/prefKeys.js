@@ -13,6 +13,7 @@
  * utils/prefKeys.test.js scans the source tree and fails on any localStorage
  * key that is in neither bucket.
  */
+import { suspendJsonWrites } from './coalescedJsonStorage';
 
 /** Prefixes owned by UI preferences — factory reset clears every match. */
 export const PREF_KEY_PREFIXES = [
@@ -61,11 +62,23 @@ export function isPrefKey(key) {
  * Returns the list of keys that were removed.
  */
 export function clearLocalPreferences(storage = window.localStorage) {
-  const keys =
-    typeof storage.length === 'number' && typeof storage.key === 'function'
-      ? Array.from({ length: storage.length }, (_, i) => storage.key(i))
-      : Object.keys(storage);
-  const doomed = keys.filter((k) => k && isPrefKey(k));
-  for (const k of doomed) storage.removeItem(k);
-  return doomed;
+  const resumeWrites = suspendJsonWrites(isPrefKey);
+  try {
+    const storageLength = storage.length;
+    const keys =
+      typeof storageLength === 'number' && typeof storage.key === 'function'
+        ? Array.from({ length: storageLength }, (_, i) => storage.key(i))
+        : Object.keys(storage);
+    const doomed = keys.filter((k) => k && isPrefKey(k));
+    for (const k of doomed) storage.removeItem(k);
+    // A successful reset intentionally keeps matching writes suspended until
+    // the scheduled reload. Background state updates and pagehide must not
+    // recreate preferences that the user just removed.
+    return doomed;
+  } catch (error) {
+    // The reset did not complete, so restore normal persistence before the
+    // existing ResetPanel error path reports the failure.
+    resumeWrites();
+    throw error;
+  }
 }

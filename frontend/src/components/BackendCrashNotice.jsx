@@ -11,8 +11,7 @@ import {
   hasCrashEvidence,
   isSentinelMarker,
 } from '../utils/backendCrash';
-import { openExternal } from '../api/external';
-import { buildBugReportUrl } from '../utils/bugReport';
+import { openBugReport } from '../utils/bugReport';
 
 /**
  * BackendCrashNotice — the honest half of #941.
@@ -129,13 +128,11 @@ export default function BackendCrashNotice() {
                     // A sentinel report must not claim a crash in its title —
                     // the marker's whole point is that it cannot know
                     // (CodeRabbit on #1380). The evidence still rides along.
-                    await openExternal(
-                      await buildBugReportUrl({
-                        title: sentinel
-                          ? '[Crash] Backend ended uncleanly (previous run)'
-                          : `[Crash] Backend died (${exit})`,
-                      }),
-                    );
+                    await openBugReport({
+                      title: sentinel
+                        ? '[Crash] Backend ended uncleanly (previous run)'
+                        : `[Crash] Backend died (${exit})`,
+                    });
                   } catch (e) {
                     // Same class as BackendStartFailureNotice (#1177): a Report
                     // click that silently does nothing reads as a broken button.

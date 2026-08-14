@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach, beforeEach } from 'vitest';
 // Initialize the real i18n instance so components that call the global
 // i18next.t() singleton (e.g. class components like ErrorBoundary) render
 // actual strings in tests instead of bare keys. fallbackLng: 'en' keeps
@@ -31,6 +32,20 @@ const localStorageMock = (function () {
 
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+});
+
+const persistence = await import('../utils/coalescedJsonStorage');
+
+// Application bootstrap resolves this role before rendering. Unit tests import
+// the store directly, so give each test the equivalent isolated main-window
+// contract and tear down every timer/listener/suspension afterward.
+persistence.configurePersistenceRole('main');
+beforeEach(() => {
+  persistence.resetCoalescedJsonStorageForTests();
+  persistence.configurePersistenceRole('main');
+});
+afterEach(() => {
+  persistence.resetCoalescedJsonStorageForTests();
 });
 
 // jsdom doesn't implement navigation, so window.location.reload() throws

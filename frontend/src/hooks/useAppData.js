@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '../store';
 import { listProfiles } from '../api/profiles';
 import { listHistory } from '../api/generate';
@@ -10,6 +10,7 @@ import { useModelStatus } from '../api/hooks';
 import useRealtimeEvents from './useRealtimeEvents';
 import { mergeDescribedAttrs } from '../utils/voiceInstruct';
 import { sanitizeOmniUi } from '../utils/omniUiSchema';
+import { queueJsonWrite } from '../utils/coalescedJsonStorage';
 
 /**
  * Encapsulates all data-loading effects, localStorage persistence,
@@ -24,6 +25,7 @@ import { sanitizeOmniUi } from '../utils/omniUiSchema';
 // reinstall doesn't clear the webview's localStorage). Only settled states
 // come back.
 const STABLE_DUB_STEPS = new Set(['idle', 'editing', 'done']);
+export const OMNI_UI_KEY = 'omni_ui';
 
 /** Clamp a persisted dubStep to a state that is valid after a cold start.
  *  Stable steps pass through; transient (and unknown/corrupt) values fall
@@ -89,6 +91,45 @@ export default function useAppData() {
   const [studioProjects, setStudioProjects] = useState([]);
   const [exportHistory, setExportHistory] = useState([]);
   const [showOverrides, setShowOverrides] = useState(false);
+  const [omniUiRestoreComplete, setOmniUiRestoreComplete] = useState(false);
+  const omniUiWriteDisposerRef = useRef(null);
+
+  const omniUiSnapshotRef = useRef(null);
+  const omniUiSnapshot = {
+    uiScale,
+    text,
+    mode,
+    defineMethod,
+    vdStates,
+    language,
+    isSidebarCollapsed,
+    sidebarTab,
+    dubJobId,
+    dubFilename,
+    dubDuration,
+    dubSegments,
+    dubLang,
+    dubLangCode,
+    dubTracks,
+    dubStep,
+    dubTranscript,
+    exportTracks,
+    preserveBg,
+    defaultTrack,
+    exportHistory,
+    speed,
+    steps,
+    cfg,
+    denoise,
+    showOverrides,
+  };
+  // Only expose committed state to the deferred writer. Publishing during
+  // render would let a timer or lifecycle flush observe a concurrent render
+  // that React later abandons. Layout effects run before the passive effect
+  // that registers the provider, without copying any nested document data.
+  useLayoutEffect(() => {
+    omniUiSnapshotRef.current = omniUiSnapshot;
+  });
 
   // ── Model status (TanStack Query) ──
   // Sysinfo lives in Header (the only consumer) so its 5s poll doesn't
@@ -196,7 +237,7 @@ export default function useAppData() {
       // was healed per-field; this closes it generically — malformed values
       // are dropped up front instead of throwing mid-restore and silently
       // discarding every field after the bad one).
-      const saved = sanitizeOmniUi(JSON.parse(localStorage.getItem('omni_ui') || '{}'));
+      const saved = sanitizeOmniUi(JSON.parse(localStorage.getItem(OMNI_UI_KEY) || '{}'));
       if (saved.uiScale) setUiScale(saved.uiScale);
       if (saved.text) setText(saved.text);
       // Legacy shim (voice-studio-unification P4): the old 'clone'/'design'
@@ -240,7 +281,14 @@ export default function useAppData() {
       if (saved.cfg) setCfg(saved.cfg);
       if (saved.denoise !== undefined) setDenoise(saved.denoise);
       if (saved.showOverrides !== undefined) setShowOverrides(saved.showOverrides);
-    } catch (e) {}
+    } catch (e) {
+      // Preserve the existing fail-open recovery behavior: malformed or
+      // inaccessible legacy state falls back to the initialized defaults.
+    } finally {
+      // The initial persistence effect closes over `false` and therefore
+      // cannot flush defaults. The restored render becomes the first writer.
+      setOmniUiRestoreComplete(true);
+    }
     return () => {
       cancelled = true;
     };
@@ -248,38 +296,14 @@ export default function useAppData() {
 
   // ── Persist to localStorage ──
   useEffect(() => {
-    localStorage.setItem(
-      'omni_ui',
-      JSON.stringify({
-        uiScale,
-        text,
-        mode,
-        defineMethod,
-        vdStates,
-        language,
-        isSidebarCollapsed,
-        sidebarTab,
-        dubJobId,
-        dubFilename,
-        dubDuration,
-        dubSegments,
-        dubLang,
-        dubLangCode,
-        dubTracks,
-        dubStep,
-        dubTranscript,
-        exportTracks,
-        preserveBg,
-        defaultTrack,
-        exportHistory,
-        speed,
-        steps,
-        cfg,
-        denoise,
-        showOverrides,
-      }),
-    );
+    if (!omniUiRestoreComplete) return undefined;
+    // Replacements must retain the scheduler's original maximum-wait window.
+    // React runs a dependency effect's cleanup before every new setup, so the
+    // generation disposer is intentionally reserved for a true unmount below.
+    omniUiWriteDisposerRef.current = queueJsonWrite(OMNI_UI_KEY, () => omniUiSnapshotRef.current);
+    return undefined;
   }, [
+    omniUiRestoreComplete,
     uiScale,
     text,
     mode,
@@ -307,6 +331,14 @@ export default function useAppData() {
     denoise,
     showOverrides,
   ]);
+
+  useEffect(
+    () => () => {
+      omniUiWriteDisposerRef.current?.();
+      omniUiWriteDisposerRef.current = null;
+    },
+    [],
+  );
 
   return {
     profiles,

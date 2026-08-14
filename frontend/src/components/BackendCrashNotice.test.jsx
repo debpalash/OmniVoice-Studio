@@ -15,7 +15,7 @@ vi.mock('../utils/backendCrash', async (importOriginal) => {
   };
 });
 vi.mock('../utils/bugReport', () => ({
-  buildBugReportUrl: vi.fn().mockResolvedValue('https://example.test/issues/new'),
+  openBugReport: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../api/external', () => ({
   openExternal: vi.fn().mockResolvedValue(undefined),
@@ -138,9 +138,9 @@ describe('BackendCrashNotice — sentinel evidence gate (#1375)', () => {
     // The report's TITLE must not claim a death the sentinel cannot attest to
     // — "Backend died (process ended uncleanly …)" states as fact what the
     // marker only suspects.
-    const { buildBugReportUrl } = await import('../utils/bugReport');
-    await waitFor(() => expect(buildBugReportUrl).toHaveBeenCalled());
-    const { title } = buildBugReportUrl.mock.calls[0][0];
+    const { openBugReport } = await import('../utils/bugReport');
+    await waitFor(() => expect(openBugReport).toHaveBeenCalled());
+    const { title } = openBugReport.mock.calls[0][0];
     expect(title).toMatch(/ended uncleanly/);
     expect(title).not.toMatch(/died/);
   });

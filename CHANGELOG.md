@@ -10,7 +10,11 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- Reporting a bug from an outdated build now offers the latest release first
 - The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves
+
+### Added
+- The bug reporter notices when you're on an outdated build and offers the latest release before filing — with a "File anyway" escape hatch — and stamps a `Build status` line into every report so up-to-date reports are tellable from stale ones (#1547)
 
 ### Fixed
 - "Ready" now requires the deep health probe (a working database-backed route), not just the identity probe — a backend whose install broke underneath can no longer be announced up while every real request fails (#1548)
@@ -41,6 +45,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Changed
 
 - Gallery personas now preview through the local backend, retain their complete voice-design recipe, and open directly in Voice, Stories, or Audiobook. (#1542)
+- Typing and large workspace edits no longer serialize and rewrite persisted documents on every input; writes are coalesced off the interaction path — thanks @bultodepapas! (#1541)
 - Support amount choices now use every theme's shared card, accent and focus tokens. (#1530)
 - Sponsoring, commercial licensing and getting in touch are one page now. They answered the same question between them and each used to live somewhere else, so they are three sections on a single scroll — the footer heart, the commercial-licence links and Contact all land on it, at the section you asked for. (#1522)
 - Model Catalogue switches panes with tabs instead of a two-state toggle, and the Engine Compatibility Matrix's TTS / ASR / LLM switcher is now tabs too — arrow-key navigable, and each tab still shows the engine it would use. (#1522)

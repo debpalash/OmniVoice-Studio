@@ -22,6 +22,10 @@ import DesktopCaptureShortcutBridge from './components/DesktopCaptureShortcutBri
 import CaptureWidget from './components/CaptureWidget.jsx';
 import { installConsoleCapture } from './utils/consoleBuffer.js';
 import { installGlobalErrorHandlers } from './utils/globalErrorHandlers.js';
+import {
+  configurePersistenceRole,
+  installPersistenceLifecycleFlush,
+} from './utils/coalescedJsonStorage';
 
 installConsoleCapture();
 // After console capture so the underlying console.error of each uncaught
@@ -43,7 +47,7 @@ const queryClient = new QueryClient({
 // declaring `"url": "/?window=widget"` in tauri.conf.json silently failed to
 // create the widget window. So both windows load the same index.html and we
 // differentiate by window label via the Tauri JS API.
-async function detectIsWidget() {
+export async function detectIsWidget(locationSearch = window.location.search) {
   // The widget window stamps this from an initialization_script (lib.rs)
   // before any page script runs, so it is always here and never races.
   //
@@ -62,12 +66,14 @@ async function detectIsWidget() {
   } catch {
     // Non-Tauri context (browser dev, Docker) — fall back to URL query for
     // legacy `bun dev:frontend` workflows that may still rely on it.
-    return window.location.search.includes('window=widget');
+    return locationSearch.includes('window=widget');
   }
 }
 
 export async function bootstrapApp() {
   const isWidget = await detectIsWidget();
+  configurePersistenceRole(isWidget ? 'readonly' : 'main');
+  if (!isWidget) installPersistenceLifecycleFlush();
   const isDesktopShell = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   // The widget window is `transparent: true` (tauri.conf.json), but it loads

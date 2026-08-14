@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Rapporteer een bug",
-    "title": "Opent een vooraf ingevulde GitHub Issues-pagina in uw browser. Er wordt niets verzonden totdat u op Verzenden klikt."
+    "title": "Opent een vooraf ingevulde GitHub Issues-pagina in uw browser. Er wordt niets verzonden totdat u op Verzenden klikt.",
+    "staleTitle": "Update beschikbaar",
+    "staleMessage": "U gebruikt VoiceStudio {{current}}, maar {{latest}} is al uit — deze bug is daar mogelijk al verholpen. De nieuwste versie bekijken voordat u rapporteert?",
+    "staleView": "Update bekijken",
+    "staleFileAnyway": "Toch rapporteren"
   },
   "app": {
     "loading": "Laden…",

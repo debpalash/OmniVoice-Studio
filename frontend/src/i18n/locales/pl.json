@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Zgłoś błąd",
-    "title": "Otwiera wstępnie wypełnioną stronę problemów z GitHub w przeglądarce. Nic nie zostanie wysłane, dopóki nie klikniesz Prześlij."
+    "title": "Otwiera wstępnie wypełnioną stronę problemów z GitHub w przeglądarce. Nic nie zostanie wysłane, dopóki nie klikniesz Prześlij.",
+    "staleTitle": "Dostępna aktualizacja",
+    "staleMessage": "Używasz VoiceStudio {{current}}, ale dostępna jest już wersja {{latest}} — ten błąd może być tam już naprawiony. Zobaczyć najnowsze wydanie przed zgłoszeniem?",
+    "staleView": "Zobacz aktualizację",
+    "staleFileAnyway": "Zgłoś mimo to"
   },
   "app": {
     "loading": "Ładowanie…",

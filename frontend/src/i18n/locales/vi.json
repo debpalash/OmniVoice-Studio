@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Báo cáo lỗi",
-    "title": "Mở trang Vấn đề GitHub được điền sẵn trong trình duyệt của bạn. Không có gì được gửi cho đến khi bạn nhấp vào Gửi."
+    "title": "Mở trang Vấn đề GitHub được điền sẵn trong trình duyệt của bạn. Không có gì được gửi cho đến khi bạn nhấp vào Gửi.",
+    "staleTitle": "Có bản cập nhật",
+    "staleMessage": "Bạn đang dùng VoiceStudio {{current}}, nhưng {{latest}} đã ra mắt — lỗi này có thể đã được sửa ở đó. Xem bản phát hành mới nhất trước khi báo cáo?",
+    "staleView": "Xem bản cập nhật",
+    "staleFileAnyway": "Vẫn báo cáo"
   },
   "app": {
     "loading": "Đang tải…",
