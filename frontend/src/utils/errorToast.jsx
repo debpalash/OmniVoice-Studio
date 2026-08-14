@@ -8,8 +8,7 @@
  */
 import toast from 'react-hot-toast';
 import i18next from 'i18next';
-import { openExternal } from '../api/external';
-import { buildBugReportUrl } from './bugReport';
+import { openBugReport } from './bugReport';
 
 // #1188: backend errors that carry a machine-readable "[code]" marker are
 // user-fixable input problems, not bugs — show localized guidance (what
@@ -51,7 +50,7 @@ export function toastErrorWithReport(message, error) {
           onClick={async () => {
             toast.dismiss(tst.id);
             try {
-              await openExternal(await buildBugReportUrl({ error: err }));
+              await openBugReport({ error: err });
             } catch (e) {
               // openExternal already falls back to window.open; if even
               // that failed there's nothing actionable left to surface.

@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Segnala un bug",
-    "title": "Apre una pagina dei problemi di GitHub precompilata nel browser. Non viene inviato nulla finché non si fa clic su Invia."
+    "title": "Apre una pagina dei problemi di GitHub precompilata nel browser. Non viene inviato nulla finché non si fa clic su Invia.",
+    "staleTitle": "Aggiornamento disponibile",
+    "staleMessage": "Stai usando VoiceStudio {{current}}, ma {{latest}} è già disponibile: questo bug potrebbe essere già stato corretto. Vedere l'ultima versione prima di segnalare?",
+    "staleView": "Vedi aggiornamento",
+    "staleFileAnyway": "Segnala comunque"
   },
   "app": {
     "loading": "Caricamento…",

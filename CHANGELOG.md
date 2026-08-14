@@ -11,9 +11,18 @@ the frozen-backend fallback mirror it for their toolchains.
 **Highlights**
 
 - The backend now answers within a second of launch and narrates its startup step by step
+- Reporting a bug from an outdated build now offers the latest release first
+- The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves
 
 ### Changed
 - The backend binds its port immediately and reports startup progress live — `/health` answers 503-with-step and a new `/startup/progress` endpoint lists every step while PyTorch, API routes, and database migrations load in the background, so "starting at step X" is never mistakable for "dead"; the desktop splash narrates each step (#1550)
+
+### Added
+- The bug reporter notices when you're on an outdated build and offers the latest release before filing — with a "File anyway" escape hatch — and stamps a `Build status` line into every report so up-to-date reports are tellable from stale ones (#1547)
+
+### Fixed
+- "Ready" now requires the deep health probe (a working database-backed route), not just the identity probe — a backend whose install broke underneath can no longer be announced up while every real request fails (#1548)
+- Supervisor restarts after repeat crashes now back off (immediate, then 5s, then 15s) instead of respawning back-to-back, so a tight crash loop can't burn the whole restart budget in seconds (#1548)
 
 ## [0.5.0] — 2026-08-13
 
@@ -40,6 +49,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Changed
 
 - Gallery personas now preview through the local backend, retain their complete voice-design recipe, and open directly in Voice, Stories, or Audiobook. (#1542)
+- Typing and large workspace edits no longer serialize and rewrite persisted documents on every input; writes are coalesced off the interaction path — thanks @bultodepapas! (#1541)
 - Support amount choices now use every theme's shared card, accent and focus tokens. (#1530)
 - Sponsoring, commercial licensing and getting in touch are one page now. They answered the same question between them and each used to live somewhere else, so they are three sections on a single scroll — the footer heart, the commercial-licence links and Contact all land on it, at the section you asked for. (#1522)
 - Model Catalogue switches panes with tabs instead of a two-state toggle, and the Engine Compatibility Matrix's TTS / ASR / LLM switcher is now tabs too — arrow-key navigable, and each tab still shows the engine it would use. (#1522)

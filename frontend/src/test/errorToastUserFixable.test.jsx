@@ -17,7 +17,7 @@ const { toastMock, toastErrorMock } = vi.hoisted(() => {
 vi.mock('react-hot-toast', () => ({ default: toastMock, toast: toastMock }));
 vi.mock('i18next', () => ({ default: { t: (k) => `t:${k}` } }));
 vi.mock('../api/external', () => ({ openExternal: vi.fn() }));
-vi.mock('../utils/bugReport', () => ({ buildBugReportUrl: vi.fn() }));
+vi.mock('../utils/bugReport', () => ({ openBugReport: vi.fn() }));
 
 import { toastErrorWithReport } from '../utils/errorToast';
 

@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "버그 신고",
-    "title": "브라우저에서 미리 채워진 GitHub 문제 페이지를 엽니다. 제출을 클릭할 때까지 아무 것도 전송되지 않습니다."
+    "title": "브라우저에서 미리 채워진 GitHub 문제 페이지를 엽니다. 제출을 클릭할 때까지 아무 것도 전송되지 않습니다.",
+    "staleTitle": "업데이트 사용 가능",
+    "staleMessage": "VoiceStudio {{current}}을(를) 사용 중이지만 {{latest}}이(가) 이미 출시되었습니다. 이 버그는 이미 수정되었을 수 있습니다. 신고하기 전에 최신 릴리스를 확인할까요?",
+    "staleView": "업데이트 보기",
+    "staleFileAnyway": "그래도 신고"
   },
   "app": {
     "loading": "로드 중…",

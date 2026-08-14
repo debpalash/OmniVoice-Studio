@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Rapportera ett fel",
-    "title": "Öppnar en förifylld GitHub-problemsida i din webbläsare. Inget skickas förrän du klickar på Skicka."
+    "title": "Öppnar en förifylld GitHub-problemsida i din webbläsare. Inget skickas förrän du klickar på Skicka.",
+    "staleTitle": "Uppdatering tillgänglig",
+    "staleMessage": "Du använder VoiceStudio {{current}}, men {{latest}} är redan ute — det här felet kan redan vara åtgärdat där. Se den senaste versionen innan du rapporterar?",
+    "staleView": "Visa uppdatering",
+    "staleFileAnyway": "Rapportera ändå"
   },
   "app": {
     "loading": "Laddar...",

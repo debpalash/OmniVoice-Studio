@@ -14,11 +14,16 @@
  * substrings; env vars aren't reachable from JS).
  */
 /* global __APP_VERSION__ -- injected by Vite at build time (vite.config define) */
+import i18next from 'i18next';
 import { API } from '../api/client';
+import { openExternal } from '../api/external';
 import { formatBreadcrumbs } from './breadcrumbs';
 import { crashAge, describeCrashExit, getLastBackendCrash } from './backendCrash';
 import { contactAge, lastBackendContact } from './backendContact';
 import { deploymentMode } from './deploymentMode';
+import { askConfirm } from './dialog';
+import { isOutdated, parseVersionTriple } from './staleBuild';
+import { isTauri } from './updater';
 
 /** Canonical project repository — every GitHub link in the app derives from
  * this single constant so a fork/rename can never leave stale links behind. */
@@ -77,13 +82,82 @@ async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
   }
 }
 
+// ── Outdated-build deflection ────────────────────────────────────────────
+// 6 in 10 sampled "can't reach the backend" reports came from builds that
+// were already obsolete when filed and were closed with "please update".
+// Before a report is filed, best-effort establish whether the running build
+// is behind the latest release, so openBugReport() can nudge toward the
+// update and the body can carry a triage-greppable `**Build status:**` line.
+//
+// Sources per deployment (implementation differs, behavior identical):
+//  - Desktop: the Rust updater already checked at launch (channel-aware,
+//    offline-tolerant) — read its verdict from the store. No new network
+//    path, and the webview CSP has no api.github.com exception to widen.
+//  - Browser/dev/Docker: one bounded GET of the latest-release tag, made
+//    only when the user has initiated the bug-report flow — a flow whose
+//    stated destination is github.com (local-first: nothing new leaves the
+//    machine outside that consented action).
+const LATEST_RELEASE_API = `${REPO_URL.replace('https://github.com/', 'https://api.github.com/repos/')}/releases/latest`;
+
+let freshnessPromise = null;
+
+/** Test hook — the session cache would otherwise leak between tests. */
+export function _resetBuildFreshnessForTests() {
+  freshnessPromise = null;
+}
+
+async function computeBuildFreshness() {
+  // An 'unknown' dev build can't be compared, must never be nudged to
+  // "update", and must never claim to be current — stay silent entirely.
+  if (!parseVersionTriple(APP_VERSION)) return null;
+  if (isTauri()) {
+    const { useAppStore } = await import('../store');
+    const s = useAppStore.getState();
+    // 'available'/'downloading'/'ready' all mean the updater verified a
+    // newer signed release exists for the user's channel. 'idle' cannot be
+    // told apart from "not checked yet", so it stays silent rather than
+    // claiming the build is current.
+    if (['available', 'downloading', 'ready'].includes(s.updateStatus)) {
+      return { outdated: true, current: APP_VERSION, latest: s.updateVersion || null };
+    }
+    return null;
+  }
+  const j = await fetchJsonWithTimeout(LATEST_RELEASE_API);
+  const latest = String(j?.tag_name || '').replace(/^v/, '');
+  if (!latest) return null;
+  return { outdated: isOutdated(APP_VERSION, latest), current: APP_VERSION, latest };
+}
+
+/** `{ outdated, current, latest }`, or null when nothing is known. Session-
+ * cached on success; a null result is NOT cached so a temporary network
+ * blip doesn't disable the deflection for the whole session. Never rejects. */
+export async function checkBuildFreshness() {
+  if (!freshnessPromise) {
+    freshnessPromise = computeBuildFreshness()
+      .catch(() => null)
+      .then((r) => {
+        if (r == null) freshnessPromise = null;
+        return r;
+      });
+  }
+  return freshnessPromise;
+}
+
 /** Environment lines for the report body. Best-effort — every fetch is
  * optional so a dead backend still yields a usable report. */
-async function captureContext() {
+async function captureContext(fresh) {
   const lines = [
     `**Version:** \`${APP_VERSION}\``,
     `**Platform:** \`${navigator?.userAgent || 'unknown'}\``,
   ];
+  // Greppable by triage: current-version recurrence is the reliability
+  // metric, and stale-build reports must be countable separately.
+  if (fresh?.outdated) {
+    const latest = fresh.latest ? `\`v${fresh.latest}\`` : 'a newer release';
+    lines.push(`**Build status:** OUTDATED — ${latest} was already out when this was filed`);
+  } else if (fresh?.latest) {
+    lines.push(`**Build status:** current at filing time (latest \`v${fresh.latest}\`)`);
+  }
 
   try {
     const j = await fetchJsonWithTimeout(`${API}/system/info`);
@@ -265,7 +339,8 @@ function captureReachabilitySection(error) {
  *   with the actual failure attached.
  */
 export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
-  const ctx = await captureContext();
+  const fresh = await checkBuildFreshness();
+  const ctx = await captureContext(fresh);
   // getLastBackendCrash inside captureCrashSection covers every deployment:
   // the desktop shell's marker, or (browser/dev/Docker) the backend's
   // run-sentinel record via its HTTP fallback — usually unfetchable while
@@ -328,6 +403,39 @@ export async function buildBugReportUrl({ title = '[Bug] ', error } = {}) {
   body = fitEncoded(body, MAX_ENCODED_BODY);
 
   return `${ISSUES_URL}?title=${encodeURIComponent(title)}&labels=${encodeURIComponent('bug')}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * The one entry point every "Report bug" affordance goes through
+ * (ReportBugButton, ErrorBoundary, error toasts, crash/start-failure
+ * notices): gate on build freshness, then open the prefilled issue.
+ *
+ * On an outdated build the user is offered the latest release first —
+ * with a file-anyway escape hatch, because "old build" is a triage
+ * heuristic, not proof the bug is fixed. Freshness is best-effort: when
+ * nothing is known the report opens exactly as before.
+ *
+ * Throws like the old openExternal(buildBugReportUrl()) composition did —
+ * call sites keep their own failure UX (toast, console warning).
+ */
+export async function openBugReport({ title, error } = {}) {
+  const fresh = await checkBuildFreshness();
+  if (fresh?.outdated) {
+    const latest = fresh.latest ? `v${fresh.latest}` : '';
+    const viewUpdate = await askConfirm(
+      i18next.t('reportBug.staleMessage', { current: `v${fresh.current}`, latest }),
+      i18next.t('reportBug.staleTitle'),
+      {
+        okLabel: i18next.t('reportBug.staleView'),
+        cancelLabel: i18next.t('reportBug.staleFileAnyway'),
+      },
+    );
+    if (viewUpdate) {
+      await openExternal(`${REPO_URL}/releases/latest`);
+      return;
+    }
+  }
+  await openExternal(await buildBugReportUrl({ title, error }));
 }
 
 /**

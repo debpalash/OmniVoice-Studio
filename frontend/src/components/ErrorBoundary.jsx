@@ -3,7 +3,7 @@ import { AlertCircle, BookOpen, Bug, RefreshCw, Search } from 'lucide-react';
 import i18next from 'i18next';
 import { classifyError, openDocsFor } from '../utils/errorDocsMap';
 import { openExternal } from '../api/external';
-import { buildBugReportUrl, buildIssueSearchUrl } from '../utils/bugReport';
+import { buildIssueSearchUrl, openBugReport } from '../utils/bugReport';
 import { Button } from '../ui';
 
 export default class ErrorBoundary extends React.Component {
@@ -42,7 +42,7 @@ export default class ErrorBoundary extends React.Component {
     // Prefilled GitHub Issues URL with the scrubbed error attached — the
     // user reviews everything on github.com before anything is submitted.
     try {
-      await openExternal(await buildBugReportUrl({ error: this.state.error }));
+      await openBugReport({ error: this.state.error });
     } catch (err) {
       console.warn('[ErrorBoundary] report failed', err);
     }

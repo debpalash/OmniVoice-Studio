@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Hata bildir",
-    "title": "Tarayıcınızda önceden doldurulmuş bir GitHub Sorunları sayfasını açar. Siz Gönder'i tıklatana kadar hiçbir şey gönderilmez."
+    "title": "Tarayıcınızda önceden doldurulmuş bir GitHub Sorunları sayfasını açar. Siz Gönder'i tıklatana kadar hiçbir şey gönderilmez.",
+    "staleTitle": "Güncelleme mevcut",
+    "staleMessage": "VoiceStudio {{current}} kullanıyorsunuz, ancak {{latest}} zaten yayında — bu hata orada düzeltilmiş olabilir. Bildirmeden önce en son sürüme bakmak ister misiniz?",
+    "staleView": "Güncellemeyi görüntüle",
+    "staleFileAnyway": "Yine de bildir"
   },
   "app": {
     "loading": "Yükleniyor…",

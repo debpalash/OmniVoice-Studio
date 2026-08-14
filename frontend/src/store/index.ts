@@ -15,7 +15,9 @@
  * your quality/dual-subs/glossary-visibility choice.
  */
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+
+import { createZustandJsonStorage } from '../utils/coalescedJsonStorage';
 
 import type { PrefsSlice } from './prefsSlice';
 import { createPrefsSlice, FONT_OPTIONS, FONT_STACKS } from './prefsSlice';
@@ -55,6 +57,8 @@ export type AppStore = PrefsSlice &
   ReleasesSlice &
   DonationSlice;
 
+export const APP_STORE_KEY = 'omnivoice.app';
+
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
  *
@@ -78,8 +82,8 @@ export const useAppStore = create<AppStore>()(
       ...createDonationSlice(set, get, api),
     }),
     {
-      name: 'omnivoice.app',
-      storage: createJSONStorage(() => localStorage),
+      name: APP_STORE_KEY,
+      storage: createZustandJsonStorage(),
       // Only persist user prefs + glossary. Pipeline / transient state is opt-out.
       partialize: (s) => ({
         translateQuality: s.translateQuality,

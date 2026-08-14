@@ -21,6 +21,7 @@ import {
   LS_PROMPT_COUNT,
   LS_OPT_OUT,
 } from './donationMoments';
+import { flushPendingWrites, queueJsonWrite } from './coalescedJsonStorage';
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 0, 1); // arbitrary fixed epoch
@@ -117,6 +118,13 @@ describe('gate (c) — permanent opt-out', () => {
     seedEligible(T0);
     const res = recordValueMoment('export', { now: T0, random: win });
     expect(res).toMatchObject({ show: false, reason: 'opted-out' });
+  });
+
+  it('honors the unchanged v7 legacy envelope after a deferred flush', () => {
+    queueJsonWrite('omnivoice.app', () => ({ state: { optedOut: true }, version: 7 }));
+    flushPendingWrites();
+
+    expect(isDonationOptedOut()).toBe(true);
   });
 
   it('a corrupt legacy blob is ignored (not treated as opted out)', () => {

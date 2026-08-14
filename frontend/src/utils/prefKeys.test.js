@@ -8,7 +8,7 @@
  * PRESERVED key. This makes "add a pref key but forget factory reset"
  * impossible to reintroduce silently.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,11 @@ import {
   PREF_KEY_PREFIXES,
   clearLocalPreferences,
 } from './prefKeys';
+import {
+  flushPendingWrites,
+  installPersistenceLifecycleFlush,
+  queueJsonWrite,
+} from './coalescedJsonStorage';
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_EXT = new Set(['.js', '.jsx', '.ts', '.tsx']);
@@ -78,6 +83,7 @@ describe('prefKeys registry', () => {
 
   describe('clearLocalPreferences', () => {
     beforeEach(() => localStorage.clear());
+    afterEach(() => vi.useRealTimers());
 
     it('removes every pref key and keeps data/connection keys', () => {
       localStorage.setItem('omnivoice.app', '{"state":{}}');
@@ -109,6 +115,76 @@ describe('prefKeys registry', () => {
       expect(localStorage.getItem('ov_backend_url')).toBe('http://192.168.1.10:7842');
       expect(localStorage.getItem('ov_api_key')).toBe('k');
       expect(localStorage.getItem('omni_transcriptions')).toBe('[{"text":"hi"}]');
+    });
+
+    it('prevents pending and post-reset writes from resurrecting preferences', () => {
+      vi.useFakeTimers();
+      localStorage.setItem('omnivoice.app', '{"state":{"old":true},"version":7}');
+      localStorage.setItem('omni_ui', '{"text":"old"}');
+      const cleanupLifecycle = installPersistenceLifecycleFlush();
+      queueJsonWrite('omnivoice.app', () => ({ state: { text: 'pending' }, version: 7 }));
+      queueJsonWrite('omni_ui', () => ({ text: 'pending' }));
+
+      clearLocalPreferences();
+      // Store/effect activity can continue during ResetPanel's 400 ms reload
+      // delay. These writes must be rejected for the rest of this document.
+      queueJsonWrite('omnivoice.app', () => ({ state: { text: 'after reset' }, version: 7 }));
+      queueJsonWrite('omni_ui', () => ({ text: 'after reset' }));
+      vi.runAllTimers();
+      window.dispatchEvent(new Event('pagehide'));
+      flushPendingWrites();
+
+      expect(localStorage.getItem('omnivoice.app')).toBeNull();
+      expect(localStorage.getItem('omni_ui')).toBeNull();
+      cleanupLifecycle();
+    });
+
+    it('releases write suspension when storage enumeration fails', () => {
+      const failingStorage = {
+        get length() {
+          throw new DOMException('private value', 'SecurityError');
+        },
+        key: vi.fn(),
+        removeItem: vi.fn(),
+      };
+
+      expect(() => clearLocalPreferences(failingStorage)).toThrowError(DOMException);
+      queueJsonWrite('omnivoice.app', () => ({ state: { recovered: true }, version: 7 }));
+      flushPendingWrites();
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        state: { recovered: true },
+        version: 7,
+      });
+    });
+
+    it('releases write suspension when storage key access fails', () => {
+      const failingStorage = {
+        length: 1,
+        key: vi.fn(() => {
+          throw new DOMException('private value', 'SecurityError');
+        }),
+        removeItem: vi.fn(),
+      };
+
+      expect(() => clearLocalPreferences(failingStorage)).toThrowError(DOMException);
+      queueJsonWrite('omni_ui', () => ({ text: 'recovered after key failure' }));
+      flushPendingWrites();
+      expect(localStorage.getItem('omni_ui')).toBe('{"text":"recovered after key failure"}');
+    });
+
+    it('releases write suspension and propagates a removal failure', () => {
+      const failingStorage = {
+        length: 1,
+        key: vi.fn(() => 'omnivoice.app'),
+        removeItem: vi.fn(() => {
+          throw new DOMException('private value', 'SecurityError');
+        }),
+      };
+
+      expect(() => clearLocalPreferences(failingStorage)).toThrowError(DOMException);
+      queueJsonWrite('omni_ui', () => ({ text: 'recovered' }));
+      flushPendingWrites();
+      expect(localStorage.getItem('omni_ui')).toBe('{"text":"recovered"}');
     });
   });
 });
