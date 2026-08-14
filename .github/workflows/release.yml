@@ -925,11 +925,16 @@ jobs:
             echo "no latest.json on the release — nothing to align"; exit 0
           fi
           gh release download "$TAG" --pattern latest.json --output "$WORK/latest.json" --repo "$GITHUB_REPOSITORY"
-          gh release download "$TAG" --pattern "*.AppImage.sig" --dir "$WORK" --repo "$GITHUB_REPOSITORY" || true
-          SIG_FILE=$(find "$WORK" -name "*.AppImage.sig" | head -1)
-          if [ -z "$SIG_FILE" ]; then
+          # Same fail-closed rule as the manifest: absence is checked against
+          # the asset LIST; an actual download failure must fail the job, or
+          # the manifest keeps a signature nobody shipped.
+          HAS_SIG=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name|select(endswith(".AppImage.sig"))]|length > 0')
+          if [ "$HAS_SIG" != "true" ]; then
             echo "no AppImage .sig asset on the release — nothing to align"; exit 0
           fi
+          gh release download "$TAG" --pattern "*.AppImage.sig" --dir "$WORK" --repo "$GITHUB_REPOSITORY"
+          SIG_FILE=$(find "$WORK" -name "*.AppImage.sig" | head -1)
+          [ -n "$SIG_FILE" ] || { echo "sig asset listed but download produced nothing"; exit 1; }
           NEW_SIG=$(cat "$SIG_FILE")
           CHANGED=$(python3 -c 'import json,sys; p,sig=sys.argv[1],sys.argv[2]; d=json.load(open(p)); n=sum(1 for k,v in d.get("platforms",{}).items() if k.startswith("linux") and v.get("signature")!=sig and not v.update({"signature":sig})); json.dump(d,open(p,"w"),indent=2); print(n)' "$WORK/latest.json" "$NEW_SIG")
           if [ "$CHANGED" -ge 1 ]; then
