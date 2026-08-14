@@ -95,18 +95,10 @@ except ImportError:
     pass
 
 # ── cuDNN 8 library preload ─────────────────────────────────────────────
-# CTranslate2 (used by faster-whisper / WhisperX) requires cuDNN 8, but
-# PyTorch 2.8+ pulls cuDNN 9, so the bootstrap side-loads cuDNN 8 into
-# cudnn8_compat/ and we preload it here for CTranslate2's dlopen/LoadLibrary.
-# Lives in core.cudnn8 so the ASR sidecar — a child process with its own clean
-# import path — gets the same preload, and so `asr_backend` can ASK whether it
-# worked instead of walking into a native __fastfail (#1371).
-try:
-    from core.cudnn8 import preload as _preload_cudnn8
-
-    _preload_cudnn8()
-except Exception:  # noqa: BLE001 — never block startup on a best-effort preload
-    pass
+# Moved into _phase_a_build (`native_preload` step, early-bind refactor): the
+# native dlopen/LoadLibrary belongs to the deferred heavy phase, and its one
+# hard invariant — run before any ctranslate2/torch import — is preserved
+# there (native_preload strictly precedes ml_imports).
 
 # Route HF/Torch caches to a single external directory when requested.
 _cache_dir = os.environ.get("OMNIVOICE_CACHE_DIR")
@@ -176,52 +168,19 @@ except Exception:
 os.environ.setdefault("TORCHAUDIO_USE_TORCHCODEC", "0")
 sys.modules.setdefault("torchcodec", None)
 
-import torchaudio
 import warnings
 import logging
 from logging.handlers import RotatingFileHandler
 
-# ── Restore persisted env vars from prefs.json ────────────────────────────
-# Settings saved via Settings UI (proxy, FFMPEG_PATH, HF_TOKEN, etc.) are
-# written to prefs.json so they survive backend restarts. Read them back
-# here — before any user code reads os.environ — so the values are available
-# from startup.
-#
-# Legacy (≤v0.3.7) Translation-LLM rows (env.TRANSLATE_*) must migrate into
-# the custom LLM provider's settings store BEFORE the re-import below — once
-# TRANSLATE_BASE_URL lands in os.environ it hijacks the LLM provider
-# selection for the whole session (#963). Real env vars are untouched.
-try:
-    from services.llm_providers import migrate_legacy_translate_prefs
-    migrate_legacy_translate_prefs()
-except Exception:
-    pass  # never block startup on the migration; it retries next launch
-_PERSISTED_ENV_PREFIX = "env."
-try:
-    from core.prefs import _load as _load_all_prefs
-    _prefs = _load_all_prefs()
-    for _k, _v in _prefs.items():
-        if _k.startswith(_PERSISTED_ENV_PREFIX) and _v:
-            _env_key = _k[len(_PERSISTED_ENV_PREFIX):]
-            # Do not override an explicitly-set env var (shell > prefs)
-            os.environ.setdefault(_env_key, str(_v))
-except Exception:
-    pass  # prefs.json missing or broken — fine on first run
-
-# ── Activate the yt-dlp user-update overlay (Settings → Audio tools) ──────
-# Must run before anything imports yt_dlp so a user-updated version (stored
-# under DATA_DIR, surviving app updates and uv drift syncs) wins over the
-# locked wheel. Best-effort: a broken overlay must never block startup.
-try:
-    from services.media_tools import activate_ytdlp_overlay
-    activate_ytdlp_overlay()
-except Exception:
-    # Best-effort by design: a broken/corrupt overlay must never block
-    # startup — the locked wheel on sys.path is the fallback.
-    pass
-
-warnings.filterwarnings("ignore", category=UserWarning)
-torchaudio.set_audio_backend("soundfile")
+# The heavy tail that used to run here at module scope — prefs.json env
+# restore, the legacy-translate migration (#963), the yt-dlp overlay, the
+# cuDNN 8 preload, `import torchaudio` (10-20s cold, drags torch), the
+# 30-router import fan-out — now lives in `_phase_a_build` /
+# `_phase_a_finalize` below, so uvicorn can bind the socket and answer
+# `/health` + `/startup/progress` within ~1s of spawn instead of after all
+# of it. Under pytest (or OMNIVOICE_EAGER_INIT=1) it still runs at import,
+# at the bottom of this module — same order, same side effects, so the
+# ~100 lifespan-less TestClient call sites see today's fully-built app.
 
 
 class _WindowsSafeRotatingFileHandler(RotatingFileHandler):
@@ -361,18 +320,22 @@ import traceback
 
 _crash_log_lock = threading.Lock()
 
-from core.db import init_db
 from core.config import OUTPUTS_DIR, VOICES_DIR, CRASH_LOG_PATH
 from core.tasks import task_manager
 from core import job_store
-from services.model_manager import (
-    ModelLoadInterruptedByShutdown,
-    begin_shutdown as model_loads_begin_shutdown,
-    idle_worker,
-    preload_model,
-    reset_shutdown_flag as model_loads_reset_shutdown,
-)
+from core import startup_progress as _startup_progress
 from services import network_share
+
+# Rebound by _phase_a_build's `ml_imports` step (services.model_manager drags
+# numpy and lazily torch, so it belongs to the deferred phase). Every use is
+# either inside the startup/shutdown paths — which run strictly after Phase A
+# — or None-guarded (the global exception handler's isinstance, which already
+# has the name-based fallback for the dual-module-identity case).
+ModelLoadInterruptedByShutdown = None
+model_loads_begin_shutdown = None
+idle_worker = None
+preload_model = None
+model_loads_reset_shutdown = None
 
 from core.auth import (
     CredentialTransport,
@@ -384,86 +347,11 @@ from core.auth import (
 )
 from core.csrf import SAFE_HTTP_METHODS, cookie_csrf_allowed, origin_allowed
 
-from api.routers import (
-    system,
-    profiles,
-    exports,
-    generation,
-    dub_core,
-    dub_generate,
-    dub_export,
-    dub_translate,
-    projects,
-    glossary,
-    engines,
-    tools,
-    stories,
-    setup,
-    gallery,
-    archetypes,
-    describe_voice,
-    community,
-    batch,
-    watermark,
-    events,
-    capture,
-    capture_ws,
-    dictation,
-    openai_compat,
-    tts_stream,
-    marketplace,
-    personas,
-    sonitranslate,
-    audiobook,
-    longform_jobs,
-    pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
-    settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
-    media_tools as media_tools_router,  # Audio tools: ffmpeg/ffprobe/yt-dlp management
-    auth as auth_router,
-)
-from utils import hf_progress
-
-# Install the HuggingFace tqdm patch early — every downstream library import
-# that triggers `hf_hub_download` (transformers, mlx_whisper, etc.) must see
-# the patched class, not the original.
-hf_progress.install()
-
-# Wire the overall download aggregator's byte sink onto the patched tqdm so
-# parallel per-file updates feed one accurate overall bar (FDL-06).
-try:
-    from utils import download_aggregator
-    download_aggregator.install()
-except Exception:
-    pass
-
-# Log the download-acceleration state once at startup (FDL-03) so a slow
-# download report can be triaged from the logs without reproducing. Note: the
-# app sets HF_HUB_DISABLE_XET=1 above by default (legacy LFS for byte progress),
-# so xet_active is normally False even though hf_xet is installed.
-try:
-    from api.routers.system import _fast_download_status as _fd_status
-    _fd = _fd_status()
-    _xet_ver = f" {_fd['xet_version']}" if _fd.get("xet_version") else ""
-    logging.getLogger("omnivoice.model").info(
-        "downloads: Xet %s (hf_xet%s installed=%s), high_perf=%s",
-        "ACTIVE" if _fd["xet_active"] else "disabled → legacy LFS",
-        _xet_ver, _fd["xet_installed"], _fd["high_performance"],
-    )
-except Exception:
-    pass
-
-
-# #1256: our own ffmpeg/ffprobe call sites pass an explicit path, so a bundled
-# sidecar that isn't on PATH works for us — but a dependency that shells out to
-# `ffprobe` by bare name dies with FileNotFoundError, mid-synthesis, on a
-# machine where the app's own copy was resolvable the whole time. Publish the
-# resolved directories once here, after prefs have restored any FFMPEG_PATH
-# override and before any engine loads.
-try:
-    from services.ffmpeg_utils import ensure_media_tools_on_path
-    ensure_media_tools_on_path()
-except Exception:
-    pass  # best-effort: find_ffprobe() still resolves it for our own callers
+# The 30-router fan-out (`from api.routers import (...)`) is the widest —
+# and, because dub_core/dub_generate/system import torch at module level,
+# one of the slowest — import in the codebase. It now happens in
+# _phase_a_build (`api_routes` step) after ml_imports; _phase_a_finalize
+# registers the routers on the app.
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -471,6 +359,14 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Eager mode runs the heavy phases inline at module import — today's exact
+# behavior — and exists for the ~100 lifespan-less `TestClient(app)` call
+# sites that expect `from main import app` to yield the fully-built app.
+# Server runs (desktop, Docker, `uvicorn main:app`, `python main.py`) get the
+# deferred path: socket up in ~1s, heavy work behind /startup/progress.
+_EAGER = _env_flag("OMNIVOICE_EAGER_INIT", default=("pytest" in sys.modules))
 
 
 def _capture_preload_delay_s() -> float:
@@ -602,6 +498,410 @@ async def _cancel_and_await_tasks(*tasks, timeout: float = 3.0) -> None:
             )
 
 
+# ── Deferred heavy startup (early-bind refactor) ──────────────────────────
+# Phase A build: heavy imports + env restoration — thread-safe, no app
+# mutation, runs in an executor thread (deferred) or inline (eager).
+# Phase A finalize: router/mount registration — mutates the app, so it runs
+# ON the event loop (deferred) with no awaits inside, making it atomic with
+# respect to in-flight requests; the StartupGate keeps everything but
+# /health + /startup/progress out until ready regardless.
+# Phase B: the old lifespan startup body (DB, background services).
+
+_phase_a_built = False
+_phase_a_finalized = False
+_router_modules: "list" = []
+
+
+def _phase_a_build() -> None:
+    """Everything heavy that used to run at module scope, same relative
+    order per step. Idempotent. Imports are literal statements so
+    PyInstaller's tracer still sees them (backend.spec unchanged)."""
+    global _phase_a_built, ModelLoadInterruptedByShutdown
+    global model_loads_begin_shutdown, idle_worker, preload_model
+    global model_loads_reset_shutdown
+    if _phase_a_built:
+        return
+
+    _startup_progress.begin_step("env_prefs")
+    # Legacy (≤v0.3.7) Translation-LLM rows (env.TRANSLATE_*) must migrate
+    # into the LLM provider store BEFORE the prefs→environ restore below —
+    # once TRANSLATE_BASE_URL lands in os.environ it hijacks the LLM provider
+    # selection for the whole session (#963). Real env vars are untouched.
+    try:
+        from services.llm_providers import migrate_legacy_translate_prefs
+        migrate_legacy_translate_prefs()
+    except Exception:
+        pass  # never block startup on the migration; it retries next launch
+    # Restore persisted env vars from prefs.json (Settings UI writes them
+    # there so they survive backend restarts) — before any user code reads
+    # os.environ, and never overriding an explicitly-set env var.
+    try:
+        from core.prefs import _load as _load_all_prefs
+        _prefs = _load_all_prefs()
+        for _k, _v in _prefs.items():
+            if _k.startswith("env.") and _v:
+                os.environ.setdefault(_k[len("env."):], str(_v))
+    except Exception:
+        pass  # prefs.json missing or broken — fine on first run
+    # yt-dlp user-update overlay: must run before anything imports yt_dlp so
+    # a user-updated version wins over the locked wheel. Best-effort.
+    try:
+        from services.media_tools import activate_ytdlp_overlay
+        activate_ytdlp_overlay()
+    except Exception:
+        pass
+    # #1256: publish resolved ffmpeg/ffprobe dirs on PATH for dependencies
+    # that shell out by bare name — after prefs restored any FFMPEG_PATH
+    # override, before any engine loads.
+    try:
+        from services.ffmpeg_utils import ensure_media_tools_on_path
+        ensure_media_tools_on_path()
+    except Exception:
+        pass  # best-effort: find_ffprobe() still resolves it for our callers
+
+    _startup_progress.begin_step("native_preload")
+    # cuDNN 8 preload for CTranslate2 (faster-whisper/WhisperX): native
+    # dlopen/LoadLibrary, and the one hard ordering invariant of this phase —
+    # it must run before any ctranslate2/torch import (#1371).
+    try:
+        from core.cudnn8 import preload as _preload_cudnn8
+        _preload_cudnn8()
+    except Exception:  # noqa: BLE001 — never block startup on a preload
+        pass
+
+    _startup_progress.begin_step("ml_imports")
+    import torchaudio
+    warnings.filterwarnings("ignore", category=UserWarning)
+    torchaudio.set_audio_backend("soundfile")
+    from utils import hf_progress
+    # HF tqdm patch before any library import that can trigger
+    # hf_hub_download (transformers, mlx_whisper, …).
+    hf_progress.install()
+    # Overall download aggregator's byte sink onto the patched tqdm (FDL-06).
+    try:
+        from utils import download_aggregator
+        download_aggregator.install()
+    except Exception:
+        pass
+    from services.model_manager import (  # noqa: E402
+        ModelLoadInterruptedByShutdown as _MLIS,
+        begin_shutdown as _mm_begin_shutdown,
+        idle_worker as _mm_idle_worker,
+        preload_model as _mm_preload_model,
+        reset_shutdown_flag as _mm_reset_shutdown,
+    )
+    ModelLoadInterruptedByShutdown = _MLIS
+    model_loads_begin_shutdown = _mm_begin_shutdown
+    idle_worker = _mm_idle_worker
+    preload_model = _mm_preload_model
+    model_loads_reset_shutdown = _mm_reset_shutdown
+
+    _startup_progress.begin_step("api_routes")
+    from api.routers import (
+        system,
+        profiles,
+        exports,
+        generation,
+        dub_core,
+        dub_generate,
+        dub_export,
+        dub_translate,
+        projects,
+        glossary,
+        engines,
+        tools,
+        stories,
+        setup,
+        gallery,
+        archetypes,
+        describe_voice,
+        community,
+        batch,
+        watermark,
+        events,
+        capture,
+        capture_ws,
+        dictation,
+        openai_compat,
+        tts_stream,
+        marketplace,
+        personas,
+        sonitranslate,
+        audiobook,
+        longform_jobs,
+        pronunciation,  # Expressive-TTS Spec 01: user pronunciation dictionary
+        settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
+        media_tools as media_tools_router,  # Audio tools: ffmpeg/ffprobe/yt-dlp
+        auth as auth_router,
+    )
+    from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
+    from api.routers import workers as workers_router  # noqa: E402
+    _router_modules.extend([
+        system, profiles, exports, generation, dub_core, dub_generate,
+        dub_export, dub_translate, projects, glossary, engines, tools,
+        stories, setup, gallery, archetypes, describe_voice, community,
+        batch, watermark, events, capture, capture_ws, dictation,
+        openai_compat, tts_stream, marketplace, personas, sonitranslate,
+        audiobook, longform_jobs, pronunciation, settings_router,
+        media_tools_router, auth_router, _mcp_bindings_router, workers_router,
+    ])
+    # Download-acceleration state, once, for triage-from-logs (FDL-03).
+    try:
+        from api.routers.system import _fast_download_status as _fd_status
+        _fd = _fd_status()
+        _xet_ver = f" {_fd['xet_version']}" if _fd.get("xet_version") else ""
+        logging.getLogger("omnivoice.model").info(
+            "downloads: Xet %s (hf_xet%s installed=%s), high_perf=%s",
+            "ACTIVE" if _fd["xet_active"] else "disabled → legacy LFS",
+            _xet_ver, _fd["xet_installed"], _fd["high_performance"],
+        )
+    except Exception:
+        pass
+    _phase_a_built = True
+
+
+def _phase_a_finalize() -> None:
+    """Register everything Phase A imported. Mutates the app — must run on
+    the event loop in deferred mode (no awaits inside → atomic wrt requests).
+    Idempotent."""
+    global _phase_a_finalized
+    if _phase_a_finalized:
+        return
+    for _mod in _router_modules:
+        app.include_router(_mod.router)
+
+    # MCP server sub-mounted at /mcp; its session manager is stashed on
+    # app.state for Phase B to run. Opt-out via OMNIVOICE_MCP_DISABLE=1;
+    # best-effort (SystemExit included, #1156) so a missing mcp package
+    # never breaks startup.
+    if os.environ.get("OMNIVOICE_MCP_DISABLE", "").strip().lower() not in ("1", "true", "yes", "on"):
+        try:
+            from mcp_server import mount_mcp
+            mount_mcp(app)
+        except (Exception, SystemExit) as _mcp_err:  # noqa: BLE001
+            logging.getLogger("omnivoice.api").info(
+                "MCP server not mounted (%s); /mcp disabled.", _mcp_err
+            )
+
+    app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
+    app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
+    # Bundled demo assets — read-only, ships with the app, no network.
+    _demo_dir = os.path.join(os.path.dirname(__file__), "assets", "samples")
+    if os.path.isdir(_demo_dir):
+        app.mount("/demo_audio", StaticFiles(directory=_demo_dir), name="demo_audio")
+
+    # SPA shell LAST so the "/" StaticFiles mount can't shadow any router.
+    _frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+    if os.path.exists(_frontend_path):
+        # Runtime API-base override (Docker / reverse-proxy): inject
+        # OMNIVOICE_PUBLIC_API_BASE into index.html; unset → untouched.
+        from core.spa_inject import is_valid_public_api_base, inject_api_base
+
+        _public_api_base = os.environ.get("OMNIVOICE_PUBLIC_API_BASE", "").strip().rstrip("/")
+        _index_path = os.path.join(_frontend_path, "index.html")
+        if _public_api_base and not is_valid_public_api_base(_public_api_base):
+            logging.getLogger("omnivoice.api").warning(
+                "OMNIVOICE_PUBLIC_API_BASE=%r is not a valid http(s) URL; ignoring.",
+                _public_api_base,
+            )
+            _public_api_base = ""
+
+        if _public_api_base and os.path.isfile(_index_path):
+            from fastapi.responses import HTMLResponse
+
+            def _index_with_api_base() -> "HTMLResponse":
+                with open(_index_path, "r", encoding="utf-8") as _fh:
+                    return HTMLResponse(inject_api_base(_fh.read(), _public_api_base))
+
+            @app.get("/", include_in_schema=False)
+            def _index_root():
+                return _index_with_api_base()
+
+            @app.get("/index.html", include_in_schema=False)
+            def _index_html():
+                return _index_with_api_base()
+
+        app.mount("/", StaticFiles(directory=_frontend_path, html=True), name="frontend")
+    else:
+
+        @app.get("/", include_in_schema=False)
+        def _dev_fallback():
+            return RedirectResponse(url="http://localhost:3901")
+
+    # An early /docs or /openapi.json hit may have cached a schema without
+    # the routers — bust it so the next request rebuilds the full one.
+    app.openapi_schema = None
+    _phase_a_finalized = True
+
+
+def _disarm_startup_watchdog() -> None:
+    try:
+        import faulthandler
+        faulthandler.cancel_dump_traceback_later()
+    except Exception:
+        pass
+
+
+async def _deferred_startup(app: FastAPI) -> None:
+    """Run the heavy phases behind the already-bound socket. A failure here
+    has import-crash semantics: full traceback to stderr (→ backend_err.log,
+    feeding the shell's crash forensics and venv-heal signature match #314),
+    one beat for a last /startup/progress poll to capture the failed step,
+    then a hard exit — the run sentinel stays uncleared so the next run
+    attributes it (#1164)."""
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _phase_a_build)
+        _phase_a_finalize()
+        await _phase_b(app)
+        _disarm_startup_watchdog()
+        _startup_progress.mark_ready()
+        logger.info("Deferred startup complete — all routes live.")
+    except asyncio.CancelledError:
+        raise
+    except BaseException as exc:  # noqa: BLE001 — must convert to process death
+        _step = _startup_progress.snapshot().get("step")
+        _startup_progress.fail(f"{type(exc).__name__}: {exc}")
+        traceback.print_exc(file=sys.stderr)
+        print(
+            f"FATAL: backend startup failed during '{_step or 'startup'}': {exc}",
+            file=sys.stderr, flush=True,
+        )
+        time.sleep(1.0)
+        os._exit(1)
+
+
+async def _phase_b(app: FastAPI) -> None:
+    """The old lifespan startup body: DB init + background services. Handles
+    land on app.state so the shutdown block (which may run after a startup
+    that never finished) reads them with getattr(..., None) guards."""
+    from core.db import init_db
+
+    _startup_progress.begin_step("db_migrate")
+    init_db()
+    # Network sharing is loopback-only by default; seed the (disabled) state
+    # so the middleware and /system/network/state always have something to read.
+    app.state.network_share = network_share.get_state()
+    from api.routers.gallery import _init_gallery_db
+
+    _init_gallery_db()
+    # Seed a demo voice profile on first run (empty DB only).
+    from core.onboarding import seed_sample_project
+    seed_sample_project()
+    # Any job still in pending/running at startup is orphaned — flip to failed
+    # so the UI doesn't show a fake spinner.
+    try:
+        swept = job_store.sweep_orphans_on_startup()
+        if swept:
+            logger.info("Startup: marked %d orphaned job(s) as failed.", swept)
+    except Exception:
+        logger.exception("Startup job-sweep failed (non-fatal).")
+
+    _startup_progress.begin_step("services_start")
+    # Phase 1 Wave 3 — macOS Gatekeeper quarantine probe (#54). Informational
+    # only; we never auto-run `xattr -cr`.
+    try:
+        from core import event_bus, gatekeeper_detect
+        status = gatekeeper_detect.quarantine_status()
+        if status.get("quarantined"):
+            logger.warning(
+                "Gatekeeper quarantine detected on app bundle %s — "
+                "users must run `xattr -cr <bundle>` once. error_class=%s",
+                status.get("bundle_path"),
+                status.get("error_class"),
+            )
+            event_bus.emit(
+                "system_error",
+                {
+                    "error_class": status.get("error_class"),
+                    "bundle_path": status.get("bundle_path"),
+                },
+            )
+    except Exception:
+        logger.exception("Gatekeeper probe failed (non-fatal).")
+    # #1174: arm model loads for THIS run — an in-process relaunch may carry a
+    # stale shutting-down flag from a previous lifespan.
+    model_loads_reset_shutdown()
+    app.state.idle_task = asyncio.create_task(idle_worker())
+    app.state.worker_task = asyncio.create_task(task_manager.worker())
+    # Warm the TTS model in the background so first /generate is instant.
+    app.state.preload_task = asyncio.create_task(preload_model())
+    # Dictation v2: capture ASR warms in the background BY DEFAULT (~30s
+    # post-boot, skipped under 4 GB free RAM at warm time).
+    app.state.capture_preload_task = None  # only assigned when it runs (#1000 class)
+    if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True):
+        async def _preload_capture_asr():
+            await asyncio.sleep(_capture_preload_delay_s())
+            if not _capture_preload_ram_ok():
+                logger.info(
+                    "Capture ASR preload skipped: <4GB free RAM; "
+                    "dictation ASR will load on first use.")
+                return
+            loading_detail = None
+            prev_loading_detail = None
+            try:
+                from services.model_manager import _gpu_pool, _loading_detail
+                loading_detail = _loading_detail
+                prev_loading_detail = dict(loading_detail)
+                loop = asyncio.get_running_loop()
+                def _warm():
+                    from services.asr_backend import (
+                        asr_model_missing_error,
+                        get_capture_asr_backend,
+                    )
+                    # TTS-only install: no dictation ASR model on disk —
+                    # skip; the first dictation prompts for the download.
+                    if asr_model_missing_error(purpose="dictation") is not None:
+                        logger.info(
+                            "Capture ASR preload skipped: no ASR model installed; "
+                            "dictation will offer a download on first use.")
+                        return
+                    loading_detail["sub_stage"] = "loading_asr"
+                    loading_detail["detail"] = "Warming up ASR engine…"
+                    backend = get_capture_asr_backend()
+                    logger.info("Capture ASR backend selected: %s", backend.id)
+                    if hasattr(backend, 'warmup'):
+                        loading_detail["detail"] = f"Loading {backend.display_name}…"
+                        backend.warmup()
+                    loading_detail["sub_stage"] = "ready"
+                    loading_detail["detail"] = "ASR engine ready"
+                await loop.run_in_executor(_gpu_pool, _warm)
+            except Exception as e:
+                if loading_detail is not None and loading_detail.get("sub_stage") == "loading_asr":
+                    loading_detail.clear()
+                    loading_detail.update(prev_loading_detail or {})
+                logger.warning("Capture ASR preload skipped: %s", e)
+        app.state.capture_preload_task = asyncio.create_task(_preload_capture_asr())
+    else:
+        logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
+
+    # ── MCP session manager (Wave 2.2) ────────────────────────────────────
+    # Run it in its OWN task owning the full enter→exit lifecycle (anyio
+    # task-affinity, see _serve_mcp); only wait, with a timeout, for ready —
+    # a hang (observed on M1, #632) can never wedge startup.
+    _sm = getattr(app.state, "mcp_session_manager", None)
+    mcp_task, mcp_stop, mcp_mounted = await _start_mcp_session_manager(
+        _sm, timeout=_mcp_start_timeout_s()
+    )
+    app.state.mcp_task = mcp_task
+    app.state.mcp_stop = mcp_stop
+    if mcp_mounted:
+        logger.info("MCP server mounted at /mcp")
+    # Remote GPU workers (opt-in). Starts nothing unless enabled.
+    try:
+        from worker import service as worker_service
+        await worker_service.start_if_enabled()
+    except Exception:
+        logger.exception("Remote worker startup failed (continuing without it)")
+
+    # The other side of the same feature: worker mode connects out.
+    try:
+        from worker import agent as worker_agent
+        await worker_agent.start_if_worker_mode()
+    except Exception:
+        logger.exception("Worker agent startup failed (continuing without it)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup watchdog (#632): a silent hang during startup (e.g. a model-load /
@@ -627,6 +927,8 @@ async def lifespan(app: FastAPI):
     # (OOM kill, hard crash — anything that skipped the shutdown block) and
     # write the crash record BEFORE any heavy init, so even a crash later in
     # THIS startup is attributed by the next run. Best-effort by contract.
+    # (Now strictly earlier than before the early-bind refactor: it used to
+    # run after the heavy imports, so a crash DURING them went unattributed.)
     from core import run_sentinel
     _crash_record = None
     try:
@@ -645,148 +947,40 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Analytics startup lifecycle failed (non-fatal).")
 
-    init_db()
-    # Network sharing is loopback-only by default; the PIN middleware stays
-    # inert until enable() sets a PIN. Seed the (disabled) state so the
-    # middleware and /system/network/state always have something to read.
-    app.state.network_share = network_share.get_state()
-    from api.routers.gallery import _init_gallery_db
-
-    _init_gallery_db()
-    # Seed a demo voice profile on first run (empty DB only).
-    from core.onboarding import seed_sample_project
-    seed_sample_project()
-    # Any job still in pending/running at startup is orphaned — a previous
-    # process didn't finish it. Flip to failed with a clear message so the
-    # UI doesn't show a fake spinner.
-    try:
-        swept = job_store.sweep_orphans_on_startup()
-        if swept:
-            logger.info("Startup: marked %d orphaned job(s) as failed.", swept)
-    except Exception:
-        logger.exception("Startup job-sweep failed (non-fatal).")
-    # Phase 1 Wave 3 — macOS Gatekeeper quarantine probe (#54).
-    # Detection is informational: we log a structured warning and broadcast
-    # an event so the React ErrorBoundary can render the docs deeplink. We
-    # do NOT auto-run `xattr -cr` — the app cannot clear its own quarantine
-    # state (per Anti-Pattern in 01-RESEARCH.md).
-    try:
-        from core import event_bus, gatekeeper_detect
-        status = gatekeeper_detect.quarantine_status()
-        if status.get("quarantined"):
-            logger.warning(
-                "Gatekeeper quarantine detected on app bundle %s — "
-                "users must run `xattr -cr <bundle>` once. error_class=%s",
-                status.get("bundle_path"),
-                status.get("error_class"),
-            )
-            event_bus.emit(
-                "system_error",
-                {
-                    "error_class": status.get("error_class"),
-                    "bundle_path": status.get("bundle_path"),
-                },
-            )
-    except Exception:
-        logger.exception("Gatekeeper probe failed (non-fatal).")
-    # #1174: arm model loads for THIS run — an in-process relaunch (TestClient
-    # boot, the --health-check thread) may carry a stale shutting-down flag
-    # from a previous lifespan, which would silently skip every load.
-    model_loads_reset_shutdown()
-    idle_task = asyncio.create_task(idle_worker())
-    worker_task = asyncio.create_task(task_manager.worker())
-    # Warm the TTS model in the background so first /generate is instant.
-    preload_task = asyncio.create_task(preload_model())
-    # Dictation v2: the capture ASR warms in the background BY DEFAULT — a
-    # deferred (~30s post-boot) load off the event loop, so startup stays
-    # lean and the first dictation is instant instead of a cold model load.
-    # OMNIVOICE_PRELOAD_CAPTURE_ASR=0 opts out; the warm-up is also skipped
-    # under 4 GB free RAM (checked at warm time, not boot time).
-    capture_preload_task = None  # only assigned when the preload actually runs (#1000 class)
-    if _env_flag("OMNIVOICE_PRELOAD_CAPTURE_ASR", default=True):
-        async def _preload_capture_asr():
-            await asyncio.sleep(_capture_preload_delay_s())
-            if not _capture_preload_ram_ok():
-                logger.info(
-                    "Capture ASR preload skipped: <4GB free RAM; "
-                    "dictation ASR will load on first use.")
-                return
-            loading_detail = None
-            prev_loading_detail = None
-            try:
-                from services.model_manager import _gpu_pool, _loading_detail
-                loading_detail = _loading_detail
-                prev_loading_detail = dict(loading_detail)
-                loop = asyncio.get_running_loop()
-                def _warm():
-                    from services.asr_backend import (
-                        asr_model_missing_error,
-                        get_capture_asr_backend,
-                    )
-                    # TTS-only install: no dictation ASR model on disk. Warming
-                    # would silently auto-download weights at boot — skip; the
-                    # first dictation prompts for the download instead.
-                    if asr_model_missing_error(purpose="dictation") is not None:
-                        logger.info(
-                            "Capture ASR preload skipped: no ASR model installed; "
-                            "dictation will offer a download on first use.")
-                        return
-                    loading_detail["sub_stage"] = "loading_asr"
-                    loading_detail["detail"] = "Warming up ASR engine…"
-                    backend = get_capture_asr_backend()
-                    logger.info("Capture ASR backend selected: %s", backend.id)
-                    if hasattr(backend, 'warmup'):
-                        loading_detail["detail"] = f"Loading {backend.display_name}…"
-                        backend.warmup()
-                    loading_detail["sub_stage"] = "ready"
-                    loading_detail["detail"] = "ASR engine ready"
-                await loop.run_in_executor(_gpu_pool, _warm)
-            except Exception as e:
-                if loading_detail is not None and loading_detail.get("sub_stage") == "loading_asr":
-                    loading_detail.clear()
-                    loading_detail.update(prev_loading_detail or {})
-                logger.warning("Capture ASR preload skipped: %s", e)
-        capture_preload_task = asyncio.create_task(_preload_capture_asr())
+    if _EAGER:
+        # Pytest / opt-in embedders: today's exact behavior — everything done
+        # before serving. Phase A already ran at module import (no-ops here).
+        _phase_a_build()
+        _phase_a_finalize()
+        await _phase_b(app)
+        if _watchdog_armed:
+            _disarm_startup_watchdog()
+        _startup_progress.mark_ready()
     else:
-        logger.info("Capture ASR preload disabled; dictation ASR will load on first use.")
-
-    # ── MCP session manager (Wave 2.2) ────────────────────────────────────
-    # FastMCP's Streamable-HTTP transport needs its session manager running for
-    # the lifetime of the app. Run it in its OWN task that owns the full
-    # enter→exit lifecycle (anyio task-affinity, see _serve_mcp) and only wait,
-    # with a timeout, for it to signal ready — so a hang on its anyio group
-    # (observed on M1, #632) can never wedge "Application startup complete".
-    _sm = getattr(app.state, "mcp_session_manager", None)
-    mcp_task, mcp_stop, mcp_mounted = await _start_mcp_session_manager(
-        _sm, timeout=_mcp_start_timeout_s()
-    )
-    if mcp_mounted:
-        logger.info("MCP server mounted at /mcp")
-    # Remote GPU workers (opt-in). Starts nothing — no socket, no certificate,
-    # no background loop — unless the user turned the feature on, so an install
-    # that never touches it is byte-for-byte the app it was before.
-    try:
-        from worker import service as worker_service
-        await worker_service.start_if_enabled()
-    except Exception:
-        logger.exception("Remote worker startup failed (continuing without it)")
-
-    # The other side of the same feature: on a machine running in worker mode,
-    # connect out to its control plane and start taking work.
-    try:
-        from worker import agent as worker_agent
-        await worker_agent.start_if_worker_mode()
-    except Exception:
-        logger.exception("Worker agent startup failed (continuing without it)")
-
-    # Startup finished — disarm the hang watchdog before serving (#632).
-    if _watchdog_armed:
+        # Server runs: the socket binds the moment this yields — /health and
+        # /startup/progress answer while the heavy phases run behind the
+        # StartupGate. The watchdog stays armed until the deferred task
+        # disarms it, so a hang inside Phase A/B still gets its thread dump.
+        app.state.startup_task = asyncio.create_task(_deferred_startup(app))
+    yield
+    # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
+    # May run after a startup that never finished (SIGTERM mid-Phase-A/B), so
+    # every handle is read from app.state with a None default and every
+    # deferred-phase name is guarded.
+    #
+    # FIRST: stop the deferred startup task, bounded like the preload waits
+    # below (#1000 class): cancel() can't stop an executor thread already
+    # inside blocking import work, so give Phase A a real chance to complete
+    # before the interpreter starts tearing down module state under it.
+    _startup_task = getattr(app.state, "startup_task", None)
+    if _startup_task is not None and not _startup_task.done():
+        _startup_task.cancel()
         try:
-            import faulthandler
-            faulthandler.cancel_dump_traceback_later()
+            await asyncio.wait_for(_startup_task, timeout=20.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            pass
         except Exception:
             pass
-    yield
     # Stop accepting remote work early in shutdown: a worker that reconnects
     # to a half-torn-down control plane is worse than one that simply finds it
     # gone and backs off.
@@ -800,18 +994,19 @@ async def lifespan(app: FastAPI):
         await worker_service.stop()
     except Exception:
         logger.exception("Remote worker shutdown failed")
-    # ── Graceful shutdown (SIGTERM from Tauri, Ctrl+C, etc.) ────────────
     logger.info("Shutdown: cleaning up…")
-    # FIRST: flip model_manager into shutdown mode, so a model load that is
-    # in flight (or still queued) on a GPU-pool thread classifies executor
-    # rejections as a benign cancelled-load instead of a crash-shaped
-    # failure, and a not-yet-started load bails before importing torch
-    # (#1174: SIGTERM mid-weight-load → "cannot schedule new futures after
-    # interpreter shutdown" → ERROR traceback + nonzero exit).
-    model_loads_begin_shutdown()
+    # Flip model_manager into shutdown mode, so a model load in flight (or
+    # still queued) on a GPU-pool thread classifies executor rejections as a
+    # benign cancelled-load instead of a crash-shaped failure (#1174). None
+    # when Phase A never completed — nothing armed, nothing to flip.
+    if model_loads_begin_shutdown is not None:
+        model_loads_begin_shutdown()
     # Stop MCP first — signal its task to exit its own anyio context (correct
     # task-affinity), then bound the wait so a wedged manager can't hang exit.
-    mcp_stop.set()
+    mcp_stop = getattr(app.state, "mcp_stop", None)
+    mcp_task = getattr(app.state, "mcp_task", None)
+    if mcp_stop is not None:
+        mcp_stop.set()
     if mcp_task is not None:
         try:
             await asyncio.wait_for(mcp_task, timeout=5.0)
@@ -844,7 +1039,11 @@ async def lifespan(app: FastAPI):
     # complaint. A thread that's still running past 20s was never going to
     # finish in a shutdown-appropriate timeframe regardless.
     await _cancel_and_await_tasks(
-        idle_task, worker_task, preload_task, capture_preload_task, timeout=20.0,
+        getattr(app.state, "idle_task", None),
+        getattr(app.state, "worker_task", None),
+        getattr(app.state, "preload_task", None),
+        getattr(app.state, "capture_preload_task", None),
+        timeout=20.0,
     )
     # Unload the model and free GPU memory
     try:
@@ -1019,9 +1218,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     # sys.path roots, and the frozen build's own layout), which makes two
     # distinct class objects and breaks a bare isinstance. The name check is
     # the durable half — don't "simplify" it away.
-    if isinstance(exc, ModelLoadInterruptedByShutdown) or exc_name == (
-        "ModelLoadInterruptedByShutdown"
-    ):
+    if (
+        ModelLoadInterruptedByShutdown is not None
+        and isinstance(exc, ModelLoadInterruptedByShutdown)
+    ) or exc_name == "ModelLoadInterruptedByShutdown":
         # `.path`, not the full URL — a query string can carry tokens and
         # newlines, and neither belongs in a log line.
         logger.info(
@@ -1083,6 +1283,49 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 _SHELL_PATHS = {"/", "/index.html", "/favicon.ico", "/health"}
+
+# Paths that answer while the deferred startup is still running.
+_STARTUP_EXEMPT = {"/health", "/startup/progress"}
+
+
+class StartupGateMiddleware:
+    """503 everything except /health + /startup/progress until the deferred
+    startup completes. Two jobs: honest not-ready signaling (the [starting]
+    marker keeps the UI from offering "Report" for it, same convention as
+    [shutting_down]), and route-mutation safety — no request can reach the
+    router while _phase_a_finalize is still adding routes, because the ready
+    flag flips only after finalize + Phase B complete.
+
+    Registered FIRST → innermost, so its 503s pass out through Bearer → CORS
+    → BackendMarkerMiddleware and arrive with CORS headers + the
+    x-omnivoice-backend marker. Pure ASGI; permanently inert once ready.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if _startup_progress.is_ready() or scope["type"] not in ("http", "websocket"):
+            return await self.app(scope, receive, send)
+        if scope["type"] == "http" and scope.get("path") in _STARTUP_EXEMPT:
+            return await self.app(scope, receive, send)
+        if scope["type"] == "websocket":
+            await receive()  # consume websocket.connect
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        _step, _label = _startup_progress.current_step()
+        resp = JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    f"[starting] VoiceStudio is still starting "
+                    f"({_label or 'initializing'}). Retry shortly."
+                ),
+                "step": _step,
+            },
+            headers={"Retry-After": "2"},
+        )
+        return await resp(scope, receive, send)
 
 
 class NetworkAccessMiddleware:
@@ -1287,6 +1530,11 @@ _allowed = os.environ.get(
     f"http://localhost:{_ui},http://127.0.0.1:{_ui},tauri://localhost,http://tauri.localhost",
 ).split(",")
 
+# Registered FIRST → innermost: the startup gate holds every request except
+# the two probe paths until the deferred startup completes (and is a no-op
+# forever after).
+app.add_middleware(StartupGateMiddleware)
+
 # Inert unless a PIN is set. CORS is registered after both auth gates below so
 # Starlette places it outside them: browser preflights carry no credentials and
 # must reach CORS before either gate can reject the request.
@@ -1333,21 +1581,27 @@ import mimetypes as _mimetypes
 _mimetypes.add_type("audio/wav",  ".wav")
 _mimetypes.add_type("audio/flac", ".flac")
 
-app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
-app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
-
-# Bundled demo assets — clone reference + pre-rendered output, voice-design
-# preset previews, dictation samples. Read-only, ships with the app, no
-# network. See scripts/build_demos.sh for how the WAVs are generated.
-_DEMO_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets", "samples")
-if os.path.isdir(_DEMO_ASSETS_DIR):
-    app.mount("/demo_audio", StaticFiles(directory=_DEMO_ASSETS_DIR), name="demo_audio")
-
-
 # ── Health check ────────────────────────────────────────────────────────
 # Used by Docker health checks, load balancers, and the Tauri desktop shell.
+# Answers from the moment the socket binds: 503 with the current startup step
+# while the deferred phases run (curl -f / the shell's probes treat that as
+# not-ready, exactly like the connection-refused it replaces), the full body
+# once ready. No torch import pre-ready — it would block 10-20s on the very
+# import whose progress this endpoint exists to report.
 @app.get("/health")
 def health():
+    if not _startup_progress.is_ready():
+        _step, _label = _startup_progress.current_step()
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "starting",
+                "step": _step,
+                "label": _label,
+                "version": APP_VERSION,
+            },
+            headers={"Retry-After": "2"},
+        )
     import torch
 
     device = "cpu"
@@ -1359,103 +1613,30 @@ def health():
     return {"status": "ok", "device": device, "version": APP_VERSION}
 
 
-app.include_router(system.router)
-app.include_router(profiles.router)
-app.include_router(exports.router)
-app.include_router(generation.router)
-app.include_router(dub_core.router)
-app.include_router(dub_generate.router)
-app.include_router(dub_export.router)
-app.include_router(dub_translate.router)
-app.include_router(projects.router)
-app.include_router(glossary.router)
-app.include_router(engines.router)
-app.include_router(tools.router)
-app.include_router(stories.router)
-app.include_router(setup.router)
-app.include_router(gallery.router)
-app.include_router(archetypes.router)
-app.include_router(describe_voice.router)  # issue #317: free-text voice design
-app.include_router(community.router)
-app.include_router(batch.router)
-app.include_router(watermark.router)
-app.include_router(events.router)
-app.include_router(capture.router)
-app.include_router(capture_ws.router)
-app.include_router(dictation.router)
-app.include_router(openai_compat.router)
-app.include_router(tts_stream.router)
-app.include_router(marketplace.router)
-app.include_router(personas.router)
-app.include_router(sonitranslate.router)
-app.include_router(audiobook.router)
-app.include_router(longform_jobs.router)
-app.include_router(pronunciation.router)  # Expressive-TTS Spec 01: pronunciation dictionary
-app.include_router(settings_router.router)  # Phase 1 AUTH-03 endpoints
-app.include_router(media_tools_router.router)  # Settings → Audio tools + wizard media-engine self-heal
-app.include_router(auth_router.router)  # short-lived first-party remote admin sessions
-from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
-from api.routers import workers as workers_router  # noqa: E402
-app.include_router(_mcp_bindings_router.router)  # Wave 2.2 per-agent voice bindings
-app.include_router(workers_router.router)  # Remote GPU workers (opt-in)
+# ── Startup progress ────────────────────────────────────────────────────
+# Always 200, even post-ready — the one endpoint whose job is to say what the
+# backend is doing before it can serve, so "starting at step X" / "ready" /
+# "failed at step X" are distinguishable from "dead" (#1393 class). The shell
+# requires the x-omnivoice-backend marker header (stamped by the outermost
+# middleware) before trusting this body.
+@app.get("/startup/progress", include_in_schema=False)
+def startup_progress_endpoint():
+    return {**_startup_progress.snapshot(), "app_version": APP_VERSION}
 
-# ── Mount the MCP server (Wave 2.2) ───────────────────────────────────────
-# FastMCP's Streamable-HTTP app is sub-mounted at /mcp; its session manager is
-# stashed on app.state for the lifespan above to run. Opt-out via
-# OMNIVOICE_MCP_DISABLE=1; best-effort so a missing mcp package or a build
-# without it never breaks startup.
-if os.environ.get("OMNIVOICE_MCP_DISABLE", "").strip().lower() not in ("1", "true", "yes", "on"):
-    try:
-        from mcp_server import mount_mcp
 
-        mount_mcp(app)
-    except (Exception, SystemExit) as _mcp_err:  # noqa: BLE001
-        # SystemExit included (#1156): sys.exit from the MCP layer is a
-        # BaseException and used to escape `except Exception`, killing the
-        # backend with exit code 1 instead of degrading to "/mcp disabled".
-        logging.getLogger("omnivoice.api").info(
-            "MCP server not mounted (%s); /mcp disabled.", _mcp_err
-        )
+# Router registration, the MCP mount, the /audio|/voice_audio|/demo_audio
+# mounts, and the SPA shell all happen in _phase_a_finalize — immediately
+# below for eager (pytest) runs, on the event loop after the deferred build
+# for server runs.
 
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.exists(frontend_path):
-    # ── Runtime API-base override (Docker / reverse-proxy deployments) ──────
-    # When OMNIVOICE_PUBLIC_API_BASE is set we inject it into index.html as
-    # `window.__OMNIVOICE_API_BASE__`, which the SPA's API resolver reads first.
-    # Unset (the default) → StaticFiles serves index.html untouched: same-origin,
-    # zero overhead, no behavior change. See core/spa_inject.py.
-    from core.spa_inject import is_valid_public_api_base, inject_api_base
-
-    _public_api_base = os.environ.get("OMNIVOICE_PUBLIC_API_BASE", "").strip().rstrip("/")
-    _index_path = os.path.join(frontend_path, "index.html")
-    if _public_api_base and not is_valid_public_api_base(_public_api_base):
-        logging.getLogger("omnivoice.api").warning(
-            "OMNIVOICE_PUBLIC_API_BASE=%r is not a valid http(s) URL; ignoring.",
-            _public_api_base,
-        )
-        _public_api_base = ""
-
-    if _public_api_base and os.path.isfile(_index_path):
-        from fastapi.responses import HTMLResponse
-
-        def _index_with_api_base() -> "HTMLResponse":
-            with open(_index_path, "r", encoding="utf-8") as _fh:
-                return HTMLResponse(inject_api_base(_fh.read(), _public_api_base))
-
-        @app.get("/", include_in_schema=False)
-        def _index_root():
-            return _index_with_api_base()
-
-        @app.get("/index.html", include_in_schema=False)
-        def _index_html():
-            return _index_with_api_base()
-
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-else:
-
-    @app.get("/")
-    def _dev_fallback():
-        return RedirectResponse(url="http://localhost:3901")
+if _EAGER:
+    _phase_a_build()
+    _phase_a_finalize()
+    # Lifespan-less TestClient(app) call sites (~100 of them) expect the
+    # fully-built app with every route live — mark ready at import so the
+    # StartupGate stays out of their way, exactly like today. The lifespan's
+    # eager branch re-runs these as no-ops.
+    _startup_progress.mark_ready()
 
 
 if __name__ == "__main__":
@@ -1490,6 +1671,10 @@ if __name__ == "__main__":
     args, _unknown = parser.parse_known_args()
 
     if args.diagnose:
+        # The checks read the user's restored env (HF token, FFMPEG_PATH) and
+        # the ML stack — both now live in Phase A, which a server run defers
+        # but a one-shot CLI must run up front.
+        _phase_a_build()
         from core.diagnose import run_diagnostics, format_text
 
         _report = run_diagnostics(deep=args.deep)
@@ -1502,7 +1687,11 @@ if __name__ == "__main__":
 
     if args.health_check:
         HEALTH_URL = f"http://127.0.0.1:{_port}/health"
-        TIMEOUT_S = 60
+        # 180, not 60: /health now answers 503 from ~1s after spawn and only
+        # flips 200 once the DEFERRED heavy init (torch import, routers, DB)
+        # completes — the old 60s window measured serving-time only, because
+        # module import used to happen before the poll loop even started.
+        TIMEOUT_S = 180
         INTERVAL_S = 5
 
         def _serve():

@@ -120,6 +120,7 @@ GET /setup/download-stream
 GET /setup/preflight
 GET /setup/recommendations
 GET /setup/status
+GET /startup/progress
 GET /stats/usage
 GET /sysinfo
 GET /system/asr-backends

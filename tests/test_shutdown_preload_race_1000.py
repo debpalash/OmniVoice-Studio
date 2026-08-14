@@ -131,9 +131,16 @@ def test_production_shutdown_wait_is_generous_enough_for_a_cold_import():
 
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                              "backend", "main.py")).read()
+    # Early-bind refactor: the handles moved onto app.state (the shutdown
+    # block may run after a startup that never finished), but the guarded
+    # property is unchanged — the four task handles, one generous bound.
     call = re.search(
-        r"await _cancel_and_await_tasks\(\s*idle_task,\s*worker_task,\s*preload_task,"
-        r"\s*capture_preload_task,\s*timeout=([\d.]+),?\s*\)",
+        r"await _cancel_and_await_tasks\(\s*"
+        r"getattr\(app\.state, \"idle_task\", None\),\s*"
+        r"getattr\(app\.state, \"worker_task\", None\),\s*"
+        r"getattr\(app\.state, \"preload_task\", None\),\s*"
+        r"getattr\(app\.state, \"capture_preload_task\", None\),\s*"
+        r"timeout=([\d.]+),?\s*\)",
         src,
     )
     assert call, "production shutdown call site not found in main.py"

@@ -299,6 +299,12 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         let child = crate::backend::spawn_backend(app, Some(stage_handle));
         track_backend_child(app, child);
         let start = std::time::Instant::now();
+        // Early-bind narration: the backend answers /startup/progress within
+        // ~1s of spawn, long before it is Ready — surface each step change
+        // as a log line so the splash shows "Loading ML runtime (PyTorch)…"
+        // instead of a silent 300s wait. An old backend (no endpoint) yields
+        // None and the wait looks exactly as it did before.
+        let mut last_step = String::new();
         while start.elapsed() < Duration::from_secs(300) {
             if crate::backend::backend_healthy(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
@@ -440,6 +446,14 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
                 log::error!("Backend died early: {}", msg);
                 set_stage(stage_handle, BootstrapStage::Failed { message: msg });
                 return;
+            }
+            if let Some((status, step, label)) =
+                crate::backend::startup_progress(backend_port())
+            {
+                if status == "starting" && !step.is_empty() && step != last_step {
+                    last_step = step;
+                    emit_log(app, "starting_backend", &format!("Startup: {label}"));
+                }
             }
             std::thread::sleep(Duration::from_millis(500));
         }
@@ -642,6 +656,7 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
         // Wait (bounded) for the respawn to become healthy. If it dies again
         // immediately, bail early so the next loop counts it toward the cap.
         let start = Instant::now();
+        let mut last_step = String::new();
         while start.elapsed() < Duration::from_secs(120) {
             if app_is_quitting(app) {
                 return;
@@ -654,6 +669,16 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
             }
             if backend_child_exit(app).is_some() {
                 break;
+            }
+            // Same early-bind narration as the launch poll: name the startup
+            // step in the reconnecting window instead of a silent wait.
+            if let Some((status, step, label)) =
+                crate::backend::startup_progress(backend_port())
+            {
+                if status == "starting" && !step.is_empty() && step != last_step {
+                    last_step = step;
+                    emit_log(app, "starting_backend", &format!("Startup: {label}"));
+                }
             }
             std::thread::sleep(Duration::from_millis(500));
         }

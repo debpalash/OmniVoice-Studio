@@ -6,6 +6,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 `frontend/package.json` is the app-version source of truth; Cargo, Python, and
 the frozen-backend fallback mirror it for their toolchains.
 
+## [Unreleased]
+
+**Highlights**
+
+- The backend now answers within a second of launch and narrates its startup step by step
+
+### Changed
+- The backend binds its port immediately and reports startup progress live — `/health` answers 503-with-step and a new `/startup/progress` endpoint lists every step while PyTorch, API routes, and database migrations load in the background, so "starting at step X" is never mistakable for "dead"; the desktop splash narrates each step (#1550)
+
 ## [0.5.0] — 2026-08-13
 
 **Highlights**

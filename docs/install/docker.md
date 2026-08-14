@@ -214,6 +214,13 @@ Two paths are worth persisting across container restarts:
   The running version is now shown in **Settings → About → Version** (read live
   from the backend), so the web UI no longer displays a dash in Docker.
 - **Checking which version is running:** `docker exec <container> python3 -c "import importlib.metadata; print(importlib.metadata.version('omnivoice'))"`, or hit the `/health` endpoint — it returns `{"status": "ok", "device": ..., "version": "0.3.x"}`. Use the container name listed by `docker compose ps` (or `omnivoice` for the `docker run` examples).
+- **Watching startup:** the port answers within about a second of container
+  start, but heavy initialization (PyTorch, API routes, database migration)
+  continues in the background. During that window `/health` returns **503**
+  with the current step, and `GET /startup/progress` returns the full
+  step-by-step ledger (`status`, current `step`/`label`, per-step states) —
+  useful when a start seems slow and you want to see where it actually is.
+  The Docker `HEALTHCHECK` flips healthy only once `/health` is 200.
 - **"Loopback origin required" errors (and a blank version):** the desktop
   build restricts the `/system/*` and `/api/settings/*` routes to a loopback
   origin, but Docker's NAT makes every request look non-loopback, so the gate

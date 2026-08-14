@@ -100,6 +100,40 @@ pub fn backend_deep_healthy(port: u16) -> bool {
     }
 }
 
+/// Startup progress from the backend's early-bind `/startup/progress`
+/// endpoint: `(status, step, label)`, e.g. `("starting", "ml_imports",
+/// "Loading ML runtime (PyTorch)…")`. `None` when nothing answers, when the
+/// responder lacks the `x-omnivoice-backend` marker header (a foreign
+/// process on our port must not narrate our splash), or on an old backend
+/// without the endpoint — callers fall back to the legacy probes.
+pub fn startup_progress(port: u16) -> Option<(String, String, String)> {
+    let url = format!("http://127.0.0.1:{}/startup/progress", port);
+    let resp = raw_http_get(&url, Duration::from_millis(800)).ok()?;
+    if parse_http_status(&resp) != Some(200) {
+        return None;
+    }
+    let head_end = resp.find("\r\n\r\n").unwrap_or(resp.len());
+    if !resp[..head_end].to_ascii_lowercase().contains("x-omnivoice-backend") {
+        return None;
+    }
+    let body = &resp[resp.find("\r\n\r\n").map(|i| i + 4).unwrap_or(0)..];
+    let status = parse_json_string_field(body, "status")?;
+    let step = parse_json_string_field(body, "step").unwrap_or_default();
+    let label = parse_json_string_field(body, "label").unwrap_or_default();
+    Some((status, step, label))
+}
+
+/// First `"key": "value"` string field in a JSON body — same dependency-free
+/// sniffing style as `parse_app_version`. `None` for absent or non-string
+/// (e.g. `null`) values.
+fn parse_json_string_field(body: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{key}\"");
+    let rest = &body[body.find(&needle)? + needle.len()..];
+    let rest = rest[rest.find(':')? + 1..].trim_start();
+    let rest = rest.strip_prefix('"')?;
+    Some(rest[..rest.find('"')?].to_string())
+}
+
 /// Status code from a raw HTTP response ("HTTP/1.1 200 OK" → 200).
 fn parse_http_status(response: &str) -> Option<u16> {
     let line = response.lines().next()?;
@@ -740,6 +774,55 @@ mod tests {
         assert!(env.iter().all(|(k, _)| k != "OMNIVOICE_INSTALL_CHANNEL"));
         std::env::remove_var("POSTHOG_PROJECT_TOKEN");
         std::env::remove_var("OMNIVOICE_INSTALL_CHANNEL");
+    }
+
+    /// Loopback responder for the /startup/progress probe tests.
+    fn spawn_progress_stub(with_marker: bool, body: &'static str) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let mut buf = [0u8; 512];
+                let _ = stream.read(&mut buf);
+                let marker = if with_marker {
+                    "x-omnivoice-backend: 0.0.0\r\n"
+                } else {
+                    ""
+                };
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\n{marker}Content-Length: {}\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn startup_progress_parses_fields_and_requires_the_marker() {
+        const BODY: &str =
+            r#"{"status": "starting", "step": "ml_imports", "label": "Loading ML runtime (PyTorch)…", "error": null}"#;
+        // Marker present → the tuple the poll loops narrate from.
+        let port = spawn_progress_stub(true, BODY);
+        assert_eq!(
+            startup_progress(port),
+            Some((
+                "starting".into(),
+                "ml_imports".into(),
+                "Loading ML runtime (PyTorch)…".into()
+            ))
+        );
+        // No marker header → a foreign responder must not narrate our splash.
+        let foreign = spawn_progress_stub(false, BODY);
+        assert_eq!(startup_progress(foreign), None);
+        // Ready body with null step/label → status still parses, step empty.
+        let ready = spawn_progress_stub(true, r#"{"status": "ready", "step": null, "label": null}"#);
+        assert_eq!(startup_progress(ready), Some(("ready".into(), String::new(), String::new())));
+        // Nothing listening → None (old backend / dead port fall back).
+        assert_eq!(startup_progress(1), None);
     }
 
     #[test]
