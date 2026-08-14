@@ -648,6 +648,22 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
                     log::info!("Deliberate replace during restart backoff — supervisor yielding");
                     return;
                 }
+                // A completed Retry/Clean&Retry sets the deliberate-kill flag
+                // and then `track_backend_child` CLEARS it — possibly both
+                // between two of these samples, so the flag alone can be
+                // missed. The durable tell: the dead child we observed can
+                // never read as alive again, so a live tracked child here can
+                // only be a replacement someone else spawned. Yield promptly
+                // (not at backoff end) so the retry's own
+                // spawn_backend_and_wait can claim the supervisor slot at
+                // Ready — and so we never free_port() a healthy replacement
+                // out from under the user.
+                if backend_child_exit(app).is_none() {
+                    log::info!(
+                        "A replacement backend was tracked during restart backoff — supervisor yielding"
+                    );
+                    return;
+                }
                 std::thread::sleep(Duration::from_millis(500));
             }
         }
