@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Laporkan bug",
-    "title": "Membuka halaman Masalah GitHub yang telah diisi sebelumnya di browser Anda. Tidak ada yang dikirim sampai Anda mengklik Kirim."
+    "title": "Membuka halaman Masalah GitHub yang telah diisi sebelumnya di browser Anda. Tidak ada yang dikirim sampai Anda mengklik Kirim.",
+    "staleTitle": "Pembaruan tersedia",
+    "staleMessage": "Anda menggunakan VoiceStudio {{current}}, tetapi {{latest}} sudah dirilis — bug ini mungkin sudah diperbaiki di sana. Lihat rilis terbaru sebelum melapor?",
+    "staleView": "Lihat pembaruan",
+    "staleFileAnyway": "Tetap laporkan"
   },
   "app": {
     "loading": "Memuat…",

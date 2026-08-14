@@ -2083,7 +2083,11 @@
   },
   "reportBug": {
     "label": "Informar un error",
-    "title": "Abre una página de Problemas de GitHub precargada en su navegador. No se envía nada hasta que haga clic en Enviar."
+    "title": "Abre una página de Problemas de GitHub precargada en su navegador. No se envía nada hasta que haga clic en Enviar.",
+    "staleTitle": "Actualización disponible",
+    "staleMessage": "Está usando VoiceStudio {{current}}, pero {{latest}} ya está disponible; puede que este error ya esté corregido. ¿Ver la última versión antes de informar?",
+    "staleView": "Ver actualización",
+    "staleFileAnyway": "Informar de todos modos"
   },
   "app": {
     "loading": "Cargando…",

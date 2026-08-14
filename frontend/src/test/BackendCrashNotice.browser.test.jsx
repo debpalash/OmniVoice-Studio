@@ -8,7 +8,7 @@ import BackendCrashNotice from '../components/BackendCrashNotice';
 // fetch level. (The sibling BackendCrashNotice.test.jsx mocks the module —
 // this file proves the whole browser wiring end-to-end.)
 vi.mock('../utils/bugReport', () => ({
-  buildBugReportUrl: vi.fn().mockResolvedValue('https://example.test/issues/new'),
+  openBugReport: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../api/external', () => ({
   openExternal: vi.fn().mockResolvedValue(undefined),

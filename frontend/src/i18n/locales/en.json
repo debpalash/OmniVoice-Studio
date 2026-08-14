@@ -2790,7 +2790,11 @@
   },
   "reportBug": {
     "label": "Report a bug",
-    "title": "Opens a prefilled GitHub Issues page in your browser. Nothing is sent until you click Submit."
+    "title": "Opens a prefilled GitHub Issues page in your browser. Nothing is sent until you click Submit.",
+    "staleTitle": "Update available",
+    "staleMessage": "You're running VoiceStudio {{current}}, but {{latest}} is already out — this bug may be fixed there. See the latest release before filing?",
+    "staleView": "View update",
+    "staleFileAnyway": "File anyway"
   },
   "app": {
     "loading": "Loading…",

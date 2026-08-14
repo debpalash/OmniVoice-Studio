@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button, Dialog } from '../ui';
-import { openExternal } from '../api/external';
-import { buildBugReportUrl } from '../utils/bugReport';
+import { openBugReport } from '../utils/bugReport';
 import { detectHints, isUnrecoverableFailure } from './BootstrapSplash';
 
 /**
@@ -101,12 +100,10 @@ export default function BackendStartFailureNotice() {
                   // buildBugReportUrl scrubs the Error text again and attaches
                   // the environment block, so the report arrives WITH the
                   // evidence and WITHOUT the user's home path.
-                  await openExternal(
-                    await buildBugReportUrl({
-                      title: '[Backend] Backend failed to start',
-                      error: new Error(message),
-                    }),
-                  );
+                  await openBugReport({
+                    title: '[Backend] Backend failed to start',
+                    error: new Error(message),
+                  });
                 } catch (e) {
                   // Never fail silently: the user clicked Report and must be
                   // told it didn't open, plus the fallback that still works

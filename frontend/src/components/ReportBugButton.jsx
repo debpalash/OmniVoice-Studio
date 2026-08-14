@@ -16,8 +16,7 @@
 import { useState } from 'react';
 import { Bug } from 'lucide-react';
 import { Button } from '../ui';
-import { openExternal } from '../api/external';
-import { buildBugReportUrl } from '../utils/bugReport';
+import { openBugReport } from '../utils/bugReport';
 import { useTranslation } from 'react-i18next';
 
 export default function ReportBugButton({ size = 'sm', variant = 'subtle', label, error }) {
@@ -28,7 +27,7 @@ export default function ReportBugButton({ size = 'sm', variant = 'subtle', label
   const handleClick = async () => {
     setBuilding(true);
     try {
-      await openExternal(await buildBugReportUrl({ error }));
+      await openBugReport({ error });
     } finally {
       setBuilding(false);
     }

@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BackendStartFailureNotice from './BackendStartFailureNotice';
-import { buildBugReportUrl } from '../utils/bugReport';
-import { openExternal } from '../api/external';
+import { openBugReport } from '../utils/bugReport';
 import toast from 'react-hot-toast';
 
 // #1177: the shell's `Failed { message }` diagnosis must reach the user AFTER
 // the bootstrap splash is gone — the window in which a start failure used to
 // collapse into the evidence-free "Can't reach the local VoiceStudio backend".
 vi.mock('../utils/bugReport', () => ({
-  buildBugReportUrl: vi.fn().mockResolvedValue('https://example.test/issues/new'),
+  openBugReport: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../api/external', () => ({
   openExternal: vi.fn().mockResolvedValue(undefined),
@@ -70,16 +69,15 @@ describe('BackendStartFailureNotice', () => {
     fireEvent.click(await screen.findByRole('button', { name: /see why/i }));
     fireEvent.click(await screen.findByRole('button', { name: /report/i }));
 
-    await waitFor(() => expect(buildBugReportUrl).toHaveBeenCalled());
+    await waitFor(() => expect(openBugReport).toHaveBeenCalled());
     // The evidence rides along on the report, not just on screen.
-    expect(buildBugReportUrl.mock.calls[0][0].error.message).toContain('ModuleNotFoundError');
-    expect(openExternal).toHaveBeenCalledWith('https://example.test/issues/new');
+    expect(openBugReport.mock.calls[0][0].error.message).toContain('ModuleNotFoundError');
   });
 
   // A Report click that silently does nothing reads as a broken button — the
   // user is left with no idea whether anything was sent.
   it('tells the user when the report cannot be opened', async () => {
-    buildBugReportUrl.mockRejectedValueOnce(new Error('no browser'));
+    openBugReport.mockRejectedValueOnce(new Error('no browser'));
     render(<BackendStartFailureNotice />);
     emit(DIAGNOSIS);
     fireEvent.click(await screen.findByRole('button', { name: /see why/i }));
