@@ -278,6 +278,11 @@ jobs:
       # crash-loop exhaustion / signal 9 / deliberate replace / deferred-
       # startup step). Serial: the scenarios share process-global state
       # (env vars, crash store, kill-intended flag) by design.
+      # Bisect probe for the Windows loader failure (remove with the fix).
+      - name: Cargo test (load probe)
+        working-directory: frontend/src-tauri
+        run: cargo test --test win_load_probe --target ${{ matrix.rust_target }} --message-format=short
+
       - name: Cargo test (backend lifecycle harness)
         working-directory: frontend/src-tauri
         run: cargo test --test backend_lifecycle --target ${{ matrix.rust_target }} --message-format=short -- --test-threads=1
