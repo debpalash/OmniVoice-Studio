@@ -521,15 +521,15 @@ _phase_a_finished = threading.Event()
 def _phase_a_build() -> None:
     """Everything heavy that used to run at module scope, same relative
     order per step. Idempotent. Imports are literal statements so
-    PyInstaller's tracer still sees them (backend.spec unchanged)."""
-    global _phase_a_built, ModelLoadInterruptedByShutdown
-    global model_loads_begin_shutdown, idle_worker, preload_model
-    global model_loads_reset_shutdown
-    if _phase_a_built:
-        return
+    PyInstaller's tracer still sees them (backend.spec unchanged).
+
+    `_phase_a_finished` is set on EVERY exit — including the already-built
+    early return — so a shutdown that observed `_phase_a_started` can never
+    wait on an event nothing will set."""
     _phase_a_started.set()
     try:
-        _phase_a_build_inner()
+        if not _phase_a_built:
+            _phase_a_build_inner()
     finally:
         _phase_a_finished.set()
 
@@ -756,7 +756,7 @@ def _disarm_startup_watchdog() -> None:
         import faulthandler
         faulthandler.cancel_dump_traceback_later()
     except Exception:
-        pass
+        pass  # diagnostics-only: a failed disarm must never affect startup
 
 
 async def _deferred_startup(app: FastAPI) -> None:
@@ -768,7 +768,17 @@ async def _deferred_startup(app: FastAPI) -> None:
     attributes it (#1164)."""
     try:
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _phase_a_build)
+        # Mark the build as started BEFORE submission: an executor callable
+        # can be queued-but-not-yet-running when shutdown samples the flag,
+        # and a missed flag skips the thread join below — the exact teardown
+        # race the join exists to close. shield() pairs with it: a cancel
+        # landing while the callable is still queued must not cancel the
+        # inner future (the callable would then never run and never set
+        # `_phase_a_finished`, stalling shutdown's bounded join for its full
+        # 20s) — shielded, the build always runs to completion and always
+        # sets the event; the cancel still propagates to THIS task.
+        _phase_a_started.set()
+        await asyncio.shield(loop.run_in_executor(None, _phase_a_build))
         _phase_a_finalize()
         await _phase_b(app)
         _disarm_startup_watchdog()
@@ -998,9 +1008,9 @@ async def lifespan(app: FastAPI):
         try:
             await asyncio.wait_for(_startup_task, timeout=5.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):
-            pass
+            pass  # bounded wait — a wedged startup must not hang shutdown
         except Exception:
-            pass
+            pass  # the task's own failure path already logged and exited
     # Cancelling the task can't stop the executor THREAD already inside
     # Phase A's blocking imports — wait (bounded) for the thread itself so
     # interpreter teardown doesn't race a mid-`import torch` (#1000 class).
@@ -1338,8 +1348,7 @@ class StartupGateMiddleware:
             return await self.app(scope, receive, send)
         if scope["type"] == "websocket":
             await receive()  # consume websocket.connect
-            await send({"type": "websocket.close", "code": 1008})
-            return
+            return await send({"type": "websocket.close", "code": 1008})
         _step, _label = _startup_progress.current_step()
         resp = JSONResponse(
             status_code=503,

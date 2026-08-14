@@ -174,6 +174,47 @@ def test_progress_ledger_state_machine():
     assert sp.snapshot()["status"] == "ready"
 
 
+def test_phase_a_thread_join_contract():
+    """Shutdown joins the Phase A executor thread via the started/finished
+    events. Three properties keep that join sound (review finds on #1550):
+    the wrapper sets `finished` on EVERY exit including the already-built
+    early return; `started` is set BEFORE submission so shutdown can't
+    sample it unset while the callable is queued; and the submission is
+    shielded so a cancel can't leave a queued callable that never runs and
+    never sets the event."""
+    sys.path.insert(0, str(BACKEND_DIR))
+    import main
+
+    main._phase_a_started.clear()
+    main._phase_a_finished.clear()
+    try:
+        main._phase_a_build()  # eager test env: already built → early return
+        assert main._phase_a_started.is_set()
+        assert main._phase_a_finished.is_set(), (
+            "the early-return path must still set finished, or a shutdown "
+            "that observed started would wait on an event nothing sets"
+        )
+    finally:
+        main._phase_a_started.set()
+        main._phase_a_finished.set()
+
+    src = (BACKEND_DIR / "main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.AsyncFunctionDef) and n.name == "_deferred_startup"
+    )
+    seg = ast.get_source_segment(src, fn)
+    assert seg.index("_phase_a_started.set()") < seg.index("run_in_executor"), (
+        "started must be set before submission — a queued callable is "
+        "invisible to shutdown otherwise"
+    )
+    assert "asyncio.shield(loop.run_in_executor" in seg, (
+        "the submission must be shielded — a cancelled queued callable "
+        "never runs and never sets _phase_a_finished"
+    )
+
+
 def test_phase_a_preserves_the_963_ordering_invariant():
     """migrate_legacy_translate_prefs must run strictly before the prefs→env
     restore, which must run before the yt-dlp overlay — the move from module
