@@ -44,5 +44,21 @@ fn main() {
     ensure_sidecar_placeholder("uv");
     ensure_sidecar_placeholder("ffmpeg");
     ensure_sidecar_placeholder("ffprobe");
+
+    // Windows test binaries need the Common-Controls v6 manifest that
+    // tauri-build embeds into the app binary but cargo gives tests none of:
+    // without it the loader resolves comctl32 v5 (no TaskDialogIndirect —
+    // imported by tauri's dialog/tray stack) and every integration-test
+    // binary dies at load with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139).
+    // See tests/windows-test.manifest.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into()))
+            .join("tests")
+            .join("windows-test.manifest");
+        println!("cargo:rerun-if-changed={}", manifest.display());
+        println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");
+        println!("cargo:rustc-link-arg-tests=/MANIFESTINPUT:{}", manifest.display());
+    }
+
     tauri_build::build();
 }
