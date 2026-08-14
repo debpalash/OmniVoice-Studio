@@ -476,6 +476,15 @@ static SUPERVISOR_ACTIVE: AtomicBool = AtomicBool::new(false);
 /// moment a fresh child is spawned and tracked (`track_backend_child`).
 static BACKEND_KILL_INTENDED: AtomicBool = AtomicBool::new(false);
 
+/// Bumped every time `track_backend_child` installs a new child. The
+/// supervisor snapshots it when it observes a death; a change during its
+/// backoff pause means ANOTHER flow (Retry / Clean & Retry) spawned and
+/// tracked a replacement — ownership has transferred, whether or not that
+/// replacement is still alive when sampled (the flag and a liveness check
+/// can both be missed inside one 500ms window; the generation cannot).
+static BACKEND_SPAWN_GENERATION: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
 pub fn set_backend_kill_intended(value: bool) {
     BACKEND_KILL_INTENDED.store(value, Ordering::SeqCst);
 }
@@ -516,6 +525,7 @@ fn track_backend_child(app: &tauri::AppHandle, child: Option<std::process::Child
     if let Ok(mut spawned) = state.spawned_at.lock() {
         *spawned = Some(Instant::now());
     }
+    BACKEND_SPAWN_GENERATION.fetch_add(1, Ordering::SeqCst);
     set_backend_kill_intended(false);
 }
 
@@ -582,6 +592,10 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
             Some(exit) => exit,
             None => continue, // still running
         };
+        // Snapshot the spawn generation of the child whose death we just
+        // observed — any bump after this means a Retry flow installed a
+        // replacement and owns recovery from here.
+        let death_generation = BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst);
         // The exit may have raced with a shutdown that killed the child.
         if app_is_quitting(app) {
             return;
@@ -651,14 +665,14 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
                 // A completed Retry/Clean&Retry sets the deliberate-kill flag
                 // and then `track_backend_child` CLEARS it — possibly both
                 // between two of these samples, so the flag alone can be
-                // missed. The durable tell: the dead child we observed can
-                // never read as alive again, so a live tracked child here can
-                // only be a replacement someone else spawned. Yield promptly
-                // (not at backoff end) so the retry's own
-                // spawn_backend_and_wait can claim the supervisor slot at
-                // Ready — and so we never free_port() a healthy replacement
-                // out from under the user.
-                if backend_child_exit(app).is_none() {
+                // missed. The durable tell is the spawn GENERATION: it bumps
+                // when a replacement is tracked and never un-bumps, so it is
+                // observed even if the replacement has itself already exited
+                // by the time we sample. Yield promptly (not at backoff end)
+                // so the retry's own spawn_backend_and_wait can claim the
+                // supervisor slot at Ready — and so we never free_port() a
+                // replacement out from under the flow that owns it.
+                if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != death_generation {
                     log::info!(
                         "A replacement backend was tracked during restart backoff — supervisor yielding"
                     );
