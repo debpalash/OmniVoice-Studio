@@ -53,13 +53,44 @@ def latest_release_date() -> str:
     return data["publishedAt"][:10]
 
 
+_FETCH_LIMIT = 500
+
+
 def fetch_issues(since: str) -> list[dict]:
     out = sh(
         "gh", "issue", "list", "--repo", REPO, "--state", "all",
-        "--search", f"created:>={since}", "--limit", "500",
+        "--search", f"created:>={since}", "--limit", str(_FETCH_LIMIT),
         "--json", "number,title,body,createdAt",
     )
-    return json.loads(out)
+    issues = json.loads(out)
+    # No silent caps: an understated metric is worse than a loud one.
+    if len(issues) >= _FETCH_LIMIT:
+        print(
+            f"WARNING: hit the {_FETCH_LIMIT}-issue fetch cap — results are "
+            "truncated and the metric UNDERSTATES. Narrow --since and merge "
+            "the windows.",
+            file=sys.stderr,
+        )
+    return issues
+
+
+def classify_build(body: str, version: "str | None") -> str:
+    """'current' / 'outdated' / 'unknown' for one issue body.
+
+    With a target version, the Environment Version line is authoritative: a
+    report stamped "current at filing time" during a DIFFERENT version's
+    window must not count toward this version's recurrence. Without one, the
+    reporter's Build-status stamp decides.
+    """
+    ver = VERSION_LINE.search(body)
+    base = ver.group(1).split("-")[0] if ver else None
+    if version and base:
+        return "current" if base == version else "outdated"
+    if OUTDATED.search(body):
+        return "outdated"
+    if CURRENT.search(body):
+        return "current"
+    return "unknown"
 
 
 def main() -> int:
@@ -79,15 +110,7 @@ def main() -> int:
         sub = next((k for k, rx in CRASH_CLASS.items() if rx.search(title)), None)
         if not sub:
             continue
-        if OUTDATED.search(body):
-            build = "outdated"
-        elif CURRENT.search(body):
-            build = "current"
-        elif args.version and (m := VERSION_LINE.search(body)) and m.group(1).split("-")[0] == args.version:
-            # Pre-deflection fallback: the Version line alone places it.
-            build = "current"
-        else:
-            build = "unknown"
+        build = classify_build(body, args.version)
         counts[sub][build] += 1
         matched.append((issue["number"], sub, build, title[:70]))
 
