@@ -588,14 +588,17 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
         if app_is_quitting(app) {
             return;
         }
+        // Snapshot the spawn generation BEFORE observing the exit: sampled
+        // after, a replacement tracked in the gap between `try_wait` and the
+        // load would be baked into the snapshot and the transfer missed
+        // (third-pass review find). Sampled before, any tracking that
+        // happens from here on — even one whose child we are about to see
+        // exit — reads as a generation change and yields.
+        let observed_generation = BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst);
         let exit = match backend_child_exit(app) {
             Some(exit) => exit,
             None => continue, // still running
         };
-        // Snapshot the spawn generation of the child whose death we just
-        // observed — any bump after this means a Retry flow installed a
-        // replacement and owns recovery from here.
-        let death_generation = BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst);
         // The exit may have raced with a shutdown that killed the child.
         if app_is_quitting(app) {
             return;
@@ -672,7 +675,7 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
                 // so the retry's own spawn_backend_and_wait can claim the
                 // supervisor slot at Ready — and so we never free_port() a
                 // replacement out from under the flow that owns it.
-                if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != death_generation {
+                if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != observed_generation {
                     log::info!(
                         "A replacement backend was tracked during restart backoff — supervisor yielding"
                     );
@@ -680,6 +683,13 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
                 }
                 std::thread::sleep(Duration::from_millis(500));
             }
+        }
+        // Last look before touching the port — covers the zero-backoff first
+        // respawn (which never enters the pause loop) and the tail of the
+        // pause itself. After this point we own the respawn.
+        if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != observed_generation {
+            log::info!("A replacement backend was tracked — supervisor yielding to its flow");
+            return;
         }
         // Clear any orphan still holding the port before the respawn. #1223:
         // if it can't be cleared, respawning just reproduces the bind failure
