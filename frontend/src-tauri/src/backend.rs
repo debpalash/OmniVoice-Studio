@@ -100,6 +100,18 @@ pub fn backend_deep_healthy(port: u16) -> bool {
     }
 }
 
+/// Readiness = identity AND capability. The shallow probe proves the
+/// responder is OUR backend; the deep probe proves it can actually serve a
+/// DB-backed route. Declaring Ready on the shallow probe alone announced a
+/// backend whose install/DB was broken underneath as up — the UI looked
+/// alive while every real request 500'd or dead-ended on "can't reach the
+/// backend". Both Ready transitions (startup poll, supervisor respawn wait)
+/// gate on this; the supervisor's DEATH detection stays process-exit-only
+/// (`try_wait`), so a busy-but-alive backend is still never killed.
+pub fn backend_ready(port: u16) -> bool {
+    backend_healthy(port) && backend_deep_healthy(port)
+}
+
 /// Status code from a raw HTTP response ("HTTP/1.1 200 OK" → 200).
 fn parse_http_status(response: &str) -> Option<u16> {
     let line = response.lines().next()?;
@@ -740,6 +752,49 @@ mod tests {
         assert!(env.iter().all(|(k, _)| k != "OMNIVOICE_INSTALL_CHANNEL"));
         std::env::remove_var("POSTHOG_PROJECT_TOKEN");
         std::env::remove_var("OMNIVOICE_INSTALL_CHANNEL");
+    }
+
+    /// Loopback HTTP responder for the probe tests: answers `/system/info`
+    /// with a genuine-looking backend body and `/profiles` with the given
+    /// status — the exact shape of a zombie whose install/DB broke while
+    /// `/system/info` kept answering from memory.
+    fn spawn_probe_stub(profiles_status: u16) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let mut buf = [0u8; 512];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let req = String::from_utf8_lossy(&buf[..n]);
+                let resp = if req.starts_with("GET /system/info") {
+                    "HTTP/1.1 200 OK\r\nContent-Length: 19\r\n\r\n{\"data_dir\": \"/x\"}\n".to_string()
+                } else {
+                    format!("HTTP/1.1 {profiles_status} X\r\nContent-Length: 2\r\n\r\n[]")
+                };
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn ready_requires_the_deep_probe_not_just_identity() {
+        // Regression for the shallow-Ready class: a backend that identifies
+        // itself on /system/info but 500s a DB-backed route must NOT be
+        // announced Ready — that zombie looked alive while every real
+        // request dead-ended on "can't reach the backend".
+        let broken = spawn_probe_stub(500);
+        assert!(backend_healthy(broken), "identity probe should pass");
+        assert!(!backend_deep_healthy(broken), "deep probe must fail on 500");
+        assert!(!backend_ready(broken), "Ready must gate on the deep probe");
+
+        let ok = spawn_probe_stub(200);
+        assert!(backend_ready(ok), "identity + working DB route is Ready");
+
+        // Nothing listening at all: no probe passes.
+        assert!(!backend_ready(1)); // port 1 — never bindable by us
     }
 
     #[test]

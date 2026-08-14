@@ -300,7 +300,7 @@ pub fn spawn_backend_and_wait(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<B
         track_backend_child(app, child);
         let start = std::time::Instant::now();
         while start.elapsed() < Duration::from_secs(300) {
-            if crate::backend::backend_healthy(backend_port()) {
+            if crate::backend::backend_ready(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
                 // #567/#570/#571: once Ready, keep watching the backend child
                 // and respawn it if it dies mid-session, so a crash self-heals
@@ -551,6 +551,20 @@ fn restart_budget_exhausted(times: &mut Vec<Instant>, now: Instant) -> bool {
     times.len() >= MAX_RESTARTS
 }
 
+/// Escalating pause before a respawn, keyed on how many restarts already
+/// happened inside `RESTART_WINDOW`. The FIRST respawn stays immediate (a
+/// one-off crash should self-heal fast); repeat deaths get breathing room so
+/// a tight crash loop doesn't burn the whole 3-in-600s budget in seconds —
+/// back-to-back torch-import storms are exactly what pushes a
+/// memory-pressured machine over the edge again. Pure for unit testing.
+fn restart_backoff_delay(recent_restarts: usize) -> Duration {
+    match recent_restarts {
+        0 => Duration::ZERO,
+        1 => Duration::from_secs(5),
+        _ => Duration::from_secs(15),
+    }
+}
+
 /// After the backend is Ready, watch its process and respawn it on an
 /// unexpected exit. Runs on the (otherwise-returning) bootstrap thread and
 /// stops the instant the app is quitting so it never resurrects the backend
@@ -604,6 +618,10 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
             set_stage(stage_handle, BootstrapStage::Failed { message: msg });
             return;
         }
+        // Backoff BEFORE this restart is recorded: `restart_times` was just
+        // pruned to the window, so its length is the number of recent
+        // respawns already attempted.
+        let backoff = restart_backoff_delay(restart_times.len());
         restart_times.push(Instant::now());
         log::warn!("Backend process exited unexpectedly ({exit_info}) — restarting it (#567)");
         emit_log(app, "starting_backend", "Backend stopped unexpectedly — restarting it automatically");
@@ -611,6 +629,28 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
         // poll has already stopped post-Ready, so the stage alone won't show).
         let _ = app.emit("backend-restarting", exit_info.clone());
         set_stage(stage_handle, BootstrapStage::StartingBackend);
+        // The banner is already up, so the pause reads as "reconnecting", not
+        // as a hang. Chunked so quitting (or a deliberate retry-flow kill,
+        // which owns the respawn) is honored within 500 ms.
+        if !backoff.is_zero() {
+            log::info!(
+                "Backend died {} time(s) in the last {} min — waiting {}s before respawning",
+                restart_times.len(),
+                RESTART_WINDOW.as_secs() / 60,
+                backoff.as_secs()
+            );
+            let waited = Instant::now();
+            while waited.elapsed() < backoff {
+                if app_is_quitting(app) {
+                    return;
+                }
+                if backend_kill_intended() {
+                    log::info!("Deliberate replace during restart backoff — supervisor yielding");
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
+        }
         // Clear any orphan still holding the port before the respawn. #1223:
         // if it can't be cleared, respawning just reproduces the bind failure
         // — stop and say so rather than burning a restart attempt.
@@ -646,7 +686,7 @@ fn supervise_backend(app: &tauri::AppHandle, stage_handle: &Arc<Mutex<BootstrapS
             if app_is_quitting(app) {
                 return;
             }
-            if crate::backend::backend_healthy(backend_port()) {
+            if crate::backend::backend_ready(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
                 let _ = app.emit("backend-restored", ());
                 log::info!("Backend restarted and healthy again");
@@ -2022,6 +2062,22 @@ mod tests {
             "deaths older than the window must be pruned, not counted"
         );
         assert!(aged.is_empty(), "stale timestamps should have been dropped");
+    }
+
+    #[test]
+    fn restart_backoff_escalates_but_first_respawn_is_immediate() {
+        // A one-off crash self-heals with zero added latency; repeat deaths
+        // inside the window get an escalating pause so a tight crash loop
+        // can't burn the whole 3-in-600s budget in seconds.
+        assert_eq!(restart_backoff_delay(0), Duration::ZERO);
+        assert_eq!(restart_backoff_delay(1), Duration::from_secs(5));
+        assert_eq!(restart_backoff_delay(2), Duration::from_secs(15));
+        // Monotonic, and capped rather than unbounded — the budget check is
+        // what ends a hopeless loop, not an ever-growing sleep.
+        assert_eq!(restart_backoff_delay(50), Duration::from_secs(15));
+        for n in 0..10 {
+            assert!(restart_backoff_delay(n) <= restart_backoff_delay(n + 1));
+        }
     }
 
     #[test]
