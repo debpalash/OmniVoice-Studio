@@ -2083,7 +2083,7 @@
   },
   "reportBug": {
     "label": "報告錯誤",
-    "title": "在浏览器中打开预填充的 GitHub 问题页面。在您单击“提交”之前，不会发送任何内容。",
+    "title": "在瀏覽器中開啟預先填寫的 GitHub 問題頁面。在您按一下「提交」之前，不會傳送任何內容。",
     "staleTitle": "有可用更新",
     "staleMessage": "您正在使用 VoiceStudio {{current}}，但 {{latest}} 已經發布——這個錯誤可能已在新版本中修復。回報前先查看最新版本？",
     "staleView": "查看更新",

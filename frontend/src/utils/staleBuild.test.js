@@ -13,12 +13,21 @@ describe('parseVersionTriple', () => {
     expect(parseVersionTriple(raw)).toEqual(expected);
   });
 
-  it.each([['unknown'], [''], [null], [undefined], ['0.5'], ['abc'], ['v.1.2.3']])(
-    'rejects %s',
-    (raw) => {
-      expect(parseVersionTriple(raw)).toBeNull();
-    },
-  );
+  it.each([
+    ['unknown'],
+    [''],
+    [null],
+    [undefined],
+    ['0.5'],
+    ['abc'],
+    ['v.1.2.3'],
+    // Anchored: trailing data that isn't a semver -/+ suffix is rejected,
+    // never silently read as the leading triple.
+    ['1.2.3.4'],
+    ['1.2.3garbage'],
+  ])('rejects %s', (raw) => {
+    expect(parseVersionTriple(raw)).toBeNull();
+  });
 });
 
 describe('isOutdated', () => {

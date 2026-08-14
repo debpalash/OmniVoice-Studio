@@ -13,9 +13,12 @@
  * versioning convention, so previews are never flagged as outdated.
  */
 
-/** Parse `v?X.Y.Z(-suffix)` into [X, Y, Z], or null when unparseable. */
+/** Parse `v?X.Y.Z(-suffix)` into [X, Y, Z], or null when unparseable.
+ * Anchored: a suffix must be a semver-style `-`/`+` continuation, so
+ * `1.2.3.4` and `1.2.3garbage` are rejected rather than silently read as
+ * `1.2.3` and fed into an outdated/current verdict. */
 export function parseVersionTriple(v) {
-  const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(String(v ?? '').trim());
+  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(String(v ?? '').trim());
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
 }
 
