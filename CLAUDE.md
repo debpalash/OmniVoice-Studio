@@ -81,10 +81,6 @@ Direct repo edits are authorized (owner decision, 2026-07-08). The GSD command g
 **Never accept a PR as-is (owner directive, 2026-07-20):** review findings — bot, agent, or human — get FIXED on the PR branch before merge (maintainer commits are fine and credit the contributor in the changelog); do not merge with known issues, do not merge-then-fix, do not leave findings as comments for someone else. Also merge current `main` into stale community branches before judging their CI, so the PR runs today's workflow gates (PR-green under an old workflow ≠ main-green).
 <!-- GSD:workflow-end -->
 
-## Codex attribution
-
-Commits created or drafted with Codex must end with exactly `Co-authored-by: Codex <noreply@openai.com>`. GitHub maps that verified email to the official `@codex` account. Preserve the trailer in PR branches and explicit squash-merge messages; server-side GitHub merges do not run the local commit hook in `.githooks/commit-msg`.
-
 
 
 <!-- GSD:profile-start -->

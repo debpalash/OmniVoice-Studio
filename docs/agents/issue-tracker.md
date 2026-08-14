@@ -39,10 +39,9 @@ These come from `CLAUDE.md` and apply to anything a skill opens or merges here:
   merge-then-fix and don't leave them as comments for someone else.
 - **Gate every merge** on the "Tests (backend + frontend)" check passing and the PR
   being `MERGEABLE`.
-- **Always pass an explicit `--body` to `gh pr merge --squash`.** When Codex
-  contributed, end that body with
-  `Co-authored-by: Codex <noreply@openai.com>`; server-side merges do not run
-  the local attribution hook.
+- **Always pass an explicit `--body` to `gh pr merge --squash`.** Letting it
+  auto-generate injects `Co-authored-by:` trailers, which this repo forbids
+  (see the no-AI-attribution rule).
 - **Check the open-PR queue** before implementing any community-reported fix — a
   contributor may already have submitted one.
 

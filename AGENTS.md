@@ -23,10 +23,6 @@ Binding for every AI agent (Claude, Codex, Cursor, review bots, …). CLAUDE.md 
 4. Gate: "Tests (backend + frontend)" green + MERGEABLE.
 5. After EVERY merge: watch `main`'s own post-merge runs to green (`gh run list --branch main`). Red main = drop everything and fix.
 
-## Codex attribution
-- Commits created or drafted with Codex must end with exactly `Co-authored-by: Codex <noreply@openai.com>` so GitHub links the contribution to `@codex`.
-- Preserve that trailer in PR branches and squash-merge messages. Server-side GitHub merges do not run the repository's local commit hook.
-
 ## Change rules (see CLAUDE.md for full text)
 - Root-cause the class, not the instance; fail-before/pass-after regression test; smallest correct change.
 - Default behavior identical on macOS/Windows/Linux; platform-only features go behind explicit opt-in. Divergent default = P0.
