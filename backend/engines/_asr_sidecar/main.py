@@ -102,11 +102,11 @@ def _get_model():
             from core.device_caps import detect_host_caps
             device = "cuda" if detect_host_caps().family == "cuda" else "cpu"
         except Exception:
-            try:
-                import torch
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-            except Exception:
-                device = "cpu"
+            # Fail SAFE: guessing "cuda" from torch here would bypass a cpu
+            # override and hand CTranslate2 HIP-flavoured cuda on ROCm
+            # (#1529). CPU always works; say why in the sidecar log.
+            print("asr-sidecar: device probe failed — using cpu", file=sys.stderr, flush=True)
+            device = "cpu"
         # Degrade fp16 → int8 rather than crash on GPUs without efficient fp16
         # (older Maxwell/Pascal, GTX 16xx, CTranslate2/cuDNN mismatch) (#551).
         last_err = None

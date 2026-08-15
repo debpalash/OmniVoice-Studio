@@ -318,9 +318,9 @@
     "workers_token_qr_hint": "在另一台機器上：設定 → 系統 → 遠端工作機 → 加入，然後掃描或貼上。",
     "compute_device": "運算裝置",
     "compute_device_title": "運算裝置",
-    "compute_device_desc": "後端在哪個裝置上執行模型。絕大多數情況下選 Auto 即可。",
+    "compute_device_desc": "後端在哪個裝置上執行模型。絕大多數情況下選「自動」即可。",
     "compute_device_env_pinned": "已由環境變數 OMNIVOICE_DEVICE 固定",
-    "compute_device_ignored": "本機未偵測到該裝置——目前實際使用 Auto",
+    "compute_device_ignored": "本機未偵測到該裝置——目前實際使用「自動」",
     "compute_device_restart": "重新啟動應用程式後生效",
     "compute_device_note": "僅列出本機偵測到的裝置。CPU 永遠可用；固定裝置不會憑空生出硬體。",
     "compute_device_auto": "自動（建議）",
@@ -328,7 +328,9 @@
     "device_family_rocm": "AMD GPU (ROCm)",
     "device_family_xpu": "Intel GPU (XPU)",
     "device_family_mps": "Apple GPU (MPS)",
-    "device_family_cpu": "CPU"
+    "device_family_cpu": "CPU",
+    "device_load_failed": "無法載入裝置設定",
+    "perf_save_failed": "無法儲存設定"
   },
   "bootstrap": {
     "title": "VoiceStudio",

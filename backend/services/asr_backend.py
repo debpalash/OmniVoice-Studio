@@ -2506,8 +2506,12 @@ def _ctranslate2_cuda_ok() -> bool:
 
         if detect_host_caps().family != "cuda":
             return False
-    except Exception:  # noqa: BLE001 — the probe never blocks ASR
-        pass
+    except Exception:  # noqa: BLE001 — fail SAFE, not fast
+        # Without a working probe we can't know whether an override or a
+        # ROCm build is in play — guessing "cuda" from torch here is exactly
+        # the #1529 crash. CPU always works.
+        logger.warning("device probe failed — CTranslate2 taking the CPU path", exc_info=True)
+        return False
     return _cuda_reported_available() and not _rocm_torch()
 
 

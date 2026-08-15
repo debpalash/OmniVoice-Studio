@@ -110,21 +110,28 @@ export default function ComputeDevicePanel() {
             <RestartBadge />
           </>
         }
-        subtitle={
-          state?.env_pinned
+        subtitle={(() => {
+          const pinned = state?.env_pinned
             ? t('settings.compute_device_env_pinned', {
                 defaultValue: 'Pinned by the OMNIVOICE_DEVICE environment variable',
               })
-            : state?.override_ignored
-              ? t('settings.compute_device_ignored', {
-                  defaultValue: 'That device was not detected on this machine — Auto is in effect',
-                })
-              : state?.restart_required
-                ? t('settings.compute_device_restart', {
-                    defaultValue: 'Takes effect after the app restarts',
-                  })
-                : undefined
-        }
+            : null;
+          const ignored = state?.override_ignored
+            ? t('settings.compute_device_ignored', {
+                defaultValue: 'That device was not detected on this machine — Auto is in effect',
+              })
+            : null;
+          // An env pin naming absent hardware needs BOTH facts: why the
+          // control is disabled, and that the pin is not actually in effect.
+          if (pinned && ignored) return `${pinned} · ${ignored}`;
+          if (pinned) return pinned;
+          if (ignored) return ignored;
+          return state?.restart_required
+            ? t('settings.compute_device_restart', {
+                defaultValue: 'Takes effect after the app restarts',
+              })
+            : undefined;
+        })()}
         note={t('settings.compute_device_note', {
           defaultValue:
             'Only devices detected on this machine are listed. CPU always works; pinning a device never invents hardware.',

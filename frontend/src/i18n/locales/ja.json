@@ -318,9 +318,9 @@
     "workers_token_qr_hint": "もう一方のマシンで: 設定 → システム → リモートワーカー → 参加 を開き、スキャンするか貼り付けてください。",
     "compute_device": "計算デバイス",
     "compute_device_title": "計算デバイス",
-    "compute_device_desc": "バックエンドがモデルを実行するデバイス。ほとんどの場合は Auto が最適です。",
+    "compute_device_desc": "バックエンドがモデルを実行するデバイス。ほとんどの場合は「自動」が最適です。",
     "compute_device_env_pinned": "環境変数 OMNIVOICE_DEVICE により固定されています",
-    "compute_device_ignored": "そのデバイスはこのマシンで検出されませんでした — Auto が適用されています",
+    "compute_device_ignored": "そのデバイスはこのマシンで検出されませんでした — 「自動」が適用されています",
     "compute_device_restart": "アプリの再起動後に有効になります",
     "compute_device_note": "このマシンで検出されたデバイスのみ表示されます。CPU は常に動作します。デバイスを固定してもハードウェアが増えることはありません。",
     "compute_device_auto": "自動（推奨）",
@@ -328,7 +328,9 @@
     "device_family_rocm": "AMD GPU (ROCm)",
     "device_family_xpu": "Intel GPU (XPU)",
     "device_family_mps": "Apple GPU (MPS)",
-    "device_family_cpu": "CPU"
+    "device_family_cpu": "CPU",
+    "device_load_failed": "デバイス設定を読み込めませんでした",
+    "perf_save_failed": "設定を保存できませんでした"
   },
   "bootstrap": {
     "title": "VoiceStudio",

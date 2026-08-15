@@ -318,9 +318,9 @@
     "workers_token_qr_hint": "บนเครื่องอีกเครื่อง: การตั้งค่า → ระบบ → ผู้ปฏิบัติงานระยะไกล → เข้าร่วม แล้วสแกนหรือวาง",
     "compute_device": "อุปกรณ์ประมวลผล",
     "compute_device_title": "อุปกรณ์ประมวลผล",
-    "compute_device_desc": "แบ็กเอนด์รันโมเดลบนอุปกรณ์ใด Auto เหมาะสำหรับเกือบทุกคน",
+    "compute_device_desc": "แบ็กเอนด์รันโมเดลบนอุปกรณ์ใด อัตโนมัติ เหมาะสำหรับเกือบทุกคน",
     "compute_device_env_pinned": "ถูกกำหนดโดยตัวแปรสภาพแวดล้อม OMNIVOICE_DEVICE",
-    "compute_device_ignored": "ไม่พบอุปกรณ์นั้นบนเครื่องนี้ — ใช้ Auto แทน",
+    "compute_device_ignored": "ไม่พบอุปกรณ์นั้นบนเครื่องนี้ — ใช้ อัตโนมัติ แทน",
     "compute_device_restart": "มีผลหลังจากรีสตาร์ตแอป",
     "compute_device_note": "แสดงเฉพาะอุปกรณ์ที่ตรวจพบบนเครื่องนี้ CPU ใช้ได้เสมอ การกำหนดอุปกรณ์ไม่เคยสร้างฮาร์ดแวร์ที่ไม่มีอยู่",
     "compute_device_auto": "อัตโนมัติ (แนะนำ)",
@@ -328,7 +328,9 @@
     "device_family_rocm": "AMD GPU (ROCm)",
     "device_family_xpu": "Intel GPU (XPU)",
     "device_family_mps": "Apple GPU (MPS)",
-    "device_family_cpu": "CPU"
+    "device_family_cpu": "CPU",
+    "device_load_failed": "โหลดการตั้งค่าอุปกรณ์ไม่สำเร็จ",
+    "perf_save_failed": "บันทึกการตั้งค่าไม่สำเร็จ"
   },
   "bootstrap": {
     "title": "VoiceStudio",

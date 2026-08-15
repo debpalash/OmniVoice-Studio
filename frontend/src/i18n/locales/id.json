@@ -328,7 +328,9 @@
     "device_family_rocm": "AMD GPU (ROCm)",
     "device_family_xpu": "Intel GPU (XPU)",
     "device_family_mps": "Apple GPU (MPS)",
-    "device_family_cpu": "CPU"
+    "device_family_cpu": "CPU",
+    "device_load_failed": "Gagal memuat pengaturan perangkat",
+    "perf_save_failed": "Gagal menyimpan pengaturan"
   },
   "bootstrap": {
     "title": "VoiceStudio",

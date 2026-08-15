@@ -436,6 +436,15 @@ def test_real_cuda_is_untouched_by_the_rocm_branch(monkeypatch):
 
 def test_ctranslate2_never_gets_cuda_on_a_rocm_build(monkeypatch):
     """The crash itself: whisperx's device pick must refuse HIP-flavoured cuda."""
+    from core.device_caps import HostCaps
+
+    # The compute-device override gate consults the probe FIRST; pin it to a
+    # CUDA family so this test keeps exercising the ROCm-specific refusal
+    # (on a cpu-family CI host the gate would short-circuit before it).
+    monkeypatch.setattr(
+        "core.device_caps.detect_host_caps",
+        lambda: HostCaps(family="cuda", available_families=("cuda", "cpu")),
+    )
     monkeypatch.setattr(ab, "_rocm_torch", lambda: True)
     monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
     assert ab._ctranslate2_cuda_ok() is False
@@ -444,3 +453,15 @@ def test_ctranslate2_never_gets_cuda_on_a_rocm_build(monkeypatch):
     monkeypatch.setattr(ab, "_rocm_torch", lambda: False)
     assert ab._ctranslate2_cuda_ok() is True
     assert ab.WhisperXBackend._pick_device() == ("cuda", "float16")
+
+
+def test_ctranslate2_gate_fails_safe_when_the_probe_breaks(monkeypatch):
+    """A broken capability probe must mean CPU, never a torch-derived guess —
+    guessing would bypass a cpu override and re-open #1529 on ROCm."""
+    def _boom():
+        raise RuntimeError("probe exploded")
+
+    monkeypatch.setattr("core.device_caps.detect_host_caps", _boom)
+    monkeypatch.setattr(ab, "_cuda_reported_available", lambda: True)
+    monkeypatch.setattr(ab, "_rocm_torch", lambda: False)
+    assert ab._ctranslate2_cuda_ok() is False

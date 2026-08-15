@@ -328,7 +328,9 @@
     "device_family_rocm": "AMD GPU (ROCm)",
     "device_family_xpu": "Intel GPU (XPU)",
     "device_family_mps": "Apple GPU (MPS)",
-    "device_family_cpu": "CPU"
+    "device_family_cpu": "CPU",
+    "device_load_failed": "Geräteeinstellung konnte nicht geladen werden",
+    "perf_save_failed": "Einstellung konnte nicht gespeichert werden"
   },
   "bootstrap": {
     "title": "VoiceStudio",
