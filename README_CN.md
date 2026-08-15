@@ -54,6 +54,7 @@
   <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Windows-MSI_(x64)-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Windows MSI" /></a>
   <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/badge/Linux-AppImage_(x64)-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="下载 Linux AppImage" /></a>
   <br/>
+  <sub>三个按钮都会打开最新发布页——在资源列表中下载对应你系统的安装包。</sub><br/>
   <sub><b>macOS：</b>首次启动需要一次性批准——右键点击 → <b>打开</b>（macOS 15 上为 系统设置 → 隐私与安全性 → <b>“仍要打开”</b>）。无需终端。<a href="docs/install/macos.md#gatekeeper-quarantine">为什么？</a> · <b>Intel Mac：</b>不支持本地后端（<a href="https://github.com/debpalash/VoiceStudio/issues/889">#889</a>）——<a href="docs/install/macos.md">详情</a>。</sub>
 </div>
 
