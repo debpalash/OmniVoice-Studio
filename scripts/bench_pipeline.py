@@ -147,6 +147,17 @@ def _cuda_vram_peak_gb() -> "float | None":
     return None
 
 
+def _engine_runs_out_of_process(backend) -> bool:
+    try:
+        from services.subprocess_backend import SubprocessBackend
+
+        return isinstance(backend, SubprocessBackend)
+    except Exception:
+        # Detection is best-effort: unknown means assume in-process and let
+        # the counters speak.
+        return False
+
+
 def bench_tts():
     """Synthesis alone — no cloning, no reference. The floor for any dub.
     Warm measurements also report RTF (compute seconds per second of generated
@@ -189,9 +200,16 @@ def bench_tts():
     record("tts", "short line (warm)", secs, rtf_note(secs))
     secs = timed(gen, LONG)
     record("tts", "long line (warm)", secs, rtf_note(secs) or "~2.5x the text")
-    peak = _cuda_vram_peak_gb()
-    if peak is not None:
-        record("tts", "peak VRAM (GB)", peak, "CUDA only — value column is GB")
+    if _engine_runs_out_of_process(b):
+        # Subprocess-isolated engines (IndexTTS2, MOSS, PocketTTS, …) allocate
+        # in their own process — the parent's CUDA counters read ~0, which
+        # would publish a convincing lie. Say n/a instead.
+        print("    peak VRAM: n/a — engine runs in a subprocess, invisible to "
+              "the parent's CUDA counters", flush=True)
+    else:
+        peak = _cuda_vram_peak_gb()
+        if peak is not None:
+            record("tts", "peak VRAM (GB)", peak, "CUDA only — value column is GB")
 
 
 def bench_clone():

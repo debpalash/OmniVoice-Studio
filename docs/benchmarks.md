@@ -23,7 +23,8 @@ The `tts` stage emits the two values this table collects:
   audio, printed next to each warm measurement. RTF < 1 means faster than
   real time. Use the **short line (warm)** RTF for the table.
 - **Peak VRAM** — printed on CUDA only. MPS is unified memory and CPU has
-  no VRAM; leave the column blank for those rows.
+  no VRAM; subprocess-isolated engines allocate outside the harness's view
+  (it prints `n/a` for them). Leave the column blank in all those cases.
 
 ## Results
 
