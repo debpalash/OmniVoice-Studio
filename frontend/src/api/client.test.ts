@@ -253,6 +253,37 @@ describe('apiFetch 401 routing', () => {
     }
     expect(authEvent()).toBeFalsy();
   });
+
+  it('a stale 403 does not clear a session stored during its flight (PR #1569 race)', async () => {
+    // The request goes out with NO credential; while it is in flight the
+    // user completes the key exchange. A late 403 may only invalidate the
+    // credentials the failed request actually carried — wiping the fresh
+    // session would reload a successful login straight back into the gate.
+    globalThis.fetch = vi.fn(() => {
+      sessionStorage.setItem(
+        ADMIN_SESSION_STORAGE_KEY,
+        JSON.stringify({
+          token: `ovs_admin_session_${'N'.repeat(43)}`,
+          expiresAt: Date.now() / 1000 + 3600,
+          apiBase: API,
+        }),
+      );
+      return Promise.resolve({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => JSON.stringify({ detail: 'loopback origin or admin API key required' }),
+      });
+    }) as any;
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/system/info');
+    } catch {
+      /* ApiError expected */
+    }
+    expect(authEvent()).toBeTruthy();
+    expect(sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY)).not.toBeNull();
+  });
 });
 
 describe('apiFetch 404 from a non-VoiceStudio server (#1385)', () => {

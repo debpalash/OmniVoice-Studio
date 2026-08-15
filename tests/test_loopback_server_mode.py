@@ -265,6 +265,7 @@ def test_side_effectful_get_rejects_remote_api_key_outside_server_mode(monkeypat
 
 
 def test_require_admin_desktop_detail_is_plain_loopback(monkeypatch):
+    """Desktop build: no presented key can satisfy the gate."""
     monkeypatch.delenv("OMNIVOICE_SERVER_MODE", raising=False)
     monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")  # a valid key can't help here
 
@@ -278,6 +279,7 @@ def test_require_admin_desktop_detail_is_plain_loopback(monkeypatch):
 
 
 def test_require_admin_server_mode_detail_names_the_key(monkeypatch):
+    """Server mode with an API key configured: the 403 names the key."""
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
 
@@ -288,7 +290,24 @@ def test_require_admin_server_mode_detail_names_the_key(monkeypatch):
     assert exc.value.detail == "loopback origin or admin API key required"
 
 
+def test_require_admin_pin_only_server_mode_detail_is_plain_loopback(monkeypatch):
+    """Server mode with ONLY a share PIN (Greptile P1, PR #1569): the PIN
+    closes read-only bootstrap but no API key exists to present, so naming
+    the key would send the browser to a login form that can never succeed.
+    Only loopback can use admin here — the plain detail says so, and the
+    SPA leaves it a plain error instead of gating the whole UI."""
+    monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_API_KEY", raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        require_admin(_req_full("172.17.0.1", pin="424242"))  # PIN ≠ admin credential
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "loopback origin required"
+
+
 def test_require_admin_action_desktop_detail_is_plain_loopback(monkeypatch):
+    """Desktop build, side-effectful GET: plain loopback detail."""
     monkeypatch.delenv("OMNIVOICE_SERVER_MODE", raising=False)
     monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
 
@@ -306,6 +325,7 @@ def test_require_admin_action_desktop_detail_is_plain_loopback(monkeypatch):
 
 
 def test_require_admin_action_server_mode_detail_names_the_key(monkeypatch):
+    """Server mode + key configured, side-effectful GET: names the key."""
     monkeypatch.setenv("OMNIVOICE_SERVER_MODE", "1")
     monkeypatch.setenv("OMNIVOICE_API_KEY", "s3cret")
 

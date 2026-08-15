@@ -38,6 +38,7 @@ def _key_named_details() -> set[str]:
 
 
 def test_key_named_details_match_frontend_sniff():
+    """Every backend literal naming the admin key must contain the SPA matcher."""
     details = _key_named_details()
     assert details, (
         "no 'admin API key' detail literal left in dependencies.py — moved or "

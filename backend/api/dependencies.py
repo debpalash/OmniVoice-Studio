@@ -164,17 +164,19 @@ def _admin_gate_403() -> None:
     literal contract is locked by ``tests/test_auth_gate_detail_lockstep.py``),
     so the wording must not name a key where presenting one cannot help.
 
-    Server mode accepts the admin API key, so the detail names it. Desktop mode
-    rejects every non-loopback client regardless of credentials (the credential
-    checks in the callers only run under server mode), so it keeps the plain
-    loopback detail — naming the key there would trap a desktop LAN-share
-    guest in a login form that can never succeed (#1213, #1525).
+    The detail names the key only when the gate would accept one: server mode
+    WITH an API key configured. Every other rejection — desktop mode (the
+    credential checks in the callers only run under server mode) and a
+    server-mode deployment with only a share PIN or nothing configured — keeps
+    the plain loopback detail, because only loopback can use admin there.
+    Naming the key in those cases would trap a LAN-share guest in a login
+    form that can never succeed (#1213, #1525; PR #1569 review).
     """
     raise HTTPException(
         status_code=403,
         detail=(
             "loopback origin or admin API key required"
-            if _server_mode()
+            if _server_mode() and remote_api_key()
             else "loopback origin required"
         ),
     )

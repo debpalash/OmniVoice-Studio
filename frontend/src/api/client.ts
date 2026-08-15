@@ -547,7 +547,13 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
         // below already yields 'apikey' for every admin-gate 403.)
         const mode =
           typeof detail === 'string' && detail.toLowerCase().includes('api key') ? 'apikey' : 'pin';
-        if (mode === 'apikey') clearAdminSession();
+        // A failed response may only invalidate the credentials it actually
+        // carried (`session` is captured at send time). Clearing blindly let
+        // a stale 403 that landed after a key exchange wipe the fresh
+        // session, reloading a successful login straight back into the gate.
+        if (mode === 'apikey' && session && getAdminSession(API)?.token === session.token) {
+          clearAdminSession();
+        }
         window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
       }
       // Structured details (e.g. the typed asr_model_missing 409) carry a
