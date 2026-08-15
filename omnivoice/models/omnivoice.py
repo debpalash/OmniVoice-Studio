@@ -91,11 +91,59 @@ class OmniVoiceModelAssetError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
+_VOICE_CLONE_PROMPT_FORMAT_VERSION = 1
+
+
 @dataclass
 class VoiceClonePrompt:
     ref_audio_tokens: torch.Tensor  # (C, T)
     ref_text: str
     ref_rms: float
+
+    def save(self, path: str) -> None:
+        """Save this prompt to ``path`` for reuse in a later session.
+
+        The file stores a plain dict with the audio tokens moved to CPU, so
+        it can be loaded with ``torch.load(weights_only=True)`` (the default
+        since torch 2.6) and is portable across devices.
+
+        Args:
+            path: Destination file path (e.g. ``"my_voice.pt"``).
+        """
+        torch.save(
+            {
+                "format_version": _VOICE_CLONE_PROMPT_FORMAT_VERSION,
+                "ref_audio_tokens": self.ref_audio_tokens.detach().cpu(),
+                "ref_text": self.ref_text,
+                "ref_rms": float(self.ref_rms),
+            },
+            path,
+        )
+
+    @classmethod
+    def load(cls, path: str, map_location: str = "cpu") -> "VoiceClonePrompt":
+        """Load a prompt saved with :meth:`save`.
+
+        The returned prompt can be passed directly to
+        :meth:`OmniVoice.generate`; the audio tokens are moved to the model
+        device automatically during generation, so no manual ``.to(device)``
+        is needed.
+
+        Args:
+            path: File path previously written by :meth:`save`.
+            map_location: Device to load the audio tokens onto.
+        Returns:
+            The restored :class:`VoiceClonePrompt`.
+        """
+        data = torch.load(path, map_location=map_location, weights_only=True)
+        version = data.get("format_version")
+        if version != _VOICE_CLONE_PROMPT_FORMAT_VERSION:
+            raise ValueError(f"Unsupported VoiceClonePrompt format version: {version}")
+        return cls(
+            ref_audio_tokens=data["ref_audio_tokens"],
+            ref_text=data["ref_text"],
+            ref_rms=data["ref_rms"],
+        )
 
 
 @dataclass

@@ -412,6 +412,91 @@ _PROMPT_CACHE_MAX = 8
 _prompt_cache: "OrderedDict[tuple, object]" = OrderedDict()
 _prompt_cache_lock = threading.Lock()
 
+# Disk layer under the in-memory LRU (upstream k2-fsa VoiceClonePrompt.save/
+# load format). The in-memory cache dies with the process, so the first
+# generation of every session re-encodes each voice (~0.4 s + an ASR pass when
+# ref_text is missing). Encoded prompts are tiny (a (8, T) int token tensor +
+# transcript), so we persist them and reload across restarts. Keyed by the
+# same tuple as the memory cache — the ref file's mtime is inside the key, so
+# an edited reference never matches a stale file; stale files age out via the
+# mtime prune. Best-effort like the memory cache: any failure means "no disk
+# hit / no disk write", never a failed generation. OMNIVOICE_PROMPT_DISK_CACHE=0
+# disables the layer entirely.
+_PROMPT_DISK_CACHE_MAX = 32
+
+
+def _prompt_disk_dir():
+    """Return the prompt-cache directory (created on first use), or None when
+    the layer is disabled or the directory can't be created."""
+    if os.environ.get("OMNIVOICE_PROMPT_DISK_CACHE", "1") == "0":
+        return None
+    try:
+        from core.config import DATA_DIR
+
+        path = os.path.join(str(DATA_DIR), "prompt_cache")
+        os.makedirs(path, exist_ok=True)
+        return path
+    except Exception as e:  # noqa: BLE001 — cache layer must never break synthesis
+        logger.debug("prompt disk cache unavailable: %s", e)
+        return None
+
+
+def _prompt_disk_path(cache_dir: str, key: tuple) -> str:
+    import hashlib
+
+    digest = hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:32]
+    return os.path.join(cache_dir, f"{digest}.pt")
+
+
+def _prompt_disk_load(key: tuple):
+    """Load a persisted prompt for ``key``, or None. Never raises."""
+    cache_dir = _prompt_disk_dir()
+    if cache_dir is None:
+        return None
+    path = _prompt_disk_path(cache_dir, key)
+    if not os.path.exists(path):
+        return None
+    try:
+        from omnivoice.models.omnivoice import VoiceClonePrompt
+
+        prompt = VoiceClonePrompt.load(path)
+        # Freshen so the LRU prune (by mtime) keeps actively used voices.
+        os.utime(path, None)
+        return prompt
+    except Exception as e:  # noqa: BLE001
+        logger.warning("failed to load cached voice prompt %s: %s", path, e)
+        try:
+            os.remove(path)  # corrupt/incompatible file — don't retry it forever
+        except OSError:
+            pass
+        return None
+
+
+def _prompt_disk_save(key: tuple, prompt) -> None:
+    """Persist ``prompt`` under ``key`` and prune old entries. Never raises."""
+    cache_dir = _prompt_disk_dir()
+    if cache_dir is None:
+        return
+    path = _prompt_disk_path(cache_dir, key)
+    try:
+        tmp = f"{path}.tmp.{os.getpid()}"
+        prompt.save(tmp)
+        os.replace(tmp, path)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("failed to persist voice prompt to %s: %s", path, e)
+        return
+    try:
+        entries = [
+            os.path.join(cache_dir, f)
+            for f in os.listdir(cache_dir)
+            if f.endswith(".pt")
+        ]
+        entries.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        for old in entries[_PROMPT_DISK_CACHE_MAX:]:
+            os.remove(old)
+    except OSError as e:
+        logger.debug("prompt disk cache prune skipped: %s", e)
+
 
 def _clone_prompt_key(ref_audio: str, ref_text, preprocess_prompt: bool = True):
     try:
@@ -450,15 +535,24 @@ def _get_clone_prompt(
         if hit is not None:
             _prompt_cache.move_to_end(key)
             return hit
-    try:
-        # Encode outside the lock (slow). Mirrors exactly what generate() would
-        # do inline for this ref (omnivoice.py:964-978), so output is identical.
-        prompt = model.create_voice_clone_prompt(
-            ref_audio, ref_text=ref_text, preprocess_prompt=preprocess_prompt
-        )
-    except Exception as e:  # noqa: BLE001 — fall back, never break synthesis
-        logger.warning("voice-clone prompt precompute failed; using inline ref: %s", e)
-        return None
+    # Memory miss → disk (survives restarts). A disk hit skips the encode AND
+    # the ASR transcription pass a ref_text-less reference would trigger.
+    prompt = _prompt_disk_load(key)
+    if prompt is None:
+        try:
+            # Encode outside the lock (slow). Mirrors exactly what generate()
+            # would do inline for this ref (omnivoice.py:964-978), so output is
+            # identical.
+            prompt = model.create_voice_clone_prompt(
+                ref_audio, ref_text=ref_text, preprocess_prompt=preprocess_prompt
+            )
+        except Exception as e:  # noqa: BLE001 — fall back, never break synthesis
+            logger.warning(
+                "voice-clone prompt precompute failed; using inline ref: %s", e
+            )
+            return None
+        if store:
+            _prompt_disk_save(key, prompt)
     if not store:
         return prompt
     with _prompt_cache_lock:

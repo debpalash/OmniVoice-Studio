@@ -50,6 +50,7 @@ _ALLOWED_FILES = {
     "README_CN.md",                               # Chinese README (a translation)
     "docs/data_preparation.md",                   # multilingual example payloads
     "docs/voice-design.md",                       # EN/CJK attribute mapping table
+    "docs/engines/omnivoice.md",                  # pinyin pronunciation-control example (functional CJK)
     "docs/superpowers/specs/2026-05-31-voice-gallery-design.md",  # Chinese-dialect taxonomy reference table
     "examples/README.md",                         # multilingual example payloads
     # Text-processing (CJK punctuation inside sentence/clause-splitting regexes)

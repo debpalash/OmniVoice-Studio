@@ -57,6 +57,84 @@ def _force_compile_requested() -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+# ── FlashInfer opt-in (upstream k2-fsa port) ────────────────────────────────
+# Explicit power-user opt-in, CUDA-only: OMNIVOICE_FLASHINFER=1 patches the
+# OmniVoice model with flashinfer packed attention (~2x per upstream's
+# benchmarks); =graph additionally captures CUDA graphs (best at batch=1).
+# Off by default — `flashinfer` is not a shipped dependency, and an
+# optimization must never be a point of failure. Session-sticky failure
+# latch mirrors torch.compile's (#278).
+_FLASHINFER_ENV = "OMNIVOICE_FLASHINFER"
+_flashinfer_runtime_failure: Optional[str] = None
+
+
+def flashinfer_mode() -> str:
+    """The user's ``OMNIVOICE_FLASHINFER`` request: 'off' | 'on' | 'graph'.
+
+    Unknown values normalize to 'off' with a log line naming the env var, so
+    a typo degrades to the default path instead of half-applying.
+    """
+    value = os.environ.get(_FLASHINFER_ENV, "").strip().lower()
+    if value in {"", "0", "false", "no", "off"}:
+        return "off"
+    if value in {"1", "true", "yes", "on"}:
+        return "on"
+    if value == "graph":
+        return "graph"
+    logger.warning(
+        "%s=%r not recognized (valid: 0, 1, graph) — FlashInfer stays off.",
+        _FLASHINFER_ENV, value,
+    )
+    return "off"
+
+
+def should_flashinfer(device: str) -> str:
+    """Resolve the FlashInfer request against this host: 'off' | 'on' | 'graph'.
+
+    Requires all of: the ``OMNIVOICE_FLASHINFER`` opt-in, device == "cuda"
+    (flashinfer is CUDA-only), the ``flashinfer`` package importable, and no
+    earlier runtime failure this session. Every refusal is logged with the
+    reason and the knob's name — the user asked for it, so silence would read
+    as "the setting doesn't work".
+    """
+    mode = flashinfer_mode()
+    if mode == "off":
+        return "off"
+    if device != "cuda":
+        logger.warning(
+            "%s requested but the compute device is %r — FlashInfer is "
+            "CUDA-only, continuing without it.", _FLASHINFER_ENV, device,
+        )
+        return "off"
+    if importlib.util.find_spec("flashinfer") is None:
+        logger.warning(
+            "%s requested but the `flashinfer` package is not installed — "
+            "continuing without it. Install with: uv pip install "
+            "flashinfer-python flashinfer-jit-cache "
+            "--extra-index-url https://flashinfer.ai/whl/cu128/ "
+            "(pick the index matching your CUDA build).", _FLASHINFER_ENV,
+        )
+        return "off"
+    if _flashinfer_runtime_failure is not None:
+        logger.info(
+            "FlashInfer skipped: failed earlier this session (%s) — using the "
+            "standard path.", _flashinfer_runtime_failure,
+        )
+        return "off"
+    return mode
+
+
+def mark_flashinfer_runtime_failure(reason: str) -> None:
+    """Latch a FlashInfer apply/runtime failure for the rest of the process,
+    same contract as ``mark_compile_runtime_failure``."""
+    global _flashinfer_runtime_failure
+    _flashinfer_runtime_failure = reason or "unknown FlashInfer runtime failure"
+    logger.warning(
+        "FlashInfer disabled for this session after a runtime failure: %s",
+        _flashinfer_runtime_failure,
+    )
+
+
 def _cuda_arch_supported_for_compile() -> "tuple[bool, str]":
     """Check the GPU's architecture against this torch build's arch list.
 
