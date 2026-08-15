@@ -374,6 +374,33 @@ class HostCaps:
     probe_ok: bool = True
     """``False`` only when torch could not be imported (degraded CPU-only)."""
 
+    requested_family: str = "auto"
+    """The user's compute-device override as requested — ``"auto"`` when none.
+    ``family`` reflects what was actually honored: an override that names a
+    family this host doesn't have is noted and ignored, never obeyed blindly."""
+
+
+#: Every value the compute-device override accepts. "auto" = today's
+#: priority pick; "cpu" is always honorable (invariant: cpu is always
+#: available); accelerator names are honored only when detected.
+DEVICE_OVERRIDE_CHOICES: tuple[str, ...] = ("auto", "cuda", "rocm", "xpu", "mps", "cpu")
+
+
+def requested_device_override() -> str:
+    """The user's compute-device pick: ``OMNIVOICE_DEVICE`` env > the Settings
+    choice (``compute_device`` in prefs.json) > ``"auto"``. Env wins so
+    power-users can pin a device without the UI silently undoing it (same
+    resolution order as engine selection, #981). Unknown values normalize to
+    ``"auto"`` — the probe must never raise."""
+    try:
+        from core import prefs
+
+        raw = prefs.resolve("compute_device", env="OMNIVOICE_DEVICE", default="auto")
+    except Exception:
+        raw = os.environ.get("OMNIVOICE_DEVICE", "auto")
+    val = str(raw or "auto").strip().lower()
+    return val if val in DEVICE_OVERRIDE_CHOICES else "auto"
+
 
 def _probe() -> HostCaps:
     """Run the probe once. Enumerates every failure branch from the spec's
@@ -386,6 +413,7 @@ def _probe() -> HostCaps:
             available_families=("cpu",),
             notes=("torch not importable; treating host as CPU-only",),
             probe_ok=False,
+            requested_family=requested_device_override(),
         )
 
     notes: list[str] = []
@@ -507,6 +535,26 @@ def _probe() -> HostCaps:
     # available_families: every detected accelerator + cpu, deduped, cpu last.
     available: tuple[DeviceFamily, ...] = tuple(dict.fromkeys([*detected, "cpu"]))
 
+    # User override (Settings → Performance, or OMNIVOICE_DEVICE): honored
+    # only when the named family actually exists on this host — an override
+    # can steer, it cannot invent hardware. Applied here, at the single
+    # choke point, so routing, model loads (get_best_device delegates its
+    # family decision here), and every badge inherit it for free.
+    requested = requested_device_override()
+    if requested != "auto":
+        if requested in available:
+            if requested != family:
+                notes.append(
+                    f"compute device pinned to '{requested}' by user override "
+                    f"(auto would pick '{family}')"
+                )
+            family = requested  # type: ignore[assignment]
+        else:
+            notes.append(
+                f"requested compute device '{requested}' is not available on "
+                f"this host (have: {', '.join(available)}) — using '{family}'"
+            )
+
     return HostCaps(
         family=family,
         available_families=available,
@@ -515,6 +563,7 @@ def _probe() -> HostCaps:
         driver=driver,
         notes=tuple(notes),
         probe_ok=True,
+        requested_family=requested,
     )
 
 

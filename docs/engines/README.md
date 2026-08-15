@@ -5,6 +5,10 @@ quirks. Select engines in **Model Catalogue → Engines** (or quick-switch with
 <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd>), or pin one with
 `OMNIVOICE_TTS_BACKEND` / `OMNIVOICE_ASR_BACKEND`.
 
+The compute device (CUDA/ROCm/MPS/CPU) is auto-detected; pin it under
+**Settings → Performance & Device** (or `OMNIVOICE_DEVICE`) if auto-detect
+picks wrong — see [performance](../performance.md).
+
 Measured speed/VRAM numbers live in [benchmarks](../benchmarks.md); what each
 engine can do expressively in [expressive-speech](../expressive-speech.md);
 sidecar disk footprints in [disk-usage](disk-usage.md); the bar a new engine

@@ -133,6 +133,76 @@ def set_torch_compile_disabled(body: _TorchCompileBody):
     return _torch_compile_state()
 
 
+# ── Compute-device override (Settings → Performance) ──────────────────────
+
+
+class _ComputeDeviceBody(BaseModel):
+    value: str = Field(..., description="auto | cuda | rocm | xpu | mps | cpu")
+
+
+def _compute_device_state() -> dict:
+    """Everything the Performance panel needs to render the device control:
+    the resolved pick (env > prefs > auto), what this process actually applied
+    at probe time (differs after a change until restart — caps are immutable
+    per process), what auto would pick, and which families exist here."""
+    from core import device_caps
+
+    caps = device_caps.detect_host_caps()
+    env_pin = (os.environ.get("OMNIVOICE_DEVICE") or "").strip().lower()
+    auto_family = next(
+        (f for f in ("cuda", "rocm", "xpu", "mps") if f in caps.available_families),
+        "cpu",
+    )
+    value = device_caps.requested_device_override()
+    return {
+        "value": value,
+        "applied": caps.requested_family,
+        "restart_required": value != caps.requested_family,
+        "effective_family": caps.family,
+        "auto_family": auto_family,
+        "available_families": list(caps.available_families),
+        "env_pinned": env_pin in device_caps.DEVICE_OVERRIDE_CHOICES and env_pin != "",
+        "choices": list(device_caps.DEVICE_OVERRIDE_CHOICES),
+    }
+
+
+@router.get("/compute-device")
+def get_compute_device():
+    """Current compute-device override state (Settings → Performance)."""
+    return _compute_device_state()
+
+
+@router.put("/compute-device")
+def set_compute_device(body: _ComputeDeviceBody):
+    """Persist the compute-device pick. Applied by the capability probe at
+    the next backend start (host caps are immutable per process — same
+    restart contract as the rest of the Performance tab). ``OMNIVOICE_DEVICE``
+    always wins over this pick; the UI shows the pin instead of pretending."""
+    from core import device_caps, prefs
+
+    value = (body.value or "").strip().lower()
+    if value not in device_caps.DEVICE_OVERRIDE_CHOICES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown device '{value}'. Valid: {', '.join(device_caps.DEVICE_OVERRIDE_CHOICES)}",
+        )
+    caps = device_caps.detect_host_caps()
+    if value not in ("auto", "cpu") and value not in caps.available_families:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"'{value}' is not available on this host "
+                f"(have: {', '.join(caps.available_families)})"
+            ),
+        )
+    try:
+        prefs.set_("compute_device", value)
+    except Exception:
+        logger.exception("set_compute_device failed")
+        raise HTTPException(status_code=500, detail="Failed to persist setting")
+    return _compute_device_state()
+
+
 # ── Generation-history retention (Studio takes rail) ──────────────────────
 
 

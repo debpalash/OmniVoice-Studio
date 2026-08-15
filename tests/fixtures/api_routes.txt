@@ -26,6 +26,7 @@ GET /api/mcp/bindings
 GET /api/settings/analytics
 GET /api/settings/asr-openai-compat
 GET /api/settings/changelog
+GET /api/settings/compute-device
 GET /api/settings/db-backup
 GET /api/settings/dictation-refinement
 GET /api/settings/hf-mirror
@@ -269,6 +270,7 @@ POST /workers/{worker_id}/resume
 PUT /api/mcp/bindings
 PUT /api/settings/analytics
 PUT /api/settings/asr-openai-compat
+PUT /api/settings/compute-device
 PUT /api/settings/dictation-refinement
 PUT /api/settings/hf-mirror
 PUT /api/settings/history-retention

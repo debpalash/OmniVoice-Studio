@@ -18,6 +18,7 @@ import { Badge } from '../../ui';
 import { SettingsSection } from './primitives';
 import Row from './Row';
 import PerformancePanel from './PerformancePanel';
+import ComputeDevicePanel from './ComputeDevicePanel';
 
 export default function PerformanceDeviceTab() {
   const { t } = useTranslation();
@@ -28,6 +29,8 @@ export default function PerformanceDeviceTab() {
   return (
     <>
       <PerformancePanel />
+
+      <ComputeDevicePanel />
 
       <SettingsSection
         icon={Gauge}
