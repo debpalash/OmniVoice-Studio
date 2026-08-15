@@ -170,14 +170,13 @@ def bench_tts():
     _cuda_vram_tracking_start()
     b = asyncio.run(resolve_generation_backend(require_cloning=False))
     # Adapter engines host several very different models behind one backend
-    # id — name the model too, or rows are unattributable. mlx-audio stores
-    # a repo id (`_model_id`); sherpa-onnx stores a model directory
-    # (`_model_dir`), whose basename is the model's name.
-    model_id = getattr(b, "_model_id", None)
-    if not model_id:
-        model_dir = (getattr(b, "_model_dir", "") or "").strip()
-        if model_dir:
-            model_id = os.path.basename(os.path.normpath(model_dir))
+    # id — name the model too, or rows are unattributable. The backends
+    # report it themselves (TTSBackend.model_identity), so this never needs
+    # per-engine attribute knowledge again.
+    try:
+        model_id = b.model_identity()
+    except Exception:
+        model_id = None
     print(
         f"    engine: {active_backend_id()}"
         + (f" [{model_id}]" if model_id else "")

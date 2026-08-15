@@ -308,6 +308,15 @@ class TTSBackend(ABC):
     #: module-purge reason as `_is_subprocess_isolated`.
     runs_out_of_process: bool = False
 
+    def model_identity(self) -> Optional[str]:
+        """Which concrete model this backend would run, for adapter engines
+        that host several very different models behind one backend id
+        (mlx-audio, sherpa-onnx, cosyvoice). None means the engine id
+        already names the model. Profilers and diagnostics use this to
+        label results — without it, Kokoro-under-mlx and Dia-under-mlx
+        rows are indistinguishable."""
+        return None
+
     @abstractmethod
     def generate(
         self,
@@ -1392,6 +1401,9 @@ class MLXAudioBackend(TTSBackend):
     def sample_rate(self) -> int:
         return self._sr
 
+    def model_identity(self) -> Optional[str]:
+        return self._model_id
+
     @property
     def supported_languages(self) -> list[str]:
         # Per-model; Kokoro supports 8, Qwen3 ~4, Kugel 24. Return "multi"
@@ -1579,6 +1591,18 @@ class CosyVoiceBackend(TTSBackend):
     def supported_languages(self) -> list[str]:
         return ["zh", "en", "ja", "ko", "yue", "de", "es", "fr", "it", "ru"]
 
+    @staticmethod
+    def _resolved_model_dir() -> str:
+        return os.environ.get(
+            "OMNIVOICE_COSYVOICE_MODEL",
+            "pretrained_models/Fun-CosyVoice3-0.5B",
+        )
+
+    def model_identity(self) -> Optional[str]:
+        # v1/v2/v3 all live behind the one "cosyvoice" id — the directory
+        # basename is the only thing that tells the models apart.
+        return os.path.basename(os.path.normpath(self._resolved_model_dir()))
+
     def _ensure_loaded(self):
         if self._model is not None:
             return
@@ -1586,10 +1610,7 @@ class CosyVoiceBackend(TTSBackend):
         if not ok:
             raise RuntimeError(f"CosyVoice unavailable: {msg}")
         from cosyvoice.cli.cosyvoice import AutoModel  # type: ignore[import-not-found]
-        model_dir = os.environ.get(
-            "OMNIVOICE_COSYVOICE_MODEL",
-            "pretrained_models/Fun-CosyVoice3-0.5B",
-        )
+        model_dir = self._resolved_model_dir()
         logger.info("Loading CosyVoice from %s", model_dir)
         self._model = AutoModel(model_dir=model_dir)
 
@@ -1821,6 +1842,10 @@ class SherpaOnnxBackend(TTSBackend):
     def __init__(self):
         self._tts = None
         self._model_dir = os.environ.get("OMNIVOICE_SHERPA_MODEL", "")
+
+    def model_identity(self) -> Optional[str]:
+        model_dir = (self._model_dir or "").strip()
+        return os.path.basename(os.path.normpath(model_dir)) if model_dir else None
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:
