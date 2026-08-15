@@ -353,6 +353,9 @@ def _make_backend_class():
         display_name = "OmniVoice (GGUF, hardware-adaptive)"
         gpu_compat = ("cuda", "mps", "cpu")
         supports_voice_design = False
+        # Every generate() spawns the external binary — allocations live in
+        # that process, invisible to parent-side accelerator counters.
+        runs_out_of_process = True
 
         # 24 kHz mono Higgs Audio v2 — same as the in-process OmniVoice.
         _SAMPLE_RATE = 24_000

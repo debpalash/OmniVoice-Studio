@@ -148,14 +148,11 @@ def _cuda_vram_peak_gb() -> "float | None":
 
 
 def _engine_runs_out_of_process(backend) -> bool:
-    try:
-        from services.subprocess_backend import SubprocessBackend
-
-        return isinstance(backend, SubprocessBackend)
-    except Exception:
-        # Detection is best-effort: unknown means assume in-process and let
-        # the counters speak.
-        return False
+    """Duck-typed on purpose: `isinstance(SubprocessBackend)` misses engines
+    that spawn a binary per generate (omnivoice-gguf inherits TTSBackend
+    directly), and class identity breaks under test-fixture module purges.
+    The backends declare `runs_out_of_process` themselves."""
+    return bool(getattr(backend, "runs_out_of_process", False))
 
 
 def bench_tts():
@@ -172,9 +169,15 @@ def bench_tts():
     # can never attribute numbers to the wrong backend.
     _cuda_vram_tracking_start()
     b = asyncio.run(resolve_generation_backend(require_cloning=False))
-    # Adapter engines (mlx-audio) host several very different models behind
-    # one backend id — name the model too, or rows are unattributable.
+    # Adapter engines host several very different models behind one backend
+    # id — name the model too, or rows are unattributable. mlx-audio stores
+    # a repo id (`_model_id`); sherpa-onnx stores a model directory
+    # (`_model_dir`), whose basename is the model's name.
     model_id = getattr(b, "_model_id", None)
+    if not model_id:
+        model_dir = (getattr(b, "_model_dir", "") or "").strip()
+        if model_dir:
+            model_id = os.path.basename(os.path.normpath(model_dir))
     print(
         f"    engine: {active_backend_id()}"
         + (f" [{model_id}]" if model_id else "")

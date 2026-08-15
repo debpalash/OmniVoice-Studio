@@ -363,6 +363,10 @@ class SubprocessBackend(TTSBackend):
     # A duck-typed marker survives that.
     _is_subprocess_isolated: bool = True
 
+    # Generation happens in the sidecar: parent-side accelerator counters
+    # can't see its allocations (see TTSBackend.runs_out_of_process).
+    runs_out_of_process: bool = True
+
     # Default sample rate; subclasses override.
     _DEFAULT_SAMPLE_RATE = 24000
 

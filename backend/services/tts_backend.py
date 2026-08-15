@@ -300,6 +300,14 @@ class TTSBackend(ABC):
     #: 0 means "no meaningful floor" (CPU-class engines) and never warns.
     min_vram_gb: float = 0.0
 
+    #: True when generation allocates in ANOTHER process — a dedicated-venv
+    #: sidecar (SubprocessBackend) or a spawned binary (omnivoice-gguf).
+    #: Parent-process accelerator counters cannot see those allocations, so
+    #: profilers/diagnostics must not attribute the parent's VRAM numbers to
+    #: the engine. Duck-typed (attribute, not issubclass) for the same
+    #: module-purge reason as `_is_subprocess_isolated`.
+    runs_out_of_process: bool = False
+
     @abstractmethod
     def generate(
         self,
