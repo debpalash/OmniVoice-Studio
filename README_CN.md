@@ -37,7 +37,7 @@
 <br/>
 
 <div align="center">
-  <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — 启动台" width="100%"/>
+  <img src="docs/media/0.5.0/quick-switch.gif" alt="VoiceStudio — 从状态栏快速切换 TTS 引擎" width="100%"/>
 </div>
 
 > **声音很私人，创作空间也应该真正属于你。** VoiceStudio 的核心流程运行在你的硬件上：克隆、设计、配音、听写，并以 646 种语言创作，不需要订阅，也没有用量计费。联网引擎和服务始终是清晰可见的可选项，而不是隐藏依赖。

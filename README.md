@@ -45,7 +45,7 @@
 <br/>
 
 <div align="center">
-  <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — Launchpad" width="100%"/>
+  <img src="docs/media/0.5.0/quick-switch.gif" alt="VoiceStudio — switching TTS engines from the status bar" width="100%"/>
 </div>
 
 > **Your voice is personal. Your studio should feel personal too.** VoiceStudio keeps its core workflow on your hardware: clone, design, dub, dictate, and publish in 646 languages without a subscription or usage meter. Network-backed engines and services are optional, visible choices—not hidden requirements.
@@ -104,8 +104,8 @@ The rename release — full notes: [v0.5.0 release](https://github.com/debpalash
 - 🎤 **Dictation on Wayland** — the portal shortcut actually fires now, and the recording pill is back on every desktop.
 
 <div align="center">
-  <img src="docs/media/0.5.0/quick-switch.gif" alt="Switching engines from the status bar" width="640"/>
-  <br/><sub>Engine quick-switch from the status bar — <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd> from any workspace</sub>
+  <img src="docs/screenshot-launchpad.png" alt="VoiceStudio — Launchpad" width="640"/>
+  <br/><sub>The Launchpad — every workspace one click away; quick-switch engines anywhere with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd> (shown above)</sub>
 </div>
 
 <br/>
