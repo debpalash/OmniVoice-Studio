@@ -123,6 +123,8 @@ def _cuda_vram_tracking_start() -> None:
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
     except Exception:
+        # No torch / broken CUDA runtime: VRAM tracking is a bonus metric,
+        # never a reason to abort the timing run.
         pass
 
 
@@ -136,6 +138,8 @@ def _cuda_vram_peak_gb() -> "float | None":
         if torch.cuda.is_available():
             return torch.cuda.max_memory_allocated() / 1e9
     except Exception:
+        # Same as tracking start: an unreadable counter degrades to "no VRAM
+        # row", it must not fail the stage.
         pass
     return None
 
@@ -147,9 +151,14 @@ def bench_tts():
     time), and on CUDA the stage's peak VRAM."""
     import asyncio
 
-    from services.tts_backend import resolve_generation_backend
+    from services.tts_backend import active_backend_id, resolve_generation_backend
 
+    # Tracking starts BEFORE resolution so any allocation the resolver makes
+    # is inside the peak, and the engine is printed so a benchmarks.md row
+    # can never attribute numbers to the wrong backend.
+    _cuda_vram_tracking_start()
     b = asyncio.run(resolve_generation_backend(require_cloning=False))
+    print(f"    engine: {active_backend_id()} ({type(b).__name__})", flush=True)
     sr = getattr(b, "sample_rate", 0) or 0
     last: dict = {}
 
@@ -164,7 +173,6 @@ def bench_tts():
         audio_s = n / sr
         return f"RTF {secs / audio_s:.2f} ({audio_s:.1f}s of audio)"
 
-    _cuda_vram_tracking_start()
     record("tts", "model load + first synth (cold)", timed(gen, SHORT))
     secs = timed(gen, SHORT)
     record("tts", "short line (warm)", secs, rtf_note(secs))
