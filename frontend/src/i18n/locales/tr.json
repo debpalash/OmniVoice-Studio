@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} çevrimiçi",
     "workers_token_expired": "Süresi doldu — yenisini oluşturun",
     "workers_token_expires_in": "{{time}} içinde süresi dolacak",
-    "workers_token_qr_hint": "Diğer makinede: Ayarlar → Sistem → Uzak işçiler → Katıl, sonra tarayın veya yapıştırın."
+    "workers_token_qr_hint": "Diğer makinede: Ayarlar → Sistem → Uzak işçiler → Katıl, sonra tarayın veya yapıştırın.",
+    "compute_device": "Hesaplama aygıtı",
+    "compute_device_title": "Hesaplama aygıtı",
+    "compute_device_desc": "Backend'in modelleri hangi aygıtta çalıştıracağı. Auto neredeyse herkes için doğrudur.",
+    "compute_device_env_pinned": "OMNIVOICE_DEVICE ortam değişkeniyle sabitlendi",
+    "compute_device_ignored": "Bu aygıt bu makinede algılanmadı — Auto geçerli",
+    "compute_device_restart": "Uygulama yeniden başlatıldıktan sonra geçerli olur",
+    "compute_device_note": "Yalnızca bu makinede algılanan aygıtlar listelenir. CPU her zaman çalışır; bir aygıtı sabitlemek asla donanım uydurmaz.",
+    "compute_device_auto": "Auto (önerilen)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

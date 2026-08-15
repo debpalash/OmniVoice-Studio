@@ -45,6 +45,12 @@ def _probe_with(modules):
 
 def _cleanup():
     # Leave the process-wide cache in its no-override state for other tests.
+    # The env var must go FIRST: this runs inside the test (before
+    # monkeypatch teardown), so a refresh with OMNIVOICE_DEVICE still set
+    # would cache the overridden caps for every later test in the session.
+    import os
+
+    os.environ.pop("OMNIVOICE_DEVICE", None)
     device_caps.refresh()
 
 

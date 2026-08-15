@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} en línea",
     "workers_token_expired": "Caducado — genera uno nuevo",
     "workers_token_expires_in": "Caduca en {{time}}",
-    "workers_token_qr_hint": "En el otro equipo: Ajustes → Sistema → Trabajadores remotos → Unirse, y luego escanea o pega."
+    "workers_token_qr_hint": "En el otro equipo: Ajustes → Sistema → Trabajadores remotos → Unirse, y luego escanea o pega.",
+    "compute_device": "Dispositivo de cómputo",
+    "compute_device_title": "Dispositivo de cómputo",
+    "compute_device_desc": "En qué dispositivo ejecuta los modelos el backend. Auto es lo correcto para casi todos.",
+    "compute_device_env_pinned": "Fijado por la variable de entorno OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Ese dispositivo no se detectó en esta máquina — Auto está en efecto",
+    "compute_device_restart": "Surte efecto tras reiniciar la aplicación",
+    "compute_device_note": "Solo se listan los dispositivos detectados en esta máquina. La CPU siempre funciona; fijar un dispositivo nunca inventa hardware.",
+    "compute_device_auto": "Auto (recomendado)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

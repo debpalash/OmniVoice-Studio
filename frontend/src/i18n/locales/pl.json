@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Wygasł — wygeneruj nowy",
     "workers_token_expires_in": "Wygasa za {{time}}",
-    "workers_token_qr_hint": "Na drugim komputerze: Ustawienia → Systemu → Zdalne workery → Dołącz, potem zeskanuj albo wklej."
+    "workers_token_qr_hint": "Na drugim komputerze: Ustawienia → Systemu → Zdalne workery → Dołącz, potem zeskanuj albo wklej.",
+    "compute_device": "Urządzenie obliczeniowe",
+    "compute_device_title": "Urządzenie obliczeniowe",
+    "compute_device_desc": "Na którym urządzeniu backend uruchamia modele. Auto jest właściwe dla niemal wszystkich.",
+    "compute_device_env_pinned": "Przypięte przez zmienną środowiskową OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Tego urządzenia nie wykryto na tej maszynie — obowiązuje Auto",
+    "compute_device_restart": "Zacznie obowiązywać po ponownym uruchomieniu aplikacji",
+    "compute_device_note": "Wyświetlane są tylko urządzenia wykryte na tej maszynie. CPU zawsze działa; przypięcie urządzenia nigdy nie wymyśla sprzętu.",
+    "compute_device_auto": "Auto (zalecane)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

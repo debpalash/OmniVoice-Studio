@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Har gått ut — skapa en ny",
     "workers_token_expires_in": "Går ut om {{time}}",
-    "workers_token_qr_hint": "På den andra maskinen: Inställningar → System → Fjärrarbetare → Anslut, skanna eller klistra sedan in."
+    "workers_token_qr_hint": "På den andra maskinen: Inställningar → System → Fjärrarbetare → Anslut, skanna eller klistra sedan in.",
+    "compute_device": "Beräkningsenhet",
+    "compute_device_title": "Beräkningsenhet",
+    "compute_device_desc": "Vilken enhet backend kör modeller på. Auto är rätt för nästan alla.",
+    "compute_device_env_pinned": "Låst av miljövariabeln OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Den enheten hittades inte på den här datorn — Auto gäller",
+    "compute_device_restart": "Träder i kraft efter omstart av appen",
+    "compute_device_note": "Endast enheter som hittats på den här datorn visas. CPU fungerar alltid; att låsa en enhet hittar aldrig på hårdvara.",
+    "compute_device_auto": "Auto (rekommenderas)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

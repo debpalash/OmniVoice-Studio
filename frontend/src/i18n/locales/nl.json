@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Verlopen — genereer een nieuwe",
     "workers_token_expires_in": "Verloopt over {{time}}",
-    "workers_token_qr_hint": "Op de andere machine: Instellingen → Systeem → Externe workers → Koppelen, en scan of plak daar."
+    "workers_token_qr_hint": "Op de andere machine: Instellingen → Systeem → Externe workers → Koppelen, en scan of plak daar.",
+    "compute_device": "Rekenapparaat",
+    "compute_device_title": "Rekenapparaat",
+    "compute_device_desc": "Op welk apparaat de backend modellen draait. Auto is voor bijna iedereen juist.",
+    "compute_device_env_pinned": "Vastgezet door de omgevingsvariabele OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Dat apparaat is op deze machine niet gedetecteerd — Auto is van kracht",
+    "compute_device_restart": "Wordt van kracht na het herstarten van de app",
+    "compute_device_note": "Alleen op deze machine gedetecteerde apparaten worden getoond. CPU werkt altijd; een vastgezet apparaat verzint nooit hardware.",
+    "compute_device_auto": "Auto (aanbevolen)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

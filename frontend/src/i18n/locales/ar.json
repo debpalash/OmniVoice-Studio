@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} متصل",
     "workers_token_expired": "انتهت الصلاحية — أنشئ رمزًا جديدًا",
     "workers_token_expires_in": "تنتهي الصلاحية خلال {{time}}",
-    "workers_token_qr_hint": "على الجهاز الآخر: الإعدادات ← النظام ← العاملون البعيدون ← انضمام، ثم امسح أو الصق."
+    "workers_token_qr_hint": "على الجهاز الآخر: الإعدادات ← النظام ← العاملون البعيدون ← انضمام، ثم امسح أو الصق.",
+    "compute_device": "جهاز الحوسبة",
+    "compute_device_title": "جهاز الحوسبة",
+    "compute_device_desc": "الجهاز الذي يشغّل عليه الخادم النماذج. الوضع التلقائي مناسب للجميع تقريبًا.",
+    "compute_device_env_pinned": "مثبّت بواسطة متغيّر البيئة OMNIVOICE_DEVICE",
+    "compute_device_ignored": "لم يُكتشف هذا الجهاز على هذا الحاسوب — الوضع التلقائي هو المعمول به",
+    "compute_device_restart": "يسري بعد إعادة تشغيل التطبيق",
+    "compute_device_note": "تُعرض فقط الأجهزة المكتشفة على هذا الحاسوب. تعمل CPU دائمًا؛ تثبيت جهاز لا يخترع عتادًا أبدًا.",
+    "compute_device_auto": "تلقائي (مستحسن)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

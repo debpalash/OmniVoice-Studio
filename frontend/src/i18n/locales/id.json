@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Kedaluwarsa — buat yang baru",
     "workers_token_expires_in": "Kedaluwarsa dalam {{time}}",
-    "workers_token_qr_hint": "Di mesin yang lain: Pengaturan → Sistem → Pekerja jarak jauh → Gabung, lalu pindai atau tempelkan."
+    "workers_token_qr_hint": "Di mesin yang lain: Pengaturan → Sistem → Pekerja jarak jauh → Gabung, lalu pindai atau tempelkan.",
+    "compute_device": "Perangkat komputasi",
+    "compute_device_title": "Perangkat komputasi",
+    "compute_device_desc": "Di perangkat mana backend menjalankan model. Auto tepat untuk hampir semua orang.",
+    "compute_device_env_pinned": "Disematkan oleh variabel lingkungan OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Perangkat itu tidak terdeteksi di mesin ini — Auto yang berlaku",
+    "compute_device_restart": "Berlaku setelah aplikasi dimulai ulang",
+    "compute_device_note": "Hanya perangkat yang terdeteksi di mesin ini yang ditampilkan. CPU selalu berfungsi; menyematkan perangkat tidak pernah mengarang perangkat keras.",
+    "compute_device_auto": "Auto (disarankan)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

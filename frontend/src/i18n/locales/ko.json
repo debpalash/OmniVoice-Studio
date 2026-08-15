@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}}대 온라인",
     "workers_token_expired": "만료됨 — 새로 생성하세요",
     "workers_token_expires_in": "{{time}} 후 만료",
-    "workers_token_qr_hint": "다른 컴퓨터에서: 설정 → 시스템 → 원격 워커 → 참여로 이동한 뒤 스캔하거나 붙여 넣으세요."
+    "workers_token_qr_hint": "다른 컴퓨터에서: 설정 → 시스템 → 원격 워커 → 참여로 이동한 뒤 스캔하거나 붙여 넣으세요.",
+    "compute_device": "연산 장치",
+    "compute_device_title": "연산 장치",
+    "compute_device_desc": "백엔드가 모델을 실행할 장치입니다. 거의 모든 경우 Auto가 적합합니다.",
+    "compute_device_env_pinned": "OMNIVOICE_DEVICE 환경 변수로 고정됨",
+    "compute_device_ignored": "이 컴퓨터에서 해당 장치를 찾지 못했습니다 — Auto가 적용 중입니다",
+    "compute_device_restart": "앱을 다시 시작한 후 적용됩니다",
+    "compute_device_note": "이 컴퓨터에서 감지된 장치만 표시됩니다. CPU는 항상 작동하며, 장치를 고정해도 없는 하드웨어가 생기지는 않습니다.",
+    "compute_device_auto": "자동 (권장)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

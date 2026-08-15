@@ -158,6 +158,13 @@ def _compute_device_state() -> dict:
         "value": value,
         "applied": caps.requested_family,
         "restart_required": value != caps.requested_family,
+        # The running process asked for a family it doesn't have (env pin on
+        # the wrong machine, hardware removed): auto is in effect, and a
+        # restart would not change that — the panel says so instead of
+        # pretending the pick took.
+        "override_ignored": (
+            caps.requested_family not in ("auto", caps.family)
+        ),
         "effective_family": caps.family,
         "auto_family": auto_family,
         "available_families": list(caps.available_families),

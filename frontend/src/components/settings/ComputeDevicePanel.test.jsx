@@ -36,7 +36,9 @@ describe('ComputeDevicePanel', () => {
   it('offers only the detected families plus Auto', async () => {
     global.fetch = mockFetchSequence({ status: 200, body: CUDA_HOST });
     render(<ComputeDevicePanel />);
-    await waitFor(() => screen.getByTestId('compute-device-select'));
+    // Wait for the LOADED state (3 options), not just the select — it
+    // renders disabled with only Auto before the GET resolves.
+    await waitFor(() => expect(screen.getByTestId('compute-device-select').options.length).toBe(3));
     const options = [...screen.getByTestId('compute-device-select').options].map((o) => o.value);
     // No mps/rocm/xpu on a CUDA host — an override can steer, not invent.
     expect(options).toEqual(['auto', 'cuda', 'cpu']);
@@ -52,7 +54,7 @@ describe('ComputeDevicePanel', () => {
     );
     global.fetch = fetchMock;
     render(<ComputeDevicePanel />);
-    await waitFor(() => screen.getByTestId('compute-device-select'));
+    await waitFor(() => expect(screen.getByTestId('compute-device-select').options.length).toBe(3));
 
     fireEvent.change(screen.getByTestId('compute-device-select'), { target: { value: 'cpu' } });
 
@@ -77,15 +79,15 @@ describe('ComputeDevicePanel', () => {
     expect(screen.getByText(/OMNIVOICE_DEVICE/)).toBeInTheDocument();
   });
 
-  it('re-syncs from the server when the PUT fails', async () => {
+  it('re-syncs from the server when the PUT fails, keeping the error visible', async () => {
     const fetchMock = mockFetchSequence(
       { status: 200, body: CUDA_HOST }, // initial GET
       { status: 500, body: { detail: 'nope' } }, // PUT fails
-      { status: 200, body: CUDA_HOST }, // refresh GET
+      { status: 200, body: CUDA_HOST }, // re-sync GET
     );
     global.fetch = fetchMock;
     render(<ComputeDevicePanel />);
-    await waitFor(() => screen.getByTestId('compute-device-select'));
+    await waitFor(() => expect(screen.getByTestId('compute-device-select').options.length).toBe(3));
 
     fireEvent.change(screen.getByTestId('compute-device-select'), { target: { value: 'cpu' } });
 
@@ -95,5 +97,8 @@ describe('ComputeDevicePanel', () => {
       expect(fetchMock.mock.calls.length).toBe(3);
     });
     expect(screen.getByTestId('compute-device-select')).toHaveValue('auto');
+    // The save error must survive the re-sync — a silent snap-back reads
+    // as "the app ignored me".
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 });

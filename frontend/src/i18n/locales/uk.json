@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} у мережі",
     "workers_token_expired": "Сплив — створіть новий",
     "workers_token_expires_in": "Спливає через {{time}}",
-    "workers_token_qr_hint": "На іншій машині: Налаштування → система → Віддалені воркери → Підключитися, потім відскануйте або вставте."
+    "workers_token_qr_hint": "На іншій машині: Налаштування → система → Віддалені воркери → Підключитися, потім відскануйте або вставте.",
+    "compute_device": "Пристрій обчислень",
+    "compute_device_title": "Пристрій обчислень",
+    "compute_device_desc": "На якому пристрої backend виконує моделі. Auto підходить майже всім.",
+    "compute_device_env_pinned": "Закріплено змінною середовища OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Цей пристрій не виявлено на цій машині — діє Auto",
+    "compute_device_restart": "Набуде чинності після перезапуску застосунку",
+    "compute_device_note": "Показано лише пристрої, виявлені на цій машині. CPU працює завжди; закріплення пристрою ніколи не вигадує обладнання.",
+    "compute_device_auto": "Auto (рекомендовано)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

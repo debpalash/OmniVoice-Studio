@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} trực tuyến",
     "workers_token_expired": "Đã hết hạn — hãy tạo mã mới",
     "workers_token_expires_in": "Hết hạn sau {{time}}",
-    "workers_token_qr_hint": "Trên máy kia: Cài đặt → Hệ thống → Máy phụ từ xa → Tham gia, rồi quét hoặc dán."
+    "workers_token_qr_hint": "Trên máy kia: Cài đặt → Hệ thống → Máy phụ từ xa → Tham gia, rồi quét hoặc dán.",
+    "compute_device": "Thiết bị tính toán",
+    "compute_device_title": "Thiết bị tính toán",
+    "compute_device_desc": "Backend chạy mô hình trên thiết bị nào. Auto phù hợp với hầu hết mọi người.",
+    "compute_device_env_pinned": "Được ghim bởi biến môi trường OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Không phát hiện thiết bị đó trên máy này — Auto đang có hiệu lực",
+    "compute_device_restart": "Có hiệu lực sau khi khởi động lại ứng dụng",
+    "compute_device_note": "Chỉ liệt kê các thiết bị được phát hiện trên máy này. CPU luôn hoạt động; ghim một thiết bị không bao giờ bịa ra phần cứng.",
+    "compute_device_auto": "Tự động (khuyên dùng)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

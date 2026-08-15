@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} en ligne",
     "workers_token_expired": "Expiré — générez-en un nouveau",
     "workers_token_expires_in": "Expire dans {{time}}",
-    "workers_token_qr_hint": "Sur l'autre machine : Paramètres → Système → Workers distants → Rejoindre, puis scannez ou collez."
+    "workers_token_qr_hint": "Sur l'autre machine : Paramètres → Système → Workers distants → Rejoindre, puis scannez ou collez.",
+    "compute_device": "Périphérique de calcul",
+    "compute_device_title": "Périphérique de calcul",
+    "compute_device_desc": "Sur quel périphérique le backend exécute les modèles. Auto convient à presque tout le monde.",
+    "compute_device_env_pinned": "Épinglé par la variable d'environnement OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Ce périphérique n'a pas été détecté sur cette machine — Auto est en vigueur",
+    "compute_device_restart": "Prend effet après le redémarrage de l'application",
+    "compute_device_note": "Seuls les périphériques détectés sur cette machine sont listés. Le CPU fonctionne toujours ; épingler un périphérique n'invente jamais de matériel.",
+    "compute_device_auto": "Auto (recommandé)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

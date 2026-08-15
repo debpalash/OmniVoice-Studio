@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} ऑनलाइन",
     "workers_token_expired": "समाप्त हो गया — नया बनाएँ",
     "workers_token_expires_in": "{{time}} में समाप्त होगा",
-    "workers_token_qr_hint": "दूसरी मशीन पर: सेटिंग्स → सिस्टम → रिमोट वर्कर → जुड़ें, फिर स्कैन या पेस्ट करें।"
+    "workers_token_qr_hint": "दूसरी मशीन पर: सेटिंग्स → सिस्टम → रिमोट वर्कर → जुड़ें, फिर स्कैन या पेस्ट करें।",
+    "compute_device": "कंप्यूट डिवाइस",
+    "compute_device_title": "कंप्यूट डिवाइस",
+    "compute_device_desc": "बैकएंड मॉडल किस डिवाइस पर चलाता है। लगभग सभी के लिए Auto सही है।",
+    "compute_device_env_pinned": "OMNIVOICE_DEVICE पर्यावरण चर द्वारा पिन किया गया",
+    "compute_device_ignored": "वह डिवाइस इस मशीन पर नहीं मिला — Auto प्रभावी है",
+    "compute_device_restart": "ऐप के पुनरारंभ के बाद प्रभावी होगा",
+    "compute_device_note": "केवल इस मशीन पर पाए गए डिवाइस सूचीबद्ध हैं। CPU हमेशा काम करता है; डिवाइस पिन करने से हार्डवेयर कभी नहीं बनता।",
+    "compute_device_auto": "Auto (अनुशंसित)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

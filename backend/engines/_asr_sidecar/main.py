@@ -96,10 +96,17 @@ def _get_model():
             or "large-v3"
         )
         try:
-            import torch
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            # The probe honors the user compute-device override and the
+            # ROCm/CT2 incompatibility (#1529) — the child must agree with
+            # the parent's device decision, not re-derive its own.
+            from core.device_caps import detect_host_caps
+            device = "cuda" if detect_host_caps().family == "cuda" else "cpu"
         except Exception:
-            device = "cpu"
+            try:
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except Exception:
+                device = "cpu"
         # Degrade fp16 → int8 rather than crash on GPUs without efficient fp16
         # (older Maxwell/Pascal, GTX 16xx, CTranslate2/cuDNN mismatch) (#551).
         last_err = None

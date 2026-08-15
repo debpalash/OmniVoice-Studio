@@ -890,7 +890,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Expired — generate a new one",
     "workers_token_expires_in": "Expires in {{time}}",
-    "workers_token_qr_hint": "On the other machine: Settings → System → Remote workers → Join, then scan or paste."
+    "workers_token_qr_hint": "On the other machine: Settings → System → Remote workers → Join, then scan or paste.",
+    "compute_device": "Compute device",
+    "compute_device_title": "Compute device",
+    "compute_device_desc": "Which device the backend runs models on. Auto is right for almost everyone.",
+    "compute_device_env_pinned": "Pinned by the OMNIVOICE_DEVICE environment variable",
+    "compute_device_ignored": "That device was not detected on this machine — Auto is in effect",
+    "compute_device_restart": "Takes effect after the app restarts",
+    "compute_device_note": "Only devices detected on this machine are listed. CPU always works; pinning a device never invents hardware.",
+    "compute_device_auto": "Auto (recommended)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "about": {
     "app": "App",

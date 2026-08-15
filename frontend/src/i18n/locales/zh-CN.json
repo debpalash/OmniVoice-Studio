@@ -551,7 +551,20 @@
     "workers_summary_online": "{{count}} 台在线",
     "workers_token_expired": "已过期——请重新生成",
     "workers_token_expires_in": "{{time}} 后过期",
-    "workers_token_qr_hint": "在另一台机器上：设置 → 系统 → 远程工作机 → 加入，然后扫描或粘贴。"
+    "workers_token_qr_hint": "在另一台机器上：设置 → 系统 → 远程工作机 → 加入，然后扫描或粘贴。",
+    "compute_device": "计算设备",
+    "compute_device_title": "计算设备",
+    "compute_device_desc": "后端在哪个设备上运行模型。绝大多数情况下选 Auto 即可。",
+    "compute_device_env_pinned": "已被环境变量 OMNIVOICE_DEVICE 固定",
+    "compute_device_ignored": "本机未检测到该设备——当前实际使用 Auto",
+    "compute_device_restart": "重启应用后生效",
+    "compute_device_note": "仅列出本机检测到的设备。CPU 始终可用；固定设备不会凭空造出硬件。",
+    "compute_device_auto": "自动（推荐）",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "about": {
     "app": "应用",

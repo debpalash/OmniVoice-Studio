@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} 台オンライン",
     "workers_token_expired": "期限切れ — 新しく生成してください",
     "workers_token_expires_in": "あと {{time}} で期限切れ",
-    "workers_token_qr_hint": "もう一方のマシンで: 設定 → システム → リモートワーカー → 参加 を開き、スキャンするか貼り付けてください。"
+    "workers_token_qr_hint": "もう一方のマシンで: 設定 → システム → リモートワーカー → 参加 を開き、スキャンするか貼り付けてください。",
+    "compute_device": "計算デバイス",
+    "compute_device_title": "計算デバイス",
+    "compute_device_desc": "バックエンドがモデルを実行するデバイス。ほとんどの場合は Auto が最適です。",
+    "compute_device_env_pinned": "環境変数 OMNIVOICE_DEVICE により固定されています",
+    "compute_device_ignored": "そのデバイスはこのマシンで検出されませんでした — Auto が適用されています",
+    "compute_device_restart": "アプリの再起動後に有効になります",
+    "compute_device_note": "このマシンで検出されたデバイスのみ表示されます。CPU は常に動作します。デバイスを固定してもハードウェアが増えることはありません。",
+    "compute_device_auto": "自動（推奨）",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

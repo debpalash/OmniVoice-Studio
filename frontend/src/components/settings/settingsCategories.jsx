@@ -200,6 +200,8 @@ export const GROUPS = [
           'rocm',
           'mps',
           'cpu',
+          'xpu',
+          'intel',
         ],
       },
       {

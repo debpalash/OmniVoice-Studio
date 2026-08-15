@@ -2495,7 +2495,19 @@ def _ctranslate2_cuda_ok() -> bool:
     CUDA runtime version" — the #1529 report, an AMD RX 7900 XTX in the
     :rocm Docker image. Real CUDA only; ROCm hosts take the CPU path here
     (auto-detect prefers pytorch-whisper there, which does use HIP).
+
+    Also honors the user compute-device override (Settings → Performance /
+    ``OMNIVOICE_DEVICE``): a host pinned to cpu (or any non-cuda family)
+    must not hand CTranslate2 a CUDA device — the probe applies the
+    override, so gating on its family covers every CT2 loader at once.
     """
+    try:
+        from core.device_caps import detect_host_caps
+
+        if detect_host_caps().family != "cuda":
+            return False
+    except Exception:  # noqa: BLE001 — the probe never blocks ASR
+        pass
     return _cuda_reported_available() and not _rocm_torch()
 
 

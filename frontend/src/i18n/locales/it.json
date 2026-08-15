@@ -315,7 +315,20 @@
     "workers_summary_online": "{{count}} online",
     "workers_token_expired": "Scaduto — generane uno nuovo",
     "workers_token_expires_in": "Scade tra {{time}}",
-    "workers_token_qr_hint": "Sull'altro computer: Impostazioni → Sistema → Worker remoti → Collegati, poi scansiona o incolla."
+    "workers_token_qr_hint": "Sull'altro computer: Impostazioni → Sistema → Worker remoti → Collegati, poi scansiona o incolla.",
+    "compute_device": "Dispositivo di calcolo",
+    "compute_device_title": "Dispositivo di calcolo",
+    "compute_device_desc": "Su quale dispositivo il backend esegue i modelli. Auto va bene per quasi tutti.",
+    "compute_device_env_pinned": "Bloccato dalla variabile d'ambiente OMNIVOICE_DEVICE",
+    "compute_device_ignored": "Quel dispositivo non è stato rilevato su questa macchina — è attivo Auto",
+    "compute_device_restart": "Ha effetto dopo il riavvio dell'app",
+    "compute_device_note": "Sono elencati solo i dispositivi rilevati su questa macchina. La CPU funziona sempre; fissare un dispositivo non inventa mai hardware.",
+    "compute_device_auto": "Auto (consigliato)",
+    "device_family_cuda": "NVIDIA GPU (CUDA)",
+    "device_family_rocm": "AMD GPU (ROCm)",
+    "device_family_xpu": "Intel GPU (XPU)",
+    "device_family_mps": "Apple GPU (MPS)",
+    "device_family_cpu": "CPU"
   },
   "bootstrap": {
     "title": "VoiceStudio",

@@ -23,7 +23,9 @@ import { Select } from '../../ui';
 import { SettingsSection, SettingRow } from './primitives';
 import RestartBadge from './RestartBadge';
 
-const FAMILY_LABELS = {
+// English fallbacks; the rendered label comes from the locale files
+// (settings.device_family_*) so localized builds stay localized.
+const FAMILY_FALLBACKS = {
   cuda: 'NVIDIA GPU (CUDA)',
   rocm: 'AMD GPU (ROCm)',
   xpu: 'Intel GPU (XPU)',
@@ -70,7 +72,13 @@ export default function ComputeDevicePanel() {
       setError(
         err?.message || t('settings.perf_save_failed', { defaultValue: 'Failed to save setting' }),
       );
-      refresh(); // re-sync so the UI never shows a pick that didn't persist
+      // Re-sync so the UI never shows a pick that didn't persist — but keep
+      // the save error visible (refresh() would clear it).
+      try {
+        setState(await apiJson('/api/settings/compute-device'));
+      } catch {
+        /* the save error already on screen covers this */
+      }
     } finally {
       setSaving(false);
     }
@@ -78,6 +86,8 @@ export default function ComputeDevicePanel() {
 
   const label = t('settings.compute_device', { defaultValue: 'Compute device' });
   const families = state?.available_families || [];
+  const familyLabel = (f) =>
+    t(`settings.device_family_${f}`, { defaultValue: FAMILY_FALLBACKS[f] || f });
 
   return (
     <SettingsSection
@@ -105,11 +115,15 @@ export default function ComputeDevicePanel() {
             ? t('settings.compute_device_env_pinned', {
                 defaultValue: 'Pinned by the OMNIVOICE_DEVICE environment variable',
               })
-            : state?.restart_required
-              ? t('settings.compute_device_restart', {
-                  defaultValue: 'Takes effect after the app restarts',
+            : state?.override_ignored
+              ? t('settings.compute_device_ignored', {
+                  defaultValue: 'That device was not detected on this machine — Auto is in effect',
                 })
-              : undefined
+              : state?.restart_required
+                ? t('settings.compute_device_restart', {
+                    defaultValue: 'Takes effect after the app restarts',
+                  })
+                : undefined
         }
         note={t('settings.compute_device_note', {
           defaultValue:
@@ -128,11 +142,11 @@ export default function ComputeDevicePanel() {
               {t('settings.compute_device_auto', {
                 defaultValue: 'Auto (recommended)',
               })}
-              {state?.auto_family ? ` — ${FAMILY_LABELS[state.auto_family] || state.auto_family}` : ''}
+              {state?.auto_family ? ` — ${familyLabel(state.auto_family)}` : ''}
             </option>
             {families.map((f) => (
               <option key={f} value={f}>
-                {FAMILY_LABELS[f] || f}
+                {familyLabel(f)}
               </option>
             ))}
           </Select>
