@@ -281,7 +281,7 @@ Hugging Face Token 的配置见
 | **sherpa-onnx**（实时听写） | `sherpa-onnx-asr` | 25 种欧洲语言 + 90+ | 实时、快于实时的听写——小体积流式/离线 ONNX 模型（Parakeet TDT v3/v2、流式 Zipformer 与 Paraformer、Whisper Tiny），CPU 运行，macOS / Windows / Linux 表现完全一致。在 **设置 → 语音** 中按模型选择。 |
 | **OpenAI 兼容** ⚠️ 远程 | `openai-compat-asr` | 取决于服务器 | 当下通往 **Qwen3-ASR** 的路径（自托管服务器，无需等 transformers 支持）、任何 OpenAI 兼容的转录端点，或 OpenAI 官方 API——无需安装，在 **设置 → 引擎**（ASR 标签页）中配置并测试连接。音频会离开你的设备，发送到你指定的任何服务器；参见 [docs/engines/openai-compatible-asr.md](docs/engines/openai-compatible-asr.md)。 |
 
-> Whisper 系列引擎覆盖约 100 种语言；**FunASR / SenseVoice** 额外提供一条多语言一体化路径，内置语音活动检测与行内说话人分离。**sherpa-onnx** 驱动实时听写的模型选择器——你边说，文字边出现。每个引擎都在本地设备上运行——无需 API 密钥，无需云端。
+> Whisper 系列引擎覆盖约 100 种语言；**FunASR / SenseVoice** 额外提供一条多语言一体化路径，内置语音活动检测与行内说话人分离。**sherpa-onnx** 驱动实时听写的模型选择器——你边说，文字边出现。除可选的 OpenAI 兼容远程客户端外，所有引擎都在本地设备上运行——无需 API 密钥，无需云端。
 
 > **GPU 不支持高效 float16？** 在较老的 NVIDIA GPU（Maxwell/Pascal、GTX 16xx）上，或在 CTranslate2/cuDNN 版本不匹配之后，CTranslate2 系 ASR 引擎（WhisperX、Faster-Whisper）无法运行 `float16`，VoiceStudio 会自动改用 `int8` 重试——无需配置。如果转录仍然失败，可用 `ASR_COMPUTE_TYPE` 环境变量固定计算类型（逃生舱口）：`ASR_COMPUTE_TYPE=int8`（CPU 用 `float32`）。将其设为 `int8` 并重启后端。
 
