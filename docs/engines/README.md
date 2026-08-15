@@ -10,13 +10,18 @@ engine can do expressively in [expressive-speech](../expressive-speech.md);
 sidecar disk footprints in [disk-usage](disk-usage.md); the bar a new engine
 must clear in [engine-acceptance](../engine-acceptance.md).
 
+New to VoiceStudio? Install the app first — [macOS](../install/macos.md)
+(first launch needs the one-time right-click → **Open** Gatekeeper
+approval), [Windows](../install/windows.md), [Linux](../install/linux.md),
+[Docker](../install/docker.md).
+
 ## Text-to-speech
 
 | Engine | Guide | Runs on | Cloning | Enabled by |
 |---|---|---|---|---|
 | VoiceStudio (OmniVoice) — **default** | [omnivoice](omnivoice.md) | CUDA · MPS · CPU | ✅ | installed by default |
 | VoxCPM2 | [voxcpm2](voxcpm2.md) | CUDA · MPS · CPU | ✅ + voice design | `pip install "voxcpm>=2.0.3"` |
-| MOSS-TTS-Nano | [moss-tts-nano](moss-tts-nano.md) | CUDA · CPU | ✅ (ref only) | clone + `pip install -e .` |
+| MOSS-TTS-Nano | [moss-tts-nano](moss-tts-nano.md) | CUDA · CPU | ✅ (ref only) | clone + `uv pip install -e .` |
 | KittenTTS | [kittentts](kittentts.md) | CPU | — (8 preset voices) | `pip install kittentts` |
 | MLX-Audio (Kokoro, CSM, Dia, …) | [mlx-audio](mlx-audio.md) | Apple Silicon | model-dependent | `pip install mlx-audio` |
 | CosyVoice 3 | [cosyvoice](cosyvoice.md) | CUDA · CPU | ✅ | clone + requirements |

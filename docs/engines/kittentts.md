@@ -34,7 +34,7 @@ expr-voice-4-m  expr-voice-4-f
 expr-voice-5-m  expr-voice-5-f
 ```
 
-An unknown voice id logs a warning and falls back to the default.
+An unknown voice id logs an info message and falls back to the default.
 
 ## Model selection
 

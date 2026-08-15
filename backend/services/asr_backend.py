@@ -3129,7 +3129,8 @@ def _offline_asr_repo(backend_id: str | None = None) -> str | None:
         # download a different repo than the sidecar will load.
         return _fw_repo(
             os.environ.get("ASR_MODEL_FW")
-            or os.environ.get("ASR_MODEL_FASTER", _FASTER_WHISPER_DEFAULT)
+            or os.environ.get("ASR_MODEL_FASTER")
+            or _FASTER_WHISPER_DEFAULT
         )
     if bid == "mlx-whisper":
         return os.environ.get("ASR_MODEL", _MLX_MODEL_DEFAULT)

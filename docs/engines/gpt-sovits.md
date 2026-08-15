@@ -43,6 +43,12 @@ machine (e.g. a GPU box on your LAN), add its network to
 `OMNIVOICE_TRUSTED_NETWORKS`; otherwise the connection is refused as an
 untrusted endpoint.
 
+Prefer `https://` (or a private tunnel such as Tailscale/WireGuard) for any
+non-loopback server: with plain `http://` the text you synthesize and the
+audio that comes back cross the network unencrypted. VoiceStudio does not
+disable certificate verification, so a TLS endpoint needs a certificate the
+system trusts.
+
 ## Behaviour notes
 
 - Output is 32 kHz mono (server output is resampled if needed).

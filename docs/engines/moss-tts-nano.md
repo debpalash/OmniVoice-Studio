@@ -22,7 +22,7 @@ VoiceStudio's Python environment:
 ```bash
 git clone https://github.com/OpenMOSS/MOSS-TTS-Nano.git
 cd MOSS-TTS-Nano
-pip install -e .
+uv pip install -e .
 ```
 
 Then select the engine via **Model Catalogue → Engines** or
@@ -55,7 +55,7 @@ the model class it exports has changed before
 therefore verifies that a usable model class actually exists — not just that
 the package imports — before reporting the engine as ready. If the engine
 shows unavailable with a "does not expose a usable model class" message,
-pull the latest upstream and re-run `pip install -e .`, or open an issue
+pull the latest upstream and re-run `uv pip install -e .`, or open an issue
 with the version you have.
 
 ## Known limits
@@ -67,7 +67,7 @@ with the version you have.
 
 ## Troubleshooting
 
-- "moss_tts_nano package not installed": run the clone + `pip install -e .`
+- "moss_tts_nano package not installed": run the clone + `uv pip install -e .`
   steps above.
 - Entry-point errors after an upstream update: see "Upstream is unpinned"
   above.

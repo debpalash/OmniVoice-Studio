@@ -180,8 +180,8 @@ Hugging Face Token 的配置见
 | **API 密钥** | 需要账号 | 本地流程不需要 |
 | **GPU 支持** | 不适用（云端） | CUDA · Apple Silicon · ROCm（Linux）· CPU |
 | **桌面应用** | ❌ | ✅ macOS · Windows · Linux |
-| **TTS 引擎** | 1 | **14** — [完整矩阵](#tts-engines) |
-| **ASR 引擎** | 1 | **10** — [完整阵容](#asr-engines) |
+| **TTS 引擎** | 1 | **16** — [完整矩阵](#tts-engines) |
+| **ASR 引擎** | 1 | **11** — [完整阵容](#asr-engines) |
 | **MCP 服务器** | ❌ | ✅ 可从 Claude、Cursor 及任何 MCP 客户端使用 |
 | **自检** | ❌ | ✅ 诊断套件、错误日志、脱敏调试包 |
 | **可定制** | ❌ 闭源 | ✅ 随你 Fork、扩展、发布 |
@@ -221,10 +221,10 @@ Hugging Face Token 的配置见
 
 ### 🗣️ TTS 引擎
 
-**14 个引擎，一个选择器。** VoiceStudio（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加六个按需延迟安装的重量级引擎（IndexTTS 2.5、OmniVoice GGUF、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。**每个引擎都有独立指南：[docs/engines](docs/engines/README.md)（英文）。**
+**16 个引擎，一个选择器。** VoiceStudio（默认，支持 600+ 语言）始终可用；另有七个引擎可选装并自动检测（CosyVoice 3、GPT-SoVITS、VoxCPM2、MOSS-TTS-Nano、KittenTTS、MLX-Audio、Sherpa-ONNX），外加八个按需延迟安装的引擎（IndexTTS 2.5、OmniVoice GGUF、OmniVoice 子进程版、PocketTTS、Supertonic 3、MOSS-TTS-v1.5、dots.tts、Confucius4-TTS）。在 **设置 → TTS 引擎** 中切换；所选引擎将应用于所有语音合成场景。**每个引擎都有独立指南：[docs/engines](docs/engines/README.md)（英文）。**
 
 <details>
-<summary><b>📊 完整矩阵</b>——14 个引擎 × 平台 × 克隆/指令 × 许可证</summary>
+<summary><b>📊 完整矩阵</b>——16 个引擎 × 平台 × 克隆/指令 × 许可证</summary>
 
 <br/>
 
@@ -261,10 +261,10 @@ Hugging Face Token 的配置见
 
 ### 🎧 ASR 引擎
 
-**10 个引擎**——它们驱动听写、视频配音和字幕。**WhisperX** 是跨平台的默认引擎（约 100 种语言，词级时间对齐）；其余引擎均为可选装并自动检测。在 **设置 → 引擎** 中切换。九个完全在本地设备上运行；第十个（OpenAI 兼容）是可选的远程客户端，可用于 Qwen3-ASR 或任何兼容的服务器。
+**11 个引擎**——它们驱动听写、视频配音和字幕。**WhisperX** 是跨平台的默认引擎（约 100 种语言，词级时间对齐）；其余引擎均为可选装并自动检测。在 **设置 → 引擎** 中切换。十个完全在本地设备上运行；第十一个（OpenAI 兼容）是可选的远程客户端，可用于 Qwen3-ASR 或任何兼容的服务器。
 
 <details>
-<summary><b>📊 完整阵容</b>——10 个引擎、各自的强项与计算类型说明</summary>
+<summary><b>📊 完整阵容</b>——11 个引擎、各自的强项与计算类型说明</summary>
 
 <br/>
 

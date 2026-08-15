@@ -62,8 +62,10 @@ The env var overrides the persisted UI choice.
 
 - "Too heavy for the available compute" on a small GPU: see the VRAM floor
   above — switch to OmniVoice GGUF or close other GPU apps.
-- First generation is slow: the first call downloads multi-GB weights; the
-  load runs under its own budget so it isn't billed against generation.
+- First generation is slow: the first call downloads multi-GB weights. To
+  keep the first render quick, install the model ahead of time from
+  **Model Catalogue → Models** — a long first generate is almost always the
+  download, not a hang.
 - General install issues: [install/troubleshooting.md](../install/troubleshooting.md).
 
 See also: [benchmarks.md](../benchmarks.md),
