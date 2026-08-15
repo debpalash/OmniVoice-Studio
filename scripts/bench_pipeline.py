@@ -136,7 +136,10 @@ def _cuda_vram_peak_gb() -> "float | None":
         import torch
 
         if torch.cuda.is_available():
-            return torch.cuda.max_memory_allocated() / 1e9
+            # Reserved, not allocated: the allocator holds more from the
+            # device than live tensors occupy, and reserved is the capacity
+            # a card actually needs to run the engine.
+            return torch.cuda.max_memory_reserved() / 1e9
     except Exception:
         # Same as tracking start: an unreadable counter degrades to "no VRAM
         # row", it must not fail the stage.
@@ -158,7 +161,15 @@ def bench_tts():
     # can never attribute numbers to the wrong backend.
     _cuda_vram_tracking_start()
     b = asyncio.run(resolve_generation_backend(require_cloning=False))
-    print(f"    engine: {active_backend_id()} ({type(b).__name__})", flush=True)
+    # Adapter engines (mlx-audio) host several very different models behind
+    # one backend id — name the model too, or rows are unattributable.
+    model_id = getattr(b, "_model_id", None)
+    print(
+        f"    engine: {active_backend_id()}"
+        + (f" [{model_id}]" if model_id else "")
+        + f" ({type(b).__name__})",
+        flush=True,
+    )
     sr = getattr(b, "sample_rate", 0) or 0
     last: dict = {}
 
