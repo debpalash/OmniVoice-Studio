@@ -21,7 +21,9 @@ tests/test_synthetic_audio_watermark_1169.py.
 """
 from __future__ import annotations
 
+import io
 import re
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -75,6 +77,33 @@ _PRODUCERS = [
 ]
 
 
+def _code_only(src: str) -> str:
+    """``src`` with comments and string literals blanked to spaces.
+
+    ee35d238 made a module a "producer" by *mentioning* ``backend.generate()``
+    in a comment — prose can't synthesize audio. Only real call sites may
+    match ``_SYNTH_CALL``, so blank every COMMENT/STRING token span (spaces,
+    not deletion, to keep the layout the regexes were written against).
+    Unparseable source falls back to the raw text — fail closed, a module we
+    can't tokenize still gets scanned.
+    """
+    lines = src.splitlines(keepends=True)
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return src
+    for tok in tokens:
+        if tok.type not in (tokenize.COMMENT, tokenize.STRING):
+            continue
+        (srow, scol), (erow, ecol) = tok.start, tok.end
+        for row in range(srow - 1, erow):
+            line = lines[row]
+            lo = scol if row == srow - 1 else 0
+            hi = ecol if row == erow - 1 else len(line.rstrip("\r\n"))
+            lines[row] = line[:lo] + " " * (hi - lo) + line[hi:]
+    return "".join(lines)
+
+
 def _py_files():
     for sub in ("api", "services", "worker"):
         for p in sorted((_BACKEND / sub).rglob("*.py")):
@@ -84,7 +113,7 @@ def _py_files():
 def test_every_synthesis_module_routes_through_mark_synthetic():
     offenders = []
     for rel, src in _py_files():
-        if not _SYNTH_CALL.search(src):
+        if not _SYNTH_CALL.search(_code_only(src)):
             continue
         if rel in _ALLOWED or "mark_synthetic" in src:
             continue
@@ -127,10 +156,25 @@ def test_allowlist_is_not_stale():
         p = _BACKEND / rel
         assert p.is_file(), f"watermark-coverage list names a missing file: {rel}"
     for rel in _ALLOWED:
-        assert _SYNTH_CALL.search((_BACKEND / rel).read_text(encoding="utf-8")), (
+        assert _SYNTH_CALL.search(_code_only((_BACKEND / rel).read_text(encoding="utf-8"))), (
             f"{rel} no longer matches a synthesis primitive — remove it from "
             "tests/test_watermark_route_coverage.py so the guard stays sharp."
         )
+
+
+def test_prose_mentions_are_not_producers():
+    """The ee35d238 regression: a comment (or log string / docstring) naming a
+    synthesis primitive must not make a module a producer — only a call can."""
+    prose = (
+        "# A generic backend.generate() call accepts the same wire shape\n"
+        'MSG = "route through generate_with_cached_ref(model) instead"\n'
+        "def f():\n"
+        '    """Docs may mention _run_inference( freely."""\n'
+        "    return 1\n"
+    )
+    assert not _SYNTH_CALL.search(_code_only(prose))
+    real = "def f(backend):\n    return backend.generate(text='hi')\n"
+    assert _SYNTH_CALL.search(_code_only(real))
 
 
 # ── mark_synthetic unit contract (delegation, not new policy) ────────────────
