@@ -533,7 +533,7 @@ VoiceStudio stands on exceptional open-source work: [OmniVoice (k2-fsa)](https:/
 
 ### 🧰 More local open-source from the maker
 
-[**Opal** 💠](https://github.com/debpalash/Opal) — play everything: the media player for the AI era · [**memxt** 🧠](https://github.com/debpalash/memxt) — local long-term memory for coding agents. Same rule: **your data stays on your machine.**
+[**Opal** 💠](https://github.com/debpalash/Opal) — play everything: the media player for the AI era · [**memxt** 🧠](https://github.com/debpalash/memxt) — local long-term memory for coding agents. Same rule: **your data stays on your machine.** All of it lives at [palash.dev](https://palash.dev).
 
 ---
 
