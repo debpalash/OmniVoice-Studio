@@ -1092,7 +1092,8 @@ class KittenTTSBackend(TTSBackend):
       - English only
       - Much faster + much smaller install
 
-    Preset voice is chosen via `extras["voice"]` (defaults to "Jasper"). Any
+    Preset voice is chosen via `extras["voice"]` (defaults to DEFAULT_VOICE,
+    "expr-voice-2-f"). Any
     `ref_audio` / `instruct` / `language` arg is ignored with a log line so
     the common call-site doesn't need to know which engine it's talking to.
     """

@@ -85,7 +85,16 @@ def _get_model():
     global _model
     if _model is None:
         from faster_whisper import WhisperModel
-        name = os.environ.get("ASR_MODEL_FW", "large-v3")
+        # Same weights as in-process faster-whisper: ASR_MODEL_FASTER selects
+        # for BOTH variants, ASR_MODEL_FW stays as a sidecar-only override.
+        # Before this, the sidecar read only ASR_MODEL_FW while the download
+        # preflight read ASR_MODEL_FASTER — set one and the other variant (or
+        # the preflight) quietly used a different model.
+        name = (
+            os.environ.get("ASR_MODEL_FW")
+            or os.environ.get("ASR_MODEL_FASTER")
+            or "large-v3"
+        )
         try:
             import torch
             device = "cuda" if torch.cuda.is_available() else "cpu"

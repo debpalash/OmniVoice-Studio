@@ -2325,7 +2325,7 @@ _INSTALL_HINTS: dict[str, str] = {
         "mac-ARM source installs since 0.3.22. Parakeet TDT v3 on the GPU via "
         "MLX: 25 European languages, word timestamps, ~2 GB unified memory.)"
     ),
-    "moonshine":       "pip install useful-moonshine  (edge/CPU-optimized ASR)",
+    "moonshine":       "uv pip install moonshine-onnx  (or moonshine-voice; edge/CPU-optimized ASR)",
     "funasr":          "pip install funasr  (SenseVoiceSmall + FSMN-VAD; CUDA or CPU)",
     "sherpa-onnx-asr": "uv add sherpa-onnx  (ONNX live dictation; CPU, cross-platform)",
     "openai-compat-asr": (
@@ -3120,10 +3120,17 @@ def _offline_asr_repo(backend_id: str | None = None) -> str | None:
     bid = backend_id or active_backend_id()
     if bid == "whisperx":
         return _fw_repo(os.environ.get("ASR_MODEL_WHISPERX", "large-v3"))
-    if bid in ("faster-whisper", "faster-whisper-isolated"):
-        # The crash-isolated sidecar loads the SAME CT2 weights as in-process
-        # faster-whisper (it reuses the ASR_MODEL_FASTER selection).
+    if bid == "faster-whisper":
         return _fw_repo(os.environ.get("ASR_MODEL_FASTER", _FASTER_WHISPER_DEFAULT))
+    if bid == "faster-whisper-isolated":
+        # Mirror the sidecar's own resolution (_asr_sidecar/main.py):
+        # ASR_MODEL_FW is a sidecar-only override, otherwise the shared
+        # ASR_MODEL_FASTER selection applies — so the preflight can never
+        # download a different repo than the sidecar will load.
+        return _fw_repo(
+            os.environ.get("ASR_MODEL_FW")
+            or os.environ.get("ASR_MODEL_FASTER", _FASTER_WHISPER_DEFAULT)
+        )
     if bid == "mlx-whisper":
         return os.environ.get("ASR_MODEL", _MLX_MODEL_DEFAULT)
     if bid == "parakeet-mlx":

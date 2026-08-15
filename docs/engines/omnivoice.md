@@ -1,0 +1,72 @@
+# VoiceStudio — OmniVoice Engine (default)
+
+OmniVoice (k2-fsa/OmniVoice) is VoiceStudio's default TTS engine — the one a
+fresh install uses without any configuration. It does zero-shot voice cloning
+across 600+ languages and outputs 24 kHz mono audio. Voice cloning, dubbing,
+and dictation all run on it out of the box.
+
+## When to pick it
+
+- You want cloning plus the broadest language coverage (see
+  [languages.md](../languages.md)).
+- You have a GPU (CUDA or Apple Silicon MPS) with ~6 GB VRAM or more.
+- You just installed VoiceStudio — it's already selected.
+
+For low-VRAM or CPU-only machines, the
+[OmniVoice GGUF](omnivoice-gguf.md) variant runs the same model through a
+quantized native binary with a much smaller memory footprint.
+
+## Requirements
+
+- Runs on CUDA, MPS (Apple Silicon), or CPU — auto-detected.
+- Recommended VRAM floor: **6 GB** on a dedicated GPU. This is the only
+  engine with a measured floor: on 4 GB cards (GTX 1650 Ti, Quadro P2000 —
+  issues [#1226](https://github.com/debpalash/VoiceStudio/issues/1226) /
+  [#1222](https://github.com/debpalash/VoiceStudio/issues/1222)) the driver
+  pages to system RAM and a render that should take seconds runs for minutes
+  until the compute budget kills it. The UI warns before you wait; nothing
+  hard-blocks, since short inputs can still fit.
+- No extra install — the model ships with the app and downloads its weights
+  on first use (see [downloading-models.md](../downloading-models.md)).
+
+## Selecting the engine
+
+OmniVoice is the default, so normally there is nothing to do. If you switched
+away and want it back:
+
+- **Model Catalogue → Engines**, or
+- set `OMNIVOICE_TTS_BACKEND=omnivoice`.
+
+The env var overrides the persisted UI choice.
+
+## Behaviour notes
+
+- Weights load lazily on first use and are shared with the rest of the app
+  (dubbing, dictation) — the model is never double-loaded.
+- On CUDA the model runs fp16 with `torch.compile`; a speech recognizer is
+  co-loaded for the cloning path.
+- Output is 24 kHz mono; the shared mastering chain (highpass + compressor)
+  is tuned for this rate and applied automatically.
+- Cloning takes a short reference clip (`ref_audio`); an optional transcript
+  of the clip improves conditioning.
+
+## Known limits
+
+- No voice design from a text description — use [VoxCPM2](voxcpm2.md) for
+  that.
+- Below the 6 GB VRAM floor, expect very slow renders or budget timeouts;
+  prefer [OmniVoice GGUF](omnivoice-gguf.md) or a CPU engine such as
+  [PocketTTS](pockettts.md).
+
+## Troubleshooting
+
+- "Too heavy for the available compute" on a small GPU: see the VRAM floor
+  above — switch to OmniVoice GGUF or close other GPU apps.
+- First generation is slow: the first call downloads multi-GB weights; the
+  load runs under its own budget so it isn't billed against generation.
+- General install issues: [install/troubleshooting.md](../install/troubleshooting.md).
+
+See also: [benchmarks.md](../benchmarks.md),
+[performance.md](../performance.md),
+[expressive-speech.md](../expressive-speech.md),
+[disk usage](disk-usage.md).
