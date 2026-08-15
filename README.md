@@ -45,7 +45,7 @@
 | **Workflows** | Voice cloning and design, video dubbing, dictation, stories, audiobooks, batch generation |
 | **Language catalogue** | 646 TTS languages; actual coverage and quality depend on the selected engine |
 | **Engines** | 16 TTS · 11 ASR · switch in Model Catalogue or with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd> |
-| **Platforms** | macOS 13.3+ on Apple Silicon · Windows 10/11 x64 · Linux x86_64 |
+| **Platforms** | macOS 13.3+ on Apple Silicon · Windows 10/11 x64 · Linux x86_64 with glibc 2.39+ |
 | **Compute** | CUDA · Apple Silicon MPS/MLX · ROCm on Linux · CPU · optional remote workers |
 | **Interfaces** | Desktop app · local REST/SSE/WebSocket API · OpenAI-compatible audio API · MCP Server |
 | **Storage** | Voices, projects, settings, and outputs stay on the machine by default |
@@ -59,7 +59,7 @@
 |---|---|---|
 | macOS 13.3+ | DMG, Apple Silicon | [Install on macOS](docs/install/macos.md) |
 | Windows 10/11 | MSI, x64 | [Install on Windows](docs/install/windows.md) |
-| Linux | AppImage, x86_64 | [Install on Linux](docs/install/linux.md) |
+| Linux | AppImage, x86_64 with glibc 2.39+ | [Install on Linux](docs/install/linux.md) |
 | Docker | CUDA, ROCm, or CPU | [Run with Docker](docs/install/docker.md) |
 
 Download packages from the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest). First launch creates a managed Python environment and downloads the default model. Later launches reuse both.
@@ -152,7 +152,7 @@ Requirements vary by engine. These values cover the default local workflow.
 
 | | **Minimum** | **Recommended** |
 |---|---|---|
-| **OS** | Windows 10 x64 · macOS 13.3 Apple Silicon · Linux x86_64 | Current supported OS release |
+| **OS** | Windows 10 x64 · macOS 13.3 Apple Silicon · Linux x86_64 with glibc 2.39+ | Current supported OS release |
 | **RAM** | 8 GB | 16 GB+ |
 | **Disk** | 10 GB free | 20 GB+ SSD |
 | **GPU** | Optional; CPU mode is supported | NVIDIA CUDA or Apple Silicon |
@@ -173,7 +173,7 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 
 | Engine | Languages | Clone | Instruct | Linux | macOS ARM | Windows | License |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **VoiceStudio** (default, powered by k2-fsa/OmniVoice) | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | Built-in |
+| **VoiceStudio** (default, powered by k2-fsa/OmniVoice) | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
 | **CosyVoice 3** | 9 + 18 dialects | Yes | Yes | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
 | **GPT-SoVITS** | 5 | Yes | — | CUDA/CPU | — | CUDA/CPU | MIT |
 | **VoxCPM2** | 30 | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | Apache-2.0 |
@@ -182,8 +182,8 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 | **MLX-Audio** | Model-dependent | Varies | Varies | — | MLX | — | Varies |
 | **Sherpa-ONNX** | 20+ | — | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
 | **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Bilibili model license¹ |
-| **OmniVoice GGUF** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS/CPU | CUDA/CPU | Built-in |
-| **OmniVoice (subprocess)** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | Built-in |
+| **OmniVoice GGUF** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS/CPU | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
+| **OmniVoice (subprocess)** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
 | **PocketTTS** ⚡ | EN · FR · DE · PT · IT · ES | Yes | — | CPU | CPU | CPU | CC-BY-4.0, gated² |
 | **Supertonic 3** ⚡ | 31 | — | — | CPU | CPU | CPU | OpenRAIL-M |
 | **MOSS-TTS-v1.5** ⚡ | 31 | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
@@ -278,6 +278,7 @@ with client.audio.speech.with_streaming_response.create(
     model="tts-1",
     voice="<profile-id>",
     input="Made on my own hardware.",
+    response_format="wav",
 ) as response:
     response.stream_to_file("speech.wav")
 ```
