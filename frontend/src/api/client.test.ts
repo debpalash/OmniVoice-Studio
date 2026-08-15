@@ -182,15 +182,16 @@ describe('apiFetch 401 routing', () => {
     dispatch.mockRestore();
   });
 
-  const stub401 = (detail: string) =>
+  const stubStatus = (status: number, statusText: string, detail: string) =>
     vi.fn(() =>
       Promise.resolve({
         ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
+        status,
+        statusText,
         text: async () => JSON.stringify({ detail }),
       }),
     ) as any;
+  const stub401 = (detail: string) => stubStatus(401, 'Unauthorized', detail);
 
   const authEvent = () =>
     dispatch.mock.calls.map((c) => c[0]).find((e) => (e as Event).type === 'ov:auth-required');
@@ -226,6 +227,31 @@ describe('apiFetch 401 routing', () => {
     }
     expect(authEvent()).toBeTruthy();
     expect((authEvent() as any).detail.mode).toBe('pin');
+  });
+
+  const stub403 = (detail: string) => stubStatus(403, 'Forbidden', detail);
+
+  it('dispatches ov:auth-required {mode:"apikey"} on an admin-gate 403 (#1525)', async () => {
+    globalThis.fetch = stub403('loopback origin or admin API key required');
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/system/info');
+    } catch {
+      /* ApiError expected */
+    }
+    expect(authEvent()).toBeTruthy();
+    expect((authEvent() as any).detail.mode).toBe('apikey');
+  });
+
+  it('does not dispatch ov:auth-required on other 403s (CSRF / desktop-only)', async () => {
+    globalThis.fetch = stub403('browser origin rejected');
+    const { apiFetch } = await import('./client');
+    try {
+      await apiFetch('/system/info');
+    } catch {
+      /* ApiError expected */
+    }
+    expect(authEvent()).toBeFalsy();
   });
 });
 

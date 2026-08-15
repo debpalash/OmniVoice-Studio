@@ -528,11 +528,23 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
       // "API key required" (BearerKeyMiddleware, OMNIVOICE_API_KEY) vs anything
       // else, i.e. "PIN required" (NetworkAccessMiddleware). Both are 401; the
       // detail is the only discriminator (only two 401 sites exist backend-side).
-      if (backendTarget && res.status === 401 && typeof window !== 'undefined') {
+      // The router-level admin gates answer 403 "loopback origin or admin API
+      // key required" (require_admin/require_admin_action) — same situation, the
+      // client just isn't admin-authenticated — so it routes to the API-key form
+      // too. Other 403s (CSRF "browser origin rejected", loopback-only routes)
+      // are NOT credential gaps; presenting a key won't help, so they stay plain
+      // errors.
+      const adminGate403 =
+        res.status === 403 &&
+        typeof detail === 'string' &&
+        detail.toLowerCase().includes('admin api key');
+      if (backendTarget && (res.status === 401 || adminGate403) && typeof window !== 'undefined') {
         // readError's declared `string` return isn't guaranteed at runtime —
         // `j.detail` can be a structured object/array on a future 401. Match only
         // real strings (avoids both a `.toLowerCase()` crash and `String()` itself
         // throwing on a malformed object); anything else falls back to PIN.
+        // (No adminGate403 arm here: "admin api key" ⊇ "api key", so the sniff
+        // below already yields 'apikey' for every admin-gate 403.)
         const mode =
           typeof detail === 'string' && detail.toLowerCase().includes('api key') ? 'apikey' : 'pin';
         if (mode === 'apikey') clearAdminSession();

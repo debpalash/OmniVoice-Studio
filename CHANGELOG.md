@@ -26,6 +26,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Every engine now has its own guide — 21 new pages under docs/engines plus an index covering all 16 TTS and 11 ASR engines, linked from both READMEs (#1556)
 
 ### Fixed
+- A remote browser hitting the admin-gated 403 ("loopback origin or admin API key required") now gets the API-key login form instead of endless console 403s, and the desktop build's admin 403 says plain "loopback origin required" so PIN-share guests are never offered a login form no key can satisfy (#1568)
 - The crash-isolated ASR sidecar and its download preflight now agree on which model to load — setting the shared faster-whisper model variable applies to both variants instead of the sidecar quietly using a different one (#1556)
 - "Ready" now requires the deep health probe (a working database-backed route), not just the identity probe — a backend whose install broke underneath can no longer be announced up while every real request fails (#1548)
 - Supervisor restarts after repeat crashes now back off (immediate, then 5s, then 15s) instead of respawning back-to-back, so a tight crash loop can't burn the whole restart budget in seconds (#1548)

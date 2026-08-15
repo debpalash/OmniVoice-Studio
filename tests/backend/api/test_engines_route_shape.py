@@ -627,7 +627,7 @@ def test_engine_health_is_admin_gated(fresh_app):
     client = _client(fresh_app, host="10.0.0.5")
     r = client.get("/engines/omnivoice/health")
     assert r.status_code == 403
-    assert r.json()["detail"] == "loopback origin or admin API key required"
+    assert r.json()["detail"] == "loopback origin required"
 
 
 def test_server_mode_engine_mutations_require_api_key(fresh_app, monkeypatch):
@@ -802,7 +802,7 @@ def test_selftest_unknown_id_is_404(fresh_app):
 def test_selftest_is_admin_gated(fresh_app):
     r = _client(fresh_app, host="10.0.0.9").post("/engines/omnivoice/selftest")
     assert r.status_code == 403
-    assert r.json()["detail"] == "loopback origin or admin API key required"
+    assert r.json()["detail"] == "loopback origin required"
 
 
 def test_selftest_captures_synth_exception_without_500(fresh_app):

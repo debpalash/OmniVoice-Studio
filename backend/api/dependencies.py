@@ -157,6 +157,29 @@ def require_loopback(request: Request) -> None:
     raise HTTPException(status_code=403, detail="loopback origin required")
 
 
+def _admin_gate_403() -> None:
+    """Raise the admin-gate 403 with a detail that states what would ACTUALLY
+    satisfy the gate. The bundled UI routes any 403 whose detail mentions
+    "admin api key" to the API-key login form (frontend ``client.ts``; the
+    literal contract is locked by ``tests/test_auth_gate_detail_lockstep.py``),
+    so the wording must not name a key where presenting one cannot help.
+
+    Server mode accepts the admin API key, so the detail names it. Desktop mode
+    rejects every non-loopback client regardless of credentials (the credential
+    checks in the callers only run under server mode), so it keeps the plain
+    loopback detail — naming the key there would trap a desktop LAN-share
+    guest in a login form that can never succeed (#1213, #1525).
+    """
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "loopback origin or admin API key required"
+            if _server_mode()
+            else "loopback origin required"
+        ),
+    )
+
+
 def require_admin(request: Request) -> None:
     """Gate RCE/filesystem-capable admin routers.
 
@@ -180,7 +203,7 @@ def require_admin(request: Request) -> None:
             return
         if _request_presents_admin_credential(request):
             return
-    raise HTTPException(status_code=403, detail="loopback origin or admin API key required")
+    _admin_gate_403()
 
 
 def require_admin_action(request: Request) -> None:
@@ -198,7 +221,7 @@ def require_admin_action(request: Request) -> None:
         side_effectful_get=True,
     ):
         return
-    raise HTTPException(status_code=403, detail="loopback origin or admin API key required")
+    _admin_gate_403()
 
 
 def require_desktop(request: Request) -> None:
