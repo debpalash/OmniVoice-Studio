@@ -125,6 +125,16 @@ def test_faster_whisper_float16_unsupported_falls_back_to_int8(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 
+    # The compute-device override gate consults the capability probe before
+    # the torch mock above — pin it to a CUDA family so the fallback chain
+    # under test is reachable on a cpu-only CI host.
+    from core.device_caps import HostCaps
+
+    monkeypatch.setattr(
+        "core.device_caps.detect_host_caps",
+        lambda: HostCaps(family="cuda", available_families=("cuda", "cpu")),
+    )
+
     be = FasterWhisperBackend()
     be._ensure_model()
 
