@@ -128,6 +128,15 @@ def mark_flashinfer_runtime_failure(reason: str) -> None:
     """Latch a FlashInfer apply/runtime failure for the rest of the process,
     same contract as ``mark_compile_runtime_failure``."""
     global _flashinfer_runtime_failure
+    try:
+        # Import/kernel errors embed absolute paths (wheels under the user's
+        # home) — redact before latching, since the reason is logged here and
+        # re-logged on every later skip.
+        from core.failure import sanitize
+
+        reason = sanitize(reason)
+    except Exception:
+        pass
     _flashinfer_runtime_failure = reason or "unknown FlashInfer runtime failure"
     logger.warning(
         "FlashInfer disabled for this session after a runtime failure: %s",

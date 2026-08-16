@@ -97,16 +97,23 @@ def test_prompt_load_rejects_unknown_format_version(tmp_path):
 
 
 def test_saved_tokens_are_cpu_even_from_dataclass_on_another_device(tmp_path):
-    # save() must detach+CPU the tokens so the file is portable; we can't make
-    # a CUDA tensor on CI, but a grad-tracking one exercises the detach.
+    # save() must detach+CPU the tokens so the file is portable. On CUDA hosts
+    # this exercises the real device move; CI (CPU-only) still verifies the
+    # detach and that the persisted payload is CPU-resident.
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     p = _VoiceClonePrompt()(
-        ref_audio_tokens=torch.zeros(8, 3, requires_grad=True),
+        ref_audio_tokens=torch.zeros(8, 3, requires_grad=True).to(device),
         ref_text="x",
         ref_rms=0.5,
     )
     path = str(tmp_path / "v.pt")
     p.save(path)
-    assert not _VoiceClonePrompt().load(path).ref_audio_tokens.requires_grad
+    loaded = _VoiceClonePrompt().load(path)
+    assert not loaded.ref_audio_tokens.requires_grad
+    assert loaded.ref_audio_tokens.device.type == "cpu"
+    # The device move must happen at SAVE time (portability of the file
+    # itself), not merely at load: the raw payload carries CPU tensors.
+    assert torch.load(path, weights_only=True)["ref_audio_tokens"].device.type == "cpu"
 
 
 # ── the disk layer under the memory cache ───────────────────────────────────

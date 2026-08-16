@@ -1475,8 +1475,13 @@ def _install_flashinfer_fallback(_model) -> None:
             engine_env.mark_flashinfer_runtime_failure(
                 f"{type(exc).__name__}: {exc}"
             )
-            _model.generate = orig_generate
+            # Unapply BEFORE exposing the eager path: while the teardown
+            # mutates modules, _model.generate still routes through the
+            # thread-affinity wrapper, so a concurrent render queues behind
+            # this call instead of racing the half-restored model (Greptile,
+            # #1565 round 2). Only a fully restored model is published.
             _unapply_flashinfer(_model)
+            _model.generate = orig_generate
             try:
                 return orig_generate(*args, **kwargs)
             except Exception as plain_exc:
