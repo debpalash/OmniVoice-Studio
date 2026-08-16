@@ -60,6 +60,37 @@ def test_should_flashinfer_refuses_without_the_package(monkeypatch):
     assert ee.should_flashinfer("cuda") == "off"
 
 
+def test_latched_reason_is_sanitized(monkeypatch):
+    # Wheel import errors embed the user's home path — the latch must store
+    # the redacted form (core.failure.sanitize maps $HOME → "~").
+    import os
+
+    home = os.path.expanduser("~")
+    _ee().mark_flashinfer_runtime_failure(
+        f"ImportError: {home}/.venv/lib/flashinfer/_kernels.so: bad ELF"
+    )
+    latched = _ee()._flashinfer_runtime_failure
+    assert home not in latched
+    assert "ImportError" in latched
+
+
+def test_sanitizer_failure_never_latches_the_raw_reason(monkeypatch):
+    # Fail closed: a broken redactor must not leak the original message.
+    import core.failure
+
+    def _boom(_):
+        raise RuntimeError("sanitizer exploded (test)")
+
+    monkeypatch.setattr(core.failure, "sanitize", _boom)
+    _ee().mark_flashinfer_runtime_failure(
+        "ImportError: /home/someone/secret-project/creds.so missing"
+    )
+    latched = _ee()._flashinfer_runtime_failure
+    assert "secret-project" not in latched and "/home/" not in latched
+    assert latched.startswith("ImportError")
+    assert "redacted" in latched
+
+
 def test_runtime_failure_latches_the_session_off(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_FLASHINFER", "graph")
     ee = _ee()

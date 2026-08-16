@@ -136,7 +136,13 @@ def mark_flashinfer_runtime_failure(reason: str) -> None:
 
         reason = sanitize(reason)
     except Exception:
-        pass
+        # Fail closed: if the redactor itself breaks, latching the raw text
+        # would defeat the redaction. Keep only the exception class (the part
+        # before ':' in our "Type: message" reasons) and drop the message.
+        reason = (
+            f"{(reason or '').split(':', 1)[0][:80]} "
+            "(details redacted: sanitizer unavailable)"
+        ).strip()
     _flashinfer_runtime_failure = reason or "unknown FlashInfer runtime failure"
     logger.warning(
         "FlashInfer disabled for this session after a runtime failure: %s",
