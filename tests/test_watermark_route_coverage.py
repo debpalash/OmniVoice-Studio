@@ -58,12 +58,48 @@ def _terminal_name(expr: ast.AST) -> str:
     return ""
 
 
+def _references(src: str, names: frozenset[str]) -> bool:
+    """Does the source reference one of `names` in CODE — a ``Name`` or
+    ``Attribute`` node, so direct calls, dotted calls, and callback/partial
+    forms all count, while a comment or docstring mention cannot? Parse
+    failure proves nothing, so it does NOT excuse the module."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in names:
+            return True
+        if isinstance(node, ast.Attribute) and node.attr in names:
+            return True
+    return False
+
+
+def _calls(src: str, names: frozenset[str]) -> bool:
+    """Does the source CALL one of `names` (bare or as a method)? Prose
+    cannot satisfy it; an unparseable source is flagged, never excused —
+    strict degrade, same policy as ``_synthesizes``."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in names:
+            return True
+        if isinstance(func, ast.Attribute) and func.attr in names:
+            return True
+    return False
+
+
 def _synthesizes(src: str) -> bool:
     """Does this module source actually CALL a synthesis primitive?
 
     AST-based so prose cannot trip it: a comment or docstring mentioning
     ``backend.generate`` (the worker transport's feature-flag rationale did
-    exactly that and redened main) is not a call site. A source that fails
+    exactly that and turned main red) is not a call site. A source that fails
     to parse is flagged, not excused — the guard degrades strict, never
     permissive.
     """
@@ -102,7 +138,11 @@ _ALLOWED = {
 #: Producers that must each keep a mark_synthetic call. (sonitranslate.py is
 #: absent by design: its audio is synthesized inside the external sidecar and
 #: never passes through our tensor stage — the gap is documented at the
-#: /engines/sonitranslate/dub route, not silently ignored.)
+#: /engines/sonitranslate/dub route, not silently ignored. services/gpu_sandbox.py
+#: is a second documented gap: its subprocess renders via ``model.generate(...)``
+#: — a receiver no rule matches, missed by the old regex too — and nothing wires
+#: the module into a route yet. Wiring it in requires marking the returned
+#: audio or renaming the receiver to the ``*backend`` adapter convention.)
 _PRODUCERS = [
     "api/routers/generation.py",
     "api/routers/openai_compat.py",
@@ -131,7 +171,7 @@ def test_every_synthesis_module_routes_through_mark_synthetic():
     for rel, src in _py_files():
         if not _synthesizes(src):
             continue
-        if rel in _ALLOWED or "mark_synthetic" in src:
+        if rel in _ALLOWED or _references(src, frozenset({"mark_synthetic"})):
             continue
         offenders.append(rel)
     assert not offenders, (
@@ -145,7 +185,7 @@ def test_every_synthesis_module_routes_through_mark_synthetic():
 @pytest.mark.parametrize("rel", _PRODUCERS)
 def test_known_producer_still_marks(rel):
     src = (_BACKEND / rel).read_text(encoding="utf-8")
-    assert "mark_synthetic" in src, (
+    assert _references(src, frozenset({"mark_synthetic"})), (
         f"{rel} lost its mark_synthetic call — its synthetic audio would ship "
         "without the Art. 50(2) provenance mark (#1169)."
     )
@@ -156,7 +196,7 @@ def test_embed_watermark_not_called_outside_the_chokepoint():
     for rel, src in _py_files():
         if rel == "services/watermark.py":
             continue
-        if re.search(r"\bembed_watermark\(", src):
+        if _calls(src, frozenset({"embed_watermark"})):
             offenders.append(rel)
     assert not offenders, (
         f"Direct embed_watermark() calls bypass the mark_synthetic chokepoint: "
@@ -185,7 +225,7 @@ def test_synthesizes_ignores_mentions_in_comments_and_docstrings():
     """The class fix: prose naming a primitive is not a call site.
 
     worker/transport/server.py's feature-flag rationale mentions
-    ``backend.generate`` in a comment and redened main; the AST matcher must
+    ``backend.generate`` in a comment and turned main red; the AST matcher must
     not repeat that.
     """
     comment_only = (
@@ -225,6 +265,38 @@ def test_synthesizes_flags_unparseable_source():
     fires only on genuinely broken input — and the guard degrades strict.
     """
     assert _synthesizes("def f(:\n    # mentions nothing\n") is True
+
+
+# ── _references / _calls: excusals and call bans see code, not prose ─────────
+
+
+def test_references_counts_code_forms_not_prose():
+    """A prose mention of mark_synthetic must NOT excuse a producer (the
+    inverse of the server.py incident), while every real code reference —
+    direct call, dotted call, callback/partial — must."""
+    prose_only = "# callers must mark_synthetic the result before encoding\nx = 1\n"
+    docstring_only = '"""Remember to mark_synthetic all outputs."""\ny = f(x)\n'
+    assert _references(prose_only, frozenset({"mark_synthetic"})) is False
+    assert _references(docstring_only, frozenset({"mark_synthetic"})) is False
+    real = {
+        "direct call": "z = mark_synthetic(wav, 24000)\n",
+        "dotted call": "z = watermark.mark_synthetic(wav, 24000)\n",
+        "callback/partial": (
+            "import functools\n"
+            "mark = functools.partial(mark_synthetic, sample_rate=24000)\n"
+        ),
+    }
+    for label, src in real.items():
+        assert _references(src, frozenset({"mark_synthetic"})) is True, label
+
+
+def test_calls_counts_call_sites_not_prose():
+    """A comment saying 'do not call embed_watermark()' must not flag the
+    module — the same prose-poisoning class that turned main red."""
+    prose = "# do not call embed_watermark() directly; use mark_synthetic\n"
+    assert _calls(prose, frozenset({"embed_watermark"})) is False
+    assert _calls("z = embed_watermark(w)\n", frozenset({"embed_watermark"})) is True
+    assert _calls("z = wm.embed_watermark(w)\n", frozenset({"embed_watermark"})) is True
 
 
 # ── mark_synthetic unit contract (delegation, not new policy) ────────────────
