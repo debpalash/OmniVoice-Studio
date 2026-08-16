@@ -21,7 +21,9 @@ tests/test_synthetic_audio_watermark_1169.py.
 """
 from __future__ import annotations
 
+import io
 import re
+import tokenize
 from pathlib import Path
 
 import pytest
@@ -75,6 +77,46 @@ _PRODUCERS = [
 ]
 
 
+def _code_only(src: str) -> str:
+    """``src`` with comments and string literals blanked to spaces.
+
+    ee35d238 made a module a "producer" by *mentioning* ``backend.generate()``
+    in a comment — prose can't synthesize audio. Only real call sites may
+    match ``_SYNTH_CALL``, so blank every COMMENT/STRING token span (spaces,
+    not deletion, to keep the layout the regexes were written against).
+    Unparseable source falls back to the raw text — fail closed, a module we
+    can't tokenize still gets scanned.
+
+    f-strings stay conservative (Greptile P1 on #1564): on Python ≤3.11 the
+    whole f-string — replacement expressions included — is ONE STRING token,
+    so blanking it would let ``f"{backend.generate(t)}"`` evade the guard.
+    f-prefixed strings are therefore kept raw there (a literal f-string
+    *mentioning* a primitive false-positives toward the allowlist — fail
+    closed). On 3.12+ (PEP 701) replacement code arrives as ordinary tokens
+    and only the literal FSTRING_MIDDLE text is blanked.
+    """
+    fstring_middle = getattr(tokenize, "FSTRING_MIDDLE", None)
+    lines = src.splitlines(keepends=True)
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return src
+    for tok in tokens:
+        if tok.type == tokenize.STRING:
+            prefix = tok.string.split(tok.string[-1], 1)[0].rstrip("\"'")
+            if "f" in prefix.lower():
+                continue  # pre-3.12 f-string: may contain executable code
+        elif tok.type not in (tokenize.COMMENT, fstring_middle):
+            continue
+        (srow, scol), (erow, ecol) = tok.start, tok.end
+        for row in range(srow - 1, erow):
+            line = lines[row]
+            lo = scol if row == srow - 1 else 0
+            hi = ecol if row == erow - 1 else len(line.rstrip("\r\n"))
+            lines[row] = line[:lo] + " " * (hi - lo) + line[hi:]
+    return "".join(lines)
+
+
 def _py_files():
     for sub in ("api", "services", "worker"):
         for p in sorted((_BACKEND / sub).rglob("*.py")):
@@ -84,9 +126,11 @@ def _py_files():
 def test_every_synthesis_module_routes_through_mark_synthetic():
     offenders = []
     for rel, src in _py_files():
-        if not _SYNTH_CALL.search(src):
+        if not _SYNTH_CALL.search(_code_only(src)):
             continue
-        if rel in _ALLOWED or "mark_synthetic" in src:
+        # The satisfying reference must be code too — a comment saying
+        # "mark_synthetic" must not certify a module (CodeRabbit, #1564).
+        if rel in _ALLOWED or "mark_synthetic" in _code_only(src):
             continue
         offenders.append(rel)
     assert not offenders, (
@@ -100,7 +144,7 @@ def test_every_synthesis_module_routes_through_mark_synthetic():
 @pytest.mark.parametrize("rel", _PRODUCERS)
 def test_known_producer_still_marks(rel):
     src = (_BACKEND / rel).read_text(encoding="utf-8")
-    assert "mark_synthetic" in src, (
+    assert "mark_synthetic" in _code_only(src), (
         f"{rel} lost its mark_synthetic call — its synthetic audio would ship "
         "without the Art. 50(2) provenance mark (#1169)."
     )
@@ -127,10 +171,32 @@ def test_allowlist_is_not_stale():
         p = _BACKEND / rel
         assert p.is_file(), f"watermark-coverage list names a missing file: {rel}"
     for rel in _ALLOWED:
-        assert _SYNTH_CALL.search((_BACKEND / rel).read_text(encoding="utf-8")), (
+        assert _SYNTH_CALL.search(_code_only((_BACKEND / rel).read_text(encoding="utf-8"))), (
             f"{rel} no longer matches a synthesis primitive — remove it from "
             "tests/test_watermark_route_coverage.py so the guard stays sharp."
         )
+
+
+def test_prose_mentions_are_not_producers():
+    """The ee35d238 regression: a comment (or log string / docstring) naming a
+    synthesis primitive must not make a module a producer — only a call can."""
+    prose = (
+        "# A generic backend.generate() call accepts the same wire shape\n"
+        'MSG = "route through generate_with_cached_ref(model) instead"\n'
+        "def f():\n"
+        '    """Docs may mention _run_inference( freely."""\n'
+        "    return 1\n"
+    )
+    assert not _SYNTH_CALL.search(_code_only(prose))
+    real = "def f(backend):\n    return backend.generate(text='hi')\n"
+    assert _SYNTH_CALL.search(_code_only(real))
+    # Greptile P1: a call inside an f-string replacement field is code and
+    # must still be caught, on every supported Python (≤3.11 tokenizes the
+    # whole f-string as one STRING; 3.12+ splits out the expression tokens).
+    fstring_call = 'def f(backend):\n    return f"{backend.generate(text=\'hi\')}"\n'
+    assert _SYNTH_CALL.search(_code_only(fstring_call))
+    # ...and a comment claiming mark_synthetic must not certify a producer.
+    assert "mark_synthetic" not in _code_only("# routes via mark_synthetic\nx = 1\n")
 
 
 # ── mark_synthetic unit contract (delegation, not new policy) ────────────────

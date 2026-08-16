@@ -1376,6 +1376,122 @@ def _install_compile_fallback(_model) -> None:
     _model.generate = _generate_with_compile_fallback
 
 
+# ── FlashInfer runtime fallback (upstream k2-fsa port) ──────────────────────
+
+
+def _is_flashinfer_runtime_failure(exc: BaseException) -> bool:
+    """True when an exception originates in the FlashInfer fast path (the
+    flashinfer package, our omnivoice_flashinfer patch module, or CUDA-graph
+    capture/replay) rather than in the model or the request itself. Same
+    chain/traceback walk as ``_is_compile_runtime_failure``."""
+    import traceback as _tb
+
+    tb_markers = ("/flashinfer/", "omnivoice_flashinfer")
+    msg_markers = ("flashinfer", "cuda graph", "cudagraph")
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        mod = type(cur).__module__ or ""
+        if mod.startswith("flashinfer"):
+            return True
+        msg = str(cur).lower()
+        if any(marker in msg for marker in msg_markers):
+            return True
+        try:
+            for frame in _tb.extract_tb(cur.__traceback__):
+                filename = (frame.filename or "").replace("\\", "/")
+                if any(marker in filename for marker in tb_markers):
+                    return True
+        except Exception:
+            pass
+        if cur.__cause__ is not None:
+            cur = cur.__cause__
+        elif not cur.__suppress_context__:
+            cur = cur.__context__
+        else:
+            cur = None
+    return False
+
+
+def _unapply_flashinfer(_model) -> None:
+    """Restore the standard execution path on a FlashInfer-patched model.
+
+    ``apply_flashinfer`` works entirely through *instance-level* state —
+    MethodType-bound ``forward``/``_generate_iterative`` overrides and
+    ``_fi_*`` attributes — so deleting those attributes restores the class
+    implementations exactly. The attention implementation is restored to the
+    one captured before apply (``_fi_orig_attn_impl`` — could be
+    flash_attention_2, not just sdpa), and use_cache is re-enabled."""
+    llm = getattr(_model, "llm", None)
+    orig_attn = getattr(_model, "_fi_orig_attn_impl", None) or "sdpa"
+    if llm is not None:
+        for module in llm.modules():
+            if "forward" in vars(module):
+                del module.forward
+            for attr in ("_fi_w_qkv", "_fi_qkv_split", "_fi_rope_theta", "_fi_w_gate_up"):
+                if attr in vars(module):
+                    delattr(module, attr)
+        try:
+            llm.set_attn_implementation(orig_attn)
+        except Exception:
+            logger.exception(
+                "failed to restore %s attention after FlashInfer", orig_attn
+            )
+        llm.config.use_cache = True
+    for attr in (
+        "_fi_orig_attn_impl",
+        "_generate_iterative",
+        "_fi_runner",
+        "_fi_graph_cache",
+        "_fi_enable_cuda_graph",
+        "_fi_graph_buckets",
+        "_fi_overhead_budget",
+    ):
+        if attr in vars(_model):
+            delattr(_model, attr)
+
+
+def _install_flashinfer_fallback(_model) -> None:
+    """Wrap ``model.generate`` so a FlashInfer failure at inference time falls
+    back to the standard path instead of failing the generation — the same
+    contract as ``_install_compile_fallback`` (#278): an optimization must
+    never turn a working generation into an error."""
+    orig_generate = _model.generate
+
+    def _generate_with_flashinfer_fallback(*args, **kwargs):
+        try:
+            return orig_generate(*args, **kwargs)
+        except Exception as exc:
+            if not _is_flashinfer_runtime_failure(exc):
+                raise
+            logger.warning(
+                "FlashInfer runtime failure during generation (%s: %s) — "
+                "restoring the standard path and disabling FlashInfer for "
+                "this session. Generation is being retried without it.",
+                type(exc).__name__, exc,
+            )
+            from services import engine_env
+            engine_env.mark_flashinfer_runtime_failure(
+                f"{type(exc).__name__}: {exc}"
+            )
+            # Unapply BEFORE exposing the eager path: while the teardown
+            # mutates modules, _model.generate still routes through the
+            # thread-affinity wrapper, so a concurrent render queues behind
+            # this call instead of racing the half-restored model (Greptile,
+            # #1565 round 2). Only a fully restored model is published.
+            _unapply_flashinfer(_model)
+            _model.generate = orig_generate
+            try:
+                return orig_generate(*args, **kwargs)
+            except Exception as plain_exc:
+                # `from None`: a genuine standard-path failure must not be
+                # chained to — and misread as — the FlashInfer error.
+                raise plain_exc from None
+
+    _model.generate = _generate_with_flashinfer_fallback
+
+
 # ── #315: thread affinity for cudagraph-compiled models ─────────────────────
 # `torch.compile(mode="reduce-overhead")` captures CUDA graphs, and captured
 # graph state is **thread-local** (torch/_inductor/cudagraph_trees keys its
@@ -2117,6 +2233,57 @@ def _load_model_sync():
                     "to stop preloading it alongside TTS."
                 ) from asr_exc
 
+        # FlashInfer opt-in (upstream k2-fsa port): packed CFG attention +
+        # fused kernels, ~2x on upstream's benchmarks. Applied INSTEAD of
+        # torch.compile — both rewrite the llm's execution and they do not
+        # compose. Best-effort: any apply failure latches the session off and
+        # the standard path continues untouched.
+        flashinfer_applied = False
+        try:
+            from services.engine_env import (
+                mark_flashinfer_runtime_failure,
+                should_flashinfer,
+            )
+
+            fi_mode = should_flashinfer(device)
+            if fi_mode != "off":
+                _set_loading("compiling", "Applying FlashInfer kernels…")
+                try:
+                    from omnivoice.models.omnivoice_flashinfer import apply_flashinfer
+
+                    # Captured BEFORE apply so unapply (either the failure
+                    # branch below or the generate-time fallback) restores
+                    # the true prior implementation.
+                    _model._fi_orig_attn_impl = getattr(
+                        _model.llm.config, "_attn_implementation", "sdpa"
+                    )
+                    apply_flashinfer(_model, enable_cuda_graph=(fi_mode == "graph"))
+                except Exception as fi_exc:  # noqa: BLE001 — perf opt, never fatal
+                    mark_flashinfer_runtime_failure(
+                        f"{type(fi_exc).__name__}: {fi_exc}"
+                    )
+                    # apply_flashinfer mutates the model as it goes — a
+                    # failure partway leaves half-patched modules that would
+                    # crash the next render (Greptile, #1565). Restore fully.
+                    _unapply_flashinfer(_model)
+                else:
+                    flashinfer_applied = True
+                    _install_flashinfer_fallback(_model)
+                    # BOTH modes pin inference to one thread. Graph mode for
+                    # the #315 reason (captured CUDA-graph state is
+                    # thread-local); eager mode because the FlashInfer
+                    # attention wrapper and packed position ids are planned
+                    # per generation in module state — two _gpu_pool workers
+                    # interleaving plan() and run() would corrupt each
+                    # other's layout (CodeRabbit/Greptile, #1565).
+                    _install_compile_thread_affinity(_model)
+                    logger.info(
+                        "FlashInfer applied (mode=%s) — torch.compile skipped "
+                        "for this load.", fi_mode,
+                    )
+        except Exception:
+            logger.exception("FlashInfer opt-in check failed; continuing without")
+
         try:
             # plan-02 (#65): gate on Triton availability (+ user setting), not
             # just device==cuda. Triton has no Windows wheel, so the old
@@ -2124,7 +2291,7 @@ def _load_model_sync():
             # falls back to eager there.
             from services.engine_env import should_torch_compile
 
-            if should_torch_compile(device):
+            if not flashinfer_applied and should_torch_compile(device):
                 _set_loading("compiling", "Compiling model (torch.compile)…")
                 try:
                     _model.llm = torch.compile(_model.llm, mode=_TORCH_COMPILE_MODE)
