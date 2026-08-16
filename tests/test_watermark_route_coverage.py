@@ -21,6 +21,7 @@ tests/test_synthetic_audio_watermark_1169.py.
 """
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -29,15 +30,62 @@ import torch
 
 _BACKEND = Path(__file__).resolve().parents[1] / "backend"
 
-#: Calls that produce a synthetic speech tensor. Matching any of these makes a
-#: module a "producer" that must route its output through mark_synthetic.
-_SYNTH_CALL = re.compile(
-    r"\bbackend\.generate\("           # adapter-protocol engines
-    r"|\b_run_inference\("             # OmniVoice model, generation.py primitive
-    r"|\b_run_backend_inference\("
-    r"|\bgenerate_with_cached_ref\("   # cached-reference OmniVoice path
-    r"|\bsynthesize_chapter\("         # longform chapter assembly
-)
+#: Callee names that produce a synthetic speech tensor. Matching any of these
+#: makes a module a "producer" that must route its output through
+#: mark_synthetic. Single source of truth for the matcher below.
+_SYNTH_CALLEES = frozenset({
+    "_run_inference",               # OmniVoice model, generation.py primitive
+    "_run_backend_inference",
+    "generate_with_cached_ref",     # cached-reference OmniVoice path
+    "synthesize_chapter",           # longform chapter assembly
+})
+
+#: The adapter-protocol engine call: ``<x>backend.generate(...)`` — matched
+#: when the receiver's terminal name ends with ``backend`` (``backend``,
+#: ``self.backend``, ``_backend``, ``tts_backend``), which in this codebase is
+#: always the TTS adapter protocol.
+_SYNTH_ADAPTER_METHOD = "generate"
+_SYNTH_ADAPTER_RECEIVER_SUFFIX = "backend"
+
+
+def _terminal_name(expr: ast.AST) -> str:
+    """The rightmost identifier of a callee receiver: ``self.backend`` →
+    ``backend``, ``_backend`` → ``_backend``; anything else → ``''``."""
+    if isinstance(expr, ast.Name):
+        return expr.id
+    if isinstance(expr, ast.Attribute):
+        return expr.attr
+    return ""
+
+
+def _synthesizes(src: str) -> bool:
+    """Does this module source actually CALL a synthesis primitive?
+
+    AST-based so prose cannot trip it: a comment or docstring mentioning
+    ``backend.generate`` (the worker transport's feature-flag rationale did
+    exactly that and redened main) is not a call site. A source that fails
+    to parse is flagged, not excused — the guard degrades strict, never
+    permissive.
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in _SYNTH_CALLEES:
+            return True
+        if isinstance(func, ast.Attribute):
+            if func.attr in _SYNTH_CALLEES:
+                return True
+            if (
+                func.attr == _SYNTH_ADAPTER_METHOD
+                and _terminal_name(func.value).endswith(_SYNTH_ADAPTER_RECEIVER_SUFFIX)
+            ):
+                return True
+    return False
 
 #: Modules that legitimately touch synthesis primitives WITHOUT marking.
 #: Every entry carries its justification; test_allowlist_is_not_stale keeps
@@ -49,9 +97,6 @@ _ALLOWED = {
     "services/tts_backend.py":
         "the engine-adapter layer itself — the seam BELOW the chokepoint; "
         "every caller marks the returned tensor",
-    "services/audiobook.py":
-        "pure chapter assembly (spans -> tensor); the audiobook router marks "
-        "the assembled chapter at its single mark_synthetic call site",
 }
 
 #: Producers that must each keep a mark_synthetic call. (sonitranslate.py is
@@ -84,7 +129,7 @@ def _py_files():
 def test_every_synthesis_module_routes_through_mark_synthetic():
     offenders = []
     for rel, src in _py_files():
-        if not _SYNTH_CALL.search(src):
+        if not _synthesizes(src):
             continue
         if rel in _ALLOWED or "mark_synthetic" in src:
             continue
@@ -127,10 +172,59 @@ def test_allowlist_is_not_stale():
         p = _BACKEND / rel
         assert p.is_file(), f"watermark-coverage list names a missing file: {rel}"
     for rel in _ALLOWED:
-        assert _SYNTH_CALL.search((_BACKEND / rel).read_text(encoding="utf-8")), (
+        assert _synthesizes((_BACKEND / rel).read_text(encoding="utf-8")), (
             f"{rel} no longer matches a synthesis primitive — remove it from "
             "tests/test_watermark_route_coverage.py so the guard stays sharp."
         )
+
+
+# ── _synthesizes: the producer scan must see calls, not prose ────────────────
+
+
+def test_synthesizes_ignores_mentions_in_comments_and_docstrings():
+    """The class fix: prose naming a primitive is not a call site.
+
+    worker/transport/server.py's feature-flag rationale mentions
+    ``backend.generate`` in a comment and redened main; the AST matcher must
+    not repeat that.
+    """
+    comment_only = (
+        "# A generic backend.generate() call accepts the same wire shape.\n"
+        "FEATURES = frozenset({'remote_tts_render_v1'})\n"
+    )
+    docstring_only = (
+        '"""Adapter notes: engines call backend.generate() directly."""\n'
+        "def relay(x):\n"
+        "    return x\n"
+    )
+    assert _synthesizes(comment_only) is False
+    assert _synthesizes(docstring_only) is False
+
+
+def test_synthesizes_flags_real_call_sites_in_all_matcher_shapes():
+    """Guard strength: every call shape the old regex caught stays caught —
+    and the adapter rule covers aliased receivers it missed (generation.py
+    calls ``_backend.generate``)."""
+    real = {
+        "direct adapter call": "y = backend.generate(text='hi')\n",
+        "bound adapter attribute": "y = self.backend.generate(text='hi')\n",
+        "aliased adapter local": "y = _backend.generate(text='hi')\n",
+        "method receiver": "y = self._run_inference(x)\n",
+        "bare name": "y = _run_backend_inference(x)\n",
+        "cached ref": "y = engine.generate_with_cached_ref(x)\n",
+        "chapter assembly": "y = book.synthesize_chapter(ch)\n",
+    }
+    for label, src in real.items():
+        assert _synthesizes(src) is True, label
+
+
+def test_synthesizes_flags_unparseable_source():
+    """A source that cannot parse is flagged, never excused.
+
+    In a green tree every scanned module imports cleanly, so this branch
+    fires only on genuinely broken input — and the guard degrades strict.
+    """
+    assert _synthesizes("def f(:\n    # mentions nothing\n") is True
 
 
 # ── mark_synthetic unit contract (delegation, not new policy) ────────────────
