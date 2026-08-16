@@ -459,8 +459,9 @@ def _forward_logits(model, input_ids, audio_mask, position_ids, tgt_index):
     The scoring step consumes logits at the cond-target and uncond ranges
     (2*sum(t_len) of the packed positions); running the 1024->8200 audio_heads
     GEMM and the fp32 upcast on the full packed length is wasted work.
-    Returns logits of shape (1, C, 2*sum(t_len), V) laid out per item as
-    [cond_target_i (t_i), uncond_i (t_i), ...].
+    Returns logits of shape (1, C, 2*sum(t_len), V) laid out as
+    [all cond-target blocks | all uncond blocks] — matching tgt_index
+    (torch.cat(cond_ranges + uncond_ranges)) and the caller's split at T_flat.
     """
     inputs_embeds = model._prepare_embed_inputs(input_ids, audio_mask)
     hidden = model.llm(

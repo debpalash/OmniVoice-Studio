@@ -64,6 +64,8 @@ The env var overrides the persisted UI choice.
   (`打ZHE2出售`), English via bracketed CMU phonemes (`[B EY1 S]`). Non-verbal
   tags like `[laughter]` are covered in
   [expressive-speech.md](../expressive-speech.md).
+- Voice design works from attributes (gender, age, pitch, whisper, English
+  accents, Chinese dialects) via the Design tab — no reference audio needed.
 - Optional FlashInfer acceleration on CUDA: set `OMNIVOICE_FLASHINFER=1`
   (or `=graph` for CUDA-graph capture, best for one render at a time) after
   installing the `flashinfer-python` package — see
@@ -73,12 +75,11 @@ The env var overrides the persisted UI choice.
 
 ## Known limits
 
-- Voice design from attributes (gender, age, pitch, whisper, English
-  accents, Chinese dialects) is supported via the Design tab; free-form
-  design *prose* is mapped onto those attributes, so wording outside them is
-  ignored. Design is trained on English and Chinese and can be unstable in
-  low-resource languages — for description-driven design in other cases try
-  [VoxCPM2](voxcpm2.md).
+- Voice design understands only the fixed attribute vocabulary — free-form
+  design *prose* is mapped onto those attributes, and wording outside them
+  is ignored. Design is trained on English and Chinese and can be unstable
+  in low-resource languages; for description-driven design in other cases
+  try [VoxCPM2](voxcpm2.md).
 - Below the 6 GB VRAM floor, expect very slow renders or budget timeouts;
   prefer [OmniVoice GGUF](omnivoice-gguf.md) or a CPU engine such as
   [PocketTTS](pockettts.md).

@@ -137,6 +137,16 @@ def test_unapply_flashinfer_restores_instance_state():
     assert m.llm.config.use_cache is True
 
 
+def test_unapply_restores_the_captured_attention_impl():
+    # The pre-apply impl may be flash_attention_2, not sdpa — unapply must
+    # put back what was actually there (CodeRabbit/Greptile, #1565).
+    m = _MiniModel()
+    m._fi_orig_attn_impl = "flash_attention_2"
+    _mm()._unapply_flashinfer(m)
+    assert m.llm.attn_impl == "flash_attention_2"
+    assert not hasattr(m, "_fi_orig_attn_impl")
+
+
 # ── generate-time fallback ──────────────────────────────────────────────────
 
 

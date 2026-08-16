@@ -18,8 +18,6 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from omnivoice.models.omnivoice import VoiceClonePrompt  # noqa: E402
-
 
 def _tb():
     """The *live* services.tts_backend (same rationale as
@@ -28,8 +26,15 @@ def _tb():
     return m
 
 
+def _VoiceClonePrompt():
+    """Resolved at call time — a module-level binding could go stale when
+    another suite purges omnivoice.* from sys.modules (CodeRabbit, #1565)."""
+    from omnivoice.models.omnivoice import VoiceClonePrompt
+    return VoiceClonePrompt
+
+
 def _prompt():
-    return VoiceClonePrompt(
+    return _VoiceClonePrompt()(
         ref_audio_tokens=torch.arange(24, dtype=torch.long).reshape(8, 3),
         ref_text="Nice to meet you.",
         ref_rms=0.123,
@@ -74,7 +79,7 @@ def test_prompt_save_load_roundtrip(tmp_path):
     p = _prompt()
     path = str(tmp_path / "voice.pt")
     p.save(path)
-    loaded = VoiceClonePrompt.load(path)
+    loaded = _VoiceClonePrompt().load(path)
     assert torch.equal(loaded.ref_audio_tokens, p.ref_audio_tokens)
     assert loaded.ref_text == p.ref_text
     assert loaded.ref_rms == pytest.approx(p.ref_rms)
@@ -88,20 +93,20 @@ def test_prompt_load_rejects_unknown_format_version(tmp_path):
     path = str(tmp_path / "future.pt")
     torch.save({"format_version": 999}, path)
     with pytest.raises(ValueError, match="format version"):
-        VoiceClonePrompt.load(path)
+        _VoiceClonePrompt().load(path)
 
 
 def test_saved_tokens_are_cpu_even_from_dataclass_on_another_device(tmp_path):
     # save() must detach+CPU the tokens so the file is portable; we can't make
     # a CUDA tensor on CI, but a grad-tracking one exercises the detach.
-    p = VoiceClonePrompt(
+    p = _VoiceClonePrompt()(
         ref_audio_tokens=torch.zeros(8, 3, requires_grad=True),
         ref_text="x",
         ref_rms=0.5,
     )
     path = str(tmp_path / "v.pt")
     p.save(path)
-    assert not VoiceClonePrompt.load(path).ref_audio_tokens.requires_grad
+    assert not _VoiceClonePrompt().load(path).ref_audio_tokens.requires_grad
 
 
 # ── the disk layer under the memory cache ───────────────────────────────────

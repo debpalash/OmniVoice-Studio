@@ -1420,10 +1420,11 @@ def _unapply_flashinfer(_model) -> None:
     ``apply_flashinfer`` works entirely through *instance-level* state —
     MethodType-bound ``forward``/``_generate_iterative`` overrides and
     ``_fi_*`` attributes — so deleting those attributes restores the class
-    implementations exactly. Attention implementation and use_cache are reset
-    to the model's defaults ("sdpa" is what from_pretrained ends up with on
-    every host this path runs on — FlashInfer is CUDA-only)."""
+    implementations exactly. The attention implementation is restored to the
+    one captured before apply (``_fi_orig_attn_impl`` — could be
+    flash_attention_2, not just sdpa), and use_cache is re-enabled."""
     llm = getattr(_model, "llm", None)
+    orig_attn = getattr(_model, "_fi_orig_attn_impl", None) or "sdpa"
     if llm is not None:
         for module in llm.modules():
             if "forward" in vars(module):
@@ -1432,11 +1433,14 @@ def _unapply_flashinfer(_model) -> None:
                 if attr in vars(module):
                     delattr(module, attr)
         try:
-            llm.set_attn_implementation("sdpa")
+            llm.set_attn_implementation(orig_attn)
         except Exception:
-            logger.exception("failed to restore sdpa attention after FlashInfer")
+            logger.exception(
+                "failed to restore %s attention after FlashInfer", orig_attn
+            )
         llm.config.use_cache = True
     for attr in (
+        "_fi_orig_attn_impl",
         "_generate_iterative",
         "_fi_runner",
         "_fi_graph_cache",
@@ -2242,20 +2246,32 @@ def _load_model_sync():
                 try:
                     from omnivoice.models.omnivoice_flashinfer import apply_flashinfer
 
+                    # Captured BEFORE apply so unapply (either the failure
+                    # branch below or the generate-time fallback) restores
+                    # the true prior implementation.
+                    _model._fi_orig_attn_impl = getattr(
+                        _model.llm.config, "_attn_implementation", "sdpa"
+                    )
                     apply_flashinfer(_model, enable_cuda_graph=(fi_mode == "graph"))
                 except Exception as fi_exc:  # noqa: BLE001 — perf opt, never fatal
                     mark_flashinfer_runtime_failure(
                         f"{type(fi_exc).__name__}: {fi_exc}"
                     )
+                    # apply_flashinfer mutates the model as it goes — a
+                    # failure partway leaves half-patched modules that would
+                    # crash the next render (Greptile, #1565). Restore fully.
+                    _unapply_flashinfer(_model)
                 else:
                     flashinfer_applied = True
                     _install_flashinfer_fallback(_model)
-                    if fi_mode == "graph":
-                        # Captured CUDA-graph state is thread-local, exactly
-                        # like torch.compile's reduce-overhead mode (#315):
-                        # pin inference to one thread so a render on another
-                        # _gpu_pool worker can't replay a foreign graph.
-                        _install_compile_thread_affinity(_model)
+                    # BOTH modes pin inference to one thread. Graph mode for
+                    # the #315 reason (captured CUDA-graph state is
+                    # thread-local); eager mode because the FlashInfer
+                    # attention wrapper and packed position ids are planned
+                    # per generation in module state — two _gpu_pool workers
+                    # interleaving plan() and run() would corrupt each
+                    # other's layout (CodeRabbit/Greptile, #1565).
+                    _install_compile_thread_affinity(_model)
                     logger.info(
                         "FlashInfer applied (mode=%s) — torch.compile skipped "
                         "for this load.", fi_mode,

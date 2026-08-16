@@ -479,7 +479,11 @@ def _prompt_disk_save(key: tuple, prompt) -> None:
         return
     path = _prompt_disk_path(cache_dir, key)
     try:
-        tmp = f"{path}.tmp.{os.getpid()}"
+        # Unique per write: two GPU-pool threads missing the same key must not
+        # interleave writes into one tmp file (os.replace stays atomic).
+        import uuid
+
+        tmp = f"{path}.tmp.{os.getpid()}.{uuid.uuid4().hex[:8]}"
         prompt.save(tmp)
         os.replace(tmp, path)
     except Exception as e:  # noqa: BLE001
