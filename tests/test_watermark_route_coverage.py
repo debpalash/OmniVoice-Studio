@@ -166,20 +166,44 @@ def _py_files():
             yield p.relative_to(_BACKEND).as_posix(), p.read_text(encoding="utf-8")
 
 
-def test_every_synthesis_module_routes_through_mark_synthetic():
-    offenders = []
-    for rel, src in _py_files():
+def _offenders(files) -> list[str]:
+    """Scan (rel, src) pairs for unmarked producers.
+
+    Parse FIRST and flag anything that does not parse — an _ALLOWED entry
+    exempts a module from the marking rule, never from being readable: a
+    broken allowlisted source must fail loudly here instead of being
+    silently skipped (CodeRabbit, PR #1573).
+    """
+    found = []
+    for rel, src in files:
+        try:
+            ast.parse(src)
+        except SyntaxError as exc:
+            found.append(f"{rel} (does not parse: {exc})")
+            continue
         if not _synthesizes(src):
             continue
         if rel in _ALLOWED or _references(src, frozenset({"mark_synthetic"})):
             continue
-        offenders.append(rel)
+        found.append(rel)
+    return found
+
+
+def test_every_synthesis_module_routes_through_mark_synthetic():
+    offenders = _offenders(_py_files())
     assert not offenders, (
         "Modules synthesize audio but never reference the mark_synthetic "
         f"chokepoint (EU AI Act Art. 50(2), #1169): {offenders}\n"
         "Either mark the produced audio (services.watermark.mark_synthetic at "
         "the tensor stage, before encoding) or add a justified _ALLOWED entry."
     )
+
+
+def test_allowlist_cannot_suppress_a_parse_failure():
+    """Regression (CodeRabbit, PR #1573): an _ALLOWED module whose source is
+    unparseable must be flagged, not silently skipped by its exemption."""
+    [offender] = _offenders([("api/routers/engines.py", "def broken(:\n")])
+    assert "does not parse" in offender
 
 
 @pytest.mark.parametrize("rel", _PRODUCERS)
@@ -212,7 +236,12 @@ def test_allowlist_is_not_stale():
         p = _BACKEND / rel
         assert p.is_file(), f"watermark-coverage list names a missing file: {rel}"
     for rel in _ALLOWED:
-        assert _synthesizes((_BACKEND / rel).read_text(encoding="utf-8")), (
+        src = (_BACKEND / rel).read_text(encoding="utf-8")
+        try:
+            ast.parse(src)
+        except SyntaxError as exc:
+            pytest.fail(f"allowlisted module no longer parses: {rel}: {exc}")
+        assert _synthesizes(src), (
             f"{rel} no longer matches a synthesis primitive — remove it from "
             "tests/test_watermark_route_coverage.py so the guard stays sharp."
         )
