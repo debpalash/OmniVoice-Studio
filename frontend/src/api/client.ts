@@ -552,8 +552,7 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
         // a stale 403 that landed after a key exchange wipe the fresh
         // session, reloading a successful login straight back into the gate.
         const currentSession = getAdminSession(API);
-        const staleAdminResponse =
-          mode === 'apikey' && currentSession?.token !== session?.token;
+        const staleAdminResponse = mode === 'apikey' && currentSession?.token !== session?.token;
         if (mode === 'apikey' && !staleAdminResponse && session) {
           clearAdminSession();
         }
