@@ -254,11 +254,19 @@ describe('apiFetch 401 routing', () => {
     expect(authEvent()).toBeFalsy();
   });
 
-  it('a stale 403 does not clear a session stored during its flight (PR #1569 race)', async () => {
-    // The request goes out with NO credential; while it is in flight the
-    // user completes the key exchange. A late 403 may only invalidate the
+  it('a stale 403 neither clears a new session nor reopens the auth gate (PR #1569 race)', async () => {
+    // The request goes out with an old credential; while it is in flight the
+    // user completes another key exchange. A late 403 may only invalidate the
     // credentials the failed request actually carried — wiping the fresh
-    // session would reload a successful login straight back into the gate.
+    // session or reopening the gate would undo the successful login.
+    sessionStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        token: `ovs_admin_session_${'O'.repeat(43)}`,
+        expiresAt: Date.now() / 1000 + 3600,
+        apiBase: API,
+      }),
+    );
     globalThis.fetch = vi.fn(() => {
       sessionStorage.setItem(
         ADMIN_SESSION_STORAGE_KEY,
@@ -281,7 +289,7 @@ describe('apiFetch 401 routing', () => {
     } catch {
       /* ApiError expected */
     }
-    expect(authEvent()).toBeTruthy();
+    expect(authEvent()).toBeFalsy();
     expect(sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY)).not.toBeNull();
   });
 });

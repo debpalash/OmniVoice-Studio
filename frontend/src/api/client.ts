@@ -551,10 +551,15 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
         // carried (`session` is captured at send time). Clearing blindly let
         // a stale 403 that landed after a key exchange wipe the fresh
         // session, reloading a successful login straight back into the gate.
-        if (mode === 'apikey' && session && getAdminSession(API)?.token === session.token) {
+        const currentSession = getAdminSession(API);
+        const staleAdminResponse =
+          mode === 'apikey' && currentSession?.token !== session?.token;
+        if (mode === 'apikey' && !staleAdminResponse && session) {
           clearAdminSession();
         }
-        window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
+        if (!staleAdminResponse) {
+          window.dispatchEvent(new CustomEvent('ov:auth-required', { detail: { mode } }));
+        }
       }
       // Structured details (e.g. the typed asr_model_missing 409) carry a
       // human-readable `message` — use it for the Error message instead of
