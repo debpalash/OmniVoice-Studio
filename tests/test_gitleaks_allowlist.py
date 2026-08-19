@@ -17,6 +17,7 @@ EXPECTED_EXACT_REGEXES = {
     "^hf_abcdefghijklmnopqrstuvwxyz0123456789ABCDEF$",
     "^hf_QWERTYUIOPasdfghjklZXCVBNM0123456789xyzAB$",
     "^max_length=400$",
+    "^Ed25519PrivateKey$",
 }
 
 

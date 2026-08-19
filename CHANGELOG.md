@@ -34,6 +34,9 @@ the frozen-backend fallback mirror it for their toolchains.
 - "Ready" now requires the deep health probe (a working database-backed route), not just the identity probe — a backend whose install broke underneath can no longer be announced up while every real request fails (#1548)
 - Supervisor restarts after repeat crashes now back off (immediate, then 5s, then 15s) instead of respawning back-to-back, so a tight crash loop can't burn the whole restart budget in seconds (#1548)
 
+### CI
+- Weekly full-history secret scans no longer mistake the Ed25519 private-key type name for committed key material (#1591)
+
 ## [0.5.0] — 2026-08-13
 
 **Highlights**
