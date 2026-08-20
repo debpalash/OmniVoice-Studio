@@ -30,6 +30,14 @@ weights + cache (20 GB+ comfortable), and optionally a GPU — 4 GB VRAM works
 the entire pipeline runs on CPU, just slower. Pull size: ~5 GB compressed
 (CUDA/CPU image), ~15 GB for the `:rocm` variant.
 
+## See it in action
+
+![Switching TTS engines from the VoiceStudio status bar](https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/quick-switch.gif)
+
+| Model catalogue | Save a gallery voice |
+|---|---|
+| ![VoiceStudio Model Catalogue](https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/catalogue.png) | ![Saving a gallery voice as a local profile](https://raw.githubusercontent.com/debpalash/VoiceStudio/main/docs/media/0.5.0/gallery-save.png) |
+
 ---
 
 ## Quick start (CPU)
