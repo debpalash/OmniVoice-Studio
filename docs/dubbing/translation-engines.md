@@ -215,6 +215,14 @@ launching the backend (or in **Settings → Credentials**):
   pro endpoint).
 - **Microsoft Translator:** `MICROSOFT_API_KEY` (optionally `MICROSOFT_BASE_URL`).
 
+## Editing workspace
+
+After transcription, drag the divider between the video/timeline and transcript
+columns to give either side more room. The divider also works from the keyboard:
+focus it, use Left/Right Arrow in 5% steps, or Home/End for the minimum/maximum.
+VoiceStudio remembers the split on this device. Narrow workspaces stack the two
+panels instead so neither editor becomes unusably small.
+
 ## Troubleshooting
 
 - **"The 'google' translation engine needs the optional deep_translator Python

@@ -77,6 +77,18 @@ describe('SegmentTrack — rendering', () => {
     const { container } = render(<SegmentTrack segments={SEGS} pxPerSec={0} duration={10} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it('renders every segment for ordinary jobs instead of clipping to resize metrics', () => {
+    const segments = Array.from({ length: 200 }, (_, id) => ({
+      id,
+      start: id,
+      end: id + 0.5,
+      text: `line ${id}`,
+    }));
+    setup({ segments, duration: 200, pxPerSec: 100, scrollLeft: 10_000 });
+
+    expect(screen.getAllByRole('option')).toHaveLength(200);
+  });
 });
 
 describe('SegmentTrack — keyboard', () => {

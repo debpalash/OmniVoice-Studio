@@ -1035,6 +1035,7 @@
     "voice_match_per_line_title": "Cada línea se clona desde un clip de su propio audio original. La mejor prosodia por línea, pero la identidad de la voz puede variar de línea a línea.",
     "voice_match_consistent": "Consistente",
     "voice_match_consistent_title": "Todas las líneas de un hablante se clonan desde una referencia compartida (el clon del hablante o el mejor clip individual si no existe). Identidad de voz más estable en todo el doblaje.",
+    "timing_lip_sync": "Sincronización labial",
     "default_track": "Pista predeterminada:",
     "original_track": "Originales",
     "selected_dub": "{{code}} (Doblaje seleccionado)",
@@ -2058,7 +2059,9 @@
     "error_prefix": "Error: {{message}}",
     "ignored_unsupported": "Instrucción no admitida ignorada: {{items}}",
     "ignored_duplicate": "Ignorado (categoría ya establecida): {{items}}",
-    "ref_audio_unusable": "No se detectó voz en el audio de referencia: el clip está en silencio o casi en silencio, así que no hay voz que clonar. Graba de nuevo más cerca del micrófono (comprueba que está seleccionado el dispositivo de entrada correcto y que el nivel se mueve) o elige otro clip."
+    "ref_audio_unusable": "No se detectó voz en el audio de referencia: el clip está en silencio o casi en silencio, así que no hay voz que clonar. Graba de nuevo más cerca del micrófono (comprueba que está seleccionado el dispositivo de entrada correcto y que el nivel se mueve) o elige otro clip.",
+    "ref_audio_too_long": "Una referencia puede durar como máximo 20 segundos con transcripción o 75 segundos sin ella. Recórtala a un fragmento de voz claro de 3–10 segundos; si aportas texto, recorta la transcripción al mismo fragmento.",
+    "ref_audio_no_speech": "La detección automática no encontró palabras habladas en la referencia. Recórtala a un fragmento de voz claro de 3–10 segundos o proporciona una transcripción coincidente."
   },
   "sharing": {
     "title": "Compartir y acceso remoto",

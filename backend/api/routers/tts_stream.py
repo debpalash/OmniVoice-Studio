@@ -297,7 +297,7 @@ async def ws_tts(websocket: WebSocket):
                     wav_tensor, sr = await run_on_gpu_pool_guarded(
                         functools.partial(_generate, sentence),
                         what="TTS generate",
-                        timeout=generate_timeout_s(sentence),
+                        timeout=generate_timeout_s(sentence, engine=backend),
                     )
 
                     if not started:

@@ -1091,7 +1091,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                             _num_step, req.guidance_scale, seg_speed, seg_profile, seg_effect_preset,
                         ),
                         what="Dub generate",
-                        timeout=generate_timeout_s(seg.text),
+                        timeout=generate_timeout_s(seg.text, engine=backend),
                     )
                 _t_tts += time.perf_counter() - _t_tts_0
 
@@ -1798,7 +1798,7 @@ async def preview_segment(job_id: str, req: SegmentPreviewRequest):
     from services.model_manager import generate_timeout_s
     audio_tensor = await run_on_gpu_pool_guarded(
         _gen, what="Dub preview generate",
-        timeout=generate_timeout_s(req.text),
+        timeout=generate_timeout_s(req.text, engine=backend),
     )
 
     sr = backend.sample_rate

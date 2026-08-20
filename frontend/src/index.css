@@ -4714,16 +4714,33 @@ button.dub-stepper__action:focus-visible {
      and letterboxes within the 16:9 box. */
   flex: 0 0 auto;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 60vh;
+  /* Keep the preview useful without letting it push the waveform/segment lane
+     below the browser viewport. The inner video already uses object-fit:contain,
+     so a bounded viewport is better than a width-driven 16:9 box here. */
+  height: clamp(180px, 36vh, 360px);
+  max-height: 360px;
   background: #000; border-radius: 4px; overflow: hidden;
   border: 1px solid transparent; display: flex;
 }
 .wfm-wave-wrap {
-  overflow: hidden; flex: 1 1 auto; min-height: 80px; max-height: 160px;
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 clamp(88px, 12vh, 128px);
+  height: clamp(88px, 12vh, 128px);
+  min-height: 88px;
+  max-height: 128px;
+  z-index: 1;
 }
 .wfm-wave-inner {
-  height: 100%; min-height: 80px; border-radius: 4px; width: 100%; overflow: hidden;
+  height: 100%; min-height: 0; border-radius: 4px; width: 100%; overflow: hidden;
+}
+.seg-track {
+  flex: 0 0 50px !important;
+  min-height: 50px !important;
+  height: 50px;
+  z-index: 2;
+  overflow: visible;
+  background: var(--chrome-bg);
 }
 .wfm-loading {
   position: absolute; inset: 0; display: flex; align-items: center;
@@ -6707,4 +6724,185 @@ button.dub-stepper__action:focus-visible {
   --color-border: transparent; --color-border-strong: transparent; --color-border-warm: transparent;
   --chrome-border: transparent; --chrome-border-strong: transparent; --chrome-accent-border: transparent;
   --glass-border: transparent;
+}
+
+
+/* ═══ RESPONSIVE DUB WORKSPACE — local Colab usability patch ═══
+   The original editor treated the two-column workspace as a fixed-height
+   desktop canvas and hid overflow. On laptop/remote-browser viewports that
+   compressed both panes until controls and transcript rows were effectively
+   clipped, forcing users to run the site at ~80% zoom. These rules respond to
+   the ACTUAL dub workspace width (container query), so UI scale/browser zoom
+   no longer makes the breakpoint fire at the wrong size. */
+.dub-workspace {
+  min-width: 0;
+  min-height: 0;
+}
+.dub-editor,
+.dub-editor-grid,
+.dub-panel-left,
+.dub-panel-right {
+  min-width: 0;
+}
+.dub-resizable-columns {
+  display: grid;
+  gap: 0;
+}
+.dub-column-splitter {
+  position: relative;
+  min-width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.dub-column-splitter::before {
+  position: absolute;
+  inset: 8px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chrome-fg) 18%, transparent);
+  content: '';
+  transition: background 120ms ease, inset 120ms ease;
+}
+.dub-column-splitter:hover::before,
+.dub-column-splitter:focus-visible::before {
+  inset-inline: 4px;
+  background: color-mix(in srgb, var(--color-brand) 72%, transparent);
+}
+.dub-column-splitter:focus-visible {
+  border-radius: 6px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@container dub-shell (max-width: 1080px) {
+  .dub-editor {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-bottom: 8px;
+  }
+
+  .dub-editor-grid {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .dub-column-splitter {
+    display: none;
+  }
+
+  .dub-panel-col {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  /* Preview / timeline pane: keep enough vertical room to be useful rather
+     than shrinking the waveform to a strip. */
+  .dub-panel-left {
+    min-height: 460px;
+  }
+
+  /* Transcript / output pane needs more room because its segment table is the
+     primary editor. The page scrolls around the pane instead of squeezing it. */
+  .dub-panel-right {
+    min-height: 560px;
+  }
+
+  .dub-panel-right .dub-segment-table__body {
+    min-height: 280px;
+  }
+
+  .dub-command-bar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .dub-command-bar__actions,
+  .dub-command-bar__utilities {
+    flex-wrap: wrap;
+  }
+}
+
+@container dub-shell (max-width: 720px) {
+  .dub-panel-left,
+  .dub-panel-right {
+    padding-inline: 8px;
+  }
+  .dub-panel-left { min-height: 420px; }
+  .dub-panel-right { min-height: 520px; }
+
+  /* Controls should wrap before their labels/inputs are truncated. */
+  .dub-panel-col .label-row {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .dub-lang-switch {
+    flex-wrap: wrap;
+  }
+}
+
+/* Short screens are common through Colab/Cloudflare because browser chrome
+   consumes a large part of the physical height. Keep the main workspace as the
+   scroll owner instead of allowing fixed-height children to be crushed. */
+@media (max-height: 760px) {
+  .app-container > .main-content {
+    scrollbar-gutter: stable;
+  }
+  .dub-editor {
+    overscroll-behavior-y: contain;
+  }
+}
+
+
+/* Timeline visibility follow-up: keep the transcription lane and transport
+   controls on-screen at normal browser zoom, including Colab/Cloudflare tabs
+   where browser chrome reduces the usable vertical viewport. */
+@container dub-shell (max-width: 1080px) {
+  .dub-panel-left .wfm-video-preview {
+    height: clamp(180px, 32vh, 300px);
+    max-height: 300px;
+  }
+  .dub-panel-left .wfm-wave-wrap {
+    flex: 0 0 110px;
+    min-height: 100px;
+    max-height: 130px;
+  }
+  .dub-panel-left .seg-track {
+    flex: 0 0 auto !important;
+    height: auto;
+  }
+  .dub-panel-left .wfm-controls {
+    flex-wrap: wrap;
+    row-gap: 5px;
+  }
+}
+
+@container dub-shell (max-width: 720px) {
+  .dub-panel-left .wfm-video-preview {
+    height: clamp(160px, 28vh, 240px);
+    max-height: 240px;
+  }
+  .dub-panel-left .wfm-wave-wrap {
+    flex-basis: 96px;
+    min-height: 90px;
+  }
+}
+
+
+@media (max-height: 820px) {
+  .wfm-video-preview {
+    height: clamp(150px, 28vh, 260px);
+    max-height: 260px;
+  }
+  .wfm-wave-wrap {
+    flex-basis: 96px;
+    height: 96px;
+    min-height: 96px;
+    max-height: 96px;
+  }
 }

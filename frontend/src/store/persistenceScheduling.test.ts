@@ -23,7 +23,7 @@ describe('app-store persistence scheduling', () => {
     vi.useRealTimers();
   });
 
-  it('coalesces 100 rapid transient and persisted updates into the latest v7 envelope', async () => {
+  it('coalesces 100 rapid transient and persisted updates into the latest v8 envelope', async () => {
     const setItem = vi.spyOn(localStorage, 'setItem');
     let latestScale = 1;
 
@@ -45,7 +45,7 @@ describe('app-store persistence scheduling', () => {
 
     const envelope = JSON.parse(targetWrites[0][1]);
     expect(envelope).toMatchObject({
-      version: 7,
+      version: 8,
       state: { uiScale: latestScale },
     });
     expect(envelope.state).not.toHaveProperty('uiScalePreviewed');
@@ -129,7 +129,7 @@ describe('app-store persistence scheduling', () => {
     await vi.advanceTimersByTimeAsync(250);
     const envelope = JSON.parse(localStorage.getItem(APP_STORE_KEY) ?? 'null');
     expect(envelope).toMatchObject({
-      version: 7,
+      version: 8,
       state: {
         storyTracks: [
           {

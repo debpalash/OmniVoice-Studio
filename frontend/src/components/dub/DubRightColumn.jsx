@@ -5,6 +5,7 @@ import GlossaryPanel from '../GlossaryPanel';
 import CheckpointBanner from '../CheckpointBanner';
 import { LANG_CODES } from '../../utils/languages';
 import { autoProfileId } from '../../utils/segments';
+import { resolveDubDefaultTrack } from '../../utils/dubDefaultTrack';
 
 const DubSegmentTable = lazy(() => import('../DubSegmentTable'));
 const DubPasteTranslationDialog = lazy(() => import('./DubPasteTranslationDialog'));
@@ -82,7 +83,7 @@ export default function DubRightColumn({
 }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   return (
-    <div className="studio-panel dub-panel-col">
+    <div className="studio-panel dub-panel-col dub-panel-right">
       {/* Output options + timing — moved to the top of the right section. */}
       <div>
         <div className={OUT_ROW}>
@@ -118,7 +119,7 @@ export default function DubRightColumn({
             {t('dub.default_track')}
             <select
               className="input-base !text-[0.6rem] !px-[4px] !py-[2px] !w-[120px]"
-              value={defaultTrack}
+              value={resolveDubDefaultTrack(defaultTrack, dubLangCode, dubTracks)}
               onChange={(e) => setDefaultTrack(e.target.value)}
             >
               <option value="original">{t('dub.original_track')}</option>
@@ -163,9 +164,8 @@ export default function DubRightColumn({
               },
               {
                 value: 'strict_slot',
-                label: 'Strict slot',
-                title:
-                  'Legacy: compress audio to fit the original timing. Can sound rushed/chipmunky on high-density target languages.',
+                label: t('dub.timing_lip_sync'),
+                title: t('dub.timing_lip_sync'),
               },
             ]}
           />

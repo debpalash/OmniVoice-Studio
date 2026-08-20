@@ -1035,6 +1035,7 @@
     "voice_match_per_line_title": "Setiap baris dikloning dari klip audio sumbernya sendiri. Prosodi per baris paling cocok, tetapi identitas suara bisa bergeser antarbaris.",
     "voice_match_consistent": "Konsisten",
     "voice_match_consistent_title": "Semua baris satu pembicara dikloning dari satu referensi bersama (klon pembicara, atau satu klip terbaik jika tidak ada). Identitas suara lebih stabil di seluruh sulih suara.",
+    "timing_lip_sync": "Sinkronisasi bibir",
     "default_track": "Lagu Bawaan:",
     "original_track": "Asli",
     "selected_dub": "{{code}} (Suara yang Dipilih)",
@@ -2058,7 +2059,9 @@
     "error_prefix": "Kesalahan: {{message}}",
     "ignored_unsupported": "Mengabaikan instruksi yang tidak didukung: {{items}}",
     "ignored_duplicate": "Diabaikan (kategori sudah ditetapkan): {{items}}",
-    "ref_audio_unusable": "Tidak ada suara yang terdengar di audio referensi — klipnya senyap atau hampir senyap, jadi tidak ada suara untuk dikloning. Rekam ulang lebih dekat ke mikrofon (pastikan perangkat input yang benar dipilih dan meterannya bergerak), atau pilih klip lain."
+    "ref_audio_unusable": "Tidak ada suara yang terdengar di audio referensi — klipnya senyap atau hampir senyap, jadi tidak ada suara untuk dikloning. Rekam ulang lebih dekat ke mikrofon (pastikan perangkat input yang benar dipilih dan meterannya bergerak), atau pilih klip lain.",
+    "ref_audio_too_long": "Referensi maksimal 20 detik dengan transkrip atau 75 detik tanpa transkrip. Potong menjadi bagian ucapan jelas sepanjang 3–10 detik; jika menyertakan teks, potong transkrip ke bagian yang sama.",
+    "ref_audio_no_speech": "Deteksi otomatis tidak menemukan kata yang diucapkan dalam referensi. Potong menjadi bagian ucapan jelas sepanjang 3–10 detik atau sertakan transkrip yang cocok."
   },
   "sharing": {
     "title": "Berbagi & Akses Jarak Jauh",

@@ -596,7 +596,7 @@ def _oom_friendly_reraise(e):
     ) from e
 
 
-def _generate_timeout_s(text: str) -> float:
+def _generate_timeout_s(text: str, *, execution_device=None) -> float:
     """Wall-clock budget for one generate, scaled to the request.
 
     Thin alias for the canonical helper, which moved to
@@ -605,7 +605,7 @@ def _generate_timeout_s(text: str) -> float:
     as they did, silently keeping the flat 300s).
     """
     from services.model_manager import generate_timeout_s
-    return generate_timeout_s(text)
+    return generate_timeout_s(text, execution_device=execution_device)
 
 
 def _run_inference(
@@ -870,7 +870,6 @@ async def _finalize_generation(
     Returns ``(watermarked_tensor, meta)`` where ``meta`` carries
     ``id`` / ``filename`` / ``duration`` / ``gen_time``.
     """
-    loop = asyncio.get_running_loop()
     # Invisible AudioSeal provenance watermark on the final audio. Embedding
     # was previously only wired into the dub pipeline (dub_generate.py), so
     # plain TTS came out unmarked despite the setting being on — and the same
@@ -882,12 +881,9 @@ async def _finalize_generation(
     # AudioSeal embedding is CPU work that holds no VRAM, so occupying a GPU
     # worker with it only delays the next generate on 1-worker hosts.
     if not already_marked:
-        from services.watermark import mark_synthetic
-        from services.model_manager import get_watermark_pool
-        audio_tensor = await loop.run_in_executor(
-            get_watermark_pool(),
-            functools.partial(mark_synthetic, audio_tensor, sample_rate,
-                              context="generate.finalize"),
+        from services.watermark import mark_synthetic_async
+        audio_tensor = await mark_synthetic_async(
+            audio_tensor, sample_rate, context="generate.finalize",
         )
     gen_time = round(time.time() - start_time, 2)
 
@@ -1198,6 +1194,10 @@ async def generate_speech(
     _backend = None
     _engine_min_vram_gb = getattr(backend_cls, "min_vram_gb", 0.0)
     _routing_notice = None
+    # Remote renders deliberately skip this host's capability gate. Keep the
+    # local fallback call's timeout device-neutral so the closure is valid
+    # without pretending the control plane describes the remote worker.
+    _routing = {"effective_device": None}
 
     if not _remote:
         # Single-active-engine memory discipline: hand back any OTHER resident
@@ -1406,7 +1406,7 @@ async def generate_speech(
                 # Floor budget (#1190): a reference clip is seconds of audio,
                 # so the length-scaled bonus never applies — but the timeout is
                 # explicit here too, so no dispatch relies on a hidden default.
-                timeout=_generate_timeout_s(""),
+                timeout=_generate_timeout_s("", execution_device=_routing["effective_device"]),
             )
         # TimeoutError covers both the execution bound and pool saturation:
         # this path is best-effort either way.
@@ -1523,7 +1523,7 @@ async def generate_speech(
             local=gpu_gateway.LocalCall(
                 _remote_only_local_call(_target_label),
                 what="TTS generate",
-                timeout=_generate_timeout_s(text),
+                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
                 min_vram_gb=_engine_min_vram_gb,
             ),
             remote=_remote_call,
@@ -1789,7 +1789,7 @@ async def generate_speech(
                             ),
                             what="TTS generate",
                             min_vram_gb=_engine_min_vram_gb,
-                            timeout=_generate_timeout_s(text),
+                            timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
                         )
                         sample_rate = _backend.sample_rate
                     else:
@@ -1805,7 +1805,7 @@ async def generate_speech(
                             ),
                             what="TTS generate",
                             min_vram_gb=_engine_min_vram_gb,
-                            timeout=_generate_timeout_s(text),
+                            timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
                         )
                         sample_rate = _model.sampling_rate
                     yield _line({
@@ -1822,12 +1822,10 @@ async def generate_speech(
                     # (#1190): AudioSeal embedding is CPU work that owns no
                     # VRAM, and on a 1-worker host it used to serialize
                     # directly ahead of the next generate.
-                    from services.watermark import mark_synthetic
-                    from services.model_manager import get_watermark_pool
-                    _preview = await asyncio.get_running_loop().run_in_executor(
-                        get_watermark_pool(),
-                        functools.partial(mark_synthetic, audio_tensor, sample_rate,
-                                          context="generate.stream_preview"),
+                    from services.watermark import mark_synthetic_async
+                    _preview = await mark_synthetic_async(
+                        audio_tensor, sample_rate,
+                        context="generate.stream_preview",
                     )
                     yield _line({"type": "chunk", "seq": 0, "pcm": _pcm16_b64(_preview)})
                 else:
@@ -1843,18 +1841,16 @@ async def generate_speech(
                             # Budget scaled to THIS chunk (#1190) — the flat
                             # 300s here is what made long streamed renders fail
                             # even after the v0.3.22 scaled budget shipped.
-                            timeout=_generate_timeout_s(chunk_text),
+                            timeout=_generate_timeout_s(chunk_text, execution_device=_routing["effective_device"]),
                         )
                         parts.append(raw)
                         # Provenance-mark the streamed copy off the GPU pool
                         # (#1169 mark, #1190 placement): CPU-only AudioSeal
                         # work must not occupy a GPU worker between chunks.
-                        from services.watermark import mark_synthetic
-                        from services.model_manager import get_watermark_pool
-                        preview = await asyncio.get_running_loop().run_in_executor(
-                            get_watermark_pool(),
-                            functools.partial(mark_synthetic, preview, sample_rate,
-                                              context="generate.stream_preview"),
+                        from services.watermark import mark_synthetic_async
+                        preview = await mark_synthetic_async(
+                            preview, sample_rate,
+                            context="generate.stream_preview",
                         )
                         if i == 0:
                             # After the first render so lazy-loading engines
@@ -1869,7 +1865,7 @@ async def generate_speech(
                     audio_tensor = await run_on_gpu_pool_guarded(
                         functools.partial(_assemble_stream_chunks, parts, sample_rate),
                         what="TTS assemble",
-                        timeout=_generate_timeout_s(text),
+                        timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
                     )
 
                 _, meta = await _finalize_generation(
@@ -1898,7 +1894,7 @@ async def generate_speech(
                 # Client went away mid-stream — same semantics as aborting a
                 # classic /generate mid-render: nothing is saved.
                 raise
-            except (GpuJobTimeoutError, GpuPoolBusyError) as e:
+            except GpuPoolBusyError as e:
                 # In-band error frame carries the machine-readable retryable
                 # marker (#1190) — an NDJSON consumer can back off instead of
                 # guessing from the prose.
@@ -1906,6 +1902,14 @@ async def generate_speech(
                 from core.public_errors import stream_failure
                 failure = stream_failure("generation_busy")
                 failure["retry_after"] = getattr(e, "retry_after", 30)
+                yield _line({"type": "error", **failure})
+            except GpuJobTimeoutError:
+                # The worker started and spent its full execution budget. That
+                # is compute time, not queue pressure (#1588).
+                logger.error("Streaming generation exceeded its compute budget")
+                from core.public_errors import stream_failure
+                failure = stream_failure("generation_timeout")
+                failure["retry_after"] = 30
                 yield _line({"type": "error", **failure})
             except ValueError:
                 logger.error("Streaming generation request rejected")
@@ -1973,7 +1977,7 @@ async def generate_speech(
                 _REMOTE_OP,
                 local=gpu_gateway.LocalCall(
                     _local_render, what="TTS generate",
-                    timeout=_generate_timeout_s(text),
+                    timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
                     min_vram_gb=_engine_min_vram_gb,
                 ),
                 decision=_decision,

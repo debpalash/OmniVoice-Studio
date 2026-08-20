@@ -506,6 +506,9 @@ class Scheduler:
             model_resident=worker.is_warm(task.engine, task.model_id),
             model_downloaded=True,
             input_seconds=float(task.params.get("input_seconds") or 0.0),
+            execution_device=worker.execution_device(
+                task.engine, task.model_id, task.operation
+            ),
         )
         attempt.renew_lease(budget.accept_seconds, now=now)
         self._save(task, now=now)
@@ -997,6 +1000,10 @@ class Scheduler:
             text=task.params.get("text"),
             model_resident=bool(worker and worker.is_warm(task.engine, task.model_id)),
             input_seconds=float(task.params.get("input_seconds") or 0.0),
+            execution_device=(
+                worker.execution_device(task.engine, task.model_id, task.operation)
+                if worker else None
+            ),
         )
 
 

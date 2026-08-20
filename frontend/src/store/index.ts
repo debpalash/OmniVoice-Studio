@@ -176,7 +176,7 @@ export const useAppStore = create<AppStore>()(
         firedMilestones: s.firedMilestones,
         optedOut: s.optedOut,
       }),
-      version: 7,
+      version: 8,
       // Drop old persisted shapes rather than crashing the app. Every field
       // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
       // for new fields (timingStrategy etc.) and keep any keys we still write
@@ -184,10 +184,19 @@ export const useAppStore = create<AppStore>()(
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== 'object') return {} as Partial<AppStore>; // D1
         const p = persisted as any;
+        // v8 changes the fresh-install default to strict_slot. Do not rewrite
+        // an existing timingStrategy: persisted values are user preferences,
+        // and the historical concise default is indistinguishable from an
+        // explicit choice. Records without the field inherit the slice default.
         if (version < 4) {
           // v1 → v2 added reviewMode; v2 → v3 added mode/sidebar/generate knobs;
           // v3 → v4 added timingStrategy. All of those have slice defaults, so
-          // passing through is sufficient — then fall through to the < 5 branch.
+          // v3 and earlier had no timingStrategy field and therefore behaved
+          // as concise. Preserve that historical behavior for existing
+          // envelopes; only fresh/v4+ records inherit today's strict default.
+          if (!Object.prototype.hasOwnProperty.call(p, 'timingStrategy')) {
+            p.timingStrategy = 'concise';
+          }
         }
         if (version < 5) {
           // #31: each saved Stories project becomes a LongformProject. Defaults

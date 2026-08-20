@@ -1035,6 +1035,7 @@
     "voice_match_per_line_title": "Jede Zeile wird aus einem Clip ihres eigenen Quelltons geklont. Beste Prosodie pro Zeile, aber die Stimmidentität kann von Zeile zu Zeile driften.",
     "voice_match_consistent": "Konsistent",
     "voice_match_consistent_title": "Alle Zeilen eines Sprechers werden aus einer gemeinsamen Referenz geklont (Sprecher-Klon oder bester Einzelclip, wenn keiner existiert). Stabilere Stimmidentität über die gesamte Synchronisation.",
+    "timing_lip_sync": "Lippensynchronisation",
     "default_track": "Standardspur:",
     "original_track": "Original",
     "selected_dub": "{{code}} (Ausgewählter Dub)",
@@ -2058,7 +2059,9 @@
     "error_prefix": "Fehler: {{message}}",
     "ignored_unsupported": "Nicht unterstützte Anweisung ignoriert: {{items}}",
     "ignored_duplicate": "Ignoriert (Kategorie bereits festgelegt): {{items}}",
-    "ref_audio_unusable": "Im Referenz-Audio war keine Sprache zu hören — der Clip ist still oder fast still, es gibt also keine Stimme zum Klonen. Nimm näher am Mikrofon neu auf (prüfe, ob das richtige Eingabegerät gewählt ist und der Pegel ausschlägt) oder wähle einen anderen Clip."
+    "ref_audio_unusable": "Im Referenz-Audio war keine Sprache zu hören — der Clip ist still oder fast still, es gibt also keine Stimme zum Klonen. Nimm näher am Mikrofon neu auf (prüfe, ob das richtige Eingabegerät gewählt ist und der Pegel ausschlägt) oder wähle einen anderen Clip.",
+    "ref_audio_too_long": "Eine Referenz darf mit Transkript höchstens 20 Sekunden, ohne Transkript höchstens 75 Sekunden lang sein. Kürze sie auf eine klare Sprachpassage von 3–10 Sekunden; bei mitgeliefertem Text muss das Transkript denselben Abschnitt abdecken.",
+    "ref_audio_no_speech": "Die automatische Spracherkennung hat keine gesprochenen Wörter gefunden. Kürze die Referenz auf eine klare Sprachpassage von 3–10 Sekunden oder gib ein passendes Transkript an."
   },
   "sharing": {
     "title": "Teilen und Fernzugriff",

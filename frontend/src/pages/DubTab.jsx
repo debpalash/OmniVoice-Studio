@@ -13,6 +13,7 @@ import IdleSkeleton from '../components/dub/IdleSkeleton';
 import DubHeader from '../components/dub/DubHeader';
 import DubLeftColumn from '../components/dub/DubLeftColumn';
 import DubRightColumn from '../components/dub/DubRightColumn';
+import DubResizableColumns from '../components/dub/DubResizableColumns';
 import DubFooter from '../components/dub/DubFooter';
 import {
   hasCompleteTranslation,
@@ -624,7 +625,7 @@ export default function DubTab(props) {
   }, [dubJobId, qcRunning, previewMode, dubGenNonce, setDubSegments, t]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="dub-workspace flex-1 flex flex-col min-h-0 min-w-0 [container-type:inline-size] [container-name:dub-shell]">
       {/* Pipeline spine — shown once a file/job is in play so the user always
           knows which stage they're at (Upload → … → Export). In the editor view
           it's inlined onto the DubHeader row (see below), so only render the
@@ -691,7 +692,7 @@ export default function DubTab(props) {
 
       {/* ── After transcription: side-by-side editor ── */}
       {dubJobId && (dubStep === 'editing' || dubStep === 'generating' || dubStep === 'done') && (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="dub-editor flex-1 flex flex-col min-h-0 min-w-0">
           <DubHeader
             t={t}
             dubFilename={dubFilename}
@@ -715,7 +716,7 @@ export default function DubTab(props) {
             pipelineSteps={pipelineSteps}
             onPipelineStep={onPipelineStep}
           />
-          <div className="grid grid-cols-2 max-[1000px]:grid-cols-1 max-[1000px]:grid-rows-[auto_1fr] gap-[6px] flex-1 min-h-0 overflow-hidden">
+          <DubResizableColumns resizeLabel={t('logs.drag_resize')}>
             <DubLeftColumn
               hasDubbedTrack={hasDubbedTrack}
               t={t}
@@ -832,7 +833,7 @@ export default function DubTab(props) {
               dubStep={dubStep}
               dubProgress={dubProgress}
             />
-          </div>
+          </DubResizableColumns>
           <DubFooter
             t={t}
             dubStep={dubStep}

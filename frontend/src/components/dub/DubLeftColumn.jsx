@@ -235,7 +235,7 @@ export default function DubLeftColumn({
   }
 
   return (
-    <div className="studio-panel dub-panel-col">
+    <div className="studio-panel dub-panel-col dub-panel-left">
       {hasDubbedTrack && (
         <div
           className="dub-lang-switch"
