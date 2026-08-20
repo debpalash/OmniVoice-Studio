@@ -13,12 +13,12 @@ and [`palashdeb/omnivoice-studio` on Docker Hub](https://hub.docker.com/r/palash
 > |-----|--------------|
 > | `:latest` | **Rolling preview** — latest commit on `main`, at or ahead of the last release. This is the preview channel; pin `:stable` for production. |
 > | `:stable` | Most recent versioned release (updated on every `v*` git tag) |
-> | `:0.4.1` | Exact release version |
-> | `:0.4` | Latest patch within the 0.4 minor |
+> | `:0.5.0` | Exact release version |
+> | `:0.5` | Latest patch within the 0.5 minor |
 > | `:main` | Alias of the same rolling `main` build as `:latest` |
 > | `:sha-xxxxxxx` | Specific commit (produced by manual workflow dispatch) |
 > | `:rocm` | **AMD GPU (ROCm) build** of the rolling preview — the ROCm analogue of `:latest` |
-> | `:stable-rocm`, `:0.4.1-rocm`, `:0.4-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding CUDA tags above |
+> | `:stable-rocm`, `:0.5.0-rocm`, `:0.5-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding CUDA tags above |
 >
 > Versioning rule: preview builds always come from `main` and never
 > version-sort below `:stable` — upgrades flow naturally.
@@ -89,7 +89,7 @@ PublishPort=127.0.0.1:3900:3900
 Volume=omnivoice-data:/app/omnivoice_data
 ```
 
-Release pins exist too: `:stable-rocm`, `:0.4.1-rocm`, `:0.4-rocm` mirror
+Release pins exist too: `:stable-rocm`, `:0.5.0-rocm`, `:0.5-rocm` mirror
 the CUDA tags exactly.
 
 > **Consumer cards and APUs (RX 6000/7000, Strix Point/Halo):** the backend
@@ -192,10 +192,12 @@ docker run -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
 > may instead bake `VITE_OMNIVOICE_API` at build time, but the runtime var above
 > is simpler and image-agnostic.
 
-> **Security:** VoiceStudio ships no authentication. Anything on your LAN with
-> the URL can use the app. Put it behind a reverse proxy with `basic_auth`
-> (Caddy / nginx + htpasswd) or a private network overlay (Tailscale, ZeroTier)
-> before exposing publicly.
+> **Security:** Loopback-only publishing is the safe default. For LAN or remote
+> access, set a long random `OMNIVOICE_API_KEY` with `docker run -e` or Compose;
+> the browser will prompt for it. The optional six-digit share PIN permits
+> casual consumption access but does not authorize administration or dictation.
+> For public access, also use a TLS reverse proxy or private network overlay.
+> See [API authentication](../api-auth.md) for the complete access model.
 
 ## Volume mounts
 

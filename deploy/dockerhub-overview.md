@@ -1,7 +1,7 @@
 # VoiceStudio
 
 **The open-source ElevenLabs alternative.** Real-time dictation, zero-shot voice
-cloning, and cinematic video dubbing — fully local, no API keys, no accounts.
+cloning, and cinematic video dubbing — fully local, with no cloud API keys or accounts.
 **646 languages.**
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/palashdeb/omnivoice-studio?logo=docker&color=2496ED)](https://hub.docker.com/r/palashdeb/omnivoice-studio)
@@ -90,12 +90,12 @@ There's also a Compose file in the repo with `cpu` / `gpu` / `rocm` profiles
 |-----|--------------|
 | `:latest` | **Rolling preview** — latest commit on `main`, at or ahead of the last release. This is the preview channel; pin `:stable` for production. |
 | `:stable` | Most recent versioned release (updated on every `v*` git tag) |
-| `:0.4.1` | Exact release version |
-| `:0.4` | Latest patch within the `0.4` minor |
+| `:0.5.0` | Exact release version |
+| `:0.5` | Latest patch within the `0.5` minor |
 | `:main` | Alias of the same rolling `main` build as `:latest` |
 | `:sha-xxxxxxx` | A specific commit (produced by manual workflow dispatch) |
 | `:rocm` | **AMD GPU (ROCm) build** of the rolling preview — the ROCm analogue of `:latest` |
-| `:stable-rocm`, `:0.4.1-rocm`, `:0.4-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding tags above |
+| `:stable-rocm`, `:0.5.0-rocm`, `:0.5-rocm`, `:sha-xxxxxxx-rocm` | ROCm builds of the corresponding tags above |
 
 Preview builds always come from `main` and never version-sort below `:stable`,
 so upgrades flow naturally. The same images and tags
@@ -143,11 +143,15 @@ more), auto-detected and selectable in Settings.
 - The image ships with `OMNIVOICE_SERVER_MODE=1`, which relaxes the desktop-only
   loopback-origin gate so the admin UI works through Docker's NAT. Set it to `0`
   if you front the container with your own loopback auth proxy.
+- For LAN or internet-facing deployments, set a long random
+  `OMNIVOICE_API_KEY` and pass the same key through the browser's login prompt.
+  A six-digit share PIN is also available for casual LAN access, but it does
+  not authorize administration or dictation; see the
+  [API authentication guide](https://github.com/debpalash/VoiceStudio/blob/main/docs/api-auth.md).
 
-> **Security:** VoiceStudio ships **no authentication**. Anything that can reach the
-> URL can use the app. Before exposing it beyond localhost, put it behind a
-> reverse proxy with auth (Caddy `basic_auth`, nginx + htpasswd) or a private
-> overlay (Tailscale, ZeroTier).
+> **Security:** Loopback-only publishing is the safe default. Before exposing
+> VoiceStudio beyond localhost, configure `OMNIVOICE_API_KEY`; for public access,
+> also use a TLS reverse proxy or private overlay such as Tailscale/ZeroTier.
 
 ---
 
