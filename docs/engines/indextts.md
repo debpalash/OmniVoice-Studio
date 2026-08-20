@@ -106,10 +106,10 @@ indextts/infer_v2_5.py
 checkpoints/config.yaml
 ```
 
-`IndexTeam/IndexTTS-2.5` ships the model config as `config.yaml`. Installs
-made before VoiceStudio 0.5.1 only worked after hand-renaming it to
-`config_v2_5.yaml`; both names are accepted, so a renamed checkout keeps
-working as-is and needs no reinstall.
+`IndexTeam/IndexTTS-2.5` ships the model config as `config.yaml`. Earlier
+installs only worked after hand-renaming it to `config_v2_5.yaml`; both names
+are accepted, so a renamed checkout keeps working as-is and needs no
+reinstall.
 
 ### `uv` not found
 

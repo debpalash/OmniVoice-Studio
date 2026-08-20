@@ -100,11 +100,16 @@ def test_a_hand_renamed_install_still_resolves(sidecar, tmp_path):
 
 
 def test_the_deliberately_renamed_config_wins_when_both_exist(sidecar, tmp_path):
+    """Both files present from the start — a reversed precedence order fails
+    here, not just a missing fallback."""
     ckpt = tmp_path / "checkpoints"
     ckpt.mkdir()
-    (ckpt / "config.yaml").write_text("model: {}\n", encoding="utf-8")
-    (ckpt / "config_v2_5.yaml").write_text("model: {}\n", encoding="utf-8")
+    (ckpt / "config.yaml").write_text("model: upstream\n", encoding="utf-8")
+    (ckpt / "config_v2_5.yaml").write_text("model: renamed\n", encoding="utf-8")
     assert sidecar._resolve_cfg_path(str(ckpt), version="2.5") == str(ckpt / "config_v2_5.yaml")
+    # And with only the upstream name present, precedence falls through to it.
+    (ckpt / "config_v2_5.yaml").unlink()
+    assert sidecar._resolve_cfg_path(str(ckpt), version="2.5") == str(ckpt / "config.yaml")
 
 
 def test_a_missing_config_names_a_real_upstream_path(sidecar, tmp_path):
@@ -154,39 +159,132 @@ def test_the_recv_deadline_is_tunable_but_bounded(monkeypatch, raw, expected):
     assert IndexTTS2Backend().recv_timeout_s == expected
 
 
+class _EventedStream:
+    """A frame sink that raises an Event per completed write, so tests wait on
+    writes instead of sleeping (no sleeps as synchronization)."""
+
+    def __init__(self):
+        import io
+        import threading
+
+        self._buf = io.BytesIO()
+        self.wrote = threading.Event()
+
+    def write(self, data):
+        self._buf.write(data)
+        return len(data)
+
+    def flush(self):
+        self.wrote.set()
+
+    def getvalue(self):
+        return self._buf.getvalue()
+
+
+def _wait_for_frames(stream, count, timeout=5.0):
+    import time as _time
+
+    deadline = _time.monotonic() + timeout
+    while len(_frames_bytes(stream.getvalue())) < count:
+        remaining = deadline - _time.monotonic()
+        assert remaining > 0, (
+            f"only {len(_frames_bytes(stream.getvalue()))} of {count} frames arrived"
+        )
+        stream.wrote.clear()
+        stream.wrote.wait(remaining)
+    return _frames_bytes(stream.getvalue())
+
+
+def _frames_bytes(raw: bytes) -> list[dict]:
+    import json
+
+    out, i = [], 0
+    while i + 4 <= len(raw):
+        (n,) = struct.unpack("!I", raw[i:i + 4])
+        i += 4
+        if i + n > len(raw):
+            break  # torn frame — callers assert on completeness
+        out.append(json.loads(raw[i:i + n].decode("utf-8")))
+        i += n
+    return out
+
+
 def test_a_long_blocking_call_keeps_the_watchdog_armed(sidecar, monkeypatch):
     """The heart of the fix: silence is what kills a healthy synthesis, so a
     slow infer() must put progress frames on the wire while it runs."""
     monkeypatch.setattr(sidecar, "_HEARTBEAT_S", 0.01)
-    out = io.BytesIO()
+    out = _EventedStream()
     with sidecar._heartbeat(out, "synthesizing"):
-        deadline = __import__("time").monotonic() + 2.0
-        while len(_frames(out)) < 3 and __import__("time").monotonic() < deadline:
-            __import__("time").sleep(0.01)
+        frames = _wait_for_frames(out, 3)
 
-    frames = _frames(out)
-    assert len(frames) >= 3, f"no liveness on the wire: {frames}"
+    assert len(frames) >= 3
     assert {f["stage"] for f in frames} == {"synthesizing"}
-    assert [f["percent"] for f in frames] == sorted(f["percent"] for f in frames)
-    assert all(1 <= f["percent"] <= 99 for f in frames)
+    percents = [f["percent"] for f in frames]
+    assert percents == sorted(percents)
+    assert all(1 <= p <= 99 for p in percents)
 
 
 def test_the_heartbeat_stops_with_the_block(sidecar, monkeypatch):
     """A leaked beat thread would keep writing onto a pipe the next request
-    owns, corrupting its framing."""
+    owns, corrupting its framing. The context manager joins the thread on
+    exit, so no write can arrive after the block."""
     monkeypatch.setattr(sidecar, "_HEARTBEAT_S", 0.01)
-    out = io.BytesIO()
+    out = _EventedStream()
     with sidecar._heartbeat(out, "loading_model"):
-        __import__("time").sleep(0.05)
-    settled = len(_frames(out))
-    __import__("time").sleep(0.1)
-    assert len(_frames(out)) == settled
+        _wait_for_frames(out, 2)
+    settled = len(_frames_bytes(out.getvalue()))
+    # The beat thread is joined; a write after this point can only mean the
+    # join failed, and would flip the event.
+    out.wrote.clear()
+    assert not out.wrote.wait(0.1)
+    assert len(_frames_bytes(out.getvalue())) == settled
 
 
-def test_frame_writes_are_serialized(sidecar):
-    """The heartbeat writes from its own thread; without the lock a concurrent
-    length+body pair interleaves and desynchronizes the wire."""
-    assert hasattr(sidecar, "_send_lock")
+def test_concurrent_sends_never_interleave_frames(sidecar):
+    """The heartbeat writes from its own thread. _send holds a lock across the
+    length+body pair; this drives real concurrent writers through a stream
+    whose write() yields mid-call, so an unlocked (or wrongly scoped) _send
+    produces torn frames and fails the decode below."""
+    import io
     import threading
 
-    assert isinstance(sidecar._send_lock, type(threading.Lock()))
+    class _YieldingStream:
+        """Yields the scheduler between every byte, maximizing interleaving."""
+
+        def __init__(self):
+            self._buf = io.BytesIO()
+
+        def write(self, data):
+            import time as _time
+
+            for i in range(len(data)):
+                self._buf.write(data[i:i + 1])
+                _time.sleep(0)  # explicit reschedule point, not synchronization
+            return len(data)
+
+        def flush(self):
+            pass
+
+        def getvalue(self):
+            return self._buf.getvalue()
+
+    out = _YieldingStream()
+    per_thread = 25
+    payloads = [{"op": "progress", "stage": f"t{t}", "percent": p}
+                for t in range(4) for p in range(per_thread)]
+
+    def _writer(t):
+        for p in range(per_thread):
+            sidecar._send(out, {"op": "progress", "stage": f"t{t}", "percent": p})
+
+    threads = [threading.Thread(target=_writer, args=(t,)) for t in range(4)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join(timeout=30)
+
+    decoded = _frames_bytes(out.getvalue())
+    assert len(decoded) == len(payloads), "torn frame: a length+body pair interleaved"
+    assert sorted((f["stage"], f["percent"]) for f in decoded) == sorted(
+        (f["stage"], f["percent"]) for f in payloads
+    )
