@@ -785,6 +785,7 @@
     "transcribing_label": "正在抄寫…",
     "a11y_setup": "允許輔助使用，讓聽寫功能為您輸入文字",
     "pasted": "貼上的",
+    "inserted": "已輸入",
     "no_speech": "未偵測到語音",
     "mic_denied": "麥克風存取被拒絕",
     "mic_denied_toast": "麥克風存取被拒絕。 {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "刪除語音模型",
     "engine_unavailable": "即時聽寫引擎在此安裝中不可用。聽寫回到標準轉錄路徑。",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "推薦。快速、準確地聽寫 25 種歐洲語言。",
+      "sherpa-parakeet-tdt-v3": "支援 25 種歐洲語言的快速、準確聽寫。",
       "sherpa-parakeet-tdt-v2": "快速、準確的純英語聽寫。",
       "sherpa-zipformer-bilingual-zh-en": "串流中文 + 英文，並附有現場部分內容。",
       "sherpa-paraformer-bilingual-zh-en": "串流中文+英文，緊湊型。",
       "sherpa-zipformer-en-20m": "小型串流英文模型 — 最低延遲。",
       "sherpa-zipformer-zh-14m": "小型串流媒體中國模型—最低延遲。",
-      "sherpa-whisper-tiny": "具有自動語言偵測功能的多語言（90 多種語言）。"
+      "sherpa-whisper-tiny": "推薦。支援 90 多種語言並可自動偵測語言的多語言聽寫。"
     }
   },
   "profiles": {

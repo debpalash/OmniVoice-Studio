@@ -110,7 +110,7 @@ class SherpaModelSpec:
 #    the same HF tree API on 2026-08-07 — not estimated. Every one of the seven
 #    was wrong before, and in both directions, which is worse than uniformly
 #    optimistic: the two Parakeets under-reported by ~3.8x (0.18 -> 0.67 GB),
-#    so the recommended default quietly downloaded four times what the picker
+#    so installing v3 quietly downloaded four times what the picker
 #    promised on a metered or small-disk machine; but the two low-RAM
 #    zipformers OVER-reported by ~3x (0.128 -> 0.044), making the fallback
 #    models look bulkier than the heavyweights they exist to rescue users
@@ -129,7 +129,6 @@ _MODELS: dict[str, SherpaModelSpec] = {
         kind="offline-transducer",
         size_gb=0.67,
         languages="25 European languages",
-        recommended=True,
         heavy=True,
         model_type="nemo_transducer",
         files={
@@ -223,6 +222,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
         kind="offline-whisper",
         size_gb=0.104,
         languages="90+ languages (auto-detect)",
+        recommended=True,
         files={
             "encoder": "tiny-encoder.int8.onnx",
             "decoder": "tiny-decoder.int8.onnx",
@@ -231,7 +231,7 @@ _MODELS: dict[str, SherpaModelSpec] = {
     ),
 }
 
-DEFAULT_MODEL_ID = "sherpa-parakeet-tdt-v3"
+DEFAULT_MODEL_ID = "sherpa-whisper-tiny"
 
 # repo_id → model id, so the model-store list (keyed by repo_id) can be
 # enriched with the dictation metadata, and so capture can map either key.
@@ -261,6 +261,12 @@ def sherpa_available() -> tuple[bool, str]:
         return True, "ready"
     except ImportError as e:
         return False, f"sherpa-onnx not installed: {e}. Install with: uv add sherpa-onnx"
+    except (OSError, RuntimeError) as e:
+        # Native wheel failures surface as OSError/RuntimeError rather than
+        # ImportError (missing DLL/dylib/so, loader or runtime init failure).
+        # Treat them as ordinary engine unavailability so model listing and the
+        # dictation WebSocket can fall back instead of crashing the request.
+        return False, f"sherpa-onnx unavailable ({type(e).__name__}): {e}"
 
 
 def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
@@ -397,13 +403,10 @@ def build_online_recognizer(spec: SherpaModelSpec, *, download: bool = True):
 # transcribe the same bytes. It is a defect inside sherpa-onnx that the app
 # cannot fix by configuration.
 #
-# The curated default therefore cannot be trusted to WORK just because it is
-# installed — and which platforms are affected is not knowable up front, so
-# hard-coding a different default per OS would only be a guess. Instead the app
-# learns from what it observes: when a session hears real speech and the model
-# returns nothing, that model is demoted on THIS machine and stops being
-# selected. Self-correcting wherever the breakage actually is, and a no-op
-# everywhere it isn't.
+# Installation alone therefore cannot prove that a recognizer works. When a
+# session hears real speech and the model returns nothing, that model is
+# demoted on this machine and stops being selected. This self-corrects wherever
+# the decoder defect appears and is a no-op everywhere it does not.
 
 #: prefs key holding the list of model ids demoted on this machine.
 PREF_SILENT_MODELS = "dictation.silent_models"

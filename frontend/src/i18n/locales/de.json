@@ -785,6 +785,7 @@
     "transcribing_label": "Transkribieren…",
     "a11y_setup": "Bedienungshilfen erlauben, damit das Diktat für Sie tippen kann",
     "pasted": "Eingefügt",
+    "inserted": "Eingegeben",
     "no_speech": "Keine Sprache erkannt",
     "mic_denied": "Mikrofonzugriff verweigert",
     "mic_denied_toast": "Mikrofonzugriff verweigert. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Sprachmodell löschen",
     "engine_unavailable": "Die Live-Diktier-Engine ist bei dieser Installation nicht verfügbar. Beim Diktat wird auf den Standard-Transkriptionspfad zurückgegriffen.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Empfohlen. Schnelles und genaues Diktieren in 25 europäischen Sprachen.",
+      "sherpa-parakeet-tdt-v3": "Schnelles und genaues Diktieren in 25 europäischen Sprachen.",
       "sherpa-parakeet-tdt-v2": "Schnelles, genaues Diktat nur auf Englisch.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming Chinesisch + Englisch mit Live-Teilabschnitten.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming Chinesisch + Englisch, kompaktes Modell.",
       "sherpa-zipformer-en-20m": "Winziges englisches Streaming-Modell – niedrigste Latenz.",
       "sherpa-zipformer-zh-14m": "Winziges chinesisches Streaming-Modell – niedrigste Latenz.",
-      "sherpa-whisper-tiny": "Mehrsprachig (über 90 Sprachen) mit automatischer Spracherkennung."
+      "sherpa-whisper-tiny": "Empfohlen. Mehrsprachiges Diktieren in über 90 Sprachen mit automatischer Spracherkennung."
     }
   },
   "profiles": {

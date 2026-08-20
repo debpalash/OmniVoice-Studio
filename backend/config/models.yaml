@@ -163,8 +163,7 @@ models:
     engine: sherpa-onnx
     dictation_id: sherpa-parakeet-tdt-v3
     tag: offline
-    curated_on: [all]
-    note: "Recommended live-dictation default. CPU, int8 ONNX. Requires sherpa-onnx."
+    note: "Multilingual European-language dictation. CPU, int8 ONNX. Requires sherpa-onnx."
 
   - repo_id: "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
     label: "Parakeet TDT v2 (sherpa-onnx — dictation, English)"
@@ -218,7 +217,8 @@ models:
     engine: sherpa-onnx
     dictation_id: sherpa-whisper-tiny
     tag: offline
-    note: "Multilingual offline dictation (auto-detect). CPU, int8 ONNX. Requires sherpa-onnx."
+    curated_on: [all]
+    note: "Recommended cross-platform dictation default (auto-detect). CPU, int8 ONNX. Requires sherpa-onnx."
 
   # ── Diarisation ───────────────────────────────────────────────────────
 

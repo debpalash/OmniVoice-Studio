@@ -94,8 +94,8 @@ class TestHelper:
         assert payload is not None
         assert payload["error"] == "asr_model_missing"
         rec = payload["recommended"]
-        # The curated sherpa dictation entry, with the dictation_id the client
-        # needs to also set dictation.model_id so the retry picks it up.
+        # The explicitly selected sherpa entry, with the dictation_id the
+        # client needs to set so the retry picks it up.
         assert rec["repo_id"] == "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
         assert rec["dictation_id"] == "sherpa-parakeet-tdt-v3"
 
@@ -108,6 +108,55 @@ class TestHelper:
                           return_value=(True, "ready")), \
              patch.object(sd, "is_installed", return_value=True):
             assert asr_backend.asr_model_missing_error(purpose="dictation") is None
+
+    def test_demoted_sherpa_preflights_capture_fallback(self):
+        """The next session follows demotion even when `?model=` persists."""
+        from api.routers.setup import models as setup_models
+        from services import asr_backend
+        from services import sherpa_dictation as sd
+
+        fallback_repo = "Systran/faster-whisper-large-v3"
+        with patch.object(asr_backend.SherpaDictationBackend, "is_available",
+                          return_value=(True, "ready")), \
+             patch.object(sd, "is_demoted", return_value=True), \
+             patch.object(sd, "is_installed", return_value=True), \
+             patch.object(asr_backend, "_capture_whisper_repo",
+                          return_value=fallback_repo), \
+             patch.object(setup_models, "is_cached", return_value=False), \
+             patch.object(setup_models, "cache_is_complete", return_value=True):
+            payload = asr_backend.asr_model_missing_error(
+                purpose="dictation",
+                sherpa_model_id="sherpa-parakeet-tdt-v3",
+            )
+
+        assert payload is not None
+        assert payload["missing_repo_id"] == fallback_repo
+        assert payload["recommended"]["repo_id"] == "csukuangfj/sherpa-onnx-whisper-tiny"
+
+    def test_demoted_default_never_recommends_itself(self):
+        """Installing the CTA recommendation must escape, not clear, a demotion loop."""
+        from api.routers.setup import models as setup_models
+        from services import asr_backend
+        from services import sherpa_dictation as sd
+
+        fallback_repo = "Systran/faster-whisper-large-v3"
+        with patch.object(asr_backend.SherpaDictationBackend, "is_available",
+                          return_value=(True, "ready")), \
+             patch.object(sd, "is_demoted",
+                          side_effect=lambda mid: mid == "sherpa-whisper-tiny"), \
+             patch.object(asr_backend, "_capture_whisper_repo",
+                          return_value=fallback_repo), \
+             patch.object(setup_models, "is_cached", return_value=False), \
+             patch.object(setup_models, "cache_is_complete", return_value=True):
+            payload = asr_backend.asr_model_missing_error(
+                purpose="dictation",
+                sherpa_model_id="sherpa-whisper-tiny",
+            )
+
+        assert payload is not None
+        assert payload["missing_repo_id"] == fallback_repo
+        assert payload["recommended"]["repo_id"] == fallback_repo
+        assert "dictation_id" not in payload["recommended"]
 
     def test_never_raises(self):
         from services import asr_backend
@@ -124,6 +173,24 @@ class TestHelper:
                           return_value="faster-whisper"), \
              patch.dict(os.environ, {"ASR_MODEL_FASTER": "someorg/custom-whisper"}):
             assert asr_backend.asr_model_missing_error() is None
+
+    def test_silent_recovery_requires_even_a_custom_fallback_to_be_installed(self):
+        """The recovery path never turns fail-open into an implicit download."""
+        from api.routers.setup import models as setup_models
+        from services import asr_backend
+
+        with patch.object(asr_backend, "_capture_whisper_repo",
+                          return_value="someorg/custom-whisper"), \
+             patch.object(setup_models, "is_cached", return_value=False), \
+             patch.object(setup_models, "cache_is_complete", return_value=False):
+            payload = asr_backend.asr_model_missing_error(
+                purpose="dictation",
+                skip_sherpa=True,
+                require_installed=True,
+            )
+
+        assert payload is not None
+        assert payload["missing_repo_id"] == "someorg/custom-whisper"
 
     def test_pytorch_whisper_default_repo_fails_open(self):
         """openai/whisper-large-v3-turbo (the pytorch-whisper default) is not
@@ -168,7 +235,7 @@ class TestHelper:
             payload = asr_backend.asr_model_missing_error()
         assert payload is not None
         assert payload["missing_repo_id"] == (
-            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
+            "csukuangfj/sherpa-onnx-whisper-tiny"
         )
 
     def test_installed_positive_is_memoized(self):

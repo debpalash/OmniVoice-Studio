@@ -785,6 +785,7 @@
     "transcribing_label": "Metne dönüştürülüyor…",
     "a11y_setup": "Dikte sizin yerinize yazabilsin diye Erişilebilirlik'e izin verin",
     "pasted": "Yapıştırıldı",
+    "inserted": "Eklendi",
     "no_speech": "Konuşma algılanmadı",
     "mic_denied": "Mikrofon erişimi reddedildi",
     "mic_denied_toast": "Mikrofon erişimi reddedildi. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Konuşma modelini sil",
     "engine_unavailable": "Canlı dikte motoru bu kurulumda mevcut değil. Dikte, standart transkripsiyon yoluna geri döner.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Tavsiye edilir. 25 Avrupa dilinde hızlı, doğru dikte.",
+      "sherpa-parakeet-tdt-v3": "25 Avrupa dilinde hızlı ve doğru dikte.",
       "sherpa-parakeet-tdt-v2": "Hızlı, doğru yalnızca İngilizce dikte.",
       "sherpa-zipformer-bilingual-zh-en": "Canlı bölümlerle Çince + İngilizce akışı.",
       "sherpa-paraformer-bilingual-zh-en": "Çince + İngilizce akışı, kompakt model.",
       "sherpa-zipformer-en-20m": "Küçük akışlı İngilizce modeli — en düşük gecikme.",
       "sherpa-zipformer-zh-14m": "Küçük akışlı Çin modeli — en düşük gecikme.",
-      "sherpa-whisper-tiny": "Otomatik dil algılamalı çok dilli (90'dan fazla dil)."
+      "sherpa-whisper-tiny": "Tavsiye edilir. Otomatik dil algılama ile 90'dan fazla dilde çok dilli dikte."
     }
   },
   "profiles": {

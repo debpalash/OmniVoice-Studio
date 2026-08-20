@@ -785,6 +785,7 @@
     "transcribing_label": "Phiên âm…",
     "a11y_setup": "Cho phép Trợ năng để đọc chính tả có thể gõ thay bạn",
     "pasted": "Đã dán",
+    "inserted": "Đã nhập",
     "no_speech": "Không phát hiện thấy giọng nói nào",
     "mic_denied": "Quyền truy cập micrô bị từ chối",
     "mic_denied_toast": "Quyền truy cập micrô bị từ chối. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Xóa mẫu giọng nói",
     "engine_unavailable": "Công cụ đọc chính tả trực tiếp không khả dụng trên bản cài đặt này. Đọc chính tả quay trở lại đường dẫn phiên âm tiêu chuẩn.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Khuyến nghị. Đọc chính tả nhanh, chính xác trên 25 ngôn ngữ Châu Âu.",
+      "sherpa-parakeet-tdt-v3": "Đọc chính tả nhanh, chính xác bằng 25 ngôn ngữ châu Âu.",
       "sherpa-parakeet-tdt-v2": "Đọc chính tả chỉ bằng tiếng Anh nhanh chóng, chính xác.",
       "sherpa-zipformer-bilingual-zh-en": "Truyền phát tiếng Trung + tiếng Anh với các phần trực tiếp.",
       "sherpa-paraformer-bilingual-zh-en": "Truyền phát tiếng Trung + tiếng Anh, model nhỏ gọn.",
       "sherpa-zipformer-en-20m": "Mô hình phát trực tuyến nhỏ bằng tiếng Anh — độ trễ thấp nhất.",
       "sherpa-zipformer-zh-14m": "Mô hình phát trực tuyến nhỏ của Trung Quốc — độ trễ thấp nhất.",
-      "sherpa-whisper-tiny": "Đa ngôn ngữ (hơn 90 ngôn ngữ) với tính năng tự động phát hiện ngôn ngữ."
+      "sherpa-whisper-tiny": "Khuyến nghị. Đọc chính tả đa ngôn ngữ với hơn 90 ngôn ngữ và tự động phát hiện ngôn ngữ."
     }
   },
   "profiles": {

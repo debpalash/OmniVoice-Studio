@@ -1038,6 +1038,7 @@
     "listening_label": "Listening…",
     "transcribing_label": "Transcribing…",
     "pasted": "Pasted",
+    "inserted": "Inserted",
     "copied": "Copied to clipboard",
     "no_speech": "No speech detected",
     "model_downloading": "Downloading voice model…",
@@ -1080,13 +1081,13 @@
     "delete_confirm_title": "Delete speech model",
     "engine_unavailable": "The live-dictation engine isn't available on this install. Dictation falls back to the standard transcription path.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Recommended. Fast, accurate dictation across 25 European languages.",
+      "sherpa-parakeet-tdt-v3": "Fast, accurate dictation across 25 European languages.",
       "sherpa-parakeet-tdt-v2": "Fast, accurate English-only dictation.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming Chinese + English with live partials.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming Chinese + English, compact model.",
       "sherpa-zipformer-en-20m": "Tiny streaming English model — lowest latency.",
       "sherpa-zipformer-zh-14m": "Tiny streaming Chinese model — lowest latency.",
-      "sherpa-whisper-tiny": "Multilingual (90+ languages) with auto language detection."
+      "sherpa-whisper-tiny": "Recommended. Multilingual dictation across 90+ languages with automatic language detection."
     }
   },
   "profiles": {

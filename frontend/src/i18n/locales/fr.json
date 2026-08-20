@@ -785,6 +785,7 @@
     "transcribing_label": "Transcription…",
     "a11y_setup": "Autorisez l'accessibilité pour que la dictée puisse écrire à votre place",
     "pasted": "Collé",
+    "inserted": "Inséré",
     "no_speech": "Aucune parole détectée",
     "mic_denied": "Accès au micro refusé",
     "mic_denied_toast": "Accès au microphone refusé. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Supprimer le modèle vocal",
     "engine_unavailable": "Le moteur de dictée en direct n'est pas disponible sur cette installation. La dictée revient au chemin de transcription standard.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Recommandé. Dictée rapide et précise dans 25 langues européennes.",
+      "sherpa-parakeet-tdt-v3": "Dictée rapide et précise dans 25 langues européennes.",
       "sherpa-parakeet-tdt-v2": "Dictée rapide et précise en anglais uniquement.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming chinois + anglais avec partiels en direct.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming chinois + anglais, modèle compact.",
       "sherpa-zipformer-en-20m": "Petit modèle anglais de streaming – latence la plus faible.",
       "sherpa-zipformer-zh-14m": "Petit modèle chinois de streaming – latence la plus faible.",
-      "sherpa-whisper-tiny": "Multilingue (plus de 90 langues) avec détection automatique de la langue."
+      "sherpa-whisper-tiny": "Recommandé. Dictée multilingue dans plus de 90 langues avec détection automatique de la langue."
     }
   },
   "profiles": {

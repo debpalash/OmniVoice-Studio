@@ -785,6 +785,7 @@
     "transcribing_label": "文字起こし中…",
     "a11y_setup": "音声入力が代わりに入力できるよう、アクセシビリティを許可してください",
     "pasted": "貼り付けた",
+    "inserted": "入力しました",
     "no_speech": "音声が検出されませんでした",
     "mic_denied": "マイクアクセスが拒否されました",
     "mic_denied_toast": "マイクへのアクセスが拒否されました。 {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "音声モデルの削除",
     "engine_unavailable": "このインストールではライブディクテーション エンジンは利用できません。ディクテーションは標準の文字起こしパスにフォールバックします。",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "おすすめです。 25 のヨーロッパ言語にわたる高速かつ正確なディクテーション。",
+      "sherpa-parakeet-tdt-v3": "25のヨーロッパ言語に対応した高速で正確な音声入力。",
       "sherpa-parakeet-tdt-v2": "高速かつ正確な英語のみのディクテーション。",
       "sherpa-zipformer-bilingual-zh-en": "中国語 + 英語のライブ部分をストリーミングします。",
       "sherpa-paraformer-bilingual-zh-en": "中国語+英語ストリーミング、コンパクトモデル。",
       "sherpa-zipformer-en-20m": "小さなストリーミング英語モデル — レイテンシが最も低い。",
       "sherpa-zipformer-zh-14m": "小さなストリーミング中国語モデル - 遅延が最も低い。",
-      "sherpa-whisper-tiny": "自動言語検出機能を備えた多言語 (90 以上の言語)。"
+      "sherpa-whisper-tiny": "おすすめ。90以上の言語に対応し、言語を自動検出する多言語音声入力。"
     }
   },
   "profiles": {

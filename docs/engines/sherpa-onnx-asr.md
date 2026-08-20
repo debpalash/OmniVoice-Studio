@@ -14,7 +14,7 @@ partials either way.
   curated set below), or **Model Catalogue → Engines**, ASR tab → **Use**, or
   pin `OMNIVOICE_ASR_BACKEND=sherpa-onnx-asr`.
 - `OMNIVOICE_SHERPA_ASR_MODEL` selects the model — default
-  `sherpa-parakeet-tdt-v3`.
+  `sherpa-whisper-tiny`.
 
 ## Best at
 
@@ -25,17 +25,17 @@ partials either way.
   timestamps, which makes it a dictation/notes tool rather than a dubbing
   engine.
 
-## The 7 curated models
+## The 7 selectable models
 
 | Id | Type | Languages | Download |
 | --- | --- | --- | --- |
-| `sherpa-parakeet-tdt-v3` (default) | offline | 25 European languages | 0.67 GB |
+| `sherpa-parakeet-tdt-v3` | offline | 25 European languages | 0.67 GB |
 | `sherpa-parakeet-tdt-v2` | offline | English | 0.66 GB |
 | `sherpa-zipformer-bilingual-zh-en` | streaming | Chinese + English | 0.20 GB |
 | `sherpa-paraformer-bilingual-zh-en` | streaming | Chinese + English | 0.24 GB |
 | `sherpa-zipformer-en-20m` | streaming | English | 0.044 GB |
 | `sherpa-zipformer-zh-14m` | streaming | Chinese | 0.025 GB |
-| `sherpa-whisper-tiny` | offline | 90+ languages (auto-detect) | 0.104 GB |
+| `sherpa-whisper-tiny` (default, recommended) | offline | 90+ languages (auto-detect) | 0.104 GB |
 
 Sizes are measured on-disk download sizes. Weights are int8 ONNX checkpoints
 that download on first use through the same HF cache as everything else —
@@ -45,7 +45,10 @@ allocator holds onto freed blocks).
 
 ## Platform support
 
-CPU on every platform, by the strict cross-platform default-parity rule.
+CPU on every platform, by the strict cross-platform default-parity rule. The
+[upstream CPU wheels](https://k2-fsa.github.io/sherpa/onnx/python/install.html)
+cover Linux, macOS, and Windows, and upstream documents Whisper as a
+[supported non-streaming model family](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/whisper/index.html).
 `OMNIVOICE_SHERPA_ASR_PROVIDER` can override the ONNX provider on a verified
 GPU build, but the default never diverges.
 

@@ -785,6 +785,7 @@
     "transcribing_label": "Trascrizione…",
     "a11y_setup": "Consenti Accessibilità così la dettatura può digitare per te",
     "pasted": "Incollato",
+    "inserted": "Inserito",
     "no_speech": "Nessun parlato rilevato",
     "mic_denied": "Accesso al microfono negato",
     "mic_denied_toast": "Accesso al microfono negato. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Elimina modello vocale",
     "engine_unavailable": "Il motore di dettatura dal vivo non è disponibile su questa installazione. La dettatura ritorna al percorso di trascrizione standard.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Consigliato. Dettatura rapida e accurata in 25 lingue europee.",
+      "sherpa-parakeet-tdt-v3": "Dettatura rapida e accurata in 25 lingue europee.",
       "sherpa-parakeet-tdt-v2": "Dettatura veloce e accurata solo in inglese.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming cinese + inglese con parziali dal vivo.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming cinese + inglese, modello compatto.",
       "sherpa-zipformer-en-20m": "Piccolo modello inglese di streaming: latenza più bassa.",
       "sherpa-zipformer-zh-14m": "Piccolo modello cinese in streaming: latenza più bassa.",
-      "sherpa-whisper-tiny": "Multilingue (oltre 90 lingue) con rilevamento automatico della lingua."
+      "sherpa-whisper-tiny": "Consigliato. Dettatura multilingue in oltre 90 lingue con rilevamento automatico della lingua."
     }
   },
   "profiles": {

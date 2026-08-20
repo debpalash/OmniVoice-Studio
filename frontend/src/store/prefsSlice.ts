@@ -18,7 +18,7 @@ type DictationMode = 'toggle' | 'hold';
 /** Default sherpa dictation model id — matches the backend
  * `sherpa_dictation.DEFAULT_MODEL_ID`. Used only as the pre-hydration seed;
  * the authoritative value comes from `GET /dictation/prefs`. */
-const DEFAULT_DICTATION_MODEL_ID = 'sherpa-parakeet-tdt-v3';
+const DEFAULT_DICTATION_MODEL_ID = 'sherpa-whisper-tiny';
 
 /**
  * Global UI font. Applied app-wide by overriding the `--font-sans` CSS custom
@@ -202,7 +202,7 @@ export interface PrefsSlice {
    *   • dictationMode     — 'toggle' (press to start, press to stop) | 'hold'
    *                          (record while the key is held).
    *   • dictationModelId  — the selected sherpa-onnx model id (e.g.
-   *                          'sherpa-parakeet-tdt-v3'); drives `?model=` on the
+   *                          'sherpa-whisper-tiny'); drives `?model=` on the
    *                          live `/ws/transcribe` socket.
    */
   dictationEnabled: boolean;
@@ -289,7 +289,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   autoPlayPreview: true,
 
   // Seeds only — overwritten by loadDictationPrefs() on init. The backend
-  // default is enabled:true / mode:'toggle' / model:Parakeet TDT v3.
+  // default is enabled:true / mode:'toggle' / model:Whisper Tiny.
   dictationEnabled: true,
   dictationMode: 'toggle',
   dictationModelId: DEFAULT_DICTATION_MODEL_ID,

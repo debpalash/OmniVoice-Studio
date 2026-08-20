@@ -785,6 +785,7 @@
     "transcribing_label": "Transkriberar...",
     "a11y_setup": "Tillåt Hjälpmedel så att diktering kan skriva åt dig",
     "pasted": "Klistras in",
+    "inserted": "Infogat",
     "no_speech": "Inget tal upptäckt",
     "mic_denied": "Mikrofonåtkomst nekad",
     "mic_denied_toast": "Mikrofonåtkomst nekad. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Ta bort talmodell",
     "engine_unavailable": "Live-dikteringsmotorn är inte tillgänglig på den här installationen. Diktering faller tillbaka till standardtranskriptionsvägen.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Rekommenderas. Snabb, exakt diktering på 25 europeiska språk.",
+      "sherpa-parakeet-tdt-v3": "Snabb och exakt diktering på 25 europeiska språk.",
       "sherpa-parakeet-tdt-v2": "Snabb, exakt diktering endast på engelska.",
       "sherpa-zipformer-bilingual-zh-en": "Strömmande kinesiska + engelska med livepartialer.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming kinesiska + engelska, kompakt modell.",
       "sherpa-zipformer-en-20m": "Liten strömmande engelsk modell — lägsta latens.",
       "sherpa-zipformer-zh-14m": "Liten strömmande kinesisk modell — lägsta latens.",
-      "sherpa-whisper-tiny": "Flerspråkig (90+ språk) med automatisk språkdetektering."
+      "sherpa-whisper-tiny": "Rekommenderas. Flerspråkig diktering på över 90 språk med automatisk språkidentifiering."
     }
   },
   "profiles": {

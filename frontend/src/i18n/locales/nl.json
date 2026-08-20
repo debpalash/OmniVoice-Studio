@@ -785,6 +785,7 @@
     "transcribing_label": "Transcriberen…",
     "a11y_setup": "Sta Toegankelijkheid toe zodat dicteren voor je kan typen",
     "pasted": "Geplakt",
+    "inserted": "Ingevoegd",
     "no_speech": "Geen spraak gedetecteerd",
     "mic_denied": "Microfoontoegang geweigerd",
     "mic_denied_toast": "Microfoontoegang geweigerd. {{hint}}",
@@ -2467,13 +2468,13 @@
     "delete_confirm_title": "Spraakmodel verwijderen",
     "engine_unavailable": "De live-dicteerengine is niet beschikbaar bij deze installatie. Het dicteren valt terug op het standaard transcriptiepad.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Aanbevolen. Snel en nauwkeurig dicteren in 25 Europese talen.",
+      "sherpa-parakeet-tdt-v3": "Snel en nauwkeurig dicteren in 25 Europese talen.",
       "sherpa-parakeet-tdt-v2": "Snel, nauwkeurig dicteren in het Engels.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming Chinees + Engels met live gedeeltelijke beelden.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming Chinees + Engels, compact model.",
       "sherpa-zipformer-en-20m": "Klein streaming Engels model - laagste latentie.",
       "sherpa-zipformer-zh-14m": "Klein Chinees streamingmodel – laagste latentie.",
-      "sherpa-whisper-tiny": "Meertalig (90+ talen) met automatische taaldetectie."
+      "sherpa-whisper-tiny": "Aanbevolen. Meertalig dicteren in meer dan 90 talen met automatische taaldetectie."
     }
   },
   "profiles": {

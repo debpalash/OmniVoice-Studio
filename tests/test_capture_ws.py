@@ -12,6 +12,7 @@ quality.
 """
 import os
 import time
+import types
 
 import pytest
 
@@ -65,6 +66,96 @@ def _audio_chunk(n_bytes: int = 20_000) -> bytes:
     # MIN_BUFFER_BYTES is 16_000 — give the server enough to trigger a partial
     # AND a final.
     return b"\x00" * n_bytes
+
+
+def test_select_sherpa_spec_ignores_demoted_query_override(monkeypatch):
+    """A persisted frontend query must not resurrect a silent recognizer."""
+    from api.routers import capture_ws as cw
+    from services import sherpa_dictation as sd
+
+    model_id = "sherpa-parakeet-tdt-v3"
+    websocket = types.SimpleNamespace(query_params={"model": model_id})
+    monkeypatch.setattr(sd, "is_demoted", lambda mid: mid == model_id)
+
+    assert cw._select_sherpa_spec(websocket) is None
+
+
+def test_demoted_sherpa_query_keeps_pcm_transport_for_legacy_fallback(
+    client, monkeypatch,
+):
+    """Demotion changes the recognizer, not the bytes already sent by the UI."""
+    from api.routers import capture_ws as cw
+    from services import sherpa_dictation as sd
+
+    model_id = "sherpa-parakeet-tdt-v3"
+    monkeypatch.setattr(sd, "is_demoted", lambda mid: mid == model_id)
+    sample_rates = []
+
+    async def fallback(_chunks, *, pcm_sr=None):
+        sample_rates.append(pcm_sr)
+        return {
+            "text": "legacy fallback heard pcm",
+            "segments": [],
+            "language": "en",
+            "engine": "stub",
+        }
+
+    monkeypatch.setattr(cw, "_transcribe_buffer_full", fallback)
+    with client.websocket_connect(
+        f"/ws/transcribe?model={model_id}&sr=16000"
+    ) as ws:
+        ws.send_bytes(_audio_chunk())
+        ws.send_text("EOF")
+        for _ in range(10):
+            if ws.receive_json().get("type") == "final":
+                break
+
+    assert sample_rates == [16000]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        ({"text": "top-level text"}, "top-level text"),
+        (
+            {"segments": [{"text": "segment one"}, {"text": "segment two"}]},
+            "segment one segment two",
+        ),
+        (
+            {"chunks": [{"text": "chunk one"}, {"text": "chunk two"}]},
+            "chunk one chunk two",
+        ),
+    ],
+)
+async def test_partial_text_normalizes_every_asr_result_shape(
+    monkeypatch, tmp_path, result, expected,
+):
+    """Live partials work for backends that expose only segments/chunks.
+
+    WhisperX, Faster Whisper, Moonshine, and OpenAI-compatible ASR do not add a
+    top-level ``text`` field. The capture seam must consume the shared ASR
+    result contract instead of silently dropping their partial transcript.
+    """
+    from api.routers import capture_ws as cw
+    from services import asr_backend
+
+    wav = tmp_path / "partial.wav"
+    wav.write_bytes(b"placeholder")
+
+    class StubBackend:
+        def transcribe(self, _path, *, word_timestamps=False):
+            assert word_timestamps is False
+            return result
+
+    async def run_inline(_executor, fn, **_kwargs):
+        return fn()
+
+    monkeypatch.setattr(cw, "_pcm16_to_wav", lambda _pcm, _sr: str(wav))
+    monkeypatch.setattr(asr_backend, "get_capture_asr_backend", lambda: StubBackend())
+    monkeypatch.setattr(asr_backend, "run_transcribe_guarded", run_inline)
+
+    assert await cw._transcribe_buffer([b"\x00" * 4000], pcm_sr=16000) == expected
 
 
 def test_eof_text_frame_triggers_final_without_disconnect(client):

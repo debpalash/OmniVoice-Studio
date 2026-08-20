@@ -11,6 +11,7 @@ Also pins the verified ONNX asset filenames so a silent registry typo (the
 streaming zipformer repos use plain `encoder-epoch-99-avg-1.int8.onnx`, NOT a
 `-chunk-16-left-64` variant) fails loudly.
 """
+import builtins
 import os
 import sys
 import types
@@ -139,8 +140,8 @@ def test_seven_models_registered():
     }
     # Exactly one recommended default.
     rec = [s for s in specs if s.recommended]
-    assert [s.id for s in rec] == ["sherpa-parakeet-tdt-v3"]
-    assert sd.DEFAULT_MODEL_ID == "sherpa-parakeet-tdt-v3"
+    assert [s.id for s in rec] == ["sherpa-whisper-tiny"]
+    assert sd.DEFAULT_MODEL_ID == "sherpa-whisper-tiny"
 
 
 def test_verified_filenames_pinned():
@@ -172,6 +173,31 @@ def test_get_spec_accepts_repo_id():
     assert sd.is_sherpa_model("sherpa-whisper-tiny")
     assert not sd.is_sherpa_model("Systran/faster-whisper-large-v3")
     assert not sd.is_sherpa_model(None)
+
+
+@pytest.mark.parametrize(
+    "native_error",
+    [
+        OSError("native library could not be loaded"),
+        RuntimeError("native runtime initialization failed"),
+    ],
+)
+def test_sherpa_available_degrades_native_loader_failures(monkeypatch, native_error):
+    """A broken platform DLL/dylib/so disables Sherpa without crashing APIs."""
+    from services import sherpa_dictation as sd
+
+    real_import = builtins.__import__
+
+    def import_with_broken_native(name, *args, **kwargs):
+        if name == "sherpa_onnx":
+            raise native_error
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_with_broken_native)
+
+    available, reason = sd.sherpa_available()
+    assert available is False
+    assert type(native_error).__name__ in reason
 
 
 def test_model_resolution_pins_offline_probe_and_download(monkeypatch, tmp_path):

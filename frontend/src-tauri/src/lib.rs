@@ -7,33 +7,36 @@
 //!   backend   – spawn backend process, port probing, log paths
 //!   commands  – Tauri IPC commands (sysinfo, logs, HF cache, paste, tray, dictation)
 
-pub mod config;
-pub mod setup;
-pub mod bootstrap;
-pub mod tools;
 pub mod backend;
+pub mod blank_guard;
+pub mod bootstrap;
 pub mod commands;
-pub mod dictation_shortcut;
+pub mod config;
 pub mod crash;
+pub mod dictation_output;
+pub mod dictation_shortcut;
 pub mod reset;
+pub mod setup;
+pub mod tools;
 pub mod uninstall;
 pub mod updater_channel;
-pub mod blank_guard;
 #[cfg(target_os = "linux")]
 pub mod wayland_shortcut;
 
+use std::collections::VecDeque;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tauri::{Emitter, Manager};
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager};
 use tauri_plugin_positioner::{Position, WindowExt};
 
-use crate::bootstrap::{BootstrapStage, BootstrapState, set_stage};
+use crate::bootstrap::{set_stage, BootstrapStage, BootstrapState};
 use crate::config::load_config;
+use crate::dictation_output::CaptureOrigin;
 use crate::dictation_shortcut::DictationShortcutManager;
 
 // ── Port ──────────────────────────────────────────────────────────────────
@@ -63,11 +66,32 @@ pub struct AppFlags {
     /// the tray icon), so that same call keeps this in step.
     pub dictating: AtomicBool,
     pub capture: Mutex<CaptureDispatchState>,
+    pub output: dictation_output::DictationOutput,
 }
 
 pub struct CaptureDispatchState {
-    pub ready: bool,
-    pub pending: Option<String>,
+    pub(crate) ready: bool,
+    pub(crate) pending: VecDeque<CaptureEvent>,
+}
+
+impl Default for CaptureDispatchState {
+    fn default() -> Self {
+        Self {
+            ready: false,
+            pending: VecDeque::new(),
+        }
+    }
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DictationCapturePayload {
+    pub(crate) session_id: u64,
+}
+
+pub(crate) struct CaptureEvent {
+    pub(crate) name: &'static str,
+    pub(crate) payload: DictationCapturePayload,
 }
 
 pub struct TrayHandle {
@@ -84,8 +108,24 @@ fn dictation_capture_event(action: &str, dictating: bool) -> &'static str {
 }
 
 pub fn dispatch_dictation_capture(app: &tauri::AppHandle, action: &str) {
+    dispatch_dictation_capture_from(app, action, CaptureOrigin::Shortcut);
+}
+
+fn dispatch_dictation_capture_from(app: &tauri::AppHandle, action: &str, origin: CaptureOrigin) {
     let flags = app.state::<AppFlags>();
     let event = dictation_capture_event(action, flags.dictating.load(Ordering::SeqCst));
+    let session_id = if event == "tray-dictate" {
+        flags.output.begin_session(origin)
+    } else if let Some(session_id) = flags.output.current_session_id() {
+        session_id
+    } else {
+        log::warn!("Dictation capture '{action}' ignored — no active output session");
+        return;
+    };
+    let capture_event = CaptureEvent {
+        name: event,
+        payload: DictationCapturePayload { session_id },
+    };
     let Ok(mut capture) = flags.capture.lock() else {
         log::warn!("Dictation capture state lock poisoned");
         return;
@@ -94,7 +134,7 @@ pub fn dispatch_dictation_capture(app: &tauri::AppHandle, action: &str) {
         // A press that reaches Rust but produces no recording is otherwise
         // indistinguishable from one the compositor never delivered, so say
         // which side of the handshake the press left on.
-        if let Err(error) = app.emit(event, ()) {
+        if let Err(error) = app.emit(event, capture_event.payload) {
             log::warn!("Dictation capture '{action}' could not emit {event}: {error}");
         } else {
             log::info!("Dictation capture '{action}' emitted as {event}");
@@ -103,21 +143,35 @@ pub fn dispatch_dictation_capture(app: &tauri::AppHandle, action: &str) {
         log::warn!(
             "Dictation capture '{action}' queued — the capture window has not registered yet"
         );
-        capture.pending = Some(action.to_owned());
+        capture.pending.push_back(capture_event);
     }
 }
 
 #[cfg(test)]
 mod dictation_capture_tests {
-    use super::dictation_capture_event;
+    use super::{
+        dictation_capture_event, CaptureDispatchState, CaptureEvent, DictationCapturePayload,
+    };
 
     #[test]
     fn toggle_starts_when_idle_and_stops_when_recording() {
         assert_eq!(dictation_capture_event("toggle", false), "tray-dictate");
-        assert_eq!(
-            dictation_capture_event("toggle", true),
-            "tray-dictate-stop"
-        );
+        assert_eq!(dictation_capture_event("toggle", true), "tray-dictate-stop");
+    }
+
+    #[test]
+    fn readiness_queue_preserves_press_then_release() {
+        let mut state = CaptureDispatchState::default();
+        state.pending.push_back(CaptureEvent {
+            name: "tray-dictate",
+            payload: DictationCapturePayload { session_id: 7 },
+        });
+        state.pending.push_back(CaptureEvent {
+            name: "tray-dictate-stop",
+            payload: DictationCapturePayload { session_id: 7 },
+        });
+        let names: Vec<_> = state.pending.into_iter().map(|event| event.name).collect();
+        assert_eq!(names, ["tray-dictate", "tray-dictate-stop"]);
     }
 }
 
@@ -374,12 +428,19 @@ mod pill_noactivate_tests {
             WS_EX_NOACTIVATE_BIT,
             "NOACTIVATE bit must be set"
         );
-        assert_eq!(updated & topmost, topmost, "pre-existing style bits must survive");
+        assert_eq!(
+            updated & topmost,
+            topmost,
+            "pre-existing style bits must survive"
+        );
     }
 
     #[test]
     fn idempotent_if_already_noactivate() {
-        assert_eq!(with_noactivate_style(WS_EX_NOACTIVATE_BIT), WS_EX_NOACTIVATE_BIT);
+        assert_eq!(
+            with_noactivate_style(WS_EX_NOACTIVATE_BIT),
+            WS_EX_NOACTIVATE_BIT
+        );
     }
 
     #[test]
@@ -408,7 +469,11 @@ pub fn run() {
     if pill_mode {
         log::info!(
             "Starting in pill (dictation-only) mode (source: {})",
-            if cli_pill { "--pill flag" } else { "config.launch_as_widget" }
+            if cli_pill {
+                "--pill flag"
+            } else {
+                "config.launch_as_widget"
+            }
         );
         // On macOS, hide the Dock icon in pill mode so only the tray shows.
         // This is handled after the app builds via set_activation_policy.
@@ -476,7 +541,11 @@ pub fn run() {
             commands::read_log_tail,
             commands::hf_cache_scan,
             commands::simulate_paste,
+            commands::copy_dictation_output_session,
             commands::simulate_type,
+            commands::activate_dictation_output_session,
+            commands::reject_dictation_output_session,
+            commands::finish_dictation_output_session,
             commands::check_accessibility,
             commands::open_accessibility_settings,
             commands::check_microphone,
@@ -562,6 +631,7 @@ pub fn run() {
                 .decorations(false)
                 .always_on_top(true)
                 .visible(false)
+                .focused(false)
                 .skip_taskbar(true)
                 .center()
                 // Stamp the window's identity BEFORE any app script runs.
@@ -586,15 +656,23 @@ pub fn run() {
                 if let Ok(win) = &result {
                     mark_pill_noactivate(win);
                 }
+                // Wayland cannot reactivate an arbitrary foreign client. The
+                // GTK toplevel therefore must never accept focus when mapped.
+                #[cfg(target_os = "linux")]
+                if let Ok(win) = &result {
+                    use gtk::prelude::GtkWindowExt;
+                    if let Ok(gtk_window) = win.gtk_window() {
+                        gtk_window.set_accept_focus(false);
+                        gtk_window.set_focus_on_map(false);
+                    }
+                }
             }
 
             app.manage(AppFlags {
                 quitting: AtomicBool::new(false),
                 dictating: AtomicBool::new(false),
-                capture: Mutex::new(CaptureDispatchState {
-                    ready: false,
-                    pending: None,
-                }),
+                capture: Mutex::new(CaptureDispatchState::default()),
+                output: dictation_output::DictationOutput::default(),
             });
             app.manage(TrayHandle {
                 tray: Mutex::new(None),
@@ -700,6 +778,20 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&tray_menu)
                 .tooltip(if pill_mode_tray { "VoiceStudio Dictation" } else { "VoiceStudio" })
+                .on_tray_icon_event(|tray, event| {
+                    if matches!(
+                        event,
+                        tauri::tray::TrayIconEvent::Click {
+                            button_state: tauri::tray::MouseButtonState::Down,
+                            ..
+                        }
+                    ) {
+                        tray.app_handle()
+                            .state::<AppFlags>()
+                            .output
+                            .prime_tray_target();
+                    }
+                })
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "show" => {
@@ -760,9 +852,9 @@ pub fn run() {
                             // current by the frontend's existing
                             // `set_tray_recording` call on every start and stop.
                             if app.state::<AppFlags>().dictating.load(Ordering::SeqCst) {
-                                dispatch_dictation_capture(app, "stop");
+                                dispatch_dictation_capture_from(app, "stop", CaptureOrigin::Tray);
                             } else {
-                                dispatch_dictation_capture(app, "start");
+                                dispatch_dictation_capture_from(app, "start", CaptureOrigin::Tray);
                             }
                         }
                         "settings" => {

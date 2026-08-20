@@ -12,6 +12,7 @@
 // the player never silences playback.
 
 import { publishFarEnd } from './farEndBus';
+import { resampleInterleavedFrame } from './micCapture';
 
 const WORKLET_URL = '/aec-worklet.js';
 
@@ -44,10 +45,13 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
       /* gesture may be required; harmless */
     }
   }
+  const channels = 1;
+  const sourceFrameSize = Math.max(1, Math.round((frameSize * ctx.sampleRate) / sampleRate));
   const node = new AudioWorkletNode(ctx, 'aec-frame-emitter', {
-    processorOptions: { frameSize },
+    processorOptions: { frameSize: sourceFrameSize, channels },
   });
-  node.port.onmessage = (e) => publishFarEnd(e.data);
+  node.port.onmessage = (e) =>
+    publishFarEnd(resampleInterleavedFrame(e.data, ctx.sampleRate, sampleRate, channels));
   src.connect(node);
 
   return async function detach() {
