@@ -79,8 +79,12 @@ export class StreamingPreviewError extends Error {
     // the same error. Carried here so useTTS can tell the two apart.
     this.retryable = opts?.retryable === true;
     this.retryAfter = opts?.retryAfter ?? null;
+    this.terminal = opts?.terminal === true;
   }
 }
+
+export const shouldFallbackToClassic = (error) =>
+  error instanceof StreamingPreviewError && !error.retryable && !error.terminal;
 
 /** base64 → Int16 PCM → Float32 samples in [-1, 1]. Exported for tests. */
 export const decodePcm16Base64 = (b64) => {
@@ -380,9 +384,16 @@ async function _streamGenerateSpeech(
       } else if (ev.type === 'done') {
         meta = ev;
       } else if (ev.type === 'error') {
-        throw new StreamingPreviewError(ev.detail || 'TTS stream reported an error', {
+        const detail = ev.detail || 'TTS stream reported an error';
+        const terminal = [
+          '[clone_ref_unusable]',
+          '[clone_ref_too_long]',
+          '[clone_ref_no_speech]',
+        ].some((marker) => detail.includes(marker));
+        throw new StreamingPreviewError(detail, {
           retryable: ev.retryable === true,
           retryAfter: ev.retry_after ?? null,
+          terminal,
         });
       }
     };

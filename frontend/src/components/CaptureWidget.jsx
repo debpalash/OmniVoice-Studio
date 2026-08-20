@@ -648,21 +648,28 @@ export default function CaptureWidget({ onDismiss }) {
   useEffect(() => {
     if (state !== 'setup' || !inTauri()) return undefined;
     let cancelled = false;
+    let timerId;
 
     const reconcileAccessibility = async () => {
       const ok = await checkAccessibility();
-      if (cancelled || !ok || stateRef.current !== 'setup') return;
-      stateRef.current = 'idle';
-      setState('idle');
-      await hideWidgetWindow();
+      if (cancelled || stateRef.current !== 'setup') return;
+      if (ok) {
+        stateRef.current = 'idle';
+        setState('idle');
+        await hideWidgetWindow();
+        return;
+      }
+      timerId = setTimeout(() => {
+        void reconcileAccessibility();
+      }, A11Y_SETUP_RECHECK_MS);
     };
 
-    const id = setInterval(() => {
+    timerId = setTimeout(() => {
       void reconcileAccessibility();
     }, A11Y_SETUP_RECHECK_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      clearTimeout(timerId);
     };
   }, [state]);
 

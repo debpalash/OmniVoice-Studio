@@ -327,6 +327,31 @@ def test_stream_short_text_single_chunk(client, monkeypatch, no_omnivoice_model)
     assert _saved_wav_bytes(done["audio_path"])  # file exists and is non-empty
 
 
+def test_stream_execution_timeout_is_not_reported_as_capacity_busy(
+    client, monkeypatch, no_omnivoice_model,
+):
+    """A render that started and expired is not a queue/admission failure."""
+    fake = _make_deterministic_engine()
+    monkeypatch.setitem(_tts_mod()._REGISTRY, "stream-fake", fake)
+
+    import api.routers.generation as gen_mod
+
+    async def _expired(fn, *, what="GPU job", **kwargs):
+        del fn, kwargs
+        if what == "TTS generate":
+            raise gen_mod.GpuJobTimeoutError("expired after 300 seconds")
+        raise AssertionError(f"unexpected guarded job: {what}")
+
+    monkeypatch.setattr(gen_mod, "run_on_gpu_pool_guarded", _expired)
+    events = _stream_events(
+        client, {"text": "Hello there.", "engine": "stream-fake"}
+    )
+
+    assert events[-1][0]["type"] == "error"
+    assert events[-1][0]["code"] == "generation_timeout"
+    assert events[-1][0]["code"] != "generation_busy"
+
+
 def test_stream_native_model_path(client, monkeypatch, tmp_path):
     """The native OmniVoice model path streams too (per-chunk generate calls
     with duration=None), and its saved take matches the classic render."""

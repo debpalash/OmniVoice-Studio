@@ -140,6 +140,7 @@ def test_production_shutdown_wait_is_generous_enough_for_a_cold_import():
         r"getattr\(app\.state, \"worker_task\", None\),\s*"
         r"getattr\(app\.state, \"preload_task\", None\),\s*"
         r"getattr\(app\.state, \"capture_preload_task\", None\),\s*"
+        r"getattr\(app\.state, \"watermark_preload_task\", None\),\s*"
         r"timeout=([\d.]+),?\s*\)",
         src,
     )

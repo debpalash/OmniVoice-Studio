@@ -4,8 +4,9 @@ import sys
 import time
 import asyncio
 import logging
+import queue
 import threading
-from concurrent.futures import ThreadPoolExecutor, Executor
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 
 from utils.containment import contain_system_exit
 
@@ -397,7 +398,13 @@ def __getattr__(name: str):
 # (generation.py, tts_stream.py) were the last unguarded dispatch — and the
 # residual on-main reports all fail on generate:start (audio). This is the same
 # guard generalised so every GPU dispatch shares one recovery path.
+_GENERATE_TIMEOUT_EXPLICIT = "OMNIVOICE_GENERATE_TIMEOUT_S" in os.environ
 GPU_JOB_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.0"))
+_CONFIGURED_GPU_JOB_TIMEOUT_S = GPU_JOB_TIMEOUT_S
+# CPU synthesis is healthy but substantially slower than accelerated inference.
+# Keep a separate, bounded floor so a short render on CPU is not abandoned at
+# the GPU-oriented five-minute deadline (#1588).
+CPU_JOB_TIMEOUT_S = float(os.environ.get("OMNIVOICE_CPU_GENERATE_TIMEOUT_S", "600.0"))
 
 # Queue-wait budget — a SEPARATE, deliberately generous clock (#1190/#1202).
 # The execution bound above must never be spent waiting in line: a job queued
@@ -500,7 +507,9 @@ class GpuPoolBusyError(TimeoutError):
         self.retry_after = max(1, int(round(retry_after)))
 
 
-def generate_timeout_s(text: "str | None") -> float:
+def generate_timeout_s(
+    text: "str | None", *, engine: object = None, execution_device: "str | None" = None,
+) -> float:
     """THE wall-clock execution budget for one synthesis job, scaled to input.
 
     Single source of truth for every TTS dispatch (#1190/#1202). The
@@ -516,10 +525,33 @@ def generate_timeout_s(text: "str | None") -> float:
     CPU-class hardware, still bounded (a wedged job is caught in minutes, not
     hours).
     """
-    return max(
-        GPU_JOB_TIMEOUT_S,
-        GPU_JOB_TIMEOUT_S + (max(0, len(text or "") - 1200) / 40.0),
-    )
+    base = GPU_JOB_TIMEOUT_S
+    try:
+        from core.device_caps import detect_host_caps
+        family = execution_device or detect_host_caps().family
+        if execution_device is None and engine is not None:
+            from services.engine_routing import resolve_routing
+            compat = getattr(engine, "gpu_compat", None)
+            if compat is None:
+                compat = getattr(type(engine), "gpu_compat", (family, "cpu"))
+            if tuple(compat) == ("cpu",):
+                family = "cpu"
+            else:
+                family = resolve_routing(
+                    compat, detect_host_caps(),
+                    float(getattr(engine, "min_vram_gb", 0.0) or 0.0),
+                )["effective_device"]
+        universal_override = (
+            _GENERATE_TIMEOUT_EXPLICIT
+            or GPU_JOB_TIMEOUT_S != _CONFIGURED_GPU_JOB_TIMEOUT_S
+        )
+        if family == "cpu" and not universal_override:
+            base = CPU_JOB_TIMEOUT_S
+    except Exception:
+        # Device probing is advisory here; the configured universal bound is
+        # still safe when a platform probe is unavailable during startup.
+        pass
+    return base + (max(0, len(text or "") - 1200) / 40.0)
 
 
 def _retry_after_estimate(stats: dict) -> float:
@@ -1057,21 +1089,166 @@ def _timeout_guidance(
 # doubling the effective queue depth of a streamed multi-chunk render.
 # Giving it its own tiny pool removes that head-of-line blocking with no VRAM
 # risk, because the work was never on the device to begin with.
-_watermark_pool_singleton: "ThreadPoolExecutor | None" = None
-_watermark_pool_lock = threading.Lock()
+_WATERMARK_STOP = object()
 
 
-def get_watermark_pool() -> ThreadPoolExecutor:
-    """Dedicated 1-worker pool for provenance marking. Built lazily so hosts
-    with watermarking disabled never spawn the thread."""
-    global _watermark_pool_singleton
-    if _watermark_pool_singleton is None:
-        with _watermark_pool_lock:
-            if _watermark_pool_singleton is None:
-                _watermark_pool_singleton = ThreadPoolExecutor(
-                    max_workers=1, thread_name_prefix="watermark",
+class _WatermarkExecutor(Executor):
+    """Single daemon worker with a bounded shutdown contract.
+
+    ``ThreadPoolExecutor`` uses non-daemon workers that Python joins at exit,
+    so ``wait=False`` still delays process exit while ``wait=True`` can hang
+    lifespan teardown forever. AudioSeal loading is not cooperatively
+    cancellable; a daemon worker plus a bounded join is the only thread-based
+    contract that both preserves in-process model warm-up and guarantees exit.
+    """
+
+    def __init__(self) -> None:
+        self._items: queue.Queue = queue.Queue()
+        self._lock = threading.Lock()
+        self._shutdown = False
+        self._thread: threading.Thread | None = None
+
+    def submit(self, fn, /, *args, **kwargs) -> Future:
+        future: Future = Future()
+        with self._lock:
+            if self._shutdown:
+                raise RuntimeError("cannot schedule new futures after shutdown")
+            if self._thread is None:
+                self._thread = threading.Thread(
+                    target=self._run,
+                    name="watermark_0",
+                    daemon=True,
                 )
-    return _watermark_pool_singleton
+                self._thread.start()
+            self._items.put((future, fn, args, kwargs))
+        return future
+
+    def _run(self) -> None:
+        while True:
+            item = self._items.get()
+            if item is _WATERMARK_STOP:
+                return
+            future, fn, args, kwargs = item
+            if not future.set_running_or_notify_cancel():
+                continue
+            try:
+                future.set_result(fn(*args, **kwargs))
+            except (Exception, SystemExit, KeyboardInterrupt) as exc:
+                future.set_exception(exc)
+
+    def is_stopped(self) -> bool:
+        """Whether shutdown has completed and this executor can be replaced."""
+        with self._lock:
+            return self._shutdown and (
+                self._thread is None or not self._thread.is_alive()
+            )
+
+    def is_shutdown(self) -> bool:
+        with self._lock:
+            return self._shutdown
+
+    def shutdown(
+        self,
+        wait: bool = True,
+        *,
+        cancel_futures: bool = False,
+        timeout: float | None = None,
+    ) -> bool:
+        with self._lock:
+            self._shutdown = True
+            thread = self._thread
+            if cancel_futures:
+                while True:
+                    try:
+                        item = self._items.get_nowait()
+                    except queue.Empty:
+                        break
+                    if item is not _WATERMARK_STOP:
+                        item[0].cancel()
+            self._items.put(_WATERMARK_STOP)
+        if wait and thread is not None:
+            thread.join(timeout=timeout)
+        return thread is None or not thread.is_alive()
+
+
+_watermark_pool_singleton: "_WatermarkExecutor | None" = None
+_watermark_pool_lock = threading.Lock()
+_watermark_pool_accepting = True
+
+
+def begin_watermark_pool_lifecycle() -> None:
+    """Open watermark submissions for a newly-started app lifespan."""
+    global _watermark_pool_accepting, _watermark_pool_singleton
+    with _watermark_pool_lock:
+        if (
+            _watermark_pool_singleton is not None
+            and _watermark_pool_singleton.is_stopped()
+        ):
+            _watermark_pool_singleton = None
+        _watermark_pool_accepting = (
+            _watermark_pool_singleton is None
+            or not _watermark_pool_singleton.is_shutdown()
+        )
+
+
+def get_watermark_pool() -> _WatermarkExecutor:
+    """Dedicated 1-worker pool for provenance marking. Built lazily so hosts
+    with watermarking disabled never spawn the thread.
+
+    The executor is captured and returned UNDER the lock: reading the global
+    again after an unlocked null-check could race shutdown_watermark_pool's
+    reset and hand out None (CodeRabbit, PR #1577)."""
+    global _watermark_pool_accepting, _watermark_pool_singleton
+    with _watermark_pool_lock:
+        if not _watermark_pool_accepting:
+            if (
+                _watermark_pool_singleton is not None
+                and _watermark_pool_singleton.is_stopped()
+            ):
+                _watermark_pool_singleton = None
+                _watermark_pool_accepting = True
+            else:
+                raise RuntimeError("watermark executor is shutting down")
+        if (
+            _watermark_pool_singleton is not None
+            and _watermark_pool_singleton.is_stopped()
+        ):
+            _watermark_pool_singleton = None
+        if _watermark_pool_singleton is None:
+            _watermark_pool_singleton = _WatermarkExecutor()
+        return _watermark_pool_singleton
+
+
+def shutdown_watermark_pool(*, timeout: float = 20.0) -> None:
+    """Drain the watermark pool at app shutdown (PR #1577).
+
+    Refuse queued work and wait for the active operation: Python cannot kill
+    a thread inside AudioSeal loading, so returning early would let model
+    initialization continue during interpreter teardown. The draining pool
+    remains published until its worker stops, preventing concurrent producers
+    from creating a replacement that escapes this shutdown. A process that
+    keeps running after lifespan shutdown (the test suite does exactly this)
+    gets a fresh pool once the old worker has actually stopped."""
+    global _watermark_pool_accepting, _watermark_pool_singleton
+    with _watermark_pool_lock:
+        _watermark_pool_accepting = False
+        pool = _watermark_pool_singleton
+    if pool is not None:
+        stopped = pool.shutdown(
+            wait=True,
+            cancel_futures=True,
+            timeout=max(0.0, float(timeout)),
+        )
+        if stopped:
+            with _watermark_pool_lock:
+                if _watermark_pool_singleton is pool:
+                    _watermark_pool_singleton = None
+        else:
+            logger.warning(
+                "Watermark worker exceeded the %.1fs shutdown deadline; "
+                "abandoning its daemon thread",
+                timeout,
+            )
 
 
 model = None  # type: ignore

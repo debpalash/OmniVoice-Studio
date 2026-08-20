@@ -454,7 +454,7 @@ async def create_speech(req: SpeechRequest):
         from services.model_manager import generate_timeout_s
         wav, sr = await run_on_gpu_pool_guarded(
             lambda: _run_tts(backend, text, kw), what="OpenAI TTS generate",
-            timeout=generate_timeout_s(text))
+            timeout=generate_timeout_s(text, engine=backend))
     except Exception as e:
         # #1172/#1173: typed failures get their real status + actionable
         # message (400 bad input / 503 broken engine binary) instead of a

@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Her satır kendi kaynak sesinin klibinden klonlanır. Satır başına en iyi prozodi, ancak ses kimliği satırdan satıra kayabilir.",
     "voice_match_consistent": "Tutarlı",
     "voice_match_consistent_title": "Bir konuşmacının tüm satırları tek bir ortak referanstan klonlanır (konuşmacı klonu, yoksa en iyi tek klip). Tüm dublajda daha kararlı bir ses kimliği.",
+    "timing_lip_sync": "Dudak senkronizasyonu",
     "default_track": "Varsayılan Parça:",
     "original_track": "Orijinal",
     "selected_dub": "{{code}} (Seçilmiş Dub)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Hata: {{message}}",
     "ignored_unsupported": "Desteklenmeyen talimat göz ardı edildi: {{items}}",
     "ignored_duplicate": "Yoksayıldı (kategori zaten ayarlandı): {{items}}",
-    "ref_audio_unusable": "Referans seste konuşma duyulamadı — klip sessiz ya da neredeyse sessiz, bu yüzden klonlanacak bir ses yok. Mikrofona daha yakın şekilde yeniden kayıt yapın (doğru giriş aygıtının seçili olduğundan ve seviyenin hareket ettiğinden emin olun) veya başka bir klip seçin."
+    "ref_audio_unusable": "Referans seste konuşma duyulamadı — klip sessiz ya da neredeyse sessiz, bu yüzden klonlanacak bir ses yok. Mikrofona daha yakın şekilde yeniden kayıt yapın (doğru giriş aygıtının seçili olduğundan ve seviyenin hareket ettiğinden emin olun) veya başka bir klip seçin.",
+    "ref_audio_too_long": "Bir referans, transkriptle en fazla 20 saniye; transkriptsiz en fazla 75 saniye olabilir. Sesi 3–10 saniyelik net bir konuşma bölümüne kırpın; metin sağlıyorsanız transkripti de aynı bölüme kırpın.",
+    "ref_audio_no_speech": "Otomatik konuşma algılama referansta söylenmiş kelime bulamadı. Sesi 3–10 saniyelik net bir konuşma bölümüne kırpın veya eşleşen bir transkript sağlayın."
   },
   "sharing": {
     "title": "Paylaşım ve Uzaktan Erişim",

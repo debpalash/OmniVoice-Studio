@@ -112,9 +112,9 @@ export interface PrefsSlice {
 
   /**
    * How the dub pipeline reconciles natural-rate TTS with the original
-   * timeline. `concise` (default) trims translation to fit; `stretch_video`
-   * stretches the video instead; `strict_slot` compresses the audio to fit
-   * (legacy behaviour, retained for back-compat).
+   * timeline. `strict_slot` (default) compresses audio to fit; `concise`
+   * trims translation while preserving natural-rate audio; `stretch_video`
+   * stretches the video instead.
    */
   timingStrategy: TimingStrategy;
 
@@ -280,7 +280,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   glossaryVisible: true,
   reviewMode: 'on',
   showHeaderLiveStats: false,
-  timingStrategy: 'concise',
+  timingStrategy: 'strict_slot',
   fitOptions: null,
   voiceMatch: 'per_line',
   whatsNewSeenVersion: null,

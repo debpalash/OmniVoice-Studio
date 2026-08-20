@@ -45,6 +45,9 @@ const mocks = vi.hoisted(() => {
       holder.onFrame = onFrame;
       return async () => {};
     },
+    // Stable spy for getCurrentWindow().hide — a fresh vi.fn() per call would
+    // make the native hide unassertable.
+    hideWindow: vi.fn(async () => {}),
   };
   return {
     state,
@@ -87,7 +90,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }));
 vi.mock('@tauri-apps/api/window', () => ({
-  getCurrentWindow: () => ({ hide: vi.fn(async () => {}) }),
+  getCurrentWindow: () => ({ hide: mocks.holder.hideWindow }),
 }));
 vi.mock('../utils/aec/micCapture', () => ({
   startMicCapture: (...args) => mocks.holder.startMic(...args),
@@ -180,6 +183,7 @@ describe('CaptureWidget', () => {
       mocks.holder.onFrame = onFrame;
       return async () => {};
     };
+    mocks.holder.hideWindow.mockClear();
     mocks.copyText.mockReset();
     mocks.copyText.mockResolvedValue(undefined);
     mocks.apiFetch.mockReset();
@@ -1267,6 +1271,9 @@ describe('CaptureWidget', () => {
       });
 
       expect(screen.queryByText(/Allow Accessibility/)).not.toBeInTheDocument();
+      // The unfocusable widget must also leave the screen — asserting only the
+      // pill text would still pass if hideWidgetWindow() were dropped.
+      expect(mocks.holder.hideWindow).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

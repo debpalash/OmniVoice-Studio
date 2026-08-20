@@ -25,8 +25,8 @@ def test_execution_budget_matches_model_manager_exactly():
     from services import model_manager
 
     for text in ("", "short", "x" * 1200, "x" * 5000, "x" * 50_000):
-        assert deadlines._base_execution_seconds(text) == pytest.approx(
-            model_manager.generate_timeout_s(text)
+        assert deadlines._base_execution_seconds(text, execution_device="cpu") == pytest.approx(
+            model_manager.generate_timeout_s(text, execution_device="cpu")
         )
 
 
@@ -35,13 +35,48 @@ def test_fallback_formula_matches_when_model_manager_is_unavailable(monkeypatch)
     still agree with the real formula."""
     from services import model_manager
 
-    real = model_manager.generate_timeout_s("x" * 4000)
+    real = model_manager.generate_timeout_s("x" * 4000, execution_device="cpu")
 
     def _boom(*a, **k):
         raise ImportError("no torch here")
 
     monkeypatch.setattr(model_manager, "generate_timeout_s", _boom)
     assert deadlines._base_execution_seconds("x" * 4000) == pytest.approx(real)
+
+
+def test_torch_free_fallback_uses_explicit_target_and_custom_cpu(monkeypatch):
+    from services import model_manager
+
+    monkeypatch.setattr(model_manager, "generate_timeout_s", lambda *_a, **_k: (_ for _ in ()).throw(ImportError()))
+    monkeypatch.setattr(deadlines, "_CPU_GENERATE_TIMEOUT_S", 733.0)
+    monkeypatch.setattr(deadlines, "_GENERATE_TIMEOUT_S", 311.0)
+
+    assert deadlines._base_execution_seconds("short", execution_device="cuda") == 311.0
+    assert deadlines._base_execution_seconds("short", execution_device="cpu") == 733.0
+    assert deadlines._base_execution_seconds("short", execution_device="unknown") == 733.0
+
+
+def test_execution_budget_uses_target_worker_device(monkeypatch):
+    """A CPU controller must not enlarge a remote CUDA worker's budget."""
+    from services import model_manager
+
+    monkeypatch.setattr(model_manager, "GPU_JOB_TIMEOUT_S", 300.0)
+    monkeypatch.setattr(model_manager, "CPU_JOB_TIMEOUT_S", 777.0)
+    monkeypatch.setattr(model_manager, "_GENERATE_TIMEOUT_EXPLICIT", False)
+    monkeypatch.setattr(model_manager, "_CONFIGURED_GPU_JOB_TIMEOUT_S", 300.0)
+
+    assert for_task("tts", text="short", execution_device="cuda").execution_seconds == 300
+    assert for_task("tts", text="short", execution_device="cpu").execution_seconds == 777
+
+
+def test_universal_timeout_override_wins_on_cpu_worker(monkeypatch):
+    from services import model_manager
+
+    monkeypatch.setattr(model_manager, "GPU_JOB_TIMEOUT_S", 444.0)
+    monkeypatch.setattr(model_manager, "CPU_JOB_TIMEOUT_S", 777.0)
+    monkeypatch.setattr(model_manager, "_GENERATE_TIMEOUT_EXPLICIT", True)
+
+    assert for_task("tts", text="short", execution_device="cpu").execution_seconds == 444
 
 
 def test_accept_is_generous_enough_for_a_busy_worker():

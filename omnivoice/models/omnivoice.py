@@ -53,11 +53,12 @@ from transformers.modeling_outputs import ModelOutput
 from transformers.models.auto import CONFIG_MAPPING, AutoConfig
 
 from omnivoice.utils.audio import (
+    CLONE_REF_NO_SPEECH_MARKER,
+    CLONE_REF_TOO_LONG_MARKER,
     cross_fade_chunks,
     fade_and_pad_audio,
     load_audio,
     remove_silence_safe,
-    trim_long_audio,
     validate_clone_reference,
 )
 from omnivoice.utils.duration import RuleDurationEstimator
@@ -784,17 +785,66 @@ class OmniVoice(PreTrainedModel):
         # than the trim thresholds but real is recovered below, so this is
         # the only remaining hard failure for a reference clip.
         validate_clone_reference(ref_wav, ref_rms)
+        input_gain = 1.0
         if 0 < ref_rms < 0.1:
-            ref_wav = ref_wav * 0.1 / ref_rms
+            input_gain = 0.1 / ref_rms
+            ref_wav = ref_wav * input_gain
+
+        ref_duration = ref_wav.size(-1) / self.sampling_rate
+        if ref_text is not None and ref_duration > 20.0:
+            raise ValueError(
+                f"{CLONE_REF_TOO_LONG_MARKER} Reference audio is "
+                f"{ref_duration:.1f} seconds long; supplied transcripts support "
+                "at most 20 seconds. Trim both the audio and transcript to the "
+                "same 3-10 second passage, or omit the transcript so VoiceStudio "
+                "can trim and transcribe the clip automatically."
+            )
+        if ref_text is None and ref_duration > 15.0:
+            # Transcript-free automatic selection examines every passage, but
+            # caps the work at five bounded ASR calls. Longer references need
+            # an explicit user-selected passage rather than a lossy sampling
+            # policy that could silently miss speech between fixed windows.
+            max_samples = int(15.0 * self.sampling_rate)
+            max_auto_samples = 5 * max_samples
+            if ref_wav.size(-1) > max_auto_samples:
+                raise ValueError(
+                    f"{CLONE_REF_TOO_LONG_MARKER} Reference audio is "
+                    f"{ref_duration:.1f} seconds long; automatic transcript-free "
+                    "selection supports at most 75 seconds. Trim the audio to a "
+                    "3-10 second speech passage, or supply a matching transcript."
+                )
+
+            original_power = ref_wav.abs().amax(dim=0).square()
+            activity_cap = max(float(original_power.mean()) * 100.0, 1e-10)
+
+            def activity_score(audio):
+                power = audio.abs().amax(dim=0).square().clamp_max(activity_cap)
+                return float(power.double().sum())
+
+            if self._asr_pipe is None:
+                logger.info("ASR model not loaded yet, loading on-the-fly ...")
+                self.load_asr_model()
+            candidates = list(ref_wav.split(max_samples, dim=-1))
+
+            def speech_score(text):
+                return len(re.sub(r"[^\w]+", "", text or "", flags=re.UNICODE))
+
+            transcribed = [
+                (self.transcribe((candidate, self.sampling_rate)), candidate)
+                for candidate in candidates
+            ]
+            ref_text, ref_wav = max(
+                transcribed,
+                key=lambda item: (speech_score(item[0]), activity_score(item[1])),
+            )
+            if speech_score(ref_text) == 0:
+                raise ValueError(
+                    f"{CLONE_REF_NO_SPEECH_MARKER} Automatic speech detection "
+                    "could not find spoken words in the reference. Trim it to a "
+                    "clear 3-10 second speech passage, or supply a matching transcript."
+                )
 
         if preprocess_prompt:
-            # Trim long reference audio (>20s) by splitting at the largest silence gap.
-            # Skip trimming when ref_text is user-provided, otherwise the
-            # trimmed audio will no longer match the full transcript.
-            if ref_text is None:
-                ref_wav = trim_long_audio(
-                    ref_wav, self.sampling_rate, trim_threshold=20.0
-                )
             # #1188: the fixed -50 dBFS silence threshold used to consume a
             # quiet-but-real recording wholesale and dead-end with
             # "Reference audio is empty after silence removal". The safe
@@ -807,6 +857,11 @@ class OmniVoice(PreTrainedModel):
                 lead_sil=100,
                 trail_sil=200,
             )
+
+        # Cropping and silence removal happen after the original validation.
+        # Re-check the actual aligned passage that ASR/tokenization will see.
+        prepared_rms = torch.sqrt(torch.mean(torch.square(ref_wav))).item()
+        validate_clone_reference(ref_wav, prepared_rms)
 
         ref_duration = ref_wav.size(-1) / self.sampling_rate
         if ref_duration > 20.0:
@@ -828,6 +883,9 @@ class OmniVoice(PreTrainedModel):
         chunk_size = self.audio_tokenizer.config.hop_length
         clip_size = int(ref_wav.size(-1) % chunk_size)
         ref_wav = ref_wav[:, :-clip_size] if clip_size > 0 else ref_wav
+        aligned_rms = torch.sqrt(torch.mean(torch.square(ref_wav))).item()
+        validate_clone_reference(ref_wav, aligned_rms)
+        selected_ref_rms = aligned_rms / input_gain
         ref_audio_tokens = self.audio_tokenizer.encode(
             ref_wav.unsqueeze(0).to(self.audio_tokenizer.device),
         ).audio_codes.squeeze(
@@ -840,7 +898,7 @@ class OmniVoice(PreTrainedModel):
         return VoiceClonePrompt(
             ref_audio_tokens=ref_audio_tokens,
             ref_text=ref_text,
-            ref_rms=ref_rms,
+            ref_rms=selected_ref_rms,
         )
 
     def _decode_and_post_process(

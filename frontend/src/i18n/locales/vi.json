@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Mỗi câu được nhân bản từ đoạn âm thanh nguồn của chính nó. Ngữ điệu khớp nhất theo từng câu, nhưng bản sắc giọng có thể trôi giữa các câu.",
     "voice_match_consistent": "Nhất quán",
     "voice_match_consistent_title": "Mọi câu của một người nói được nhân bản từ một tham chiếu chung (bản sao giọng người nói, hoặc đoạn đơn tốt nhất nếu không có). Bản sắc giọng ổn định hơn trong toàn bộ bản lồng tiếng.",
+    "timing_lip_sync": "Đồng bộ môi",
     "default_track": "Bản nhạc mặc định:",
     "original_track": "Bản gốc",
     "selected_dub": "{{code}} (Lồng tiếng được chọn)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Lỗi: {{message}}",
     "ignored_unsupported": "Đã bỏ qua hướng dẫn không được hỗ trợ: {{items}}",
     "ignored_duplicate": "Đã bỏ qua (danh mục đã được đặt): {{items}}",
-    "ref_audio_unusable": "Không nghe thấy giọng nói trong âm thanh tham chiếu — đoạn clip im lặng hoặc gần như im lặng nên không có giọng để nhân bản. Hãy thu âm lại gần micro hơn (kiểm tra đã chọn đúng thiết bị đầu vào và mức âm có dao động) hoặc chọn một clip khác."
+    "ref_audio_unusable": "Không nghe thấy giọng nói trong âm thanh tham chiếu — đoạn clip im lặng hoặc gần như im lặng nên không có giọng để nhân bản. Hãy thu âm lại gần micro hơn (kiểm tra đã chọn đúng thiết bị đầu vào và mức âm có dao động) hoặc chọn một clip khác.",
+    "ref_audio_too_long": "Âm thanh tham chiếu dài tối đa 20 giây khi có bản chép lời hoặc 75 giây khi không có. Hãy cắt thành đoạn lời nói rõ dài 3–10 giây; nếu cung cấp văn bản, hãy cắt bản chép lời theo đúng đoạn đó.",
+    "ref_audio_no_speech": "Tính năng phát hiện tự động không tìm thấy lời nói trong âm thanh tham chiếu. Hãy cắt thành đoạn lời nói rõ dài 3–10 giây hoặc cung cấp bản chép lời khớp."
   },
   "sharing": {
     "title": "Chia sẻ & Truy cập từ xa",

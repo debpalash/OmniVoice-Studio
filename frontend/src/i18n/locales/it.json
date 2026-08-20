@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Ogni battuta viene clonata da un clip del proprio audio sorgente. Migliore prosodia per battuta, ma l'identità della voce può variare da battuta a battuta.",
     "voice_match_consistent": "Coerente",
     "voice_match_consistent_title": "Tutte le battute di un parlante vengono clonate da un riferimento condiviso (il clone del parlante o il miglior clip singolo se assente). Identità vocale più stabile in tutto il doppiaggio.",
+    "timing_lip_sync": "Sincronizzazione labiale",
     "default_track": "Traccia predefinita:",
     "original_track": "Originale",
     "selected_dub": "{{code}} (duplicazione selezionata)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Errore: {{message}}",
     "ignored_unsupported": "Istruzione non supportata ignorata: {{items}}",
     "ignored_duplicate": "Ignorato (categoria già impostata): {{items}}",
-    "ref_audio_unusable": "Nessuna voce rilevata nell'audio di riferimento: la clip è silenziosa o quasi, quindi non c'è alcuna voce da clonare. Registra di nuovo più vicino al microfono (verifica che sia selezionato il dispositivo di ingresso corretto e che il livello si muova) oppure scegli un'altra clip."
+    "ref_audio_unusable": "Nessuna voce rilevata nell'audio di riferimento: la clip è silenziosa o quasi, quindi non c'è alcuna voce da clonare. Registra di nuovo più vicino al microfono (verifica che sia selezionato il dispositivo di ingresso corretto e che il livello si muova) oppure scegli un'altra clip.",
+    "ref_audio_too_long": "Un riferimento può durare al massimo 20 secondi con trascrizione o 75 secondi senza. Taglialo a un passaggio parlato chiaro di 3–10 secondi; se fornisci il testo, taglia la trascrizione sullo stesso passaggio.",
+    "ref_audio_no_speech": "Il rilevamento automatico non ha trovato parole pronunciate nel riferimento. Taglialo a un passaggio parlato chiaro di 3–10 secondi o fornisci una trascrizione corrispondente."
   },
   "sharing": {
     "title": "Condivisione e accesso remoto",

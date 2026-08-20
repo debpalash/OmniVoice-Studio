@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Chaque ligne est clonée depuis un extrait de son propre audio source. Meilleure prosodie par ligne, mais l'identité de la voix peut dériver d'une ligne à l'autre.",
     "voice_match_consistent": "Cohérente",
     "voice_match_consistent_title": "Toutes les lignes d'un locuteur sont clonées depuis une référence partagée (le clone du locuteur, ou le meilleur extrait unique à défaut). Identité vocale plus stable sur tout le doublage.",
+    "timing_lip_sync": "Synchronisation labiale",
     "default_track": "Piste par défaut :",
     "original_track": "Originale",
     "selected_dub": "{{code}} (doublage sélectionné)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Erreur : {{message}}",
     "ignored_unsupported": "Instruction non prise en charge ignorée : {{items}}",
     "ignored_duplicate": "Ignoré (catégorie déjà définie) : {{items}}",
-    "ref_audio_unusable": "Aucune voix n'a été détectée dans l'audio de référence — le clip est silencieux ou presque, il n'y a donc aucune voix à cloner. Réenregistrez plus près du micro (vérifiez que le bon périphérique d'entrée est sélectionné et que le niveau bouge) ou choisissez un autre clip."
+    "ref_audio_unusable": "Aucune voix n'a été détectée dans l'audio de référence — le clip est silencieux ou presque, il n'y a donc aucune voix à cloner. Réenregistrez plus près du micro (vérifiez que le bon périphérique d'entrée est sélectionné et que le niveau bouge) ou choisissez un autre clip.",
+    "ref_audio_too_long": "Une référence peut durer au maximum 20 secondes avec transcription, ou 75 secondes sans transcription. Coupez-la sur un passage vocal clair de 3 à 10 secondes ; si vous fournissez du texte, coupez la transcription sur le même passage.",
+    "ref_audio_no_speech": "La détection automatique n'a trouvé aucune parole dans la référence. Coupez-la sur un passage vocal clair de 3 à 10 secondes ou fournissez une transcription correspondante."
   },
   "sharing": {
     "title": "Partage et accès à distance",

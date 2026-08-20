@@ -11,6 +11,8 @@ genuinely uses **AMD ROCm** GPUs, so auto-detect picks it on ROCm hosts
 
 - **Model Catalogue → Engines**, ASR tab → **Use** on the PyTorch Whisper
   row, or `OMNIVOICE_ASR_BACKEND=pytorch-whisper`.
+- `OMNIVOICE_ASR_BACKEND=omnivoice` is accepted as a compatibility alias and
+  selects this same PyTorch-native ASR path on ROCm hosts.
 - Auto-detect picks it on ROCm, and as the last resort everywhere else.
 
 ## Best at

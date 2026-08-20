@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Varje rad klonas från ett klipp av sitt eget källjud. Bäst prosodi per rad, men röstidentiteten kan glida mellan rader.",
     "voice_match_consistent": "Konsekvent",
     "voice_match_consistent_title": "Alla rader från en talare klonas från en gemensam referens (talarklonen, eller det bästa enskilda klippet om ingen finns). Stabilare röstidentitet genom hela dubbningen.",
+    "timing_lip_sync": "Läppsynk",
     "default_track": "Standardspår:",
     "original_track": "Original",
     "selected_dub": "{{code}} (vald dub)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Fel: {{message}}",
     "ignored_unsupported": "Ignorerad instruktion som inte stöds: {{items}}",
     "ignored_duplicate": "Ignorerad (kategori redan inställd): {{items}}",
-    "ref_audio_unusable": "Inget tal kunde höras i referensljudet — klippet är tyst eller nästan tyst, så det finns ingen röst att klona. Spela in igen närmare mikrofonen (kontrollera att rätt ingångsenhet är vald och att nivån rör sig) eller välj ett annat klipp."
+    "ref_audio_unusable": "Inget tal kunde höras i referensljudet — klippet är tyst eller nästan tyst, så det finns ingen röst att klona. Spela in igen närmare mikrofonen (kontrollera att rätt ingångsenhet är vald och att nivån rör sig) eller välj ett annat klipp.",
+    "ref_audio_too_long": "En referens får vara högst 20 sekunder med transkription eller 75 sekunder utan. Klipp den till ett tydligt talavsnitt på 3–10 sekunder; om du anger text ska transkriptionen klippas till samma avsnitt.",
+    "ref_audio_no_speech": "Den automatiska taldetekteringen hittade inga talade ord. Klipp referensen till ett tydligt talavsnitt på 3–10 sekunder eller ange en matchande transkription."
   },
   "sharing": {
     "title": "Delning och fjärråtkomst",

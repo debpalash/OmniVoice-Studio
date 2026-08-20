@@ -1312,6 +1312,7 @@
     "voice_match_per_line_title": "Each line clones from a clip of its own source audio. Best per-line prosody match, but the voice identity can drift from line to line.",
     "voice_match_consistent": "Consistent",
     "voice_match_consistent_title": "Every line of a speaker clones from one shared reference (the speaker clone, or the best single clip when none exists). Steadier voice identity across the whole dub.",
+    "timing_lip_sync": "Lip sync",
     "timing_concise": "Concise",
     "timing_stretch_video": "Stretch Video",
     "timing_strict_slot": "Strict slot",
@@ -2730,7 +2731,9 @@
     "error_prefix": "Error: {{message}}",
     "ignored_unsupported": "Ignored unsupported instruct: {{items}}",
     "ignored_duplicate": "Ignored (category already set): {{items}}",
-    "ref_audio_unusable": "No speech could be heard in the reference audio — the clip is silent or nearly silent, so there is no voice to clone. Record again closer to the microphone (check that the right input device is selected and its level moves while you speak), or choose a different clip."
+    "ref_audio_unusable": "No speech could be heard in the reference audio — the clip is silent or nearly silent, so there is no voice to clone. Record again closer to the microphone (check that the right input device is selected and its level moves while you speak), or choose a different clip.",
+    "ref_audio_too_long": "A reference can be at most 20 seconds with a supplied transcript, or 75 seconds without one. Trim it to a clear 3–10 second speech passage; if you supply text, trim the transcript to the same passage.",
+    "ref_audio_no_speech": "Automatic speech detection found no spoken words in the reference. Trim it to a clear 3–10 second speech passage, or supply a matching transcript."
   },
   "tts": {
     "routingFallback": "Running on CPU — this engine has no GPU path on your machine, so generation will be slower. {{reason}}",

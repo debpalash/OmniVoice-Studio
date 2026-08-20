@@ -184,5 +184,5 @@ def test_timeout_message_unchanged_on_cpu(monkeypatch):
 def test_the_300_vs_372_second_spread_is_just_text_length():
     """#1226 saw 300s, #1222 saw 372s. If that difference were device-aware
     they'd be separate bugs; it is purely the length-scaled budget."""
-    assert model_manager.generate_timeout_s("x" * 100) == 300.0
-    assert model_manager.generate_timeout_s("x" * 4080) == 372.0
+    assert model_manager.generate_timeout_s("x" * 100, execution_device="cuda") == 300.0
+    assert model_manager.generate_timeout_s("x" * 4080, execution_device="cuda") == 372.0

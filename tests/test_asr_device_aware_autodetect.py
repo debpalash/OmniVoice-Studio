@@ -84,6 +84,22 @@ def test_an_explicitly_pinned_backend_still_wins(monkeypatch):
     assert ab.active_backend_id() == "faster-whisper"
 
 
+def test_explicit_omnivoice_alias_routes_shared_asr_to_pytorch(monkeypatch):
+    """The public env spelling requested by #1582 reaches the shared backend.
+
+    Dubbing, cloning, batch transcription, and the transcription API all use
+    this selector/load seam; accepting the alias here keeps those consumers
+    on the PyTorch-native Whisper path that can use ROCm/HIP.
+    """
+    attached_pipeline = object()
+    monkeypatch.setenv("OMNIVOICE_ASR_BACKEND", "omnivoice")
+
+    selected = ab.get_active_asr_backend(asr_pipe=attached_pipeline)
+
+    assert isinstance(selected, ab.PyTorchWhisperBackend)
+    assert selected._pipe is attached_pipeline
+
+
 # ── we did not buy speed with lip-sync accuracy ─────────────────────────────
 
 

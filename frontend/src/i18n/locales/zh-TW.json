@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "每句都從其自身來源音訊的片段複製。逐句韻律最匹配，但音色可能逐句漂移。",
     "voice_match_consistent": "一致",
     "voice_match_consistent_title": "同一說話者的所有句子都從一個共享參考複製（說話者複製，若沒有則選最佳單一片段）。整段配音的音色更穩定。",
+    "timing_lip_sync": "唇形同步",
     "default_track": "預設曲目：",
     "original_track": "原創",
     "selected_dub": "{{code}}（精選配音）",
@@ -2059,7 +2060,9 @@
     "error_prefix": "錯誤：{{message}}",
     "ignored_unsupported": "忽略不支援的指令：{{items}}",
     "ignored_duplicate": "忽略（類別已設定）：{{items}}",
-    "ref_audio_unusable": "參考音訊中聽不到任何語音——片段為靜音或幾乎靜音，因此沒有可複製的聲音。請靠近麥克風重新錄製（檢查是否選擇了正確的輸入裝置、音量電平是否有跳動），或改用其他片段。"
+    "ref_audio_unusable": "參考音訊中聽不到任何語音——片段為靜音或幾乎靜音，因此沒有可複製的聲音。請靠近麥克風重新錄製（檢查是否選擇了正確的輸入裝置、音量電平是否有跳動），或改用其他片段。",
+    "ref_audio_too_long": "參考音訊在提供文字稿時最長20秒，未提供時最長75秒。請裁剪為含清晰語音的3–10秒片段；若提供文字稿，請將其裁剪到同一片段。",
+    "ref_audio_no_speech": "自動語音偵測未在參考音訊中找到口語。請裁剪為含清晰語音的3–10秒片段，或提供相符的文字稿。"
   },
   "sharing": {
     "title": "共享和遠端存取",

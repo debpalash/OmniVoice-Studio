@@ -254,11 +254,13 @@ def test_scaled_budget_has_one_implementation(mm):
     import api.routers.generation as g
 
     long_text = "x" * 41_200
-    assert mm.generate_timeout_s("hi") == mm.GPU_JOB_TIMEOUT_S
-    assert mm.generate_timeout_s(long_text) == pytest.approx(
+    assert mm.generate_timeout_s("hi", execution_device="cuda") == mm.GPU_JOB_TIMEOUT_S
+    assert mm.generate_timeout_s(long_text, execution_device="cuda") == pytest.approx(
         mm.GPU_JOB_TIMEOUT_S + 1000.0)
-    assert g._generate_timeout_s(long_text) == mm.generate_timeout_s(long_text)
-    assert mm.generate_timeout_s(None) == mm.GPU_JOB_TIMEOUT_S
+    assert g._generate_timeout_s(long_text, execution_device="cuda") == mm.generate_timeout_s(
+        long_text, execution_device="cuda"
+    )
+    assert mm.generate_timeout_s(None, execution_device="cuda") == mm.GPU_JOB_TIMEOUT_S
 
 
 def test_watermark_dispatches_leave_the_gpu_pool():

@@ -524,6 +524,11 @@ and `OMNIVOICE_GENERATE_TIMEOUT_S` (generation) — both in seconds, default 300
 default 120). **Raise** them for very long single files/generations, **lower**
 them to fail faster on a small machine.
 
+CPU-only hosts use a bounded 600-second generation floor because correct CPU
+synthesis can take longer than the accelerated five-minute budget. Override it
+with `OMNIVOICE_CPU_GENERATE_TIMEOUT_S`; an explicit higher
+or lower `OMNIVOICE_GENERATE_TIMEOUT_S` always wins.
+
 **Two things changed here** ([#1190](https://github.com/debpalash/VoiceStudio/issues/1190)):
 
 - **Waiting in line is no longer counted as compute.** The generate budget used
@@ -763,7 +768,8 @@ unaffected and works normally.
 > **Tip:** current builds surface the live OS grant state in-app — **Settings →
 > Permissions** shows whether the microphone (and, on macOS, Accessibility) is
 > granted, denied, or not asked yet, with an **Open Settings** button that
-> deep-links the exact OS pane described above.
+> deep-links the exact OS pane described above. The dictation blocker rechecks
+> Accessibility while it is visible and closes as soon as macOS reports the grant.
 
 ## Dub: "translation engine needs the optional … package"
 
@@ -806,6 +812,15 @@ VoiceStudio now tries, in order: the default GitHub host → a gh-proxy mirror �
    you can raise them further in the environment if a mirror is very slow.
 
 **Linked issues:** [#130](https://github.com/debpalash/VoiceStudio/issues/130), [#60](https://github.com/debpalash/VoiceStudio/issues/60), [#57](https://github.com/debpalash/VoiceStudio/issues/57)
+
+## Workspace navigation crashes with `insertBefore` / `NotFoundError`
+
+This was a `v0.5.0` workspace-lifecycle bug exposed by rapid Launchpad ↔ Dub
+navigation while media renderers were cleaning up. Current builds isolate each
+workspace under its own DOM owner. Update VoiceStudio; no model or project data
+repair is required.
+
+**Linked issue:** [#1590](https://github.com/debpalash/VoiceStudio/issues/1590)
 
 ## Uninstalling / removing all of VoiceStudio's data
 

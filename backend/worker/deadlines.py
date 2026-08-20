@@ -35,6 +35,9 @@ from typing import Optional
 # plane may run in a process that never loads torch). test_worker_deadlines.py
 # asserts the two agree, so a change there cannot silently drift from here.
 _GENERATE_TIMEOUT_S = float(os.environ.get("OMNIVOICE_GENERATE_TIMEOUT_S", "300.0"))
+_CPU_GENERATE_TIMEOUT_S = float(
+    os.environ.get("OMNIVOICE_CPU_GENERATE_TIMEOUT_S", "600.0")
+)
 _MODEL_LOAD_EXTRA_S = float(os.environ.get("OMNIVOICE_MODEL_LOAD_TIMEOUT_S", "1800.0"))
 _HEARTBEAT_GRACE_S = float(os.environ.get("OMNIVOICE_MODEL_LOAD_HEARTBEAT_GRACE_S", "30.0"))
 
@@ -123,20 +126,40 @@ class Deadlines:
         }
 
 
-def _base_execution_seconds(text: Optional[str]) -> float:
+def _base_execution_seconds(
+    text: Optional[str], *, execution_device: Optional[str] = None
+) -> float:
     """Delegate to model_manager's budget; fall back to its formula.
 
     The lazy import keeps this module usable in a process that has no torch —
     the control plane schedules work it never executes.
     """
+    target_device = str(execution_device or "cpu").lower()
+    if target_device not in {"cpu", "cuda", "mps", "mlx", "directml", "rocm", "xpu"}:
+        target_device = "cpu"
     try:
         from services import model_manager  # noqa: PLC0415 — intentionally lazy
 
-        return float(model_manager.generate_timeout_s(text))
+        return float(
+            model_manager.generate_timeout_s(
+                text, execution_device=target_device
+            )
+        )
     except Exception:
+        base = _GENERATE_TIMEOUT_S
+        try:
+            if (
+                target_device == "cpu"
+                and "OMNIVOICE_GENERATE_TIMEOUT_S" not in os.environ
+            ):
+                base = _CPU_GENERATE_TIMEOUT_S
+        except Exception:
+            # Capability detection is optional in the torch-free control
+            # plane; retain the configured universal bounded fallback.
+            pass
         return max(
-            _GENERATE_TIMEOUT_S,
-            _GENERATE_TIMEOUT_S + max(0, len(text or "") - _FREE_CHARS) / _CHARS_PER_SECOND,
+            base,
+            base + max(0, len(text or "") - _FREE_CHARS) / _CHARS_PER_SECOND,
         )
 
 
@@ -147,6 +170,7 @@ def for_task(
     model_resident: bool = False,
     model_downloaded: bool = True,
     input_seconds: float = 0.0,
+    execution_device: Optional[str] = None,
 ) -> Deadlines:
     """Compute the deadlines for one attempt.
 
@@ -158,7 +182,9 @@ def for_task(
     op = Operation.coerce(operation)
     multiplier, grace = _PROFILE[op]
 
-    execution = _base_execution_seconds(text) * multiplier
+    execution = _base_execution_seconds(
+        text, execution_device=execution_device
+    ) * multiplier
     # Media-length operations scale on duration, not characters.
     if input_seconds > 0:
         execution = max(execution, input_seconds * multiplier)

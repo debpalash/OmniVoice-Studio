@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Elke regel wordt gekloond uit een clip van zijn eigen bronaudio. Beste prosodie per regel, maar de stemidentiteit kan per regel verschuiven.",
     "voice_match_consistent": "Consistent",
     "voice_match_consistent_title": "Alle regels van een spreker worden gekloond uit één gedeelde referentie (de sprekerkloon, of de beste losse clip als die ontbreekt). Stabielere stemidentiteit door de hele dub.",
+    "timing_lip_sync": "Lipsynchronisatie",
     "default_track": "Standaardnummer:",
     "original_track": "Origineel",
     "selected_dub": "{{code}} (geselecteerde kopie)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Fout: {{message}}",
     "ignored_unsupported": "Genegeerde niet-ondersteunde instructie: {{items}}",
     "ignored_duplicate": "Genegeerd (categorie al ingesteld): {{items}}",
-    "ref_audio_unusable": "Er is geen spraak gehoord in de referentie-audio — de clip is stil of bijna stil, dus er is geen stem om te klonen. Neem opnieuw op dichter bij de microfoon (controleer of het juiste invoerapparaat is geselecteerd en het niveau beweegt) of kies een andere clip."
+    "ref_audio_unusable": "Er is geen spraak gehoord in de referentie-audio — de clip is stil of bijna stil, dus er is geen stem om te klonen. Neem opnieuw op dichter bij de microfoon (controleer of het juiste invoerapparaat is geselecteerd en het niveau beweegt) of kies een andere clip.",
+    "ref_audio_too_long": "Een referentie mag maximaal 20 seconden duren met transcript, of 75 seconden zonder transcript. Knip deze tot een duidelijke gesproken passage van 3–10 seconden; knip een meegeleverd transcript tot dezelfde passage.",
+    "ref_audio_no_speech": "De automatische spraakdetectie vond geen gesproken woorden in de referentie. Knip deze tot een duidelijke gesproken passage van 3–10 seconden of geef een passend transcript op."
   },
   "sharing": {
     "title": "Delen en externe toegang",

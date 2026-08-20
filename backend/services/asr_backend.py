@@ -2564,7 +2564,10 @@ def _auto_detect() -> str:
 def active_backend_id() -> str:
     explicit = os.environ.get("OMNIVOICE_ASR_BACKEND")
     if explicit:
-        return explicit
+        # #1582's public spelling predates the registry name. Keep it as a
+        # compatibility alias for the PyTorch-native Whisper implementation
+        # that can use ROCm/HIP; every ASR consumer resolves through here.
+        return "pytorch-whisper" if explicit == "omnivoice" else explicit
     from core import prefs
     picked = prefs.get("asr_backend")
     if picked:

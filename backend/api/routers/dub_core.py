@@ -577,6 +577,118 @@ def _clamp_num_speakers(value) -> Optional[int]:
     return value if 1 <= value <= 20 else None
 
 
+def _recover_from_phrase_embeddings(
+    diar_pipe,
+    diarized_segments: list[dict],
+    *,
+    phrases: list[dict],
+    requested_speakers: int | None,
+    audio_target: str,
+    segments: list[dict],
+    words: list,
+):
+    """Recover rapid turns when pyannote collapses a two-speaker exchange.
+
+    Uses ASR phrase boundaries and the embedding/audio components already
+    loaded by speaker-diarization-3.1. Weak or imbalanced clusters are rejected
+    so ordinary single-speaker recordings remain untouched. Returns
+    ``(segments, separation)`` or ``None``.
+    """
+    present = {
+        str(seg.get("speaker_id")) for seg in diarized_segments
+        if seg.get("speaker_id")
+    }
+    if len(present) > 1:
+        return None
+    usable_phrases = [
+        phrase for phrase in phrases
+        if phrase.get("text")
+        and float(phrase.get("end", 0.0)) - float(phrase.get("start", 0.0)) >= 0.75
+    ]
+    if len(usable_phrases) < 4:
+        return None
+    requested = int(requested_speakers) if requested_speakers else 2
+    if requested != 2:
+        return None
+    embedding = getattr(diar_pipe, "_embedding", None)
+    audio = getattr(diar_pipe, "_audio", None)
+    if embedding is None or audio is None:
+        return None
+    try:
+        import numpy as np
+        from pyannote.core import Segment as _PyannoteSegment
+        from sklearn.cluster import AgglomerativeClustering
+
+        vectors = []
+        durations = []
+        for phrase in usable_phrases:
+            start, end = float(phrase["start"]), float(phrase["end"])
+            duration = end - start
+            waveform, _ = audio.crop(
+                audio_target, _PyannoteSegment(start, end),
+                duration=duration, mode="pad",
+            )
+            vector = np.asarray(embedding(waveform[None])).reshape(-1)
+            if not np.isfinite(vector).all():
+                return None
+            vectors.append(vector)
+            durations.append(duration)
+        matrix = np.vstack(vectors)
+        labels = np.asarray(AgglomerativeClustering(
+            n_clusters=2, metric="cosine", linkage="average",
+        ).fit_predict(matrix))
+        if len(set(labels.tolist())) != 2:
+            return None
+
+        counts = [int(np.sum(labels == cluster)) for cluster in (0, 1)]
+        cluster_durations = [
+            float(sum(duration for duration, label in zip(durations, labels) if label == cluster))
+            for cluster in (0, 1)
+        ]
+        if min(counts) < 2 or min(cluster_durations) < 1.5:
+            return None
+
+        normalized = matrix / np.maximum(np.linalg.norm(matrix, axis=1, keepdims=True), 1e-8)
+        similarities = normalized @ normalized.T
+        within, cross = [], []
+        for left in range(len(labels)):
+            for right in range(left + 1, len(labels)):
+                target = within if labels[left] == labels[right] else cross
+                target.append(float(similarities[left, right]))
+        if not within or not cross:
+            return None
+        separation = float(np.mean(within) - np.mean(cross))
+        min_separation = 0.12 if requested_speakers == 2 else 0.18
+        if separation < min_separation:
+            logger.info(
+                "phrase-embedding speaker recovery rejected (separation=%.3f < %.3f)",
+                separation, min_separation,
+            )
+            return None
+
+        speaker_map = {}
+        turns = []
+        for phrase, label in zip(usable_phrases, labels.tolist()):
+            if label not in speaker_map:
+                speaker_map[label] = f"Speaker {len(speaker_map) + 1}"
+            turns.append({
+                "start": float(phrase["start"]),
+                "end": float(phrase["end"]),
+                "speaker": speaker_map[label],
+            })
+        # Assignment mutates segment dictionaries. Work on copies so a recovery
+        # rejected by the final two-speaker check cannot leak partial labels
+        # into the ordinary pyannote result.
+        assigned = assign_speakers_from_turns([dict(item) for item in segments], turns)
+        recovered = resplit_segments_by_turns(assigned, words, turns)
+        if len({item.get("speaker_id") for item in recovered if item.get("speaker_id")}) < 2:
+            return None
+        return recovered, separation
+    except Exception:
+        logger.exception("phrase-embedding speaker recovery failed")
+        return None
+
+
 @router.get("/dub/transcribe-stream/{job_id}")
 async def dub_transcribe_stream(
     job_id: str,
@@ -912,6 +1024,12 @@ async def dub_transcribe_stream(
         # Words (global-timeline) retained so diarization can re-split a segment
         # that spans two speakers' turns at the word boundary (#486).
         all_words: list = []
+        # Preserve the ASR backend's natural phrase boundaries before
+        # segment_transcript merges short neighboring phrases. Pyannote 3.1
+        # occasionally collapses rapid exchanges into one dominant speaker; in
+        # that narrow case these phrase spans give its own WeSpeaker embedding
+        # model clean candidate utterances for a conservative recovery pass.
+        asr_phrase_segments: list[dict] = []
         detected_lang = None
         next_seg_id = 0
         chunk_errors: list[str] = []
@@ -1048,6 +1166,17 @@ async def dub_transcribe_stream(
             if detected_lang is None and part.get("language"):
                 detected_lang = part["language"]
             asr_speaker_turns.extend(part.get("speaker_turns") or [])
+            for _phrase in part.get("chunks", []) or []:
+                _pts = _phrase.get("timestamp") or (None, None)
+                _ptext = (_phrase.get("text") or "").strip()
+                try:
+                    _ps, _pe = float(_pts[0]), float(_pts[1])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                if _ptext and _pe > _ps:
+                    asr_phrase_segments.append({
+                        "start": _ps, "end": _pe, "text": _ptext,
+                    })
             chunk_segs = segment_transcript(part, duration=t1, scene_cuts=scene_cuts)
             # Same word source segment_transcript used (already global-timeline),
             # kept for the post-diarization speaker re-split (#486).
@@ -1313,7 +1442,25 @@ async def dub_transcribe_stream(
                 assigned = assign_speakers_from_diarization(all_segments, diar)
                 # #486: split any segment that spans two speakers' turns at the
                 # word boundary (single-speaker segments pass through unchanged).
-                return resplit_segments_by_diarization(assigned, all_words, diar), None, "pyannote"
+                resplit = resplit_segments_by_diarization(assigned, all_words, diar)
+                recovered = _recover_from_phrase_embeddings(
+                    diar_pipe,
+                    resplit,
+                    phrases=asr_phrase_segments,
+                    requested_speakers=num_speakers,
+                    audio_target=asr_audio_target,
+                    segments=all_segments,
+                    words=all_words,
+                )
+                if recovered is not None:
+                    recovered_segments, separation = recovered
+                    logger.info(
+                        "Recovered rapid two-speaker exchange from ASR phrase embeddings "
+                        "(phrases=%d, separation=%.3f).",
+                        len(asr_phrase_segments), separation,
+                    )
+                    return recovered_segments, None, "phrase_embeddings"
+                return resplit, None, "pyannote"
             except Exception as e:
                 logger.exception("Diarization failed")
                 # Inline ASR turns beat the silence-gap heuristic as a crash

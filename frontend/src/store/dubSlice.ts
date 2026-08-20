@@ -256,7 +256,9 @@ const INITIAL: Omit<
   multiLangs: [],
   dubInstruct: '',
   preserveBg: true,
-  defaultTrack: 'original',
+  // Empty means "the selected/first dubbed language". Original remains an
+  // explicit choice in the export controls (#1575).
+  defaultTrack: '',
   exportTracks: { original: true },
   previewSegIds: [],
   speakerClones: {},

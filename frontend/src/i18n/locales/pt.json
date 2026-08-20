@@ -1036,6 +1036,7 @@
     "voice_match_per_line_title": "Cada fala é clonada de um clipe do seu próprio áudio de origem. Melhor prosódia por fala, mas a identidade da voz pode variar de fala em fala.",
     "voice_match_consistent": "Consistente",
     "voice_match_consistent_title": "Todas as falas de um falante são clonadas de uma referência compartilhada (o clone do falante ou o melhor clipe único quando não houver). Identidade de voz mais estável em toda a dublagem.",
+    "timing_lip_sync": "Sincronização labial",
     "default_track": "Faixa padrão:",
     "original_track": "Originais",
     "selected_dub": "{{code}} (dublagem selecionada)",
@@ -2059,7 +2060,9 @@
     "error_prefix": "Erro: {{message}}",
     "ignored_unsupported": "Instrução não suportada ignorada: {{items}}",
     "ignored_duplicate": "Ignorado (categoria já definida): {{items}}",
-    "ref_audio_unusable": "Nenhuma fala foi detectada no áudio de referência — o clipe está em silêncio ou quase, então não há voz para clonar. Grave novamente mais perto do microfone (confira se o dispositivo de entrada correto está selecionado e se o nível se move) ou escolha outro clipe."
+    "ref_audio_unusable": "Nenhuma fala foi detectada no áudio de referência — o clipe está em silêncio ou quase, então não há voz para clonar. Grave novamente mais perto do microfone (confira se o dispositivo de entrada correto está selecionado e se o nível se move) ou escolha outro clipe.",
+    "ref_audio_too_long": "Uma referência pode ter no máximo 20 segundos com transcrição ou 75 segundos sem ela. Corte-a para um trecho de fala claro de 3–10 segundos; se fornecer texto, corte a transcrição para o mesmo trecho.",
+    "ref_audio_no_speech": "A detecção automática não encontrou palavras faladas na referência. Corte-a para um trecho de fala claro de 3–10 segundos ou forneça uma transcrição correspondente."
   },
   "sharing": {
     "title": "Compartilhamento e acesso remoto",
