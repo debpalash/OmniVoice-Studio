@@ -57,7 +57,10 @@ vi.mock('../pages/Transcriptions', () => ({ addTranscription: vi.fn() }));
 vi.mock('../utils/copyText', () => ({ copyText: vi.fn(async () => {}) }));
 vi.mock('react-hot-toast', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  emit: vi.fn(async () => {}),
+  listen: vi.fn(async () => () => {}),
+}));
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ hide: vi.fn(async () => {}) }),
 }));
@@ -316,6 +319,28 @@ describe('CaptureWidget', () => {
     expect(screen.getByText('Open Settings')).toBeInTheDocument();
     // It does not pretend to record.
     expect(screen.queryByText(/Listening/)).not.toBeInTheDocument();
+  });
+
+  it('clears the Accessibility setup pill after the native grant changes', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.holder.a11y = false;
+      render(withI18n(<CaptureWidget />));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByText(/Allow Accessibility/)).toBeInTheDocument();
+
+      mocks.holder.a11y = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+
+      expect(screen.queryByText(/Allow Accessibility/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('waveform bars move from the worklet mic frames', async () => {
