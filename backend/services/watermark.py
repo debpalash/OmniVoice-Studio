@@ -20,6 +20,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import math
 import os
@@ -66,6 +67,64 @@ OMNI_MESSAGE = [0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1]
 # 30 s bounds each call to tens of MB; the 16-bit message repeats throughout
 # the audio, so per-chunk embedding/detection is equivalent.
 _CHUNK_SECONDS = 30
+
+
+# AudioSeal vendors moshi's ``@torch_compile_lazy`` on SEANetEncoder.forward,
+# so the first EMBED — not the model load, which prefetch already warms —
+# calls torch.compile and drops into Inductor's C++ codegen. On hosts whose
+# C++ toolchain can't serve Inductor that compile raises CppCompileError, the
+# embed fail-opens, and audio ships unmarked: a macOS arm64 deployment lost
+# provenance marking on 10/10 takes while paying 30-40 s for the first failed
+# compile and 5-8 s for each later one (#1615).
+#
+# The compile is pure cost even where it succeeds. Measured on an M3 (5 s of
+# 24 kHz audio, three consecutive embeds): compiled 9.70 / 0.26 / 0.23 s vs
+# eager 0.30 / 0.28 / 0.27 s — a ~10 s first-embed tax to save ~0.03 s per
+# later embed, on CPU work that is already bounded by the 30 s chunk loop.
+# So watermarking runs eager on every platform.
+def _moshi_no_compile():
+    """AudioSeal's vendored ``no_compile`` context manager, or None.
+
+    Resolved per call rather than at import: ``_check_available()`` is what
+    guarantees audioseal is importable, and it runs later than this module.
+    """
+    try:
+        from audioseal.libs.moshi.utils.compile import no_compile
+    except Exception:  # noqa: BLE001 — any import shape change degrades, not crashes
+        return None
+    return no_compile
+
+
+@contextlib.contextmanager
+def _eager_audioseal():
+    """Run the AudioSeal model eagerly, restoring the switch on the way out.
+
+    ``no_compile`` flips a process-global in the vendored moshi module, so it
+    must not stay latched past this block — other models in the backend are
+    entitled to torch.compile. Degrades to a plain call if a future audioseal
+    drops the helper (``tests/test_watermark_no_torch_compile_1615.py`` fails
+    loudly on that upgrade rather than letting the compile creep back in).
+    """
+    no_compile = _moshi_no_compile()
+    if no_compile is None:
+        if not _eager_guard_warned:
+            _warn_missing_eager_guard()
+        yield
+        return
+    with no_compile():
+        yield
+
+
+_eager_guard_warned = False
+
+
+def _warn_missing_eager_guard() -> None:
+    global _eager_guard_warned
+    _eager_guard_warned = True
+    logger.info(
+        "audioseal's no_compile switch is unavailable — watermarking may run "
+        "through torch.compile and pay (or fail) an Inductor C++ compile (#1615)."
+    )
 
 
 def _iter_chunks(audio: torch.Tensor, sample_rate: int):
@@ -385,13 +444,14 @@ def embed_watermark(
 
         # AudioSeal operates at 16kHz internally; it handles resampling, but
         # we need to inform it of the source rate for correct embedding.
-        watermarked = torch.cat(
-            [
-                generator(seg, sample_rate=sample_rate, message=msg)
-                for seg in _iter_chunks(audio, sample_rate)
-            ],
-            dim=-1,
-        )
+        with _eager_audioseal():
+            watermarked = torch.cat(
+                [
+                    generator(seg, sample_rate=sample_rate, message=msg)
+                    for seg in _iter_chunks(audio, sample_rate)
+                ],
+                dim=-1,
+            )
 
         # Restore original shape
         if len(original_shape) == 2:
@@ -449,12 +509,13 @@ def detect_watermark(
         # embedding does, and a splice where only part of the file is
         # VoiceStudio audio still registers (a whole-file average would dilute it).
         best_conf, decoded_msg = -1.0, None
-        for seg in _iter_chunks(audio, sample_rate):
-            result = detector.detect_watermark(seg, sample_rate=sample_rate, message_threshold=0.5)
-            seg_conf = float(result[0]) if isinstance(result, tuple) else 0.0
-            if seg_conf > best_conf:
-                best_conf = seg_conf
-                decoded_msg = result[1] if isinstance(result, tuple) and len(result) > 1 else None
+        with _eager_audioseal():
+            for seg in _iter_chunks(audio, sample_rate):
+                result = detector.detect_watermark(seg, sample_rate=sample_rate, message_threshold=0.5)
+                seg_conf = float(result[0]) if isinstance(result, tuple) else 0.0
+                if seg_conf > best_conf:
+                    best_conf = seg_conf
+                    decoded_msg = result[1] if isinstance(result, tuple) and len(result) > 1 else None
         confidence = max(best_conf, 0.0)
 
         # Decode message bits
