@@ -10,10 +10,10 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
-- Dictation now stays bound to the app where it started and recovers locally from silent recognizer output
-- The backend now answers within a second of launch and narrates its startup step by step
-- Reporting a bug from an outdated build now offers the latest release first
-- The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves
+- Dictation now stays bound to the app where it started and recovers locally from silent recognizer output (#1175)
+- The backend now answers within a second of launch and narrates its startup step by step (#1550)
+- Reporting a bug from an outdated build now offers the latest release first (#1547)
+- The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves (#1548)
 - Invisible watermarking no longer stalls — or silently skips — the first take of a session (#1615)
 
 ### Changed

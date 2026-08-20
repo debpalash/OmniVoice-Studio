@@ -7,11 +7,12 @@ import { attachPlaybackTap } from './playbackTap';
 
 let context;
 let workletNode;
+let contextSampleRate;
 
 class FakeAudioContext {
   constructor() {
     context = this;
-    this.sampleRate = 48000;
+    this.sampleRate = contextSampleRate;
     this.state = 'running';
     this.destination = {};
     this.audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
@@ -47,6 +48,7 @@ class FakeAudioWorkletNode {
 
 describe('attachPlaybackTap', () => {
   beforeEach(() => {
+    contextSampleRate = 48000;
     vi.stubGlobal('AudioContext', FakeAudioContext);
     vi.stubGlobal('AudioWorkletNode', FakeAudioWorkletNode);
     publishFarEnd.mockClear();
@@ -56,6 +58,7 @@ describe('attachPlaybackTap', () => {
     vi.unstubAllGlobals();
     context = undefined;
     workletNode = undefined;
+    contextSampleRate = undefined;
   });
 
   it('delivers fixed-size 16 kHz reference frames from a 48 kHz context', async () => {
@@ -88,9 +91,25 @@ describe('attachPlaybackTap', () => {
     // element → destination edge stays direct.
     expect(context.source.connect).toHaveBeenCalledWith(context.destination);
     expect(context.source.connect).toHaveBeenCalledWith(context.filters[0]);
+    expect(context.filters[0].connect).toHaveBeenCalledWith(context.filters[1]);
+    expect(context.filters[1].connect).toHaveBeenCalledWith(context.filters[2]);
     expect(context.filters[2].connect).toHaveBeenCalledWith(workletNode);
 
     await detach();
     for (const filter of context.filters) expect(filter.disconnect).toHaveBeenCalled();
+    // Only the tap edge is removed; the audible src→destination edge stays.
+    expect(context.source.disconnect).toHaveBeenCalledWith(context.filters[0]);
+    expect(context.source.disconnect).not.toHaveBeenCalledWith(context.destination);
+  });
+
+  it('skips the filter chain when the context honors the requested rate', async () => {
+    contextSampleRate = 16000;
+    const detach = await attachPlaybackTap({}, { sampleRate: 16000, frameSize: 4 });
+
+    expect(context.filters).toHaveLength(0);
+    expect(context.source.connect).toHaveBeenCalledWith(workletNode);
+
+    await detach();
+    expect(context.source.disconnect).not.toHaveBeenCalled();
   });
 });
