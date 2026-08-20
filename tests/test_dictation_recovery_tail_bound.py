@@ -76,3 +76,37 @@ def test_both_socket_paths_use_the_bounded_buffer(ws):
     src = inspect.getsource(ws)
     assert src.count("RecoveryTail(pcm_sr)") == 2
     assert "session_pcm = bytearray()" not in src
+
+
+def test_trimming_never_splits_a_sample(ws):
+    """int16 mono PCM: transport frames can carry odd byte counts (a sample
+    split across two WebSocket messages), but the *stream* stays aligned — a
+    sample starts at every even global offset. Trimming must remove an even
+    number of bytes so the retained tail still starts on a sample boundary.
+
+    The failure needs a stream that ends mid-sample (the session closed on a
+    torn frame): with an odd total, an odd-trimming buffer ends with an odd
+    cumulative removal, the tail starts mid-sample, and every decoded value
+    is byte-shifted garbage. (An even total self-rebalances across trims,
+    which is why the obvious version of this test cannot fail.)
+    """
+    import struct
+
+    n = SR * 2  # 2 s of samples; sample k holds the value k
+    stream = b"".join(struct.pack("<h", k % 32000) for k in range(n)) + b"\x7f"
+
+    tail = ws.RecoveryTail(SR, seconds=1.0)
+    # Odd-sized chunks so extend() boundaries never align with samples.
+    i = 0
+    for size in (1, 3331, 7777, 32001):
+        tail.extend(stream[i:i + size])
+        i += size
+    tail.extend(stream[i:])
+
+    kept = tail.tail()
+    whole = kept[: (len(kept) // 2) * 2]  # the torn final byte is half a sample
+    values = [v for (v,) in struct.iter_unpack("<h", whole)]
+    # Sample-aligned ⟺ the decoded values are a contiguous ascending run; a
+    # mid-sample start turns them into byte-shifted noise.
+    assert values == list(range(values[0], values[0] + len(values))), values[:5]
+    assert values[-1] == (n - 1) % 32000

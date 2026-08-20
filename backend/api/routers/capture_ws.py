@@ -89,8 +89,12 @@ def _requested_pcm_sample_rate(query_params) -> int | None:
         try:
             from services.sherpa_dictation import is_sherpa_model
             sherpa_pcm = is_sherpa_model(requested_model)
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001
+            # A broken sherpa install must not decide the framing question —
+            # sherpa_pcm stays False and the session negotiates the
+            # MediaRecorder path; availability is re-probed (and reported)
+            # when the model is actually selected.
+            sherpa_pcm = False
     if not raw_pcm and not aec and not sherpa_pcm:
         return None
     try:
@@ -480,6 +484,11 @@ class RecoveryTail:
         self.total_bytes += len(pcm)
         excess = len(self._buf) - self._max
         if excess > 0:
+            # int16 mono: trim whole samples only. A split frame can carry an
+            # odd byte count, and an odd trim would leave the tail starting
+            # mid-sample — every later sample byte-shifted, and the recovery
+            # transcription fed noise.
+            excess += excess % 2
             del self._buf[:excess]
 
     def tail(self) -> bytes:

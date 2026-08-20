@@ -2474,7 +2474,7 @@
     "model_desc": {
       "sherpa-parakeet-tdt-v3": "Snel en nauwkeurig dicteren in 25 Europese talen.",
       "sherpa-parakeet-tdt-v2": "Snel, nauwkeurig dicteren in het Engels.",
-      "sherpa-zipformer-bilingual-zh-en": "Streaming Chinees + Engels met live gedeeltelijke beelden.",
+      "sherpa-zipformer-bilingual-zh-en": "Streaming Chinees + Engels met live tussentijdse resultaten.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming Chinees + Engels, compact model.",
       "sherpa-zipformer-en-20m": "Klein streaming Engels model - laagste latentie.",
       "sherpa-zipformer-zh-14m": "Klein Chinees streamingmodel – laagste latentie.",

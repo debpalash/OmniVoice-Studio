@@ -20,7 +20,7 @@ const WORKLET_URL = '/aec-worklet.js';
 const ANTIALIAS_STAGES = 3;
 const ANTIALIAS_CUTOFF_RATIO = 0.4;
 
-function buildAntiAliasChain(ctx, targetRate) {
+export function buildAntiAliasChain(ctx, targetRate) {
   if (typeof ctx.createBiquadFilter !== 'function') return [];
   const stages = [];
   for (let stage = 0; stage < ANTIALIAS_STAGES; stage += 1) {

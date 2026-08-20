@@ -12,7 +12,7 @@
 // the player never silences playback.
 
 import { publishFarEnd } from './farEndBus';
-import { resampleInterleavedFrame } from './micCapture';
+import { buildAntiAliasChain, resampleInterleavedFrame } from './micCapture';
 
 const WORKLET_URL = '/aec-worklet.js';
 
@@ -52,7 +52,14 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
   });
   node.port.onmessage = (e) =>
     publishFarEnd(resampleInterleavedFrame(e.data, ctx.sampleRate, sampleRate, channels));
-  src.connect(node);
+  // The far-end reference decimates exactly like the mic path, so it needs the
+  // same anti-alias low-pass before resampling — an aliased reference makes
+  // the AEC subtract tones the speaker never played. Filters sit only on the
+  // tap branch: the src → destination edge stays untouched, so what the user
+  // hears is unchanged.
+  const antiAlias = ctx.sampleRate > sampleRate ? buildAntiAliasChain(ctx, sampleRate) : [];
+  const chain = [src, ...antiAlias, node];
+  for (let i = 0; i < chain.length - 1; i += 1) chain[i].connect(chain[i + 1]);
 
   return async function detach() {
     try {
@@ -64,6 +71,13 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
       node.disconnect();
     } catch {
       /* ignore */
+    }
+    for (const filter of antiAlias) {
+      try {
+        filter.disconnect();
+      } catch {
+        /* ignore */
+      }
     }
     // Intentionally leave ctx + src→destination intact (see header note).
   };

@@ -19,6 +19,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def _clear_installed_repo_memo():
+    """_repo_installed memoizes positives module-globally and never
+    invalidates, and test_installed_positive_is_memoized writes the very repo
+    the missing-model tests probe — so run order decided what these tests saw
+    (CodeRabbit on #1610). Deterministic now: empty before, empty after."""
+    from services import asr_backend
+
+    asr_backend._INSTALLED_REPO_MEMO.clear()
+    yield
+    asr_backend._INSTALLED_REPO_MEMO.clear()
+
+
 @pytest.fixture(scope="module")
 def client():
     from main import app
