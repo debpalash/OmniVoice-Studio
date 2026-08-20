@@ -62,6 +62,11 @@ def setup_status():
 _MIN_NVIDIA_DRIVER = 555
 _RAM_FAIL_GB = 8
 _RAM_WARN_GB = 12
+# Installed DIMMs never fully reach the OS: firmware, integrated graphics and
+# kernel reservations shave off up to ~7% (an "8 GB" Windows laptop reports
+# ~7.8 GB usable). Thresholds are compared with this allowance applied so the
+# machines a threshold is meant to admit aren't blocked by that gap (#1618).
+_RAM_RESERVED_ALLOWANCE = 0.93
 
 
 def _run_cmd(args: list[str], timeout: float = 2.0) -> tuple[int, str]:
@@ -352,17 +357,28 @@ def preflight():
 
     # ── RAM
     ram = _ram_gb()
+    # Escape hatch (#1618): a preflight should inform, not brick setup —
+    # OMNIVOICE_RAM_PREFLIGHT=0 downgrades the hard block to a warning for
+    # users who accept the OOM risk. Same opt-out shape as
+    # OMNIVOICE_ASR_VRAM_PREFLIGHT.
+    ram_gate = os.environ.get(
+        "OMNIVOICE_RAM_PREFLIGHT", "1"
+    ).strip().lower() not in ("0", "false", "no")
     if ram == 0:
         ram_status, ram_detail, ram_fix = (
             "warn", "Could not detect system RAM.",
             "Install psutil in the backend environment or ignore this warning.",
         )
-    elif ram < _RAM_FAIL_GB:
+    elif ram < _RAM_FAIL_GB * _RAM_RESERVED_ALLOWANCE:
         ram_status, ram_detail, ram_fix = (
-            "fail", f"{ram:.1f} GB total (need ≥ {_RAM_FAIL_GB} GB)",
-            "The app will OOM on first dub. Close other apps or upgrade RAM.",
+            "fail" if ram_gate else "warn",
+            f"{ram:.1f} GB total (need ≥ {_RAM_FAIL_GB} GB)",
+            "The app will OOM on first dub. Close other apps or upgrade RAM."
+            if ram_gate else
+            "RAM check disabled via OMNIVOICE_RAM_PREFLIGHT=0 — dubbing may "
+            "OOM on this machine.",
         )
-    elif ram < _RAM_WARN_GB:
+    elif ram < _RAM_WARN_GB * _RAM_RESERVED_ALLOWANCE:
         ram_status, ram_detail, ram_fix = (
             "warn", f"{ram:.1f} GB total ({_RAM_WARN_GB}+ GB recommended)",
             "Long videos may hit swap. Keep other apps closed during dubbing.",
