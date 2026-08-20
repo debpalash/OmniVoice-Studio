@@ -192,12 +192,13 @@ docker run -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
 > may instead bake `VITE_OMNIVOICE_API` at build time, but the runtime var above
 > is simpler and image-agnostic.
 
-> **Security:** Loopback-only publishing is the safe default. For LAN or remote
-> access, set a long random `OMNIVOICE_API_KEY` with `docker run -e` or Compose;
-> the browser will prompt for it. The optional six-digit share PIN permits
-> casual consumption access but does not authorize administration or dictation.
-> For public access, also use a TLS reverse proxy or private network overlay.
-> See [API authentication](../api-auth.md) for the complete access model.
+> **Security:** Loopback-only publishing is the safe default. On a trusted LAN,
+> set a long random `OMNIVOICE_API_KEY` with `docker run -e` or Compose; the
+> browser will prompt for it. The optional six-digit share PIN permits casual
+> consumption access but does not authorize administration or dictation. On any
+> untrusted network, plain HTTP is not safe for the API key or session cookie:
+> TLS through a reverse proxy or an encrypted private overlay is required. See
+> [API authentication](../api-auth.md) for the complete access model.
 
 ## Volume mounts
 

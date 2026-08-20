@@ -150,8 +150,10 @@ more), auto-detected and selectable in Settings.
   [API authentication guide](https://github.com/debpalash/VoiceStudio/blob/main/docs/api-auth.md).
 
 > **Security:** Loopback-only publishing is the safe default. Before exposing
-> VoiceStudio beyond localhost, configure `OMNIVOICE_API_KEY`; for public access,
-> also use a TLS reverse proxy or private overlay such as Tailscale/ZeroTier.
+> VoiceStudio on a trusted LAN, configure `OMNIVOICE_API_KEY`. On any untrusted
+> network, plain HTTP is not safe for the API key or session cookie: TLS through
+> a reverse proxy or an encrypted private overlay such as Tailscale/ZeroTier is
+> required.
 
 ---
 
