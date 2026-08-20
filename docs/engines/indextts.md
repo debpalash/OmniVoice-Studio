@@ -77,6 +77,14 @@ missing, preventing slow disks or antivirus scans from hiding a valid venv.
 Set `OMNIVOICE_INDEXTTS_IMPORT_PROBE_TIMEOUT_S` to raise the default 60-second
 probe limit.
 
+### Long-text generation
+
+A long passage can keep `infer()` busy for several minutes. The sidecar emits a
+keep-alive frame every 5 seconds while it works, so the parent can tell a slow
+synthesis from a wedged one, and waits up to 900 seconds for a sidecar that has
+gone genuinely silent. Set `OMNIVOICE_INDEXTTS_RECV_TIMEOUT_S` (minimum 30) to
+tune that ceiling.
+
 IndexTTS 2.5 requires a language token. VoiceStudio maps locale codes and
 language names to the five supported languages and detects Chinese, Japanese,
 or Arabic script for Auto requests. Ambiguous Latin text defaults to English.
@@ -95,8 +103,13 @@ confirm that the configured directory contains:
 ```text
 pyproject.toml
 indextts/infer_v2_5.py
-checkpoints/config_v2_5.yaml
+checkpoints/config.yaml
 ```
+
+`IndexTeam/IndexTTS-2.5` ships the model config as `config.yaml`. Installs
+made before VoiceStudio 0.5.1 only worked after hand-renaming it to
+`config_v2_5.yaml`; both names are accepted, so a renamed checkout keeps
+working as-is and needs no reinstall.
 
 ### `uv` not found
 

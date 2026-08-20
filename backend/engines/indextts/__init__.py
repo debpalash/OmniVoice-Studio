@@ -28,6 +28,7 @@ packages. The parent only ever spawns it as a subprocess.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
 from typing import TYPE_CHECKING
@@ -163,6 +164,23 @@ class IndexTTS2Backend(SubprocessBackend):
     def venv_python(cls):
         from engines.indextts.bootstrap import resolve_indextts_venv
         return resolve_indextts_venv()
+
+    @property
+    def recv_timeout_s(self) -> float:
+        # IndexTTS was the only sidecar left on the 60s class default while
+        # pockettts and omnivoice-subprocess both raised theirs. infer() is one
+        # blocking upstream call, so a long passage legitimately outruns 60s and
+        # the parent's watchdog killed a healthy synthesis (#1611). main.py also
+        # heartbeats during infer(), which is what actually proves liveness —
+        # this deadline is the ceiling for a sidecar that has gone genuinely
+        # silent. OMNIVOICE_INDEXTTS_RECV_TIMEOUT_S tunes it.
+        try:
+            v = float(os.environ.get("OMNIVOICE_INDEXTTS_RECV_TIMEOUT_S", "900"))
+        except (ValueError, TypeError):
+            return 900.0
+        if not math.isfinite(v):  # reject inf/nan so the deadline can't be disabled
+            return 900.0
+        return max(30.0, v)
 
     @classmethod
     def sidecar_script(cls):

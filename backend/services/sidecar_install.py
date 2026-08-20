@@ -108,7 +108,11 @@ class SidecarSpec:
     weights_repo_id: Optional[str] = None   # HF repo downloaded into <checkout>/<weights_subdir>
     weights_revision: Optional[str] = None  # reviewed HF commit
     weights_subdir: str = "checkpoints"
-    weights_config_name: str = "config.yaml"  # required model config inside weights_subdir
+    # Model-config filenames accepted inside weights_subdir. A tuple, not a
+    # single name: IndexTTS 2.5's weights repo ships config.yaml, but installs
+    # predating #1611 were only usable after hand-renaming it to
+    # config_v2_5.yaml, and those must keep working without a reinstall.
+    weights_config_names: tuple[str, ...] = ("config.yaml",)
     docs_path: str = "docs/engines"         # where the manual-install fallback lives
     required_bytes: int = 12 * _GIB    # conservative source+venv+weights estimate for preflight
     # Called after a successful install/uninstall so the engine's memoised
@@ -146,7 +150,7 @@ SPECS: dict[str, SidecarSpec] = {
         weights_repo_id="IndexTeam/IndexTTS-2.5",
         weights_revision="d0aa86e75bb6f3437f3831e95056fa72842d89ef",
         weights_subdir="checkpoints",
-        weights_config_name="config_v2_5.yaml",
+        weights_config_names=("config.yaml", "config_v2_5.yaml"),
         docs_path="docs/engines/indextts.md",
         # ~0.1 GB source + up to ~6 GB venv (torch + transformers<5) +
         # ~6 GB weights. Deliberately conservative; the preflight subtracts
@@ -879,11 +883,11 @@ def _weights_present(spec: SidecarSpec) -> bool:
     actual = marker[:2] if len(marker) >= 2 else marker + [""]
     if actual != expected:
         return False
-    return _weights_floor_ok(wdir, config_name=spec.weights_config_name)
+    return _weights_floor_ok(wdir, config_names=spec.weights_config_names)
 
 
-def _weights_floor_ok(wdir: Path, *, config_name: str = "config.yaml") -> bool:
-    if not (wdir / config_name).is_file():
+def _weights_floor_ok(wdir: Path, *, config_names: tuple[str, ...] = ("config.yaml",)) -> bool:
+    if not any((wdir / name).is_file() for name in config_names):
         return False
     floor = 5 * 1024 * 1024
     try:
@@ -969,7 +973,7 @@ def _step_fetch_weights(spec: SidecarSpec, job: dict) -> None:
         hf_progress.unregister_listener(listener_id)
         hf_progress.current_repo_id.reset(repo_token)
 
-    if not _weights_floor_ok(wdir, config_name=spec.weights_config_name):
+    if not _weights_floor_ok(wdir, config_names=spec.weights_config_names):
         raise _StepError(
             "Weight download finished but no plausible weight files were found — "
             "the download was likely interrupted.",
