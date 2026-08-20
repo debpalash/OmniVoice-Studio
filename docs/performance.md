@@ -235,6 +235,16 @@ RAM/VRAM) turns a guessing game into a bisect.
 Measured results per engine/device — and how to contribute yours — live in
 [benchmarks.md](benchmarks.md).
 
+Batch dubbing uses eight-segment native forward batches when the selected
+engine supports them. Other adapters inherit a compatibility fallback that
+preserves the existing one-segment behavior.
+
+Streaming clients also receive measured latency in the `/ws/tts` terminal
+`done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the complete
+render, and `rtf` is elapsed request/stream time divided by generated-audio
+duration. The backend log records the same values, so a slow first chunk is
+distinguishable from a fast first chunk followed by a long render.
+
 ## Things that look like knobs but aren't
 
 - **Deleting and re-adding a voice** doesn't speed anything up; the reference

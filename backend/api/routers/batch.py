@@ -279,6 +279,108 @@ async def _run_batch_pipeline(job_id: str, job: dict):
         full_audio = torch.zeros(1, total_samples)
         total_segs = len(translated_segments)
 
+        # Native engines can amortize encoder/decoder setup across a small
+        # batch. Keep the adapter seam optional: engines without a real batch
+        # implementation inherit TTSBackend.generate_batch(), which preserves
+        # the established one-segment behavior below.
+        from services.tts_backend import TTSBackend
+        batched_audio: dict[int, torch.Tensor] = {}
+        has_native_batch = type(backend).generate_batch is not TTSBackend.generate_batch
+        if has_native_batch:
+            from services.text_normalization import normalize_for_tts
+
+            batch_ref_audio = None
+            batch_ref_text = None
+            if job.get("voice_id"):
+                from core.db import db_conn
+                from core.config import VOICES_DIR as _VD
+                with db_conn() as conn:
+                    row = conn.execute(
+                        "SELECT * FROM voice_profiles WHERE id=?",
+                        (job["voice_id"],),
+                    ).fetchone()
+                if row:
+                    if row["is_locked"] and row["locked_audio_path"]:
+                        batch_ref_audio = os.path.join(_VD, row["locked_audio_path"])
+                    elif row["ref_audio_path"]:
+                        batch_ref_audio = os.path.join(_VD, row["ref_audio_path"])
+                    batch_ref_text = row["ref_text"]
+
+            batch_width = 8
+            for batch_start in range(0, total_segs, batch_width):
+                if job["status"] == "cancelled":
+                    return
+                batch_rows = [
+                    (index, translated_segments[index])
+                    for index in range(batch_start, min(batch_start + batch_width, total_segs))
+                    if translated_segments[index].get("end", 0) - translated_segments[index].get("start", 0) > 0.05
+                    and translated_segments[index].get("text", "").strip()
+                ]
+                if not batch_rows:
+                    continue
+                batch_indices = [index for index, _ in batch_rows]
+                batch_texts = [
+                    normalize_for_tts(row.get("text", "").strip(), target_lang)
+                    for _, row in batch_rows
+                ]
+                batch_durations = [
+                    row.get("end", 0) - row.get("start", 0)
+                    for _, row in batch_rows
+                ]
+
+                def _render_native_batch():
+                    generated = backend.generate_batch(
+                        batch_texts,
+                        language=target_lang,
+                        ref_audio=batch_ref_audio,
+                        ref_text=batch_ref_text,
+                        duration=batch_durations,
+                        num_step=16,
+                        guidance_scale=2.0,
+                        speed=1.0,
+                        denoise=True,
+                        postprocess_output=True,
+                    )
+                    if len(generated) != len(batch_indices):
+                        raise RuntimeError(
+                            f"native batch returned {len(generated)} outputs for "
+                            f"{len(batch_indices)} segments"
+                        )
+                    rendered = []
+                    for audio_out in generated:
+                        if not getattr(backend, "applies_own_mastering", False):
+                            audio_out = apply_mastering(audio_out, sample_rate=sr)
+                        rendered.append(normalize_audio(audio_out, target_dBFS=-2.0))
+                    return rendered
+
+                try:
+                    from services.model_manager import generate_timeout_s
+                    batch_timeout = sum(generate_timeout_s(text) for text in batch_texts)
+                    _set_progress(
+                        job, "generate",
+                        percent=int((lang_idx + batch_indices[0] / total_segs) / total_langs * 100),
+                        current_lang=target_lang,
+                        current_segment=batch_indices[0] + 1,
+                        total_segments=total_segs,
+                    )
+                    rendered = await run_on_gpu_pool_guarded(
+                        _render_native_batch,
+                        what="Batch generate",
+                        timeout=batch_timeout,
+                    )
+                    batched_audio.update(zip(batch_indices, rendered))
+                except TimeoutError:
+                    # Do not immediately queue the same expensive work again:
+                    # the timed-out pool task may still be holding the device.
+                    raise
+                except Exception as e:
+                    logger.warning(
+                        "Native TTS batch failed for segments %s-%s; falling back per segment: %s",
+                        batch_indices[0] + 1,
+                        batch_indices[-1] + 1,
+                        e,
+                    )
+
         for i, seg in enumerate(translated_segments):
             if job["status"] == "cancelled":
                 return
@@ -356,10 +458,13 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                 # Budget is the shared length-scaled one (#1190): a long segment
                 # on CPU-class hardware no longer dies on the flat 300s.
                 from services.model_manager import generate_timeout_s
-                audio_tensor = await run_on_gpu_pool_guarded(
-                    _gen, what="Batch generate",
-                    timeout=generate_timeout_s(seg_text, engine=backend),
-                )
+                if i in batched_audio:
+                    audio_tensor = batched_audio.pop(i)
+                else:
+                    audio_tensor = await run_on_gpu_pool_guarded(
+                        _gen, what="Batch generate",
+                        timeout=generate_timeout_s(seg_text, engine=backend),
+                    )
 
                 # Fit to slot
                 target_samples_seg = int(seg_duration * sr)

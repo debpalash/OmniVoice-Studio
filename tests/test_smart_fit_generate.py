@@ -408,6 +408,174 @@ def test_strict_slot_to_smart_fit_forces_one_full_regen(patched_generate):
     assert job["fit_plans"]["es"]["params"]["allow_video_retime"] is False
 
 
+@pytest.mark.parametrize("natural_strategy", ["concise", "stretch_video"])
+def test_strict_slot_to_natural_mode_forces_one_full_regen(
+    patched_generate, natural_strategy,
+):
+    """Every natural-rate timing mode needs the slotted-cache guard.
+
+    A strict-slot render destructively trims its durable segment WAVs.  A later
+    natural-rate re-mix cannot recover the missing tails from those files, and
+    must synthesize once before it may label the cache ``natural``.
+    """
+    run, model, job, job_dir = patched_generate
+    segs = [
+        {"start": 0.0, "end": 1.0, "text": "1.5:uno"},
+        {"start": 2.0, "end": 3.0, "text": "1.5:dos"},
+    ]
+
+    run(_body(segs, timing_strategy="strict_slot"))
+    assert job["seg_wav_kind"] == "slotted"
+
+    model.calls.clear()
+    run(_body(segs, timing_strategy=natural_strategy, regen_only=[]))
+
+    assert model.calls == ["1.5:uno", "1.5:dos"]
+    assert job["seg_wav_kind"] == "natural"
+    import torchaudio
+    wav, _ = torchaudio.load(str(job_dir / "seg_es_0.wav"))
+    assert wav.shape[-1] == int(1.5 * SR)
+
+
+@pytest.mark.parametrize("natural_strategy", ["concise", "stretch_video", "smart_fit"])
+def test_natural_cache_remix_skips_mix_scratch_roundtrip(
+    patched_generate, monkeypatch, natural_strategy,
+):
+    """A fit-only re-mix should decode each durable segment exactly once.
+
+    The durable natural-rate WAV is already the assembly input.  Loading it,
+    writing an identical ``mix_*`` scratch WAV, then loading that copy again
+    doubles decode I/O and adds one synchronous write per unchanged segment.
+    """
+    run, model, _job, job_dir = patched_generate
+    segs = [
+        {"start": 0.0, "end": 1.0, "text": "0.8:uno"},
+        {"start": 1.5, "end": 2.5, "text": "0.8:dos"},
+    ]
+    run(_body(segs, timing_strategy=natural_strategy))
+
+    import api.routers.dub_generate as dg
+
+    original_load = dg.torchaudio.load
+    original_save = dg.atomic_save_wav
+    loaded_paths: list[str] = []
+    saved_paths: list[str] = []
+
+    def spy_load(path, *args, **kwargs):
+        loaded_paths.append(os.fspath(path))
+        return original_load(path, *args, **kwargs)
+
+    def spy_save(path, *args, **kwargs):
+        saved_paths.append(os.fspath(path))
+        return original_save(path, *args, **kwargs)
+
+    monkeypatch.setattr(dg.torchaudio, "load", spy_load)
+    monkeypatch.setattr(dg, "atomic_save_wav", spy_save)
+    model.calls.clear()
+
+    parsed = run(_body(segs, timing_strategy=natural_strategy, regen_only=[]))
+
+    cache_paths = [str(job_dir / f"seg_es_{i}.wav") for i in range(2)]
+    _done(parsed)
+    assert model.calls == []
+    assert saved_paths == []
+    assert loaded_paths == cache_paths
+    samples, sample_rate = _track_samples(job_dir)
+    assert samples == int(4.0 * sample_rate)
+
+
+def test_foreign_rate_natural_cache_keeps_resample_scratch_fallback(
+    patched_generate, monkeypatch,
+):
+    """A cache at another rate still takes the one-time transform path."""
+    run, model, _job, job_dir = patched_generate
+    segs = [{"start": 0.0, "end": 1.0, "text": "0.8:uno"}]
+    run(_body(segs, timing_strategy="concise"))
+
+    import api.routers.dub_generate as dg
+    import torchaudio
+    import torchaudio.functional as AF
+
+    cached_path = str(job_dir / "seg_es_0.wav")
+    cached_wav, cached_sr = torchaudio.load(cached_path)
+    foreign_sr = cached_sr // 2
+    torchaudio.save(cached_path, AF.resample(cached_wav, cached_sr, foreign_sr), foreign_sr)
+
+    original_load = dg.torchaudio.load
+    original_save = dg.atomic_save_wav
+    loaded_names: list[str] = []
+    saved_names: list[str] = []
+
+    def spy_load(path, *args, **kwargs):
+        loaded_names.append(os.path.basename(os.fspath(path)))
+        return original_load(path, *args, **kwargs)
+
+    def spy_save(path, *args, **kwargs):
+        saved_names.append(os.path.basename(os.fspath(path)))
+        return original_save(path, *args, **kwargs)
+
+    monkeypatch.setattr(dg.torchaudio, "load", spy_load)
+    monkeypatch.setattr(dg, "atomic_save_wav", spy_save)
+    model.calls.clear()
+
+    parsed = run(_body(segs, timing_strategy="concise", regen_only=[]))
+
+    _done(parsed)
+    assert model.calls == []
+    assert loaded_names == ["seg_es_0.wav", "seg_mix_0.wav"]
+    assert saved_names == ["seg_mix_0.wav"]
+    assert not (job_dir / "seg_mix_0.wav").exists()
+
+
+def test_natural_cache_decode_failure_degrades_to_silence(
+    patched_generate, monkeypatch,
+):
+    """A valid WAV header must not move a corrupt payload outside recovery."""
+    run, model, _job, job_dir = patched_generate
+    segs = [{"start": 0.0, "end": 1.0, "text": "0.8:uno"}]
+    run(_body(segs, timing_strategy="concise"))
+
+    import api.routers.dub_generate as dg
+
+    original_load = dg.torchaudio.load
+    cached_path = str(job_dir / "seg_es_0.wav")
+
+    def fail_cached_decode(path, *args, **kwargs):
+        if os.fspath(path) == cached_path:
+            raise RuntimeError("truncated cached audio")
+        return original_load(path, *args, **kwargs)
+
+    monkeypatch.setattr(dg.torchaudio, "load", fail_cached_decode)
+    model.calls.clear()
+
+    parsed = run(_body(segs, timing_strategy="concise", regen_only=[]))
+
+    assert model.calls == []
+    assert any(event.get("type") == "warning" for event in parsed)
+    _done(parsed)
+
+
+def test_rvc_keeps_natural_rate_audio_outside_strict_slot(
+    patched_generate, monkeypatch,
+):
+    """RVC output obeys the same timing-mode cache invariant as plain TTS."""
+    run, _model, job, job_dir = patched_generate
+    import api.routers.dub_generate as dg
+    import torchaudio
+
+    monkeypatch.setattr(dg, "rvc_is_enabled", lambda: True)
+    monkeypatch.setattr(dg, "apply_rvc", lambda _path: None)
+
+    run(_body(
+        [{"start": 0.0, "end": 1.0, "text": "1.5:uno"}],
+        timing_strategy="concise",
+    ))
+
+    wav, _ = torchaudio.load(str(job_dir / "seg_es_0.wav"))
+    assert wav.shape[-1] == int(1.5 * SR)
+    assert job["seg_wav_kind"] == "natural"
+
+
 # ── Old-strategy back-compat ───────────────────────────────────────────
 
 
