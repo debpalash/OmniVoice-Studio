@@ -11,6 +11,7 @@ import asyncio
 
 import pytest
 
+from worker import deadlines as deadline_policy
 from worker.capacity import ModelSlot
 from worker.errors import ErrorClass, WorkerError
 from worker.identity import issue_session
@@ -379,6 +380,49 @@ def test_assignment_reserves_capacity_and_sets_deadlines():
     assert pool.get("w1").capacity.active_tasks == 1
     assert assignment.attempt.attempt_id in pool.get("w1").in_flight
     assert assignment.deadlines.accept_seconds > 0
+
+
+def test_assignment_deadline_uses_selected_workers_device(monkeypatch):
+    record = _record("w1")
+    record.capabilities[0]["backend"] = "cuda"
+    pool = _pool(record)
+    worker = pool.get("w1")
+    worker.capacity.backend = "cuda"
+    seen = []
+    real = deadline_policy.for_task
+
+    def recording_for_task(*args, **kwargs):
+        seen.append(kwargs.get("execution_device"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(deadline_policy, "for_task", recording_for_task)
+    sched = _scheduler(pool)
+    _submit(sched)
+    assignment = sched.next_assignment(now=1000.0)
+
+    sched._budget_for(assignment.task)
+    assert seen == ["cuda", "cuda"]
+
+
+def test_cpu_fallback_capability_overrides_machine_cuda(monkeypatch):
+    record = _record("w1")
+    record.capabilities[0].update({"backend": "cuda", "cpu_fallback": True})
+    pool = _pool(record)
+    worker = pool.get("w1")
+
+    assert worker.capacity.backend == "cuda"
+    assert worker.execution_device(ENGINE, MODEL, OP) == "cpu"
+
+
+def test_missing_or_unknown_capability_backend_is_conservative_cpu():
+    record = _record("w1")
+    pool = _pool(record)
+    worker = pool.get("w1")
+    assert worker.execution_device(ENGINE, MODEL, OP) == "cpu"
+
+    record.capabilities[0]["backend"] = "mystery-accelerator"
+    assert worker.execution_device(ENGINE, MODEL, OP) == "cpu"
+    assert worker.execution_device("missing", MODEL, OP) == "cpu"
 
 
 def test_no_capable_worker_fails_the_task_rather_than_ageing_it_out():

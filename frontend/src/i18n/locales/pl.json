@@ -1035,6 +1035,7 @@
     "voice_match_per_line_title": "Każda kwestia jest klonowana z klipu własnego dźwięku źródłowego. Najlepsza prozodia w obrębie kwestii, ale tożsamość głosu może dryfować między kwestiami.",
     "voice_match_consistent": "Spójny",
     "voice_match_consistent_title": "Wszystkie kwestie mówcy są klonowane z jednego wspólnego odniesienia (klon mówcy lub najlepszy pojedynczy klip, gdy go brak). Stabilniejsza tożsamość głosu w całym dubbingu.",
+    "timing_lip_sync": "Synchronizacja ust",
     "default_track": "Domyślny utwór:",
     "original_track": "Oryginał",
     "selected_dub": "{{code}} (wybrany dubbing)",
@@ -2058,7 +2059,9 @@
     "error_prefix": "Błąd: {{message}}",
     "ignored_unsupported": "Ignorowana nieobsługiwana instrukcja: {{items}}",
     "ignored_duplicate": "Ignorowane (kategoria już ustawiona): {{items}}",
-    "ref_audio_unusable": "W nagraniu referencyjnym nie wykryto mowy — klip jest cichy lub prawie cichy, więc nie ma głosu do sklonowania. Nagraj ponownie bliżej mikrofonu (sprawdź, czy wybrano właściwe urządzenie wejściowe i czy poziom się porusza) albo wybierz inny klip."
+    "ref_audio_unusable": "W nagraniu referencyjnym nie wykryto mowy — klip jest cichy lub prawie cichy, więc nie ma głosu do sklonowania. Nagraj ponownie bliżej mikrofonu (sprawdź, czy wybrano właściwe urządzenie wejściowe i czy poziom się porusza) albo wybierz inny klip.",
+    "ref_audio_too_long": "Nagranie referencyjne może mieć najwyżej 20 sekund z transkrypcją lub 75 sekund bez niej. Przytnij je do wyraźnego fragmentu mowy 3–10 sekund; jeśli podajesz tekst, przytnij transkrypcję do tego samego fragmentu.",
+    "ref_audio_no_speech": "Automatyczne wykrywanie mowy nie znalazło wypowiedzianych słów. Przytnij nagranie do wyraźnego fragmentu mowy 3–10 sekund lub podaj pasującą transkrypcję."
   },
   "sharing": {
     "title": "Udostępnianie i dostęp zdalny",

@@ -994,6 +994,7 @@
     "voice_match_per_line_title": "每句都从其自身源音频的片段克隆。逐句韵律最匹配，但音色可能逐句漂移。",
     "voice_match_consistent": "一致",
     "voice_match_consistent_title": "同一说话人的所有句子都从一个共享参考克隆（说话人克隆，若没有则选最佳单个片段）。整段配音的音色更稳定。",
+    "timing_lip_sync": "唇形同步",
     "default_track": "默认轨道：",
     "original_track": "原声",
     "selected_dub": "{{code}}（选定配音）",
@@ -2065,7 +2066,9 @@
     "error_prefix": "错误：{{message}}",
     "ignored_unsupported": "忽略不支持的指令：{{items}}",
     "ignored_duplicate": "忽略（类别已设置）：{{items}}",
-    "ref_audio_unusable": "参考音频中听不到任何语音——片段是静音或几乎静音的，因此没有可克隆的声音。请靠近麦克风重新录制（检查是否选择了正确的输入设备、电平是否有跳动），或换一段其他音频。"
+    "ref_audio_unusable": "参考音频中听不到任何语音——片段是静音或几乎静音的，因此没有可克隆的声音。请靠近麦克风重新录制（检查是否选择了正确的输入设备、电平是否有跳动），或换一段其他音频。",
+    "ref_audio_too_long": "参考音频在提供文字稿时最长20秒，未提供时最长75秒。请裁剪为含清晰语音的3–10秒片段；若提供文字稿，请将其裁剪到同一片段。",
+    "ref_audio_no_speech": "自动语音检测未在参考音频中发现口语。请裁剪为含清晰语音的3–10秒片段，或提供匹配的文字稿。"
   },
   "sharing": {
     "title": "共享和远程访问",

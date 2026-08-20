@@ -358,7 +358,7 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                 from services.model_manager import generate_timeout_s
                 audio_tensor = await run_on_gpu_pool_guarded(
                     _gen, what="Batch generate",
-                    timeout=generate_timeout_s(seg_text),
+                    timeout=generate_timeout_s(seg_text, engine=backend),
                 )
 
                 # Fit to slot
@@ -413,19 +413,15 @@ async def _run_batch_pipeline(job_id: str, job: dict):
         # unmarked while the interactive dub pipeline marked every segment.
         # One whole-track embed (chunked internally, #1045) is equivalent to
         # dub_generate's per-segment marks: the 16-bit message repeats
-        # throughout. Runs in the GPU pool like generate's finalize; never
-        # raises (degrades to unmarked on failure, same as every producer).
+        # throughout. Never raises (degrades to unmarked on failure, same as
+        # every producer).
         # Dispatched to the dedicated watermark pool, not the GPU pool (#1190):
         # AudioSeal embedding is CPU work that holds no VRAM, and a whole-track
         # embed is long enough that occupying a GPU worker with it stalled the
         # next language's segments on 1-worker hosts.
-        from services.watermark import mark_synthetic
-        from services.model_manager import get_watermark_pool
-        import functools
-        full_audio = await loop.run_in_executor(
-            get_watermark_pool(),
-            functools.partial(mark_synthetic, full_audio, sr,
-                              context="batch.dub_track"),
+        from services.watermark import mark_synthetic_async
+        full_audio = await mark_synthetic_async(
+            full_audio, sr, context="batch.dub_track",
         )
 
         # Same assembly pattern as dub_generate.py:390 — `full_audio` is a

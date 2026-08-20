@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio as _asyncio
 import importlib
+import json
 import os
+import shutil
 import struct
+import subprocess
 import uuid
 import wave
 from pathlib import Path
@@ -100,6 +103,90 @@ _SUBPROC_ATTR = "create_subprocess_" + "exec"  # dodge overzealous code-scan hoo
 
 
 class TestDubExportUniqueness:
+    def test_original_only_resolves_stale_default_before_retime(self, app_client):
+        client, dc, dx, tmp = app_client
+        job_id, _ = _seed_job_with_tracks(dc, tmp)
+        with (
+            patch.object(dx, "_video_retime_plan_for") as retime_for,
+            patch.object(_asyncio, _SUBPROC_ATTR, side_effect=_fake_ffmpeg_factory(True)),
+        ):
+            response = client.get(
+                f"/dub/download/{job_id}",
+                params={
+                    "preserve_bg": False,
+                    "default_track": "fr",
+                    "include_tracks": "original",
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        retime_for.assert_not_called()
+
+    def test_excluded_default_resolves_before_retime_and_subtitle_selection(self, app_client):
+        client, dc, dx, tmp = app_client
+        job_id, _ = _seed_job_with_tracks(dc, tmp)
+        selected = []
+
+        def capture_default(_job, lang):
+            selected.append(lang)
+            return None
+
+        with (
+            patch.object(dx, "_video_retime_plan_for", side_effect=capture_default),
+            patch.object(_asyncio, _SUBPROC_ATTR, side_effect=_fake_ffmpeg_factory(True)),
+        ):
+            response = client.get(
+                f"/dub/download/{job_id}",
+                params={
+                    "preserve_bg": False,
+                    "default_track": "fr",
+                    "include_tracks": "original,es",
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        assert selected == ["es"]
+
+    @pytest.mark.skipif(
+        shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+        reason="ffmpeg and ffprobe are required for the container regression",
+    )
+    def test_default_export_marks_dubbed_audio_as_default(self, app_client):
+        """#1575: players that honor MP4 disposition must choose the dub."""
+        client, dc, _dx, tmp = app_client
+        job_id, job_dir = _seed_job_with_tracks(dc, tmp)
+        video_path = job_dir / "original.mp4"
+        subprocess.run(  # noqa: S603 -- fixed test binary and argument vector
+            [
+                shutil.which("ffmpeg"), "-loglevel", "error", "-y",
+                "-f", "lavfi", "-i", "color=c=black:s=32x32:d=0.5",
+                "-f", "lavfi", "-i", "sine=frequency=220:duration=0.5",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                "-shortest", str(video_path),
+            ],
+            check=True,
+        )
+
+        response = client.get(
+            f"/dub/download/{job_id}",
+            params={"preserve_bg": False},
+        )
+        assert response.status_code == 200, response.text
+        exported = next((job_dir / "exports").glob("dubbed_video_*.mp4"))
+        probe = subprocess.run(  # noqa: S603 -- fixed ffprobe inspection command
+            [
+                shutil.which("ffprobe"), "-v", "error", "-select_streams", "a",
+                "-show_entries", "stream_tags=title:stream_disposition=default",
+                "-of", "json", str(exported),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        streams = json.loads(probe.stdout)["streams"]
+        defaults = [index for index, stream in enumerate(streams) if stream["disposition"]["default"]]
+        assert defaults == [1], "the dubbed stream follows the original and must be the sole default"
+
     def test_mp4_export_produces_unique_file_each_call(self, app_client):
         client, dc, dx, tmp = app_client
         job_id, job_dir = _seed_job_with_tracks(dc, tmp)
@@ -160,7 +247,7 @@ class TestAudioOnlyDubbing:
             )
 
         assert r.status_code == 200, r.text
-        audio_files = sorted(exports_dir.glob("dubbed_audio_es_*.m4a"))
+        audio_files = sorted(exports_dir.glob("dubbed_audio_*.m4a"))
         assert len(audio_files) == 1, [f.name for f in audio_files]
         # The video-mux path must NOT have run for an audio job.
         assert not list(exports_dir.glob("dubbed_video_*.mp4"))
@@ -176,7 +263,25 @@ class TestAudioOnlyDubbing:
             r = client.get(f"/dub/download/{job_id}", params={"preserve_bg": False, "out_format": "weird"})
 
         assert r.status_code == 200, r.text
-        assert sorted(exports_dir.glob("dubbed_audio_es_*.m4a"))
+        assert sorted(exports_dir.glob("dubbed_audio_*.m4a"))
+
+    def test_audio_only_download_label_rejects_traversal_and_control_chars(self, app_client):
+        client, dc, _dx, tmp = app_client
+        job_id, _ = _seed_job_with_tracks(dc, tmp)
+        dc._dub_jobs[job_id]["input_type"] = "audio"
+        dc._dub_jobs[job_id]["filename"] = "../evil\r\nX-Injected: yes.mp4"
+
+        with patch.object(_asyncio, _SUBPROC_ATTR, side_effect=_fake_ffmpeg_factory(True)):
+            response = client.get(
+                f"/dub/download/{job_id}",
+                params={"preserve_bg": False, "default_track": "es"},
+            )
+
+        assert response.status_code == 200, response.text
+        label = response.headers["content-disposition"]
+        assert ".." not in label
+        assert "\r" not in label and "\n" not in label
+        assert "X-Injected:" not in label
 
     def test_upload_rejects_video_ext_when_audio_mode(self, app_client):
         client, dc, dx, tmp = app_client

@@ -33,6 +33,9 @@ _HEARTBEAT_MISS_SECONDS = 90.0
 # ping is a ~25-second view: current enough to notice a link degrading, long
 # enough that one slow answer cannot move it.
 _LATENCY_WINDOW = 5
+_KNOWN_EXECUTION_DEVICES = frozenset(
+    {"cpu", "cuda", "mps", "mlx", "directml", "rocm", "xpu"}
+)
 
 
 @dataclass
@@ -99,6 +102,21 @@ class ConnectedWorker:
                 continue
             return bool(cap.get("supported")) and bool(cap.get("installed", True))
         return False
+
+    def execution_device(self, engine: str, model_id: str, operation: str) -> str:
+        """Device used by the exact capability selected for this task."""
+        for cap in self.record.capabilities:
+            if cap.get("engine") != engine:
+                continue
+            if model_id and cap.get("model_id") not in (model_id, "", None):
+                continue
+            if operation and operation not in (cap.get("operations") or [operation]):
+                continue
+            if cap.get("cpu_fallback"):
+                return "cpu"
+            backend = str(cap.get("backend") or "").lower()
+            return backend if backend in _KNOWN_EXECUTION_DEVICES else "cpu"
+        return "cpu"
 
     def is_warm(self, engine: str, model_id: str) -> bool:
         return self.capacity.is_resident(engine, model_id)

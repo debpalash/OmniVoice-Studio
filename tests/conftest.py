@@ -45,12 +45,36 @@ if not os.environ.get("OMNIVOICE_ENV_FILE"):
 # need a different value monkeypatch it explicitly.
 os.environ["OMNIVOICE_MODEL"] = "test"
 
+# Background warm-ups must not fire mid-suite: many tests boot the app
+# lifespan via TestClient, and any that exits without a lifespan shutdown
+# leaves the deferred preload task pending — 35s later (mid-suite, in
+# another thread) it loads real models and mutates watermark module state
+# under whatever test happens to be running (seen as a CI-only flake in the
+# prefetch cold-start tests). Unconditional: a stray export from the runner
+# shell must not re-enable it; a test that wants the warm-up monkeypatches.
+os.environ["OMNIVOICE_PRELOAD_WATERMARK"] = "0"
+
 
 # ── Test fixtures ──────────────────────────────────────────────────────────
 
 
 import pytest
 import warnings as _warnings
+
+
+# App lifespans deliberately close watermark admission during shutdown. The
+# test process then keeps running and many route tests call handlers without
+# starting another lifespan, so restore the equivalent of a fresh lifespan at
+# every test boundary. ``begin_watermark_pool_lifecycle`` still refuses to
+# reopen while a timed-out worker is genuinely alive, preserving that race
+# signal instead of hiding it.
+@pytest.fixture(autouse=True)
+def _watermark_pool_lifecycle_baseline():
+    model_manager = sys.modules.get("services.model_manager")
+    begin = getattr(model_manager, "begin_watermark_pool_lifecycle", None)
+    if callable(begin):
+        begin()
+    yield
 
 
 # ── torch default-dtype isolation (CI flaky trio) ───────────────────────────

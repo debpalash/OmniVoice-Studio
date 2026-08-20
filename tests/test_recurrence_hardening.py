@@ -174,8 +174,10 @@ def test_make_room_is_a_noop_with_headroom(monkeypatch):
 def test_generate_timeout_scales_with_text_length(monkeypatch):
     from api.routers import generation as g
 
-    short = g._generate_timeout_s("hello world")
-    long = g._generate_timeout_s("x" * 41_200)  # 40k chars past the free allowance
+    short = g._generate_timeout_s("hello world", execution_device="cuda")
+    long = g._generate_timeout_s(
+        "x" * 41_200, execution_device="cuda"
+    )  # 40k chars past the free allowance
     assert short == pytest.approx(300.0)          # floor: the configured default
     assert long == pytest.approx(300.0 + 40_000 / 40.0)  # +1s per 40 chars
 

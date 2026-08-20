@@ -79,7 +79,8 @@
       "../../README.md",
       "../../CHANGELOG.md",
       "../../omnivoice",
-      "../../backend"
+      "../../backend",
+      "../../frontend/dist"
     ],
     "externalBin": [
       "binaries/uv",

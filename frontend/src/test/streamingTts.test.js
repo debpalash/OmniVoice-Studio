@@ -19,6 +19,7 @@ const {
   decodePcm16Base64,
   peaksFromChunkList,
   StreamingPreviewError,
+  shouldFallbackToClassic,
 } = await import('../utils/streamingTts');
 const { getPlaybackTrack, stopActivePlayback, seekActivePlayback } =
   await import('../utils/playback');
@@ -310,6 +311,21 @@ describe('streamGenerateSpeech', () => {
     );
     const plain = await streamGenerateSpeech(new FormData(), {}).catch((e) => e);
     expect(plain.retryable).toBe(false);
+  });
+
+  it('marks actionable clone-reference errors terminal to prevent a classic retry', async () => {
+    apiFetch.mockResolvedValue(
+      ndjsonResponse([
+        startEvent(1),
+        { type: 'error', detail: '[clone_ref_no_speech] trim the reference' },
+      ]),
+    );
+
+    const err = await streamGenerateSpeech(new FormData(), {}).catch((e) => e);
+
+    expect(err).toBeInstanceOf(StreamingPreviewError);
+    expect(err.terminal).toBe(true);
+    expect(shouldFallbackToClassic(err)).toBe(false);
   });
 
   it('rejects with StreamingPreviewError when the stream ends without done', async () => {

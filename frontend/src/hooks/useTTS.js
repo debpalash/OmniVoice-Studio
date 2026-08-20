@@ -6,6 +6,7 @@ import { playBlobAudio, playPing } from '../utils/media';
 import {
   StreamingPreviewError,
   resolveRemoteTtsTarget,
+  shouldFallbackToClassic,
   streamGenerateSpeech,
   supportsStreamingPreview,
 } from '../utils/streamingTts';
@@ -318,7 +319,7 @@ export default function useTTS({ selectedProfile, setSelectedProfile, loadHistor
           // same error. Surface the backend's actionable message instead.
           // Non-retryable failures (transport drop, Web Audio glitch) keep the
           // classic fallback: there the whole-file path genuinely can succeed.
-          if (err.retryable) {
+          if (!shouldFallbackToClassic(err)) {
             addBreadcrumb('generate:stream-retryable-abort');
             throw err;
           }

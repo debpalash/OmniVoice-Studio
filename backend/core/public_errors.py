@@ -28,6 +28,15 @@ def stream_failure(code: str) -> dict[str, object]:
             "detail": "Generation capacity is busy. Try again shortly.",
             "retryable": True,
         },
+        "generation_timeout": {
+            "code": "generation_timeout",
+            "detail": (
+                "Generation exceeded the compute-time limit. The backend is "
+                "still running; try a shorter passage or raise the generation "
+                "timeout."
+            ),
+            "retryable": True,
+        },
         "invalid_request": {
             "code": "invalid_request",
             "detail": "The generation request could not be processed.",

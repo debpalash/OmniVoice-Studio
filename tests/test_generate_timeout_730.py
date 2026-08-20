@@ -91,6 +91,73 @@ def test_guard_timeout_env_default(model_manager, monkeypatch):
         importlib.reload(mm)
 
 
+def test_cpu_host_gets_bounded_ten_minute_generate_budget(model_manager, monkeypatch):
+    """A healthy CPU render may exceed the GPU-oriented five-minute floor."""
+    import types
+    import core.device_caps as caps
+
+    monkeypatch.setattr(
+        caps, "detect_host_caps", lambda: types.SimpleNamespace(family="cpu")
+    )
+    monkeypatch.setattr(model_manager, "GPU_JOB_TIMEOUT_S", 300.0)
+    monkeypatch.setattr(model_manager, "CPU_JOB_TIMEOUT_S", 600.0)
+
+    assert model_manager.generate_timeout_s("A short CPU render") == 600.0
+
+
+def test_accelerated_host_keeps_five_minute_generate_budget(model_manager, monkeypatch):
+    import types
+    import core.device_caps as caps
+
+    monkeypatch.setattr(
+        caps, "detect_host_caps", lambda: types.SimpleNamespace(family="cuda")
+    )
+    monkeypatch.setattr(model_manager, "GPU_JOB_TIMEOUT_S", 300.0)
+    monkeypatch.setattr(model_manager, "CPU_JOB_TIMEOUT_S", 600.0)
+
+    assert model_manager.generate_timeout_s("A short CUDA render") == 300.0
+
+
+def test_cpu_only_engine_gets_cpu_budget_on_cuda_host(model_manager, monkeypatch):
+    import types
+    import core.device_caps as caps
+    import services.engine_routing as routing
+
+    class CpuEngine:
+        gpu_compat = ("cpu",)
+
+    host = types.SimpleNamespace(family="cuda")
+    monkeypatch.setattr(caps, "detect_host_caps", lambda: host)
+    monkeypatch.setattr(
+        routing, "resolve_routing",
+        lambda *args, **kwargs: {"effective_device": "cpu"},
+    )
+    monkeypatch.setattr(model_manager, "GPU_JOB_TIMEOUT_S", 300.0)
+    monkeypatch.setattr(model_manager, "CPU_JOB_TIMEOUT_S", 600.0)
+
+    assert model_manager.generate_timeout_s(
+        "A CPU fallback render", engine=CpuEngine,
+    ) == 600.0
+
+
+def test_explicit_universal_generate_timeout_wins_on_cpu(model_manager, monkeypatch):
+    """Operators can still lower the watchdog to fail faster on CPU."""
+    import importlib
+    import types
+    import core.device_caps as caps
+
+    monkeypatch.setenv("OMNIVOICE_GENERATE_TIMEOUT_S", "123.5")
+    mm = importlib.reload(model_manager)
+    monkeypatch.setattr(
+        caps, "detect_host_caps", lambda: types.SimpleNamespace(family="cpu")
+    )
+    try:
+        assert mm.generate_timeout_s("A short CPU render") == 123.5
+    finally:
+        monkeypatch.delenv("OMNIVOICE_GENERATE_TIMEOUT_S", raising=False)
+        importlib.reload(mm)
+
+
 def test_guard_without_reset_still_bounds(model_manager):
     """A plain executor (no `reset`, e.g. in other call sites/tests) still gets
     the wall-clock bound + actionable error — reset is best-effort, not required.

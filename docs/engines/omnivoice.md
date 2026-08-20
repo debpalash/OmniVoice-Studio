@@ -50,7 +50,12 @@ The env var overrides the persisted UI choice.
 - Cloning takes a short reference clip (`ref_audio`); 3–10 seconds is the
   sweet spot. A transcript of the clip improves conditioning — if the profile
   has none, VoiceStudio transcribes the clip automatically on first use and
-  saves the result to the profile.
+  saves the result to the profile. A clip with a supplied transcript is limited
+  to 20 seconds so the two stay aligned; trim both to the same passage. Without
+  a transcript, VoiceStudio can search up to 75 seconds in five contiguous,
+  bounded transcription passes and selects the passage with detected speech.
+  Longer clips must be trimmed first. If no spoken words are detected, trim to
+  a clear 3–10 second passage or provide its matching transcript.
 - Encoded voice references persist on disk (`prompt_cache/` in the app data
   dir), so the first generation with a known voice after a restart skips the
   re-encode and any transcription pass. Set `OMNIVOICE_PROMPT_DISK_CACHE=0`

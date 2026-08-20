@@ -330,7 +330,7 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     # GPU pool and brick the backend (#730 class). Budget comes from the shared
     # length-scaled helper (#1190) instead of the flat 300s default.
     from services.model_manager import generate_timeout_s
-    _budget = generate_timeout_s(text)
+    _budget = generate_timeout_s(text, engine=model)
     audio_tensor = await run_on_gpu_pool_guarded(
         lambda: _infer(_PREVIEW_SEED), what="Archetype preview generate",
         timeout=_budget)
@@ -357,15 +357,11 @@ async def _render_archetype_wav(a: dict, out_path: Path) -> None:
     # Runs on the dedicated watermark pool (#1190): AudioSeal embedding is CPU
     # work that holds no VRAM, so it must not occupy a GPU worker ahead of the
     # next generate on 1-worker hosts.
-    from services.watermark import mark_synthetic
-    from services.model_manager import get_watermark_pool
-    import functools
-    audio_tensor = await run_on_gpu_pool_guarded(
-        functools.partial(mark_synthetic, audio_tensor, model.sampling_rate,
-                          context="archetypes.render"),
-        what="Archetype watermark",
+    from services.watermark import mark_synthetic_async
+    audio_tensor = await mark_synthetic_async(
+        audio_tensor, model.sampling_rate,
+        context="archetypes.render",
         timeout=generate_timeout_s(""),
-        executor=get_watermark_pool(),
     )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

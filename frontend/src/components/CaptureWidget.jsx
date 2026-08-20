@@ -116,6 +116,11 @@ const IDLE_VISIBLE_GRACE_MS = 1200;
 // document reports itself hidden (the overwhelmingly common case).
 const IDLE_VISIBLE_POLL_MS = 600;
 
+// The widget window deliberately does not take focus, so it cannot rely on
+// the main window's focus-based permission refresh after System Settings.
+// Reconcile only while the Accessibility blocker is visible.
+const A11Y_SETUP_RECHECK_MS = 1000;
+
 // A dictation model id is a sherpa-onnx live model when it carries the
 // `sherpa-` prefix the backend assigns (see services/sherpa_dictation.py). Only
 // then do we open the low-latency raw-PCM streaming path. Other models use a
@@ -491,6 +496,34 @@ export default function CaptureWidget({ onDismiss }) {
       stale = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (state !== 'setup' || !inTauri()) return undefined;
+    let cancelled = false;
+    let timerId;
+
+    const reconcileAccessibility = async () => {
+      const ok = await checkAccessibility();
+      if (cancelled || stateRef.current !== 'setup') return;
+      if (ok) {
+        stateRef.current = 'idle';
+        setState('idle');
+        await hideWidgetWindow();
+        return;
+      }
+      timerId = setTimeout(() => {
+        void reconcileAccessibility();
+      }, A11Y_SETUP_RECHECK_MS);
+    };
+
+    timerId = setTimeout(() => {
+      void reconcileAccessibility();
+    }, A11Y_SETUP_RECHECK_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
+  }, [state]);
 
   // ── Tray hotkey: tray-dictate (start) + tray-dictate-stop (release) ──
   // Toggle mode: tray-dictate flips start↔stop, tray-dictate-stop is ignored
