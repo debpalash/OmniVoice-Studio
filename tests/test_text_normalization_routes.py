@@ -179,7 +179,9 @@ def test_ws_tts_reports_true_first_audio_latency(client, fake_engine, monkeypatc
     import api.routers.tts_stream as stream
     from services import watermark
 
-    ticks = iter((100.0, 100.125, 100.5))
+    # t0, synth start, synth end, first audio byte, finish.
+    # Synthesis takes 0.20s; the remaining 0.30s of wall clock is delivery.
+    ticks = iter((100.0, 100.0, 100.20, 100.125, 100.5))
     monkeypatch.setattr(stream, "_perf_counter", lambda: next(ticks), raising=False)
     monkeypatch.setattr(watermark, "mark_synthetic", lambda wav, _sr, **_kw: wav)
 
@@ -192,9 +194,12 @@ def test_ws_tts_reports_true_first_audio_latency(client, fake_engine, monkeypatc
 
     assert done["type"] == "done", frames
     assert done["ttfa_ms"] == pytest.approx(125.0)
-    assert done["gen_time_s"] == pytest.approx(0.5)
+    assert done["gen_time_s"] == pytest.approx(0.5)   # end-to-end, incl. delivery
     assert done["duration_s"] == pytest.approx(1.0)
-    assert done["rtf"] == pytest.approx(0.5)
+    # RTF is a RENDER metric: 0.20s of synthesis per 1.0s of audio. Deriving it
+    # from the 0.5s wall clock would report 0.5 and blame the engine for a slow
+    # consumer (#1620 review).
+    assert done["rtf"] == pytest.approx(0.2)
 
 
 # ── Batch dub queue ──────────────────────────────────────────────────────────
@@ -313,6 +318,11 @@ def test_batch_uses_native_tts_batches(batch_env, monkeypatch):
     monkeypatch.setitem(tb._REGISTRY, "fake-native-batch", _NativeBatchEngine)
     tb.reset_active_backend()
     monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "fake-native-batch")
+    # Pin the width: it is derived from the host's device headroom (#1620
+    # review — an unconditional 8 would OOM 4-8 GB cards), so leaving it to
+    # detection makes this assertion depend on the machine running the suite.
+    # The derivation itself is covered by test_dub_batch_width_and_budget.py.
+    monkeypatch.setenv(b.BATCH_WIDTH_ENV, "8")
     monkeypatch.setattr(
         "services.watermark.mark_synthetic",
         lambda wav, _sr, **_kw: wav,
@@ -336,5 +346,5 @@ def test_batch_uses_native_tts_batches(batch_env, monkeypatch):
     job = make_job("job-native-batch")
     asyncio.run(b._run_batch_pipeline("job-native-batch", job))
 
-    assert [len(texts) for texts, _ in batch_calls] == [8, 2]
+    assert [len(texts) for texts, _ in batch_calls] == [8, 2]  # 10 segments, width 8
     assert all(kw["duration"] == [1.0] * len(texts) for texts, kw in batch_calls)

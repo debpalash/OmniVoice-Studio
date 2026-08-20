@@ -80,6 +80,34 @@ def _prepare_oom_retry(error: Exception, *, execution_target: str) -> bool:
     return True
 
 
+def _cached_payload_intact(path: str, info) -> bool:
+    """Cheap truth check on a cached WAV whose header we are about to trust.
+
+    The natural-rate fast path hands the mixer a PATH instead of decoded
+    audio, so a cache whose header reads fine but whose payload is truncated
+    would only fail later, during assembly — after the timing plan (Smart Fit,
+    video stretch) had been computed from the header's frame count. The plan
+    would then describe audio that no longer exists and the segment would be
+    replaced by slot-length silence, leaving the persisted video plan and the
+    rendered track disagreeing.
+
+    Comparing the declared frame count against the file's actual size catches
+    that without decoding: a truncated file cannot hold the samples its header
+    claims. Anything failing here falls through to the decoding path, which
+    already degrades to a warning plus silence. Formats with no fixed
+    bits-per-sample (compressed caches) are left to the decoder as before.
+    """
+    try:
+        bits = int(getattr(info, "bits_per_sample", 0) or 0)
+        frames = int(getattr(info, "num_frames", 0) or 0)
+        channels = int(getattr(info, "num_channels", 0) or 0)
+        if bits <= 0 or frames <= 0 or channels <= 0:
+            return True  # not fixed-width PCM — the decoder decides
+        return os.path.getsize(path) >= frames * channels * (bits // 8)
+    except Exception:  # noqa: BLE001 — an unstattable cache is the decoder's problem
+        return False
+
+
 def _underrun_min_rate() -> float:
     """Floor for the underrun fill (audio slowed toward its slot, never below
     this rate). Default 0.85 stays natural-sounding; OMNIVOICE_UNDERRUN_MIN_RATE=1.0
@@ -774,6 +802,7 @@ async def dub_generate(job_id: str, req: DubRequest):
                             if (
                                 cached_info is not None
                                 and int(cached_info.sample_rate) == int(backend.sample_rate)
+                                and _cached_payload_intact(seg_wav_path, cached_info)
                             ):
                                 all_segment_wavs.append(
                                     (seg.start, seg.end, seg_wav_path, backend.sample_rate)

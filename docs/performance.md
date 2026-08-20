@@ -235,14 +235,20 @@ RAM/VRAM) turns a guessing game into a bisect.
 Measured results per engine/device — and how to contribute yours — live in
 [benchmarks.md](benchmarks.md).
 
-Batch dubbing uses eight-segment native forward batches when the selected
-engine supports them. Other adapters inherit a compatibility fallback that
-preserves the existing one-segment behavior.
+Batch dubbing renders several segments in one native forward pass when the
+selected engine supports it. The width is derived from the host rather than
+fixed, because a wider forward pass needs proportionally more device memory:
+CPU hosts and cards with less than ~2 GB of headroom above the engine's
+single-job requirement stay at one segment, and the width steps up to 2, 4,
+and 8 as headroom allows. `OMNIVOICE_DUB_BATCH_WIDTH` overrides it (1 disables
+batching, 16 is the ceiling). Engines without native batching inherit a
+compatibility fallback that preserves the one-segment behavior.
 
 Streaming clients also receive measured latency in the `/ws/tts` terminal
-`done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the complete
-render, and `rtf` is elapsed request/stream time divided by generated-audio
-duration. The backend log records the same values, so a slow first chunk is
+`done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the
+end-to-end wall clock including delivery, and `rtf` is *synthesis* time
+divided by generated-audio duration — measured around the render calls only,
+so a slow client cannot inflate it. The backend log records the same values, so a slow first chunk is
 distinguishable from a fast first chunk followed by a long render.
 
 ## Things that look like knobs but aren't

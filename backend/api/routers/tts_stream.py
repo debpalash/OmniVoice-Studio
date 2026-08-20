@@ -291,6 +291,12 @@ async def ws_tts(websocket: WebSocket):
                 sr = backend.sample_rate
                 started = False
                 first_audio_at: float | None = None
+                # Synthesis time only. The wall clock below also carries socket
+                # delivery and the per-chunk event-loop yields, so deriving RTF
+                # from it reports "how slow was the client" as if it were engine
+                # throughput — on a slow consumer that inflates RTF without the
+                # engine having changed at all.
+                synth_time = 0.0
 
                 for sentence in sentences:
                     # Bounded + pool-reset on hang so a wedged generate can't
@@ -300,11 +306,13 @@ async def ws_tts(websocket: WebSocket):
                     # Length-scaled budget per sentence (#1190) — the flat 300s
                     # default is gone from every dispatch.
                     from services.model_manager import generate_timeout_s
+                    synth_started_at = _perf_counter()
                     wav_tensor, sr = await run_on_gpu_pool_guarded(
                         functools.partial(_generate, sentence),
                         what="TTS generate",
                         timeout=generate_timeout_s(sentence, engine=backend),
                     )
+                    synth_time += _perf_counter() - synth_started_at
 
                     if not started:
                         # Send metadata after the first generation so
@@ -342,16 +350,18 @@ async def ws_tts(websocket: WebSocket):
                     total_samples += n_samples
 
                 finished_at = _perf_counter()
-                gen_time_raw = max(0.0, finished_at - t0)
-                gen_time = round(gen_time_raw, 3)
+                wall_time_raw = max(0.0, finished_at - t0)
+                synth_time_raw = max(0.0, synth_time)
+                gen_time = round(wall_time_raw, 3)
                 duration = round(total_samples / sr, 3)
                 ttfa_ms = (
                     round(max(0.0, first_audio_at - t0) * 1000.0, 1)
                     if first_audio_at is not None
                     else None
                 )
+                # RTF is a render metric: synthesis seconds per audio second.
                 rtf = (
-                    round(gen_time_raw / (total_samples / sr), 3)
+                    round(synth_time_raw / (total_samples / sr), 3)
                     if total_samples > 0
                     else None
                 )

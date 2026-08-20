@@ -197,7 +197,7 @@ None on the critical path to world-class. All are answers to real demand.
 
 | Item | Status | Current measurement |
 |------|:---:|------|
-| Batched TTS (8–16 segments per forward pass) | 🟡 | The batch queue sends 8-segment chunks through OmniVoice's native variable-length forward pass; adapters without native batching retain the single-segment fallback. |
+| Batched TTS (host-derived width per forward pass) | 🟡 | The batch queue feeds OmniVoice's native variable-length forward pass, with the width derived from device headroom (1 on CPU/low-VRAM hosts, up to 8) and overridable via `OMNIVOICE_DUB_BATCH_WIDTH`; adapters without native batching retain the single-segment fallback. |
 | Kill per-segment disk round-trip | 🟡 | Long-video assembly stays disk-backed to bound RAM. Unchanged same-rate natural segments now skip the redundant decode → scratch encode → decode cycle; fresh segments still persist once and reload for assembly. |
 | Cold start ≤1.5 s to first audible sample | 🟡 | Installed models preload in the background and `scripts/bench_pipeline.py` measures cold/warm synthesis; target is not yet verified. |
 | Speculative regeneration on hover | ⏳ | — |
