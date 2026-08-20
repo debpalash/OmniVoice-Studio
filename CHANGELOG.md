@@ -13,6 +13,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - The backend now answers within a second of launch and narrates its startup step by step
 - Reporting a bug from an outdated build now offers the latest release first
 - The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves
+- Invisible watermarking no longer stalls — or silently skips — the first take of a session (#1615)
 
 ### Changed
 - The backend binds its port immediately and reports startup progress live — `/health` answers 503-with-step and a new `/startup/progress` endpoint lists every step while PyTorch, API routes, and database migrations load in the background, so "starting at step X" is never mistakable for "dead"; the desktop splash narrates each step (#1550)
@@ -35,6 +36,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 - Re-mixing a dub no longer decodes, rewrites, and re-reads every cached segment — same-rate cached audio is reused directly (and rejected if truncated), switching timing modes can't reuse slot-truncated audio as natural-rate, and RVC respects natural-rate modes (#1594)
+- Invisible watermarking now runs eagerly instead of through `torch.compile` — AudioSeal's lazy compile sent the first embed of every session into Inductor's C++ codegen, which failed outright on macOS hosts whose toolchain couldn't serve it and shipped the audio unmarked after a 30-40s wait; first embed drops from 9.70s to 0.26s (#1615) — thanks @paoloantinori!
 - The macOS Accessibility blocker now rechecks while visible and closes as soon as the grant is enabled instead of keeping a stale permission prompt on screen (#1609)
 - The dubbing editor's video and transcript columns can now be resized by pointer or keyboard, and the chosen split persists across launches (#1571) — thanks @invio-a11y!
 - CPU-only synthesis now gets a bounded ten-minute execution budget, and a render that exhausts it is reported as a compute timeout instead of misleading "generation capacity is busy" queue pressure (#1588) — thanks @ChienNguyen1111!
