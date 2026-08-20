@@ -768,7 +768,8 @@ unaffected and works normally.
 > **Tip:** current builds surface the live OS grant state in-app — **Settings →
 > Permissions** shows whether the microphone (and, on macOS, Accessibility) is
 > granted, denied, or not asked yet, with an **Open Settings** button that
-> deep-links the exact OS pane described above.
+> deep-links the exact OS pane described above. The dictation blocker rechecks
+> Accessibility while it is visible and closes as soon as macOS reports the grant.
 
 ## Dub: "translation engine needs the optional … package"
 

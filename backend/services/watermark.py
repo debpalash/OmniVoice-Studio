@@ -82,39 +82,22 @@ _CHUNK_SECONDS = 30
 # eager 0.30 / 0.28 / 0.27 s — a ~10 s first-embed tax to save ~0.03 s per
 # later embed, on CPU work that is already bounded by the 30 s chunk loop.
 # So watermarking runs eager on every platform.
-def _moshi_no_compile():
-    """AudioSeal's vendored ``no_compile`` context manager, or None.
+def _moshi_compile_module():
+    """AudioSeal's vendored moshi compile switch module, or None.
 
     Resolved per call rather than at import: ``_check_available()`` is what
     guarantees audioseal is importable, and it runs later than this module.
     """
     try:
-        from audioseal.libs.moshi.utils.compile import no_compile
+        from audioseal.libs.moshi.utils import compile as moshi_compile
     except Exception:  # noqa: BLE001 — any import shape change degrades, not crashes
         return None
-    return no_compile
+    return moshi_compile
 
 
-@contextlib.contextmanager
-def _eager_audioseal():
-    """Run the AudioSeal model eagerly, restoring the switch on the way out.
-
-    ``no_compile`` flips a process-global in the vendored moshi module, so it
-    must not stay latched past this block — other models in the backend are
-    entitled to torch.compile. Degrades to a plain call if a future audioseal
-    drops the helper (``tests/test_watermark_no_torch_compile_1615.py`` fails
-    loudly on that upgrade rather than letting the compile creep back in).
-    """
-    no_compile = _moshi_no_compile()
-    if no_compile is None:
-        if not _eager_guard_warned:
-            _warn_missing_eager_guard()
-        yield
-        return
-    with no_compile():
-        yield
-
-
+_eager_lock = threading.Lock()
+_eager_depth = 0
+_eager_saved: Optional[bool] = None
 _eager_guard_warned = False
 
 
@@ -125,6 +108,44 @@ def _warn_missing_eager_guard() -> None:
         "audioseal's no_compile switch is unavailable — watermarking may run "
         "through torch.compile and pay (or fail) an Inductor C++ compile (#1615)."
     )
+
+
+@contextlib.contextmanager
+def _eager_audioseal():
+    """Run the AudioSeal model eagerly, restoring the switch on the way out.
+
+    Upstream's own ``no_compile()`` saves and restores ``_compile_disabled``
+    per call, which is not safe when two watermark calls overlap: the first to
+    exit restores False while the second is still mid-embed, handing it back
+    the compile this whole fix exists to avoid. So the flag is reference
+    counted here — it goes True on the outermost entry and only comes back on
+    the outermost exit — rather than serializing embeds behind a lock, which
+    would cost real throughput on concurrent generations.
+
+    Degrades to a plain call if a future audioseal drops the helper
+    (``tests/test_watermark_no_torch_compile_1615.py`` fails loudly on that
+    upgrade rather than letting the compile creep back in).
+    """
+    global _eager_depth, _eager_saved
+    moshi = _moshi_compile_module()
+    if moshi is None:
+        if not _eager_guard_warned:
+            _warn_missing_eager_guard()
+        yield
+        return
+    with _eager_lock:
+        if _eager_depth == 0:
+            _eager_saved = moshi._compile_disabled
+        _eager_depth += 1
+        moshi._compile_disabled = True
+    try:
+        yield
+    finally:
+        with _eager_lock:
+            _eager_depth -= 1
+            if _eager_depth == 0:
+                moshi._compile_disabled = _eager_saved
+                _eager_saved = None
 
 
 def _iter_chunks(audio: torch.Tensor, sample_rate: int):
