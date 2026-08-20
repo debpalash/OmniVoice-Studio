@@ -25,6 +25,7 @@ import importlib.util
 import io
 import os
 import struct
+import sys
 import threading
 from pathlib import Path
 
@@ -405,3 +406,60 @@ def test_the_engine_is_registered_lazily(backend):
 
 def test_the_sidecar_script_path_resolves(backend):
     assert backend.sidecar_script().is_file()
+
+
+# ── 24-layer opt-in (OMNIVOICE_POCKETTTS_24L) ────────────────────────────
+
+class _NullStdout:
+    """Absorbs the sidecar's length-prefixed frames (bytes, not str)."""
+
+    def write(self, data):
+        return len(data)
+
+    def flush(self):
+        pass
+
+
+def test_24l_opt_in_is_off_by_default(sc, monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_POCKETTTS_24L", raising=False)
+    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: True)
+    assert sc._model_config_name("italian") == "italian"
+
+
+def test_24l_opt_in_selects_the_24_layer_config_when_available(sc, monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_POCKETTTS_24L", "1")
+    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: lang == "italian")
+    assert sc._model_config_name("italian") == "italian_24l"
+    # No 24-layer checkpoint for this language (e.g. english): unchanged.
+    assert sc._model_config_name("english") == "english"
+
+
+def test_24l_opt_in_accepts_the_usual_truthy_spellings(sc, monkeypatch):
+    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: True)
+    for val in ("true", "YES", " on ", "1"):
+        monkeypatch.setenv("OMNIVOICE_POCKETTTS_24L", val)
+        assert sc._model_config_name("german") == "german_24l", val
+    monkeypatch.setenv("OMNIVOICE_POCKETTTS_24L", "0")
+    assert sc._model_config_name("german") == "german"
+
+
+def test_load_model_applies_the_24l_suffix_to_load_model(sc, monkeypatch):
+    """The load path must honour the opt-in, not just the name helper."""
+    monkeypatch.setenv("OMNIVOICE_POCKETTTS_24L", "1")
+    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: True)
+
+    calls = {}
+
+    class _FakeTTSModel:
+        @staticmethod
+        def load_model(language=None):
+            calls["language"] = language
+            return object()
+
+    import types
+    fake_pkg = types.ModuleType("pocket_tts")
+    fake_pkg.TTSModel = _FakeTTSModel
+    monkeypatch.setitem(sys.modules, "pocket_tts", fake_pkg)
+
+    sc._load_model(_NullStdout(), "italian")
+    assert calls["language"] == "italian_24l"

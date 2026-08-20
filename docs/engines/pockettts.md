@@ -59,6 +59,7 @@ for this model.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `OMNIVOICE_POCKETTTS_RECV_TIMEOUT_S` | `600` | Sidecar response deadline in seconds (min 30; cold loads download weights) |
+| `OMNIVOICE_POCKETTTS_24L` | off | When truthy, load the 24-layer checkpoint for languages that ship one (it/de/es/pt/fr) instead of the 6-layer default. Better prosody at roughly 2x render time (still faster than real-time); no effect where no 24-layer model exists (e.g. English). Opt-in: the default stays the fast model |
 
 ## Known limits
 

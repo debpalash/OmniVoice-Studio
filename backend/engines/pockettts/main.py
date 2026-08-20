@@ -151,6 +151,31 @@ def _pocket_language(raw) -> str:
     )
 
 
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _has_24l_config(language: str) -> bool:
+    """Whether the installed pocket-tts ships a 24-layer checkpoint for
+    ``language`` (it/de/es/pt/fr in 2.1.0; english has none)."""
+    try:
+        from pocket_tts.models.tts_model import CONFIGS_DIR  # type: ignore[import-not-found]  # noqa: PLC0415
+    except Exception:  # noqa: BLE001 — absence of the package is not fatal here
+        return False
+    from pathlib import Path  # noqa: PLC0415
+
+    return (Path(CONFIGS_DIR) / f"{language}_24l.yaml").is_file()
+
+
+def _model_config_name(language: str) -> str:
+    """Pocket-tts config name to load: the 6-layer default, or the 24-layer
+    checkpoint when OMNIVOICE_POCKETTTS_24L is set and one exists for the
+    language. Opt-in only — defaults keep the fast model; the 24-layer variant
+    trades roughly 4x transformer compute for better prosody."""
+    if os.environ.get("OMNIVOICE_POCKETTTS_24L", "").strip().lower() not in _TRUTHY:
+        return language
+    return f"{language}_24l" if _has_24l_config(language) else language
+
+
 def _load_model(stdout, language: str):
     """Cold-construct the PocketTTS model for ``language`` (cached per language).
     Emits progress frames for the parent watchdog. Raises on failure (e.g.
@@ -178,7 +203,7 @@ def _load_model(stdout, language: str):
     try:
         from pocket_tts import TTSModel  # type: ignore[import-not-found]  # noqa: PLC0415
 
-        model = TTSModel.load_model(language=language)
+        model = TTSModel.load_model(language=_model_config_name(language))
         _MODELS[language] = model
     finally:
         stop.set()
