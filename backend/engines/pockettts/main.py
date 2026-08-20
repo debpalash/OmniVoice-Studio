@@ -159,7 +159,10 @@ def _has_24l_config(language: str) -> bool:
     ``language`` (it/de/es/pt/fr in 2.1.0; english has none)."""
     try:
         from pocket_tts.models.tts_model import CONFIGS_DIR  # type: ignore[import-not-found]  # noqa: PLC0415
-    except Exception:  # noqa: BLE001 — absence of the package is not fatal here
+    except Exception as exc:  # noqa: BLE001 — absence of the package is not fatal here
+        # Log it, though: if a future pocket-tts moves CONFIGS_DIR, the 24L
+        # opt-in would otherwise go silently inert.
+        print(f"pockettts sidecar: 24l config probe failed: {exc!r}", file=sys.stderr)
         return False
     from pathlib import Path  # noqa: PLC0415
 

@@ -470,5 +470,8 @@ def test_french_always_maps_to_french_24l(sc, monkeypatch):
     French model exists), so French must resolve to french_24l even with the
     opt-in unset — the pre-existing default path was broken for fr."""
     monkeypatch.delenv("OMNIVOICE_POCKETTTS_24L", raising=False)
-    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: True)
-    assert sc._model_config_name("french") == "french_24l"
+    # Independent of the config probe too: french_24l even if the probe
+    # says no (a probe regression must not resurrect the broken name).
+    for probe in (True, False):
+        monkeypatch.setattr(sc, "_has_24l_config", lambda lang, _p=probe: _p)
+        assert sc._model_config_name("french") == "french_24l", probe

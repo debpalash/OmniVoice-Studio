@@ -55,6 +55,10 @@ for this model.
   something an in-process engine cannot do.
 - The first use downloads the gated weights; the sidecar heartbeats
   progress during the download so the watchdog doesn't fire.
+- **French always renders through the 24-layer checkpoint** (`french_24l`) —
+  pocket-tts ships no 6-layer French model — so French render speed is the
+  24-layer figure (roughly half this page's headline speed, still faster
+  than real-time), not the 6-layer one.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
