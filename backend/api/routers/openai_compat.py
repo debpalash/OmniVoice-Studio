@@ -160,7 +160,9 @@ _OPENAI_VOICE_ALIASES = {
 
 def _resolve_engine(model_id: str):
     """Map an OpenAI model name to a VoiceStudio backend."""
-    from services.tts_backend import get_backend_class, get_active_tts_backend
+    from services.tts_backend import (
+        get_backend_class, get_active_tts_backend, get_engine_instance_for,
+    )
 
     # Accept OpenAI model names as pass-through to the active engine.
     if model_id in ("tts-1", "tts-1-hd"):
@@ -178,7 +180,10 @@ def _resolve_engine(model_id: str):
         from services.tts_backend import OmniVoiceBackend
         if cls is OmniVoiceBackend:
             return get_active_tts_backend()
-        return cls()
+        # Cached singleton, not a fresh cls(): SubprocessBackend engines would
+        # spawn a sidecar process and reload their model on EVERY request, and
+        # register a new atexit hook each time (get_engine_instance's contract).
+        return get_engine_instance_for(model_id)
     except ValueError:
         raise HTTPException(
             status_code=400,
