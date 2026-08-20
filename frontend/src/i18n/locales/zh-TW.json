@@ -786,6 +786,7 @@
     "a11y_setup": "允許輔助使用，讓聽寫功能為您輸入文字",
     "pasted": "貼上的",
     "inserted": "已輸入",
+    "copied": "已複製到剪貼簿",
     "no_speech": "未偵測到語音",
     "mic_denied": "麥克風存取被拒絕",
     "mic_denied_toast": "麥克風存取被拒絕。 {{hint}}",

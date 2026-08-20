@@ -786,6 +786,7 @@
     "a11y_setup": "Cho phép Trợ năng để đọc chính tả có thể gõ thay bạn",
     "pasted": "Đã dán",
     "inserted": "Đã nhập",
+    "copied": "Đã sao chép vào bảng nhớ tạm",
     "no_speech": "Không phát hiện thấy giọng nói nào",
     "mic_denied": "Quyền truy cập micrô bị từ chối",
     "mic_denied_toast": "Quyền truy cập micrô bị từ chối. {{hint}}",

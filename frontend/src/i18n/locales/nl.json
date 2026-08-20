@@ -786,6 +786,7 @@
     "a11y_setup": "Sta Toegankelijkheid toe zodat dicteren voor je kan typen",
     "pasted": "Geplakt",
     "inserted": "Ingevoegd",
+    "copied": "Gekopieerd naar klembord",
     "no_speech": "Geen spraak gedetecteerd",
     "mic_denied": "Microfoontoegang geweigerd",
     "mic_denied_toast": "Microfoontoegang geweigerd. {{hint}}",

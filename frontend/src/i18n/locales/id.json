@@ -786,6 +786,7 @@
     "a11y_setup": "Izinkan Aksesibilitas agar dikte dapat mengetik untuk Anda",
     "pasted": "Ditempel",
     "inserted": "Dimasukkan",
+    "copied": "Disalin ke papan klip",
     "no_speech": "Tidak ada ucapan yang terdeteksi",
     "mic_denied": "Akses mikrofon ditolak",
     "mic_denied_toast": "Akses mikrofon ditolak. {{hint}}",

@@ -786,6 +786,7 @@
     "a11y_setup": "Autorisez l'accessibilité pour que la dictée puisse écrire à votre place",
     "pasted": "Collé",
     "inserted": "Inséré",
+    "copied": "Copié dans le presse-papiers",
     "no_speech": "Aucune parole détectée",
     "mic_denied": "Accès au micro refusé",
     "mic_denied_toast": "Accès au microphone refusé. {{hint}}",

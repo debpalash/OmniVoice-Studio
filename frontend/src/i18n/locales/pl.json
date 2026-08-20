@@ -786,6 +786,7 @@
     "a11y_setup": "Zezwól na Dostępność, aby dyktowanie mogło pisać za Ciebie",
     "pasted": "Wklejony",
     "inserted": "Wstawiono",
+    "copied": "Skopiowano do schowka",
     "no_speech": "Nie wykryto mowy",
     "mic_denied": "Odmowa dostępu do mikrofonu",
     "mic_denied_toast": "Odmowa dostępu do mikrofonu. {{hint}}",

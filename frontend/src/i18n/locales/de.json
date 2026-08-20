@@ -786,6 +786,7 @@
     "a11y_setup": "Bedienungshilfen erlauben, damit das Diktat für Sie tippen kann",
     "pasted": "Eingefügt",
     "inserted": "Eingegeben",
+    "copied": "In die Zwischenablage kopiert",
     "no_speech": "Keine Sprache erkannt",
     "mic_denied": "Mikrofonzugriff verweigert",
     "mic_denied_toast": "Mikrofonzugriff verweigert. {{hint}}",

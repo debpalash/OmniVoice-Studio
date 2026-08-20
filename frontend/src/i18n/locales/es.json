@@ -786,6 +786,7 @@
     "a11y_setup": "Permite Accesibilidad para que el dictado pueda escribir por ti",
     "pasted": "Pegado",
     "inserted": "Insertado",
+    "copied": "Copiado al portapapeles",
     "no_speech": "No se detectó voz",
     "mic_denied": "Acceso al micrófono denegado",
     "mic_denied_toast": "Acceso al micrófono denegado. {{hint}}",

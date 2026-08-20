@@ -234,9 +234,11 @@ def test_streaming_silent_model_falls_back_and_demotes(monkeypatch):
 def test_streaming_silent_model_does_not_download_a_fallback(monkeypatch):
     """An installed silent Sherpa model must not trigger another model pull.
 
-    The session-start probe validates the selected Sherpa weights. After that
-    Before demotion, recovery must separately prove the capture fallback is
-    installed before invoking an ASR backend that auto-downloads on cache miss.
+    The session-start probe validates the selected Sherpa weights, but that
+    says nothing about the fallback. Before demoting to it, recovery must
+    separately prove the capture fallback is installed — otherwise it invokes
+    an ASR backend that auto-downloads on a cache miss, turning a failed
+    dictation into a surprise multi-gigabyte pull.
     """
     import numpy as np
     from fastapi.testclient import TestClient

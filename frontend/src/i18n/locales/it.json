@@ -786,6 +786,7 @@
     "a11y_setup": "Consenti Accessibilità così la dettatura può digitare per te",
     "pasted": "Incollato",
     "inserted": "Inserito",
+    "copied": "Copiato negli appunti",
     "no_speech": "Nessun parlato rilevato",
     "mic_denied": "Accesso al microfono negato",
     "mic_denied_toast": "Accesso al microfono negato. {{hint}}",

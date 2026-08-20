@@ -786,6 +786,7 @@
     "a11y_setup": "Permita Acessibilidade para que o ditado possa digitar por você",
     "pasted": "Colado",
     "inserted": "Inserido",
+    "copied": "Copiado para a área de transferência",
     "no_speech": "Nenhuma fala detectada",
     "mic_denied": "Acesso ao microfone negado",
     "mic_denied_toast": "Acesso ao microfone negado. {{hint}}",

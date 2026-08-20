@@ -450,6 +450,42 @@ SHERPA_OFFLINE_SILENCE_S = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_SILENC
 SHERPA_OFFLINE_RMS_FLOOR = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_RMS", "0.01"))
 
 
+#: Seconds of audio retained for silent-model recovery. Recovery only needs
+#: enough speech to prove the model is broken and to re-transcribe what was
+#: said; retaining the whole session grew ~115 MB/hour at 16 kHz on an open
+#: mic, unbounded, and only ever got read when the fallback fired.
+RECOVERY_TAIL_SECONDS = float(os.environ.get("OMNIVOICE_DICTATION_RECOVERY_TAIL_S", "120"))
+
+
+class RecoveryTail:
+    """The most recent ``RECOVERY_TAIL_SECONDS`` of session audio.
+
+    Keeps the *tail* rather than the head: a long dictation's useful speech is
+    what the user just said, and the silent-model check cares about how much
+    audio the session carried overall — which ``total_bytes`` still reports
+    truthfully after trimming.
+    """
+
+    __slots__ = ("_buf", "_max", "total_bytes")
+
+    def __init__(self, sample_rate: int, seconds: float = RECOVERY_TAIL_SECONDS):
+        # int16 mono → 2 bytes/sample. Floor of one frame so a nonsense rate
+        # or seconds value can't produce a zero-length buffer.
+        self._max = max(2, int(seconds * max(1, sample_rate)) * 2)
+        self._buf = bytearray()
+        self.total_bytes = 0
+
+    def extend(self, pcm: bytes) -> None:
+        self._buf.extend(pcm)
+        self.total_bytes += len(pcm)
+        excess = len(self._buf) - self._max
+        if excess > 0:
+            del self._buf[:excess]
+
+    def tail(self) -> bytes:
+        return bytes(self._buf)
+
+
 def is_model_silent(text: str, heard_speech: bool, pcm_bytes: int) -> bool:
     """True when the dictation model produced NO text despite real speech.
 
@@ -657,7 +693,7 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
 
     last_partial = ""
     committed: list[str] = []     # finalized utterances this session
-    session_pcm = bytearray()     # complete audio for silent-model recovery
+    session_pcm = RecoveryTail(pcm_sr)   # bounded audio for silent-model recovery
     heard_speech = False
     client_disconnected = False
 
@@ -739,10 +775,10 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
     full = " ".join(t for t in committed if t).strip()
     segments = [{"start": 0.0, "end": None, "text": t} for t in committed if t]
 
-    model_silent = is_model_silent(full, heard_speech, len(session_pcm))
+    model_silent = is_model_silent(full, heard_speech, session_pcm.total_bytes)
     if model_silent:
         recovered, recovered_segments = await _recover_silent_sherpa(
-            spec, bytes(session_pcm), pcm_sr,
+            spec, session_pcm.tail(), pcm_sr,
         )
         if recovered:
             full = recovered
@@ -807,7 +843,7 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
     # whisper/zipformer transcribe the same bytes). Keep the whole session's
     # audio and whether any of it was speech-level, so the finaliser can tell
     # "user said nothing" (fine) from "model produced nothing" (broken).
-    session_pcm = bytearray()
+    session_pcm = RecoveryTail(pcm_sr)
     heard_speech = False
     running = True
     client_disconnected = False
@@ -929,10 +965,10 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
     # quiet user — hand the session to the capture ASR backend so the user
     # still gets their words, and say which model let them down. Bounded to
     # this session; the pref is left alone so the user stays in control.
-    model_silent = is_model_silent(full, heard_speech, len(session_pcm))
+    model_silent = is_model_silent(full, heard_speech, session_pcm.total_bytes)
     if model_silent:
         recovered, recovered_segments = await _recover_silent_sherpa(
-            spec, bytes(session_pcm), pcm_sr,
+            spec, session_pcm.tail(), pcm_sr,
         )
         if recovered:
             full = recovered

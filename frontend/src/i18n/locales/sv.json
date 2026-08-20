@@ -786,6 +786,7 @@
     "a11y_setup": "Tillåt Hjälpmedel så att diktering kan skriva åt dig",
     "pasted": "Klistras in",
     "inserted": "Infogat",
+    "copied": "Kopierat till urklipp",
     "no_speech": "Inget tal upptäckt",
     "mic_denied": "Mikrofonåtkomst nekad",
     "mic_denied_toast": "Mikrofonåtkomst nekad. {{hint}}",

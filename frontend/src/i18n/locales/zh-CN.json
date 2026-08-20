@@ -745,6 +745,7 @@
     "a11y_setup": "允许辅助功能，以便听写为您输入文字",
     "pasted": "粘贴的",
     "inserted": "已输入",
+    "copied": "已复制到剪贴板",
     "no_speech": "未检测到语音",
     "mic_denied": "麦克风访问被拒绝",
     "mic_denied_toast": "麦克风访问被拒绝。 {{hint}}",

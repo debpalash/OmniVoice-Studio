@@ -20,10 +20,23 @@ class FakeAudioContext {
       connect: vi.fn(),
       disconnect: vi.fn(),
     };
+    this.filters = [];
   }
 
   createMediaStreamSource() {
     return this.source;
+  }
+
+  createBiquadFilter() {
+    const filter = {
+      type: '',
+      frequency: { value: 0 },
+      Q: { value: 0 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    this.filters.push(filter);
+    return filter;
   }
 }
 
@@ -89,5 +102,68 @@ describe('startMicCapture', () => {
     expect(onFrame).toHaveBeenCalledWith(frame);
 
     await stop();
+  });
+
+  it('low-passes before decimating when the browser refuses the requested rate', async () => {
+    // WKWebView hands back 48 kHz whatever we ask for; interpolating straight
+    // down to 16 kHz would fold everything above 8 kHz into the speech band.
+    const stop = await startMicCapture({}, vi.fn(), { sampleRate: 16000, frameSize: 4 });
+
+    expect(context.filters).toHaveLength(3);
+    for (const filter of context.filters) {
+      expect(filter.type).toBe('lowpass');
+      expect(filter.frequency.value).toBeLessThan(16000 / 2); // below the fold frequency
+      expect(filter.Q.value).toBeCloseTo(Math.SQRT1_2, 5); // Butterworth, no resonant peak
+    }
+
+    // Mic → filters → worklet, in order.
+    expect(context.source.connect).toHaveBeenCalledWith(context.filters[0]);
+    expect(context.filters[0].connect).toHaveBeenCalledWith(context.filters[1]);
+    expect(context.filters[1].connect).toHaveBeenCalledWith(context.filters[2]);
+    expect(context.filters[2].connect).toHaveBeenCalledWith(workletNode);
+
+    await stop();
+    for (const filter of context.filters) expect(filter.disconnect).toHaveBeenCalled();
+  });
+
+  it('skips the filter chain when the AudioContext honors the requested rate', async () => {
+    contextSampleRate = 16000;
+    const stop = await startMicCapture({}, vi.fn(), { sampleRate: 16000, frameSize: 4 });
+
+    // No decimation happens, so there is nothing to anti-alias.
+    expect(context.filters).toHaveLength(0);
+    expect(context.source.connect).toHaveBeenCalledWith(workletNode);
+
+    await stop();
+  });
+
+  it('fails loudly when the AudioContext cannot be resumed', async () => {
+    // A suspended context runs no worklet: every frame is silently lost and
+    // the pill sits on "Listening" forever. Better to surface it.
+    const failing = class extends FakeAudioContext {
+      constructor(...args) {
+        super(...args);
+        this.resume = vi.fn(async () => {
+          throw new Error('user gesture required');
+        });
+      }
+    };
+    vi.stubGlobal('AudioContext', failing);
+
+    await expect(startMicCapture({}, vi.fn())).rejects.toThrow(/mic-suspended/);
+    expect(context.close).toHaveBeenCalled();
+  });
+
+  it('fails loudly when resume resolves but the context stays suspended', async () => {
+    const stuck = class extends FakeAudioContext {
+      constructor(...args) {
+        super(...args);
+        this.resume = vi.fn(async () => {}); // resolves, state never changes
+      }
+    };
+    vi.stubGlobal('AudioContext', stuck);
+
+    await expect(startMicCapture({}, vi.fn())).rejects.toThrow(/mic-suspended/);
+    expect(context.close).toHaveBeenCalled();
   });
 });

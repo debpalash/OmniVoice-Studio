@@ -99,11 +99,24 @@ _ENGINE_AGNOSTIC_KEYS = (
 # Never raise one: if this fails after adding en.json keys, add the keys to
 # every locale (translated) in the same change instead.
 _MISSING_BASELINE = {
-    "ar": 494, "de": 494, "es": 494, "fr": 494, "hi": 494, "id": 494,
-    "it": 494, "ja": 494, "ko": 494, "nl": 494, "pl": 494, "pt": 494,
-    "ru": 494, "sv": 494, "th": 494, "tr": 494, "uk": 494, "vi": 494,
-    "zh-CN": 487, "zh-TW": 494,
+    "ar": 493, "de": 493, "es": 493, "fr": 493, "hi": 493, "id": 493,
+    "it": 493, "ja": 493, "ko": 493, "nl": 493, "pl": 493, "pt": 493,
+    "ru": 493, "sv": 493, "th": 493, "tr": 493, "uk": 493, "vi": 493,
+    "zh-CN": 486, "zh-TW": 493,
 }
+
+#: Keys every locale must carry regardless of the aggregate ratchet above.
+#: The count alone is a weak guarantee — a locale can translate one new key
+#: while dropping another and the total never moves. These are strings a user
+#: on a default path actually reads, so they get pinned by name.
+#: capture.copied is the Wayland clipboard-delivery status, and clipboard
+#: delivery IS the Wayland default, so leaving it English broke that path for
+#: every non-English Linux user (#1610 review).
+_REQUIRED_IN_EVERY_LOCALE = (
+    "capture.copied",
+    "capture.inserted",
+    "capture.pasted",
+)
 
 
 def _locale_files():
@@ -388,3 +401,33 @@ def test_transliterated_brands_are_a_known_gap():
     delete this test rather than weakening the one above.
     """
     assert not _ENGINE_BRANDS.search("\u30a6\u30a3\u30b9\u30d1\u30fc\u3067\u6587\u5b57\u8d77\u3053\u3057\u4e2d")
+
+
+def _lookup(tree, dotted):
+    node = tree
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+@pytest.mark.parametrize("locale", sorted(_MISSING_BASELINE))
+@pytest.mark.parametrize("key", _REQUIRED_IN_EVERY_LOCALE)
+def test_every_locale_carries_the_user_facing_dictation_status(locale, key):
+    """Named-key parity, not just the aggregate count.
+
+    The ratchet in _MISSING_BASELINE measures totals, so a locale can gain one
+    translation and lose another without the number moving. These keys are
+    read by users on default paths, so they are asserted individually.
+    """
+    value = _lookup(_load(locale), key)
+    english = _lookup(_load("en"), key)
+    assert isinstance(value, str) and value.strip(), (
+        f"{locale}.json is missing {key!r} — users on that locale see the raw key "
+        f"or the English string"
+    )
+    assert value != english, (
+        f"{locale}.json copies the English {key!r} verbatim ({english!r}); "
+        f"translate it or the ratchet is measuring nothing"
+    )

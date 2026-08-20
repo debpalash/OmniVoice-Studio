@@ -11,7 +11,7 @@ partials either way.
 
 - Ensure `sherpa-onnx` is installed (`uv add sherpa-onnx` on source installs).
 - Pick a dictation model in the app (Model Catalogue → Models lists the
-  curated set below), or **Model Catalogue → Engines**, ASR tab → **Use**, or
+  selectable set below), or **Model Catalogue → Engines**, ASR tab → **Use**, or
   pin `OMNIVOICE_ASR_BACKEND=sherpa-onnx-asr`.
 - `OMNIVOICE_SHERPA_ASR_MODEL` selects the model — default
   `sherpa-whisper-tiny`.

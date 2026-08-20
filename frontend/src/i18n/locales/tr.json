@@ -786,6 +786,7 @@
     "a11y_setup": "Dikte sizin yerinize yazabilsin diye Erişilebilirlik'e izin verin",
     "pasted": "Yapıştırıldı",
     "inserted": "Eklendi",
+    "copied": "Panoya kopyalandı",
     "no_speech": "Konuşma algılanmadı",
     "mic_denied": "Mikrofon erişimi reddedildi",
     "mic_denied_toast": "Mikrofon erişimi reddedildi. {{hint}}",

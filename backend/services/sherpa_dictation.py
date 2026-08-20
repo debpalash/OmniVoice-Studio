@@ -261,11 +261,15 @@ def sherpa_available() -> tuple[bool, str]:
         return True, "ready"
     except ImportError as e:
         return False, f"sherpa-onnx not installed: {e}. Install with: uv add sherpa-onnx"
-    except (OSError, RuntimeError) as e:
+    except Exception as e:  # noqa: BLE001 — an availability probe must fail closed
         # Native wheel failures surface as OSError/RuntimeError rather than
-        # ImportError (missing DLL/dylib/so, loader or runtime init failure).
-        # Treat them as ordinary engine unavailability so model listing and the
-        # dictation WebSocket can fall back instead of crashing the request.
+        # ImportError (missing DLL/dylib/so, loader or runtime init failure) —
+        # but the set is open-ended: an extension module is free to raise
+        # anything at init. This is an availability question, so ANY failure to
+        # import means "not available", never an exception escaping to the
+        # caller. SherpaDictationBackend.is_available() calls this directly and
+        # capture_ws.ws_transcribe calls that without a guard, so an unexpected
+        # type here took the WebSocket down instead of falling back (#1610).
         return False, f"sherpa-onnx unavailable ({type(e).__name__}): {e}"
 
 
