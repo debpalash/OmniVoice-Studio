@@ -14,6 +14,7 @@ GPU-pool worker for forty minutes before the #730 reset.
 from __future__ import annotations
 
 import importlib
+import struct
 
 import pytest
 
@@ -125,6 +126,20 @@ class _Info:
         self.sample_rate = sample_rate
 
 
+def _write_pcm_wav(path, *, frames, channels=1, bits=16, data_bytes=None, extra=b""):
+    """Write a minimal PCM WAV, optionally with non-audio RIFF chunks."""
+    bytes_per_frame = channels * (bits // 8)
+    payload_size = frames * bytes_per_frame
+    payload = b"\0" * (payload_size if data_bytes is None else data_bytes)
+    fmt = struct.pack(
+        "<HHIIHH", 1, channels, 24000, 24000 * bytes_per_frame,
+        bytes_per_frame, bits,
+    )
+    chunks = b"fmt " + struct.pack("<I", len(fmt)) + fmt + extra
+    chunks += b"data" + struct.pack("<I", payload_size) + payload
+    path.write_bytes(b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks)
+
+
 @pytest.fixture
 def dub():
     return importlib.import_module("api.routers.dub_generate")
@@ -132,7 +147,7 @@ def dub():
 
 def test_a_complete_cache_takes_the_fast_path(dub, tmp_path):
     p = tmp_path / "seg.wav"
-    p.write_bytes(b"\0" * (44 + 1000 * 2))
+    _write_pcm_wav(p, frames=1000)
     assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is True
 
 
@@ -140,7 +155,7 @@ def test_a_truncated_cache_is_rejected(dub, tmp_path):
     """The header still says 1000 frames; the file holds ~100. Taking the
     header at face value would plan timing around audio that isn't there."""
     p = tmp_path / "seg.wav"
-    p.write_bytes(b"\0" * (44 + 100 * 2))
+    _write_pcm_wav(p, frames=1000, data_bytes=100 * 2)
     assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is False
 
 
@@ -158,7 +173,7 @@ def test_truncation_smaller_than_the_header_is_still_caught(dub, tmp_path):
     """A file missing fewer payload bytes than the 44-byte RIFF header would
     pass a bare payload-size comparison — the header bytes masked it."""
     p = tmp_path / "seg.wav"
-    p.write_bytes(b"\0" * (1000 * 2 + 20))  # full payload short by 24 header bytes
+    _write_pcm_wav(p, frames=1000, data_bytes=1000 * 2 - 24)
     assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is False
 
 
@@ -168,5 +183,13 @@ def test_a_missing_cache_is_rejected(dub, tmp_path):
 
 def test_a_multichannel_cache_accounts_for_channels(dub, tmp_path):
     p = tmp_path / "stereo.wav"
-    p.write_bytes(b"\0" * (44 + 1000 * 2))          # enough for mono only
+    _write_pcm_wav(p, frames=1000, channels=2, data_bytes=1000 * 2)
     assert dub._cached_payload_intact(str(p), _Info(frames=1000, channels=2)) is False
+
+
+def test_extended_riff_metadata_cannot_mask_a_truncated_data_chunk(dub, tmp_path):
+    """Only the data chunk counts: JUNK metadata is not decoded audio."""
+    p = tmp_path / "extended.wav"
+    extra = b"JUNK" + struct.pack("<I", 4096) + b"\0" * 4096
+    _write_pcm_wav(p, frames=1000, data_bytes=100, extra=extra)
+    assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is False

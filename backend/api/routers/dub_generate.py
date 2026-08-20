@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import struct
 import logging
 import time
 import asyncio
@@ -91,9 +92,9 @@ def _cached_payload_intact(path: str, info) -> bool:
     replaced by slot-length silence, leaving the persisted video plan and the
     rendered track disagreeing.
 
-    Comparing the declared frame count against the file's actual size catches
-    that without decoding: a truncated file cannot hold the samples its header
-    claims. Anything failing here falls through to the decoding path, which
+    Comparing the declared frame count against the physical ``data`` chunk
+    catches that without decoding: a truncated file cannot hold the samples
+    its header claims. Anything failing here falls through to the decoding path, which
     already degrades to a warning plus silence. Formats with no fixed
     bits-per-sample (compressed caches) are left to the decoder as before.
     """
@@ -107,13 +108,31 @@ def _cached_payload_intact(path: str, info) -> bool:
             # unexpected — and the decode path this falls through to handles
             # every format the fast path would have.
             return False
-        # The payload must fit alongside the container: a canonical PCM WAV
-        # carries at least 44 bytes of RIFF/fmt/data headers, so comparing
-        # against the bare payload size would let a file truncated by less
-        # than the header's length slip through.
-        _WAV_HEADER_MIN_BYTES = 44
         payload = frames * channels * (bits // 8)
-        return os.path.getsize(path) >= payload + _WAV_HEADER_MIN_BYTES
+        if payload <= 0:
+            return False
+
+        # A WAV may carry JUNK/LIST metadata before data, so its header is not
+        # necessarily 44 bytes. Locate the data chunk instead of counting
+        # metadata as audio; otherwise an extended header can mask truncation.
+        file_size = os.path.getsize(path)
+        with open(path, "rb") as wav:
+            header = wav.read(12)
+            if len(header) != 12 or header[:4] != b"RIFF" or header[8:12] != b"WAVE":
+                return False
+            offset = 12
+            while offset + 8 <= file_size:
+                wav.seek(offset)
+                chunk_id = wav.read(4)
+                chunk_size_raw = wav.read(4)
+                if len(chunk_id) != 4 or len(chunk_size_raw) != 4:
+                    return False
+                chunk_size = struct.unpack("<I", chunk_size_raw)[0]
+                data_offset = offset + 8
+                if chunk_id == b"data":
+                    return chunk_size >= payload and file_size >= data_offset + payload
+                offset = data_offset + chunk_size + (chunk_size % 2)
+        return False
     except Exception:  # noqa: BLE001 — an unstattable cache is the decoder's problem
         return False
 
