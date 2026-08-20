@@ -235,6 +235,31 @@ RAM/VRAM) turns a guessing game into a bisect.
 Measured results per engine/device — and how to contribute yours — live in
 [benchmarks.md](benchmarks.md).
 
+## Performance budgets
+
+CI guards the hot paths above against regressions — not with wall-clock
+budgets (CI hardware varies too much for a stable "≤5 % slower" threshold),
+but with **operation-count budgets** in
+`tests/test_perf_operation_budgets.py`, which fail on *any* regression:
+
+- **Streaming TTS (`/ws/tts`)**: exactly one engine `generate` per sentence
+  chunk, and exactly one text-normalization pass per request (never one per
+  sentence).
+- **Dub re-mix**: a fit-only re-mix (`regen_only=[]`) of cached segments
+  makes **zero** TTS calls, and — once the natural-rate cached fast path is
+  in — zero `torchaudio.load` / segment-WAV rewrites in the re-mix loop
+  (each cache is decoded exactly once, by the final assembly). A
+  self-relative ratio check also pins the cached re-mix at ≥2x faster than
+  fresh synthesis *within the same test process*, so host speed cancels out.
+- **Batch dubbing (native batches)**: N renderable segments at batch width W
+  cost exactly ⌈N/W⌉ `generate_batch` calls and zero per-segment `generate`
+  calls.
+
+Updating a budget is a deliberate act: if a change legitimately adds an
+operation to a guarded path, change the expected count in the same PR with a
+comment justifying the new floor. Never loosen a budget just to make CI pass
+— that is the regression the budget exists to catch.
+
 ## Things that look like knobs but aren't
 
 - **Deleting and re-adding a voice** doesn't speed anything up; the reference
