@@ -144,12 +144,22 @@ def test_a_truncated_cache_is_rejected(dub, tmp_path):
     assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is False
 
 
-def test_a_compressed_cache_is_left_to_the_decoder(dub, tmp_path):
-    """No fixed bits-per-sample means the size comparison is meaningless —
-    don't reject a cache we cannot reason about."""
+def test_undecidable_metadata_fails_closed(dub, tmp_path):
+    """No fixed bits-per-sample means the size comparison is meaningless — and
+    these caches are PCM WAVs this module writes itself, so undecidable
+    metadata is not permission to skip the decode (review on #1620): the
+    decode path handles every format the fast path would have."""
     p = tmp_path / "seg.opus"
     p.write_bytes(b"\0" * 128)
-    assert dub._cached_payload_intact(str(p), _Info(frames=48000, bits=0)) is True
+    assert dub._cached_payload_intact(str(p), _Info(frames=48000, bits=0)) is False
+
+
+def test_truncation_smaller_than_the_header_is_still_caught(dub, tmp_path):
+    """A file missing fewer payload bytes than the 44-byte RIFF header would
+    pass a bare payload-size comparison — the header bytes masked it."""
+    p = tmp_path / "seg.wav"
+    p.write_bytes(b"\0" * (1000 * 2 + 20))  # full payload short by 24 header bytes
+    assert dub._cached_payload_intact(str(p), _Info(frames=1000)) is False
 
 
 def test_a_missing_cache_is_rejected(dub, tmp_path):

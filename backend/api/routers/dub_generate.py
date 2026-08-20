@@ -102,8 +102,18 @@ def _cached_payload_intact(path: str, info) -> bool:
         frames = int(getattr(info, "num_frames", 0) or 0)
         channels = int(getattr(info, "num_channels", 0) or 0)
         if bits <= 0 or frames <= 0 or channels <= 0:
-            return True  # not fixed-width PCM — the decoder decides
-        return os.path.getsize(path) >= frames * channels * (bits // 8)
+            # Undecidable metadata fails CLOSED (review on #1620): these caches
+            # are PCM WAVs this module wrote itself, so anything else is
+            # unexpected — and the decode path this falls through to handles
+            # every format the fast path would have.
+            return False
+        # The payload must fit alongside the container: a canonical PCM WAV
+        # carries at least 44 bytes of RIFF/fmt/data headers, so comparing
+        # against the bare payload size would let a file truncated by less
+        # than the header's length slip through.
+        _WAV_HEADER_MIN_BYTES = 44
+        payload = frames * channels * (bits // 8)
+        return os.path.getsize(path) >= payload + _WAV_HEADER_MIN_BYTES
     except Exception:  # noqa: BLE001 — an unstattable cache is the decoder's problem
         return False
 

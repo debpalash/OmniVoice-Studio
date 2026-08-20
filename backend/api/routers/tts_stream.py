@@ -263,6 +263,11 @@ async def ws_tts(websocket: WebSocket):
                 from services.model_manager import run_on_gpu_pool_guarded
 
                 def _generate(sentence_text):
+                    # Timed INSIDE the pool worker: the guarded dispatch below
+                    # can queue behind other jobs, and queue wait is not
+                    # synthesis (review on #1620) — under contention it would
+                    # inflate rtf without the engine slowing at all.
+                    _synth_t0 = _perf_counter()
                     from services.audio_dsp import apply_mastering, normalize_audio
                     from services.watermark import mark_synthetic
                     wav = backend.generate(sentence_text, **kw)
@@ -284,7 +289,7 @@ async def ws_tts(websocket: WebSocket):
                     # watermark._iter_chunks), which is inherent to marking
                     # ultra-short clips, not a coverage gap.
                     wav = mark_synthetic(wav, sr_actual, context="tts_stream.sentence")
-                    return wav, sr_actual
+                    return wav, sr_actual, _perf_counter() - _synth_t0
 
                 import torch
                 total_samples = 0
@@ -306,13 +311,12 @@ async def ws_tts(websocket: WebSocket):
                     # Length-scaled budget per sentence (#1190) — the flat 300s
                     # default is gone from every dispatch.
                     from services.model_manager import generate_timeout_s
-                    synth_started_at = _perf_counter()
-                    wav_tensor, sr = await run_on_gpu_pool_guarded(
+                    wav_tensor, sr, sentence_synth_s = await run_on_gpu_pool_guarded(
                         functools.partial(_generate, sentence),
                         what="TTS generate",
                         timeout=generate_timeout_s(sentence, engine=backend),
                     )
-                    synth_time += _perf_counter() - synth_started_at
+                    synth_time += sentence_synth_s
 
                     if not started:
                         # Send metadata after the first generation so

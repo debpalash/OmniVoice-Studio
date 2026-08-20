@@ -309,6 +309,10 @@ def test_batch_uses_native_tts_batches(batch_env, monkeypatch):
             return True, "ready"
 
         def generate(self, text, **kw):  # pragma: no cover - fallback proof
+            # Raising alone is not proof: batch.py's _gen catches Exception
+            # and substitutes silence + a job warning, so the test also
+            # asserts no warnings below — the raise turning into a warning
+            # is exactly the fallback evidence being checked for.
             raise AssertionError("native batch should not use single-item generate")
 
         def generate_batch(self, texts, **kw):
@@ -348,3 +352,7 @@ def test_batch_uses_native_tts_batches(batch_env, monkeypatch):
 
     assert [len(texts) for texts, _ in batch_calls] == [8, 2]  # 10 segments, width 8
     assert all(kw["duration"] == [1.0] * len(texts) for texts, kw in batch_calls)
+    # The raise in generate() is swallowed by _gen's fallback handler into a
+    # job warning + silence — so the absence of warnings is what actually
+    # proves no segment fell back to single-item generation.
+    assert not job.get("warnings"), job.get("warnings")
