@@ -63,11 +63,13 @@ Restrictions:
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import os
 import struct
 import sys
 import tempfile
+import threading
 import traceback
 
 
@@ -117,11 +119,59 @@ EMOTION_KWARGS_ALLOWLIST = frozenset({
 # ── wire protocol ─────────────────────────────────────────────────────────
 
 
+#: Seconds between keep-alive progress frames during a long blocking call.
+_HEARTBEAT_S = 5.0
+
+#: Serializes _send across threads (the heartbeat below + the main loop) so
+#: concurrent length+body writes can't interleave and corrupt the framing.
+_send_lock = threading.Lock()
+
+
 def _send(stream, obj: dict) -> None:
     body = json.dumps(obj, separators=(",", ":")).encode("utf-8")
-    stream.write(struct.pack("!I", len(body)))
-    stream.write(body)
-    stream.flush()
+    with _send_lock:
+        stream.write(struct.pack("!I", len(body)))
+        stream.write(body)
+        stream.flush()
+
+
+@contextlib.contextmanager
+def _heartbeat(stdout, stage: str):
+    """Emit a progress frame every ~5s for the duration of the block.
+
+    IndexTTS spends the whole of a cold load and the whole of ``infer()``
+    inside one blocking upstream call, saying nothing on the wire. The parent
+    reads that silence two ways, and BOTH kill a perfectly healthy synthesis
+    of a long passage (#1611):
+
+      * ``SubprocessBackend.generate`` re-arms its recv watchdog on every
+        frame, so with no frames it hard-kills the sidecar at recv_timeout_s;
+      * each frame also reports activity to the GPU pool's execution clock
+        (#1367), so with no frames the outer generate budget expires and
+        blames the hardware.
+
+    Raising the deadline alone therefore does not fix long-text generation —
+    the sidecar has to prove it is alive. Percent climbs 1..99 because the
+    upstream call exposes no real progress; it is a liveness signal, not a
+    measurement.
+    """
+    stop = threading.Event()
+
+    def _beat() -> None:
+        pct = 1
+        while not stop.wait(_HEARTBEAT_S):
+            pct = min(pct + 1, 99)
+            try:
+                _send(stdout, {"op": "progress", "stage": stage, "percent": pct})
+            except Exception:
+                return  # pipe gone — the main loop will surface it
+    hb = threading.Thread(target=_beat, name=f"indextts-{stage}-heartbeat", daemon=True)
+    hb.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        hb.join(timeout=_HEARTBEAT_S + 1)
 
 
 def _recv(stream):
@@ -160,14 +210,40 @@ def _torch_bf16_supported() -> bool:
         return False
 
 
+#: Model-config filenames to look for, most-preferred first, per version.
+#: IndexTeam/IndexTTS-2.5 ships ``config.yaml``; VoiceStudio used to demand
+#: ``config_v2_5.yaml``, a name that exists in no upstream revision, so the
+#: install failed until the user hand-renamed the file (#1611). Both names are
+#: accepted now — the hand-renamed installs must keep working untouched — and
+#: the renamed one wins, because a user who created it did so deliberately.
+_CFG_NAMES = {
+    "2.5": ("config_v2_5.yaml", "config.yaml"),
+    "2": ("config.yaml",),
+}
+
+
+def _resolve_cfg_path(model_dir: str, *, version: str) -> str:
+    """First accepted config that exists in ``model_dir``.
+
+    Falls back to the last candidate when none exist, so the failure surfaces
+    as upstream's own "no such file" naming a real expected path rather than
+    a name no upstream release has ever shipped.
+    """
+    names = _CFG_NAMES.get(version, _CFG_NAMES["2"])
+    for name in names:
+        candidate = os.path.join(model_dir, name)
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(model_dir, names[-1])
+
+
 def _model_init_kwargs(
     repo_dir: str, *, version: str, reduced_precision: bool,
 ) -> dict:
     """Build version-specific constructor arguments for IndexTTS 2.5 or 2."""
     model_dir = os.path.join(repo_dir, "checkpoints")
-    cfg_name = "config_v2_5.yaml" if version == "2.5" else "config.yaml"
     kwargs = {
-        "cfg_path": os.path.join(model_dir, cfg_name),
+        "cfg_path": _resolve_cfg_path(model_dir, version=version),
         "model_dir": model_dir,
         "use_cuda_kernel": False,
         "use_deepspeed": False,
@@ -216,7 +292,8 @@ def _load_model(stdout) -> object:
     model_kw = _model_init_kwargs(
         repo_dir, version=_model_version, reduced_precision=reduced_precision,
     )
-    _model = IndexTTS2(**model_kw)
+    with _heartbeat(stdout, "loading_model"):
+        _model = IndexTTS2(**model_kw)
 
     _send(stdout, {"op": "progress", "stage": "loading_model", "percent": 100})
     return _model
@@ -276,7 +353,10 @@ def _handle_synthesize(msg: dict, stdout) -> None:
         tmp_path = tmp.name
     try:
         infer_kw["output_path"] = tmp_path
-        model.infer(**infer_kw)
+        # A long passage keeps infer() busy for minutes with nothing on the
+        # wire; without this the parent kills the sidecar mid-synthesis (#1611).
+        with _heartbeat(stdout, "synthesizing"):
+            model.infer(**infer_kw)
         pcm_b64, sr, n_samples = _wav_to_pcm_b64(tmp_path)
     finally:
         try:
