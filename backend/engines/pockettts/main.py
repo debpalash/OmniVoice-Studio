@@ -170,7 +170,13 @@ def _model_config_name(language: str) -> str:
     """Pocket-tts config name to load: the 6-layer default, or the 24-layer
     checkpoint when OMNIVOICE_POCKETTTS_24L is set and one exists for the
     language. Opt-in only — defaults keep the fast model; the 24-layer variant
-    trades roughly 4x transformer compute for better prosody."""
+    trades roughly 4x transformer compute for better prosody.
+
+    French is the exception: pocket-tts 2.1.0 only ships a 24-layer French
+    model and load_model(language="french") raises, so French always maps to
+    french_24l regardless of the env var."""
+    if language == "french":
+        return "french_24l"
     if os.environ.get("OMNIVOICE_POCKETTTS_24L", "").strip().lower() not in _TRUTHY:
         return language
     return f"{language}_24l" if _has_24l_config(language) else language

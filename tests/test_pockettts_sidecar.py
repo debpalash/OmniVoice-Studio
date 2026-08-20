@@ -463,3 +463,12 @@ def test_load_model_applies_the_24l_suffix_to_load_model(sc, monkeypatch):
 
     sc._load_model(_NullStdout(), "italian")
     assert calls["language"] == "italian_24l"
+
+
+def test_french_always_maps_to_french_24l(sc, monkeypatch):
+    """pocket-tts 2.1.0 rejects language="french" outright (only a 24-layer
+    French model exists), so French must resolve to french_24l even with the
+    opt-in unset — the pre-existing default path was broken for fr."""
+    monkeypatch.delenv("OMNIVOICE_POCKETTTS_24L", raising=False)
+    monkeypatch.setattr(sc, "_has_24l_config", lambda lang: True)
+    assert sc._model_config_name("french") == "french_24l"
