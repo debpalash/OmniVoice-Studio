@@ -533,24 +533,38 @@ def test_public_duration_maps_to_exact_indextts25_factor(duration, expected):
     assert "target_tokens" not in kwargs
 
 
-def test_sidecar_25_uses_25_config_and_gates_bf16(monkeypatch):
+def test_sidecar_25_uses_the_installed_config_and_gates_bf16(monkeypatch, tmp_path):
+    """#1611: this used to demand config_v2_5.yaml, a name no upstream
+    IndexTTS-2.5 revision ships. The path now follows what is on disk."""
     from engines.indextts import main as sidecar
+
+    repo = tmp_path / "index-tts"
+    ckpt = repo / "checkpoints"
+    ckpt.mkdir(parents=True)
+    (ckpt / "config.yaml").write_text("model: {}\n", encoding="utf-8")
 
     monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: False)
     kwargs = sidecar._model_init_kwargs(
-        "/models/index-tts", version="2.5", reduced_precision=True,
+        str(repo), version="2.5", reduced_precision=True,
     )
-    assert kwargs["cfg_path"].endswith("checkpoints/config_v2_5.yaml")
+    assert kwargs["cfg_path"] == str(ckpt / "config.yaml")
     assert kwargs["use_bf16"] is False
     assert kwargs["use_qwen_emo"] is True
 
+    # A checkout carrying the pre-fix hand-renamed config still resolves.
+    (ckpt / "config.yaml").unlink()
+    (ckpt / "config_v2_5.yaml").write_text("model: {}\n", encoding="utf-8")
+    assert sidecar._model_init_kwargs(
+        str(repo), version="2.5", reduced_precision=True,
+    )["cfg_path"] == str(ckpt / "config_v2_5.yaml")
+
     monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: True)
     assert sidecar._model_init_kwargs(
-        "/models/index-tts", version="2.5", reduced_precision=True,
+        str(repo), version="2.5", reduced_precision=True,
     )["use_bf16"] is True
 
 
-def test_sidecar_loader_prefers_25_and_uses_reviewed_weight_layout(monkeypatch):
+def test_sidecar_loader_prefers_25_and_uses_reviewed_weight_layout(monkeypatch, tmp_path):
     from engines.indextts import main as sidecar
 
     captured = {}
@@ -565,7 +579,11 @@ def test_sidecar_loader_prefers_25_and_uses_reviewed_weight_layout(monkeypatch):
     module.IndexTTS2 = FakeIndexTTS
     monkeypatch.setitem(sys.modules, "indextts", package)
     monkeypatch.setitem(sys.modules, "indextts.infer_v2_5", module)
-    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", "/models/index-tts")
+    repo = tmp_path / "index-tts"
+    ckpt = repo / "checkpoints"
+    ckpt.mkdir(parents=True)
+    (ckpt / "config.yaml").write_text("model: {}\n", encoding="utf-8")
+    monkeypatch.setenv("OMNIVOICE_INDEXTTS_DIR", str(repo))
     monkeypatch.setattr(sidecar, "_torch_bf16_supported", lambda: True)
     monkeypatch.setattr(sidecar, "_model", None)
     monkeypatch.setattr(sidecar, "_model_version", None)
@@ -574,7 +592,7 @@ def test_sidecar_loader_prefers_25_and_uses_reviewed_weight_layout(monkeypatch):
 
     assert isinstance(loaded, FakeIndexTTS)
     assert sidecar._model_version == "2.5"
-    assert captured["cfg_path"].endswith("checkpoints/config_v2_5.yaml")
+    assert captured["cfg_path"] == str(ckpt / "config.yaml")
     assert captured["model_dir"].endswith("checkpoints")
     assert captured["use_qwen_emo"] is True
 
