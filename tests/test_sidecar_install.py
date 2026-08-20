@@ -627,19 +627,25 @@ def test_indextts2_spec_matches_bootstrap_contract():
     # reads — anything else would install into a dir the engine never finds.
     assert spec.env_var == "OMNIVOICE_INDEXTTS_DIR"
     assert spec.probe_module == "indextts.infer_v2_5"
-    # main.py loads from <dir>/checkpoints/config_v2_5.yaml — the
-    # installer must put the weights exactly there.
+    # main.py loads from <dir>/checkpoints/, resolving whichever accepted
+    # config name is on disk — the installer must put the weights there.
     assert spec.repo_ref == "indextts-2.5"
     assert spec.source_revision == "bf2e967fac7933197143b017a60820b1ad40c448"
     assert spec.source_required_path == "indextts/infer_v2_5.py"
     assert spec.weights_repo_id == "IndexTeam/IndexTTS-2.5"
     assert spec.weights_revision == "d0aa86e75bb6f3437f3831e95056fa72842d89ef"
     assert spec.weights_subdir == "checkpoints"
-    assert spec.weights_config_name == "config_v2_5.yaml"
+    assert spec.weights_config_names == ("config.yaml", "config_v2_5.yaml")
     assert spec.repo_url.endswith("index-tts.git")
 
 
-def test_indextts25_health_requires_25_config_name(monkeypatch):
+def test_indextts25_health_accepts_either_config_name(monkeypatch):
+    """#1611: this used to assert the OPPOSITE — that a checkout holding only
+    config.yaml is unhealthy — which is what a clean IndexTeam/IndexTTS-2.5
+    download actually produces, so every install failed. Both the upstream
+    name and the hand-renamed one from the old workaround are healthy now;
+    neither present is still a truncated download.
+    """
     spec = si.get_spec("indextts2")
     monkeypatch.setenv(spec.env_var, str(si.managed_checkout(spec)))
     checkout = si.managed_checkout(spec)
@@ -658,10 +664,15 @@ def test_indextts25_health_requires_25_config_name(monkeypatch):
         repo_id=spec.weights_repo_id,
         revision=spec.weights_revision,
     )
-    assert si._healthy(spec) is False
+    # What a fresh upstream snapshot looks like.
+    assert si._healthy(spec) is True
+    # What the pre-fix workaround left behind.
     (wdir / "config.yaml").unlink()
     (wdir / "config_v2_5.yaml").write_text("model: fake\n")
     assert si._healthy(spec) is True
+    # A genuinely truncated download is still caught.
+    (wdir / "config_v2_5.yaml").unlink()
+    assert si._healthy(spec) is False
 
 
 def test_managed_indextts2_source_is_preserved_during_25_install(monkeypatch):
