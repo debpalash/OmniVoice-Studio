@@ -62,3 +62,39 @@ def test_unknown_engine_id_still_400s(oc, monkeypatch):
         oc._resolve_engine("not-an-engine")
     assert exc.value.status_code == 400
     assert "Unknown model" in exc.value.detail
+
+
+def test_switching_explicit_engine_ids_unloads_the_outgoing_one(oc, monkeypatch):
+    """Cache must not accumulate residents: a different explicit `model` ID
+    unloads the outgoing engine first (same switch rule as the active-engine
+    path, MM2-01)."""
+    svc = _tts_mod()
+    unloaded = []
+
+    def _make(name):
+        class _B:
+            ident = name
+
+            def __init__(self):
+                pass
+
+            @staticmethod
+            def is_available():
+                return True, "ok"
+
+            def unload(self):
+                unloaded.append(name)
+
+        return _B
+
+    engines = {"a-engine": _make("a"), "b-engine": _make("b")}
+    monkeypatch.setattr(svc, "get_backend_class", lambda i: engines[i])
+
+    first = oc._resolve_engine("a-engine")
+    second = oc._resolve_engine("a-engine")
+    assert first is second
+    assert unloaded == []
+
+    third = oc._resolve_engine("b-engine")
+    assert third is not first
+    assert unloaded == ["a"]
