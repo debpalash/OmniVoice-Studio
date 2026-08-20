@@ -246,16 +246,12 @@ but with **operation-count budgets** in
   chunk, and exactly one text-normalization pass per request (never one per
   sentence).
 - **Dub re-mix**: a fit-only re-mix (`regen_only=[]`) of cached segments
-  makes **zero** TTS calls, and — once the natural-rate cached fast path is
-  in — zero `torchaudio.load` / segment-WAV rewrites in the re-mix loop
-  (each cache is decoded exactly once, by the final assembly). A
-  self-relative timing check also pins the cached re-mix to *skip the
-  synthesis cost* the fresh render pays — it asserts on the difference
-  `fresh − remix` (the shared decode/mix overhead cancels), not a ratio, so
-  it stays stable on any runner *within the same test process*.
+  makes **zero** TTS calls. The zero-decode / zero-rewrite budget activates
+  with the natural-rate cached fast path (each cache is then decoded exactly
+  once, by the final assembly).
 - **Batch dubbing (native batches)**: N renderable segments at batch width W
   cost exactly ⌈N/W⌉ `generate_batch` calls and zero per-segment `generate`
-  calls.
+  calls when native batching is enabled.
 
 Updating a budget is a deliberate act: if a change legitimately adds an
 operation to a guarded path, change the expected count in the same PR with a

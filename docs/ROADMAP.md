@@ -220,7 +220,7 @@ None on the critical path to world-class. All are answers to real demand.
 | Item | Status | Notes |
 |------|:---:|------|
 | Every bug ships a regression test | ⏳ | Rule written, not yet enforced in CI. |
-| Perf regression budget (≤5 % on fixture clip) | ✅ | Shipped 2026-08-21 as hardware-independent **operation-count budgets** (`tests/test_perf_operation_budgets.py`) — stricter than 5 %, and CI-stable where wall-clock on varying runners is not: one generate per sentence on `/ws/tts`, zero TTS/decode/rewrite on cached dub re-mixes (+ a self-relative timing check that the re-mix skips the synthesis cost), ⌈N/W⌉ `generate_batch` calls on native batches. See docs/performance.md §Performance budgets. |
+| Perf regression budget (≤5 % on fixture clip) | ✅ | Shipped 2026-08-20 as hardware-independent **operation-count budgets** (`tests/test_perf_operation_budgets.py`) — stricter than 5 %, and CI-stable where wall-clock on varying runners is not: one generate per sentence on `/ws/tts`, zero TTS calls on cached dub re-mixes; zero decode/rewrite and ⌈N/W⌉ `generate_batch` guards activate with their respective fast paths. See docs/performance.md §Performance budgets. |
 | Accessibility (keyboard-first, WCAG AA, ARIA live regions) | 🟡 | Focus rings token defined; full audit pending. |
 | Privacy (zero telemetry by default, per-feature opt-in) | ✅ | Enforced in Settings → Privacy tab. |
 | Docs updated per phase | 🟡 | STRUCTURE.md, ROADMAP.md, ui/README.md current (research/ + design/ retired 2026-07-12). |
