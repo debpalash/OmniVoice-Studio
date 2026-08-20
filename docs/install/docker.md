@@ -196,9 +196,10 @@ docker run -e OMNIVOICE_PUBLIC_API_BASE=https://api.your-host.example \
 > set a long random `OMNIVOICE_API_KEY` with `docker run -e` or Compose; the
 > browser will prompt for it. The optional six-digit share PIN permits casual
 > consumption access but does not authorize administration or dictation. On any
-> untrusted network, plain HTTP is not safe for the API key or session cookie:
-> TLS through a reverse proxy or an encrypted private overlay is required. See
-> [API authentication](../api-auth.md) for the complete access model.
+> untrusted network, plain HTTP is not safe for the API key or session cookie.
+> Keep the backend on an encrypted private overlay such as Tailscale/ZeroTier;
+> do not expose it directly to the public internet. See [API
+> authentication](../api-auth.md) for the complete access model.
 
 ## Volume mounts
 
