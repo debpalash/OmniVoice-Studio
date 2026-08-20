@@ -96,8 +96,10 @@ def _moshi_compile_module():
 
 
 _eager_lock = threading.Lock()
-_eager_depth = 0
-_eager_saved: Optional[bool] = None
+#: Depth of nested/concurrent eager scopes, and the switch value to put back
+#: when the last one exits. One dict rather than two module scalars: the
+#: fields are only meaningful together, and only under _eager_lock.
+_eager_state: dict = {"depth": 0, "saved": None}
 _eager_guard_warned = False
 
 
@@ -126,7 +128,6 @@ def _eager_audioseal():
     (``tests/test_watermark_no_torch_compile_1615.py`` fails loudly on that
     upgrade rather than letting the compile creep back in).
     """
-    global _eager_depth, _eager_saved
     moshi = _moshi_compile_module()
     if moshi is None:
         if not _eager_guard_warned:
@@ -134,18 +135,18 @@ def _eager_audioseal():
         yield
         return
     with _eager_lock:
-        if _eager_depth == 0:
-            _eager_saved = moshi._compile_disabled
-        _eager_depth += 1
+        if _eager_state["depth"] == 0:
+            _eager_state["saved"] = moshi._compile_disabled
+        _eager_state["depth"] += 1
         moshi._compile_disabled = True
     try:
         yield
     finally:
         with _eager_lock:
-            _eager_depth -= 1
-            if _eager_depth == 0:
-                moshi._compile_disabled = _eager_saved
-                _eager_saved = None
+            _eager_state["depth"] -= 1
+            if _eager_state["depth"] == 0:
+                moshi._compile_disabled = _eager_state["saved"]
+                _eager_state["saved"] = None
 
 
 def _iter_chunks(audio: torch.Tensor, sample_rate: int):

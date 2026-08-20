@@ -84,8 +84,7 @@ def fakes(monkeypatch, watermark, moshi_compile):
     monkeypatch.setattr(watermark, "_detector", det)
     monkeypatch.setattr(watermark, "_audioseal_available", True)
     monkeypatch.setattr(watermark, "is_enabled", lambda: True)
-    monkeypatch.setattr(watermark, "_eager_depth", 0)
-    monkeypatch.setattr(watermark, "_eager_saved", None)
+    monkeypatch.setattr(watermark, "_eager_state", {"depth": 0, "saved": None})
     return gen, det
 
 
@@ -164,7 +163,8 @@ def test_overlapping_embeds_never_hand_compile_back(fakes, watermark, moshi_comp
             first_out.set()                      # closes while `second` is open
         except BaseException as exc:  # noqa: BLE001 — surfaced via the assert below
             errors.append(exc)
-            first_in.set(); first_out.set()
+            first_in.set()
+            first_out.set()
 
     def second():
         try:
@@ -179,10 +179,12 @@ def test_overlapping_embeds_never_hand_compile_back(fakes, watermark, moshi_comp
 
     t1 = threading.Thread(target=first, name="eager-first")
     t2 = threading.Thread(target=second, name="eager-second")
-    t1.start(); t2.start()
-    t1.join(timeout=15); t2.join(timeout=15)
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
 
     assert not errors, errors
     assert seen == [True], "compile was handed back mid-embed by the other scope's exit"
     assert moshi_compile._compile_disabled is False, "guard stayed latched after both exits"
-    assert watermark._eager_depth == 0
+    assert watermark._eager_state["depth"] == 0
