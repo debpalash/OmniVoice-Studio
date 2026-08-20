@@ -55,10 +55,15 @@ for this model.
   something an in-process engine cannot do.
 - The first use downloads the gated weights; the sidecar heartbeats
   progress during the download so the watchdog doesn't fire.
+- **French always renders through the 24-layer checkpoint** (`french_24l`) —
+  pocket-tts ships no 6-layer French model — so French render speed is the
+  24-layer figure (roughly half this page's headline speed, still faster
+  than real-time), not the 6-layer one.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `OMNIVOICE_POCKETTTS_RECV_TIMEOUT_S` | `600` | Sidecar response deadline in seconds (min 30; cold loads download weights) |
+| `OMNIVOICE_POCKETTTS_24L` | off | When truthy, load the 24-layer checkpoint for languages that ship one (it/de/es/pt/fr) instead of the 6-layer default. Better prosody at roughly 2x render time (still faster than real-time); no effect where no 24-layer model exists (e.g. English). Opt-in: the default stays the fast model. French always uses `french_24l` — pocket-tts ships no 6-layer French model and rejects `language="french"` |
 
 ## Known limits
 
