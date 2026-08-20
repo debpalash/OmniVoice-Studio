@@ -160,7 +160,9 @@ _OPENAI_VOICE_ALIASES = {
 
 def _resolve_engine(model_id: str):
     """Map an OpenAI model name to a VoiceStudio backend."""
-    from services.tts_backend import get_backend_class, get_active_tts_backend
+    from services.tts_backend import (
+        get_backend_class, get_active_tts_backend, get_engine_instance_for,
+    )
 
     # Accept OpenAI model names as pass-through to the active engine.
     if model_id in ("tts-1", "tts-1-hd"):
@@ -177,8 +179,18 @@ def _resolve_engine(model_id: str):
             )
         from services.tts_backend import OmniVoiceBackend
         if cls is OmniVoiceBackend:
+            # OmniVoice only ever runs as the shared active engine — the
+            # explicit-omnivoice request is the active-engine request.
             return get_active_tts_backend()
-        return cls()
+        # Cached singleton, not a fresh cls(): SubprocessBackend engines would
+        # spawn a sidecar process and reload their model on EVERY request, and
+        # register a new atexit hook each time (get_engine_instance's contract).
+        # No router-local cache on top of it: the shared cache is keyed by
+        # CLASS precisely so id rebinds/evictions can't serve a stale instance,
+        # and cross-engine memory discipline is create_speech's
+        # evict_other_tts_engines call (the same seam /generate uses) — not a
+        # bespoke unload here.
+        return get_engine_instance_for(model_id)
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -387,6 +399,15 @@ async def create_speech(req: SpeechRequest):
 
     # VRAM eviction runs in get_model()'s warm-return path now, covering every
     # native TTS generate (this route, WS TTS, dub, batch, audiobook).
+
+    # Single-active-engine memory discipline (MM2-01), the same call /generate
+    # makes before its load: hand back every OTHER resident TTS engine's model
+    # before this one warms up, so switching `model` ids across requests —
+    # explicit id → explicit id, or explicit id → the tts-1/omnivoice aliases —
+    # can't stack multi-GB engines/sidecars. No-op when nothing else is
+    # resident; opt out with OMNIVOICE_SINGLE_ENGINE_RESIDENT=0.
+    from services.engine_memory import evict_other_tts_engines
+    await evict_other_tts_engines(backend.id)
 
     # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
     # generate clock starts. The T4 verification (#1014) measured a fresh
