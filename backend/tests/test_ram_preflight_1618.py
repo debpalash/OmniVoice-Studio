@@ -13,6 +13,14 @@ from api.routers.setup import wizard
 
 
 def _ram_check(monkeypatch, ram_gb: float, env: str | None = None) -> dict:
+    # Keep the preflight hermetic: stub the probes that hit the network or
+    # auto-acquire media tools, so each RAM assertion stays fast and offline.
+    monkeypatch.setattr(wizard, "_network_check", lambda: {
+        "id": "network", "label": "Network", "status": "pass",
+        "detail": "stubbed", "fix": None, "mirror_reachable": True,
+    })
+    import services.media_tools as media_tools
+    monkeypatch.setattr(media_tools, "summary", lambda auto_acquire=True: None)
     monkeypatch.setattr(wizard, "_ram_gb", lambda: ram_gb)
     if env is None:
         monkeypatch.delenv("OMNIVOICE_RAM_PREFLIGHT", raising=False)

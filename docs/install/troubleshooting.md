@@ -152,8 +152,11 @@ tolerates that reserved-memory gap, so 8 GB-installed machines pass.
 **Fix:** update to the latest release. If your machine is genuinely below the
 minimum and you accept the out-of-memory risk (long dubs may crash), set
 `OMNIVOICE_RAM_PREFLIGHT=0` before launching — the hard block becomes a
-warning. On Windows use the in-app Settings panel or PowerShell
-`[Environment]::SetEnvironmentVariable('OMNIVOICE_RAM_PREFLIGHT','0','User')`.
+warning. On Windows run PowerShell
+`[Environment]::SetEnvironmentVariable('OMNIVOICE_RAM_PREFLIGHT','0','User')`
+and relaunch; on macOS/Linux export it in the shell that starts the app. (The
+in-app Settings panel can't help here — this blocker appears before setup
+completes.)
 
 **Linked issues:** [#1618](https://github.com/debpalash/VoiceStudio/issues/1618)
 
