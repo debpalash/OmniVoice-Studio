@@ -59,6 +59,17 @@ def test_a_short_session_is_kept_whole(ws):
     assert tail.total_bytes == BYTES_PER_S
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, 120.0), ("bad", 120.0), ("nan", 120.0), ("inf", 120.0),
+        ("-1", 120.0), ("0", 120.0), ("60", 60.0), ("999999", 300.0),
+    ],
+)
+def test_recovery_tail_environment_override_is_finite_and_bounded(ws, value, expected):
+    assert ws._bounded_recovery_tail_seconds(value) == expected
+
+
 @pytest.mark.parametrize("sample_rate,seconds", [(0, 120.0), (16000, 0.0), (-1, -1.0)])
 def test_a_nonsense_bound_still_yields_a_usable_buffer(ws, sample_rate, seconds):
     """A bad sr query param or env override must not produce a zero-length

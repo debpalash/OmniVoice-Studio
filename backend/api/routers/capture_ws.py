@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import tempfile
 import time
@@ -470,7 +471,24 @@ SHERPA_OFFLINE_RMS_FLOOR = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_RMS", 
 #: enough speech to prove the model is broken and to re-transcribe what was
 #: said; retaining the whole session grew ~115 MB/hour at 16 kHz on an open
 #: mic, unbounded, and only ever got read when the fallback fired.
-RECOVERY_TAIL_SECONDS = float(os.environ.get("OMNIVOICE_DICTATION_RECOVERY_TAIL_S", "120"))
+RECOVERY_TAIL_DEFAULT_SECONDS = 120.0
+RECOVERY_TAIL_MAX_SECONDS = 300.0
+
+
+def _bounded_recovery_tail_seconds(value: str | None) -> float:
+    """Parse the recovery tail override without allowing unbounded buffers."""
+    try:
+        seconds = float(value) if value is not None else RECOVERY_TAIL_DEFAULT_SECONDS
+    except (TypeError, ValueError):
+        return RECOVERY_TAIL_DEFAULT_SECONDS
+    if not math.isfinite(seconds) or seconds <= 0:
+        return RECOVERY_TAIL_DEFAULT_SECONDS
+    return min(seconds, RECOVERY_TAIL_MAX_SECONDS)
+
+
+RECOVERY_TAIL_SECONDS = _bounded_recovery_tail_seconds(
+    os.environ.get("OMNIVOICE_DICTATION_RECOVERY_TAIL_S")
+)
 
 
 class RecoveryTail:

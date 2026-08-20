@@ -110,6 +110,7 @@ describe('attachPlaybackTap', () => {
     expect(context.source.connect).toHaveBeenCalledWith(workletNode);
 
     await detach();
-    expect(context.source.disconnect).not.toHaveBeenCalled();
+    expect(context.source.disconnect).toHaveBeenCalledWith(workletNode);
+    expect(context.source.disconnect).not.toHaveBeenCalledWith(context.destination);
   });
 });

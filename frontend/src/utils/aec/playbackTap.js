@@ -82,12 +82,10 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
     // Detach the tap edge too: the ctx and src are memoised per element, so a
     // filter left hanging off src would accumulate one dead chain per AEC
     // toggle. The audible src→destination edge stays (see header note).
-    if (antiAlias.length) {
-      try {
-        src.disconnect(antiAlias[0]);
-      } catch {
-        /* ignore */
-      }
+    try {
+      src.disconnect(antiAlias[0] ?? node);
+    } catch {
+      /* ignore */
     }
   };
 }
