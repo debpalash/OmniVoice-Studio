@@ -17,8 +17,12 @@ equivalent is pinning HOW MANY expensive operations a hot path performs:
                         `generate` calls (fix/perf-dub-cache-batching).
 
 A counter budget fails on ANY regression (stricter than 5 %) and cancels out
-host speed. The one timing assertion here is a RATIO within a single process
-run (cached re-mix vs fresh synthesis), so host speed cancels out too.
+host speed. The one timing assertion here compares a cached re-mix against a
+fresh render in the SAME process and asserts on their DIFFERENCE (the injected
+synthesis cost the re-mix skips), not their ratio — the shared decode/mix
+overhead cancels in the subtraction, so host speed cancels out for real. A
+ratio would not: it tracks the overhead-to-synthesis proportion, which is set
+by runner speed.
 
 Updating a budget is a DELIBERATE act: if a change legitimately adds an
 operation to a guarded path (e.g. a new required decode), update the expected
@@ -353,32 +357,57 @@ def test_dub_remix_budget_zero_decode_zero_rewrite(dub_harness, monkeypatch):
 
 
 @pytest.mark.usefixtures("torch_dtype_isolation")
-def test_dub_remix_ratio_at_least_2x_faster_than_fresh(dub_harness, monkeypatch):
-    """Self-relative timing budget: with synthesis costing anything at all
-    (50 ms/segment here — real engines cost seconds), a cached re-mix must
-    be at least 2x faster than the fresh render IN THE SAME PROCESS. The
-    ratio cancels host speed, so this holds on any CI runner; it fails if
-    the re-mix path grows work proportional to synthesis (re-encoding,
-    re-synthesis, redundant decode chains)."""
+def test_dub_remix_skips_the_synthesis_cost(dub_harness, monkeypatch):
+    """Self-relative timing budget: a cached re-mix must skip essentially all
+    of the synthesis cost the fresh render pays, IN THE SAME PROCESS.
+
+    We inject a known per-segment synthesis delay (the fake engine sleeps
+    ``delay_s`` on every ``generate``). The fresh render pays it N times; the
+    cached re-mix pays it zero times (``regen_only=[]`` re-synthesizes nothing
+    — pinned exactly by ``test_dub_remix_budget_zero_tts_calls`` above). Both
+    runs do the SAME decode/mix/assembly work over the same N segments, so
+    that overhead cancels in the *difference* ``fresh - remix``, leaving just
+    the injected synthesis cost. `time.sleep` only ever overshoots, so the
+    fresh render is at least ``N * delay_s`` slower than the re-mix.
+
+    Asserting on the difference (not a ratio) is what makes this host-
+    independent: a ratio depends on the overhead-to-synthesis proportion,
+    which is set by runner speed, so ``remix/fresh`` drifts above 2x on a slow
+    runner where fixed overhead dominates the small injected delay — that is
+    exactly the flake this replaces. The difference cancels host speed for
+    real. It fails if the re-mix grows work proportional to synthesis
+    (re-synthesis, re-encoding): that work would land in ``remix_s`` too and
+    shrink the saving below the floor. The precise "not one extra synthesis"
+    guard is the operation-count test above; this is the integration-level
+    check that the whole re-mix is genuinely faster end to end."""
     run, model, job, job_dir = dub_harness
+    n = 6
     model.delay_s = 0.05
+    synthesis_cost = n * model.delay_s  # what the fresh render pays, remix skips
     segs = [
         {"start": i * 0.6, "end": i * 0.6 + 0.5, "text": "0.4:seg"}
-        for i in range(6)
+        for i in range(n)
     ]
 
     t0 = time.perf_counter()
     _assert_done(run(_dub_body(segs)))
     fresh_s = time.perf_counter() - t0
-    assert len(model.calls) == 6
+    assert len(model.calls) == n
 
     t0 = time.perf_counter()
     _assert_done(run(_dub_body(segs, regen_only=[])))
     remix_s = time.perf_counter() - t0
 
-    assert remix_s * 2 <= fresh_s, (
-        f"budget: cached re-mix must be ≥2x faster than fresh synthesis "
-        f"(fresh={fresh_s:.3f}s, remix={remix_s:.3f}s)"
+    saved = fresh_s - remix_s
+    # Floor at half the injected cost: the shared overhead cancels, so `saved`
+    # tracks `synthesis_cost` (~0.30s) closely; the 0.5 margin absorbs run-to-
+    # run overhead jitter without letting a re-synthesizing re-mix (saved → 0)
+    # pass. Widen `synthesis_cost` before tightening the margin.
+    assert saved >= 0.5 * synthesis_cost, (
+        f"budget: cached re-mix must skip the synthesis cost the fresh render "
+        f"pays (fresh={fresh_s:.3f}s, remix={remix_s:.3f}s, saved={saved:.3f}s, "
+        f"injected synthesis={synthesis_cost:.3f}s) — a saving this small means "
+        f"the re-mix is doing synthesis-proportional work"
     )
 
 
