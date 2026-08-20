@@ -158,25 +158,6 @@ _OPENAI_VOICE_ALIASES = {
 # ── TTS: POST /v1/audio/speech ──────────────────────────────────────────────
 
 
-#: Last engine explicitly requested via a `model` ID on this route, and its
-#: instance — mirrors get_active_tts_backend's switch rule (MM2-01): loading a
-#: different explicit engine unloads the outgoing one first, so cached explicit
-#: IDs can't accumulate multi-GB in-process models / sidecars.
-_explicit_engine: dict = {}
-
-
-def _unload_explicit_engine() -> None:
-    inst = _explicit_engine.get("instance")
-    if inst is None:
-        return
-    try:
-        inst.unload()
-    except Exception as exc:  # noqa: BLE001 — a bad unload must not block a switch
-        logger.warning("explicit engine switch: %s.unload() raised: %s",
-                       type(inst).__name__, exc)
-    _explicit_engine.clear()
-
-
 def _resolve_engine(model_id: str):
     """Map an OpenAI model name to a VoiceStudio backend."""
     from services.tts_backend import (
@@ -200,18 +181,16 @@ def _resolve_engine(model_id: str):
         if cls is OmniVoiceBackend:
             # OmniVoice only ever runs as the shared active engine — the
             # explicit-omnivoice request is the active-engine request.
-            _unload_explicit_engine()
             return get_active_tts_backend()
         # Cached singleton, not a fresh cls(): SubprocessBackend engines would
         # spawn a sidecar process and reload their model on EVERY request, and
         # register a new atexit hook each time (get_engine_instance's contract).
-        # And on a switch between explicit IDs, unload the outgoing engine so
-        # the cache can't accumulate residents (same rule as the active path).
-        if _explicit_engine.get("id") != model_id:
-            _unload_explicit_engine()
-            _explicit_engine["id"] = model_id
-            _explicit_engine["instance"] = get_engine_instance_for(model_id)
-        return _explicit_engine["instance"]
+        # No router-local cache on top of it: the shared cache is keyed by
+        # CLASS precisely so id rebinds/evictions can't serve a stale instance,
+        # and cross-engine memory discipline is create_speech's
+        # evict_other_tts_engines call (the same seam /generate uses) — not a
+        # bespoke unload here.
+        return get_engine_instance_for(model_id)
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -420,6 +399,15 @@ async def create_speech(req: SpeechRequest):
 
     # VRAM eviction runs in get_model()'s warm-return path now, covering every
     # native TTS generate (this route, WS TTS, dub, batch, audiobook).
+
+    # Single-active-engine memory discipline (MM2-01), the same call /generate
+    # makes before its load: hand back every OTHER resident TTS engine's model
+    # before this one warms up, so switching `model` ids across requests —
+    # explicit id → explicit id, or explicit id → the tts-1/omnivoice aliases —
+    # can't stack multi-GB engines/sidecars. No-op when nothing else is
+    # resident; opt out with OMNIVOICE_SINGLE_ENGINE_RESIDENT=0.
+    from services.engine_memory import evict_other_tts_engines
+    await evict_other_tts_engines(backend.id)
 
     # ── #1033/#1037/#1014: warm the engine under the LOAD budget before the
     # generate clock starts. The T4 verification (#1014) measured a fresh

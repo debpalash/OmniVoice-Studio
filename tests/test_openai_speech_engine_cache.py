@@ -7,8 +7,21 @@ request on real hardware — and registered another atexit hook each time. The
 cached-singleton seam (``get_engine_instance_for``) exists precisely for this;
 the route just wasn't using it for explicit engine IDs (only tts-1/tts-1-hd got
 the shared active-engine instance).
+
+The flip side of caching is accumulation: cached explicit engines must not
+stack multi-GB residents when requests switch ``model`` ids. That is NOT a
+router-local unload cache (an id-keyed instance ref goes stale against the
+class-keyed shared cache — registry rebinds, idle sweeps) — the route calls
+``evict_other_tts_engines`` before warming the engine, the exact seam
+/generate uses (single-engine-resident policy, MM2-01), pinned here at the
+route level.
 """
 from __future__ import annotations
+
+import os
+
+os.environ.setdefault("OMNIVOICE_MODEL", "test")
+os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
 
 import pytest
 
@@ -64,37 +77,66 @@ def test_unknown_engine_id_still_400s(oc, monkeypatch):
     assert "Unknown model" in exc.value.detail
 
 
-def test_switching_explicit_engine_ids_unloads_the_outgoing_one(oc, monkeypatch):
-    """Cache must not accumulate residents: a different explicit `model` ID
-    unloads the outgoing engine first (same switch rule as the active-engine
-    path, MM2-01)."""
+# ── Cross-request memory discipline ─────────────────────────────────────────
+
+
+def _make_engine(tb, eid: str):
+    """A registry-real fake engine (same harness shape as
+    tests/test_text_normalization_routes.py) that counts its unloads."""
+    import torch
+
+    class _E(tb.TTSBackend):
+        id = eid
+        display_name = f"{eid} (test)"
+        supports_cloning = True
+        gpu_compat = ("cpu",)
+        unloads = 0
+
+        @property
+        def sample_rate(self) -> int:
+            return 24000
+
+        @property
+        def supported_languages(self) -> list[str]:
+            return ["multi"]
+
+        @classmethod
+        def is_available(cls):
+            return True, "ready"
+
+        def generate(self, text, **kw) -> torch.Tensor:
+            return torch.zeros(1, 24000)
+
+        def unload(self):
+            type(self).unloads += 1
+
+    return _E
+
+
+def test_speech_request_evicts_other_resident_engines(monkeypatch):
+    """Switching explicit `model` ids across requests must hand back the
+    outgoing engine's model (single-engine-resident policy) — the cached
+    singletons cannot accumulate residents."""
     svc = _tts_mod()
-    unloaded = []
+    a = _make_engine(svc, "fake-cache-a")
+    b = _make_engine(svc, "fake-cache-b")
+    monkeypatch.setitem(svc._REGISTRY, "fake-cache-a", a)
+    monkeypatch.setitem(svc._REGISTRY, "fake-cache-b", b)
 
-    def _make(name):
-        class _B:
-            ident = name
+    from fastapi.testclient import TestClient
+    from main import app
 
-            def __init__(self):
-                pass
+    client = TestClient(app, client=("127.0.0.1", 50000))
 
-            @staticmethod
-            def is_available():
-                return True, "ok"
+    r1 = client.post("/v1/audio/speech", json={
+        "model": "fake-cache-a", "input": "hi", "response_format": "wav",
+    })
+    assert r1.status_code == 200, r1.text
+    assert a.unloads == 0  # the engine that just ran stays warm
 
-            def unload(self):
-                unloaded.append(name)
-
-        return _B
-
-    engines = {"a-engine": _make("a"), "b-engine": _make("b")}
-    monkeypatch.setattr(svc, "get_backend_class", lambda i: engines[i])
-
-    first = oc._resolve_engine("a-engine")
-    second = oc._resolve_engine("a-engine")
-    assert first is second
-    assert unloaded == []
-
-    third = oc._resolve_engine("b-engine")
-    assert third is not first
-    assert unloaded == ["a"]
+    r2 = client.post("/v1/audio/speech", json={
+        "model": "fake-cache-b", "input": "hi", "response_format": "wav",
+    })
+    assert r2.status_code == 200, r2.text
+    assert a.unloads == 1  # outgoing engine handed its model back
+    assert b.unloads == 0  # incoming engine untouched
