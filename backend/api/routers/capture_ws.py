@@ -74,6 +74,22 @@ _AEC_NEAR = 0x00  # microphone frame (clean it, then buffer for ASR)
 _AEC_FAR = 0x01   # playback reference frame (feed the echo model only)
 
 
+# Client-supplied ``?sr=`` values outside the range real capture devices use
+# are replaced with 16 kHz. The rate sizes server-side state — RecoveryTail
+# multiplies it by RECOVERY_TAIL_SECONDS to compute its byte ceiling — so an
+# absurd rate must never be believed: it would re-open the unbounded-memory
+# path the recovery-tail cap closed.
+SR_MIN, SR_MAX = 8000, 96000
+
+
+def _bounded_sample_rate(query_params) -> int:
+    try:
+        sample_rate = int(query_params.get("sr", "16000"))
+    except (TypeError, ValueError):
+        return 16000
+    return sample_rate if SR_MIN <= sample_rate <= SR_MAX else 16000
+
+
 def _requested_pcm_sample_rate(query_params) -> int | None:
     """Return the bounded rate when the client transport is raw PCM.
 
@@ -97,11 +113,7 @@ def _requested_pcm_sample_rate(query_params) -> int | None:
             sherpa_pcm = False
     if not raw_pcm and not aec and not sherpa_pcm:
         return None
-    try:
-        sample_rate = int(query_params.get("sr", "16000"))
-    except (TypeError, ValueError):
-        return 16000
-    return sample_rate if 8000 <= sample_rate <= 96000 else 16000
+    return _bounded_sample_rate(query_params)
 
 
 def _demux_aec_frame(data: bytes) -> tuple[str, bytes]:
@@ -582,18 +594,13 @@ async def _recover_silent_sherpa(
 
 
 async def _sherpa_session(websocket: WebSocket):
-    """Shared WS receive setup for the sherpa handlers.
+    """Shared WS setup for the sherpa handlers.
 
-    Returns ``(get_frame, state)`` where ``get_frame`` is an async callable
-    that yields the next near-end (mic) PCM bytes, ``b""`` for a keepalive/ref
-    frame, or ``None`` on EOF/disconnect. ``state`` carries sample rate, AEC,
-    and the disconnect flag for the caller's finaliser.
+    Returns ``(pcm_sr, aec)``: the bounded PCM sample rate for the session
+    and the echo canceller when ``?aec=1`` requested one (``None`` otherwise
+    or when AEC setup fails).
     """
-    pcm_sr = 16000
-    try:
-        pcm_sr = int(websocket.query_params.get("sr", "16000"))
-    except (TypeError, ValueError):
-        pcm_sr = 16000
+    pcm_sr = _bounded_sample_rate(websocket.query_params)
     aec = None
     if websocket.query_params.get("aec") in ("1", "true", "on"):
         try:

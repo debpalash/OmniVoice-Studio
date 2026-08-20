@@ -68,6 +68,30 @@ def test_a_nonsense_bound_still_yields_a_usable_buffer(ws, sample_rate, seconds)
     assert len(tail.tail()) >= 2
 
 
+@pytest.mark.parametrize("sr", ["1000000000", "4000", "0", "-16000", "junk", ""])
+def test_an_absurd_client_sample_rate_is_not_believed(ws, sr):
+    """`?sr=` sizes RecoveryTail's byte ceiling (rate × RECOVERY_TAIL_SECONDS),
+    so an unclamped client value re-opens the unbounded-memory path (#1610
+    review). Out-of-range and garbage rates fall back to 16 kHz."""
+    assert ws._bounded_sample_rate({"sr": sr}) == 16000
+
+
+def test_supported_client_sample_rates_pass_through(ws):
+    for sr in (8000, 16000, 44100, 48000, 96000):
+        assert ws._bounded_sample_rate({"sr": str(sr)}) == sr
+
+
+def test_the_sherpa_paths_use_the_bounded_rate(ws):
+    """Structural: both sherpa handlers get their rate from _sherpa_session,
+    which must parse via the clamped helper — a raw int() of the query param
+    is exactly the bug."""
+    import inspect
+
+    src = inspect.getsource(ws._sherpa_session)
+    assert "_bounded_sample_rate(" in src
+    assert 'int(websocket.query_params.get("sr"' not in src
+
+
 def test_both_socket_paths_use_the_bounded_buffer(ws):
     """Structural: the streaming path and the offline path both had the leak,
     so a fix applied to only one of them is not a fix."""
