@@ -10,6 +10,8 @@ import { describe, it, expect } from 'vitest';
 import {
   isSherpaModel,
   classifySherpaFinal,
+  sherpaSummaryTail,
+  aggregateDeliveryKind,
   computeTypeDelta,
   parsePasteError,
 } from '../components/CaptureWidget';
@@ -26,30 +28,54 @@ describe('isSherpaModel', () => {
 });
 
 describe('classifySherpaFinal', () => {
-  it('treats the first non-empty offline final as a new utterance (then close finalises)', () => {
-    // Offline model (Parakeet v3 default): one final, nothing committed yet.
-    expect(classifySherpaFinal('hello world', [])).toBe('utterance');
+  it('uses the explicit utterance kind even when the text repeats', () => {
+    expect(
+      classifySherpaFinal({ type: 'final', final_kind: 'utterance', text: 'yes' }, ['yes']),
+    ).toBe('utterance');
   });
 
-  it('treats a streaming per-utterance final as an utterance', () => {
-    expect(classifySherpaFinal('second sentence', ['first sentence'])).toBe('utterance');
+  it('uses the explicit summary kind when EOF includes an uncommitted tail', () => {
+    expect(
+      classifySherpaFinal(
+        { type: 'final', final_kind: 'summary', text: 'first sentence tail words' },
+        ['first sentence'],
+      ),
+    ).toBe('summary');
   });
 
-  it('detects the EOF summary (text === the committed join)', () => {
-    const committed = ['first sentence', 'second sentence'];
-    expect(classifySherpaFinal('first sentence second sentence', committed)).toBe('summary');
+  it('finalises on an explicit empty summary', () => {
+    expect(classifySherpaFinal({ type: 'final', final_kind: 'summary', text: '' }, [])).toBe(
+      'terminator',
+    );
   });
 
-  it('detects a single-utterance summary (summary equals the one commit)', () => {
-    expect(classifySherpaFinal('hello world', ['hello world'])).toBe('summary');
+  it('ignores empty utterance and unknown final kinds', () => {
+    expect(classifySherpaFinal({ final_kind: 'utterance', text: '' }, [])).toBe('ignore');
+    expect(classifySherpaFinal({ text: 'legacy guess' }, [])).toBe('ignore');
+  });
+});
+
+describe('sherpaSummaryTail', () => {
+  it('returns only text not already committed', () => {
+    expect(sherpaSummaryTail('First sentence. Tail words.', ['First sentence.'])).toBe(
+      'Tail words.',
+    );
   });
 
-  it('finalises on an empty no-speech terminator', () => {
-    expect(classifySherpaFinal('', [])).toBe('terminator');
+  it('returns the whole summary when no utterance was committed', () => {
+    expect(sherpaSummaryTail('Offline final.', [])).toBe('Offline final.');
   });
 
-  it('ignores an empty final once utterances were committed (the summary covers it)', () => {
-    expect(classifySherpaFinal('', ['something'])).toBe('ignore');
+  it('does not duplicate a summary already delivered in full', () => {
+    expect(sherpaSummaryTail('One. Two.', ['One.', 'Two.'])).toBe('');
+  });
+});
+
+describe('aggregateDeliveryKind', () => {
+  it('keeps copied as the truthful session outcome', () => {
+    expect(aggregateDeliveryKind('pasted', 'inserted')).toBe('inserted');
+    expect(aggregateDeliveryKind('inserted', 'copied')).toBe('copied');
+    expect(aggregateDeliveryKind('copied', 'inserted')).toBe('copied');
   });
 });
 
@@ -154,6 +180,10 @@ describe('parsePasteError', () => {
     expect(parsePasteError('paste: key event failed')).toEqual({
       kind: 'paste',
       message: 'key event failed',
+    });
+    expect(parsePasteError('preflight: clipboard-only session')).toEqual({
+      kind: 'preflight',
+      message: 'clipboard-only session',
     });
   });
 

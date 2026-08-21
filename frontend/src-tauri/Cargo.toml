@@ -67,7 +67,13 @@ dirs-next = "2"
 # Native (OS-side) clipboard write for dictation auto-paste: the widget window
 # is unfocused on macOS so the simulated ⌘V reaches the target app, which makes
 # the WebView clipboard APIs fail silently there (#287)
-arboard = "3"
+arboard = { version = "3", features = ["wayland-data-control"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Capture the frontmost application at shortcut-down and reactivate that exact
+# process before transcript delivery.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSRunningApplication", "NSWorkspace"] }
 
 [target.'cfg(windows)'.dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
@@ -84,13 +90,15 @@ windows-core = "0.61"
 # `HWND` type — no second copy of the crate enters the dependency graph.
 # Win32_System_Registry: check_microphone reads the CapabilityAccessManager
 # ConsentStore mic toggle (RegGetValueW) for the permissions UX.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_Threading"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
+gtk = "0.18"
+x11rb = "0.13"
 # Wayland compositors do not expose global keys through X11 grabs. Use the
 # standard xdg-desktop-portal GlobalShortcuts interface there; zbus is already
 # present transitively through Tauri's opener/single-instance plugins.

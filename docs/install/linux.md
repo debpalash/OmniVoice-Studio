@@ -100,6 +100,22 @@ where the protocol gives applications no say in their own placement and the
 compositor decides where it appears. The capsule works the same either way; only
 its position is out of the app's hands there.
 
+Wayland does not expose a portable identity for the app focused at shortcut
+down, so VoiceStudio safely leaves the complete transcript on the clipboard and
+the pill says **Copied** instead of risking insertion into a different app.
+
+Advanced users can opt into current-focus insertion with
+`VOICESTUDIO_WAYLAND_UNTARGETED_INSERT=1`. wlroots compositors such as Sway and
+Hyprland use `wtype`; KDE Plasma and GNOME can use `dotool` or `ydotool` to
+paste the Unicode clipboard payload. The
+opt-in targets whichever client owns keyboard focus when transcription
+finishes, not necessarily the app where dictation started. Tray-started
+dictation remains copy-only. `dotool` needs direct write access to
+`/dev/uinput` (normally through a distribution udev rule/group). `ydotool`
+1.0+ needs the `ydotoold` daemon running with that access and its socket
+available to the desktop user. VoiceStudio skips either helper when its
+readiness check fails.
+
 If the global shortcut stops working, restart your desktop's portal service,
 then save the shortcut again in **Settings → Hotkey** to reopen consent. Portal
 packages and support vary by desktop; use the backend recommended by your

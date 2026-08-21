@@ -101,3 +101,10 @@ def test_every_platform_has_a_curated_asr_pick():
             and (not m.get("platforms") or set(m["platforms"]) & family_tags)
         ]
         assert curated_asr, f"no curated ASR pick resolves for host tags {family_tags}"
+
+
+def test_single_cross_platform_dictation_recommendation_is_whisper_tiny():
+    """Installer curation must match the runtime/UI dictation default."""
+    sherpa = [m for m in _models() if m.get("engine") == "sherpa-onnx"]
+    recommended = [m["dictation_id"] for m in sherpa if "all" in (m.get("curated_on") or [])]
+    assert recommended == ["sherpa-whisper-tiny"]

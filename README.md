@@ -103,7 +103,7 @@ Use `bun run dev` for the browser UI. See [Contributing](.github/CONTRIBUTING.md
 | **Voice Design** | Create a voice from age, accent, pitch, style, and delivery instructions |
 | **Video Dubbing** | Transcribe, translate, preserve speakers, synthesize, and export video |
 | **Stories and audiobooks** | Multi-voice scripts · EPUB/PDF import · chapter rendering · `.m4b` export |
-| **Dictation Widget** | System-wide shortcut, live transcription, optional local-LLM cleanup |
+| **[Dictation Widget](docs/features/dictation.md)** | System-wide shortcut, live transcription, optional local-LLM cleanup |
 | **Vocal Isolation** | Demucs speech/background separation |
 | **Speaker Diarization** | Pyannote and WhisperX speaker assignment |
 | **Batch Queue** | Queue large sets of audio and video jobs with per-job progress |

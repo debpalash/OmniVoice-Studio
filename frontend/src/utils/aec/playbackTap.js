@@ -12,6 +12,7 @@
 // the player never silences playback.
 
 import { publishFarEnd } from './farEndBus';
+import { buildAntiAliasChain, resampleInterleavedFrame } from './micCapture';
 
 const WORKLET_URL = '/aec-worklet.js';
 
@@ -44,11 +45,21 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
       /* gesture may be required; harmless */
     }
   }
+  const channels = 1;
+  const sourceFrameSize = Math.max(1, Math.round((frameSize * ctx.sampleRate) / sampleRate));
   const node = new AudioWorkletNode(ctx, 'aec-frame-emitter', {
-    processorOptions: { frameSize },
+    processorOptions: { frameSize: sourceFrameSize, channels },
   });
-  node.port.onmessage = (e) => publishFarEnd(e.data);
-  src.connect(node);
+  node.port.onmessage = (e) =>
+    publishFarEnd(resampleInterleavedFrame(e.data, ctx.sampleRate, sampleRate, channels));
+  // The far-end reference decimates exactly like the mic path, so it needs the
+  // same anti-alias low-pass before resampling — an aliased reference makes
+  // the AEC subtract tones the speaker never played. Filters sit only on the
+  // tap branch: the src → destination edge stays untouched, so what the user
+  // hears is unchanged.
+  const antiAlias = ctx.sampleRate > sampleRate ? buildAntiAliasChain(ctx, sampleRate) : [];
+  const chain = [src, ...antiAlias, node];
+  for (let i = 0; i < chain.length - 1; i += 1) chain[i].connect(chain[i + 1]);
 
   return async function detach() {
     try {
@@ -61,6 +72,20 @@ export async function attachPlaybackTap(mediaEl, { sampleRate = 16000, frameSize
     } catch {
       /* ignore */
     }
-    // Intentionally leave ctx + src→destination intact (see header note).
+    for (const filter of antiAlias) {
+      try {
+        filter.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    // Detach the tap edge too: the ctx and src are memoised per element, so a
+    // filter left hanging off src would accumulate one dead chain per AEC
+    // toggle. The audible src→destination edge stays (see header note).
+    try {
+      src.disconnect(antiAlias[0] ?? node);
+    } catch {
+      /* ignore */
+    }
   };
 }

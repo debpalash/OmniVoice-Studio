@@ -217,7 +217,8 @@ impl TestApp {
         app.manage(AppFlags {
             quitting: AtomicBool::new(false),
             dictating: AtomicBool::new(false),
-            capture: Mutex::new(CaptureDispatchState { ready: false, pending: None }),
+            capture: Mutex::new(CaptureDispatchState::default()),
+            output: app_lib::dictation_output::DictationOutput::default(),
         });
         let stage = Arc::new(Mutex::new(BootstrapStage::Checking));
         let logs: Arc<Mutex<Vec<LogPayload>>> = Arc::new(Mutex::new(Vec::new()));

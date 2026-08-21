@@ -1,16 +1,15 @@
 """A dictation model that decodes nothing gets demoted, not re-selected forever.
 
-`sherpa-parakeet-tdt-v3` is the curated default, and on Windows it installs
-cleanly, loads without error, and returns an empty token list for clear speech
+On Windows, `sherpa-parakeet-tdt-v3` installs cleanly, loads without error,
+and returns an empty token list for clear speech
 (both quantisations, both decoding methods, sherpa-onnx 1.13.3 and 1.13.4)
 while whisper and zipformer transcribe the same bytes. The defect is inside
 sherpa-onnx's NeMo-TDT decoder — unfixable from here by configuration.
 
-Hard-coding a different default per OS would be a guess: we have evidence for
-one platform only. So the app observes instead. When a session hears real
-speech and the model returns nothing, that model is demoted ON THIS MACHINE and
-stops being auto-selected, which self-corrects wherever the breakage actually
-is and is a no-op everywhere it isn't.
+Whisper Tiny is now the cross-platform default, while Parakeet remains
+selectable. Runtime demotion still protects users who select a recognizer that
+loads successfully but decodes nothing: it is demoted on this machine and the
+next session follows the capture fallback.
 
 These tests pin the demotion round trip and, critically, that the user can
 always take back control by re-picking the model.

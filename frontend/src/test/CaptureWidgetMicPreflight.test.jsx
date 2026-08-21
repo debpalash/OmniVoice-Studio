@@ -72,14 +72,16 @@ function stubInvoke({ mic = 'granted' } = {}) {
     if (cmd === 'check_accessibility') return true;
     if (cmd === 'request_dictation_capture') {
       const event = payload?.action === 'stop' ? 'tray-dictate-stop' : 'tray-dictate';
-      if (eventHandlers[event]) return eventHandlers[event]();
-      captureState.pending = event;
+      const eventPayload =
+        event === 'tray-dictate' ? { payload: { sessionId: 'mic-preflight-session' } } : undefined;
+      if (eventHandlers[event]) return eventHandlers[event](eventPayload);
+      captureState.pending = { event, eventPayload };
       return undefined;
     }
     if (cmd === 'mark_dictation_capture_ready' && captureState.pending) {
-      const pending = captureState.pending;
+      const { event, eventPayload } = captureState.pending;
       captureState.pending = null;
-      return eventHandlers[pending]?.();
+      return eventHandlers[event]?.(eventPayload);
     }
     return undefined;
   });
@@ -152,7 +154,7 @@ describe('CaptureWidget — mic permission pre-flight (Tauri)', () => {
     });
     render(<CaptureWidget />);
     await waitFor(() => expect(eventHandlers['tray-dictate']).toBeTypeOf('function'));
-    eventHandlers['tray-dictate']();
+    eventHandlers['tray-dictate']({ payload: { sessionId: 'mic-preflight-session' } });
 
     expect(await screen.findByText(/Mic access denied/)).toBeInTheDocument();
     expect(gum).not.toHaveBeenCalled();

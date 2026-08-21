@@ -1,14 +1,14 @@
-# Dictation Flow Program — local WhisperFlow-class dictation on Parakeet
+# Dictation Flow Program — local cross-platform flow dictation
 
-*Spec, 2026-07-16. Research inputs: three-agent study — product landscape (Wispr Flow, jamiepine/voicebox, Handy, VoiceInk, Whispering, Talon, Claude Code `/voice`), in-repo capability map, and Parakeet TDT/Nemotron feasibility (sherpa-onnx). Sources cited inline where load-bearing.*
+*Spec, 2026-07-16. Research inputs: a multi-agent product-landscape study, in-repo capability map, and local ASR feasibility review. Sources are cited inline where load-bearing.*
 
 ## Why
 
-Dictating prompts to AI agents is the fastest-growing text-input workload (Claude Code shipped built-in `/voice`; Wispr Flow raised at ~$2B on it) — and every polished option is **cloud** (Wispr: cloud-only, no Linux, one privacy scandal already; Claude Code voice: cloud-only, no SSH). The best open competitor, **jamiepine/voicebox** (41.7k★, MIT — our refinement layer is already adapted from it), only ships reliable auto-paste on macOS. VoiceStudio already has the hard parts: a Wispr-style pill, global hotkey, sherpa-onnx streaming WS, **Parakeet TDT v3 int8 as the shipped default**, clipboard-restoring paste, and local-LLM refinement. A local, cross-platform, private flow-dictation experience is reachable and strategically differentiating — the wedge is **local + Linux/Wayland + agent-prompting**, where nobody credible plays.
+Dictating prompts to AI agents is a rapidly growing text-input workload, while polished options remain cloud-first and Linux support is uneven. VoiceStudio already has the hard parts: a compact capture pill, global hotkey, sherpa-onnx streaming WS, **Whisper Tiny int8 as the shipped cross-platform default**, clipboard-restoring paste, and local-LLM refinement. A local, cross-platform, private flow-dictation experience is reachable and strategically differentiating — the wedge is **local + Linux/Wayland + agent-prompting**.
 
 ## Current state (verified in-repo)
 
-Widget: pill webview + `tauri-plugin-global-shortcut` (`CmdOrCtrl+Shift+Space`, toggle/hold) on macOS, Windows and X11 + the GlobalShortcuts desktop portal on Wayland + browser-mode keyboard fallback; `getUserMedia` → raw-PCM WS `/ws/transcribe`; paste via arboard+enigo with clipboard restore, macOS a11y fail-loud, Windows no-activate. Backend: 7 sherpa models (Parakeet TDT v3 default), streaming path (zipformer/paraformer) + chunked-offline path (0.8 s partial cadence, **RMS silence gate**), `text_polish` on finals, opt-in LLM refinement (Ollama/LM Studio, ≤4 s wall clock). Gaps: no real VAD, no dictionary/hotwords, no per-app awareness, no command grammar, no language picker, enigo-only Linux insertion, no comprehensive dictation feature guide beyond the Linux installation note, picker understates model size ~4×.
+Widget: pill webview + `tauri-plugin-global-shortcut` (`CmdOrCtrl+Shift+Space`, toggle/hold) on macOS, Windows and X11 + the GlobalShortcuts desktop portal on Wayland + browser-mode keyboard fallback; `getUserMedia` → 16 kHz raw-PCM WS `/ws/transcribe`; a native session captures the destination before the pill appears, restores an untouched clipboard by generation, reactivates macOS/Windows/X11 targets, and uses a truthful copy fallback on Wayland unless current-focus insertion is explicitly enabled. Backend: 7 sherpa models (Whisper Tiny default), streaming path (zipformer/paraformer) + chunked-offline path (0.8 s partial cadence, **RMS silence gate**), shared speech-evidence model demotion with installed-only ASR fallback, `text_polish` on finals, opt-in LLM refinement (Ollama/LM Studio, ≤4 s wall clock). Gaps: no real VAD, no dictionary/hotwords, no per-app formatting profiles, no command grammar, no language picker, picker understates model size ~4×.
 
 ## Program phases
 
@@ -41,7 +41,7 @@ Parakeet's one real weakness is OOV technical terms — and the dictionary is Wi
 
 ### Phase 4 — insertion reliability + Wayland (beat everyone on Linux)
 - **Reliability engineering** (the boring 20% that reads professional; Wispr does 5 retries): retry-with-backoff on paste, transcript stays on clipboard + toast on failure, password-field refusal, Windows elevated-window detection.
-- **Wayland insertion chain** replacing bare enigo on Linux: kwtype→wtype→dotool→ydotool→wl-copy+notify fallback (Handy's proven cascade), IBus/Fcitx5 input-method commit path evaluated for GNOME (highest quality, nobody mainstream ships it), libei/RemoteDesktop-portal as the forward bet. Wispr has no Linux at all; voicebox has no Linux paste — this is the moat.
+- **Wayland insertion chain** replacing bare enigo on Linux: wtype→dotool→ydotool→wl-copy+notify fallback, IBus/Fcitx5 input-method commit path evaluated for GNOME (highest quality, nobody mainstream ships it), libei/RemoteDesktop-portal as the forward bet. Reliable local Linux insertion is the moat.
 
 ### Phase 5 — command mode (headline, local-only differentiator)
 Second hotkey → speak an instruction over selected text → local LLM rewrite → explicit Apply. Wispr charges for this; ours is local and free. Requires configured LLM; hidden otherwise (existing `llm_ready` plumbing).
@@ -56,10 +56,10 @@ Second hotkey → speak an instruction over selected text → local LLM rewrite 
 | Use case | Model | Partials | Final after pause | Disk/RAM |
 |---|---|---|---|---|
 | English, best feel | nemotron-streaming-en 160 ms (new, Ph. 1) | 200–400 ms | ~0.5–0.7 s | 0.66 GB / ~1.2 GB |
-| Multilingual default | parakeet-tdt-v3 + silero-VAD (upgraded path) | 0.8 s cadence | ~0.4–0.7 s | 0.67 GB / ~1.2 GB |
+| European languages (opt-in) | parakeet-tdt-v3 + silero-VAD (upgraded path) | 0.8 s cadence | ~0.4–0.7 s | 0.67 GB / ~1.2 GB |
 | Multilingual streaming (opt-in) | Nemotron-3.5 320 ms (new) | ~400 ms | ~0.7 s | 0.68 GB / ~1.2 GB |
 | Low-RAM | zipformer-20M (existing) | ~100 ms | ~0.6 s | 0.13 GB / ~0.3 GB |
-| CJK / 90+ langs | whisper-tiny (existing; consider small) | n/a | seconds | 0.12 GB |
+| Multilingual default / CJK | whisper-tiny (existing; consider small) | n/a | seconds | 0.104 GB |
 
 ## Top risks
 

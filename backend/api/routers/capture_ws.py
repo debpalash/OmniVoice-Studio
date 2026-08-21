@@ -27,6 +27,10 @@ Protocol:
          "detail": "..."}                                  — error ("detail"
                                                           kept for legacy)
 
+    Sherpa ``final`` frames additionally carry
+    ``"final_kind": "utterance"|"summary"``. Utterances are mid-session
+    commits; the summary is the authoritative whole-session result at EOF.
+
     Every ``final`` text is normalised by services.text_polish (leading
     capital for Latin scripts, terminal punctuation, single-spaced) so the
     pasted result reads like typed text. Partials are raw.
@@ -35,6 +39,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import tempfile
 import time
@@ -70,17 +75,46 @@ _AEC_NEAR = 0x00  # microphone frame (clean it, then buffer for ASR)
 _AEC_FAR = 0x01   # playback reference frame (feed the echo model only)
 
 
-def _requested_pcm_sample_rate(query_params) -> int | None:
-    """Return a bounded PCM rate for ``?pcm=1``/``?aec=1`` sessions."""
-    raw_pcm = query_params.get("pcm") in ("1", "true", "on")
-    aec = query_params.get("aec") in ("1", "true", "on")
-    if not raw_pcm and not aec:
-        return None
+# Client-supplied ``?sr=`` values outside the range real capture devices use
+# are replaced with 16 kHz. The rate sizes server-side state — RecoveryTail
+# multiplies it by RECOVERY_TAIL_SECONDS to compute its byte ceiling — so an
+# absurd rate must never be believed: it would re-open the unbounded-memory
+# path the recovery-tail cap closed.
+SR_MIN, SR_MAX = 8000, 96000
+
+
+def _bounded_sample_rate(query_params) -> int:
     try:
         sample_rate = int(query_params.get("sr", "16000"))
     except (TypeError, ValueError):
         return 16000
-    return sample_rate if 8000 <= sample_rate <= 96000 else 16000
+    return sample_rate if SR_MIN <= sample_rate <= SR_MAX else 16000
+
+
+def _requested_pcm_sample_rate(query_params) -> int | None:
+    """Return the bounded rate when the client transport is raw PCM.
+
+    Sherpa clients omit ``pcm=1`` because the selected model already defines
+    that transport. If the model is demoted or its runtime is unavailable, the
+    legacy recognizer fallback must still decode those same bytes as PCM.
+    """
+    raw_pcm = query_params.get("pcm") in ("1", "true", "on")
+    aec = query_params.get("aec") in ("1", "true", "on")
+    sherpa_pcm = False
+    requested_model = query_params.get("model")
+    if requested_model:
+        try:
+            from services.sherpa_dictation import is_sherpa_model
+            sherpa_pcm = is_sherpa_model(requested_model)
+        except Exception:  # noqa: BLE001
+            # A broken sherpa install must not decide the framing question —
+            # sherpa_pcm stays False and the session negotiates the
+            # MediaRecorder path; availability is re-probed (and reported)
+            # when the model is actually selected.
+            sherpa_pcm = False
+    if not raw_pcm and not aec and not sherpa_pcm:
+        return None
+    return _bounded_sample_rate(query_params)
 
 
 def _demux_aec_frame(data: bytes) -> tuple[str, bytes]:
@@ -137,16 +171,27 @@ def _select_sherpa_spec(websocket: WebSocket):
         from services import sherpa_dictation as sd
     except Exception:
         return None
+
+    def _usable_spec(model_id):
+        spec = sd.get_spec(model_id)
+        if spec is not None and sd.is_demoted(spec.id):
+            logger.warning(
+                "dictation model %s is demoted — using the capture ASR fallback",
+                spec.id,
+            )
+            return None
+        return spec
+
     requested = websocket.query_params.get("model")
     if requested:
-        return sd.get_spec(requested)  # explicit selection (may be None if bad)
+        return _usable_spec(requested)  # explicit selection (may be unavailable)
     # Fall back to the persisted dictation pref.
     try:
         from services.asr_backend import dictation_model_id
         mid = dictation_model_id()
     except Exception:
         mid = None
-    return sd.get_spec(mid) if mid else None
+    return _usable_spec(mid) if mid else None
 
 
 @router.websocket("/ws/transcribe")
@@ -422,6 +467,64 @@ SHERPA_OFFLINE_SILENCE_S = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_SILENC
 SHERPA_OFFLINE_RMS_FLOOR = float(os.environ.get("OMNIVOICE_SHERPA_OFFLINE_RMS", "0.01"))
 
 
+#: Seconds of audio retained for silent-model recovery. Recovery only needs
+#: enough speech to prove the model is broken and to re-transcribe what was
+#: said; retaining the whole session grew ~115 MB/hour at 16 kHz on an open
+#: mic, unbounded, and only ever got read when the fallback fired.
+RECOVERY_TAIL_DEFAULT_SECONDS = 120.0
+RECOVERY_TAIL_MAX_SECONDS = 300.0
+
+
+def _bounded_recovery_tail_seconds(value: str | None) -> float:
+    """Parse the recovery tail override without allowing unbounded buffers."""
+    try:
+        seconds = float(value) if value is not None else RECOVERY_TAIL_DEFAULT_SECONDS
+    except (TypeError, ValueError):
+        return RECOVERY_TAIL_DEFAULT_SECONDS
+    if not math.isfinite(seconds) or seconds <= 0:
+        return RECOVERY_TAIL_DEFAULT_SECONDS
+    return min(seconds, RECOVERY_TAIL_MAX_SECONDS)
+
+
+RECOVERY_TAIL_SECONDS = _bounded_recovery_tail_seconds(
+    os.environ.get("OMNIVOICE_DICTATION_RECOVERY_TAIL_S")
+)
+
+
+class RecoveryTail:
+    """The most recent ``RECOVERY_TAIL_SECONDS`` of session audio.
+
+    Keeps the *tail* rather than the head: a long dictation's useful speech is
+    what the user just said, and the silent-model check cares about how much
+    audio the session carried overall — which ``total_bytes`` still reports
+    truthfully after trimming.
+    """
+
+    __slots__ = ("_buf", "_max", "total_bytes")
+
+    def __init__(self, sample_rate: int, seconds: float = RECOVERY_TAIL_SECONDS):
+        # int16 mono → 2 bytes/sample. Floor of one frame so a nonsense rate
+        # or seconds value can't produce a zero-length buffer.
+        self._max = max(2, int(seconds * max(1, sample_rate)) * 2)
+        self._buf = bytearray()
+        self.total_bytes = 0
+
+    def extend(self, pcm: bytes) -> None:
+        self._buf.extend(pcm)
+        self.total_bytes += len(pcm)
+        excess = len(self._buf) - self._max
+        if excess > 0:
+            # int16 mono: trim whole samples only. A split frame can carry an
+            # odd byte count, and an odd trim would leave the tail starting
+            # mid-sample — every later sample byte-shifted, and the recovery
+            # transcription fed noise.
+            excess += excess % 2
+            del self._buf[:excess]
+
+    def tail(self) -> bytes:
+        return bytes(self._buf)
+
+
 def is_model_silent(text: str, heard_speech: bool, pcm_bytes: int) -> bool:
     """True when the dictation model produced NO text despite real speech.
 
@@ -448,19 +551,74 @@ def _pcm16_to_f32(pcm: bytes):
     return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
 
 
-async def _sherpa_session(websocket: WebSocket):
-    """Shared WS receive setup for the sherpa handlers.
+def _pcm16_rms(pcm: bytes) -> float:
+    samples = _pcm16_to_f32(pcm)
+    if not len(samples):
+        return 0.0
+    return float((samples * samples).mean() ** 0.5)
 
-    Returns ``(get_frame, state)`` where ``get_frame`` is an async callable
-    that yields the next near-end (mic) PCM bytes, ``b""`` for a keepalive/ref
-    frame, or ``None`` on EOF/disconnect. ``state`` carries sample rate, AEC,
-    and the disconnect flag for the caller's finaliser.
-    """
-    pcm_sr = 16000
+
+async def _recover_silent_sherpa(
+    spec, pcm: bytes, pcm_sr: int,
+) -> tuple[str, list[dict]]:
+    """Retry a token-silent Sherpa session through an installed local ASR."""
+    logger.warning(
+        "dictation model %s decoded NOTHING from %.1fs of speech-level audio "
+        "— falling back to the capture ASR engine for this session",
+        spec.id, len(pcm) / float(max(1, pcm_sr) * 2),
+    )
     try:
-        pcm_sr = int(websocket.query_params.get("sr", "16000"))
-    except (TypeError, ValueError):
-        pcm_sr = 16000
+        from services.asr_backend import asr_model_missing_error
+        fallback_missing = await asyncio.to_thread(
+            asr_model_missing_error,
+            purpose="dictation",
+            skip_sherpa=True,
+            require_installed=True,
+        )
+        if fallback_missing is not None:
+            logger.warning(
+                "dictation silent-model fallback is not installed (%s); "
+                "skipping recovery to avoid an automatic download",
+                fallback_missing.get("missing_repo_id", "unknown"),
+            )
+            return "", []
+
+        result = await _transcribe_buffer_full(
+            [pcm], pcm_sr=pcm_sr, skip_sherpa=True,
+        )
+        text = polish_text(_result_text(result))
+        if not text:
+            return "", []
+        # The RMS gate can fire on fan/keyboard noise. Only another recognizer
+        # producing words proves the audio held speech and makes persistent
+        # demotion safe.
+        try:
+            from services.sherpa_dictation import demote_model
+            if await asyncio.to_thread(demote_model, spec.id):
+                logger.error(
+                    "dictation model %s demoted on this machine — it will no longer be "
+                    "auto-selected. Pick it again in Settings to give it another chance.",
+                    spec.id,
+                )
+        except Exception:
+            logger.exception("silent-model demotion failed")
+        segments = (result or {}).get("segments") or [
+            {"start": 0.0, "end": None, "text": text}
+        ]
+        return text, segments
+    except Exception:
+        logger.exception("dictation silent-model fallback failed")
+        return "", []
+
+
+async def _sherpa_session(websocket: WebSocket):
+    """Shared WS setup for the sherpa handlers.
+
+    Returns ``(pcm_sr, aec)``: the bounded PCM sample rate for the session
+    and the echo canceller when ``?aec=1`` requested one (``None`` otherwise
+    or when AEC setup fails).
+    """
+    pcm_sr = _bounded_sample_rate(websocket.query_params)
     aec = None
     if websocket.query_params.get("aec") in ("1", "true", "on"):
         try:
@@ -569,6 +727,8 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
 
     last_partial = ""
     committed: list[str] = []     # finalized utterances this session
+    session_pcm = RecoveryTail(pcm_sr)   # bounded audio for silent-model recovery
+    heard_speech = False
     client_disconnected = False
 
     async def _send(payload) -> bool:
@@ -610,6 +770,9 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
                 break
             if kind == "skip":
                 continue
+            session_pcm.extend(pcm)
+            if not heard_speech and _pcm16_rms(pcm) >= SHERPA_OFFLINE_RMS_FLOOR:
+                heard_speech = True
             text, endpoint = await asyncio.to_thread(_decode_after_feed, pcm)
             if endpoint:
                 # Commit this utterance (polished — it gets pasted); reset
@@ -618,6 +781,7 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
                 if text:
                     committed.append(text)
                     await _send({"type": "final", "text": text,
+                                 "final_kind": "utterance",
                                  "segments": [{"start": 0.0, "end": None, "text": text}],
                                  "language": "auto", "engine": backend.id})
                 rec.reset(stream)
@@ -644,7 +808,28 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
     # Pieces are already polished; the join is too (polish is idempotent).
     full = " ".join(t for t in committed if t).strip()
     segments = [{"start": 0.0, "end": None, "text": t} for t in committed if t]
+
+    model_silent = is_model_silent(full, heard_speech, session_pcm.total_bytes)
+    if model_silent:
+        recovered, recovered_segments = await _recover_silent_sherpa(
+            spec, session_pcm.tail(), pcm_sr,
+        )
+        if recovered:
+            full = recovered
+            segments = recovered_segments
+
     if not client_disconnected:
+        payload = {"type": "final", "text": full, "final_kind": "summary",
+                   "segments": segments,
+                   "language": "auto", "engine": backend.id}
+        if model_silent:
+            payload["engine"] = "capture-asr-fallback" if full else backend.id
+            payload["model_silent"] = spec.id
+            payload["warning"] = (
+                f"The selected dictation model ({spec.id}) produced no text from your "
+                "speech. Switched to the fallback engine for this session — pick a "
+                "different model in Settings → Dictation."
+            )
         if full:
             # Hard-bounded refinement (~4s): never delays this summary `final`
             # beyond OMNIVOICE_REFINE_TIMEOUT_S even with a dead LLM endpoint.
@@ -653,14 +838,9 @@ async def _run_sherpa_streaming(websocket: WebSocket, spec):
                 refined = await maybe_refine_async(full)
             except Exception:
                 refined = None
-            payload = {"type": "final", "text": full, "segments": segments,
-                       "language": "auto", "engine": backend.id}
             if refined and refined != full:
                 payload["refined_text"] = refined
-            await _send(payload)
-        else:
-            await _send({"type": "final", "text": "", "segments": [],
-                         "language": "auto", "engine": backend.id})
+        await _send(payload)
         try:
             await websocket.close()
         except Exception:
@@ -697,7 +877,7 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
     # whisper/zipformer transcribe the same bytes). Keep the whole session's
     # audio and whether any of it was speech-level, so the finaliser can tell
     # "user said nothing" (fine) from "model produced nothing" (broken).
-    session_pcm = bytearray()
+    session_pcm = RecoveryTail(pcm_sr)
     heard_speech = False
     running = True
     client_disconnected = False
@@ -715,12 +895,6 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
         except Exception:
             client_disconnected = True
             return False
-
-    def _rms(pcm: bytes) -> float:
-        samples = _pcm16_to_f32(pcm)
-        if not len(samples):
-            return 0.0
-        return float((samples * samples).mean() ** 0.5)
 
     def _decode_window(pcm: bytes) -> str:
         samples = _pcm16_to_f32(pcm)
@@ -740,7 +914,7 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
                     continue
                 buf.extend(pcm)
                 session_pcm.extend(pcm)
-                if not heard_speech and _rms(pcm) >= SHERPA_OFFLINE_RMS_FLOOR:
+                if not heard_speech and _pcm16_rms(pcm) >= SHERPA_OFFLINE_RMS_FLOOR:
                     heard_speech = True
                 last_audio = time.monotonic()
         except WebSocketDisconnect:
@@ -766,6 +940,7 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
         if text:
             committed.append(text)
             await _send({"type": "final", "text": text,
+                         "final_kind": "utterance",
                          "segments": [{"start": 0.0, "end": None, "text": text}],
                          "language": "auto", "engine": backend.id})
 
@@ -777,8 +952,8 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
                 continue
             snapshot = bytes(buf)
             if len(snapshot) > sil_bytes and \
-                    _rms(snapshot[-sil_bytes:]) < SHERPA_OFFLINE_RMS_FLOOR:
-                if _rms(snapshot[:-sil_bytes]) >= SHERPA_OFFLINE_RMS_FLOOR:
+                    _pcm16_rms(snapshot[-sil_bytes:]) < SHERPA_OFFLINE_RMS_FLOOR:
+                if _pcm16_rms(snapshot[:-sil_bytes]) >= SHERPA_OFFLINE_RMS_FLOOR:
                     await _commit(snapshot)
                 else:
                     # Pure silence — drop it (keep the gate window for
@@ -824,39 +999,18 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
     # quiet user — hand the session to the capture ASR backend so the user
     # still gets their words, and say which model let them down. Bounded to
     # this session; the pref is left alone so the user stays in control.
-    model_silent = is_model_silent(full, heard_speech, len(session_pcm))
+    model_silent = is_model_silent(full, heard_speech, session_pcm.total_bytes)
     if model_silent:
-        logger.warning(
-            "dictation model %s decoded NOTHING from %.1fs of speech-level audio "
-            "— falling back to the capture ASR engine for this session",
-            spec.id, len(session_pcm) / float(max(1, pcm_sr) * 2),
+        recovered, recovered_segments = await _recover_silent_sherpa(
+            spec, session_pcm.tail(), pcm_sr,
         )
-        # Demote it so the NEXT session doesn't repeat this round trip. The
-        # curated default can be broken on a platform we never tested (the
-        # NeMo-TDT decoder is, on Windows), and observing it beats guessing.
-        try:
-            from services.sherpa_dictation import demote_model
-            if demote_model(spec.id):
-                logger.error(
-                    "dictation model %s demoted on this machine — it will no longer be "
-                    "auto-selected. Pick it again in Settings to give it another chance.",
-                    spec.id,
-                )
-        except Exception:
-            logger.exception("silent-model demotion failed")
-        try:
-            result = await _transcribe_buffer_full([bytes(session_pcm)], pcm_sr=pcm_sr)
-            fb_text = polish_text((result or {}).get("text", "") or "")
-            if fb_text:
-                full = fb_text
-                segments = (result or {}).get("segments") or [
-                    {"start": 0.0, "end": None, "text": fb_text}
-                ]
-        except Exception:
-            logger.exception("dictation silent-model fallback failed")
+        if recovered:
+            full = recovered
+            segments = recovered_segments
 
     if not client_disconnected:
-        payload = {"type": "final", "text": full, "segments": segments,
+        payload = {"type": "final", "text": full, "final_kind": "summary",
+                   "segments": segments,
                    "language": "auto", "engine": backend.id}
         if model_silent:
             # The client surfaces this so a silently-broken model can't look
@@ -884,6 +1038,35 @@ async def _run_sherpa_offline(websocket: WebSocket, spec):
             pass
 
 
+def _result_text(result: dict | None) -> str:
+    """Normalize text from every ASR backend result shape.
+
+    Some backends return a top-level ``text`` value, while WhisperX, Faster
+    Whisper, Moonshine, and OpenAI-compatible ASR expose only ``segments`` and
+    ``chunks``. Dictation partials and finals must interpret both contracts the
+    same way.
+    """
+    if not isinstance(result, dict):
+        return ""
+
+    text = result.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+
+    for key in ("segments", "chunks"):
+        items = result.get(key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        text = " ".join(
+            str(item.get("text", "")).strip()
+            for item in items
+            if isinstance(item, dict) and item.get("text")
+        ).strip()
+        if text:
+            return text
+    return ""
+
+
 async def _transcribe_buffer(chunks: list[bytes], *, pcm_sr: int | None = None) -> str:
     """Quick partial transcription of the current audio buffer."""
 
@@ -898,7 +1081,7 @@ async def _transcribe_buffer(chunks: list[bytes], *, pcm_sr: int | None = None) 
         def _run():
             backend = get_capture_asr_backend()
             result = backend.transcribe(tmp, word_timestamps=False)
-            return result.get("text", "")
+            return _result_text(result)
 
         # Bound dictation transcribes (#730): a wedged whisperx/CTranslate2 call
         # must not hold its GPU-pool worker forever and starve TTS / other ASR
@@ -912,7 +1095,9 @@ async def _transcribe_buffer(chunks: list[bytes], *, pcm_sr: int | None = None) 
             pass
 
 
-async def _transcribe_buffer_full(chunks: list[bytes], *, pcm_sr: int | None = None) -> dict:
+async def _transcribe_buffer_full(
+    chunks: list[bytes], *, pcm_sr: int | None = None, skip_sherpa: bool = False,
+) -> dict:
     """Full transcription with timing info for the final result."""
     tmp = _pcm16_to_wav(b"".join(chunks), pcm_sr) if pcm_sr else _chunks_to_wav(chunks)
     if tmp is None:
@@ -924,15 +1109,13 @@ async def _transcribe_buffer_full(chunks: list[bytes], *, pcm_sr: int | None = N
         from services.asr_backend import get_capture_asr_backend, run_transcribe_guarded
 
         def _run():
-            backend = get_capture_asr_backend()
+            backend = get_capture_asr_backend(skip_sherpa=skip_sherpa)
             t0 = time.perf_counter()
             result = backend.transcribe(tmp, word_timestamps=False)
             elapsed = round(time.perf_counter() - t0, 2)
 
             segments = result.get("segments", [])
-            full_text = result.get("text", "")
-            if not full_text and segments:
-                full_text = " ".join(s.get("text", "") for s in segments).strip()
+            full_text = _result_text(result)
 
             # Wave 1.1: strip Whisper hallucination loops from the final
             # text (the string that gets auto-pasted). Segments keep the

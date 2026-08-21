@@ -2,7 +2,7 @@
  * CaptureWidget pill behaviour — mocked WS + Tauri invoke.
  *
  * Covers the truthfulness rebuild: model status frames render real
- * download/load progress, "Pasted" only appears after simulate_paste resolves
+ * download/load progress, "Inserted" only appears after native delivery resolves
  * Ok, an "a11y:"-prefixed paste failure renders the actionable Accessibility
  * error, Esc aborts without pasting, live retract-retype is opt-in (default
  * sessions never call simulate_type), the missing-Accessibility setup state
@@ -13,6 +13,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
+
+const captureLocales = import.meta.glob('../i18n/locales/*.json', {
+  eager: true,
+  import: 'default',
+});
 
 // ── Hoisted mock state (vi.mock factories may only reference vi.hoisted vars) ──
 const mocks = vi.hoisted(() => {
@@ -26,19 +31,39 @@ const mocks = vi.hoisted(() => {
   const holder = {
     // Per-test knobs for the Tauri invoke mock.
     a11y: true,
-    paste: async () => undefined,
+    paste: async () => 'inserted',
+    copy: async () => 'copied',
+    type: async () => 'inserted',
+    activate: async () => undefined,
+    reject: async () => undefined,
+    finish: async () => undefined,
     calls: [],
+    handlers: {},
     // Captured micCapture frame callback (the worklet feed).
     onFrame: null,
+    startMic: async (_stream, onFrame) => {
+      holder.onFrame = onFrame;
+      return async () => {};
+    },
+    // Stable spy for getCurrentWindow().hide — a fresh vi.fn() per call would
+    // make the native hide unassertable.
+    hideWindow: vi.fn(async () => {}),
   };
   return {
     state,
     holder,
     authenticatedWsUrl: vi.fn(async (path) => `ws://test${path}&ws_ticket=one-use`),
+    apiFetch: vi.fn(async () => ({ json: async () => ({}) })),
+    copyText: vi.fn(async () => {}),
     invoke: async (cmd, args) => {
       holder.calls.push([cmd, args]);
       if (cmd === 'check_accessibility') return holder.a11y;
-      if (cmd === 'simulate_paste') return holder.paste();
+      if (cmd === 'simulate_paste') return holder.paste(cmd, args);
+      if (cmd === 'copy_dictation_output_session') return holder.copy(cmd, args);
+      if (cmd === 'simulate_type') return holder.type(cmd, args);
+      if (cmd === 'activate_dictation_output_session') return holder.activate(cmd, args);
+      if (cmd === 'reject_dictation_output_session') return holder.reject(cmd, args);
+      if (cmd === 'finish_dictation_output_session') return holder.finish(cmd, args);
       return undefined;
     },
   };
@@ -50,22 +75,25 @@ vi.mock('../store', () => ({
 vi.mock('../api/client', () => ({
   API: 'http://test',
   wsUrl: (p) => `ws://test${p}`,
-  apiFetch: vi.fn(async () => ({ json: async () => ({}) })),
+  apiFetch: mocks.apiFetch,
 }));
 vi.mock('../api/authSession', () => ({ authenticatedWsUrl: mocks.authenticatedWsUrl }));
 vi.mock('../pages/Transcriptions', () => ({ addTranscription: vi.fn() }));
-vi.mock('../utils/copyText', () => ({ copyText: vi.fn(async () => {}) }));
+vi.mock('../utils/copyText', () => ({ copyText: mocks.copyText }));
 vi.mock('react-hot-toast', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async () => () => {}) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  emit: vi.fn(async () => {}),
+  listen: vi.fn(async (name, handler) => {
+    mocks.holder.handlers[name] = handler;
+    return () => delete mocks.holder.handlers[name];
+  }),
+}));
 vi.mock('@tauri-apps/api/window', () => ({
-  getCurrentWindow: () => ({ hide: vi.fn(async () => {}) }),
+  getCurrentWindow: () => ({ hide: mocks.holder.hideWindow }),
 }));
 vi.mock('../utils/aec/micCapture', () => ({
-  startMicCapture: async (stream, onFrame) => {
-    mocks.holder.onFrame = onFrame;
-    return async () => {};
-  },
+  startMicCapture: (...args) => mocks.holder.startMic(...args),
 }));
 
 import CaptureWidget from './CaptureWidget';
@@ -99,6 +127,9 @@ class FakeWebSocket {
   msg(obj) {
     this.onmessage?.({ data: JSON.stringify(obj) });
   }
+  msgAsync(obj) {
+    return this.onmessage?.({ data: JSON.stringify(obj) });
+  }
 }
 
 class FakeMediaRecorder {
@@ -120,9 +151,16 @@ function withI18n(node) {
   return <I18nextProvider i18n={i18n}>{node}</I18nextProvider>;
 }
 
-// Start a session via the in-page shortcut and wait for the live socket.
+// Start through the native event that carries Rust's captured output target.
 async function startSession() {
-  fireEvent.keyDown(window, { code: 'Space', ctrlKey: true, shiftKey: true });
+  return startNativeSession();
+}
+
+async function startNativeSession(sessionId = 'capture-session-1') {
+  await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+  await act(async () => {
+    await mocks.holder.handlers['tray-dictate']({ payload: { sessionId } });
+  });
   await waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
   await screen.findByText(/Listening/);
   return FakeWebSocket.instances[0];
@@ -132,15 +170,32 @@ describe('CaptureWidget', () => {
   beforeEach(() => {
     window.__TAURI_INTERNALS__ = {};
     mocks.holder.a11y = true;
-    mocks.holder.paste = async () => undefined;
+    mocks.holder.paste = async () => 'inserted';
+    mocks.holder.copy = async () => 'copied';
+    mocks.holder.type = async () => 'inserted';
+    mocks.holder.activate = async () => undefined;
+    mocks.holder.reject = async () => undefined;
+    mocks.holder.finish = async () => undefined;
     mocks.holder.calls = [];
+    mocks.holder.handlers = {};
     mocks.holder.onFrame = null;
+    mocks.holder.startMic = async (_stream, onFrame) => {
+      mocks.holder.onFrame = onFrame;
+      return async () => {};
+    };
+    mocks.holder.hideWindow.mockClear();
+    mocks.copyText.mockReset();
+    mocks.copyText.mockResolvedValue(undefined);
+    mocks.apiFetch.mockReset();
+    mocks.apiFetch.mockImplementation(async () => ({ json: async () => ({}) }));
     mocks.authenticatedWsUrl.mockClear();
     mocks.authenticatedWsUrl.mockImplementation(
       async (path) => `ws://test${path}${path.includes('?') ? '&' : '?'}ws_ticket=one-use`,
     );
     mocks.state.dictationMode = 'toggle';
+    mocks.state.dictationEnabled = true;
     mocks.state.dictationModelId = 'sherpa-parakeet-tdt-v3';
+    mocks.state.loadDictationPrefs = async () => {};
     FakeWebSocket.instances = [];
     global.WebSocket = FakeWebSocket;
     global.MediaRecorder = FakeMediaRecorder;
@@ -152,13 +207,92 @@ describe('CaptureWidget', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     delete window.__TAURI_INTERNALS__;
     delete global.WebSocket;
     delete global.MediaRecorder;
   });
 
   const pasteCalls = () => mocks.holder.calls.filter(([c]) => c === 'simulate_paste');
+  const copyCalls = () => mocks.holder.calls.filter(([c]) => c === 'copy_dictation_output_session');
   const typeCalls = () => mocks.holder.calls.filter(([c]) => c === 'simulate_type');
+
+  it('provides a translated Inserted outcome in every supported locale', () => {
+    expect(Object.keys(captureLocales)).toHaveLength(21);
+    for (const [path, locale] of Object.entries(captureLocales)) {
+      expect(locale.capture.inserted, path).toBeTruthy();
+      if (!path.endsWith('/en.json')) expect(locale.capture.inserted, path).not.toBe('Inserted');
+    }
+  });
+
+  it('attaches the native listener but waits for persisted prefs before ready and start', async () => {
+    let resolveHydration;
+    mocks.state.loadDictationPrefs = () =>
+      new Promise((resolve) => {
+        resolveHydration = () => {
+          mocks.state.dictationMode = 'hold';
+          mocks.state.dictationModelId = 'sherpa-whisper-tiny';
+          resolve();
+        };
+      });
+    const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop() {} }] }));
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+    expect(mocks.holder.calls.some(([command]) => command === 'mark_dictation_capture_ready')).toBe(
+      false,
+    );
+
+    let earlyStart;
+    act(() => {
+      earlyStart = mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'hydrated-session' },
+      });
+    });
+    await act(async () => Promise.resolve());
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(mocks.holder.calls).not.toContainEqual([
+      'activate_dictation_output_session',
+      { sessionId: 'hydrated-session' },
+    ]);
+
+    await act(async () => {
+      resolveHydration();
+      await earlyStart;
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+    await screen.findByText(/Listening/);
+    expect(FakeWebSocket.instances[0].url).toContain('model=sherpa-whisper-tiny');
+    expect(mocks.holder.calls.some(([command]) => command === 'mark_dictation_capture_ready')).toBe(
+      true,
+    );
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate-stop']();
+    });
+    await screen.findByText(/Transcribing/);
+  });
+
+  it('marks native capture ready with safe seeds when prefs hydration fails', async () => {
+    mocks.state.loadDictationPrefs = async () => {
+      throw new Error('prefs backend unavailable');
+    };
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(withI18n(<CaptureWidget />));
+
+    await waitFor(() =>
+      expect(
+        mocks.holder.calls.some(([command]) => command === 'mark_dictation_capture_ready'),
+      ).toBe(true),
+    );
+    const ws = await startNativeSession('seed-session');
+    expect(ws.url).toContain('model=sherpa-parakeet-tdt-v3');
+  });
 
   it('honors a hold-mode release while microphone startup is pending', async () => {
     mocks.state.dictationMode = 'hold';
@@ -175,15 +309,326 @@ describe('CaptureWidget', () => {
     });
     render(withI18n(<CaptureWidget />));
 
-    fireEvent.keyDown(window, { code: 'Space', ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'hold-session' },
+      });
+    });
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
-    fireEvent.keyUp(window, { code: 'Space' });
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate-stop']();
+    });
     await act(async () => {
       resolveMicrophone({ getTracks: () => [{ stop() {} }] });
     });
 
-    expect(await screen.findByText(/Transcribing/)).toBeInTheDocument();
+    expect(await screen.findByText(/Transcribing/, {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.queryByText(/Listening/)).not.toBeInTheDocument();
+  });
+
+  it('keeps recording for a new hold press after the previous hold was released during startup', async () => {
+    mocks.state.dictationMode = 'hold';
+    let resolveMicrophone;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveMicrophone = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'first-hold-session' },
+      });
+    });
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate-stop']();
+    });
+    now.mockReturnValue(1400);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'second-hold-session' },
+      });
+    });
+
+    await act(async () => {
+      resolveMicrophone({ getTracks: () => [{ stop() {} }] });
+    });
+
+    expect(await screen.findByText(/Listening/, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText(/Transcribing/)).not.toBeInTheDocument();
+    expect(getUserMedia).toHaveBeenCalledOnce();
+  });
+
+  it('honors a hold-mode release while native session activation is pending', async () => {
+    mocks.state.dictationMode = 'hold';
+    let resolveActivation;
+    mocks.holder.activate = () =>
+      new Promise((resolve) => {
+        resolveActivation = resolve;
+      });
+    const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop() {} }] }));
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    let startEvent;
+    act(() => {
+      startEvent = mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'activating-hold-session' },
+      });
+    });
+    await waitFor(() => expect(resolveActivation).toBeTypeOf('function'));
+    expect(getUserMedia).not.toHaveBeenCalled();
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate-stop']();
+    });
+    await act(async () => {
+      resolveActivation();
+      await startEvent;
+    });
+
+    expect(await screen.findByText(/Transcribing/, {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText(/Listening/)).not.toBeInTheDocument();
+  });
+
+  it('allows one microphone startup and adopts the newest native output session', async () => {
+    let resolveMicrophone;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveMicrophone = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const now = vi.spyOn(Date, 'now');
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    now.mockReturnValue(1000);
+    act(() => {
+      mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'session-first' } });
+    });
+    now.mockReturnValue(1200);
+    act(() => {
+      mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'session-competing' } });
+    });
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(
+      mocks.holder.calls
+        .filter(([command]) => command === 'activate_dictation_output_session')
+        .map(([, args]) => args.sessionId),
+    ).toEqual(['session-first', 'session-competing']);
+
+    await act(async () => {
+      resolveMicrophone({ getTracks: () => [{ stop() {} }] });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+    const ws = FakeWebSocket.instances[0];
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'latest target' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'latest target' }));
+    await screen.findByText(/Inserted/);
+
+    expect(pasteCalls()[0][1].sessionId).toBe('session-competing');
+    expect(mocks.holder.calls).toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'session-competing' },
+    ]);
+    now.mockRestore();
+  });
+
+  it('replays an activated start after the previous startup terminates while unwinding', async () => {
+    let resolveMicSetup;
+    let micSetupAttempt = 0;
+    mocks.holder.startMic = (_stream, onFrame) => {
+      mocks.holder.onFrame = onFrame;
+      micSetupAttempt += 1;
+      if (micSetupAttempt > 1) return Promise.resolve(async () => {});
+      return new Promise((resolve) => {
+        resolveMicSetup = () => resolve(async () => {});
+      });
+    };
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    act(() => {
+      void mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'failed-startup' } });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+    await waitFor(() => expect(resolveMicSetup).toBeTypeOf('function'));
+    await act(async () => {
+      await FakeWebSocket.instances[0].msgAsync({
+        type: 'final',
+        final_kind: 'summary',
+        text: '',
+        model_silent: 'sherpa-parakeet-tdt-v3',
+      });
+    });
+    await screen.findByText(/Transcription failed/);
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'replayed-startup' } });
+    });
+    await act(async () => {
+      resolveMicSetup();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await screen.findByText(/Listening/);
+    expect(mocks.holder.calls).toContainEqual([
+      'activate_dictation_output_session',
+      { sessionId: 'replayed-startup' },
+    ]);
+  });
+
+  it('does not finish a replacement session when the adopted startup then terminates', async () => {
+    let resolveMicSetup;
+    let micSetupAttempt = 0;
+    mocks.holder.startMic = (_stream, onFrame) => {
+      mocks.holder.onFrame = onFrame;
+      micSetupAttempt += 1;
+      if (micSetupAttempt > 1) return Promise.resolve(async () => {});
+      return new Promise((resolve) => {
+        resolveMicSetup = () => resolve(async () => {});
+      });
+    };
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    act(() => {
+      void mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'old-startup' } });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+    await waitFor(() => expect(resolveMicSetup).toBeTypeOf('function'));
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'replacement-startup' },
+      });
+    });
+    await act(async () => {
+      await FakeWebSocket.instances[0].msgAsync({
+        type: 'final',
+        final_kind: 'summary',
+        text: '',
+        model_silent: 'sherpa-parakeet-tdt-v3',
+      });
+    });
+    await act(async () => {
+      resolveMicSetup();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    expect(mocks.holder.calls).not.toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'replacement-startup' },
+    ]);
+    now.mockRestore();
+  });
+
+  it('activates a rapid restart before a late old finish resolves', async () => {
+    let resolveFinish;
+    const finishPending = new Promise((resolve) => {
+      resolveFinish = resolve;
+    });
+    mocks.holder.finish = () => finishPending;
+    const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop() {} }] }));
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    const ws = await startNativeSession('finishing-session');
+
+    act(() =>
+      ws.msg({
+        type: 'final',
+        final_kind: 'summary',
+        text: '',
+        model_silent: 'sherpa-parakeet-tdt-v3',
+      }),
+    );
+    await screen.findByText(/Transcription failed/);
+    now.mockReturnValue(1200);
+    act(() => {
+      mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'fresh-session' } });
+    });
+    await waitFor(() =>
+      expect(mocks.holder.calls).toContainEqual([
+        'activate_dictation_output_session',
+        { sessionId: 'fresh-session' },
+      ]),
+    );
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await act(async () => resolveFinish());
+    const freshWs = FakeWebSocket.instances[1];
+    act(() => freshWs.msg({ type: 'final', final_kind: 'utterance', text: 'fresh words' }));
+    act(() => freshWs.msg({ type: 'final', final_kind: 'summary', text: 'fresh words' }));
+
+    await screen.findByText(/Inserted/);
+    expect(pasteCalls().at(-1)[1].sessionId).toBe('fresh-session');
+  });
+
+  it('rejects an ignored native candidate while an active session is transcribing', async () => {
+    mocks.state.dictationMode = 'hold';
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    render(withI18n(<CaptureWidget />));
+    await startNativeSession('active-session');
+
+    now.mockReturnValue(1100);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate-stop']();
+    });
+    await screen.findByText(/Transcribing/);
+    now.mockReturnValue(1300);
+    act(() => {
+      mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'ignored-candidate' } });
+    });
+
+    await waitFor(() =>
+      expect(mocks.holder.calls).toContainEqual([
+        'reject_dictation_output_session',
+        { sessionId: 'ignored-candidate' },
+      ]),
+    );
+    expect(mocks.holder.calls).not.toContainEqual([
+      'activate_dictation_output_session',
+      { sessionId: 'ignored-candidate' },
+    ]);
+    expect(mocks.holder.calls).not.toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'ignored-candidate' },
+    ]);
   });
 
   it('falls back to raw PCM when MediaRecorder cannot be constructed', async () => {
@@ -218,31 +663,179 @@ describe('CaptureWidget', () => {
     expect(screen.getByText(/Listening/)).toBeInTheDocument();
   });
 
-  it('shows "Pasted" only after simulate_paste resolved Ok', async () => {
+  it('surfaces a silent selected model as an error instead of successful no-speech', async () => {
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    await act(
+      async () =>
+        await ws.msgAsync({
+          type: 'final',
+          final_kind: 'summary',
+          text: '',
+          model_silent: 'sherpa-parakeet-tdt-v3',
+          warning: 'The selected dictation model produced no text.',
+        }),
+    );
+
+    await screen.findByText(/Transcription failed/);
+    expect(screen.queryByText(/No speech detected/)).not.toBeInTheDocument();
+    expect(pasteCalls()).toEqual([]);
+    await waitFor(() =>
+      expect(mocks.holder.calls).toContainEqual([
+        'finish_dictation_output_session',
+        { sessionId: 'capture-session-1' },
+      ]),
+    );
+  });
+
+  it('shows "Inserted" only after simulate_paste resolved Ok', async () => {
     render(withI18n(<CaptureWidget />));
     const ws = await startSession();
 
     // Offline-model shape: one utterance final, then the EOF summary.
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
 
-    await screen.findByText(/Pasted/);
+    await screen.findByText(/Inserted/);
     expect(pasteCalls().length).toBeGreaterThan(0);
-    expect(pasteCalls()[0][1]).toEqual({ text: 'hello world' });
+    expect(pasteCalls()[0][1]).toEqual({
+      text: 'hello world',
+      sessionId: 'capture-session-1',
+    });
   });
 
-  it('an "a11y:" paste rejection renders the actionable error, never "Pasted"', async () => {
+  it('keeps native delivery session-bound and never pre-writes the WebView clipboard', async () => {
+    render(withI18n(<CaptureWidget />));
+    const ws = await startNativeSession('native-session-7');
+
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+
+    await screen.findByText(/Inserted/);
+    expect(mocks.copyText).not.toHaveBeenCalled();
+    expect(pasteCalls()).toEqual([
+      ['simulate_paste', { text: 'hello world', sessionId: 'native-session-7' }],
+    ]);
+    expect(mocks.holder.calls).toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'native-session-7' },
+    ]);
+  });
+
+  it('uses the WebView clipboard only after native clipboard delivery fails', async () => {
+    mocks.state.dictationModelId = null;
+    const order = [];
+    mocks.holder.paste = async () => {
+      order.push('native');
+      throw 'clipboard: native clipboard unavailable';
+    };
+    mocks.copyText.mockImplementation(async (text) => {
+      order.push('webview');
+      expect(text).toBe('fallback words');
+    });
+    render(withI18n(<CaptureWidget />));
+    const ws = await startNativeSession('wayland-session');
+
+    act(() => ws.msg({ type: 'final', text: 'fallback words' }));
+
+    await screen.findByText(/Copied/);
+    expect(order).toEqual(['native', 'webview']);
+    expect(pasteCalls()).toEqual([
+      ['simulate_paste', { text: 'fallback words', sessionId: 'wayland-session' }],
+    ]);
+  });
+
+  it('never lets an old legacy delivery finish a restarted native session', async () => {
+    mocks.state.dictationModelId = null;
+    let resolveOldPaste;
+    mocks.holder.paste = () =>
+      new Promise((resolve) => {
+        resolveOldPaste = resolve;
+      });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const { container } = render(withI18n(<CaptureWidget />));
+    const oldWs = await startNativeSession('old-legacy-session');
+
+    act(() => oldWs.msg({ type: 'final', text: 'old legacy words' }));
+    await waitFor(() => expect(pasteCalls()).toHaveLength(1));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(container.querySelector('.capture-pill')).toBeNull());
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'new-legacy-session' },
+      });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await screen.findByText(/Listening/);
+
+    await act(async () => {
+      resolveOldPaste('inserted');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText(/Listening/)).toBeInTheDocument();
+    expect(mocks.holder.calls).not.toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'new-legacy-session' },
+    ]);
+  });
+
+  it('discards an old deferred POST result after cancel and restart', async () => {
+    mocks.state.dictationModelId = null;
+    let resolveOldPost;
+    mocks.apiFetch.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOldPost = resolve;
+        }),
+    );
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const { container } = render(withI18n(<CaptureWidget />));
+    const oldWs = await startNativeSession('old-post-session');
+
+    act(() => oldWs.msg({ type: 'error', kind: 'server', message: 'socket failed' }));
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledOnce());
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(container.querySelector('.capture-pill')).toBeNull());
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'new-post-session' } });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await screen.findByText(/Listening/);
+
+    await act(async () => {
+      resolveOldPost({ json: async () => ({ text: 'old post words' }) });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText(/Listening/)).toBeInTheDocument();
+    expect(pasteCalls()).toEqual([]);
+    expect(mocks.holder.calls).not.toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'new-post-session' },
+    ]);
+  });
+
+  it('an "a11y:" paste rejection renders the actionable error, never "Inserted"', async () => {
     mocks.holder.paste = async () => {
       throw 'a11y: process is not trusted';
     };
     render(withI18n(<CaptureWidget />));
     const ws = await startSession();
 
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
 
     await screen.findByText(/Accessibility access needed/);
-    expect(screen.queryByText(/Pasted/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Inserted/)).not.toBeInTheDocument();
+    expect(mocks.copyText).not.toHaveBeenCalled();
 
     // The action button opens the OS Accessibility pane.
     fireEvent.click(screen.getByText('Open Settings'));
@@ -267,10 +860,10 @@ describe('CaptureWidget', () => {
 
     act(() => ws.msg({ type: 'partial', text: 'hel' }));
     act(() => ws.msg({ type: 'partial', text: 'hello wor' }));
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
 
-    await screen.findByText(/Pasted/);
+    await screen.findByText(/Inserted/);
     // Committed final went through the paste path; no keystroke storms.
     expect(typeCalls()).toEqual([]);
     expect(pasteCalls().length).toBeGreaterThan(0);
@@ -283,7 +876,233 @@ describe('CaptureWidget', () => {
 
     act(() => ws.msg({ type: 'partial', text: 'hello' }));
     await waitFor(() => expect(typeCalls().length).toBeGreaterThan(0));
-    expect(typeCalls()[0][1]).toEqual({ text: 'hello', backspaces: 0 });
+    expect(typeCalls()[0][1]).toEqual({
+      text: 'hello',
+      backspaces: 0,
+      sessionId: 'capture-session-1',
+    });
+  });
+
+  it('never runs an old queued live-type delta against a restarted native session', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let resolveFirstType;
+    mocks.holder.type = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstType = resolve;
+        }),
+    );
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const { container } = render(withI18n(<CaptureWidget />));
+    const oldWs = await startNativeSession('old-type-session');
+
+    act(() => oldWs.msg({ type: 'partial', text: 'hello' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    act(() => oldWs.msg({ type: 'partial', text: 'hello world' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(container.querySelector('.capture-pill')).toBeNull());
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'new-type-session' },
+      });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await screen.findByText(/Listening/);
+
+    await act(async () => {
+      resolveFirstType('inserted');
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(typeCalls()).toHaveLength(1);
+    expect(typeCalls()[0][1].sessionId).toBe('old-type-session');
+  });
+
+  it('never lets an old utterance commit corrupt a restarted live-type prefix', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let resolveOldType;
+    mocks.holder.type = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOldType = resolve;
+          }),
+      )
+      .mockResolvedValue('inserted');
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const { container } = render(withI18n(<CaptureWidget />));
+    const oldWs = await startNativeSession('old-commit-session');
+
+    act(() => oldWs.msg({ type: 'partial', text: 'old' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    act(() => oldWs.msg({ type: 'final', final_kind: 'utterance', text: 'old words' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(container.querySelector('.capture-pill')).toBeNull());
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({ payload: { sessionId: 'new-commit-session' } });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    const newWs = FakeWebSocket.instances[1];
+    await act(async () => {
+      resolveOldType('inserted');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => newWs.msg({ type: 'partial', text: 'fresh' }));
+
+    await waitFor(() => expect(typeCalls()).toHaveLength(2));
+    expect(typeCalls()[1][1]).toEqual({
+      text: 'fresh',
+      backspaces: 0,
+      sessionId: 'new-commit-session',
+    });
+  });
+
+  it('copies the summary without pasting after a later live-type delta fails', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let typeAttempt = 0;
+    mocks.holder.type = async () => {
+      typeAttempt += 1;
+      if (typeAttempt === 2) throw 'paste: input synthesis failed';
+      return 'inserted';
+    };
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello' }));
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(2));
+    await act(async () => Promise.resolve());
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls()).toEqual([]);
+    expect(copyCalls()).toEqual([
+      ['copy_dictation_output_session', { text: 'hello world', sessionId: 'capture-session-1' }],
+    ]);
+  });
+
+  it('copies the summary when the first live-type call may have partially emitted', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    mocks.holder.type = async () => {
+      throw 'paste: input synthesis failed';
+    };
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    await act(async () => Promise.resolve());
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls()).toEqual([]);
+    expect(copyCalls()).toEqual([
+      ['copy_dictation_output_session', { text: 'hello world', sessionId: 'capture-session-1' }],
+    ]);
+  });
+
+  it('downgrades a zero-emission live-type preflight failure to committed copy', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    mocks.holder.type = async () => {
+      throw 'preflight: native session is clipboard-only';
+    };
+    mocks.holder.paste = async () => 'copied';
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    await act(async () => Promise.resolve());
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual(['hello world', 'hello world']);
+  });
+
+  it('commits an utterance when its pending first live-type call fails preflight', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let rejectType;
+    mocks.holder.type = () =>
+      new Promise((_resolve, reject) => {
+        rejectType = reject;
+      });
+    mocks.holder.paste = async () => 'copied';
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+    expect(pasteCalls()).toEqual([]);
+
+    await act(async () => rejectType('preflight: native session is clipboard-only'));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual(['hello world', 'hello world']);
+  });
+
+  it('copies the full summary without reinserting when preflight fails after a live prefix', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let typeAttempt = 0;
+    mocks.holder.type = async () => {
+      typeAttempt += 1;
+      if (typeAttempt === 2) throw 'preflight: native input became unavailable';
+      return 'inserted';
+    };
+    mocks.holder.paste = async () => 'copied';
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(2));
+    await act(async () => Promise.resolve());
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls()).toEqual([]);
+    expect(copyCalls()).toEqual([
+      ['copy_dictation_output_session', { text: 'hello world', sessionId: 'capture-session-1' }],
+    ]);
+  });
+
+  it('waits for an in-flight native type result before delivering a summary', async () => {
+    localStorage.setItem('omni_capture_live_typing', '1');
+    let rejectType;
+    mocks.holder.type = () =>
+      new Promise((_resolve, reject) => {
+        rejectType = reject;
+      });
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'partial', text: 'hello world' }));
+    await waitFor(() => expect(typeCalls()).toHaveLength(1));
+    await act(async () => {
+      ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' });
+      await Promise.resolve();
+    });
+
+    expect(pasteCalls()).toEqual([]);
+    await act(async () => rejectType('paste: input synthesis failed'));
+    await screen.findByText(/Copied/);
+    expect(pasteCalls()).toEqual([]);
+    expect(copyCalls()).toEqual([
+      ['copy_dictation_output_session', { text: 'hello world', sessionId: 'capture-session-1' }],
+    ]);
   });
 
   it('a refined EOF summary is not re-pasted as a new utterance', async () => {
@@ -291,21 +1110,138 @@ describe('CaptureWidget', () => {
     const ws = await startSession();
 
     // Two per-utterance commits paste live…
-    act(() => ws.msg({ type: 'final', text: 'Hello world.' }));
-    act(() => ws.msg({ type: 'final', text: 'Second bit.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Hello world.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Second bit.' }));
     // …then the EOF summary arrives with an LLM-refined variant. Its raw
     // `text` equals the committed join, so it must finalise — never paste
     // the whole (refined) transcript a third time.
     act(() =>
       ws.msg({
         type: 'final',
+        final_kind: 'summary',
         text: 'Hello world. Second bit.',
         refined_text: 'Hello world, second bit.',
       }),
     );
 
-    await screen.findByText(/Pasted/);
-    expect(pasteCalls().map(([, a]) => a.text)).toEqual(['Hello world.', 'Second bit.']);
+    await screen.findByText(/Inserted/);
+    expect(pasteCalls().map(([, a]) => a.text)).toEqual(['Hello world.', ' Second bit.']);
+  });
+
+  it('commits repeated identical utterances instead of mistaking the second for EOF', async () => {
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Yes.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Yes.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'Yes. Yes.' }));
+
+    await screen.findByText(/Inserted/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual(['Yes.', ' Yes.']);
+  });
+
+  it('delivers only an uncommitted EOF-summary tail', async () => {
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'First.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'First. Tail.' }));
+
+    await screen.findByText(/Inserted/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual(['First.', ' Tail.']);
+  });
+
+  it('keeps copied as the session outcome and refreshes the full summary once', async () => {
+    let copied = false;
+    mocks.holder.paste = async (_cmd, { text }) => {
+      if (text === ' Second.') copied = true;
+      return copied ? 'copied' : 'inserted';
+    };
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'First.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Second.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'First. Second.' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual([
+      'First.',
+      ' Second.',
+      'First. Second.',
+    ]);
+    expect(mocks.copyText).not.toHaveBeenCalled();
+  });
+
+  it('refreshes a WebView clipboard fallback without retrying native insertion', async () => {
+    let attempt = 0;
+    mocks.holder.paste = async () => {
+      attempt += 1;
+      if (attempt === 1) return 'inserted';
+      if (attempt === 2) throw 'clipboard: native clipboard unavailable';
+      return 'inserted';
+    };
+    render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'First.' }));
+    await waitFor(() => expect(pasteCalls()).toHaveLength(1));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'Second.' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'First. Second.' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls().map(([, args]) => args.text)).toEqual(['First.', ' Second.']);
+    expect(mocks.copyText).toHaveBeenNthCalledWith(1, ' Second.');
+    expect(mocks.copyText).toHaveBeenNthCalledWith(2, 'First. Second.');
+  });
+
+  it('never lets an old deferred delivery finish or mutate a restarted session', async () => {
+    let resolveOldPaste;
+    let pasteAttempt = 0;
+    mocks.holder.paste = () => {
+      pasteAttempt += 1;
+      if (pasteAttempt === 1) {
+        return new Promise((resolve) => {
+          resolveOldPaste = resolve;
+        });
+      }
+      return Promise.resolve('inserted');
+    };
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const { container } = render(withI18n(<CaptureWidget />));
+    const oldWs = await startNativeSession('old-delivery-session');
+
+    act(() => oldWs.msg({ type: 'final', final_kind: 'utterance', text: 'old words' }));
+    await waitFor(() => expect(pasteCalls()).toHaveLength(1));
+    act(() => oldWs.msg({ type: 'final', final_kind: 'summary', text: 'old words' }));
+    await act(async () => Promise.resolve());
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(container.querySelector('.capture-pill')).toBeNull());
+
+    now.mockReturnValue(1200);
+    await act(async () => {
+      await mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'new-delivery-session' },
+      });
+    });
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    await screen.findByText(/Listening/);
+
+    await act(async () => {
+      resolveOldPaste('copied');
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText(/Listening/)).toBeInTheDocument();
+    expect(pasteCalls()).toEqual([
+      ['simulate_paste', { text: 'old words', sessionId: 'old-delivery-session' }],
+    ]);
+    expect(mocks.holder.calls).not.toContainEqual([
+      'finish_dictation_output_session',
+      { sessionId: 'new-delivery-session' },
+    ]);
   });
 
   it('renders the one-time Accessibility setup state when the mount probe fails', async () => {
@@ -316,6 +1252,49 @@ describe('CaptureWidget', () => {
     expect(screen.getByText('Open Settings')).toBeInTheDocument();
     // It does not pretend to record.
     expect(screen.queryByText(/Listening/)).not.toBeInTheDocument();
+  });
+
+  it('clears the Accessibility setup pill after the native grant changes', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.holder.a11y = false;
+      render(withI18n(<CaptureWidget />));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByText(/Allow Accessibility/)).toBeInTheDocument();
+
+      mocks.holder.a11y = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+
+      expect(screen.queryByText(/Allow Accessibility/)).not.toBeInTheDocument();
+      // The unfocusable widget must also leave the screen — asserting only the
+      // pill text would still pass if hideWidgetWindow() were dropped.
+      expect(mocks.holder.hideWindow).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('records from the Accessibility setup state and reports native clipboard fallback', async () => {
+    mocks.holder.a11y = false;
+    mocks.holder.paste = async () => 'copied';
+    render(withI18n(<CaptureWidget />));
+    await screen.findByText(/Allow Accessibility/);
+    expect(screen.getByText('Open Settings')).toBeInTheDocument();
+
+    const ws = await startNativeSession('a11y-copy-session');
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'clipboard words' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'clipboard words' }));
+
+    await screen.findByText(/Copied/);
+    expect(pasteCalls().map(([, args]) => args)).toEqual([
+      { text: 'clipboard words', sessionId: 'a11y-copy-session' },
+      { text: 'clipboard words', sessionId: 'a11y-copy-session' },
+    ]);
   });
 
   it('waveform bars move from the worklet mic frames', async () => {
@@ -372,8 +1351,8 @@ describe('CaptureWidget', () => {
     const ws = await startSession();
 
     // Drive to the error state on real timers so the paste rejection settles.
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
-    act(() => ws.msg({ type: 'final', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' }));
+    act(() => ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' }));
     await screen.findByText(/Accessibility access needed/);
 
     vi.useFakeTimers();

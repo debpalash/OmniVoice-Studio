@@ -785,6 +785,8 @@
     "transcribing_label": "Mentranskripsikan…",
     "a11y_setup": "Izinkan Aksesibilitas agar dikte dapat mengetik untuk Anda",
     "pasted": "Ditempel",
+    "inserted": "Dimasukkan",
+    "copied": "Disalin ke papan klip",
     "no_speech": "Tidak ada ucapan yang terdeteksi",
     "mic_denied": "Akses mikrofon ditolak",
     "mic_denied_toast": "Akses mikrofon ditolak. {{hint}}",
@@ -2474,13 +2476,13 @@
     "delete_confirm_title": "Hapus model ucapan",
     "engine_unavailable": "Mesin pendiktean langsung tidak tersedia pada instalasi ini. Dikte kembali ke jalur transkripsi standar.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Direkomendasikan. Dikte yang cepat dan akurat dalam 25 bahasa Eropa.",
+      "sherpa-parakeet-tdt-v3": "Dikte cepat dan akurat dalam 25 bahasa Eropa.",
       "sherpa-parakeet-tdt-v2": "Dikte khusus bahasa Inggris yang cepat dan akurat.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming bahasa Mandarin + Inggris dengan siaran langsung sebagian.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming bahasa Mandarin + Inggris, model ringkas.",
       "sherpa-zipformer-en-20m": "Model streaming bahasa Inggris yang kecil — latensi terendah.",
       "sherpa-zipformer-zh-14m": "Model streaming kecil Tiongkok — latensi terendah.",
-      "sherpa-whisper-tiny": "Multibahasa (90+ bahasa) dengan deteksi bahasa otomatis."
+      "sherpa-whisper-tiny": "Direkomendasikan. Dikte multibahasa dalam lebih dari 90 bahasa dengan deteksi bahasa otomatis."
     }
   },
   "profiles": {

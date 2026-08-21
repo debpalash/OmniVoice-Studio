@@ -785,6 +785,8 @@
     "transcribing_label": "Transcribiendo…",
     "a11y_setup": "Permite Accesibilidad para que el dictado pueda escribir por ti",
     "pasted": "Pegado",
+    "inserted": "Insertado",
+    "copied": "Copiado al portapapeles",
     "no_speech": "No se detectó voz",
     "mic_denied": "Acceso al micrófono denegado",
     "mic_denied_toast": "Acceso al micrófono denegado. {{hint}}",
@@ -2474,13 +2476,13 @@
     "delete_confirm_title": "Eliminar modelo de voz",
     "engine_unavailable": "El motor de dictado en vivo no está disponible en esta instalación. El dictado vuelve a la ruta de transcripción estándar.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "Recomendado. Dictado rápido y preciso en 25 idiomas europeos.",
+      "sherpa-parakeet-tdt-v3": "Dictado rápido y preciso en 25 idiomas europeos.",
       "sherpa-parakeet-tdt-v2": "Dictado rápido y preciso solo en inglés.",
       "sherpa-zipformer-bilingual-zh-en": "Streaming chino + inglés con parciales en vivo.",
       "sherpa-paraformer-bilingual-zh-en": "Streaming chino + inglés, modelo compacto.",
       "sherpa-zipformer-en-20m": "Pequeño modelo de transmisión en inglés: latencia más baja.",
       "sherpa-zipformer-zh-14m": "Pequeño modelo chino de transmisión: latencia más baja.",
-      "sherpa-whisper-tiny": "Multilingüe (más de 90 idiomas) con detección automática de idioma."
+      "sherpa-whisper-tiny": "Recomendado. Dictado multilingüe en más de 90 idiomas con detección automática del idioma."
     }
   },
   "profiles": {

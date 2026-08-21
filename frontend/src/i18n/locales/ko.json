@@ -785,6 +785,8 @@
     "transcribing_label": "스크립트 작성 중…",
     "a11y_setup": "받아쓰기가 대신 입력할 수 있도록 손쉬운 사용을 허용하세요",
     "pasted": "붙여넣음",
+    "inserted": "입력됨",
+    "copied": "클립보드에 복사됨",
     "no_speech": "음성이 감지되지 않았습니다.",
     "mic_denied": "마이크 액세스가 거부되었습니다.",
     "mic_denied_toast": "마이크 액세스가 거부되었습니다. {{hint}}",
@@ -2474,13 +2476,13 @@
     "delete_confirm_title": "음성 모델 삭제",
     "engine_unavailable": "The live-dictation engine isn't available on this install. Dictation falls back to the standard transcription path.",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "추천합니다. Fast, accurate dictation across 25 European languages.",
+      "sherpa-parakeet-tdt-v3": "25개 유럽 언어를 지원하는 빠르고 정확한 받아쓰기입니다.",
       "sherpa-parakeet-tdt-v2": "빠르고 정확한 영어 전용 받아쓰기.",
       "sherpa-zipformer-bilingual-zh-en": "라이브 부분으로 중국어 + 영어 스트리밍.",
       "sherpa-paraformer-bilingual-zh-en": "중국어 + 영어 스트리밍, 컴팩트 모델.",
       "sherpa-zipformer-en-20m": "작은 스트리밍 영어 모델 - 지연 시간이 가장 낮습니다.",
       "sherpa-zipformer-zh-14m": "작은 스트리밍 중국 모델 - 지연 시간이 가장 낮습니다.",
-      "sherpa-whisper-tiny": "Multilingual (90+ languages) with auto language detection."
+      "sherpa-whisper-tiny": "추천. 90개 이상의 언어를 지원하며 언어를 자동으로 감지하는 다국어 받아쓰기입니다."
     }
   },
   "profiles": {

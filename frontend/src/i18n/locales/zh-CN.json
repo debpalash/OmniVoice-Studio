@@ -744,6 +744,8 @@
     "transcribing_label": "正在抄写…",
     "a11y_setup": "允许辅助功能，以便听写为您输入文字",
     "pasted": "粘贴的",
+    "inserted": "已输入",
+    "copied": "已复制到剪贴板",
     "no_speech": "未检测到语音",
     "mic_denied": "麦克风访问被拒绝",
     "mic_denied_toast": "麦克风访问被拒绝。 {{hint}}",
@@ -2481,13 +2483,13 @@
     "delete_confirm_title": "删除语音模型",
     "engine_unavailable": "实时听写引擎在此安装中不可用。听写将回退到标准转录流程。",
     "model_desc": {
-      "sherpa-parakeet-tdt-v3": "推荐。快速、准确地听写 25 种欧洲语言。",
+      "sherpa-parakeet-tdt-v3": "支持 25 种欧洲语言的快速、准确听写。",
       "sherpa-parakeet-tdt-v2": "快速、准确的纯英语听写。",
       "sherpa-zipformer-bilingual-zh-en": "流式中英，带实时部分结果。",
       "sherpa-paraformer-bilingual-zh-en": "流式中英，紧凑型模型。",
       "sherpa-zipformer-en-20m": "小型流式英文模型 — 最低延迟。",
       "sherpa-zipformer-zh-14m": "小型流式中文模型——最低延迟。",
-      "sherpa-whisper-tiny": "具有自动语言检测功能的多语言（90 多种语言）。"
+      "sherpa-whisper-tiny": "推荐。支持 90 多种语言并可自动检测语言的多语言听写。"
     }
   },
   "profiles": {

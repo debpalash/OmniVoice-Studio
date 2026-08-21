@@ -138,6 +138,28 @@ failing outright.
 
 **Linked issue:** [#1185](https://github.com/debpalash/VoiceStudio/issues/1185)
 
+## 1c. Setup blocked: "System RAM … The app will OOM on first dub"
+
+**Symptom:** the setup wizard's System Check shows **System RAM** in red and
+"Resolve blockers to continue" stays disabled — often on an 8 GB machine that
+reports ~7.8 GB usable (firmware and integrated graphics reserve a slice of
+installed RAM).
+
+**Cause:** the preflight compares OS-reported RAM against the 8 GB minimum.
+Since [#1618](https://github.com/debpalash/VoiceStudio/issues/1618) the check
+tolerates that reserved-memory gap, so 8 GB-installed machines pass.
+
+**Fix:** update to the latest release. If your machine is genuinely below the
+minimum and you accept the out-of-memory risk (long dubs may crash), set
+`OMNIVOICE_RAM_PREFLIGHT=0` before launching — the hard block becomes a
+warning. On Windows run PowerShell
+`[Environment]::SetEnvironmentVariable('OMNIVOICE_RAM_PREFLIGHT','0','User')`
+and relaunch; on macOS/Linux export it in the shell that starts the app. (The
+in-app Settings panel can't help here — this blocker appears before setup
+completes.)
+
+**Linked issues:** [#1618](https://github.com/debpalash/VoiceStudio/issues/1618)
+
 ## 2. HF 401 / pyannote license not accepted
 
 **Symptom:** dubbing fails with `HfHubHTTPError: 401 Client Error: Unauthorized
@@ -768,7 +790,8 @@ unaffected and works normally.
 > **Tip:** current builds surface the live OS grant state in-app — **Settings →
 > Permissions** shows whether the microphone (and, on macOS, Accessibility) is
 > granted, denied, or not asked yet, with an **Open Settings** button that
-> deep-links the exact OS pane described above.
+> deep-links the exact OS pane described above. The dictation blocker rechecks
+> Accessibility while it is visible and closes as soon as macOS reports the grant.
 
 ## Dub: "translation engine needs the optional … package"
 
