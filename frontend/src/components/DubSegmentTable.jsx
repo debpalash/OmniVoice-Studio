@@ -35,6 +35,8 @@ export default function DubSegmentTable({
   onPreview,
   onSplit,
   onMerge,
+  onInsert,
+  onMoveResize,
   onDirect,
   onSeek,
   timelineSelectedId = null,
@@ -152,6 +154,8 @@ export default function DubSegmentTable({
       onPreview,
       onSplit,
       onMerge,
+      onInsert,
+      onMoveResize,
       onDirect,
       onSeek,
       segments,
@@ -174,6 +178,8 @@ export default function DubSegmentTable({
       onPreview,
       onSplit,
       onMerge,
+      onInsert,
+      onMoveResize,
       onDirect,
       onSeek,
       segments,
@@ -201,6 +207,8 @@ export default function DubSegmentTable({
       onPreview: prev,
       onSplit: split,
       onMerge: merge,
+      onInsert: insert,
+      onMoveResize: moveResize,
       onDirect: direct,
       onSeek: seek,
       segments: segs,
@@ -217,6 +225,7 @@ export default function DubSegmentTable({
       const isPlaying = curId === seg.id;
       const timelineSelected = tlSel != null && String(tlSel) === String(seg.id);
       const canMerge = index < fl.length - 1;
+      const canMergePrev = index > 0;
       return (
         <DubSegmentRow
           seg={seg}
@@ -239,6 +248,9 @@ export default function DubSegmentTable({
           onSelect={pick}
           onSplit={split}
           onMerge={merge}
+          onInsert={insert}
+          onMoveResize={moveResize}
+          canMergePrev={canMergePrev}
           onDirect={direct}
           onSeek={seek}
         />

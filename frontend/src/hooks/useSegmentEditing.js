@@ -11,6 +11,16 @@ import { apiPost } from '../api/client';
 import { segmentGenInputs } from '../utils/segments';
 import { commitMoveResize } from '../utils/timeline';
 import { buildPastePlan } from '../utils/pasteTranslations';
+import {
+  applyAttribution,
+  attributionAt,
+  clipParts,
+  insertionSlot,
+  keepParts,
+  mergedParts,
+  nextSegmentId,
+  partsFor,
+} from '../utils/segmentParts';
 
 // Stable empty map so `lastGenFingerprints` keeps a constant identity for a
 // language with no stored hashes (avoids effect/callback churn).
@@ -103,6 +113,41 @@ export default function useSegmentEditing() {
       setDubSegments((prev) =>
         prev.map((s) => (String(s.id) === String(id) ? commitMoveResize(s, { start, end }) : s)),
       );
+    },
+    [dubSegments],
+  );
+
+  // Insert a blank line after `id` (#1612 — "add a new phrase"). It takes the
+  // silent gap before the next line when there is a usable one, otherwise a
+  // default-length slot right after this row; either way the existing overlap
+  // detection flags a collision rather than letting two lines play together
+  // unannounced. The new row continues the same speaker, voice and language —
+  // but carries no directorial note or gain, which described the OTHER line's
+  // words. `/dub/generate` skips empty-text segments, so the row is inert
+  // until the user writes it.
+  const segmentInsert = useCallback(
+    (id) => {
+      pushUndo(dubSegments);
+      setDubSegments((prev) => {
+        const idx = prev.findIndex((s) => s.id === id);
+        if (idx < 0) return prev;
+        const seg = prev[idx];
+        const slot = insertionSlot(seg, prev[idx + 1]);
+        const created = {
+          id: nextSegmentId(
+            prev.map((s) => s.id),
+            seg.id,
+          ),
+          start: slot.start,
+          end: slot.end,
+          text: '',
+          text_original: '',
+        };
+        for (const f of ['speaker_id', 'profile_id', 'target_lang']) {
+          if (seg[f] !== undefined && seg[f] !== null) created[f] = seg[f];
+        }
+        return [...prev.slice(0, idx + 1), created, ...prev.slice(idx + 1)];
+      });
     },
     [dubSegments],
   );
@@ -246,34 +291,58 @@ export default function useSegmentEditing() {
         // Other languages' saved texts (P1.2) can't be split at a sensible
         // position for the halves — drop them; the halves are new segment ids
         // that need fresh TTS per language anyway.
-        const left = {
-          ...seg,
-          id: `${seg.id}_a`,
-          text: text.slice(0, pos).trim(),
-          end: midT,
-          text_original: text.slice(0, pos).trim(),
-          translations: undefined,
-        };
-        const right = {
-          ...seg,
-          id: `${seg.id}_b`,
-          text: text.slice(pos).trim(),
-          start: midT,
-          text_original: text.slice(pos).trim(),
-          translations: undefined,
-        };
+        // Attribution follows the SPEAKER, not the parent row. When this
+        // segment is the product of a merge, each half takes the attribution
+        // recorded for the part covering its START, so words carried across a
+        // speaker boundary are dubbed by whoever actually says them (#1612).
+        // A never-merged segment has exactly one part, so both halves inherit
+        // the parent unchanged — the old behaviour.
+        // Attribution is looked up by TEXT OFFSET, not by time. `pos` is where
+        // the user put the caret, and offsets cannot overlap — whereas two
+        // merged parts can cover the same instant the moment someone retimes a
+        // line past its neighbour, which then hands the words to whichever
+        // speaker happened to be checked first (#1612).
+        const parts = partsFor(seg);
+        const left = applyAttribution(
+          {
+            ...seg,
+            id: `${seg.id}_a`,
+            text: text.slice(0, pos).trim(),
+            end: midT,
+            text_original: text.slice(0, pos).trim(),
+            translations: undefined,
+            merge_parts: keepParts(clipParts(parts, 0, pos)),
+          },
+          attributionAt(parts, 0),
+        );
+        const right = applyAttribution(
+          {
+            ...seg,
+            id: `${seg.id}_b`,
+            text: text.slice(pos).trim(),
+            start: midT,
+            text_original: text.slice(pos).trim(),
+            translations: undefined,
+            merge_parts: keepParts(clipParts(parts, pos, text.length)),
+          },
+          attributionAt(parts, pos),
+        );
         return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
       });
     },
     [dubSegments],
   );
 
-  // Merge segment with its next sibling.
+  // Merge a segment with its previous or next sibling. Only "next" existed;
+  // #1612 asked for both. Merging is index-based over the full list, so
+  // `direction: 'prev'` is the same operation anchored one row earlier.
   const segmentMerge = useCallback(
-    (id) => {
+    (id, direction = 'next') => {
       pushUndo(dubSegments);
       setDubSegments((prev) => {
-        const idx = prev.findIndex((s) => s.id === id);
+        const at = prev.findIndex((s) => s.id === id);
+        if (at < 0) return prev;
+        const idx = direction === 'prev' ? at - 1 : at;
         if (idx < 0 || idx >= prev.length - 1) return prev;
         const a = prev[idx];
         const b = prev[idx + 1];
@@ -295,6 +364,11 @@ export default function useSegmentEditing() {
             `${a.text_original || a.text || ''} ${b.text_original || b.text || ''}`.trim(),
           end: b.end,
           translations: Object.keys(mergedTranslations).length ? mergedTranslations : undefined,
+          // Remember which attribution covered which span. The merged row
+          // still presents as `a` (it starts with a's words), but a later
+          // split can now hand b's words back to b's speaker instead of
+          // dubbing them in a's voice (#1612).
+          merge_parts: mergedParts(a, b),
         };
         return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
       });
@@ -379,6 +453,7 @@ export default function useSegmentEditing() {
     pasteTranslations,
     segmentSplit,
     segmentMerge,
+    segmentInsert,
     segmentMoveResize,
     // Timeline selection (waveform ↔ table sync)
     timelineSelSegId,

@@ -69,6 +69,7 @@ export default function DubTab(props) {
     pasteTranslations,
     segmentSplit,
     segmentMerge,
+    segmentInsert,
     segmentMoveResize,
     timelineSelSegId,
     setTimelineSelSegId,
@@ -828,6 +829,8 @@ export default function DubTab(props) {
               onDirectSegment={onDirectSegment}
               segmentSplit={segmentSplit}
               segmentMerge={segmentMerge}
+              segmentInsert={segmentInsert}
+              segmentMoveResize={segmentMoveResize}
               seekWaveform={seekWaveform}
               timelineSelSegId={timelineSelSegId}
               dubStep={dubStep}

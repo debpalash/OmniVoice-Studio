@@ -10,6 +10,7 @@ import {
   Scissors,
   Merge,
   MoreHorizontal,
+  Plus,
   Sparkles,
 } from 'lucide-react';
 import { formatTime } from '../utils/format';
@@ -76,7 +77,10 @@ function DubSegmentRow({
   onSelect,
   onSplit,
   onMerge,
+  onInsert,
+  onMoveResize,
   canMerge,
+  canMergePrev,
   onDirect,
   onSeek,
   timelineSelected,
@@ -167,6 +171,38 @@ function DubSegmentRow({
   const overBudget =
     seg.text_original && seg.text.length > Math.ceil(seg.text_original.length * CHAR_BUDGET_RATIO);
 
+  // Both time fields commit through the SAME path the timeline drag handles
+  // use (segmentMoveResize → commitMoveResize), so typing a time and dragging
+  // its edge produce identical results — including the speed recompute that
+  // keeps the dubbed audio inside a resized slot. The numeric start field used
+  // to write `start` raw and skip that compensation, so the two UIs disagreed.
+  const timeKeyDown = (edge) => (e) => {
+    if (e.key === 'Enter') e.target.blur();
+    if (e.key === 'Escape') {
+      e.target.value = formatTime(seg[edge]);
+      e.target.blur();
+    }
+  };
+
+  const commitTime = (edge) => (e) => {
+    const v = parseTime(e.target.value);
+    const current = seg[edge];
+    const inRange = edge === 'start' ? v >= 0 && v < seg.end : v > seg.start;
+    if (v == null || !inRange) {
+      e.target.value = formatTime(current);
+      return;
+    }
+    if (Math.abs(v - current) <= 1e-3) {
+      e.target.value = formatTime(current);
+      return;
+    }
+    const next = +v.toFixed(3);
+    onMoveResize(seg.id, {
+      start: edge === 'start' ? next : seg.start,
+      end: edge === 'end' ? next : seg.end,
+    });
+  };
+
   const handleTextKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();
@@ -174,7 +210,9 @@ function DubSegmentRow({
       onSplit(seg.id, pos);
     } else if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
       e.preventDefault();
-      if (canMerge) onMerge(seg.id);
+      if (e.shiftKey) {
+        if (canMergePrev) onMerge(seg.id, 'prev');
+      } else if (canMerge) onMerge(seg.id, 'next');
     }
   };
 
@@ -217,30 +255,21 @@ function DubSegmentRow({
             disabled={disabled}
             title={t('segment.time_edit_title')}
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.target.blur();
-              if (e.key === 'Escape') {
-                e.target.value = formatTime(seg.start);
-                e.target.blur();
-              }
-            }}
-            onBlur={(e) => {
-              const v = parseTime(e.target.value);
-              if (v == null || v < 0 || v >= seg.end) {
-                e.target.value = formatTime(seg.start);
-                return;
-              }
-              if (Math.abs(v - seg.start) > 1e-3) {
-                onEditField(seg.id, 'start', +v.toFixed(3));
-              } else {
-                e.target.value = formatTime(seg.start);
-              }
-            }}
+            onKeyDown={timeKeyDown('start')}
+            onBlur={commitTime('start')}
           />
           <span className="text-[var(--chrome-fg-muted)]">–</span>
-          <span className="text-[var(--chrome-fg-muted)] text-[0.62rem]">
-            {formatTime(seg.end)}
-          </span>
+          <input
+            type="text"
+            className="seg-time-input"
+            defaultValue={formatTime(seg.end)}
+            key={`end-${seg.id}-${seg.end}`}
+            disabled={disabled}
+            title={t('segment.time_edit_end_title')}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={timeKeyDown('end')}
+            onBlur={commitTime('end')}
+          />
           {seg.speed && seg.speed !== 1.0 && (
             <span
               className="text-[0.52rem] ml-[1px]"
@@ -500,12 +529,27 @@ function DubSegmentRow({
               },
             },
             {
+              id: 'merge-prev',
+              label: t('segment.merge_prev_label'),
+              icon: Merge,
+              shortcut: '⇧⌘M',
+              disabled: !canMergePrev,
+              onSelect: () => onMerge(seg.id, 'prev'),
+            },
+            {
               id: 'merge',
               label: t('segment.merge_label'),
               icon: Merge,
               shortcut: '⌘M',
               disabled: !canMerge,
-              onSelect: () => onMerge(seg.id),
+              onSelect: () => onMerge(seg.id, 'next'),
+            },
+            'separator',
+            {
+              id: 'insert',
+              label: t('segment.insert_label'),
+              icon: Plus,
+              onSelect: () => onInsert(seg.id),
             },
           ]}
         >
@@ -543,6 +587,7 @@ export default memo(
     prev.onSeek === next.onSeek &&
     prev.selected === next.selected &&
     prev.canMerge === next.canMerge &&
+    prev.canMergePrev === next.canMergePrev &&
     prev.profiles === next.profiles &&
     prev.speakerClones === next.speakerClones &&
     prev.idx === next.idx,
