@@ -343,7 +343,7 @@ class _Harness:
             private_key_pem=self.creds.private_key_pem,
         )
 
-    async def connect_worker(self, *, execute=None, capabilities=None):
+    async def connect_worker(self, *, execute=None, capabilities=None, max_concurrent_tasks=2):
         token = registry.create_enrollment(
             endpoint=f"localhost:{self.port}", cert_fingerprint=self.creds.fingerprint
         )
@@ -353,7 +353,7 @@ class _Harness:
             certificate_pem=self.creds.certificate_pem,
             keypair=WorkerKeypair.generate(),
             enrollment_token=token.encode(),
-            max_concurrent_tasks=2,
+            max_concurrent_tasks=max_concurrent_tasks,
             capabilities=capabilities or _capabilities(),
             host={"hostname": "test-worker", "os": "linux", "arch": "x86_64"},
         )
@@ -528,8 +528,15 @@ async def test_worker_at_capacity_rejects_without_penalty(harness):
         await release.wait()
         return {"meta": {}, "payload": b""}
 
-    await harness.connect_worker(execute=_block)
-    harness.client.config.max_concurrent_tasks = 1
+    # The limit goes through the handshake, not a post-connect mutation:
+    # the server's stream-open ConfigUpdate carries the REGISTERED capacity
+    # (from the hello), and a mutation racing that frame gets overwritten —
+    # the client then honours 2, accepts the second task, and this test
+    # reports over-concurrency that never existed (failed twice in CI on
+    # 2026-08-21). With 1 registered end-to-end there is no window.
+    await harness.connect_worker(execute=_block, max_concurrent_tasks=1)
+    registered = next(iter(harness.pool))
+    assert registered.capacity.max_concurrent_tasks == 1
 
     first = harness.scheduler.submit(operation=OP, engine=ENGINE, model_id=MODEL)
     await harness.servicer.dispatch(harness.scheduler.next_assignment())
