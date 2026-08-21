@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config/schema.json",
+  "name": "voicestudio-install",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  // Point these at the voicestudio.sh zone once DNS is set up:
+  // "routes": [
+  //   { "pattern": "voicestudio.sh", "custom_domain": true }
+  // ]
+}

@@ -60,10 +60,14 @@ VoiceStudio/
 │   └── frontend/                Node-based frontend tests
 │
 ├── scripts/                     ⟵ dev / build / release shell + python scripts
-│   ├── install.sh               universal installer
+│   ├── install.sh               universal installer (macOS/Linux/WSL)
+│   ├── install.ps1              universal installer (Windows)
 │   ├── run.sh                   universal launcher
 │   ├── smoke-test.sh            end-to-end validation
 │   └── desktop-prod.sh          production desktop build
+
+├── infra/                       ⟵ edge/deploy workers (not the Docker deploy path)
+│   └── install-redirect/        voicestudio.sh/install — UA-sniffing installer worker
 │
 ├── deploy/                      ⟵ Docker deployment configs
 │   ├── Dockerfile               single-stage CUDA image

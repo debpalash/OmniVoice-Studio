@@ -5,9 +5,9 @@
 # Run once, then `./run.sh` each time you want to use the app.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/debpalash/VoiceStudio/main/install.sh | sh
+#   curl -fsSL https://voicestudio.sh/install | sh
 #   # or locally:
-#   sh install.sh
+#   sh scripts/install.sh
 #   sh install.sh --verbose        # show all subcommand output
 #   sh install.sh --python 3.12    # override Python version
 set -e
@@ -111,8 +111,10 @@ esac
 
 if [ "$OS" = "windows" ]; then
     echo "⚠  This source installer is for macOS / Linux (it installs system deps via brew/apt)."
-    echo "   On Windows: download the VoiceStudio installer (.msi) from the Releases page,"
-    echo "   or run this script inside WSL (Windows Subsystem for Linux)."
+    echo "   On Windows, run the PowerShell installer instead:"
+    echo "     irm https://voicestudio.sh/install | iex"
+    echo "   (or download the VoiceStudio installer (.msi) from the Releases page,"
+    echo "    or run this script inside WSL)."
     exit 0
 fi
 ARCH=$(uname -m)
@@ -132,13 +134,23 @@ if [ "$OS" = "macos" ] && [ "$ARCH" = "x86_64" ]; then
     fi
 fi
 
-# ── Resolve script directory (for local installs) ──────────────────────────
+# ── Resolve repo root (for local installs) ─────────────────────────────────
+# The script lives in scripts/, so the project root may be one level up.
 SCRIPT_DIR=""
 if [ -n "${0:-}" ] && [ -f "$0" ]; then
-    SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || true
+    _script_dir=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || true
+    if [ -f "$_script_dir/pyproject.toml" ]; then
+        SCRIPT_DIR="$_script_dir"
+    elif [ -f "$_script_dir/../pyproject.toml" ]; then
+        SCRIPT_DIR=$(cd "$_script_dir/.." 2>/dev/null && pwd) || true
+    fi
 fi
 if [ -z "$SCRIPT_DIR" ]; then
-    SCRIPT_DIR=$(pwd)
+    if [ -f "./pyproject.toml" ]; then
+        SCRIPT_DIR=$(pwd)
+    else
+        SCRIPT_DIR=""
+    fi
 fi
 
 # If run via curl pipe, clone the repo first

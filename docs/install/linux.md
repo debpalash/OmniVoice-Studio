@@ -52,6 +52,14 @@ Everything above, plus the toolchain:
 
 ## Install (from source)
 
+One-liner (installs prerequisites, clones, and builds; WSL works too):
+
+```bash
+curl -fsSL https://voicestudio.sh/install | sh
+```
+
+Or manually:
+
 ```bash
 git clone https://github.com/debpalash/VoiceStudio.git
 cd VoiceStudio
