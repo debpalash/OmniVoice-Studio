@@ -106,7 +106,9 @@ dependencies = [
     # MIT license, ~5ms per segment on CPU, 16-bit message payload.
     "audioseal>=0.1.3",
     # API server — always needed for the Studio UI.
-    "fastapi",
+    # 0.137 makes included routers lazy `_IncludedRouter` entries, breaking
+    # route-table consumers that require the concrete HTTP/WebSocket routes.
+    "fastapi<0.137",
     "scalar-fastapi",
     "uvicorn",
     "python-multipart>=0.0.31",

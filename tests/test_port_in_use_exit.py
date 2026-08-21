@@ -84,6 +84,8 @@ def test_uvicorn_swallows_the_bind_error_into_systemexit(tmp_path):
             "try:\n"
             f"    uvicorn.run(FastAPI(), host='127.0.0.1', port={port}, "
             "log_level='critical')\n"
+            "except SystemExit as exc:\n"
+            "    print('UVICORN_SYSTEMEXIT', exc.code, file=sys.stderr); raise\n"
             "except OSError:\n"
             "    print('OSERROR', file=sys.stderr); sys.exit(78)\n",
             encoding="utf-8",
@@ -95,7 +97,10 @@ def test_uvicorn_swallows_the_bind_error_into_systemexit(tmp_path):
             "uvicorn now propagates the bind OSError — the pre-probe in "
             "main.py can be simplified, but verify before doing so"
         )
-        assert proc.returncode == 1
+        assert proc.returncode != 0, (
+            "uvicorn must still turn the bind failure into a process exit"
+        )
+        assert "UVICORN_SYSTEMEXIT" in proc.stderr
     finally:
         holder.close()
 
