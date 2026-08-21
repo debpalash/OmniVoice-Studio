@@ -1,4 +1,4 @@
-# VoiceStudio — universal installer for Windows.
+﻿# VoiceStudio — universal installer for Windows.
 #
 # Installs VoiceStudio from source on Windows 10/11 (x64): system deps via
 # winget, Python deps via uv, frontend via bun. Run once, then
