@@ -1,17 +1,20 @@
 ﻿# VoiceStudio — universal installer for Windows.
 #
-# Installs VoiceStudio from source on Windows 10/11 (x64): system deps via
-# winget, Python deps via uv, frontend via bun. Run once, then
-# `bun run desktop-prod` each time you want to use the app.
+# Default mode installs the prebuilt .msi from GitHub Releases (checksum
+# verified) via msiexec. Use -Source to build from source instead:
+# system deps via winget, Python deps via uv, frontend via bun.
 #
 # Usage:
-#   irm https://voicestudio.sh/install | iex
-#   # or locally:
-#   powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+#   irm https://voicestudio.sh/install | iex          # prebuilt app (default)
+#   powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Source
 #
 # Overrides (set before running):
-#   $env:OMNIVOICE_PYTHON = "3.12"   # Python version (default 3.11)
-#   $env:OMNIVOICE_REGION = "china"  # route Python downloads through a mirror
+#   $env:VOICESTUDIO_VERSION = "0.5.0"  # release version in binary mode
+#   $env:VOICESTUDIO_INSTALL_MODE = "source"  # same as -Source when piped
+#   $env:OMNIVOICE_PYTHON = "3.12"      # Python version (source mode)
+#   $env:OMNIVOICE_REGION = "china"     # route Python downloads through a mirror
+
+param([switch]$Source)
 
 $ErrorActionPreference = "Stop"
 
@@ -36,6 +39,63 @@ Write-Host ("─" * 56) -ForegroundColor DarkGray
 Write-Host ""
 
 Step "platform" "windows ($env:PROCESSOR_ARCHITECTURE)"
+
+$mode = if ($env:VOICESTUDIO_INSTALL_MODE) { $env:VOICESTUDIO_INSTALL_MODE } elseif ($Source) { "source" } else { "binary" }
+if ($mode -ne "binary" -and $mode -ne "source") {
+    Die "VOICESTUDIO_INSTALL_MODE must be 'binary' or 'source' (got '$mode')."
+}
+
+if ($mode -eq "binary") {
+    Step "release" "resolving latest version..."
+    try {
+        $manifest = Invoke-RestMethod "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json"
+    } catch {
+        Die "Could not fetch the latest release manifest: $($_.Exception.Message)"
+    }
+    $version = if ($env:VOICESTUDIO_VERSION) { $env:VOICESTUDIO_VERSION.TrimStart("v") } else { $manifest.version }
+    $msiUrl = $manifest.platforms.'windows-x86_64-msi'.url
+    if (-not $msiUrl) { Die "No Windows .msi found in release manifest." }
+    Step "release" "v$version"
+
+    $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("voicestudio-install-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+    $msiPath = Join-Path $tmpDir ("VoiceStudio_$version.msi")
+    $sumsName = "SHA256SUMS-Windows.x64.txt"
+    $sumsPath = Join-Path $tmpDir $sumsName
+
+    Step "download" (Split-Path $msiUrl -Leaf)
+    Note "~165 MB; runs through your GitHub connection."
+    Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath
+    if (-not (Test-Path $msiPath)) { Die "Download failed." }
+    Step "download" ("{0:N0} MB" -f ((Get-Item $msiPath).Length / 1MB))
+
+    Step "checksum" "verifying..."
+    $sumsUrl = "https://github.com/debpalash/VoiceStudio/releases/download/v$version/$sumsName"
+    Invoke-WebRequest -Uri $sumsUrl -OutFile $sumsPath
+    $expected = (Select-String -Path $sumsPath -Pattern ([regex]::Escape((Split-Path $msiUrl -Leaf))) |
+        Select-Object -First 1).Line.Split(" ")[0]
+    if (-not $expected) { Warn "Checksum entry not found — skipping verification." }
+    else {
+        $actual = (Get-FileHash -Algorithm SHA256 $msiPath).Hash.ToLower()
+        if ($actual -ne $expected.ToLower()) { Die "Checksum mismatch for the installer — download corrupted?" }
+        Step "checksum" "OK"
+    }
+
+    Step "install" "launching the VoiceStudio setup wizard..."
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$msiPath`""
+    Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host ""
+    Write-Host "✓ Installer launched!" -ForegroundColor Magenta
+    Write-Host ("─" * 56) -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  next             Finish the setup wizard, then launch VoiceStudio" -ForegroundColor Green
+    Write-Host ""
+    Note "ffmpeg is required at runtime — if winget is available:"
+    Note "  winget install --id Gyan.FFmpeg -e"
+    Write-Host ""
+    exit 0
+}
 
 # ── winget ───────────────────────────────────────────────────────────────────
 # Only required when a system package is actually missing — machines that
