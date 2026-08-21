@@ -84,10 +84,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $key = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like "*VoiceStudio*" -or $_.DisplayName -like "*OmniVoice*" } |
+          $paths = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+          $key = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -match "VoiceStudio|OmniVoice" } |
             Select-Object -First 1
-          if (-not $key) { Write-Host "::error::MSI product not registered"; exit 1 }
+          if (-not $key) {
+            Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+              Where-Object DisplayName | ForEach-Object { Write-Host "  installed: $($_.DisplayName)" }
+            Write-Host "::error::MSI product not registered"; exit 1
+          }
           Write-Host "✓ MSI product registered: $($key.DisplayName)"
 
       # Source mode stays covered end-to-end behind -Source.
