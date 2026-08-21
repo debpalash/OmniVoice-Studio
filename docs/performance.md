@@ -235,7 +235,32 @@ RAM/VRAM) turns a guessing game into a bisect.
 Measured results per engine/device — and how to contribute yours — live in
 [benchmarks.md](benchmarks.md).
 
-Batch dubbing renders several segments in one native forward pass when the
+## Performance budgets
+
+CI guards the hot paths above against regressions — not with wall-clock
+budgets (CI hardware varies too much for a stable "≤5 % slower" threshold),
+but with **operation-count budgets** in
+`tests/test_perf_operation_budgets.py`, which fail on *any* regression:
+
+- **Streaming TTS (`/ws/tts`)**: exactly one engine `generate` per sentence
+  chunk, and exactly one text-normalization pass per request (never one per
+  sentence).
+- **Dub re-mix**: a fit-only re-mix (`regen_only=[]`) of cached segments
+  makes **zero** TTS calls. The zero-decode / zero-rewrite budget activates
+  with the natural-rate cached fast path (each cache is then decoded exactly
+  once, by the final assembly).
+- **Batch dubbing (native batches)**: N renderable segments at batch width W
+  cost exactly ⌈N/W⌉ `generate_batch` calls and zero per-segment `generate`
+  calls when native batching is enabled.
+
+Updating a budget is a deliberate act: if a change legitimately adds an
+operation to a guarded path, change the expected count in the same PR with a
+comment justifying the new floor. Never loosen a budget just to make CI pass
+— that is the regression the budget exists to catch.
+
+## Batch and streaming behavior
+
+ Batch dubbing renders several segments in one native forward pass when the
 selected engine supports it. The width is derived from the host rather than
 fixed, because a wider forward pass needs proportionally more device memory:
 CPU hosts and cards with less than ~2 GB of headroom above the engine's
@@ -245,11 +270,11 @@ batching, 16 is the ceiling). Engines without native batching inherit a
 compatibility fallback that preserves the one-segment behavior.
 
 Streaming clients also receive measured latency in the `/ws/tts` terminal
-`done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the
+ `done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the
 end-to-end wall clock including delivery, and `rtf` is *synthesis* time
 divided by generated-audio duration — measured around the render calls only,
 so a slow client cannot inflate it. The backend log records the same values, so a slow first chunk is
-distinguishable from a fast first chunk followed by a long render.
+ distinguishable from a fast first chunk followed by a long render.
 
 ## Things that look like knobs but aren't
 

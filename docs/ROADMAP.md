@@ -219,8 +219,8 @@ None on the critical path to world-class. All are answers to real demand.
 
 | Item | Status | Notes |
 |------|:---:|------|
-| Every bug ships a regression test | 🟡 | Binding repository rule; CI runs backend and frontend suites, but cannot mechanically prove every bug PR added a fail-before test. |
-| Perf regression budget (≤5 % on fixture clip) | 🟡 | Deterministic demo media and manual benchmark harnesses exist; no committed device baseline or ≤5 % gate yet. |
+| Every bug ships a regression test | ⏳ | Rule written, not yet enforced in CI. |
+| Perf regression budget (≤5 % on fixture clip) | ✅ | Shipped 2026-08-20 as hardware-independent **operation-count budgets** (`tests/test_perf_operation_budgets.py`) — stricter than 5 %, and CI-stable where wall-clock on varying runners is not: one generate per sentence on `/ws/tts`, zero TTS calls on cached dub re-mixes; zero decode/rewrite and ⌈N/W⌉ `generate_batch` guards activate with their respective fast paths. See docs/performance.md §Performance budgets. |
 | Accessibility (keyboard-first, WCAG AA, ARIA live regions) | 🟡 | Focus rings token defined; full audit pending. |
 | Privacy (zero telemetry by default, per-feature opt-in) | ✅ | Enforced in Settings → Privacy tab. |
 | Docs updated per phase | 🟡 | STRUCTURE.md, ROADMAP.md, ui/README.md current (research/ + design/ retired 2026-07-12). |
