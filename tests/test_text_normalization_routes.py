@@ -174,6 +174,34 @@ def test_ws_tts_toggle_off_sends_raw_text(client, fake_engine, monkeypatch):
     assert fake_engine.calls[-1][0] == "Dr. Smith has 2 cats"
 
 
+def test_ws_tts_reports_true_first_audio_latency(client, fake_engine, monkeypatch):
+    """TTFA ends at the first binary chunk, not when the whole render ends."""
+    import api.routers.tts_stream as stream
+    from services import watermark
+
+    # t0, synth start, synth end, first audio byte, finish.
+    # Synthesis takes 0.20s; the remaining 0.30s of wall clock is delivery.
+    ticks = iter((100.0, 100.0, 100.20, 100.125, 100.5))
+    monkeypatch.setattr(stream, "_perf_counter", lambda: next(ticks), raising=False)
+    monkeypatch.setattr(watermark, "mark_synthetic", lambda wav, _sr, **_kw: wav)
+
+    frames = _run_ws_request(client, {
+        "text": "One sentence.",
+        "language": "en",
+        "engine": "fake-norm-route",
+    })
+    done = frames[-1]
+
+    assert done["type"] == "done", frames
+    assert done["ttfa_ms"] == pytest.approx(125.0)
+    assert done["gen_time_s"] == pytest.approx(0.5)   # end-to-end, incl. delivery
+    assert done["duration_s"] == pytest.approx(1.0)
+    # RTF is a RENDER metric: 0.20s of synthesis per 1.0s of audio. Deriving it
+    # from the 0.5s wall clock would report 0.5 and blame the engine for a slow
+    # consumer (#1620 review).
+    assert done["rtf"] == pytest.approx(0.2)
+
+
 # ── Batch dub queue ──────────────────────────────────────────────────────────
 
 
@@ -254,3 +282,77 @@ def test_batch_toggle_off_sends_raw_text(batch_env, fake_engine, monkeypatch):
 
     assert "en" in job.get("outputs", {})
     assert fake_engine.calls[-1][0] == "Dr. Smith has 2 cats"
+
+
+def test_batch_uses_native_tts_batches(batch_env, monkeypatch):
+    """Batch dubbing sends eight-segment chunks to a native adapter once."""
+    b, make_job = batch_env
+    tb = _tts_mod()
+    batch_calls = []
+
+    class _NativeBatchEngine(tb.TTSBackend):
+        id = "fake-native-batch"
+        display_name = "Fake Native Batch Engine"
+        supports_cloning = True
+        gpu_compat = ("cpu",)
+
+        @property
+        def sample_rate(self):
+            return 24000
+
+        @property
+        def supported_languages(self):
+            return ["multi"]
+
+        @classmethod
+        def is_available(cls):
+            return True, "ready"
+
+        def generate(self, text, **kw):  # pragma: no cover - fallback proof
+            # Raising alone is not proof: batch.py's _gen catches Exception
+            # and substitutes silence + a job warning, so the test also
+            # asserts no warnings below — the raise turning into a warning
+            # is exactly the fallback evidence being checked for.
+            raise AssertionError("native batch should not use single-item generate")
+
+        def generate_batch(self, texts, **kw):
+            batch_calls.append((list(texts), kw))
+            return [torch.zeros(1, 24000) for _ in texts]
+
+    monkeypatch.setitem(tb._REGISTRY, "fake-native-batch", _NativeBatchEngine)
+    tb.reset_active_backend()
+    monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "fake-native-batch")
+    # Pin the width: it is derived from the host's device headroom (#1620
+    # review — an unconditional 8 would OOM 4-8 GB cards), so leaving it to
+    # detection makes this assertion depend on the machine running the suite.
+    # The derivation itself is covered by test_dub_batch_width_and_budget.py.
+    monkeypatch.setenv(b.BATCH_WIDTH_ENV, "8")
+    monkeypatch.setattr(
+        "services.watermark.mark_synthetic",
+        lambda wav, _sr, **_kw: wav,
+    )
+
+    async def _fake_transcribe_guarded(pool, fn, what=None):
+        return (
+            [
+                {"id": f"s{i:05x}", "start": float(i), "end": float(i + 1),
+                 "text": f"line {i}", "text_original": f"line {i}"}
+                for i in range(10)
+            ],
+            "en",
+        )
+
+    monkeypatch.setattr(
+        "services.asr_backend.run_transcribe_guarded",
+        _fake_transcribe_guarded,
+    )
+
+    job = make_job("job-native-batch")
+    asyncio.run(b._run_batch_pipeline("job-native-batch", job))
+
+    assert [len(texts) for texts, _ in batch_calls] == [8, 2]  # 10 segments, width 8
+    assert all(kw["duration"] == [1.0] * len(texts) for texts, kw in batch_calls)
+    # The raise in generate() is swallowed by _gen's fallback handler into a
+    # job warning + silence — so the absence of warnings is what actually
+    # proves no segment fell back to single-item generation.
+    assert not job.get("warnings"), job.get("warnings")

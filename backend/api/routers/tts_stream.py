@@ -10,7 +10,8 @@ as they're generated. This unlocks:
 Protocol:
     → Client sends JSON: {"text": "...", "voice": "profile_id", ...}
     ← Server sends binary audio chunks (PCM16 @ 24kHz mono) as generated
-    ← Server sends JSON: {"type": "done", "duration_s": 4.2, "gen_time_s": 1.1}
+    ← Server sends JSON: {"type": "done", "duration_s": 4.2,
+      "gen_time_s": 1.1, "ttfa_ms": 180.0, "rtf": 0.262}
     ← Server sends JSON: {"type": "error", "detail": "..."}
 
 The chunked delivery targets <100ms time-to-first-audio (TTFA) on warm models.
@@ -32,6 +33,10 @@ logger = logging.getLogger("omnivoice.tts_stream")
 # Chunk size for streaming PCM audio (in samples). At 24kHz, 4800 samples = 200ms.
 # Smaller chunks = lower latency but more WebSocket overhead.
 CHUNK_SAMPLES = int(os.environ.get("OMNIVOICE_STREAM_CHUNK", "4800"))
+
+# Module seam for deterministic latency-contract tests.  Keep every timing
+# sample on the same monotonic clock.
+_perf_counter = time.perf_counter
 
 
 class StreamTTSRequest(BaseModel):
@@ -85,7 +90,7 @@ async def ws_tts(websocket: WebSocket):
                 })
                 continue
 
-            t0 = time.perf_counter()
+            t0 = _perf_counter()
             text = data["text"]
 
             # Remote GPU: this socket stays on this machine, and says so.
@@ -258,6 +263,11 @@ async def ws_tts(websocket: WebSocket):
                 from services.model_manager import run_on_gpu_pool_guarded
 
                 def _generate(sentence_text):
+                    # Timed INSIDE the pool worker: the guarded dispatch below
+                    # can queue behind other jobs, and queue wait is not
+                    # synthesis (review on #1620) — under contention it would
+                    # inflate rtf without the engine slowing at all.
+                    _synth_t0 = _perf_counter()
                     from services.audio_dsp import apply_mastering, normalize_audio
                     from services.watermark import mark_synthetic
                     wav = backend.generate(sentence_text, **kw)
@@ -279,12 +289,19 @@ async def ws_tts(websocket: WebSocket):
                     # watermark._iter_chunks), which is inherent to marking
                     # ultra-short clips, not a coverage gap.
                     wav = mark_synthetic(wav, sr_actual, context="tts_stream.sentence")
-                    return wav, sr_actual
+                    return wav, sr_actual, _perf_counter() - _synth_t0
 
                 import torch
                 total_samples = 0
                 sr = backend.sample_rate
                 started = False
+                first_audio_at: float | None = None
+                # Synthesis time only. The wall clock below also carries socket
+                # delivery and the per-chunk event-loop yields, so deriving RTF
+                # from it reports "how slow was the client" as if it were engine
+                # throughput — on a slow consumer that inflates RTF without the
+                # engine having changed at all.
+                synth_time = 0.0
 
                 for sentence in sentences:
                     # Bounded + pool-reset on hang so a wedged generate can't
@@ -294,11 +311,12 @@ async def ws_tts(websocket: WebSocket):
                     # Length-scaled budget per sentence (#1190) — the flat 300s
                     # default is gone from every dispatch.
                     from services.model_manager import generate_timeout_s
-                    wav_tensor, sr = await run_on_gpu_pool_guarded(
+                    wav_tensor, sr, sentence_synth_s = await run_on_gpu_pool_guarded(
                         functools.partial(_generate, sentence),
                         what="TTS generate",
                         timeout=generate_timeout_s(sentence, engine=backend),
                     )
+                    synth_time += sentence_synth_s
 
                     if not started:
                         # Send metadata after the first generation so
@@ -325,25 +343,49 @@ async def ws_tts(websocket: WebSocket):
                         end = min(sent_samples + CHUNK_SAMPLES, n_samples)
                         chunk = pcm_bytes[sent_samples * 2: end * 2]
                         await websocket.send_bytes(chunk)
+                        if first_audio_at is None:
+                            # TTFA ends when the first audio bytes have been
+                            # handed to the socket.  The previous log used the
+                            # whole-render duration and called it TTFA.
+                            first_audio_at = _perf_counter()
                         sent_samples = end
                         # Yield to event loop between chunks for responsiveness
                         await asyncio.sleep(0)
                     total_samples += n_samples
 
-                gen_time = round(time.perf_counter() - t0, 3)
+                finished_at = _perf_counter()
+                wall_time_raw = max(0.0, finished_at - t0)
+                synth_time_raw = max(0.0, synth_time)
+                gen_time = round(wall_time_raw, 3)
                 duration = round(total_samples / sr, 3)
+                ttfa_ms = (
+                    round(max(0.0, first_audio_at - t0) * 1000.0, 1)
+                    if first_audio_at is not None
+                    else None
+                )
+                # RTF is a render metric: synthesis seconds per audio second.
+                rtf = (
+                    round(synth_time_raw / (total_samples / sr), 3)
+                    if total_samples > 0
+                    else None
+                )
 
                 await websocket.send_json({
                     "type": "done",
                     "duration_s": duration,
                     "gen_time_s": gen_time,
+                    "ttfa_ms": ttfa_ms,
+                    "rtf": rtf,
                     "samples": total_samples,
                     "sample_rate": sr,
                     "engine": backend.id,
                 })
                 logger.info(
-                    "TTS stream: %.1fs audio in %.1fs (TTFA=%.0fms)",
-                    duration, gen_time, gen_time * 1000,
+                    "TTS stream: %.1fs audio in %.1fs (TTFA=%s, RTF=%s)",
+                    duration,
+                    gen_time,
+                    f"{ttfa_ms:.0f}ms" if ttfa_ms is not None else "n/a",
+                    f"{rtf:.3f}" if rtf is not None else "n/a",
                 )
 
             except Exception as e:

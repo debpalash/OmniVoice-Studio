@@ -17,7 +17,7 @@ Phase 4 · The two bets            ▓▓▓▓▓▓▓▓▓▓  6 / 6     ✅
 Phase 5 · Productisation          ░░░░░░░░░░  0 / 5     🚫 demand-driven
 
 Design track        ▓▓▓▓▓▓▓▓▓░  ongoing · 14 primitives + ~67 migrated inline styles · DubTab/Header/Sidebar/CloneDesignTab drained
-Performance track   ░░░░░░░░░░  not started
+Performance track   ▓▓▓░░░░░░░  underway · profiling, preload, isolated engines + cache-remix I/O
 Feature-magic track ░░░░░░░░░░  not started
 Quality track       ▓▓░░░░░░░░  12 smoke tests, 10 error messages rewritten
 ```
@@ -193,16 +193,16 @@ None on the critical path to world-class. All are answers to real demand.
 | Design-system primitives (14) | ✅ | Full inventory above. |
 | Migrate remaining inline styles | 🟡 | **Four biggest offenders drained 2026-04-20** — DubTab **93 → 2**, Header **24 → 1**, Sidebar **21 → 8**, CloneDesignTab **33 → 0**. All remaining are genuinely dynamic (per-row `--row-accent` CSS custom props in Sidebar, per-bar `height/animationDelay` in WaveBars, `opacity` computed from index in skeleton rows, `fontSize` by prop). New class systems: `.dub-*` (DubTab), `.hq-col-*/.hq-stats__*/.hq-logo-*` (Header), `.sidebar-tile--*/.sidebar__scroll/.history-*--*` (Sidebar), `.clone-*/.label-row--*` (CloneDesignTab). Drag-hover on `.file-drag` and `.dub-idle-drop` now toggles `.is-dragging` instead of mutating styles via DOM. Remaining 119 across the tail (Launchpad, KeyboardCheatsheet, DubSegmentRow, WaveformTimeline, etc.) — less concentrated, lower-leverage. |
 
-### ⚡ Performance track _(⏳ not started)_
+### ⚡ Performance track _(🟡 underway)_
 
 | Item | Status | Current measurement |
 |------|:---:|------|
-| Batched TTS (8–16 segments per forward pass) | ⏳ | 1 segment per call today. |
-| Kill per-segment disk round-trip | ⏳ | `dub_generate.py:132-133` saves + re-reads per segment. |
-| Cold start ≤1.5 s to first audible sample | ⏳ | Currently 4+ s on Apple Silicon. |
+| Batched TTS (host-derived width per forward pass) | 🟡 | The batch queue feeds OmniVoice's native variable-length forward pass, with the width derived from device headroom (1 on CPU/low-VRAM hosts, up to 8) and overridable via `OMNIVOICE_DUB_BATCH_WIDTH`; adapters without native batching retain the single-segment fallback. |
+| Kill per-segment disk round-trip | 🟡 | Long-video assembly stays disk-backed to bound RAM. Unchanged same-rate natural segments now skip the redundant decode → scratch encode → decode cycle; fresh segments still persist once and reload for assembly. |
+| Cold start ≤1.5 s to first audible sample | 🟡 | Installed models preload in the background and `scripts/bench_pipeline.py` measures cold/warm synthesis; target is not yet verified. |
 | Speculative regeneration on hover | ⏳ | — |
-| Crash-sandbox engines (subprocess isolation) | ⏳ | Single CUDA OOM still kills server. |
-| Interaction budgets (<50 ms UI, <200 ms preview, <4 s first seg) | ⏳ | Not measured. |
+| Crash-sandbox engines (subprocess isolation) | 🟡 | Killable sidecar engines and opt-in `omnivoice-subprocess` are live; the default in-process engine can still take down the server on a native crash. |
+| Interaction budgets (<50 ms UI, <200 ms preview, <4 s first seg) | 🟡 | `/ws/tts` reports real TTFA, total generation time and RTF; frontend responsiveness instrumentation exists, but no cross-surface budget gate yet. |
 | Dedicated dev-week per quarter | ⏳ | Cadence not yet booked. |
 
 ### ✨ Feature-magic track _(⏳ not started)_
@@ -219,8 +219,8 @@ None on the critical path to world-class. All are answers to real demand.
 
 | Item | Status | Notes |
 |------|:---:|------|
-| Every bug ships a regression test | ⏳ | Rule written, not yet enforced in CI. |
-| Perf regression budget (≤5 % on fixture clip) | ⏳ | No fixture clip yet. |
+| Every bug ships a regression test | 🟡 | Binding repository rule; CI runs backend and frontend suites, but cannot mechanically prove every bug PR added a fail-before test. |
+| Perf regression budget (≤5 % on fixture clip) | 🟡 | Deterministic demo media and manual benchmark harnesses exist; no committed device baseline or ≤5 % gate yet. |
 | Accessibility (keyboard-first, WCAG AA, ARIA live regions) | 🟡 | Focus rings token defined; full audit pending. |
 | Privacy (zero telemetry by default, per-feature opt-in) | ✅ | Enforced in Settings → Privacy tab. |
 | Docs updated per phase | 🟡 | STRUCTURE.md, ROADMAP.md, ui/README.md current (research/ + design/ retired 2026-07-12). |

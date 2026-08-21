@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import struct
 import logging
 import time
 import asyncio
@@ -78,6 +79,62 @@ def _prepare_oom_retry(error: Exception, *, execution_target: str) -> bool:
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         torch.mps.empty_cache()
     return True
+
+
+def _cached_payload_intact(path: str, info) -> bool:
+    """Cheap truth check on a cached WAV whose header we are about to trust.
+
+    The natural-rate fast path hands the mixer a PATH instead of decoded
+    audio, so a cache whose header reads fine but whose payload is truncated
+    would only fail later, during assembly — after the timing plan (Smart Fit,
+    video stretch) had been computed from the header's frame count. The plan
+    would then describe audio that no longer exists and the segment would be
+    replaced by slot-length silence, leaving the persisted video plan and the
+    rendered track disagreeing.
+
+    Comparing the declared frame count against the physical ``data`` chunk
+    catches that without decoding: a truncated file cannot hold the samples
+    its header claims. Anything failing here falls through to the decoding path, which
+    already degrades to a warning plus silence. Formats with no fixed
+    bits-per-sample (compressed caches) are left to the decoder as before.
+    """
+    try:
+        bits = int(getattr(info, "bits_per_sample", 0) or 0)
+        frames = int(getattr(info, "num_frames", 0) or 0)
+        channels = int(getattr(info, "num_channels", 0) or 0)
+        if bits <= 0 or frames <= 0 or channels <= 0:
+            # Undecidable metadata fails CLOSED (review on #1620): these caches
+            # are PCM WAVs this module wrote itself, so anything else is
+            # unexpected — and the decode path this falls through to handles
+            # every format the fast path would have.
+            return False
+        payload = frames * channels * (bits // 8)
+        if payload <= 0:
+            return False
+
+        # A WAV may carry JUNK/LIST metadata before data, so its header is not
+        # necessarily 44 bytes. Locate the data chunk instead of counting
+        # metadata as audio; otherwise an extended header can mask truncation.
+        file_size = os.path.getsize(path)
+        with open(path, "rb") as wav:
+            header = wav.read(12)
+            if len(header) != 12 or header[:4] != b"RIFF" or header[8:12] != b"WAVE":
+                return False
+            offset = 12
+            while offset + 8 <= file_size:
+                wav.seek(offset)
+                chunk_id = wav.read(4)
+                chunk_size_raw = wav.read(4)
+                if len(chunk_id) != 4 or len(chunk_size_raw) != 4:
+                    return False
+                chunk_size = struct.unpack("<I", chunk_size_raw)[0]
+                data_offset = offset + 8
+                if chunk_id == b"data":
+                    return chunk_size >= payload and file_size >= data_offset + payload
+                offset = data_offset + chunk_size + (chunk_size % 2)
+        return False
+    except Exception:  # noqa: BLE001 — an unstattable cache is the decoder's problem
+        return False
 
 
 def _underrun_min_rate() -> float:
@@ -593,11 +650,11 @@ async def dub_generate(job_id: str, req: DubRequest):
         voice_match = (req.voice_match or "per_line").lower()
         _consistent_ref_memo: dict = {}
         remote_audio: dict[int, str] = {}
-        # Strategy-transition guard: smart_fit re-mixes the *natural-rate*
-        # per-segment WAVs from disk. If the previous run used strict_slot,
-        # the on-disk WAVs are slot-squeezed ("slotted") — reusing them would
-        # double-compress. Force one full regen; afterwards seg_wav_kind is
-        # "natural" and partial regen / fit-only re-mix (regen_only=[]) work.
+        # Strategy-transition guard: concise, stretch_video and smart_fit all
+        # re-mix *natural-rate* per-segment WAVs. If the previous run used
+        # strict_slot, the on-disk WAVs are slot-squeezed ("slotted") — the
+        # missing tails cannot be recovered by a re-mix. Force one full regen;
+        # afterwards partial regen / fit-only re-mix (regen_only=[]) is safe.
         # Jobs predating this field have unknown kind → also regen once.
         # P1.3: the kind is per-track now (each language renders under its own
         # strategy); the flat job["seg_wav_kind"] is only consulted for jobs
@@ -608,7 +665,7 @@ async def dub_generate(job_id: str, req: DubRequest):
         _wav_kind = (
             _kind_map.get(lang_code) if isinstance(_kind_map, dict) else job.get("seg_wav_kind")
         )
-        if strategy == "smart_fit" and regen_only is not None and _wav_kind != "natural":
+        if strategy != "strict_slot" and regen_only is not None and _wav_kind != "natural":
             regen_only = None
         # Manifest: stable segment id per current index. Per-segment WAVs are
         # named by stable id (dub_seg_path) so regen reuses the right audio after
@@ -759,15 +816,38 @@ async def dub_generate(job_id: str, req: DubRequest):
                 if os.path.exists(seg_wav_path):
                     try:
                         _t_cache_0 = time.perf_counter()
+                        # Natural-rate caches are already the exact assembly
+                        # input.  Keep the durable path in the manifest so the
+                        # mixer decodes it once; the old path decoded here,
+                        # wrote an identical mix_<id> scratch WAV, then decoded
+                        # that copy again.  Header-only inspection preserves
+                        # the resample fallback for caches made by an engine
+                        # with a different sample rate.
+                        if strategy != "strict_slot":
+                            try:
+                                cached_info = torchaudio.info(seg_wav_path)
+                            except Exception:
+                                cached_info = None
+                            if (
+                                cached_info is not None
+                                and int(cached_info.sample_rate) == int(backend.sample_rate)
+                                and _cached_payload_intact(seg_wav_path, cached_info)
+                            ):
+                                all_segment_wavs.append(
+                                    (seg.start, seg.end, seg_wav_path, backend.sample_rate)
+                                )
+                                sync_scores.append(getattr(seg, 'sync_ratio', None) or 1.0)
+                                _t_cache += time.perf_counter() - _t_cache_0
+                                continue
+
                         cached_wav, cached_sr = torchaudio.load(seg_wav_path)
                         if cached_sr != backend.sample_rate:
                             import torchaudio.functional as AF
                             cached_wav = AF.resample(cached_wav, cached_sr, backend.sample_rate)
-                        # Pad/trim to slot — except smart_fit, whose mix
-                        # loop needs the natural-rate length to compute the
-                        # audio/video split (the seg_wav_kind guard above
-                        # guarantees these cached WAVs are natural-rate).
-                        if strategy != "smart_fit":
+                        # strict_slot persists slot-sized buffers.  Every other
+                        # strategy consumes natural-rate audio and lets the mix
+                        # loop fit it to the current timeline.
+                        if strategy == "strict_slot":
                             target_samples = int(seg_duration * backend.sample_rate)
                             current_samples = cached_wav.shape[-1]
                             if target_samples > current_samples:
@@ -1164,12 +1244,15 @@ async def dub_generate(job_id: str, req: DubRequest):
                         if rvc_sr == backend.sample_rate:
                             audio_tensor = rvc_wav
 
-                            target_samples = int(seg_duration * backend.sample_rate)
-                            current_samples = audio_tensor.shape[-1]
-                            if target_samples > current_samples:
-                                audio_tensor = torch.nn.functional.pad(audio_tensor, (0, target_samples - current_samples))
-                            elif current_samples > target_samples:
-                                audio_tensor = audio_tensor[..., :target_samples]
+                            if strategy == "strict_slot":
+                                target_samples = int(seg_duration * backend.sample_rate)
+                                current_samples = audio_tensor.shape[-1]
+                                if target_samples > current_samples:
+                                    audio_tensor = torch.nn.functional.pad(
+                                        audio_tensor, (0, target_samples - current_samples)
+                                    )
+                                elif current_samples > target_samples:
+                                    audio_tensor = audio_tensor[..., :target_samples]
                     except Exception as e:
                         yield f"data: {json.dumps({'type': 'warning', 'segment': i, 'message': f'RVC skipped: {str(e)[:120]}'})}\n\n"
 
@@ -1356,7 +1439,21 @@ async def dub_generate(job_id: str, req: DubRequest):
                 seg_gain = getattr(seg_ref, "gain", None) if seg_ref is not None else None
                 seg_gain = seg_gain if seg_gain is not None else 1.0
                 seg_gain = max(0.0, min(2.0, seg_gain))
-                wav = _load_entry_wav((start, end, wav_path, sr), sr)
+                try:
+                    wav = _load_entry_wav((start, end, wav_path, sr), sr)
+                except Exception as e:
+                    # A WAV header can be readable while its payload is
+                    # truncated.  Direct cache reuse deliberately defers the
+                    # decode to assembly, so preserve the old recovery contract
+                    # here: warn and fill this slot with silence instead of
+                    # aborting the entire dub.
+                    warning = {
+                        "type": "warning",
+                        "segment": i,
+                        "message": f"cached seg lost, padding silence: {str(e)[:120]}",
+                    }
+                    yield f"data: {json.dumps(warning)}\n\n"
+                    wav = torch.zeros(1, max(0, int((end - start) * sr)))
                 adjusted = wav * seg_gain
                 if adjusted.ndim == 2 and adjusted.shape[0] > 1:
                     adjusted = adjusted.mean(dim=0, keepdim=True)
