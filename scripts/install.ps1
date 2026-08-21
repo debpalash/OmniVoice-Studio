@@ -52,14 +52,14 @@ if ($mode -eq "binary") {
     } catch {
         Die "Could not fetch the latest release manifest: $($_.Exception.Message)"
     }
-    $version = if ($env:VOICESTUDIO_VERSION) { $env:VOICESTUDIO_VERSION.TrimStart("v") } else { $manifest.version }
+    $vsVersion = if ($env:VOICESTUDIO_VERSION) { $env:VOICESTUDIO_VERSION.TrimStart("v") } else { $manifest.version }
     $msiUrl = $manifest.platforms.'windows-x86_64-msi'.url
     if (-not $msiUrl) { Die "No Windows .msi found in release manifest." }
-    Step "release" "v$version"
+    Step "release" "v$vsVersion"
 
     $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("voicestudio-install-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
-    $msiPath = Join-Path $tmpDir ("VoiceStudio_$version.msi")
+    $msiPath = Join-Path $tmpDir ("VoiceStudio_$vsVersion.msi")
     $sumsName = "SHA256SUMS-Windows.x64.txt"
     $sumsPath = Join-Path $tmpDir $sumsName
 
@@ -70,7 +70,7 @@ if ($mode -eq "binary") {
     Step "download" ("{0:N0} MB" -f ((Get-Item $msiPath).Length / 1MB))
 
     Step "checksum" "verifying..."
-    $sumsUrl = "https://github.com/debpalash/VoiceStudio/releases/download/v$version/$sumsName"
+    $sumsUrl = "https://github.com/debpalash/VoiceStudio/releases/download/v$vsVersion/$sumsName"
     Invoke-WebRequest -Uri $sumsUrl -OutFile $sumsPath
     $expected = (Select-String -Path $sumsPath -Pattern ([regex]::Escape((Split-Path $msiUrl -Leaf))) |
         Select-Object -First 1).Line.Split(" ")[0]
