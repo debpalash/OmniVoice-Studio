@@ -115,7 +115,13 @@ describe('review round: partial translations + dialect guard', () => {
           text_original: 'o1',
           translations: { bn: 'বাংলা ১', de: 'Zeile eins' },
         },
-        { id: '2', text: 'বাংলা ২', text_original: 'o2', translations: { bn: 'বাংলা ২' } }, // de missing
+        {
+          id: '2',
+          text: 'বাংলা ২',
+          text_original: 'o2',
+          translations: { bn: 'বাংলা ২' },
+          merge_parts: [{ textStart: 0, textEnd: 7, speaker_id: 'Anna' }],
+        }, // de missing
       ],
     });
     render(<DubLeftColumn {...makeProps()} />);
@@ -127,6 +133,68 @@ describe('review round: partial translations + dialect guard', () => {
       expect(useAppStore.getState().dubSegments[1].text).toBe('Zeile zwei (vom Server)');
     });
     expect(useAppStore.getState().dubSegments[1].translations.de).toBe('Zeile zwei (vom Server)');
+    expect(useAppStore.getState().dubSegments[1].merge_parts).toBeUndefined();
+  });
+
+  it('changing a cast voice updates stored merge attribution', () => {
+    const setDubSegments = vi.fn();
+    render(
+      <DubLeftColumn
+        {...makeProps({
+          setDubSegments,
+          profiles: [{ id: 'voice-new', name: 'New voice' }],
+          dubSegments: [
+            {
+              id: '1',
+              speaker_id: 'Anna',
+              profile_id: 'voice-old',
+              text: 'hello',
+              merge_parts: [{ textStart: 0, textEnd: 5, speaker_id: 'Anna' }],
+            },
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.change(document.querySelector('.dub-cast__select'), {
+      target: { value: 'voice-new' },
+    });
+
+    const update = setDubSegments.mock.calls[0][0][0];
+    expect(update.profile_id).toBe('voice-new');
+    expect(update.merge_parts[0].profile_id).toBe('voice-new');
+  });
+
+  it('invalidates merged rows containing the changed speaker without changing their top voice', () => {
+    const setDubSegments = vi.fn();
+    render(
+      <DubLeftColumn
+        {...makeProps({
+          setDubSegments,
+          profiles: [{ id: 'voice-new', name: 'New voice' }],
+          dubSegments: [
+            {
+              id: 'merged',
+              speaker_id: 'Anna',
+              profile_id: 'voice-anna',
+              text: 'hello there',
+              merge_parts: [
+                { textStart: 0, textEnd: 5, speaker_id: 'Anna', profile_id: 'voice-anna' },
+                { textStart: 6, textEnd: 11, speaker_id: 'Ben', profile_id: 'voice-ben' },
+              ],
+            },
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.change(document.querySelectorAll('.dub-cast__select')[1], {
+      target: { value: 'voice-new' },
+    });
+
+    const update = setDubSegments.mock.calls[0][0];
+    expect(update[0].profile_id).toBe('voice-anna');
+    expect(update[0].merge_parts[1].profile_id).toBe('voice-new');
   });
 
   it('switching language clears a dialect that no longer matches', () => {

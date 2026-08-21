@@ -75,6 +75,8 @@ export default function DubRightColumn({
   onDirectSegment,
   segmentSplit,
   segmentMerge,
+  segmentInsert,
+  segmentMoveResize,
   seekWaveform,
   timelineSelSegId,
   dubStep,
@@ -405,6 +407,8 @@ export default function DubRightColumn({
           onDirect={onDirectSegment}
           onSplit={segmentSplit}
           onMerge={segmentMerge}
+          onInsert={segmentInsert}
+          onMoveResize={segmentMoveResize}
           onSeek={seekWaveform}
           timelineSelectedId={timelineSelSegId}
         />

@@ -104,6 +104,32 @@ describe('per-language translations (P1.2)', () => {
     expect(useAppStore.getState().dubSegments[0].text).toBe('hola');
   });
 
+  it('language hydration invalidates merge offsets from the previous text', () => {
+    useAppStore.setState({
+      dubSegments: [
+        seg({
+          translations: { es: 'hola' },
+          merge_parts: [{ textStart: 0, textEnd: 11, speaker_id: 'Anna' }],
+        }),
+      ],
+    });
+
+    act(() => useAppStore.getState().switchDubLangCode('es'));
+
+    expect(useAppStore.getState().dubSegments[0].merge_parts).toBeUndefined();
+  });
+
+  it('a fresh translation invalidates merge offsets from the source text', async () => {
+    useAppStore.setState({
+      dubSegments: [seg({ merge_parts: [{ textStart: 0, textEnd: 11, speaker_id: 'Anna' }] })],
+    });
+    const { result } = renderWorkflow();
+
+    await translateTo(result, 'bn', 'ওহে');
+
+    expect(useAppStore.getState().dubSegments[0].merge_parts).toBeUndefined();
+  });
+
   it('switching to a never-translated language leaves text unchanged (legacy behaviour)', () => {
     useAppStore.setState({
       dubSegments: [seg({ text: 'ওহে', translations: { bn: 'ওহে' } })],

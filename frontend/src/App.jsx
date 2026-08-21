@@ -532,6 +532,7 @@ function App() {
     pasteTranslations,
     segmentSplit,
     segmentMerge,
+    segmentInsert,
     segmentMoveResize,
     timelineSelSegId,
     setTimelineSelSegId,
@@ -1646,6 +1647,7 @@ function App() {
                     pasteTranslations={pasteTranslations}
                     segmentSplit={segmentSplit}
                     segmentMerge={segmentMerge}
+                    segmentInsert={segmentInsert}
                     segmentMoveResize={segmentMoveResize}
                     timelineSelSegId={timelineSelSegId}
                     setTimelineSelSegId={setTimelineSelSegId}
