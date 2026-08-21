@@ -12,15 +12,39 @@ import { segmentGenInputs } from '../utils/segments';
 import { commitMoveResize } from '../utils/timeline';
 import { buildPastePlan } from '../utils/pasteTranslations';
 import {
+  ATTRIBUTION_FIELDS,
   applyAttribution,
   attributionAt,
+  attributionOf,
   clipParts,
   insertionSlot,
   keepParts,
+  mergedOriginalParts,
   mergedParts,
   nextSegmentId,
   partsFor,
 } from '../utils/segmentParts';
+
+const MERGE_PART_FIELDS = new Set(['text', ...ATTRIBUTION_FIELDS]);
+
+function clearStaleMergeParts(segment, fields) {
+  if (!segment.merge_parts || !fields.some((field) => MERGE_PART_FIELDS.has(field))) return segment;
+  const next = { ...segment };
+  delete next.merge_parts;
+  if (fields.some((field) => ATTRIBUTION_FIELDS.includes(field))) {
+    delete next.merge_parts_original;
+  }
+  return next;
+}
+
+function trimmedTextRange(text, from, to) {
+  const raw = text.slice(from, to);
+  return {
+    from: from + raw.length - raw.trimStart().length,
+    to: from + raw.trimEnd().length,
+    text: raw.trim(),
+  };
+}
 
 // Stable empty map so `lastGenFingerprints` keeps a constant identity for a
 // language with no stored hashes (avoids effect/callback churn).
@@ -72,7 +96,7 @@ export default function useSegmentEditing() {
       setDubSegments((prev) =>
         prev.map((s) => {
           if (s.id !== id) return s;
-          const next = { ...s, [field]: value };
+          const next = clearStaleMergeParts({ ...s, [field]: value }, [field]);
           if (field === 'text' && lang) {
             next.translations = { ...s.translations, [lang]: value };
           }
@@ -167,13 +191,18 @@ export default function useSegmentEditing() {
         prev.map((s) => {
           if (s.id !== id) return s;
           const restored = s.text_original || s.text;
-          return {
-            ...s,
-            text: restored,
-            ...(lang ? { translations: { ...s.translations, [lang]: restored } } : {}),
-            translate_error: undefined,
-            translate_degraded: undefined,
-          };
+          const originalParts = s.merge_parts_original;
+          return applyAttribution(
+            {
+              ...s,
+              text: restored,
+              ...(lang ? { translations: { ...s.translations, [lang]: restored } } : {}),
+              translate_error: undefined,
+              translate_degraded: undefined,
+              merge_parts: originalParts,
+            },
+            originalParts ? attributionAt(originalParts, 0) : attributionOf(s),
+          );
         }),
       );
     },
@@ -212,6 +241,7 @@ export default function useSegmentEditing() {
             ...(lang ? { translations: { ...s.translations, [lang]: next } } : {}),
             translate_error: undefined,
             translate_degraded: undefined,
+            merge_parts: undefined,
           };
         }),
       );
@@ -257,7 +287,11 @@ export default function useSegmentEditing() {
       if (!selectedSegIds.size) return;
       pushUndo(dubSegments);
       setDubSegments((prev) =>
-        prev.map((s) => (selectedSegIds.has(s.id) ? { ...s, ...patch } : s)),
+        prev.map((s) =>
+          selectedSegIds.has(s.id)
+            ? clearStaleMergeParts({ ...s, ...patch }, Object.keys(patch))
+            : s,
+        ),
       );
     },
     [dubSegments, selectedSegIds],
@@ -303,29 +337,33 @@ export default function useSegmentEditing() {
         // line past its neighbour, which then hands the words to whichever
         // speaker happened to be checked first (#1612).
         const parts = partsFor(seg);
+        const leftRange = trimmedTextRange(text, 0, pos);
+        const rightRange = trimmedTextRange(text, pos, text.length);
         const left = applyAttribution(
           {
             ...seg,
             id: `${seg.id}_a`,
-            text: text.slice(0, pos).trim(),
+            text: leftRange.text,
             end: midT,
-            text_original: text.slice(0, pos).trim(),
+            text_original: leftRange.text,
             translations: undefined,
-            merge_parts: keepParts(clipParts(parts, 0, pos)),
+            merge_parts: keepParts(clipParts(parts, leftRange.from, leftRange.to)),
+            merge_parts_original: keepParts(clipParts(parts, leftRange.from, leftRange.to)),
           },
-          attributionAt(parts, 0),
+          attributionAt(parts, leftRange.from),
         );
         const right = applyAttribution(
           {
             ...seg,
             id: `${seg.id}_b`,
-            text: text.slice(pos).trim(),
+            text: rightRange.text,
             start: midT,
-            text_original: text.slice(pos).trim(),
+            text_original: rightRange.text,
             translations: undefined,
-            merge_parts: keepParts(clipParts(parts, pos, text.length)),
+            merge_parts: keepParts(clipParts(parts, rightRange.from, rightRange.to)),
+            merge_parts_original: keepParts(clipParts(parts, rightRange.from, rightRange.to)),
           },
-          attributionAt(parts, pos),
+          attributionAt(parts, rightRange.from),
         );
         return [...prev.slice(0, idx), left, right, ...prev.slice(idx + 1)];
       });
@@ -369,6 +407,7 @@ export default function useSegmentEditing() {
           // split can now hand b's words back to b's speaker instead of
           // dubbing them in a's voice (#1612).
           merge_parts: mergedParts(a, b),
+          merge_parts_original: mergedOriginalParts(a, b),
         };
         return [...prev.slice(0, idx), merged, ...prev.slice(idx + 2)];
       });
@@ -385,7 +424,11 @@ export default function useSegmentEditing() {
       if (!directionSegId) return;
       pushUndo(dubSegments);
       setDubSegments((prev) =>
-        prev.map((s) => (s.id === directionSegId ? { ...s, direction: value || undefined } : s)),
+        prev.map((s) =>
+          s.id === directionSegId
+            ? clearStaleMergeParts({ ...s, direction: value || undefined }, ['direction'])
+            : s,
+        ),
       );
     },
     [directionSegId, dubSegments],

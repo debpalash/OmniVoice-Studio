@@ -226,6 +226,7 @@ export default function DubLeftColumn({
             ...seg,
             text: incoming,
             translations: { ...seg.translations, [code]: incoming },
+            merge_parts: undefined,
           };
         }),
       );
@@ -356,7 +357,7 @@ export default function DubLeftColumn({
                   isolated vocals), that option becomes first-class in the
                   dropdown. It's also pre-selected on the segments so "new
                   language = same speaker's voice" works by default. */}
-      {dubSegments.some((s) => s.speaker_id) && (
+      {dubSegments.some((s) => s.speaker_id || s.merge_parts?.some((part) => part.speaker_id)) && (
         <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-transparent">
           <div className="flex gap-[var(--space-2)] items-center flex-wrap">
             <span
@@ -365,7 +366,16 @@ export default function DubLeftColumn({
             >
               {t('dub.cast')}
             </span>
-            {[...new Set(dubSegments.map((s) => s.speaker_id).filter(Boolean))].map((spk) => {
+            {[
+              ...new Set(
+                dubSegments
+                  .flatMap((s) => [
+                    s.speaker_id,
+                    ...(s.merge_parts || []).map((part) => part.speaker_id),
+                  ])
+                  .filter(Boolean),
+              ),
+            ].map((spk) => {
               const autoId = autoProfileId(spk);
               const clone = speakerClones[spk];
               return (
@@ -375,13 +385,41 @@ export default function DubLeftColumn({
                   </span>
                   <select
                     className="input-base dub-cast__select"
-                    value={dubSegments.find((s) => s.speaker_id === spk)?.profile_id || ''}
+                    value={
+                      dubSegments.find((s) => s.speaker_id === spk)?.profile_id ||
+                      dubSegments
+                        .flatMap((s) => s.merge_parts || [])
+                        .find((part) => part.speaker_id === spk)?.profile_id ||
+                      ''
+                    }
                     onChange={(e) => {
                       const val = e.target.value;
                       setDubSegments(
-                        dubSegments.map((s) =>
-                          s.speaker_id === spk ? { ...s, profile_id: val } : s,
-                        ),
+                        dubSegments.map((s) => {
+                          const directMatch = s.speaker_id === spk;
+                          const nestedMatch = s.merge_parts?.some(
+                            (part) => part.speaker_id === spk,
+                          );
+                          if (!directMatch && !nestedMatch) return s;
+                          return {
+                            ...s,
+                            ...(directMatch ? { profile_id: val } : {}),
+                            ...(s.merge_parts
+                              ? {
+                                  merge_parts: s.merge_parts.map((part) =>
+                                    part.speaker_id === spk ? { ...part, profile_id: val } : part,
+                                  ),
+                                }
+                              : {}),
+                            ...(s.merge_parts_original
+                              ? {
+                                  merge_parts_original: s.merge_parts_original.map((part) =>
+                                    part.speaker_id === spk ? { ...part, profile_id: val } : part,
+                                  ),
+                                }
+                              : {}),
+                          };
+                        }),
                       );
                     }}
                   >

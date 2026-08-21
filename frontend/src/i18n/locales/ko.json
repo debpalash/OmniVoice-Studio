@@ -1162,7 +1162,7 @@
     "translate_error_title": "번역 오류: {{error}}",
     "translate_degraded_title": "번역됨 (기본) — 다듬기 단계를 건너뜀: {{reason}}",
     "budget_title": "텍스트가 원본의 {{pct}}%입니다. 더 빠른 속도나 더 짧은 문구를 고려하세요.",
-    "text_title": "커서에서 분할하려면 Ctrl+D · 다음 항목으로 병합하려면 Ctrl+M · 이전 항목으로 병합하려면 Ctrl+Shift+M",
+    "text_title": "커서에서 분할하려면 Cmd/Ctrl+D · 다음 항목으로 병합하려면 Cmd/Ctrl+M · 이전 항목으로 병합하려면 Cmd/Ctrl+Shift+M",
     "orig_label": "원본",
     "restore_title": "원본 텍스트 복원",
     "lang_default": "(데프)",

@@ -1162,7 +1162,7 @@
     "translate_error_title": "अनुवाद त्रुटि: {{error}}",
     "translate_degraded_title": "अनुवादित (सादा) — परिष्करण चरण छोड़ा गया: {{reason}}",
     "budget_title": "पाठ मूल का {{pct}}% है - उच्च गति या छोटे वाक्यांश पर विचार करें",
-    "text_title": "कर्सर पर विभाजित करने के लिए Ctrl+D · अगले के साथ विलय करने के लिए Ctrl+M · पिछले के साथ विलय करने के लिए Ctrl+Shift+M",
+    "text_title": "कर्सर पर विभाजित करने के लिए Cmd/Ctrl+D · अगले के साथ विलय करने के लिए Cmd/Ctrl+M · पिछले के साथ विलय करने के लिए Cmd/Ctrl+Shift+M",
     "orig_label": "मूल",
     "restore_title": "मूल पाठ पुनर्स्थापित करें",
     "lang_default": "(डीईएफ़)",

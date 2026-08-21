@@ -72,6 +72,21 @@ export function partsFor(seg) {
   return [{ textStart: 0, textEnd: (seg?.text || '').length, ...attributionOf(seg) }];
 }
 
+/** Attribution parts in the coordinate space of text_original. */
+export function originalPartsFor(seg) {
+  const recorded = Array.isArray(seg?.merge_parts_original)
+    ? seg.merge_parts_original.filter(Boolean)
+    : null;
+  if (recorded && recorded.length) return recorded;
+  return [
+    {
+      textStart: 0,
+      textEnd: (seg?.text_original || seg?.text || '').length,
+      ...attributionOf(seg),
+    },
+  ];
+}
+
 /**
  * Where b's words begin inside the merged line. `segmentMerge` builds it as
  * `${a.text} ${b.text}`.trim(), so b follows a plus one joining space — unless
@@ -92,6 +107,20 @@ export function mergedParts(a, b) {
   return [
     ...partsFor(a),
     ...partsFor(b).map((pt) => ({
+      ...pt,
+      textStart: pt.textStart + shift,
+      textEnd: pt.textEnd + shift,
+    })),
+  ];
+}
+
+/** Merge attribution using the immutable original-text coordinate space. */
+export function mergedOriginalParts(a, b) {
+  const aText = a?.text_original || a?.text || '';
+  const shift = aText ? aText.length + 1 : 0;
+  return [
+    ...originalPartsFor(a),
+    ...originalPartsFor(b).map((pt) => ({
       ...pt,
       textStart: pt.textStart + shift,
       textEnd: pt.textEnd + shift,
@@ -154,6 +183,21 @@ export function nextSegmentId(existing, base) {
 
 /** Shortest slot worth inserting into before falling back to `defaultDur`. */
 export const MIN_INSERT_GAP_S = 0.3;
+
+/** Only expose merge actions whose source-order neighbor is currently visible. */
+export function visibleMergeAvailability(segments, visibleSegments, segment) {
+  const index = segments.indexOf(segment);
+  const visibleIndex = visibleSegments.indexOf(segment);
+  return {
+    canMerge:
+      index >= 0 &&
+      index < segments.length - 1 &&
+      visibleIndex >= 0 &&
+      visibleSegments[visibleIndex + 1] === segments[index + 1],
+    canMergePrev:
+      index > 0 && visibleIndex > 0 && visibleSegments[visibleIndex - 1] === segments[index - 1],
+  };
+}
 
 /**
  * The time slot a newly inserted line should occupy after `prev`.

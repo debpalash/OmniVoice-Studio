@@ -1162,7 +1162,7 @@
     "translate_error_title": "Översättningsfel: {{error}}",
     "translate_degraded_title": "Översatt (enkel) — putsningssteget hoppades över: {{reason}}",
     "budget_title": "Texten är {{pct}}% av originalet — överväg högre hastighet eller kortare frasering",
-    "text_title": "Ctrl+D för att dela vid markören · Ctrl+M för att slå samman med nästa · Ctrl+Shift+M för att slå samman med föregående",
+    "text_title": "Cmd/Ctrl+D för att dela vid markören · Cmd/Ctrl+M för att slå samman med nästa · Cmd/Ctrl+Shift+M för att slå samman med föregående",
     "orig_label": "ursprung",
     "restore_title": "Återställ originaltext",
     "lang_default": "(Def)",

@@ -1162,7 +1162,7 @@
     "translate_error_title": "Errore di traduzione: {{error}}",
     "translate_degraded_title": "Tradotto (semplice) — rifinitura saltata: {{reason}}",
     "budget_title": "Il testo è il {{pct}}% dell'originale: considera una velocità maggiore o una frase più breve",
-    "text_title": "Ctrl+D per dividere in corrispondenza del cursore · Ctrl+M per unire con il successivo · Ctrl+Maiusc+M per unire con il precedente",
+    "text_title": "Cmd/Ctrl+D per dividere in corrispondenza del cursore · Cmd/Ctrl+M per unire con il successivo · Cmd/Ctrl+Maiusc+M per unire con il precedente",
     "orig_label": "orig",
     "restore_title": "Ripristina il testo originale",
     "lang_default": "(Dif)",

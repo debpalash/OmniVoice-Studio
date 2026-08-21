@@ -1162,7 +1162,7 @@
     "translate_error_title": "Erro de tradução: {{error}}",
     "translate_degraded_title": "Traduzido (simples) — o polimento foi ignorado: {{reason}}",
     "budget_title": "O texto é {{pct}}% do original – considere velocidade mais alta ou fraseado mais curto",
-    "text_title": "Ctrl+D para dividir no cursor · Ctrl+M para mesclar com o próximo · Ctrl+Shift+M para mesclar com o anterior",
+    "text_title": "Cmd/Ctrl+D para dividir no cursor · Cmd/Ctrl+M para mesclar com o próximo · Cmd/Ctrl+Shift+M para mesclar com o anterior",
     "orig_label": "original",
     "restore_title": "Restaurar texto original",
     "lang_default": "(Definitivo)",

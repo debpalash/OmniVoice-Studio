@@ -1162,7 +1162,7 @@
     "translate_error_title": "Translation error: {{error}}",
     "translate_degraded_title": "Vertaald (gewoon) — polijststap overgeslagen: {{reason}}",
     "budget_title": "De tekst is {{pct}}% van het origineel. Overweeg een hogere snelheid of kortere formulering",
-    "text_title": "Ctrl+D om te splitsen bij de cursor · Ctrl+M om samen te voegen met de volgende · Ctrl+Shift+M om samen te voegen met de vorige",
+    "text_title": "Cmd/Ctrl+D om te splitsen bij de cursor · Cmd/Ctrl+M om samen te voegen met de volgende · Cmd/Ctrl+Shift+M om samen te voegen met de vorige",
     "orig_label": "oorsprong",
     "restore_title": "Originele tekst herstellen",
     "lang_default": "(Def)",

@@ -187,6 +187,48 @@ describe('merge → split keeps each speaker their own words (#1612)', () => {
     expect(left.speaker_id).toBe('Anna');
     expect(right.speaker_id).toBe('Ben');
   });
+
+  it('keeps trimmed offsets correct when the right half is split again', () => {
+    setSegments(TWO_SPEAKERS);
+    const { result } = renderHook(() => useSegmentEditing());
+
+    act(() => result.current.segmentMerge('1'));
+    act(() => result.current.segmentSplit(segments()[0].id, 5));
+    const rightId = segments()[1].id;
+    act(() => result.current.segmentSplit(rightId, 6));
+
+    expect(segments()[2].text).toBe('but wait');
+    expect(segments()[2].speaker_id).toBe('Ben');
+  });
+
+  it.each([
+    ['text', 'rewritten line'],
+    ['speaker_id', 'Cara'],
+    ['profile_id', 'voice-cara'],
+  ])('invalidates stored attribution when %s is edited', (field, value) => {
+    setSegments(TWO_SPEAKERS);
+    const { result } = renderHook(() => useSegmentEditing());
+
+    act(() => result.current.segmentMerge('1'));
+    expect(segments()[0].merge_parts).toHaveLength(2);
+    act(() => result.current.segmentEditField(segments()[0].id, field, value));
+
+    expect(segments()[0].merge_parts).toBeUndefined();
+  });
+
+  it('restores original text with its per-speaker attribution', () => {
+    setSegments(TWO_SPEAKERS);
+    const { result } = renderHook(() => useSegmentEditing());
+
+    act(() => result.current.segmentMerge('1'));
+    act(() => result.current.segmentEditField(segments()[0].id, 'text', 'rewritten'));
+    act(() => result.current.segmentRestoreOriginal(segments()[0].id));
+    act(() => result.current.segmentSplit(segments()[0].id, 12));
+
+    expect(segments()[0].speaker_id).toBe('Anna');
+    expect(segments()[1].speaker_id).toBe('Ben');
+    expect(segments()[1].profile_id).toBe('voice-ben');
+  });
 });
 
 describe('merge direction (#1612)', () => {

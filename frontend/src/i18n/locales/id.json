@@ -1162,7 +1162,7 @@
     "translate_error_title": "Kesalahan terjemahan: {{error}}",
     "translate_degraded_title": "Diterjemahkan (biasa) — tahap penyempurnaan dilewati: {{reason}}",
     "budget_title": "Teks {{pct}}% dari aslinya — pertimbangkan kecepatan yang lebih tinggi atau frasa yang lebih pendek",
-    "text_title": "Ctrl+D untuk memisahkan kursor · Ctrl+M untuk menggabungkan dengan yang berikutnya · Ctrl+Shift+M untuk menggabungkan dengan yang sebelumnya",
+    "text_title": "Cmd/Ctrl+D untuk memisahkan kursor · Cmd/Ctrl+M untuk menggabungkan dengan yang berikutnya · Cmd/Ctrl+Shift+M untuk menggabungkan dengan yang sebelumnya",
     "orig_label": "asal",
     "restore_title": "Kembalikan teks asli",
     "lang_default": "(Tentu)",

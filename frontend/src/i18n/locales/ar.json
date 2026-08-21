@@ -1162,7 +1162,7 @@
     "translate_error_title": "خطأ في الترجمة: {{error}}",
     "translate_degraded_title": "تمت الترجمة (مباشرة) — تم تخطي خطوة الصقل: {{reason}}",
     "budget_title": "النص هو {{pct}}% من النص الأصلي — فكر في سرعة أعلى أو صياغة أقصر",
-    "text_title": "Ctrl+D للتقسيم عند المؤشر · Ctrl+M للدمج مع التالي · Ctrl+Shift+M للدمج مع السابق",
+    "text_title": "Cmd/Ctrl+D للتقسيم عند المؤشر · Cmd/Ctrl+M للدمج مع التالي · Cmd/Ctrl+Shift+M للدمج مع السابق",
     "orig_label": "أصل",
     "restore_title": "استعادة النص الأصلي",
     "lang_default": "(مدافع)",

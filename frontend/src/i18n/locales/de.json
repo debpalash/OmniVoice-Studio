@@ -1162,7 +1162,7 @@
     "translate_error_title": "Übersetzungsfehler: {{error}}",
     "translate_degraded_title": "Übersetzt (einfach) — der Feinschliff wurde übersprungen: {{reason}}",
     "budget_title": "Der Text besteht zu {{pct}} % aus dem Original – erwägen Sie eine höhere Geschwindigkeit oder eine kürzere Formulierung",
-    "text_title": "Strg+D zum Teilen am Cursor · Strg+M zum Zusammenführen mit dem nächsten · Strg+Umschalt+M zum Zusammenführen mit dem vorherigen",
+    "text_title": "Cmd/Strg+D zum Teilen am Cursor · Cmd/Strg+M zum Zusammenführen mit dem nächsten · Cmd/Strg+Umschalt+M zum Zusammenführen mit dem vorherigen",
     "orig_label": "orig",
     "restore_title": "Originaltext wiederherstellen",
     "lang_default": "(Def)",

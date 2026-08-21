@@ -1162,7 +1162,7 @@
     "translate_error_title": "翻訳エラー: {{error}}",
     "translate_degraded_title": "翻訳済み（通常）— 仕上げ処理はスキップされました: {{reason}}",
     "budget_title": "テキストはオリジナルの {{pct}}% です — 高速化または短い表現を検討してください",
-    "text_title": "Ctrl+D でカーソル位置で分割、Ctrl+M で次と結合、Ctrl+Shift+M で前と結合",
+    "text_title": "Cmd/Ctrl+D でカーソル位置で分割、Cmd/Ctrl+M で次と結合、Cmd/Ctrl+Shift+M で前と結合",
     "orig_label": "元の",
     "restore_title": "元のテキストを復元する",
     "lang_default": "(防御)",

@@ -130,6 +130,18 @@ describe('DubSegmentRow timing fields', () => {
     expect(end.value).toBe('0:03.0');
   });
 
+  it.each(['5junk', '1:99', '1:02junk', '-2'])('rejects malformed time %s', (value) => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+    expect(end.value).toBe('0:03.0');
+  });
+
   it('abandons an edit on Escape', () => {
     const props = makeProps();
     render(<DubSegmentRow {...props} />);

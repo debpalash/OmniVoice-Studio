@@ -1162,7 +1162,7 @@
     "translate_error_title": "Błąd w tłumaczeniu: {{error}}",
     "translate_degraded_title": "Przetłumaczono (zwykłe) — pominięto szlifowanie: {{reason}}",
     "budget_title": "Tekst ma {{pct}}% oryginału — rozważ większą prędkość lub krótsze frazowanie",
-    "text_title": "Ctrl+D, aby podzielić przy kursorze · Ctrl+M, aby połączyć z następnym · Ctrl+Shift+M, aby połączyć z poprzednim",
+    "text_title": "Cmd/Ctrl+D, aby podzielić przy kursorze · Cmd/Ctrl+M, aby połączyć z następnym · Cmd/Ctrl+Shift+M, aby połączyć z poprzednim",
     "orig_label": "oryg",
     "restore_title": "Przywróć oryginalny tekst",
     "lang_default": "(Obrona)",

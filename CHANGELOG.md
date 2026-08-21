@@ -15,7 +15,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Reporting a bug from an outdated build now offers the latest release first (#1547)
 - The backend is only announced ready once it can actually serve, and crash-loop restarts now pace themselves (#1548)
 - Invisible watermarking no longer stalls — or silently skips — the first take of a session (#1615)
-- Dub subtitles can be retimed, inserted, and merged in either direction from the segment table
+- Dub subtitles can be retimed, inserted, and merged in either direction from the segment table (#1612) — thanks @invio-a11y!
 
 ### Changed
 - Dictation now carries one native output session from shortcut-down through final delivery, restores text, HTML, image, or file-list clipboards only when untouched, keeps Wayland copy-safe unless current-focus insertion is explicitly enabled, and retries silent Sherpa speech only through an already-installed local ASR model (#1175)

@@ -54,7 +54,8 @@ function bestSplitPoint(text) {
 function parseTime(s) {
   const m = /^\s*(\d+):([0-5]?\d(?:\.\d+)?)\s*$/.exec(s);
   if (m) return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
-  const n = parseFloat(s);
+  if (String(s).includes(':') || !/^\s*\d+(?:\.\d+)?\s*$/.test(s)) return null;
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 

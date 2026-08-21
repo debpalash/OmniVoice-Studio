@@ -1434,7 +1434,7 @@
     "translate_degraded_title": "Translated (plain) — the polish pass was skipped: {{reason}}",
     "translate_error_title": "Translation error: {{error}}",
     "budget_title": "Text is {{pct}}% of original — consider higher speed or shorter phrasing",
-    "text_title": "Ctrl+D to split at cursor · Ctrl+M to merge with next · Ctrl+Shift+M to merge with previous",
+    "text_title": "Cmd/Ctrl+D to split at cursor · Cmd/Ctrl+M to merge with next · Cmd/Ctrl+Shift+M to merge with previous",
     "orig_label": "orig",
     "restore_title": "Restore original text",
     "lang_default": "(Def)",
