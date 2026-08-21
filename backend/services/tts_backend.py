@@ -341,6 +341,44 @@ class TTSBackend(ABC):
         Engines that don't support this will ignore the parameter.
         """
 
+    def generate_batch(
+        self,
+        texts: list[str],
+        *,
+        ref_audio=None,
+        ref_text=None,
+        instruct=None,
+        language=None,
+        duration=None,
+        speed=1.0,
+        **extras,
+    ) -> list[torch.Tensor]:
+        """Synthesize several utterances, preserving the single-item contract.
+
+        Engines with a native batch forward pass override this method.  The
+        default keeps every existing adapter correct while giving callers one
+        stable seam and per-item keyword handling.
+        """
+        if not texts:
+            return []
+
+        def _item(value, index):
+            return value[index] if isinstance(value, list) else value
+
+        return [
+            self.generate(
+                text,
+                ref_audio=_item(ref_audio, index),
+                ref_text=_item(ref_text, index),
+                instruct=_item(instruct, index),
+                language=_item(language, index),
+                duration=_item(duration, index),
+                speed=_item(speed, index),
+                **extras,
+            )
+            for index, text in enumerate(texts)
+        ]
+
     # ── Lifecycle (Phase 2 will enforce per-engine overrides) ──────────────
     #
     # Today every backend lazily loads its weights on first `generate()` and
@@ -716,6 +754,73 @@ class OmniVoiceBackend(TTSBackend):
             self._model, ref_audio=ref_audio, ref_text=ref_text, **gen_kw
         )
         return audios[0]
+
+    def generate_batch(self, texts: list[str], **kw) -> list[torch.Tensor]:
+        """Use OmniVoice's native variable-length batch generation.
+
+        Batch callers pass per-item language, duration, speed and reference
+        lists.  Reusable clone prompts are prepared once and handed to the
+        model together; an incomplete prompt batch falls back to the proven
+        single-item path instead of changing synthesis semantics.
+        """
+        self._ensure_loaded()
+        if not texts:
+            return []
+
+        def _items(value):
+            if isinstance(value, list):
+                return value
+            return [value] * len(texts)
+
+        def _item_kwargs(index):
+            return {
+                key: value[index] if isinstance(value, list) else value
+                for key, value in kw.items()
+            }
+
+        ref_audios = _items(kw.get("ref_audio"))
+        ref_texts = _items(kw.get("ref_text"))
+        cache_ref = bool(kw.get("cache_ref", True))
+        preprocess_prompt = bool(kw.get("preprocess_prompt", True))
+        prompts = []
+        if any(ref_audios):
+            for ref_audio, ref_text in zip(ref_audios, ref_texts):
+                if not ref_audio:
+                    prompts = []
+                    break
+                prompt = _get_clone_prompt(
+                    self._model,
+                    ref_audio,
+                    ref_text,
+                    preprocess_prompt,
+                    store=cache_ref,
+                )
+                if prompt is None:
+                    prompts = []
+                    break
+                prompts.append(prompt)
+
+        if any(ref_audios) and len(prompts) != len(texts):
+            return [self.generate(text, **_item_kwargs(i))
+                    for i, text in enumerate(texts)]
+
+        gen_kw = dict(
+            language=kw.get("language"),
+            instruct=kw.get("instruct"),
+            duration=kw.get("duration"),
+            speed=kw.get("speed", 1.0),
+            denoise=kw.get("denoise", True),
+            postprocess_output=kw.get("postprocess_output", True),
+            num_step=kw.get("num_step", 16),
+            guidance_scale=kw.get("guidance_scale", 2.0),
+            preprocess_prompt=preprocess_prompt,
+        )
+        if prompts:
+            gen_kw["voice_clone_prompt"] = prompts
+        else:
+            gen_kw["ref_audio"] = None
+            gen_kw["ref_text"] = None
+        return self._model.generate(text=texts, **gen_kw)
 
     def unload(self) -> None:
         """Release the OmniVoice model (MM2-02). OmniVoice shares the singleton

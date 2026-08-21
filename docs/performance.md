@@ -258,6 +258,24 @@ operation to a guarded path, change the expected count in the same PR with a
 comment justifying the new floor. Never loosen a budget just to make CI pass
 — that is the regression the budget exists to catch.
 
+## Batch and streaming behavior
+
+ Batch dubbing renders several segments in one native forward pass when the
+selected engine supports it. The width is derived from the host rather than
+fixed, because a wider forward pass needs proportionally more device memory:
+CPU hosts and cards with less than ~2 GB of headroom above the engine's
+single-job requirement stay at one segment, and the width steps up to 2, 4,
+and 8 as headroom allows. `OMNIVOICE_DUB_BATCH_WIDTH` overrides it (1 disables
+batching, 16 is the ceiling). Engines without native batching inherit a
+compatibility fallback that preserves the one-segment behavior.
+
+Streaming clients also receive measured latency in the `/ws/tts` terminal
+ `done` frame: `ttfa_ms` is request-to-first-audio, `gen_time_s` is the
+end-to-end wall clock including delivery, and `rtf` is *synthesis* time
+divided by generated-audio duration — measured around the render calls only,
+so a slow client cannot inflate it. The backend log records the same values, so a slow first chunk is
+ distinguishable from a fast first chunk followed by a long render.
+
 ## Things that look like knobs but aren't
 
 - **Deleting and re-adding a voice** doesn't speed anything up; the reference
