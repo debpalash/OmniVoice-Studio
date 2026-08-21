@@ -302,19 +302,30 @@ if ! _uv_ok; then
     fi
     export PATH="$HOME/.local/bin:$PATH"
 fi
+if ! have uv; then
+    die "uv installation failed. Install manually: curl -LsSf https://astral.sh/uv/install.sh | sh"
+fi
 step "uv" "$(uv --version 2>/dev/null)"
 
 # ── Install bun (JS runtime for frontend) ──────────────────────────────────
 step "bun" "checking..."
 if ! have bun; then
     note "Installing bun..."
-    if have curl; then
-        curl -fsSL https://bun.sh/install | sh </dev/null
-    else
-        die "curl is required to install bun."
+    # Fetch to a temp file instead of `curl | sh`: if the download fails,
+    # piping would run an empty script and exit 0, hiding the failure until
+    # `bun: command not found` much later (seen on a GitHub runner).
+    _bun_tmp=$(mktemp)
+    if download "https://bun.sh/install" "$_bun_tmp" && [ -s "$_bun_tmp" ]; then
+        run_quiet sh "$_bun_tmp" </dev/null || true
     fi
+    rm -f "$_bun_tmp"
     export PATH="$HOME/.bun/bin:$PATH"
+    if ! have bun && have npm; then
+        note "Falling back to npm install -g bun..."
+        run_quiet npm install -g bun </dev/null || true
+    fi
 fi
+have bun || die "bun installation failed. Install manually: curl -fsSL https://bun.sh/install | bash"
 step "bun" "bun $(bun --version 2>/dev/null)"
 
 # ── GPU detection (informational) ──────────────────────────────────────────
