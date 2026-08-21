@@ -82,7 +82,15 @@ if ($mode -eq "binary") {
     }
 
     Step "install" "launching the VoiceStudio setup wizard..."
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$msiPath`""
+    if ($env:CI) {
+        Step "install" "running msiexec silently (CI)..."
+        $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$msiPath`"", "/norestart", "/qn" -Wait -PassThru
+        if ($proc.ExitCode -ne 0) { Die "msiexec failed with exit code $($proc.ExitCode)" }
+    }
+    else {
+        Step "install" "launching the VoiceStudio setup wizard..."
+        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$msiPath`""
+    }
     Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
 
     Write-Host ""

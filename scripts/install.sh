@@ -235,7 +235,7 @@ install_binary() {
     case "$OS" in
         macos)
             step "install" "mounting disk image..."
-            MOUNT_DIR=$(hdiutil attach -nobrowse -quiet "$TMP/$ASSET" | awk -F'\t' '/\/Volumes\//{print $NF}')
+            MOUNT_DIR=$(hdiutil attach -nobrowse "$TMP/$ASSET" | awk -F'\t' '/\/Volumes\//{print $NF}')
             [ -n "$MOUNT_DIR" ] || die "Could not mount $ASSET"
             APP_SRC=$(find "$MOUNT_DIR" -maxdepth 1 -name "*.app" | head -n1)
             if [ -z "$APP_SRC" ]; then

@@ -42,11 +42,29 @@ jobs:
       # Running `sh scripts/install.sh` from the repo root exercises the
       # repo-root resolution (script dir is scripts/, project root one level
       # up) — the exact bug that made a local run clone a duplicate repo.
-      - name: Run installer (macOS/Linux)
+      # Binary mode is the default: prebuilt release asset, checksum verified.
+      - name: Run installer — binary (macOS/Linux)
         if: runner.os != 'Windows'
         run: sh scripts/install.sh
 
-      - name: Verify install (macOS/Linux)
+      - name: Verify install — binary (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$(uname)" = "Darwin" ]; then
+            test -d "/Applications/VoiceStudio.app" || { echo "::error::VoiceStudio.app missing from /Applications"; exit 1; }
+            echo "✓ VoiceStudio.app installed in /Applications"
+          else
+            test -x "$HOME/.local/bin/VoiceStudio" || { echo "::error::AppImage missing from ~/.local/bin"; exit 1; }
+            "$HOME/.local/bin/VoiceStudio" --appimage-help >/dev/null 2>&1 || true
+            echo "✓ AppImage installed and executable"
+          fi
+
+      # Source mode stays covered end-to-end behind --source.
+      - name: Run installer — source (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: sh scripts/install.sh --source
+
+      - name: Verify install — source (macOS/Linux)
         if: runner.os != 'Windows'
         working-directory: ${{ github.workspace }}
         run: |
@@ -54,12 +72,33 @@ jobs:
           test -f frontend/dist/index.html || { echo "::error::frontend build missing"; exit 1; }
           echo "✓ venv + frontend bundle present"
 
-      - name: Run installer (Windows)
+      # Binary mode is the default; CI runs msiexec silently.
+      - name: Run installer — binary (Windows)
         if: runner.os == 'Windows'
+        env:
+          CI: true
         shell: pwsh
         run: '& { $ErrorActionPreference = "Stop"; & "${{ github.workspace }}\scripts\install.ps1" }'
 
-      - name: Verify install (Windows)
+      - name: Verify install — binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $key = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*VoiceStudio*" -or $_.DisplayName -like "*OmniVoice*" } |
+            Select-Object -First 1
+          if (-not $key) { Write-Host "::error::MSI product not registered"; exit 1 }
+          Write-Host "✓ MSI product registered: $($key.DisplayName)"
+
+      # Source mode stays covered end-to-end behind -Source.
+      - name: Run installer — source (Windows)
+        if: runner.os == 'Windows'
+        env:
+          VOICESTUDIO_INSTALL_MODE: source
+        shell: pwsh
+        run: '& { $ErrorActionPreference = "Stop"; & "${{ github.workspace }}\scripts\install.ps1" }'
+
+      - name: Verify install — source (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
