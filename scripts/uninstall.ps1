@@ -20,11 +20,25 @@
 [CmdletBinding()]
 param(
   [switch]$Yes,
-  [switch]$Models
+  [switch]$Models,
+  [switch]$RemoveApp
 )
 
 $ErrorActionPreference = 'Stop'
 $identifier = 'com.debpalash.omnivoice-studio'
+
+# Prebuilt app from the default `irm ... | iex` install: an MSI product.
+$msiProduct = $null
+if ($RemoveApp) {
+  $uninstallKeys = @(
+    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+  )
+  $msiProduct = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -match 'VoiceStudio|OmniVoice' } |
+    Select-Object -First 1
+}
 
 # ── Resolve platform default paths (mirrors the app) ────────────────────────
 $appData   = [Environment]::GetEnvironmentVariable('APPDATA')
@@ -71,6 +85,7 @@ $appTargets = @()
 foreach ($p in @($dataDir, $configDefault, $logsDefault, $userEnvDir)) {
   if (Test-Path -LiteralPath $p) { $appTargets += $p }
 }
+if ($RemoveApp -and $msiProduct) { $appTargets += "MSI product: $($msiProduct.DisplayName)" }
 
 Write-Host 'VoiceStudio uninstaller (Windows)'
 Write-Host '---------------------------------'
@@ -79,7 +94,10 @@ if ($appTargets.Count -eq 0) {
   Write-Host 'env-configured locations. Nothing to remove.'
 } else {
   Write-Host 'App data, managed Python env, config, and logs:'
-  foreach ($t in $appTargets) { '  {0,-9} {1}' -f (Get-FolderSize $t), $t | Write-Host }
+  foreach ($t in $appTargets) {
+    if ($t -like 'MSI product:*') { Write-Host "  {-}        $t" }
+    else { '  {0,-9} {1}' -f (Get-FolderSize $t), $t | Write-Host }
+  }
 }
 
 $modelsPresent = Test-Path -LiteralPath $modelsDir
@@ -92,10 +110,13 @@ if ($modelsPresent) {
 
 Write-Host ''
 if (-not $Yes) {
-  Write-Host 'DRY RUN — nothing deleted. Re-run with -Yes to remove the app folders'
+  Write-Host 'DRY RUN — nothing deleted. Re-run with -Yes to remove the listed folders'
   if ($modelsPresent) { Write-Host '         (add -Models to also remove the shared model cache).' }
-  Write-Host 'To remove the app itself: Settings > Apps > VoiceStudio > Uninstall'
-  Write-Host '(listed as "OmniVoice Studio" if you have not updated since the rename).'
+  if (-not $RemoveApp) {
+    Write-Host '         (add -RemoveApp to also uninstall the prebuilt app via msiexec).'
+    Write-Host '         Or manually: Settings > Apps > VoiceStudio > Uninstall'
+    Write-Host '         (listed as "OmniVoice Studio" if you have not updated since the rename).'
+  }
   exit 0
 }
 
@@ -135,6 +156,7 @@ try {
 
 $deleted = 0
 foreach ($t in $appTargets) {
+  if ($t -like 'MSI product:*') { continue }
   Write-Host "Removing $t"
   Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue
   $deleted++
@@ -146,8 +168,15 @@ if ($Models -and $modelsPresent) {
 } elseif ($modelsPresent) {
   Write-Host "Kept model cache ($modelsDir) — re-run with -Models to remove it."
 }
+if ($RemoveApp -and $msiProduct) {
+  Write-Host "Uninstalling $($msiProduct.DisplayName) via msiexec..."
+  Start-Process msiexec.exe -ArgumentList '/x', $msiProduct.PSChildName, '/norestart', '/qn' -Wait
+  if ($LASTEXITCODE -eq 0) { Write-Host 'MSI product uninstalled.' }
+  else { Write-Host "msiexec exited with $LASTEXITCODE — remove it via Settings > Apps if it is still listed." }
+}
 
 Write-Host ''
 Write-Host "Done — removed $deleted folder(s)."
-Write-Host 'To remove the app itself: Settings > Apps > VoiceStudio > Uninstall'
-Write-Host '(listed as "OmniVoice Studio" if you have not updated since the rename).'
+if (-not $RemoveApp) {
+  Write-Host 'To also uninstall the app: re-run with -RemoveApp, or use Settings > Apps.'
+}

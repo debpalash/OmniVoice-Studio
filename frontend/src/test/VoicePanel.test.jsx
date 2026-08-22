@@ -38,25 +38,25 @@ const MODELS = {
       repo_id: 'org/parakeet-v3',
       label: 'Parakeet TDT v3',
       tag: 'offline',
-      recommended: true,
-      size_gb: 0.18,
+      recommended: false,
+      size_gb: 0.67,
       languages: '25 European languages',
-      installed: true,
+      installed: false,
     },
     {
       id: 'sherpa-whisper-tiny',
       repo_id: 'org/whisper-tiny',
       label: 'Whisper Tiny',
       tag: 'offline',
-      recommended: false,
-      size_gb: 0.116,
+      recommended: true,
+      size_gb: 0.104,
       languages: '90+ languages',
-      installed: false,
+      installed: true,
     },
   ],
   engine_available: true,
   engine_reason: null,
-  default_model_id: 'sherpa-parakeet-tdt-v3',
+  default_model_id: 'sherpa-whisper-tiny',
 };
 
 function withI18n(node) {
@@ -83,7 +83,7 @@ describe('VoicePanel', () => {
         return Promise.resolve({
           enabled: true,
           mode: 'toggle',
-          model_id: 'sherpa-parakeet-tdt-v3',
+          model_id: 'sherpa-whisper-tiny',
         });
       return Promise.resolve({});
     });
@@ -91,7 +91,7 @@ describe('VoicePanel', () => {
     useAppStore.setState({
       dictationEnabled: true,
       dictationMode: 'toggle',
-      dictationModelId: 'sherpa-parakeet-tdt-v3',
+      dictationModelId: 'sherpa-whisper-tiny',
       dictationLoaded: true,
     });
   });
@@ -107,39 +107,41 @@ describe('VoicePanel', () => {
     expect(screen.getByRole('switch', { name: 'Enable Voice Dictation' })).toBeChecked();
     // The dropdown trigger shows the selected model once models load.
     await waitFor(() =>
-      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'),
+      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Whisper Tiny'),
     );
   });
 
   it('lists models with badges, size and install/delete affordances when expanded', async () => {
     render(withI18n(<VoicePanel />));
     await waitFor(() =>
-      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Parakeet TDT v3'),
+      expect(screen.getByTestId('dictation-model-trigger')).toHaveTextContent('Whisper Tiny'),
     );
     fireEvent.click(screen.getByTestId('dictation-model-trigger'));
 
-    const v3 = screen.getByTestId('dictation-model-sherpa-parakeet-tdt-v3').closest('li');
-    expect(within(v3).getByText('recommended')).toBeInTheDocument();
-    expect(within(v3).getByText('offline')).toBeInTheDocument();
-    expect(within(v3).getByText('180 MB')).toBeInTheDocument();
+    const whisper = screen.getByTestId('dictation-model-sherpa-whisper-tiny').closest('li');
+    expect(within(whisper).getByText('recommended')).toBeInTheDocument();
+    expect(within(whisper).getByText('offline')).toBeInTheDocument();
+    expect(within(whisper).getByText('104 MB')).toBeInTheDocument();
     // Installed → delete affordance.
-    expect(screen.getByTestId('dictation-delete-sherpa-parakeet-tdt-v3')).toBeInTheDocument();
+    expect(screen.getByTestId('dictation-delete-sherpa-whisper-tiny')).toBeInTheDocument();
     // Not installed → download affordance.
-    expect(screen.getByTestId('dictation-install-sherpa-whisper-tiny')).toBeInTheDocument();
+    expect(screen.getByTestId('dictation-install-sherpa-parakeet-tdt-v3')).toBeInTheDocument();
   });
 
   it('writes the model pref and kicks off install when picking an uninstalled model', async () => {
     render(withI18n(<VoicePanel />));
     await waitFor(() => expect(screen.getByTestId('dictation-model-trigger')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('dictation-model-trigger'));
-    fireEvent.click(screen.getByTestId('dictation-model-sherpa-whisper-tiny'));
+    fireEvent.click(screen.getByTestId('dictation-model-sherpa-parakeet-tdt-v3'));
 
     // Pref write-through (POST /dictation/prefs with the new model id).
     await waitFor(() =>
-      expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', { model_id: 'sherpa-whisper-tiny' }),
+      expect(apiPost).toHaveBeenCalledWith('/dictation/prefs', {
+        model_id: 'sherpa-parakeet-tdt-v3',
+      }),
     );
     // Uninstalled → download started via the model-store install mutation.
-    expect(installMutate).toHaveBeenCalledWith('org/whisper-tiny');
+    expect(installMutate).toHaveBeenCalledWith('org/parakeet-v3');
   });
 
   it('toggles the enable switch through the store write-through', async () => {

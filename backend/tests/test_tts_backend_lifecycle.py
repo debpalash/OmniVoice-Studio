@@ -76,6 +76,35 @@ class TestUnloadOnABC:
         )
 
 
+def test_omnivoice_native_batch_preserves_per_item_controls():
+    """The adapter forwards variable-length batch controls to OmniVoice."""
+    import torch
+
+    tts = _load_tts_backend_module()
+    calls = []
+
+    class _Model:
+        sampling_rate = 24000
+
+        def generate(self, **kwargs):
+            calls.append(kwargs)
+            return [torch.zeros(1, 12000), torch.zeros(1, 24000)]
+
+    backend = tts.OmniVoiceBackend(model=_Model())
+    outputs = backend.generate_batch(
+        ["short", "long"],
+        language=["en", "es"],
+        duration=[0.5, 1.0],
+        speed=[1.0, 0.8],
+    )
+
+    assert [output.shape[-1] for output in outputs] == [12000, 24000]
+    assert calls[0]["text"] == ["short", "long"]
+    assert calls[0]["language"] == ["en", "es"]
+    assert calls[0]["duration"] == [0.5, 1.0]
+    assert calls[0]["speed"] == [1.0, 0.8]
+
+
 class TestUnloadDefaultBehavior:
     """The default no-op must actually be safe to call."""
 

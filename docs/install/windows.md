@@ -51,7 +51,14 @@ see [linux.md — AMD GPU (ROCm)](linux.md#amd-gpu-rocm).
 
 ## Install (from source)
 
-Run from a regular (non-admin) PowerShell:
+One-liner from a regular (non-admin) PowerShell — installs Git, FFmpeg, uv,
+and bun via winget, then clones and builds:
+
+```powershell
+irm https://voicestudio.sh/install | iex
+```
+
+Or manually:
 
 ```bash
 git clone https://github.com/debpalash/VoiceStudio.git

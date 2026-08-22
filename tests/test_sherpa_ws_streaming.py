@@ -63,6 +63,25 @@ class _GrowingOnlineRecognizer:
         self._endpoint_at = 999
 
 
+class _SilentOnlineRecognizer:
+    """Accepts clear speech but never returns a token."""
+
+    def create_stream(self):
+        return _GrowingStream()
+
+    def is_ready(self, s):
+        return False
+
+    def decode_stream(self, s):
+        pass
+
+    def get_result(self, s):
+        return ""
+
+    def is_endpoint(self, s):
+        return False
+
+
 @pytest.fixture
 def client(monkeypatch):
     from fastapi.testclient import TestClient
@@ -140,10 +159,174 @@ def test_partials_before_final(client):
     assert partials, f"no partials emitted; saw {types_seen}"
     assert finals, f"no final emitted; saw {types_seen}"
     assert types_seen.index("partial") < types_seen.index("final")
+    assert [m["final_kind"] for m in finals] == ["utterance", "summary"]
 
     # Partials grow monotonically in length.
     lengths = [len(p["text"]) for p in partials]
     assert lengths == sorted(lengths)
+
+
+def test_streaming_silent_model_falls_back_and_demotes(monkeypatch):
+    """Speech into a token-silent streaming recognizer still returns text.
+
+    The offline Sherpa handler already detects this runtime failure class. The
+    streaming handler must expose the same recovery contract instead of
+    returning a successful-looking empty summary.
+    """
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from api.routers import capture_ws as cw
+    from services import asr_backend as ab
+    from services import sherpa_dictation as sd
+
+    spec = sd.get_spec("sherpa-zipformer-en-20m")
+    monkeypatch.setattr(cw, "_select_sherpa_spec", lambda ws: spec)
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "ensure_loaded",
+                        lambda self: setattr(self, "_rec", _SilentOnlineRecognizer()))
+    monkeypatch.setattr(sd, "is_installed", lambda _spec: True)
+
+    demoted = []
+    monkeypatch.setattr(sd, "demote_model", lambda model_id: demoted.append(model_id) or True)
+
+    fallback_calls = []
+
+    async def fallback(chunks, *, pcm_sr=None, skip_sherpa=False):
+        fallback_calls.append((b"".join(chunks), pcm_sr, skip_sherpa))
+        return {
+            "text": "fallback heard me",
+            "segments": [{"start": 0.0, "end": 0.25, "text": "fallback heard me"}],
+            "language": "en",
+            "engine": "stub-fallback",
+        }
+
+    monkeypatch.setattr(cw, "_transcribe_buffer_full", fallback)
+    monkeypatch.setitem(sys.modules, "services.refinement",
+                        types.SimpleNamespace(maybe_refine_async=lambda t: None,
+                                              collapse_repetitive_artifacts=lambda t: t))
+
+    speech = np.full(3000, 3000, dtype=np.int16).tobytes()
+    from main import app
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    with client.websocket_connect(
+        "/ws/transcribe?model=sherpa-zipformer-en-20m&sr=16000"
+    ) as ws:
+        ws.send_bytes(speech)
+        ws.send_text("EOF")
+        final = None
+        for _ in range(10):
+            msg = ws.receive_json()
+            if msg.get("type") == "final":
+                final = msg
+                break
+
+    assert final is not None
+    assert final["text"] == "Fallback heard me."
+    assert final["final_kind"] == "summary"
+    assert final["engine"] == "capture-asr-fallback"
+    assert final["model_silent"] == spec.id
+    assert final["warning"]
+    assert demoted == [spec.id]
+    assert fallback_calls == [(speech, 16000, True)]
+
+
+def test_streaming_silent_model_does_not_download_a_fallback(monkeypatch):
+    """An installed silent Sherpa model must not trigger another model pull.
+
+    The session-start probe validates the selected Sherpa weights, but that
+    says nothing about the fallback. Before demoting to it, recovery must
+    separately prove the capture fallback is installed — otherwise it invokes
+    an ASR backend that auto-downloads on a cache miss, turning a failed
+    dictation into a surprise multi-gigabyte pull.
+    """
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from api.routers import capture_ws as cw
+    from services import asr_backend as ab
+    from services import sherpa_dictation as sd
+
+    spec = sd.get_spec("sherpa-zipformer-en-20m")
+    monkeypatch.setattr(cw, "_select_sherpa_spec", lambda ws: spec)
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "ensure_loaded",
+                        lambda self: setattr(self, "_rec", _SilentOnlineRecognizer()))
+    monkeypatch.setattr(sd, "is_installed", lambda _spec: True)
+    monkeypatch.setattr(sd, "demote_model", lambda _model_id: True)
+
+    probes = []
+
+    def probe(**kwargs):
+        probes.append(kwargs)
+        if kwargs.get("sherpa_model_id") == spec.id:
+            return None  # selected Sherpa model is installed
+        return {
+            "error": "asr_model_missing",
+            "missing_repo_id": "local/fallback-not-installed",
+            "recommended": None,
+        }
+
+    monkeypatch.setattr(ab, "asr_model_missing_error", probe)
+    fallback_calls = []
+
+    async def fallback(_chunks, *, pcm_sr=None, skip_sherpa=False):
+        fallback_calls.append(pcm_sr)
+        return {"text": "this required a download", "segments": []}
+
+    monkeypatch.setattr(cw, "_transcribe_buffer_full", fallback)
+
+    speech = np.full(3000, 3000, dtype=np.int16).tobytes()
+    from main import app
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    with client.websocket_connect(
+        "/ws/transcribe?model=sherpa-zipformer-en-20m&sr=16000"
+    ) as ws:
+        ws.send_bytes(speech)
+        ws.send_text("EOF")
+        final = None
+        for _ in range(10):
+            msg = ws.receive_json()
+            if msg.get("type") == "final":
+                final = msg
+                break
+
+    assert final is not None
+    assert final["text"] == ""
+    assert final["model_silent"] == spec.id
+    assert fallback_calls == []
+    assert probes == [
+        {"purpose": "dictation", "sherpa_model_id": spec.id},
+        {"purpose": "dictation", "skip_sherpa": True, "require_installed": True},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_silent_recovery_needs_fallback_speech_before_demotion(monkeypatch):
+    """Noise alone must not persistently disable an otherwise healthy model."""
+    from api.routers import capture_ws as cw
+    from services import asr_backend as ab
+    from services import sherpa_dictation as sd
+
+    spec = sd.get_spec("sherpa-zipformer-en-20m")
+    monkeypatch.setattr(ab, "asr_model_missing_error", lambda **_kwargs: None)
+    demoted = []
+    monkeypatch.setattr(sd, "demote_model", lambda model_id: demoted.append(model_id) or True)
+
+    async def silent_fallback(_chunks, *, pcm_sr=None, skip_sherpa=False):
+        assert pcm_sr == 16000
+        assert skip_sherpa is True
+        return {"text": "", "segments": []}
+
+    monkeypatch.setattr(cw, "_transcribe_buffer_full", silent_fallback)
+
+    recovered, segments = await cw._recover_silent_sherpa(
+        spec, b"\x01\x00" * 3000, 16000,
+    )
+
+    assert recovered == ""
+    assert segments == []
+    assert demoted == []
 
 
 def test_non_streaming_model_uses_offline_handler(monkeypatch):
@@ -190,6 +373,72 @@ def test_non_streaming_model_uses_offline_handler(monkeypatch):
     # Polished final (dictation v2): leading capital + terminal punctuation.
     assert final["text"] == "Offline text."
     assert final["engine"] == "sherpa-onnx-asr"
+    assert final["final_kind"] == "summary"
+
+
+def test_offline_silent_model_does_not_download_a_fallback(monkeypatch):
+    """Offline silent-model recovery observes the same local-only gate."""
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from api.routers import capture_ws as cw
+    from services import asr_backend as ab
+    from services import sherpa_dictation as sd
+
+    spec = sd.get_spec("sherpa-whisper-tiny")
+    monkeypatch.setattr(cw, "_select_sherpa_spec", lambda ws: spec)
+    monkeypatch.setattr(ab.SherpaDictationBackend, "is_available",
+                        classmethod(lambda cls: (True, "ready")))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "ensure_loaded",
+                        lambda self: setattr(self, "_rec", object()))
+    monkeypatch.setattr(ab.SherpaDictationBackend, "_decode_offline",
+                        lambda self, samples, sr: "")
+    monkeypatch.setattr(sd, "is_installed", lambda _spec: True)
+    monkeypatch.setattr(sd, "demote_model", lambda _model_id: True)
+
+    probes = []
+
+    def probe(**kwargs):
+        probes.append(kwargs)
+        if kwargs.get("sherpa_model_id") == spec.id:
+            return None
+        return {
+            "error": "asr_model_missing",
+            "missing_repo_id": "local/fallback-not-installed",
+            "recommended": None,
+        }
+
+    monkeypatch.setattr(ab, "asr_model_missing_error", probe)
+    fallback_calls = []
+
+    async def fallback(_chunks, *, pcm_sr=None, skip_sherpa=False):
+        fallback_calls.append(pcm_sr)
+        return {"text": "this required a download", "segments": []}
+
+    monkeypatch.setattr(cw, "_transcribe_buffer_full", fallback)
+
+    speech = np.full(3000, 3000, dtype=np.int16).tobytes()
+    from main import app
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    with client.websocket_connect(
+        "/ws/transcribe?model=sherpa-whisper-tiny&sr=16000"
+    ) as ws:
+        ws.send_bytes(speech)
+        ws.send_text("EOF")
+        final = None
+        for _ in range(10):
+            msg = ws.receive_json()
+            if msg.get("type") == "final":
+                final = msg
+                break
+
+    assert final is not None
+    assert final["text"] == ""
+    assert final["model_silent"] == spec.id
+    assert fallback_calls == []
+    assert probes == [
+        {"purpose": "dictation", "sherpa_model_id": spec.id},
+        {"purpose": "dictation", "skip_sherpa": True, "require_installed": True},
+    ]
 
 
 # ── Utterance-windowed offline decoding (dictation v2) ───────────────────────
@@ -253,6 +502,8 @@ def test_offline_silence_gate_commits_mid_session(monkeypatch):
     # final. The old behavior produced exactly one (everything at EOF).
     assert len(finals) >= 2, f"silence gate never committed mid-session: {msgs}"
     assert finals[0]["text"] == "Utterance one."
+    assert all(m["final_kind"] == "utterance" for m in finals[:-1])
+    assert finals[-1]["final_kind"] == "summary"
     # EOF final = committed pieces + the drained live tail (utterance 2).
     assert finals[-1]["text"] == "Utterance one. Utterance one."
     # O(n²) fix: every decode was bounded by ONE utterance window — never a

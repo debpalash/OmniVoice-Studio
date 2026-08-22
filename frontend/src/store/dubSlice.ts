@@ -306,7 +306,9 @@ export const createDubSlice: StateCreator<DubSlice, [], [], DubSlice> = (set, ge
         return {
           ...seg,
           translations,
-          ...(typeof incoming === 'string' && incoming.trim() ? { text: incoming } : {}),
+          ...(typeof incoming === 'string' && incoming.trim()
+            ? { text: incoming, merge_parts: undefined }
+            : {}),
         };
       });
       // The dropdown paths each cleared a stale dialect by hand; doing it

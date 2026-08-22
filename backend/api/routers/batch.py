@@ -103,6 +103,75 @@ def _set_progress(job, stage, percent=0, **extra):
     job["progress"] = {"stage": stage, "percent": percent, **extra}
 
 
+#: Override for the native dub batch width. Set to 1 to disable batching.
+BATCH_WIDTH_ENV = "OMNIVOICE_DUB_BATCH_WIDTH"
+
+#: Hard ceiling on the override — a batch this wide is already amortizing
+#: almost all of the per-call setup, and beyond it the failure mode is an OOM
+#: that costs more than the saving.
+_MAX_BATCH_WIDTH = 16
+
+
+def _native_batch_width(backend) -> int:
+    """How many segments to render in one native batch on THIS host.
+
+    A native batch widens the forward pass, so the width cannot be a constant.
+    The default engine declares ``min_vram_gb = 6.0`` for a SINGLE job; an
+    unconditional 8-wide batch would OOM the 4-8 GB CUDA cards and the MPS
+    Macs where the per-segment path succeeds today — turning a throughput
+    optimization into a regression on exactly the hardware that already
+    struggles (#1616 is a 4 GB card reporting capacity failures). Default
+    behaviour must not get riskier on a host, so the width is derived from
+    measured headroom and falls back to 1 (no batching) when unknown.
+
+    CPU hosts get 1: batching there buys no kernel amortization and only
+    multiplies peak RAM.
+    """
+    override = os.environ.get(BATCH_WIDTH_ENV, "").strip()
+    if override:
+        try:
+            return max(1, min(_MAX_BATCH_WIDTH, int(override)))
+        except (TypeError, ValueError):
+            logger.warning(
+                "%s=%r is not an integer — deriving the batch width from the host instead.",
+                BATCH_WIDTH_ENV, override,
+            )
+    try:
+        from core.device_caps import detect_host_caps
+        caps = detect_host_caps()
+    except Exception:  # noqa: BLE001 — an unprobeable host takes the safe path
+        return 1
+    if caps.family == "cpu" or not caps.vram_gb:
+        return 1
+    headroom = caps.vram_gb - float(getattr(backend, "min_vram_gb", 0.0) or 0.0)
+    if headroom < 2.0:
+        return 1
+    if headroom < 6.0:
+        return 2
+    if headroom < 12.0:
+        return 4
+    return 8
+
+
+def _batch_timeout_s(texts: list[str], backend) -> float:
+    """Execution budget for one native batch.
+
+    Not the sum of the per-item budgets: ``generate_timeout_s`` returns a
+    floor (300s GPU / 600s CPU) plus per-length overage, so summing it across
+    eight items yields a ~2400s budget — and a wedged batch would hold a
+    GPU-pool worker for forty minutes before the reset this file depends on
+    (#730). One floor covers wedge detection for the whole call; only the
+    length-driven overage is genuinely additive.
+    """
+    from services.model_manager import generate_timeout_s
+
+    floor = generate_timeout_s("", engine=backend)
+    overage = sum(
+        max(0.0, generate_timeout_s(text, engine=backend) - floor) for text in texts
+    )
+    return floor + overage
+
+
 async def _run_batch_pipeline(job_id: str, job: dict):
     """Full batch dub pipeline: extract → transcribe → translate → generate → mix → export."""
     import subprocess
@@ -279,6 +348,111 @@ async def _run_batch_pipeline(job_id: str, job: dict):
         full_audio = torch.zeros(1, total_samples)
         total_segs = len(translated_segments)
 
+        # Native engines can amortize encoder/decoder setup across a small
+        # batch. Keep the adapter seam optional: engines without a real batch
+        # implementation inherit TTSBackend.generate_batch(), which preserves
+        # the established one-segment behavior below.
+        from services.tts_backend import TTSBackend
+        batched_audio: dict[int, torch.Tensor] = {}
+        has_native_batch = type(backend).generate_batch is not TTSBackend.generate_batch
+        if has_native_batch:
+            from services.text_normalization import normalize_for_tts
+
+            batch_ref_audio = None
+            batch_ref_text = None
+            if job.get("voice_id"):
+                from core.db import db_conn
+                from core.config import VOICES_DIR as _VD
+                with db_conn() as conn:
+                    row = conn.execute(
+                        "SELECT * FROM voice_profiles WHERE id=?",
+                        (job["voice_id"],),
+                    ).fetchone()
+                if row:
+                    if row["is_locked"] and row["locked_audio_path"]:
+                        batch_ref_audio = os.path.join(_VD, row["locked_audio_path"])
+                    elif row["ref_audio_path"]:
+                        batch_ref_audio = os.path.join(_VD, row["ref_audio_path"])
+                    batch_ref_text = row["ref_text"]
+
+            batch_width = _native_batch_width(backend)
+
+            async def _prefetch_batch(first_index: int) -> None:
+                """Render the batch beginning at ``first_index`` into
+                ``batched_audio``.
+
+                Rendered on demand rather than prerendering the whole track:
+                the tensors are popped as they are placed, so peak host memory
+                is one batch instead of every segment of the language — and
+                the progress bar tracks placement instead of running to the
+                end and restarting at segment 1.
+                """
+                if job["status"] == "cancelled":
+                    return
+                batch_rows = []
+                index = first_index
+                while index < total_segs and len(batch_rows) < batch_width:
+                    seg = translated_segments[index]
+                    if (seg.get("end", 0) - seg.get("start", 0) > 0.05
+                            and seg.get("text", "").strip()):
+                        batch_rows.append((index, seg))
+                    index += 1
+                if len(batch_rows) < 2:
+                    return  # nothing to amortize — the per-segment path is equal
+                batch_indices = [index for index, _ in batch_rows]
+                batch_texts = [
+                    normalize_for_tts(row.get("text", "").strip(), target_lang)
+                    for _, row in batch_rows
+                ]
+                batch_durations = [
+                    row.get("end", 0) - row.get("start", 0)
+                    for _, row in batch_rows
+                ]
+
+                def _render_native_batch():
+                    generated = backend.generate_batch(
+                        batch_texts,
+                        language=target_lang,
+                        ref_audio=batch_ref_audio,
+                        ref_text=batch_ref_text,
+                        duration=batch_durations,
+                        num_step=16,
+                        guidance_scale=2.0,
+                        speed=1.0,
+                        denoise=True,
+                        postprocess_output=True,
+                    )
+                    if len(generated) != len(batch_indices):
+                        raise RuntimeError(
+                            f"native batch returned {len(generated)} outputs for "
+                            f"{len(batch_indices)} segments"
+                        )
+                    rendered = []
+                    for audio_out in generated:
+                        if not getattr(backend, "applies_own_mastering", False):
+                            audio_out = apply_mastering(audio_out, sample_rate=sr)
+                        rendered.append(normalize_audio(audio_out, target_dBFS=-2.0))
+                    return rendered
+
+                try:
+                    rendered = await run_on_gpu_pool_guarded(
+                        _render_native_batch,
+                        what="Batch generate",
+                        timeout=_batch_timeout_s(batch_texts, backend),
+                    )
+                    batched_audio.update(zip(batch_indices, rendered))
+                except TimeoutError:
+                    # Do not immediately queue the same expensive work again:
+                    # the timed-out pool task may still be holding the device.
+                    raise
+                except Exception as e:
+                    logger.warning(
+                        "Native TTS batch failed for segments %s-%s; falling back per segment: %s",
+                        batch_indices[0] + 1,
+                        batch_indices[-1] + 1,
+                        e,
+                    )
+
         for i, seg in enumerate(translated_segments):
             if job["status"] == "cancelled":
                 return
@@ -356,10 +530,15 @@ async def _run_batch_pipeline(job_id: str, job: dict):
                 # Budget is the shared length-scaled one (#1190): a long segment
                 # on CPU-class hardware no longer dies on the flat 300s.
                 from services.model_manager import generate_timeout_s
-                audio_tensor = await run_on_gpu_pool_guarded(
-                    _gen, what="Batch generate",
-                    timeout=generate_timeout_s(seg_text, engine=backend),
-                )
+                if has_native_batch and i not in batched_audio:
+                    await _prefetch_batch(i)
+                if i in batched_audio:
+                    audio_tensor = batched_audio.pop(i)
+                else:
+                    audio_tensor = await run_on_gpu_pool_guarded(
+                        _gen, what="Batch generate",
+                        timeout=generate_timeout_s(seg_text, engine=backend),
+                    )
 
                 # Fit to slot
                 target_samples_seg = int(seg_duration * sr)

@@ -1,0 +1,127 @@
+# Installer smoke — runs scripts/install.sh / scripts/install.ps1 end-to-end
+# on all three desktop platforms so the one-liner installers can't rot.
+#
+# Gated by `paths` because a cold run downloads multi-GB wheels (torch) and
+# takes ~15-30 min per OS; it only needs to fire when an installer or this
+# workflow changes. The heavy Tauri bundles stay in release.yml (tag push).
+
+name: Install smoke
+
+on:
+  pull_request:
+    paths:
+      - "scripts/install.sh"
+      - "scripts/install.ps1"
+      - ".github/workflows/install-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/install.sh"
+      - "scripts/install.ps1"
+      - ".github/workflows/install-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  install:
+    name: Install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Running `sh scripts/install.sh` from the repo root exercises the
+      # repo-root resolution (script dir is scripts/, project root one level
+      # up) — the exact bug that made a local run clone a duplicate repo.
+      # Binary mode is the default: prebuilt release asset, checksum verified.
+      - name: Run installer — binary (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: sh scripts/install.sh
+
+      - name: Verify install — binary (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$(uname)" = "Darwin" ]; then
+            test -d "/Applications/VoiceStudio.app" || { echo "::error::VoiceStudio.app missing from /Applications"; exit 1; }
+            echo "✓ VoiceStudio.app installed in /Applications"
+          else
+            test -x "$HOME/.local/bin/VoiceStudio" || { echo "::error::AppImage missing from ~/.local/bin"; exit 1; }
+            "$HOME/.local/bin/VoiceStudio" --appimage-help >/dev/null 2>&1 || true
+            echo "✓ AppImage installed and executable"
+          fi
+
+      # Source mode stays covered end-to-end behind --source.
+      - name: Run installer — source (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: sh scripts/install.sh --source
+
+      - name: Verify install — source (macOS/Linux)
+        if: runner.os != 'Windows'
+        working-directory: ${{ github.workspace }}
+        run: |
+          test -d .venv || { echo "::error::.venv missing"; exit 1; }
+          test -f frontend/dist/index.html || { echo "::error::frontend build missing"; exit 1; }
+          echo "✓ venv + frontend bundle present"
+
+      # Binary mode is the default; CI runs msiexec silently.
+      - name: Run installer — binary (Windows)
+        if: runner.os == 'Windows'
+        env:
+          CI: true
+        shell: pwsh
+        run: '& { $ErrorActionPreference = "Stop"; & "${{ github.workspace }}\scripts\install.ps1" }'
+
+      - name: Verify install — binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $paths = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+          $key = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -match "VoiceStudio|OmniVoice" } |
+            Select-Object -First 1
+          if (-not $key) {
+            Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+              Where-Object DisplayName | ForEach-Object { Write-Host "  installed: $($_.DisplayName)" }
+            Write-Host "::error::MSI product not registered"; exit 1
+          }
+          Write-Host "✓ MSI product registered: $($key.DisplayName)"
+
+      # Source mode stays covered end-to-end behind -Source.
+      - name: Run installer — source (Windows)
+        if: runner.os == 'Windows'
+        env:
+          VOICESTUDIO_INSTALL_MODE: source
+        shell: pwsh
+        run: '& { $ErrorActionPreference = "Stop"; & "${{ github.workspace }}\scripts\install.ps1" }'
+
+      - name: Verify install — source (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .venv)) { Write-Host "::error::.venv missing"; exit 1 }
+          if (-not (Test-Path frontend\dist\index.html)) { Write-Host "::error::frontend build missing"; exit 1 }
+          Write-Host "✓ venv + frontend bundle present"
+
+      - name: Upload install log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log-${{ matrix.os }}
+          path: |
+            /Users/runner/Library/Application Support/OmniVoice/*.log
+            /home/runner/.local/share/VoiceStudio/*.log
+            ${{ runner.temp }}/VoiceStudio/**/*.log
+          if-no-files-found: ignore

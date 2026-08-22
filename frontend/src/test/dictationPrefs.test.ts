@@ -20,6 +20,7 @@ vi.mock('../api/client', () => ({
 }));
 
 import { useAppStore } from '../store';
+import { createPrefsSlice } from '../store/prefsSlice';
 
 function flush() {
   // Let the write-through promise (.then) settle.
@@ -27,6 +28,11 @@ function flush() {
 }
 
 describe('dictation prefs store wiring', () => {
+  it('seeds the cross-platform default before backend hydration', () => {
+    const slice = createPrefsSlice(vi.fn() as any, vi.fn() as any, {} as any);
+    expect(slice.dictationModelId).toBe('sherpa-whisper-tiny');
+  });
+
   beforeEach(() => {
     apiJson.mockReset();
     apiPost.mockReset();
@@ -34,7 +40,7 @@ describe('dictation prefs store wiring', () => {
     useAppStore.setState({
       dictationEnabled: true,
       dictationMode: 'toggle',
-      dictationModelId: 'sherpa-parakeet-tdt-v3',
+      dictationModelId: 'sherpa-whisper-tiny',
       dictationLoaded: false,
     });
   });

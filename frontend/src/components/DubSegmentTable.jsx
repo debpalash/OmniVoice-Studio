@@ -4,6 +4,7 @@ import { List } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
 import { Table, Select } from '../ui';
 import { useAppStore } from '../store';
+import { visibleMergeAvailability } from '../utils/segmentParts';
 
 const BASE_ROW_HEIGHT = 26;
 const ROW_HEIGHT_WITH_ORIG = 40;
@@ -35,6 +36,8 @@ export default function DubSegmentTable({
   onPreview,
   onSplit,
   onMerge,
+  onInsert,
+  onMoveResize,
   onDirect,
   onSeek,
   timelineSelectedId = null,
@@ -152,6 +155,8 @@ export default function DubSegmentTable({
       onPreview,
       onSplit,
       onMerge,
+      onInsert,
+      onMoveResize,
       onDirect,
       onSeek,
       segments,
@@ -174,6 +179,8 @@ export default function DubSegmentTable({
       onPreview,
       onSplit,
       onMerge,
+      onInsert,
+      onMoveResize,
       onDirect,
       onSeek,
       segments,
@@ -201,6 +208,8 @@ export default function DubSegmentTable({
       onPreview: prev,
       onSplit: split,
       onMerge: merge,
+      onInsert: insert,
+      onMoveResize: moveResize,
       onDirect: direct,
       onSeek: seek,
       segments: segs,
@@ -216,7 +225,9 @@ export default function DubSegmentTable({
         (step === 'generating' || step === 'stopping') && prog.current > absoluteIndex + 1;
       const isPlaying = curId === seg.id;
       const timelineSelected = tlSel != null && String(tlSel) === String(seg.id);
-      const canMerge = index < fl.length - 1;
+      // Merge operates on source neighbors. Hide the action when a filter
+      // hides that neighbor so the user cannot mutate an unseen subtitle.
+      const { canMerge, canMergePrev } = visibleMergeAvailability(segs, fl, seg);
       return (
         <DubSegmentRow
           seg={seg}
@@ -239,6 +250,9 @@ export default function DubSegmentTable({
           onSelect={pick}
           onSplit={split}
           onMerge={merge}
+          onInsert={insert}
+          onMoveResize={moveResize}
+          canMergePrev={canMergePrev}
           onDirect={direct}
           onSeek={seek}
         />

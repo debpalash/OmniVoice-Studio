@@ -8,15 +8,17 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
-const { toastMock } = vi.hoisted(() => ({
+const { toastMock, eventHandlers, eventState } = vi.hoisted(() => ({
   toastMock: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
     dismiss: vi.fn(),
     loading: vi.fn(),
   }),
+  eventHandlers: {},
+  eventState: { pendingStart: false },
 }));
 vi.mock('react-hot-toast', () => ({ default: toastMock, toast: toastMock }));
 
@@ -25,7 +27,10 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args) => invokeMock(...args),
 }));
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(async () => () => {}),
+  listen: vi.fn(async (name, handler) => {
+    eventHandlers[name] = handler;
+    return () => delete eventHandlers[name];
+  }),
 }));
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ hide: async () => {} }),
@@ -103,7 +108,9 @@ class FakeWS {
 }
 
 function pressShortcut() {
-  fireEvent.keyDown(window, { code: 'Space', ctrlKey: true, shiftKey: true });
+  const handler = eventHandlers['tray-dictate'];
+  if (handler) handler({ payload: { sessionId: 'setup-race-session' } });
+  else eventState.pendingStart = true;
 }
 
 let realWebSocket;
@@ -114,8 +121,15 @@ beforeEach(() => {
   invokeMock.mockImplementation(async (cmd) => {
     if (cmd === 'check_microphone') return 'granted';
     if (cmd === 'check_accessibility') return true;
+    if (cmd === 'mark_dictation_capture_ready' && eventState.pendingStart) {
+      eventState.pendingStart = false;
+      return eventHandlers['tray-dictate']?.({
+        payload: { sessionId: 'setup-race-session' },
+      });
+    }
     return undefined;
   });
+  eventState.pendingStart = false;
   FakeWS.instances = [];
   storeState.dictationModelId = 'sherpa-parakeet-v3';
   realWebSocket = globalThis.WebSocket;

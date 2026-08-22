@@ -22,10 +22,12 @@ set -euo pipefail
 
 APPLY=0
 INCLUDE_MODELS=0
+REMOVE_APP=0
 for arg in "$@"; do
   case "$arg" in
     --yes|-y) APPLY=1 ;;
     --models) INCLUDE_MODELS=1 ;;
+    --app) REMOVE_APP=1 ;;
     -h|--help)
       grep '^#' "$0" | sed 's/^# \{0,1\}//' | sed '1d'
       exit 0 ;;
@@ -73,6 +75,21 @@ USER_ENV_DIR="$HOME/.config/omnivoice"
 
 # ── Collect existing targets ────────────────────────────────────────────────
 app_targets=()
+
+# ── Optional: the prebuilt app installed by `curl … | sh` (default mode) ────
+if [ "$REMOVE_APP" -eq 1 ]; then
+  case "$OS" in
+    Darwin)
+      for app_dir in "/Applications/VoiceStudio.app" "$HOME/Applications/VoiceStudio.app"; do
+        [ -e "$app_dir" ] && app_targets+=("$app_dir")
+      done
+      ;;
+    Linux)
+      [ -e "$HOME/.local/bin/VoiceStudio" ] && app_targets+=("$HOME/.local/bin/VoiceStudio")
+      ;;
+  esac
+fi
+
 [ -e "$DATA_DIR" ] && app_targets+=("$DATA_DIR")
 [ -e "$config_default" ] && app_targets+=("$config_default")
 [ -e "$USER_ENV_DIR" ] && app_targets+=("$USER_ENV_DIR")
@@ -101,8 +118,9 @@ fi
 
 echo
 if [ "$APPLY" -ne 1 ]; then
-  echo "DRY RUN — nothing deleted. Re-run with --yes to remove the app folders"
+  echo "DRY RUN — nothing deleted. Re-run with --yes to remove the listed folders"
   [ "$models_present" -eq 1 ] && echo "         (add --models to also remove the shared model cache)."
+  [ "$REMOVE_APP" -ne 1 ] && echo "         (add --app to also remove the prebuilt app binary)."
   echo "See docs/install/uninstall.md to also remove the app binary itself."
   exit 0
 fi

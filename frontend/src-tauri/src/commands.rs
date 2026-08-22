@@ -7,13 +7,13 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::image::Image;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::dictation_shortcut::{DictationShortcutManager, ShortcutInfo, update_tray_hint};
+use crate::config::{load_config, save_config};
+use crate::dictation_shortcut::{update_tray_hint, DictationShortcutManager, ShortcutInfo};
 use crate::{AppFlags, TrayHandle};
 use crate::{TRAY_ICON_DEFAULT, TRAY_ICON_RECORDING};
-use crate::config::{load_config, save_config};
 
 // ── Native host-path authorization ───────────────────────────────────────
 
@@ -65,10 +65,7 @@ fn remember_reveal_path<R: tauri::Runtime>(
     Ok(())
 }
 
-fn reveal_path_is_authorized<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    target: &Path,
-) -> bool {
+fn reveal_path_is_authorized<R: tauri::Runtime>(app: &tauri::AppHandle<R>, target: &Path) -> bool {
     if let Ok(data_root) = fs::canonicalize(
         crate::setup::resolved_data_dir(app).unwrap_or_else(crate::setup::default_data_dir),
     ) {
@@ -89,12 +86,7 @@ fn reveal_path_is_authorized<R: tauri::Runtime>(
 fn validate_host_path(kind: &str, path: PathBuf) -> Result<PathBuf, String> {
     if !matches!(
         kind,
-        "models_dir"
-            | "ffmpeg"
-            | "ffprobe"
-            | "dub_export"
-            | "soni_input"
-            | "soni_output_dir"
+        "models_dir" | "ffmpeg" | "ffprobe" | "dub_export" | "soni_input" | "soni_output_dir"
     ) {
         return Err("Unsupported host-path capability".into());
     }
@@ -216,8 +208,11 @@ pub async fn authorize_host_path(
         kind,
         path: validated.to_string_lossy().into_owned(),
     };
-    fs::write(&target, serde_json::to_vec(&payload).map_err(|e| e.to_string())?)
-        .map_err(|e| format!("Could not authorize path: {e}"))?;
+    fs::write(
+        &target,
+        serde_json::to_vec(&payload).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("Could not authorize path: {e}"))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -247,7 +242,10 @@ mod host_path_authorization_tests {
 
     #[test]
     fn empty_models_path_is_the_authorized_default_reset() {
-        assert_eq!(validate_host_path("models_dir", PathBuf::new()).unwrap(), PathBuf::new());
+        assert_eq!(
+            validate_host_path("models_dir", PathBuf::new()).unwrap(),
+            PathBuf::new()
+        );
     }
 
     #[test]
@@ -259,11 +257,9 @@ mod host_path_authorization_tests {
             destination,
         );
         assert!(validate_host_path("dub_export", PathBuf::from("relative/export.wav")).is_err());
-        assert!(validate_host_path(
-            "dub_export",
-            parent.join("missing-directory/export.wav"),
-        )
-        .is_err());
+        assert!(
+            validate_host_path("dub_export", parent.join("missing-directory/export.wav"),).is_err()
+        );
     }
 }
 
@@ -316,12 +312,14 @@ pub fn read_log_tail(source: String, tail: Option<usize>) -> LogTailPayload {
     let path = match source.as_str() {
         "backend" => backend_runtime_log_path(),
         "tauri" => tauri_log_path(),
-        _ => return LogTailPayload {
-            lines: vec![],
-            path: String::new(),
-            exists: false,
-            total_lines: 0,
-        },
+        _ => {
+            return LogTailPayload {
+                lines: vec![],
+                path: String::new(),
+                exists: false,
+                total_lines: 0,
+            }
+        }
     };
 
     let path_str = path.to_string_lossy().to_string();
@@ -363,15 +361,11 @@ fn backend_runtime_log_path() -> PathBuf {
     let data_dir = if cfg!(target_os = "macos") {
         dirs_data_dir().join("OmniVoice")
     } else if cfg!(target_os = "windows") {
-        PathBuf::from(
-            std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string()),
-        )
-        .join("OmniVoice")
+        PathBuf::from(std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string()))
+            .join("OmniVoice")
     } else {
-        PathBuf::from(
-            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
-        )
-        .join(".omnivoice")
+        PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()))
+            .join(".omnivoice")
     };
     data_dir.join("omnivoice.log")
 }
@@ -379,16 +373,12 @@ fn backend_runtime_log_path() -> PathBuf {
 fn dirs_data_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        PathBuf::from(
-            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
-        )
-        .join("Library/Application Support")
+        PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()))
+            .join("Library/Application Support")
     }
     #[cfg(not(target_os = "macos"))]
     {
-        PathBuf::from(
-            std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()),
-        )
+        PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string()))
     }
 }
 
@@ -403,7 +393,10 @@ fn tauri_log_path() -> PathBuf {
             .join("tauri.log")
     } else if cfg!(target_os = "windows") {
         let appdata = std::env::var("APPDATA").unwrap_or_else(|_| home.clone());
-        PathBuf::from(appdata).join(bid).join("logs").join("tauri.log")
+        PathBuf::from(appdata)
+            .join(bid)
+            .join("logs")
+            .join("tauri.log")
     } else {
         PathBuf::from(&home)
             .join(".local/share")
@@ -508,21 +501,15 @@ fn hf_hub_cache_dir() -> PathBuf {
         .join("hub")
 }
 
-// ── Simulate paste ────────────────────────────────────────────────────────
-
-use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
+// ── Dictation output ─────────────────────────────────────────────────────
 
 /// Error-kind builder the dictation widget switches on. Kinds are a plain
-/// string prefix ("a11y:" | "clipboard:" | "paste:") so the JS side can do
-/// `err.split(':')[0]` without a serde enum crossing the IPC boundary.
+/// string prefix ("a11y:" | "clipboard:" | "paste:" | "preflight:") so the
+/// JS side can do `err.split(':')[0]` without a serde enum crossing the IPC
+/// boundary.
 fn kind_err(kind: &str, detail: impl std::fmt::Display) -> String {
     format!("{kind}:{detail}")
 }
-
-/// How long the transcript must sit on the clipboard before the user's
-/// previous clipboard is restored: ~300ms covers slow paste consumers
-/// (Electron apps, remote desktops) without being user-noticeable.
-const CLIPBOARD_RESTORE_DELAY: Duration = Duration::from_millis(300);
 
 /// macOS Accessibility grant check — CGEvent key synthesis silently no-ops
 /// without it. Direct FFI against ApplicationServices: one symbol, not worth
@@ -705,7 +692,12 @@ pub fn open_microphone_settings() -> Result<(), String> {
             .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
             .spawn()
             .map(|_| ())
-            .map_err(|e| kind_err("settings", format!("failed to open microphone settings: {e}")))
+            .map_err(|e| {
+                kind_err(
+                    "settings",
+                    format!("failed to open microphone settings: {e}"),
+                )
+            })
     }
     #[cfg(target_os = "windows")]
     {
@@ -718,7 +710,12 @@ pub fn open_microphone_settings() -> Result<(), String> {
             .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
             .spawn()
             .map(|_| ())
-            .map_err(|e| kind_err("settings", format!("failed to open microphone settings: {e}")))
+            .map_err(|e| {
+                kind_err(
+                    "settings",
+                    format!("failed to open microphone settings: {e}"),
+                )
+            })
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
@@ -744,7 +741,10 @@ pub fn open_input_monitoring_settings() -> Result<(), String> {
             .spawn()
             .map(|_| ())
             .map_err(|e| {
-                kind_err("settings", format!("failed to open input monitoring settings: {e}"))
+                kind_err(
+                    "settings",
+                    format!("failed to open input monitoring settings: {e}"),
+                )
             })
     }
     #[cfg(not(target_os = "macos"))]
@@ -757,71 +757,44 @@ pub fn open_input_monitoring_settings() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
-    // macOS: fail loud BEFORE touching the clipboard if Accessibility isn't
-    // granted — otherwise the ⌘V below silently goes nowhere and the caller
-    // can't tell (the old fire-and-forget behavior).
+pub async fn simulate_paste(
+    text: String,
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<crate::dictation_output::DeliveryOutcome, String> {
+    // macOS: a revoked/missing Accessibility grant prevents synthesis, but it
+    // must not discard the result. Keep the full transcript copied and report
+    // the fallback truthfully.
     #[cfg(target_os = "macos")]
     if !accessibility_trusted() {
-        return Err(kind_err("a11y", "accessibility permission not granted"));
+        let output = flags.output.clone();
+        return tauri::async_runtime::spawn_blocking(move || {
+            output.copy_for_session(session_id, &text)
+        })
+        .await
+        .map_err(|error| kind_err("clipboard", format!("output worker failed: {error}")))?;
     }
 
-    // Write the transcript to the clipboard natively first: the widget window
-    // is intentionally unfocused on macOS (so the simulated ⌘V reaches the
-    // target app), which makes the WebView clipboard APIs (navigator.clipboard
-    // / execCommand('copy')) fail silently there (#287). `text` is optional so
-    // call sites that already populated the clipboard keep working.
-    //
-    // Save what the user had there first (text only — restoring images/files
-    // isn't worth the platform-specific surface) so dictation doesn't clobber
-    // their clipboard.
-    let mut saved: Option<String> = None;
-    if let Some(t) = text {
-        let mut cb = arboard::Clipboard::new()
-            .map_err(|e| kind_err("clipboard", format!("init failed: {e}")))?;
-        saved = cb.get_text().ok();
-        cb.set_text(t)
-            .map_err(|e| kind_err("clipboard", format!("write failed: {e}")))?;
-    }
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || output.deliver(session_id, &text))
+        .await
+        .map_err(|error| kind_err("paste", format!("output worker failed: {error}")))?
+}
 
-    std::thread::sleep(Duration::from_millis(80));
-
-    let mut enigo = Enigo::new(&EnigoSettings::default())
-        .map_err(|e| kind_err("paste", format!("failed to init keyboard sim: {e}")))?;
-
-    #[cfg(target_os = "macos")]
-    {
-        enigo.key(Key::Meta, Direction::Press)
-            .map_err(|e| kind_err("paste", format!("key press failed: {e}")))?;
-        enigo.key(Key::Unicode('v'), Direction::Click)
-            .map_err(|e| kind_err("paste", format!("key click failed: {e}")))?;
-        enigo.key(Key::Meta, Direction::Release)
-            .map_err(|e| kind_err("paste", format!("key release failed: {e}")))?;
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        enigo.key(Key::Control, Direction::Press)
-            .map_err(|e| kind_err("paste", format!("key press failed: {e}")))?;
-        enigo.key(Key::Unicode('v'), Direction::Click)
-            .map_err(|e| kind_err("paste", format!("key click failed: {e}")))?;
-        enigo.key(Key::Control, Direction::Release)
-            .map_err(|e| kind_err("paste", format!("key release failed: {e}")))?;
-    }
-
-    // Best-effort restore of the user's clipboard once the target app has
-    // consumed the paste. Only on success — on a paste error the transcript
-    // stays on the clipboard so the user can ⌘V it manually as a fallback.
-    if let Some(prev) = saved {
-        std::thread::spawn(move || {
-            std::thread::sleep(CLIPBOARD_RESTORE_DELAY);
-            if let Ok(mut cb) = arboard::Clipboard::new() {
-                let _ = cb.set_text(prev);
-            }
-        });
-    }
-
-    Ok(())
+/// Preserve the authoritative transcript without emitting any keyboard input.
+/// Used after live typing may have left an unknown prefix in the target: a
+/// second insertion would duplicate text, but losing the complete result is
+/// not an acceptable fallback.
+#[tauri::command]
+pub async fn copy_dictation_output_session(
+    text: String,
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<crate::dictation_output::DeliveryOutcome, String> {
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || output.copy_for_session(session_id, &text))
+        .await
+        .map_err(|error| kind_err("clipboard", format!("output worker failed: {error}")))?
 }
 
 // ── Simulate live typing ──────────────────────────────────────────────────
@@ -833,18 +806,22 @@ pub fn simulate_paste(text: Option<String>) -> Result<(), String> {
 /// revised), then `text` is typed. Either may be empty/zero, so a single call
 /// can correct-then-type in one round trip.
 ///
-/// Cross-platform: `enigo`'s `.text()` synthesizes Unicode key events on macOS
-/// (CGEvent), Windows (`SendInput` w/ `KEYEVENTF_UNICODE`), and Linux (X11/
-/// libei). Backspace is a plain virtual-key `Click`, identical on all three.
-/// On macOS this reuses the SAME accessibility permission `simulate_paste`
-/// already requires (both go through `enigo` → CGEvent); no new grant needed.
+/// The session-bound output layer reactivates the destination captured at
+/// shortcut-down before emitting input. On Wayland it selects one compatible
+/// compositor helper before emission and never retries after a possible
+/// partial write.
 ///
 /// Returns `Err` if the input layer is unavailable (e.g. accessibility not
-/// granted) so the JS caller can fall back to the clipboard+paste path for
-/// that segment without double-inserting. Errors carry the same kind
-/// prefixes as `simulate_paste` ("a11y:" | "paste:").
+/// granted). Because a failed input call may already have emitted a prefix,
+/// the JS caller suppresses later insertion for that session. `preflight:`
+/// explicitly means nothing was emitted and a final paste remains safe.
 #[tauri::command]
-pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<(), String> {
+pub async fn simulate_type(
+    text: String,
+    backspaces: Option<u32>,
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<crate::dictation_output::DeliveryOutcome, String> {
     // Same a11y gate as simulate_paste — `.text()`/`.key()` go through the
     // identical CGEvent path on macOS and would silently no-op without it.
     #[cfg(target_os = "macos")]
@@ -852,24 +829,46 @@ pub fn simulate_type(text: Option<String>, backspaces: Option<u32>) -> Result<()
         return Err(kind_err("a11y", "accessibility permission not granted"));
     }
 
-    let mut enigo = Enigo::new(&EnigoSettings::default())
-        .map_err(|e| kind_err("paste", format!("failed to init keyboard sim: {e}")))?;
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        output.type_delta(session_id, &text, backspaces.unwrap_or(0))
+    })
+    .await
+    .map_err(|error| kind_err("paste", format!("output worker failed: {error}")))?
+}
 
-    let n = backspaces.unwrap_or(0);
-    for _ in 0..n {
-        enigo
-            .key(Key::Backspace, Direction::Click)
-            .map_err(|e| kind_err("paste", format!("backspace failed: {e}")))?;
-    }
+#[tauri::command]
+pub async fn activate_dictation_output_session(
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<(), String> {
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || output.activate_session(session_id))
+        .await
+        .map_err(|error| kind_err("paste", format!("output worker failed: {error}")))?
+}
 
-    if let Some(t) = text {
-        if !t.is_empty() {
-            enigo
-                .text(&t)
-                .map_err(|e| kind_err("paste", format!("type failed: {e}")))?;
-        }
-    }
+#[tauri::command]
+pub async fn reject_dictation_output_session(
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<(), String> {
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || output.reject_session_candidate(session_id))
+        .await
+        .map_err(|error| kind_err("paste", format!("output worker failed: {error}")))?;
+    Ok(())
+}
 
+#[tauri::command]
+pub async fn finish_dictation_output_session(
+    session_id: u64,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<(), String> {
+    let output = flags.output.clone();
+    tauri::async_runtime::spawn_blocking(move || output.finish_session(session_id))
+        .await
+        .map_err(|error| kind_err("paste", format!("output worker failed: {error}")))?;
     Ok(())
 }
 
@@ -889,11 +888,16 @@ pub fn set_tray_recording(
     // permanently-hidden widget made meaningless.)
     flags.dictating.store(recording, Ordering::SeqCst);
     log::info!("Dictation recording state: {recording}");
-    let bytes = if recording { TRAY_ICON_RECORDING } else { TRAY_ICON_DEFAULT };
+    let bytes = if recording {
+        TRAY_ICON_RECORDING
+    } else {
+        TRAY_ICON_DEFAULT
+    };
     let img = Image::from_bytes(bytes).map_err(|e| format!("decode tray icon: {e}"))?;
     let lock = tray_handle.tray.lock().map_err(|_| "tray lock poisoned")?;
     if let Some(ref tray) = *lock {
-        tray.set_icon(Some(img)).map_err(|e| format!("set_icon: {e}"))?;
+        tray.set_icon(Some(img))
+            .map_err(|e| format!("set_icon: {e}"))?;
     }
     update_tray_hint(&app, &shortcuts.info().display, recording);
     Ok(())
@@ -987,7 +991,10 @@ fn place_dictation_pill(app: &tauri::AppHandle, win: &tauri::WebviewWindow) {
     }
     log::info!(
         "pill: placed at {x},{y} ({}x{} on a {}x{} monitor)",
-        size.width, size.height, area.width, area.height
+        size.width,
+        size.height,
+        area.width,
+        area.height
     );
 }
 
@@ -1049,9 +1056,15 @@ pub fn mark_dictation_capture_ready(app: tauri::AppHandle) {
         return;
     };
     capture.ready = true;
-    if let Some(action) = capture.pending.take() {
-        drop(capture);
-        crate::dispatch_dictation_capture(&app, &action);
+    let pending = std::mem::take(&mut capture.pending);
+    drop(capture);
+    for event in pending {
+        if let Err(error) = app.emit(event.name, event.payload) {
+            log::warn!(
+                "Queued dictation event {} could not emit: {error}",
+                event.name
+            );
+        }
     }
 }
 
@@ -1198,7 +1211,8 @@ pub fn reveal_host_path(app: tauri::AppHandle, path: String) -> Result<(), Strin
     let folder = if target.is_dir() {
         target.clone()
     } else {
-        target.parent()
+        target
+            .parent()
             .ok_or_else(|| "That path has no containing folder".to_string())?
             .to_path_buf()
     };
@@ -1268,7 +1282,10 @@ const CLEAR_WEBVIEW_RETRY_DELAY: Duration = Duration::from_millis(500);
 /// Windows — because step 2 runs before an `AppHandle` exists.
 fn webview_cache_paths() -> Option<(PathBuf, PathBuf)> {
     let base = dirs_next::data_local_dir()?.join(crate::config::BUNDLE_IDENTIFIER);
-    Some((base.join(CLEAR_WEBVIEW_MARKER), base.join(WEBVIEW_CACHE_DIR)))
+    Some((
+        base.join(CLEAR_WEBVIEW_MARKER),
+        base.join(WEBVIEW_CACHE_DIR),
+    ))
 }
 
 #[tauri::command]
@@ -1281,8 +1298,11 @@ pub fn clear_webview_cache_and_relaunch(app: tauri::AppHandle) -> Result<(), Str
     if let Some(parent) = marker.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    fs::write(&marker, b"requested by the splash recovery panel (issue #879)\n")
-        .map_err(|e| format!("write {}: {e}", marker.display()))?;
+    fs::write(
+        &marker,
+        b"requested by the splash recovery panel (issue #879)\n",
+    )
+    .map_err(|e| format!("write {}: {e}", marker.display()))?;
     log::warn!(
         "WebView cache repair requested (#879) — relaunching to clear {}",
         cache.display()
@@ -1301,7 +1321,12 @@ pub fn clear_webview_cache_if_marked() {
     let Some((marker, cache)) = webview_cache_paths() else {
         return;
     };
-    clear_webview_cache_at(&marker, &cache, CLEAR_WEBVIEW_ATTEMPTS, CLEAR_WEBVIEW_RETRY_DELAY);
+    clear_webview_cache_at(
+        &marker,
+        &cache,
+        CLEAR_WEBVIEW_ATTEMPTS,
+        CLEAR_WEBVIEW_RETRY_DELAY,
+    );
 }
 
 /// Filesystem half of [`clear_webview_cache_if_marked`], parameterized over
@@ -1403,7 +1428,10 @@ mod webview_cache_repair_tests {
         let cache = dir.path().join(super::WEBVIEW_CACHE_DIR);
         fs::write(&marker, b"test").unwrap();
         clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
-        assert!(!marker.exists(), "marker consumed even with nothing to clear");
+        assert!(
+            !marker.exists(),
+            "marker consumed even with nothing to clear"
+        );
     }
 
     /// A cache that can't be deleted (Windows: WebView2 file locks; simulated
@@ -1419,7 +1447,10 @@ mod webview_cache_repair_tests {
         // Deny writes on the cache dir so its entries can't be unlinked.
         fs::set_permissions(&cache, fs::Permissions::from_mode(0o555)).unwrap();
         clear_webview_cache_at(&marker, &cache, FEW, NO_WAIT);
-        assert!(!marker.exists(), "one-shot: marker consumed even on failure");
+        assert!(
+            !marker.exists(),
+            "one-shot: marker consumed even on failure"
+        );
         assert!(cache.exists(), "a locked cache survives the failed repair");
         // Restore permissions so TempDir can clean up.
         fs::set_permissions(&cache, fs::Permissions::from_mode(0o755)).unwrap();
@@ -1428,7 +1459,7 @@ mod webview_cache_repair_tests {
 
 #[cfg(test)]
 mod paste_error_tests {
-    use super::{kind_err, CLIPBOARD_RESTORE_DELAY};
+    use super::kind_err;
 
     #[test]
     fn kind_err_prefixes_with_kind() {
@@ -1449,12 +1480,5 @@ mod paste_error_tests {
         // error strings usually do) must not corrupt the kind.
         let e = kind_err("clipboard", "init failed: os error 5");
         assert_eq!(e.split_once(':').map(|(k, _)| k), Some("clipboard"));
-    }
-
-    #[test]
-    fn restore_delay_is_about_300ms() {
-        // Contract with the widget layer: previous clipboard comes back
-        // ~300ms after the paste, long enough for slow paste consumers.
-        assert_eq!(CLIPBOARD_RESTORE_DELAY.as_millis(), 300);
     }
 }

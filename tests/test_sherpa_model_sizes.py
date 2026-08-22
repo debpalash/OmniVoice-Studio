@@ -83,6 +83,39 @@ def test_declared_size_is_within_tolerance_of_the_measurement(sd, model_id):
     )
 
 
+def test_the_model_catalogue_carries_the_same_sizes(sd):
+    """`backend/config/models.yaml` is a second copy of these numbers.
+
+    The Model Catalogue's download accounting reads the yaml, the dictation
+    picker reads `sd._MODELS` — the 2026-08 re-measure fixed only the latter
+    and the catalogue kept advertising the old 3-4x-wrong figures (#1610
+    review). Every yaml entry with a `dictation_id` must match the spec.
+    """
+    import yaml
+
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "backend", "config", "models.yaml",
+    )
+    with open(path, encoding="utf-8") as fh:
+        catalog = yaml.safe_load(fh)
+    entries = {
+        e["dictation_id"]: e for e in catalog["models"]
+        if isinstance(e, dict) and e.get("dictation_id")
+    }
+    assert set(entries) == set(sd._MODELS), (
+        "models.yaml and sherpa_dictation._MODELS list different models"
+    )
+    for model_id, entry in entries.items():
+        assert entry["size_gb"] == pytest.approx(
+            sd._MODELS[model_id].size_gb
+        ), (
+            f"models.yaml advertises {entry['size_gb']} GB for {model_id} but "
+            f"the measured spec says {sd._MODELS[model_id].size_gb} GB — "
+            f"update the catalogue in the same change as the spec"
+        )
+
+
 def test_the_small_fallbacks_are_smaller_than_the_heavy_models(sd):
     """The property that made the old numbers actively misleading.
 

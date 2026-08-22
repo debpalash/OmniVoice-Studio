@@ -35,7 +35,7 @@ def test_list_models_shape(client):
     r = client.get("/dictation/models")
     assert r.status_code == 200
     body = r.json()
-    assert body["default_model_id"] == "sherpa-parakeet-tdt-v3"
+    assert body["default_model_id"] == "sherpa-whisper-tiny"
     assert len(body["models"]) == 7
     keys = {"id", "repo_id", "label", "tag", "recommended", "size_gb",
             "languages", "kind", "installed"}
@@ -43,7 +43,7 @@ def test_list_models_shape(client):
         assert keys <= set(m), f"missing keys in {m}"
         assert m["tag"] in ("offline", "streaming")
     rec = [m for m in body["models"] if m["recommended"]]
-    assert [m["id"] for m in rec] == ["sherpa-parakeet-tdt-v3"]
+    assert [m["id"] for m in rec] == ["sherpa-whisper-tiny"]
 
 
 def test_list_models_omits_probe_diagnostic(client, monkeypatch):
@@ -64,7 +64,7 @@ def test_get_prefs_defaults(client):
     assert r.status_code == 200
     body = r.json()
     assert body == {"enabled": True, "mode": "toggle",
-                    "model_id": "sherpa-parakeet-tdt-v3"}
+                    "model_id": "sherpa-whisper-tiny"}
 
 
 def test_set_prefs_persists_and_validates(client):

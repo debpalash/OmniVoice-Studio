@@ -1,13 +1,13 @@
 """A dictation model that decodes NOTHING must fall back, not fail silently.
 
-Found on Windows with the curated default `sherpa-parakeet-tdt-v3`: the model
+Found on Windows with `sherpa-parakeet-tdt-v3`: the model
 downloads, loads with zero errors, and is correctly detected as a TDT model
 (`num_durations: 5`) — then returns an empty token list for clear speech.
 Measured against the same 18.9s WAV, on the same machine, same sherpa-onnx:
 
     sherpa-whisper-tiny     -> "Alright, here we are. I hope that's all..."
     sherpa-zipformer-en-20m -> "ANTS BOTH IN WHAT DISGUISED THIS THAT..."
-    parakeet-tdt-v3 (int8)  -> ''      <-- the curated default
+    parakeet-tdt-v3 (int8)  -> ''
     parakeet-tdt-v3 (fp32)  -> ''
     parakeet-tdt-v2 (int8)  -> ''
 

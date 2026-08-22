@@ -922,6 +922,7 @@ export default function useDubWorkflow({
               // contract); switching the target language swaps from this map
               // instead of destroying the previous language's work.
               ...(gotText ? { translations: { ...s.translations, [targetLang]: hit.text } } : {}),
+              ...(gotText ? { merge_parts: undefined } : {}),
               translate_error: hit.error || undefined,
               translate_degraded: hit.degraded || undefined,
               translate_literal: hit.literal || undefined,

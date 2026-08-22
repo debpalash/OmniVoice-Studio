@@ -1,0 +1,194 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '../i18n';
+
+// #1612 — "adjust the seconds of a single phrase's duration".
+//
+// The row showed `start` as an editable field and `end` as static grey text,
+// so the table looked like it could move a line but never resize one; the only
+// duration control was a drag handle on the waveform timeline. The end is now
+// a peer of the start, and BOTH commit through the same move/resize path the
+// timeline uses — previously the numeric start wrote `start` raw and skipped
+// the speed recompute that dragging the same edge performs, so the two UIs
+// disagreed about what changing a time means.
+
+vi.mock('../api/hooks', () => ({ useArchetypes: vi.fn(() => ({ data: undefined })) }));
+vi.mock('../api/archetypes', () => ({ useArchetypeAsProfile: vi.fn() }));
+
+import DubSegmentRow from '../components/DubSegmentRow';
+
+function makeProps(over = {}) {
+  return {
+    seg: { id: 's1', start: 1, end: 3, text: 'hola mundo' },
+    idx: 0,
+    disabled: false,
+    isActive: false,
+    isDone: false,
+    isPlaying: false,
+    previewLoading: false,
+    selected: false,
+    profiles: [],
+    speakerClones: {},
+    onEditField: vi.fn(),
+    onDelete: vi.fn(),
+    onRestore: vi.fn(),
+    onPreview: vi.fn(),
+    onSelect: vi.fn(),
+    onSplit: vi.fn(),
+    onMerge: vi.fn(),
+    onInsert: vi.fn(),
+    onMoveResize: vi.fn(),
+    canMerge: true,
+    canMergePrev: true,
+    onDirect: vi.fn(),
+    onSeek: vi.fn(),
+    timelineSelected: false,
+    ...over,
+  };
+}
+
+const timeFields = () => Array.from(document.querySelectorAll('input.seg-time-input'));
+
+describe('DubSegmentRow timing fields', () => {
+  it('renders the end time as an editable peer of the start', () => {
+    render(<DubSegmentRow {...makeProps()} />);
+    const fields = timeFields();
+    expect(fields).toHaveLength(2);
+    expect(fields[0].value).toBe('0:01.0');
+    expect(fields[1].value).toBe('0:03.0');
+  });
+
+  it('commits a new end through the timeline resize path', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value: '0:05.0' } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).toHaveBeenCalledWith('s1', { start: 1, end: 5 });
+    expect(props.onEditField).not.toHaveBeenCalled();
+  });
+
+  it('commits a new start through the same path, not a raw field write', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const start = timeFields()[0];
+
+    fireEvent.change(start, { target: { value: '0:02.0' } });
+    fireEvent.blur(start);
+
+    expect(props.onMoveResize).toHaveBeenCalledWith('s1', { start: 2, end: 3 });
+    expect(props.onEditField).not.toHaveBeenCalled();
+  });
+
+  it('accepts raw seconds as well as m:ss.s', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value: '4.5' } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).toHaveBeenCalledWith('s1', { start: 1, end: 4.5 });
+  });
+
+  it('reverts an end that would not outlast the start', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value: '0:00.5' } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+    expect(end.value).toBe('0:03.0');
+  });
+
+  it('reverts a start that would run past the end', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const start = timeFields()[0];
+
+    fireEvent.change(start, { target: { value: '0:09.0' } });
+    fireEvent.blur(start);
+
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+    expect(start.value).toBe('0:01.0');
+  });
+
+  it('reverts unparseable input', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value: 'later' } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+    expect(end.value).toBe('0:03.0');
+  });
+
+  it.each(['5junk', '1:99', '1:02junk', '-2'])('rejects malformed time %s', (value) => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value } });
+    fireEvent.blur(end);
+
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+    expect(end.value).toBe('0:03.0');
+  });
+
+  it('abandons an edit on Escape', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.change(end, { target: { value: '0:08.0' } });
+    fireEvent.keyDown(end, { key: 'Escape' });
+
+    expect(end.value).toBe('0:03.0');
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+  });
+
+  it('does not fire for an unchanged value', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const end = timeFields()[1];
+
+    fireEvent.blur(end);
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+  });
+});
+
+describe('DubSegmentRow merge shortcuts', () => {
+  it('merges downwards on Ctrl+M', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const text = screen.getByDisplayValue('hola mundo');
+
+    fireEvent.keyDown(text, { key: 'm', ctrlKey: true });
+    expect(props.onMerge).toHaveBeenCalledWith('s1', 'next');
+  });
+
+  it('merges upwards on Ctrl+Shift+M', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const text = screen.getByDisplayValue('hola mundo');
+
+    fireEvent.keyDown(text, { key: 'M', ctrlKey: true, shiftKey: true });
+    expect(props.onMerge).toHaveBeenCalledWith('s1', 'prev');
+  });
+
+  it('stays put when there is no previous row to merge into', () => {
+    const props = makeProps({ canMergePrev: false });
+    render(<DubSegmentRow {...props} />);
+    const text = screen.getByDisplayValue('hola mundo');
+
+    fireEvent.keyDown(text, { key: 'M', ctrlKey: true, shiftKey: true });
+    expect(props.onMerge).not.toHaveBeenCalled();
+  });
+});

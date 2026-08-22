@@ -74,7 +74,8 @@ def test_mac_arm_curates_mlx_whisper_not_ct2(client):
     # The CT2 build stays available in the full catalog but is not the
     # Apple Silicon curated pick — MLX is Metal-accelerated, CT2 is CPU-only there.
     assert "Systran/faster-whisper-large-v3" not in ids
-    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" in ids
+    assert "csukuangfj/sherpa-onnx-whisper-tiny" in ids
+    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" not in ids
 
 
 def test_cuda_curates_ct2_whisper_and_turbo(client):
@@ -82,7 +83,8 @@ def test_cuda_curates_ct2_whisper_and_turbo(client):
     assert "k2-fsa/OmniVoice" in ids
     assert "Systran/faster-whisper-large-v3" in ids
     assert "deepdml/faster-whisper-large-v3-turbo-ct2" in ids
-    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" in ids
+    assert "csukuangfj/sherpa-onnx-whisper-tiny" in ids
+    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" not in ids
     # MLX models never resolve off Apple Silicon.
     assert not any(rid.startswith("mlx-community/") for rid in ids)
 
@@ -100,12 +102,13 @@ def test_rocm_curates_pytorch_whisper_gpu_path(client):
     assert "deepdml/faster-whisper-large-v3-turbo-ct2" not in ids
 
 
-def test_cpu_only_curates_ct2_and_parakeet(client):
+def test_cpu_only_curates_ct2_and_whisper_tiny(client):
     payload = _recommend(client, ["win32", "win32-AMD64", "cpu"])
     ids = _ids(payload)
     assert "Systran/faster-whisper-large-v3" in ids
     assert "deepdml/faster-whisper-large-v3-turbo-ct2" in ids
-    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" in ids
+    assert "csukuangfj/sherpa-onnx-whisper-tiny" in ids
+    assert "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" not in ids
     assert "openai/whisper-large-v3" not in ids  # 3.1 GB PyTorch build: GPU hosts only
 
 

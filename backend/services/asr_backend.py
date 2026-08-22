@@ -2995,7 +2995,7 @@ def _capture_prefers_parakeet() -> bool:
     return _parakeet_mlx_installed()
 
 
-def get_capture_asr_backend() -> ASRBackend:
+def get_capture_asr_backend(*, skip_sherpa: bool = False) -> ASRBackend:
     """Pick the fastest ASR engine for capture / dictation.
 
     Selection order:
@@ -3020,6 +3020,9 @@ def get_capture_asr_backend() -> ASRBackend:
 
     Returns a cached singleton so the model stays warm between calls; the
     singleton is rebuilt if the selected sherpa model changes.
+
+    ``skip_sherpa`` is used only to validate a token-silent Sherpa result with
+    the installed capture fallback before persisting model demotion.
     """
     global _capture_backend, _capture_backend_key
 
@@ -3028,7 +3031,7 @@ def get_capture_asr_backend() -> ASRBackend:
     # call get_sherpa_dictation_backend concurrently) can't both build a model.
     with _capture_backend_lock:
         # 0. Honor an explicit sherpa dictation model selection.
-        sherpa_id = dictation_model_id()
+        sherpa_id = None if skip_sherpa else dictation_model_id()
         if sherpa_id:
             ok, _ = SherpaDictationBackend.is_available()
             if ok:
@@ -3195,7 +3198,10 @@ def _capture_whisper_repo() -> str | None:
     return os.environ.get("OMNIVOICE_PYTORCH_ASR_MODEL", _PYTORCH_ASR_DEFAULT)
 
 
-def _recommended_asr_model(purpose: str, missing_repo: str | None) -> dict | None:
+def _recommended_asr_model(
+    purpose: str, missing_repo: str | None, *, prefer_sherpa: bool = True,
+    excluded_sherpa_model_id: str | None = None,
+) -> dict | None:
     """The catalog entry to offer in the download CTA.
 
     Offline: the missing repo itself when it's in the catalog (guarantees
@@ -3215,20 +3221,38 @@ def _recommended_asr_model(purpose: str, missing_repo: str | None) -> dict | Non
 
     by_id = {m["repo_id"]: m for m in KNOWN_MODELS}
     exact = by_id.get(missing_repo) if missing_repo else None
-    want_sherpa = False
-    if purpose == "dictation":
-        if exact is not None and exact.get("engine") == "sherpa-onnx":
+
+    def _eligible(m: dict, *, sherpa: bool) -> bool:
+        if (m.get("engine") == "sherpa-onnx") != sherpa:
+            return False
+        if sherpa and m.get("dictation_id") == excluded_sherpa_model_id:
+            return False
+        return _model_supported(m)
+
+    if purpose != "dictation":
+        if exact is not None and _model_supported(exact):
             return _shape(exact)
+        prefer_sherpa = False
+
+    if purpose == "dictation" and prefer_sherpa:
         ok, _ = SherpaDictationBackend.is_available()
-        want_sherpa = ok
-    if not want_sherpa and exact is not None and _model_supported(exact):
+        if ok:
+            if exact is not None and _eligible(exact, sherpa=True):
+                return _shape(exact)
+            for m in KNOWN_MODELS:
+                if (m.get("role") == "ASR" and _eligible(m, sherpa=True)
+                        and _model_curated(m)):
+                    return _shape(m)
+
+    # No usable Sherpa recommendation remains (runtime unavailable, explicit
+    # fallback probe, or the sole curated entry is the demoted model). Offer
+    # the exact capture fallback so download → retry cannot loop.
+    if exact is not None and _eligible(exact, sherpa=False):
         return _shape(exact)
     for m in KNOWN_MODELS:
         if m.get("role") != "ASR":
             continue
-        if (m.get("engine") == "sherpa-onnx") != want_sherpa:
-            continue
-        if _model_curated(m) and _model_supported(m):
+        if _eligible(m, sherpa=False) and _model_curated(m):
             return _shape(m)
     return None
 
@@ -3259,7 +3283,9 @@ def _repo_installed(repo: str) -> bool:
 
 def asr_model_missing_error(*, purpose: str = "transcribe",
                             sherpa_model_id: str | None = None,
-                            backend_id: str | None = None) -> dict | None:
+                            backend_id: str | None = None,
+                            skip_sherpa: bool = False,
+                            require_installed: bool = False) -> dict | None:
     """None when the active ASR selection can transcribe without downloading
     anything; otherwise the typed ``{"error": "asr_model_missing", ...}``
     payload for a 409 / SSE / WS error with a download CTA.
@@ -3271,6 +3297,11 @@ def asr_model_missing_error(*, purpose: str = "transcribe",
     ``?model=`` override. Installed state comes from the same HF-cache helpers
     the model store uses (see :func:`_repo_installed`), so the answer matches
     the Model Catalogue → Models install badges.
+    ``skip_sherpa`` probes only the non-Sherpa capture fallback; silent-model
+    recovery uses it before deciding whether persistent demotion is warranted.
+    ``require_installed`` makes unknown/custom selections fail closed for that
+    recovery path so it can never turn the normal fail-open policy into an
+    implicit model download.
 
     FAIL-OPEN rule: a repo the model catalog doesn't know (a custom
     ``ASR_MODEL_*`` pin, pytorch-whisper's default repo, an unrecognized
@@ -3280,27 +3311,55 @@ def asr_model_missing_error(*, purpose: str = "transcribe",
     a broken preflight must degrade to the old behaviour, not block ASR.
     """
     try:
+        prefer_sherpa_recommendation = not skip_sherpa
+        excluded_sherpa_model_id = None
         if purpose == "dictation":
-            sid = sherpa_model_id or dictation_model_id()
+            sid = None if skip_sherpa else (sherpa_model_id or dictation_model_id())
             if sid:
                 ok, _ = SherpaDictationBackend.is_available()
                 if ok:
                     from services import sherpa_dictation as _sd
                     spec = _sd.get_spec(sid)
+                    # A recognizer observed returning silence must follow the
+                    # same capture fallback as execution, even when the
+                    # frontend keeps sending its persisted `?model=` value.
                     if spec is not None:
-                        if _sd.is_installed(spec):
-                            return None
-                        return {
-                            "error": ASR_MODEL_MISSING,
-                            "missing_repo_id": spec.repo_id,
-                            "recommended": _recommended_asr_model(purpose, spec.repo_id),
-                        }
+                        if _sd.is_demoted(spec.id):
+                            excluded_sherpa_model_id = spec.id
+                        else:
+                            if _sd.is_installed(spec):
+                                return None
+                            return {
+                                "error": ASR_MODEL_MISSING,
+                                "missing_repo_id": spec.repo_id,
+                                "recommended": _recommended_asr_model(
+                                    purpose, spec.repo_id,
+                                ),
+                            }
             repo = _capture_whisper_repo()
         else:
             repo = _offline_asr_repo(backend_id)
         if repo is None:
+            if require_installed:
+                return {
+                    "error": ASR_MODEL_MISSING,
+                    "missing_repo_id": "unresolved-capture-fallback",
+                    "recommended": None,
+                }
             return None  # explicit opt-in engine — can't (and shouldn't) preflight
         from api.routers.setup.models import get_model_catalog
+        if require_installed:
+            if _repo_installed(repo):
+                return None
+            return {
+                "error": ASR_MODEL_MISSING,
+                "missing_repo_id": repo,
+                "recommended": _recommended_asr_model(
+                    purpose, repo,
+                    prefer_sherpa=prefer_sherpa_recommendation,
+                    excluded_sherpa_model_id=excluded_sherpa_model_id,
+                ),
+            }
         if get_model_catalog().get(repo) is None:
             return None  # not installable from the CTA — fail open (see docstring)
         if _repo_installed(repo):
@@ -3308,7 +3367,11 @@ def asr_model_missing_error(*, purpose: str = "transcribe",
         return {
             "error": ASR_MODEL_MISSING,
             "missing_repo_id": repo,
-            "recommended": _recommended_asr_model(purpose, repo),
+            "recommended": _recommended_asr_model(
+                purpose, repo,
+                prefer_sherpa=prefer_sherpa_recommendation,
+                excluded_sherpa_model_id=excluded_sherpa_model_id,
+            ),
         }
     except Exception:  # noqa: BLE001 — preflight is best-effort, never a blocker
         logger.warning("ASR install preflight failed — proceeding without it",
