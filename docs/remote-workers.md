@@ -85,8 +85,14 @@ the container, so use its LAN or private-overlay address rather than
 `127.0.0.1`. Worker identity, pinned certificate, and endpoint persist in the
 profile's data volume. After the first successful enrollment, restarts ignore
 that same now-spent environment token and reconnect by proving possession of
-the identity key. Replacing it with a fresh join code intentionally re-enrolls
-the worker.
+the identity key. Replacing it with a fresh join code can move a non-revoked
+worker to another control plane. A revoked identity remains revoked; start
+with a fresh worker data volume to generate a new identity.
+
+The container reports healthy only after the control plane accepts its initial
+registration. A missing, malformed, expired, or rejected join code leaves the
+worker service running for diagnosis but unhealthy; inspect its logs, correct
+the token, and recreate the container.
 
 `OMNIVOICE_WORKER_MODE` wins over the in-app switch when it is set, so a
 deployment that pins worker mode cannot be turned off from the UI — the panel

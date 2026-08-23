@@ -53,6 +53,7 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setitem(__import__("sys").modules, "services.settings_store", _Store)
     monkeypatch.delenv("OMNIVOICE_WORKER_MODE", raising=False)
     monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
+    monkeypatch.setattr(worker_agent.agent, "last_error", "")
     monkeypatch.setattr(
         worker_agent, "_paths", lambda: {"pinned_cert": str(tmp_path / "pinned.crt")}
     )
@@ -107,6 +108,34 @@ def test_status_reports_a_machine_that_has_never_joined(client):
         "last_error": "",
         "env_pinned": False,
     }
+
+
+def test_worker_readiness_is_503_until_initial_registration(client, monkeypatch):
+    c, _ = client
+    monkeypatch.setattr(
+        worker_agent.agent,
+        "readiness",
+        lambda: {"ready": False, "status": "registering"},
+    )
+
+    response = c.get("/workers/agent/readiness")
+
+    assert response.status_code == 503
+    assert response.json() == {"ready": False, "status": "registering"}
+
+
+def test_worker_readiness_is_200_after_initial_registration(client, monkeypatch):
+    c, _ = client
+    monkeypatch.setattr(
+        worker_agent.agent,
+        "readiness",
+        lambda: {"ready": True, "status": "ready"},
+    )
+
+    response = c.get("/workers/agent/readiness")
+
+    assert response.status_code == 200
+    assert response.json() == {"ready": True, "status": "ready"}
 
 
 def test_join_redeems_the_code_and_persists_worker_mode(client, monkeypatch):

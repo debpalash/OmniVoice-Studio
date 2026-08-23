@@ -52,6 +52,12 @@ def test_compose_has_worker_only_gpu_profiles(service_name, profile, image_suffi
     ]
     assert environment["OMNIVOICE_WORKER_MODE"] == "1"
     assert environment["OMNIVOICE_WORKER_TOKEN"] == "${OMNIVOICE_WORKER_TOKEN:-}"
+    assert service["healthcheck"]["test"] == [
+        "CMD",
+        "curl",
+        "-fsS",
+        "http://127.0.0.1:3900/workers/agent/readiness",
+    ]
 
 
 def test_headless_docs_and_acceptance_script_use_the_supported_backend_command():

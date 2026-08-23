@@ -26,6 +26,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.dependencies import require_admin
@@ -156,6 +157,19 @@ def agent_status() -> dict:
     from worker import agent as worker_agent  # noqa: PLC0415
 
     return worker_agent.agent.status()
+
+
+@router.get("/agent/readiness", include_in_schema=False, response_model=None)
+def agent_readiness() -> JSONResponse:
+    """Container readiness: 200 only after this process registered as a worker."""
+    from worker import agent as worker_agent  # noqa: PLC0415
+
+    readiness = worker_agent.agent.readiness()
+    return JSONResponse(
+        status_code=200 if readiness["ready"] else 503,
+        content=readiness,
+        headers={} if readiness["ready"] else {"Retry-After": "2"},
+    )
 
 
 def _refuse_when_env_pinned(worker_agent) -> None:

@@ -175,8 +175,11 @@ These profiles publish no HTTP port and require no browser UI. The join code
 must advertise a LAN or private-overlay address the container can reach, not
 the control plane's `127.0.0.1`. Enrollment state persists in a dedicated
 volume, so the container reconnects after a restart even though the join code
-is single-use. See [Remote GPU workers](../remote-workers.md) for enrollment,
-approval, routing, and security details.
+is single-use. Container health becomes green only after the control plane
+accepts that registration; a missing or invalid token stays unhealthy instead
+of reporting the generic web backend as ready. See [Remote GPU
+workers](../remote-workers.md) for enrollment, approval, routing, and security
+details.
 
 ## LAN access
 

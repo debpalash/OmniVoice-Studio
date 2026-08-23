@@ -22,6 +22,7 @@ import hashlib
 import logging
 import os
 import ssl
+import tempfile
 from typing import Optional
 
 logger = logging.getLogger("omnivoice.worker")
@@ -53,6 +54,7 @@ IDLE_SWEEP_INTERVAL_SECONDS = _sweep_seconds_from_env()
 
 
 _WORKER_MODE_SETTING = "worker_mode_enabled"
+_LOWER_HEX = frozenset("0123456789abcdef")
 
 
 def worker_mode_enabled() -> bool:
@@ -219,18 +221,35 @@ def _token_hash(token_text: str) -> str:
 def _load_consumed_token_hash(path: str) -> str:
     try:
         with open(path, encoding="ascii") as fh:
-            return fh.read().strip()
+            digest = fh.read()
     except (OSError, UnicodeError):
         return ""
+    if len(digest) != 64 or any(character not in _LOWER_HEX for character in digest):
+        return ""
+    return digest
 
 
 def _save_consumed_token_hash(path: str, token_text: str) -> None:
     digest = _token_hash(token_text)
     if not digest:
         return
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "w", encoding="ascii") as fh:
-        fh.write(digest)
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, exist_ok=True)
+    file_descriptor, temporary = tempfile.mkstemp(
+        prefix=".enrollment-token.", suffix=".tmp", dir=directory
+    )
+    try:
+        with os.fdopen(file_descriptor, "w", encoding="ascii") as fh:
+            fh.write(digest)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
 
 
 def fetch_server_certificate(endpoint: str, *, timeout: float = 10.0) -> bytes:
@@ -320,6 +339,18 @@ class WorkerAgent:
             "env_pinned": bool((os.environ.get("OMNIVOICE_WORKER_MODE") or "").strip()),
         }
 
+    def readiness(self) -> dict[str, object]:
+        """Whether a worker-only deployment completed its first registration."""
+        if not worker_mode_enabled():
+            return {"ready": False, "status": "disabled"}
+        if self.running and self._registered.is_set():
+            return {"ready": True, "status": "ready"}
+        if self.last_error:
+            return {"ready": False, "status": "failed"}
+        if self.running:
+            return {"ready": False, "status": "registering"}
+        return {"ready": False, "status": "stopped"}
+
     async def start(self, *, token_text: str = "", endpoint: str = "") -> None:
         from worker import capabilities  # noqa: PLC0415
         from worker.executor import TaskExecutor  # noqa: PLC0415
@@ -334,6 +365,7 @@ class WorkerAgent:
             return
 
         self._registered.clear()
+        self.last_error = ""
         locations = _paths()
         os.makedirs(locations["root"], exist_ok=True)
         # Generated once and never transmitted; this is the worker's identity
@@ -562,7 +594,8 @@ async def start_if_worker_mode() -> None:
         return
     try:
         await agent.start()
-    except Exception:
+    except Exception as exc:
+        agent.last_error = str(exc)
         logger.exception("Worker agent failed to start (the app continues normally)")
 
 

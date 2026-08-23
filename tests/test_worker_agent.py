@@ -11,6 +11,7 @@ import asyncio
 import socket
 import ssl
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -257,6 +258,7 @@ async def test_environment_only_startup_enrolls_and_advertises_capabilities(
     try:
         await agent.start_if_worker_mode()
         await instance.wait_until_registered(timeout=1)
+        registered_readiness = instance.readiness()
     finally:
         await instance.stop()
 
@@ -268,6 +270,48 @@ async def test_environment_only_startup_enrolls_and_advertises_capabilities(
     assert _RegisteringClient.last.config.enrollment_token == "ovw_headless"
     assert _RegisteringClient.last.config.capabilities == expected_capabilities
     assert _RegisteringClient.last.advertised_capabilities == expected_capabilities
+    assert registered_readiness == {"ready": True, "status": "ready"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("token", "message"),
+    [
+        ("", "has not been enrolled"),
+        ("not-a-token", "invalid enrollment token"),
+    ],
+)
+async def test_headless_readiness_rejects_missing_or_invalid_tokens(
+    monkeypatch, tmp_path, token, message
+):
+    locations = {
+        "root": str(tmp_path),
+        "worker_key": str(tmp_path / "worker.key"),
+        "pinned_cert": str(tmp_path / "control-plane.pinned.crt"),
+        "worker_id": str(tmp_path / "worker-id"),
+        "enrollment_token_hash": str(tmp_path / "enrollment-token.sha256"),
+    }
+    monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "1")
+    monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
+    if token:
+        monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
+        monkeypatch.setattr(
+            agent,
+            "pin_certificate",
+            lambda _token: (_ for _ in ()).throw(ValueError(message)),
+        )
+    else:
+        monkeypatch.delenv("OMNIVOICE_WORKER_TOKEN", raising=False)
+    monkeypatch.setattr(agent, "_paths", lambda: locations)
+    instance = agent.WorkerAgent()
+    monkeypatch.setattr(agent, "agent", instance)
+
+    await agent.start_if_worker_mode()
+
+    readiness = instance.readiness()
+    assert readiness["ready"] is False
+    assert readiness["status"] == "failed"
+    assert message in instance.last_error
 
 
 @pytest.mark.asyncio
@@ -300,10 +344,10 @@ async def test_a_consumed_environment_token_is_not_redeemed_after_restart(
 
 
 @pytest.mark.asyncio
-async def test_a_fresh_environment_token_reenrolls_an_existing_worker(
+async def test_a_fresh_environment_token_moves_a_non_revoked_worker(
     monkeypatch, enrolled, tmp_path
 ):
-    """Changing the Compose token must recover a revoked or moved worker."""
+    """Changing the Compose token can move an identity the server still accepts."""
     from worker import capabilities
 
     (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
@@ -328,6 +372,60 @@ async def test_a_fresh_environment_token_reenrolls_an_existing_worker(
 
     assert redeemed == ["ovw_fresh"]
     assert enrolled.last.config.enrollment_token == "ovw_fresh"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "damaged_hash", ["abc123", "A" * 64, "g" * 64, ("0" * 64) + "\n"]
+)
+async def test_a_partial_or_corrupt_token_hash_is_treated_as_legacy_state(
+    monkeypatch, enrolled, tmp_path, damaged_hash
+):
+    """A killed marker write must never make a spent token run again."""
+    from worker import capabilities
+
+    (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
+    (tmp_path / "enrollment-token.sha256").write_text(
+        damaged_hash, encoding="ascii"
+    )
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", "ovw_already_spent")
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+
+    def _redeem_again(_token):
+        raise AssertionError("corrupt legacy state retried a spent token")
+
+    monkeypatch.setattr(agent, "pin_certificate", _redeem_again)
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+    finally:
+        await instance.stop()
+
+    assert agent._load_consumed_token_hash(
+        str(tmp_path / "enrollment-token.sha256")
+    ) == ""
+    assert enrolled.last.config.enrollment_token == ""
+
+
+def test_consumed_token_hash_is_replaced_atomically(monkeypatch, tmp_path):
+    target = tmp_path / "enrollment-token.sha256"
+    replaced = []
+    real_replace = agent.os.replace
+
+    def _replace(source, destination):
+        replaced.append((source, destination))
+        real_replace(source, destination)
+
+    monkeypatch.setattr(agent.os, "replace", _replace)
+
+    agent._save_consumed_token_hash(str(target), "ovw_once")
+
+    assert len(replaced) == 1
+    assert replaced[0][1] == str(target)
+    assert Path(replaced[0][0]).parent == tmp_path
+    assert agent._load_consumed_token_hash(str(target)) == agent._token_hash("ovw_once")
+    assert list(tmp_path.iterdir()) == [target]
 
 
 @pytest.fixture
