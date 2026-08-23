@@ -3,10 +3,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import toast from 'react-hot-toast';
 
-const clearLongformProjects = vi.hoisted(() => vi.fn(async () => {}));
+const { clearLongformProjects, flushLongformPendingWrites } = vi.hoisted(() => ({
+  clearLongformProjects: vi.fn(async () => {}),
+  flushLongformPendingWrites: vi.fn(async () => {}),
+}));
 vi.mock('../../utils/longformPersistence', async (importOriginal) => ({
   ...(await importOriginal()),
   clearLongformProjects: (...args) => clearLongformProjects(...args),
+  flushLongformPendingWrites: (...args) => flushLongformPendingWrites(...args),
 }));
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
@@ -159,6 +163,7 @@ describe('ResetPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearLongformProjects.mockResolvedValue(undefined);
+    flushLongformPendingWrites.mockResolvedValue(undefined);
     localStorage.clear();
     window.__TAURI_INTERNALS__ = {};
     invoke.mockImplementation(async (cmd) => {
@@ -211,6 +216,56 @@ describe('ResetPanel', () => {
     // The zustand blob goes; dictation history — user data, not a preference — stays.
     expect(localStorage.getItem('omnivoice.app')).toBeNull();
     expect(localStorage.getItem('omni_transcriptions')).toBe('[{"text":"note"}]');
+  });
+
+  it('waits for a pending long-form fallback before clearing preferences', async () => {
+    const compactA = JSON.stringify({
+      version: 9,
+      state: { theme: 'dark', currentProjectId: 'p_a' },
+    });
+    localStorage.setItem('omnivoice.app', compactA);
+    let finishFlush = () => {};
+    flushLongformPendingWrites.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFlush = () => {
+            // The pending B write lost IndexedDB, so its only full copy lands
+            // in localStorage when the awaited flush completes.
+            localStorage.setItem(
+              'omnivoice.app',
+              JSON.stringify({
+                version: 9,
+                longformFallbackRevision: 2,
+                state: {
+                  theme: 'light',
+                  currentProjectId: 'p_b',
+                  script: 'pending manuscript B',
+                  storyProjects: [{ id: 'p_b', name: 'Book B' }],
+                },
+              }),
+            );
+            resolve();
+          };
+        }),
+    );
+
+    await openDialog();
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() => expect(flushLongformPendingWrites).toHaveBeenCalledOnce());
+    expect(localStorage.getItem('omnivoice.app')).toBe(compactA);
+    finishFlush();
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 9,
+        longformFallbackRevision: 2,
+        state: {
+          script: 'pending manuscript B',
+          storyProjects: [{ id: 'p_b', name: 'Book B' }],
+        },
+      }),
+    );
   });
 
   it('clears history through the API without bouncing the backend', async () => {

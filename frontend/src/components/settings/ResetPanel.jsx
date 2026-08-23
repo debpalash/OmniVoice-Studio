@@ -54,6 +54,7 @@ import StorageTargetRow from './StorageTargetRow';
 import { clearLocalPreferences } from '../../utils/prefKeys';
 import {
   clearLongformProjects,
+  flushLongformPendingWrites,
   LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR,
 } from '../../utils/longformPersistence';
 import { clearHistory } from '../../api/generate';
@@ -205,9 +206,12 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
         }
       }
       if (steps.longformProjects) await clearLongformProjects();
-      // Preferences last: the reload below is what makes them take effect, and if
-      // anything above threw we would rather not have wiped them for nothing.
-      if (steps.prefs) clearLocalPreferences();
+      // Settle long-form first so an IndexedDB failure can materialize its full
+      // fallback before preference reset decides what project data to preserve.
+      if (steps.prefs) {
+        await flushLongformPendingWrites();
+        clearLocalPreferences();
+      }
 
       toast.success(
         steps.restart
