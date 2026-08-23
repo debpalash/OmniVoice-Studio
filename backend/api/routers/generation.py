@@ -1670,7 +1670,10 @@ async def generate_speech(
                 # global 500 handler, so it journals the scrubbed failure and
                 # names a recognized cause instead of the bare generic string
                 # (#1607).
-                logger.error("Remote generation failed", exc_info=True)
+                logger.error(
+                    "Remote generation failed (class=%s)",
+                    type(exc).__name__,
+                )
                 from core.public_errors import stream_generation_failure
                 from core import error_journal
 

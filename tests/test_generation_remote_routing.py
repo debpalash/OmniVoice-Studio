@@ -460,6 +460,30 @@ def test_remote_stream_preserves_retryable_midjob_guidance(client, monkeypatch):
     assert events[-1]["hint"] == "Run it locally."
 
 
+def test_remote_stream_unexpected_failure_keeps_private_details_out_of_logs(
+    client, monkeypatch, caplog
+):
+    """The remote catch-all journals privately but logs and returns constants."""
+    private = (
+        "TOKEN=remote-secret /home/alice/private-reference.wav "
+        r"C:\Users\alice\private-reference.wav"
+    )
+    gateway = FakeGateway(raises=RuntimeError(private))
+    _install(monkeypatch, gateway, _remote_decision("gpu2"))
+
+    _headers, events = _stream_events(client)
+
+    failure = events[-1]
+    assert failure["type"] == "error"
+    assert failure["code"] == "generation_failed"
+    exposed = f"{caplog.text}\n{failure!r}"
+    assert "remote-secret" not in exposed
+    assert "/home/alice" not in exposed
+    assert r"C:\Users\alice" not in exposed
+    assert "Traceback" not in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
 def test_legacy_worker_missing_weights_returns_typed_409_before_submit(
     client, monkeypatch
 ):
