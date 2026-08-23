@@ -27,6 +27,7 @@ use app_lib::bootstrap::{
     spawn_backend_and_wait, BootstrapStage, BootstrapState, LogPayload,
     set_backend_kill_intended,
 };
+use app_lib::uninstall::{purge_uninstall_targets, UninstallTarget};
 use app_lib::{AppFlags, BackendState, CaptureDispatchState};
 
 static HARNESS: Mutex<()> = Mutex::new(());
@@ -63,6 +64,17 @@ fn scenario_child() {
 
     if let Some(delay) = get_ms("OMNIVOICE_SCENARIO_START_DELAY_MS") {
         std::thread::sleep(Duration::from_millis(delay));
+    }
+
+    let observe_path = get("OMNIVOICE_SCENARIO_OBSERVE_PATH");
+    let observation_log = get("OMNIVOICE_SCENARIO_OBSERVATION_LOG");
+    if !observe_path.is_empty() && !observation_log.is_empty() {
+        let observation = if std::path::Path::new(&observe_path).exists() {
+            "present"
+        } else {
+            "missing"
+        };
+        std::fs::write(observation_log, observation).expect("record scenario observation");
     }
 
     // Serve /system/info + /profiles (the two probes behind backend_ready)
@@ -166,6 +178,8 @@ const SCENARIO_ENV: &[&str] = &[
     "OMNIVOICE_SCENARIO_PROGRESS_ONLY",
     "OMNIVOICE_SCENARIO_START_DELAY_MS",
     "OMNIVOICE_SCENARIO_SPAWN_LOG",
+    "OMNIVOICE_SCENARIO_OBSERVE_PATH",
+    "OMNIVOICE_SCENARIO_OBSERVATION_LOG",
     "OMNIVOICE_BACKEND_CMD",
     "OMNIVOICE_LOG_DIR",
     "OMNIVOICE_PORT",
@@ -408,6 +422,75 @@ fn concurrent_bootstrap_and_retry_share_one_backend_child() {
     t.kill_tracked_child();
     join_with_timeout(bootstrap, Duration::from_secs(10), "concurrent bootstrap shutdown");
     join_with_timeout(retry, Duration::from_secs(10), "concurrent retry shutdown");
+}
+
+/// #1635 follow-up — uninstall used to kill by port only, so a tracked child
+/// still inside its pre-bind delay survived while its live environment was
+/// deleted. Uninstall must wait for the launch owner, stop that exact child,
+/// and keep lifecycle ownership through deletion.
+#[test]
+fn uninstall_waits_for_an_unbound_tracked_child_before_deleting() {
+    let t = TestApp::new(&Scenario {
+        serve_ms: Some(0),
+        ..Default::default()
+    });
+    let spawn_log = t._logdir.path().join("scenario-uninstall-spawns.log");
+    let observation_log = t._logdir.path().join("scenario-uninstall-observation.log");
+    let target_path = t._logdir.path().join("OmniVoice");
+    std::fs::create_dir_all(&target_path).expect("create synthetic uninstall target");
+    std::fs::write(target_path.join("live-env.txt"), b"live").expect("seed uninstall target");
+    std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_START_DELAY_MS", "1500");
+    std::env::set_var("OMNIVOICE_SCENARIO_OBSERVE_PATH", &target_path);
+    std::env::set_var("OMNIVOICE_SCENARIO_OBSERVATION_LOG", &observation_log);
+
+    let bootstrap = t.run_bootstrap();
+    assert!(
+        wait_until(Duration::from_secs(10), || recorded_spawn_count(&spawn_log) == 1),
+        "scenario child was never spawned"
+    );
+    let port = std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap();
+    assert!(
+        !app_lib::backend::port_in_use(port),
+        "precondition: the tracked child must still be unbound"
+    );
+
+    // `uninstall_purge` sets this before entering the shared deletion core.
+    t.quit();
+    let app = t.handle();
+    let target_string = target_path.to_string_lossy().into_owned();
+    let target = UninstallTarget {
+        key: "env".to_string(),
+        path: target_string.clone(),
+        size_bytes: 4,
+        exists: true,
+        shared: false,
+    };
+    let purge = std::thread::spawn(move || purge_uninstall_targets(&app, vec![target], false));
+
+    assert!(
+        wait_until(Duration::from_secs(10), || observation_log.exists()),
+        "scenario child never observed the target before binding"
+    );
+    let observation = std::fs::read_to_string(&observation_log).unwrap();
+    assert_eq!(
+        observation, "present",
+        "uninstall deleted the live environment before stopping the pre-bind child"
+    );
+    let report = purge.join().expect("purge thread panicked").expect("purge failed");
+    assert_eq!(report.removed, vec![target_string]);
+    assert!(!target_path.exists(), "target must be removed after the child stops");
+    assert!(
+        t.app.state::<BackendState>().process.lock().unwrap().is_none(),
+        "uninstall must not leave the tracked child orphaned"
+    );
+    assert!(
+        wait_until(Duration::from_secs(5), || !app_lib::backend::port_in_use(port)),
+        "the stopped child must release its backend port"
+    );
+    assert_eq!(recorded_spawn_count(&spawn_log), 1, "uninstall must not spawn a replacement");
+    assert!(t.markers().markers.is_empty(), "an intentional uninstall is not a crash");
+    join_with_timeout(bootstrap, Duration::from_secs(10), "uninstall overlap shutdown");
 }
 
 /// S1 — the backend exits EXIT_PORT_IN_USE: the user must read a port

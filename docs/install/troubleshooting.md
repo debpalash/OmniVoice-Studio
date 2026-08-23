@@ -632,11 +632,13 @@ the error persistently on a current build, that's section **14** (a wedged GPU
 job), section **14d** (the backend never started), or the crash notice above —
 not this window.
 
-Desktop startup, **Retry**, storage reset, setup re-entry, and automatic crash
-recovery also share one backend lifecycle owner. Overlapping start attempts
-wait and attach to the healthy process, while reset/setup keep exclusive
-ownership through teardown. They no longer launch a second backend that fails
-on port 3900 and leaves a misleading crash notice (#1635).
+Desktop startup, **Retry**, storage reset, setup re-entry, in-app uninstall,
+and automatic crash recovery also share one backend lifecycle owner.
+Overlapping start attempts wait and attach to the healthy process, while
+reset/setup/uninstall keep exclusive ownership through teardown and disk
+changes. They no longer launch a second backend that fails on port 3900, leave
+a misleading crash notice, or delete an environment from under a starting
+child (#1635).
 
 ## 14c. "Can't reach the backend" in a browser — `bun run dev`, Docker, or LAN share
 

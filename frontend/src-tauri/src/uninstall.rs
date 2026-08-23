@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::{backend_port, AppFlags};
+use crate::AppFlags;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct UninstallTarget {
@@ -146,26 +146,7 @@ fn user_env_dir() -> Option<PathBuf> {
     dirs_next::home_dir().map(|h| h.join(".config").join("omnivoice"))
 }
 
-/// Stop the backend and delete the scanned folders. `include_models` opts into
-/// the shared Hugging Face cache. Returns what was removed; the caller quits the
-/// app afterwards (the Python env it runs on is gone, so there is nothing to
-/// return to).
-#[tauri::command]
-pub fn uninstall_purge(
-    app: tauri::AppHandle,
-    include_models: bool,
-    flags: tauri::State<'_, AppFlags>,
-) -> Result<UninstallReport, String> {
-    // Mark the app as quitting BEFORE the backend dies, so the #567 supervisor
-    // treats the death as intentional and doesn't respawn a backend into the
-    // very directories we are about to delete.
-    flags
-        .quitting
-        .store(true, std::sync::atomic::Ordering::SeqCst);
-    crate::bootstrap::set_backend_kill_intended(true);
-    crate::backend::kill_orphan_on_port(backend_port());
-    std::thread::sleep(std::time::Duration::from_millis(600));
-
+fn purge_targets(targets: Vec<UninstallTarget>, include_models: bool) -> UninstallReport {
     let home = dirs_next::home_dir();
     let mut report = UninstallReport {
         removed: vec![],
@@ -173,7 +154,7 @@ pub fn uninstall_purge(
         freed_bytes: 0,
     };
 
-    for t in uninstall_scan(app.clone()) {
+    for t in targets {
         if !t.exists {
             continue;
         }
@@ -198,7 +179,44 @@ pub fn uninstall_purge(
             }
         }
     }
-    Ok(report)
+    report
+}
+
+/// Lifecycle-aware deletion core shared by the command and the real-child
+/// regression harness.
+#[doc(hidden)]
+pub fn purge_uninstall_targets<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    targets: Vec<UninstallTarget>,
+    include_models: bool,
+) -> Result<UninstallReport, String> {
+    crate::bootstrap::with_backend_stopped(app, || {
+        // Let Windows release any final executable/DLL handles before the
+        // managed environment is removed. Lifecycle ownership stays held, so
+        // no launch path can recreate the child during this grace period.
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        purge_targets(targets, include_models)
+    })
+}
+
+/// Stop the backend and delete the scanned folders. `include_models` opts into
+/// the shared Hugging Face cache. Returns what was removed; the caller quits the
+/// app afterwards (the Python env it runs on is gone, so there is nothing to
+/// return to).
+#[tauri::command]
+pub fn uninstall_purge(
+    app: tauri::AppHandle,
+    include_models: bool,
+    flags: tauri::State<'_, AppFlags>,
+) -> Result<UninstallReport, String> {
+    // Mark the app as quitting BEFORE the backend dies, so the #567 supervisor
+    // treats the death as intentional and doesn't respawn a backend into the
+    // very directories we are about to delete.
+    flags
+        .quitting
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    let targets = uninstall_scan(app.clone());
+    purge_uninstall_targets(&app, targets, include_models)
 }
 
 #[cfg(test)]

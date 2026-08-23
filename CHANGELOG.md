@@ -43,7 +43,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - The OmniVoice guide now covers combining style attributes with a reference clip (consistent instruct stabilizes cloning; the reference wins conflicts), inline pronunciation control (pinyin / CMU phonemes), and corrects the claim that the default engine can't do voice design — it can, from attributes (#1565)
 
 ### Fixed
-- Desktop startup, Retry, reset, and crash recovery now share one backend lifecycle owner, so overlapping starts cannot create a second process that dies on port 3900 (#1635) — thanks @Xohaibxobi!
+- Desktop startup, Retry, reset, uninstall, and crash recovery now share one backend lifecycle owner, so overlapping starts cannot create a second process or delete its live environment (#1635) — thanks @Xohaibxobi!
 - OmniVoice and its crash-isolated subprocess now route to AMD ROCm GPUs instead of warning and falling back to CPU (#1629) — thanks @j4r3kb!
 - Dictation now cancels pending startup work, capture resources, sockets, and timers when the capture widget closes, preventing late work against a destroyed webview (#1645)
 - Streaming generation failures now show recognized recovery guidance and appear in Diagnostics instead of only returning a generic error (#1607)
