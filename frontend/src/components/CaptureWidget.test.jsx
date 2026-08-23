@@ -705,6 +705,31 @@ describe('CaptureWidget', () => {
     });
   });
 
+  it('cancels a pending auto-dismiss when the widget unmounts', async () => {
+    const { unmount } = render(withI18n(<CaptureWidget />));
+    const ws = await startSession();
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        ws.msg({ type: 'final', final_kind: 'utterance', text: 'hello world' });
+        ws.msg({ type: 'final', final_kind: 'summary', text: 'hello world' });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText(/Inserted/)).toBeInTheDocument();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps native delivery session-bound and never pre-writes the WebView clipboard', async () => {
     render(withI18n(<CaptureWidget />));
     const ws = await startNativeSession('native-session-7');

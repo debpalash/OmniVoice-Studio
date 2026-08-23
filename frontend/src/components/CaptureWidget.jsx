@@ -914,6 +914,25 @@ export default function CaptureWidget({ onDismiss }) {
     [dismiss],
   );
 
+  // The widget can unmount while a successful delivery is waiting to hide the
+  // pill (tests swap jsdom documents; Tauri can replace the widget webview).
+  // Invalidate async continuations and cancel both long-lived timeouts so none
+  // can update React after this component's document is gone.
+  useEffect(
+    () => () => {
+      captureGenerationRef.current += 1;
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
   // Stop every capture input (recorder / worklet / tracks) without touching
   // the pill state — shared by stop, cancel and the WS error path.
   const stopCaptureGraph = useCallback(() => {
