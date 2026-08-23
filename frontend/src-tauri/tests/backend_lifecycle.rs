@@ -24,13 +24,37 @@ use tauri::Listener;
 use tauri::Manager;
 
 use app_lib::bootstrap::{
-    spawn_backend_and_wait, BootstrapStage, BootstrapState, LogPayload,
-    set_backend_kill_intended,
+    run_streaming, spawn_backend_and_wait, BootstrapStage, BootstrapState,
+    LogPayload, set_backend_kill_intended,
 };
 use app_lib::uninstall::{purge_uninstall_targets, UninstallTarget};
 use app_lib::{shutdown_backend_for_exit, AppFlags, BackendState, CaptureDispatchState};
 
 static HARNESS: Mutex<()> = Mutex::new(());
+
+#[cfg(unix)]
+static SCENARIO_TERM_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+#[cfg(unix)]
+extern "C" fn scenario_term_handler(_: libc::c_int) {
+    SCENARIO_TERM_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+#[cfg(unix)]
+fn finish_graceful_scenario_shutdown() -> bool {
+    if !SCENARIO_TERM_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+        return false;
+    }
+    if let Ok(path) = std::env::var("OMNIVOICE_SCENARIO_SHUTDOWN_SENTINEL") {
+        let _ = std::fs::write(path, b"clean");
+    }
+    true
+}
+
+#[cfg(not(unix))]
+fn finish_graceful_scenario_shutdown() -> bool {
+    false
+}
 
 // ── Scenario child ────────────────────────────────────────────────────────
 
@@ -49,6 +73,17 @@ fn scenario_child() {
         Ok(_) => {}
         Err(_) => return,
     }
+    if std::env::var("OMNIVOICE_SCENARIO_DESCENDANT").as_deref() == Ok("1") {
+        #[cfg(unix)]
+        unsafe {
+            // Exercise the bounded SIGKILL fallback: the backend parent still
+            // handles SIGTERM and writes its cleanup sentinel, while this
+            // engine-like descendant deliberately ignores the graceful phase.
+            libc::signal(libc::SIGTERM, libc::SIG_IGN);
+        }
+        std::thread::sleep(Duration::from_secs(600));
+        return;
+    }
     let get = |k: &str| std::env::var(k).unwrap_or_default();
     let get_ms = |k: &str| get(k).parse::<u64>().ok();
 
@@ -60,6 +95,30 @@ fn scenario_child() {
             .open(spawn_log)
             .expect("open scenario spawn log");
         writeln!(file, "{}", std::process::id()).expect("record scenario child");
+    }
+
+    let descendant_log = get("OMNIVOICE_SCENARIO_DESCENDANT_LOG");
+    if !descendant_log.is_empty() {
+        let exe = std::env::current_exe().expect("current test executable");
+        let child = std::process::Command::new(exe)
+            .args(["scenario_child", "--exact", "--nocapture"])
+            .env("OMNIVOICE_SCENARIO_DESCENDANT", "1")
+            .spawn()
+            .expect("spawn scenario descendant");
+        std::fs::write(descendant_log, child.id().to_string())
+            .expect("record scenario descendant");
+        drop(child);
+    }
+
+    #[cfg(unix)]
+    if !get("OMNIVOICE_SCENARIO_SHUTDOWN_SENTINEL").is_empty() {
+        SCENARIO_TERM_REQUESTED.store(false, std::sync::atomic::Ordering::SeqCst);
+        unsafe {
+            libc::signal(
+                libc::SIGTERM,
+                scenario_term_handler as *const () as libc::sighandler_t,
+            );
+        }
     }
 
     if let Some(delay) = get_ms("OMNIVOICE_SCENARIO_START_DELAY_MS") {
@@ -87,6 +146,9 @@ fn scenario_child() {
             Some(Instant::now() + Duration::from_millis(serve_ms))
         };
         loop {
+            if finish_graceful_scenario_shutdown() {
+                return;
+            }
             if let Some(d) = deadline {
                 if Instant::now() >= d {
                     break;
@@ -138,6 +200,14 @@ fn scenario_child() {
     if let Some(code) = get_ms("OMNIVOICE_SCENARIO_EXIT") {
         std::process::exit(code as i32);
     }
+    if !get("OMNIVOICE_SCENARIO_SHUTDOWN_SENTINEL").is_empty() {
+        loop {
+            if finish_graceful_scenario_shutdown() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
     // Scripted to serve forever / be killed externally: idle out.
     std::thread::sleep(Duration::from_secs(600));
 }
@@ -167,6 +237,9 @@ const SCENARIO_ENV: &[&str] = &[
     "OMNIVOICE_SCENARIO_PROGRESS_ONLY",
     "OMNIVOICE_SCENARIO_START_DELAY_MS",
     "OMNIVOICE_SCENARIO_SPAWN_LOG",
+    "OMNIVOICE_SCENARIO_DESCENDANT",
+    "OMNIVOICE_SCENARIO_DESCENDANT_LOG",
+    "OMNIVOICE_SCENARIO_SHUTDOWN_SENTINEL",
     "OMNIVOICE_TEST_BEFORE_TRACK_ENTERED",
     "OMNIVOICE_TEST_BEFORE_TRACK_RELEASE",
     "OMNIVOICE_TEST_AFTER_TRACK_ENTERED",
@@ -359,6 +432,22 @@ fn process_is_alive(pid: u32) -> bool {
     let mut system = sysinfo::System::new();
     system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
     system.process(pid).is_some()
+}
+
+fn force_kill_pid_for_cleanup(pid: u32) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(pid as i32, libc::SIGKILL);
+    }
+    #[cfg(windows)]
+    {
+        let pid = pid.to_string();
+        let _ = app_lib::tools::no_window(
+            std::process::Command::new("taskkill")
+                .args(["/PID", pid.as_str(), "/T", "/F"]),
+        )
+        .status();
+    }
 }
 
 // ── Scenarios ─────────────────────────────────────────────────────────────
@@ -568,6 +657,115 @@ fn production_exit_joins_a_prebind_spawn_and_leaves_no_orphan() {
     assert!(!app_lib::backend::port_in_use(port), "orphan must not claim the port later");
     assert_eq!(recorded_spawn_count(&spawn_log), 1, "shutdown must not respawn");
     assert!(t.markers().markers.is_empty(), "intentional exit is not a crash");
+}
+
+/// Graceful-first shutdown must let the backend's lifespan cleanup run, then
+/// prove the whole backend process tree is gone — killing only the tracked
+/// parent leaves subprocess-isolated engines alive and keeps Windows files
+/// locked.
+#[cfg(unix)]
+#[test]
+fn production_exit_runs_cleanup_and_stops_backend_descendants() {
+    let t = TestApp::new(&Scenario {
+        serve_ms: Some(0),
+        ..Default::default()
+    });
+    let spawn_log = t._logdir.path().join("scenario-graceful-parent.log");
+    let descendant_log = t._logdir.path().join("scenario-graceful-descendant.log");
+    let sentinel = t._logdir.path().join("scenario-clean-shutdown");
+    std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_DESCENDANT_LOG", &descendant_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_SHUTDOWN_SENTINEL", &sentinel);
+
+    let bootstrap = t.run_bootstrap();
+    assert!(
+        wait_until(Duration::from_secs(20), || matches!(
+            t.stage_snapshot(),
+            BootstrapStage::Ready
+        ) && descendant_log.exists()),
+        "backend tree never became ready"
+    );
+    let parent_pid: u32 = std::fs::read_to_string(&spawn_log).unwrap().trim().parse().unwrap();
+    let descendant_pid: u32 = std::fs::read_to_string(&descendant_log)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    let port = std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap();
+
+    shutdown_backend_for_exit(&t.handle());
+    join_with_timeout(bootstrap, Duration::from_secs(10), "graceful process-tree shutdown");
+    let cleaned = sentinel.exists();
+    let descendant_stopped = wait_until(Duration::from_secs(3), || !process_is_alive(descendant_pid));
+    if !descendant_stopped {
+        force_kill_pid_for_cleanup(descendant_pid);
+    }
+
+    assert!(cleaned, "SIGTERM must run the backend lifespan cleanup sentinel");
+    assert!(!process_is_alive(parent_pid), "tracked backend parent survived shutdown");
+    assert!(descendant_stopped, "backend descendant pid {descendant_pid} survived shutdown");
+    assert!(!app_lib::backend::port_in_use(port), "backend port survived tree shutdown");
+    assert_eq!(recorded_spawn_count(&spawn_log), 1, "shutdown must not respawn");
+    assert!(t.markers().markers.is_empty(), "graceful exit is not a crash");
+}
+
+/// First-run `uv venv` / `uv sync` runs while launch owns lifecycle. Its wait
+/// must notice quitting, terminate and reap the whole subprocess tree, and
+/// release lifecycle so production ExitRequested cannot hang indefinitely.
+#[test]
+fn production_exit_interrupts_a_running_bootstrap_install_tree() {
+    let t = TestApp::new(&Scenario::default());
+    let spawn_log = t._logdir.path().join("scenario-install-parent.log");
+    let descendant_log = t._logdir.path().join("scenario-install-descendant.log");
+    std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_DESCENDANT_LOG", &descendant_log);
+
+    let outcome = Arc::new(Mutex::new(None));
+    let outcome2 = outcome.clone();
+    let app = t.handle();
+    let installer = std::thread::spawn(move || {
+        let state = app.state::<BackendState>();
+        let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
+        let exe = std::env::current_exe().expect("current test executable");
+        let mut cmd = std::process::Command::new(exe);
+        cmd.args(["scenario_child", "--exact", "--nocapture"]);
+        let result = run_streaming(&app, "installing_deps", &mut cmd);
+        *outcome2.lock().unwrap() = Some(match result {
+            Ok(status) => Ok(status.success()),
+            Err(error) => Err(error.kind()),
+        });
+    });
+    assert!(
+        wait_until(Duration::from_secs(10), || spawn_log.exists()
+            && descendant_log.exists()),
+        "bootstrap install tree never started"
+    );
+    let parent_pid: u32 = std::fs::read_to_string(&spawn_log).unwrap().trim().parse().unwrap();
+    let descendant_pid: u32 = std::fs::read_to_string(&descendant_log)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+
+    let app = t.handle();
+    let shutdown = std::thread::spawn(move || shutdown_backend_for_exit(&app));
+    let exit_completed = wait_until(Duration::from_secs(3), || shutdown.is_finished());
+    if !exit_completed {
+        force_kill_pid_for_cleanup(descendant_pid);
+        force_kill_pid_for_cleanup(parent_pid);
+    }
+    join_with_timeout(installer, Duration::from_secs(10), "cancelled bootstrap install");
+    join_with_timeout(shutdown, Duration::from_secs(10), "exit during bootstrap install");
+
+    assert!(exit_completed, "ExitRequested blocked behind a bootstrap subprocess wait");
+    assert_eq!(
+        *outcome.lock().unwrap(),
+        Some(Err(std::io::ErrorKind::Interrupted)),
+        "quitting must interrupt the bootstrap subprocess"
+    );
+    assert!(!process_is_alive(parent_pid), "bootstrap subprocess parent survived exit");
+    assert!(!process_is_alive(descendant_pid), "bootstrap subprocess descendant survived exit");
+    assert!(t.markers().markers.is_empty(), "cancelled install is not a backend crash");
 }
 
 /// S1 — the backend exits EXIT_PORT_IN_USE: the user must read a port

@@ -3,7 +3,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -23,12 +23,11 @@ use crate::bootstrap::{BootstrapStage, set_stage};
 /// (0x08000000) runs the child with no console at all; every caller already
 /// pipes/among nulls stdout+stderr, so nothing visible or logged is lost.
 ///
-/// This is the single chokepoint every bootstrap/tools spawn routes through,
-/// mirroring the flag the backend spawn (`backend.rs`) and the `nvidia-smi`
-/// probe (`setup.rs`) already set inline. No-op on macOS/Linux — there is no
-/// per-process console to hide there, so behaviour is unchanged on those
-/// platforms (default-parity rule: the *visible* default is now identical —
-/// no stray windows — across all three).
+/// Short-lived bootstrap/tools spawns route through this chokepoint;
+/// long-running children use [`configure_process_tree`], which preserves the
+/// same flag while also making descendants terminable. No-op on macOS/Linux —
+/// there is no per-process console to hide there, so behaviour is unchanged on
+/// those platforms (default-parity rule: no stray windows on any OS).
 ///
 /// Returns the same `&mut Command` so it chains inline:
 /// `no_window(Command::new(p).args([..])).output()`.
@@ -41,6 +40,141 @@ pub fn no_window(cmd: &mut Command) -> &mut Command {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd
+}
+
+/// Put a long-running child in a tree we can terminate as one unit. Unix uses
+/// a dedicated process group; Windows combines the existing no-console flag
+/// with `CREATE_NEW_PROCESS_GROUP`, while `taskkill /T` supplies tree teardown.
+pub fn configure_process_tree(cmd: &mut Command) -> &mut Command {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+    }
+    cmd
+}
+
+/// Ask a long-running child tree to stop cleanly, wait a bounded interval,
+/// then force the whole tree down and reap the tracked parent. The graceful
+/// phase lets uvicorn run FastAPI lifespan cleanup (including its run
+/// sentinel); the tree fallback prevents engine/install descendants from
+/// retaining ports or Windows file locks.
+pub fn terminate_process_tree(
+    child: &mut Child,
+    graceful_timeout: Duration,
+) -> io::Result<ExitStatus> {
+    let pid = child.id();
+    #[cfg(unix)]
+    let _ = signal_unix_process_tree(pid, libc::SIGTERM);
+    #[cfg(windows)]
+    let _ = taskkill_process_tree(pid, false);
+
+    let deadline = std::time::Instant::now() + graceful_timeout;
+    let mut status = None;
+    while std::time::Instant::now() < deadline {
+        if status.is_none() {
+            match child.try_wait() {
+                Ok(observed) => status = observed,
+                Err(error) => {
+                    log::warn!("Could not poll process-tree root pid {pid}: {error}; forcing it");
+                    break;
+                }
+            }
+        }
+        if status.is_some() {
+            #[cfg(unix)]
+            if !unix_process_tree_alive(pid) {
+                return Ok(status.expect("status checked above"));
+            }
+            #[cfg(windows)]
+            return Ok(status.expect("status checked above"));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    log::warn!(
+        "Process tree rooted at pid {pid} did not stop within {graceful_timeout:?}; forcing it"
+    );
+    #[cfg(unix)]
+    {
+        let _ = signal_unix_process_tree(pid, libc::SIGKILL);
+    }
+    #[cfg(windows)]
+    {
+        let _ = taskkill_process_tree(pid, true);
+    }
+    if status.is_none() {
+        // Last-resort parent kill if the platform tree command itself failed.
+        let _ = child.kill();
+        status = Some(child.wait()?);
+    }
+    let status = status.expect("child status set by wait or try_wait");
+
+    #[cfg(unix)]
+    {
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while unix_process_tree_alive(pid) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        if unix_process_tree_alive(pid) {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("process group {pid} survived SIGKILL"),
+            ));
+        }
+    }
+    Ok(status)
+}
+
+#[cfg(unix)]
+fn signal_unix_process_tree(pid: u32, signal: libc::c_int) -> io::Result<()> {
+    let pid = i32::try_from(pid)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "pid exceeds i32"))?;
+    if unsafe { libc::kill(-pid, signal) } == 0 {
+        return Ok(());
+    }
+    let group_error = io::Error::last_os_error();
+    if group_error.raw_os_error() != Some(libc::ESRCH) {
+        return Err(group_error);
+    }
+    if unsafe { libc::kill(pid, signal) } == 0 {
+        return Ok(());
+    }
+    let process_error = io::Error::last_os_error();
+    if process_error.raw_os_error() == Some(libc::ESRCH) {
+        Ok(())
+    } else {
+        Err(process_error)
+    }
+}
+
+#[cfg(unix)]
+fn unix_process_tree_alive(pid: u32) -> bool {
+    let Ok(pid) = i32::try_from(pid) else {
+        return false;
+    };
+    if unsafe { libc::kill(-pid, 0) } == 0 {
+        return true;
+    }
+    io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+}
+
+#[cfg(windows)]
+fn taskkill_process_tree(pid: u32, force: bool) -> io::Result<ExitStatus> {
+    let mut command = Command::new("taskkill");
+    let pid = pid.to_string();
+    command.args(["/PID", pid.as_str(), "/T"]);
+    if force {
+        command.arg("/F");
+    }
+    no_window(&mut command).status()
 }
 
 // Version of the Astral `uv` binary we download at first run when no system

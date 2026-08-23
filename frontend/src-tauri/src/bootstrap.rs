@@ -137,11 +137,16 @@ pub fn run_streaming<R: tauri::Runtime>(
     stage: &str,
     cmd: &mut Command,
 ) -> io::Result<std::process::ExitStatus> {
+    if app_is_quitting(app) {
+        return Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "app is quitting",
+        ));
+    }
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    // Windows: no flashing console window for uv/python subprocesses (#first-run
-    // terminal-window storm). No-op on macOS/Linux. stdout/stderr are piped
-    // above, so the splash log still receives every line.
-    crate::tools::no_window(cmd);
+    // Long installs need both no console flash on Windows and an independently
+    // killable process tree on every OS.
+    crate::tools::configure_process_tree(cmd);
     let mut child = cmd.spawn()?;
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -165,10 +170,29 @@ pub fn run_streaming<R: tauri::Runtime>(
             }
         }
     });
-    let status = child.wait()?;
+    let status = loop {
+        if app_is_quitting(app) {
+            log::info!("App is quitting — stopping bootstrap subprocess tree (pid {})", child.id());
+            break match crate::tools::terminate_process_tree(
+                &mut child,
+                Duration::from_millis(750),
+            ) {
+                Ok(_) => Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "app quit during bootstrap subprocess",
+                )),
+                Err(error) => Err(error),
+            };
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+            Err(error) => break Err(error),
+        }
+    };
     let _ = h_out.join();
     let _ = h_err.join();
-    Ok(status)
+    status
 }
 
 // ── Tauri commands ────────────────────────────────────────────────────────
@@ -273,14 +297,16 @@ fn stop_backend_locked<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
 
+    let mut tree_error = None;
     if let Some(mut child) = child {
-        match child.try_wait() {
-            Ok(Some(_)) => {}
-            Ok(None) | Err(_) => {
-                log::info!("Stopping tracked backend child (pid {})", child.id());
-                let _ = child.kill();
-                let _ = child.wait();
-            }
+        // Signal the process group even if the tracked parent already exited:
+        // subprocess engines can outlive it while retaining files or devices.
+        log::info!("Stopping tracked backend tree (root pid {})", child.id());
+        if let Err(error) =
+            crate::tools::terminate_process_tree(&mut child, Duration::from_secs(2))
+        {
+            log::warn!("Could not fully stop tracked backend tree: {error}");
+            tree_error = Some(error.to_string());
         }
     }
 
@@ -292,6 +318,11 @@ fn stop_backend_locked<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(
              could not free it. Quit whatever is using that port (another copy \
              of VoiceStudio, or an app that claimed it) and try again.",
             backend_port()
+        ));
+    }
+    if let Some(error) = tree_error {
+        return Err(format!(
+            "VoiceStudio could not fully stop the backend process tree: {error}"
         ));
     }
     Ok(())

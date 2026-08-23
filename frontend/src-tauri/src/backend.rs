@@ -277,8 +277,10 @@ pub fn kill_orphan_on_port(port: u16) {
         if let Some(pid_str) = parts.last() {
             if let Ok(pid) = pid_str.parse::<u32>() {
                 log::warn!("Killing orphan process {} on port {} (Windows)", pid, port);
+                let pid_arg = pid.to_string();
                 let _ = crate::tools::no_window(
-                    Command::new("taskkill").args(["/PID", &pid.to_string(), "/F"]),
+                    // `/T` also releases files held by subprocess engines.
+                    Command::new("taskkill").args(["/PID", pid_arg.as_str(), "/T", "/F"]),
                 )
                 .output();
             }
@@ -673,18 +675,10 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
     for (k, v) in &env {
         cmd.env(k, v);
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW (0x08000000) | CREATE_NEW_PROCESS_GROUP (0x00000200).
-        // The backend used to inherit the app's console context, so OS console
-        // CLOSE/LOGOFF events could reach it and MKL's Fortran runtime aborted
-        // the process (`forrtl: error (200)`, exit 2 / 0xC000013A — #1153
-        // class). No console + own process group = no console events, ever.
-        // stdout/stderr are piped above, so nothing is lost. Same flag the
-        // nvidia-smi probe already uses (setup.rs).
-        cmd.creation_flags(0x0800_0000 | 0x0000_0200);
-    }
+    // Own process group/tree: graceful shutdown reaches uvicorn lifespan
+    // cleanup, and the bounded fallback also removes subprocess engines.
+    // On Windows this retains CREATE_NO_WINDOW (#1153).
+    crate::tools::configure_process_tree(&mut cmd);
     match cmd_override {
         Some(ref argv) => {
             cmd.args(&argv[1..]);
