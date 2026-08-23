@@ -172,6 +172,7 @@ async def test_starting_without_enrollment_explains_what_to_do(monkeypatch, tmp_
             "root": str(tmp_path),
             "worker_key": str(tmp_path / "worker.key"),
             "pinned_cert": str(tmp_path / "absent.crt"),
+            "worker_id": str(tmp_path / "worker-id"),
         },
     )
 
@@ -198,6 +199,135 @@ class _FakeClient:
 
     async def stop(self):
         self.stopped = True
+
+
+class _RegisteringClient(_FakeClient):
+    """Completes enrollment, then remains alive like the real dial-out loop."""
+
+    async def run_forever(self):
+        self.advertised_capabilities = self.hooks["capability_probe"]()
+        self.hooks["on_registered"]("headless-worker")
+        await asyncio.Event().wait()
+
+
+@pytest.mark.asyncio
+async def test_environment_only_startup_enrolls_and_advertises_capabilities(
+    monkeypatch, tmp_path
+):
+    """A headless host needs only the two documented environment variables."""
+    from worker import capabilities
+    from worker.transport import client as transport
+
+    expected_capabilities = [
+        {
+            "engine": "indextts",
+            "model_id": "indextts:default",
+            "operations": ["tts", "clone"],
+            "supported": True,
+            "installed": True,
+            "downloaded": True,
+        }
+    ]
+    locations = {
+        "root": str(tmp_path),
+        "worker_key": str(tmp_path / "worker.key"),
+        "pinned_cert": str(tmp_path / "control-plane.pinned.crt"),
+        "worker_id": str(tmp_path / "worker-id"),
+    }
+    remembered = []
+
+    def _pin(token_text):
+        assert token_text == "ovw_headless"
+        (tmp_path / "control-plane.pinned.crt").write_bytes(b"pinned certificate")
+        return "studio.internal:7443", b"pinned certificate"
+
+    monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "1")
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", "ovw_headless")
+    monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
+    monkeypatch.setattr(agent, "_paths", lambda: locations)
+    monkeypatch.setattr(agent, "pin_certificate", _pin)
+    monkeypatch.setattr(agent, "_remember_endpoint", remembered.append)
+    monkeypatch.setattr(capabilities, "discover", lambda **_: expected_capabilities)
+    monkeypatch.setattr(capabilities, "describe_gpus", lambda: [{"vendor": "nvidia"}])
+    monkeypatch.setattr(transport, "WorkerClient", _RegisteringClient)
+    _RegisteringClient.last = None
+    instance = agent.WorkerAgent()
+    monkeypatch.setattr(agent, "agent", instance)
+
+    try:
+        await agent.start_if_worker_mode()
+        await instance.wait_until_registered(timeout=1)
+    finally:
+        await instance.stop()
+
+    assert remembered == ["studio.internal:7443"]
+    assert (tmp_path / "worker-id").read_text(encoding="utf-8") == "headless-worker"
+    assert (tmp_path / "enrollment-token.sha256").read_text(encoding="ascii") == (
+        agent._token_hash("ovw_headless")
+    )
+    assert _RegisteringClient.last.config.enrollment_token == "ovw_headless"
+    assert _RegisteringClient.last.config.capabilities == expected_capabilities
+    assert _RegisteringClient.last.advertised_capabilities == expected_capabilities
+
+
+@pytest.mark.asyncio
+async def test_a_consumed_environment_token_is_not_redeemed_after_restart(
+    monkeypatch, enrolled, tmp_path
+):
+    """Compose keeps its environment across restarts; the join code is one-use."""
+    from worker import capabilities
+
+    (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
+    (tmp_path / "enrollment-token.sha256").write_text(
+        agent._token_hash("ovw_already_spent"), encoding="ascii"
+    )
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", "ovw_already_spent")
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+
+    def _redeem_again(_token):
+        raise AssertionError("a persisted one-use token was redeemed twice")
+
+    monkeypatch.setattr(agent, "pin_certificate", _redeem_again)
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+    finally:
+        await instance.stop()
+
+    assert enrolled.last.config.worker_id == "headless-worker"
+    assert enrolled.last.config.enrollment_token == ""
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_environment_token_reenrolls_an_existing_worker(
+    monkeypatch, enrolled, tmp_path
+):
+    """Changing the Compose token must recover a revoked or moved worker."""
+    from worker import capabilities
+
+    (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
+    (tmp_path / "enrollment-token.sha256").write_text(
+        agent._token_hash("ovw_old"), encoding="ascii"
+    )
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", "ovw_fresh")
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+    redeemed = []
+
+    def _redeem(token_text):
+        redeemed.append(token_text)
+        return "new-studio.internal:7443", b"new pinned certificate"
+
+    monkeypatch.setattr(agent, "pin_certificate", _redeem)
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+    finally:
+        await instance.stop()
+
+    assert redeemed == ["ovw_fresh"]
+    assert enrolled.last.config.enrollment_token == "ovw_fresh"
 
 
 @pytest.fixture

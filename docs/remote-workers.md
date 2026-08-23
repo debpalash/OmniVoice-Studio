@@ -64,8 +64,29 @@ another code.
 Headless machines still take the environment route:
 
 ```bash
-OMNIVOICE_WORKER_TOKEN='ovw_…' OMNIVOICE_WORKER_MODE=1 omnivoice
+OMNIVOICE_WORKER_TOKEN='ovw_…' OMNIVOICE_WORKER_MODE=1 \
+  uv run uvicorn backend.main:app --host 127.0.0.1 --port 3900
 ```
+
+Run that command from the repository root. Uvicorn hosts the application
+lifespan that owns the worker agent; binding it to loopback means no Studio UI
+is exposed, and no browser interaction is required.
+
+For a worker-only NVIDIA Docker container, use the included Compose profile:
+
+```bash
+OMNIVOICE_WORKER_TOKEN='ovw_…' docker compose \
+  -f deploy/docker-compose.yml --profile worker-gpu up -d
+```
+
+Use `worker-rocm` instead for AMD GPUs. Neither profile publishes an HTTP
+port. The control-plane address inside the join code must be reachable from
+the container, so use its LAN or private-overlay address rather than
+`127.0.0.1`. Worker identity, pinned certificate, and endpoint persist in the
+profile's data volume. After the first successful enrollment, restarts ignore
+that same now-spent environment token and reconnect by proving possession of
+the identity key. Replacing it with a fresh join code intentionally re-enrolls
+the worker.
 
 `OMNIVOICE_WORKER_MODE` wins over the in-app switch when it is set, so a
 deployment that pins worker mode cannot be turned off from the UI — the panel
@@ -286,7 +307,7 @@ new code.
 | `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` | How long a model may sit unused before its VRAM is handed back (default `600`, minimum `5`) |
 | `OMNIVOICE_IDLE_SWEEP_SECONDS` | How often that check runs (default `60`, minimum `1`) |
 | `OMNIVOICE_WORKER_MODE` | `1` on the worker machine — overrides the in-app switch |
-| `OMNIVOICE_WORKER_TOKEN` | Join code, first run only (the in-app Join box is the usual route) |
+| `OMNIVOICE_WORKER_TOKEN` | Join code, consumed on first successful enrollment; a persisted container value is ignored on later restarts |
 | `OMNIVOICE_WORKER_ENDPOINT` | Control plane to dial when no code is being redeemed; normally remembered from the code |
 
 `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` and `OMNIVOICE_IDLE_SWEEP_SECONDS` exist
@@ -333,10 +354,10 @@ scripts/verify-remote-worker.sh \
 `WORKER_ID`, `WORKER_SSH_TARGET`, `WORKER_START_COMMAND`, `VOICESTUDIO_API`,
 and `WORKER_CONTROL_PORT` are equivalent environment variables. Pass
 `--worker-start-command` (or its environment equivalent) when the worker does
-not start with `OMNIVOICE_WORKER_MODE=1 omnivoice`; it is printed only in the
-manual worker-loss procedure. The worker id is optional only when exactly one
-worker is connected. The script requires an SSH target so it can verify the
-worker's OS and NVIDIA GPU before accepting any result.
+not use the headless command documented above; it is printed only in the manual
+worker-loss procedure. The worker id is optional only when exactly one worker
+is connected. The script requires an SSH target so it can verify the worker's
+OS and NVIDIA GPU before accepting any result.
 
 The check never deletes model caches or user data. It selects an engine the
 worker itself reports as absent for the missing-model check. Operations that

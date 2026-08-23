@@ -18,6 +18,7 @@ continue: a mismatch is precisely the attack pinning exists to catch.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import ssl
@@ -189,6 +190,9 @@ def _paths() -> dict[str, str]:
     # is. The challenge signature binds to this id, so a worker that forgets it
     # cannot authenticate with the key it already enrolled.
     locations["worker_id"] = os.path.join(locations["root"], "worker-id")
+    locations["enrollment_token_hash"] = os.path.join(
+        locations["root"], "enrollment-token.sha256"
+    )
     return locations
 
 
@@ -206,6 +210,27 @@ def save_worker_id(path: str, worker_id: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(worker_id)
+
+
+def _token_hash(token_text: str) -> str:
+    return hashlib.sha256(token_text.encode("utf-8")).hexdigest() if token_text else ""
+
+
+def _load_consumed_token_hash(path: str) -> str:
+    try:
+        with open(path, encoding="ascii") as fh:
+            return fh.read().strip()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _save_consumed_token_hash(path: str, token_text: str) -> None:
+    digest = _token_hash(token_text)
+    if not digest:
+        return
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="ascii") as fh:
+        fh.write(digest)
 
 
 def fetch_server_certificate(endpoint: str, *, timeout: float = 10.0) -> bytes:
@@ -315,8 +340,29 @@ class WorkerAgent:
         # for the life of the machine.
         keypair = load_or_create_worker_key(locations["worker_key"])
 
-        token_text = token_text or (os.environ.get("OMNIVOICE_WORKER_TOKEN") or "").strip()
-        if token_text:
+        # A container's environment persists across process restarts, while an
+        # enrollment token is single-use. Once registration has persisted a
+        # worker id, reconnect with the identity key instead of trying to
+        # spend that environment token again. An explicit token still means
+        # "re-enrol", which keeps the in-app join flow able to replace an
+        # existing control plane.
+        explicit_token = token_text.strip()
+        environment_token = (os.environ.get("OMNIVOICE_WORKER_TOKEN") or "").strip()
+        worker_id = load_worker_id(locations["worker_id"])
+        token_hash_path = locations.get("enrollment_token_hash") or os.path.join(
+            locations["root"], "enrollment-token.sha256"
+        )
+        consumed_token_hash = _load_consumed_token_hash(token_hash_path)
+        environment_token_is_new = bool(
+            environment_token
+            and consumed_token_hash
+            and _token_hash(environment_token) != consumed_token_hash
+        )
+        token_text = explicit_token or environment_token
+        should_enroll = bool(
+            token_text and (explicit_token or not worker_id or environment_token_is_new)
+        )
+        if should_enroll:
             endpoint, certificate = await asyncio.to_thread(pin_certificate, token_text)
             # The token carries the address; remembering it is what makes the
             # NEXT launch work. Without this a machine that joined from the UI
@@ -325,6 +371,7 @@ class WorkerAgent:
             # remove.
             _remember_endpoint(endpoint)
         else:
+            token_text = ""
             # Already enrolled: reuse the certificate pinned at join time.
             try:
                 with open(locations["pinned_cert"], "rb") as fh:
@@ -360,7 +407,7 @@ class WorkerAgent:
             cert_fingerprint="",
             certificate_pem=certificate,
             keypair=keypair,
-            worker_id=load_worker_id(locations["worker_id"]),
+            worker_id=worker_id,
             enrollment_token=token_text,
             max_concurrent_tasks=capabilities.max_concurrent_tasks(discovered),
             capabilities=discovered,
@@ -379,7 +426,11 @@ class WorkerAgent:
             # the last connection is reported honestly rather than from a
             # snapshot taken at startup.
             capability_probe=lambda: capabilities.discover(include_unavailable=True),
-            on_registered=self._on_registered(locations["worker_id"]),
+            on_registered=self._on_registered(
+                locations["worker_id"],
+                token_hash_path=token_hash_path,
+                enrollment_token=(token_text if should_enroll else environment_token),
+            ),
         )
         self._task = asyncio.create_task(self._client.run_forever(), name="worker-agent")
         self._idle_sweep = asyncio.create_task(
@@ -389,9 +440,16 @@ class WorkerAgent:
             "Worker agent connecting to %s with %d engine(s)", endpoint, len(discovered)
         )
 
-    def _on_registered(self, worker_id_path: str):
+    def _on_registered(
+        self, worker_id_path: str, *, token_hash_path: str = "", enrollment_token: str = ""
+    ):
         def handle(worker_id) -> None:
             save_worker_id(worker_id_path, worker_id)
+            if token_hash_path:
+                try:
+                    _save_consumed_token_hash(token_hash_path, enrollment_token)
+                except OSError:
+                    logger.warning("Could not persist the consumed enrollment token hash.")
             self._registered.set()
 
         return handle
