@@ -108,7 +108,7 @@ def _platform_slug() -> str:
         return "darwin-x86_64"
     if system == "windows":
         return "windows-x86_64"
-    if machine in ("arm64", "aarch64"):
+    if system == "linux" and machine in ("arm64", "aarch64"):
         return "linux-aarch64"
     # Linux + everything else falls into the linux slug.
     return "linux-x86_64"

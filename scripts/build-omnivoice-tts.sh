@@ -133,7 +133,18 @@ case "$PLATFORM" in
             rm -rf build
         fi
         cmake -B build -DCMAKE_BUILD_TYPE=Release "${VULKAN_FLAGS[@]}"
-        cmake --build build --config Release -j
+        if ! cmake --build build --config Release -j; then
+            if [[ ${#VULKAN_FLAGS[@]} -eq 0 ]]; then
+                exit 1
+            fi
+            # Configure passed but compile/link failed (e.g. shader toolchain
+            # mismatch) — the CPU runtime is still viable, so retry without
+            # Vulkan instead of dropping the artifact entirely.
+            echo "→ Vulkan build failed during compilation; retrying CPU-only." >&2
+            rm -rf build
+            cmake -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --config Release -j
+        fi
         cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
         copy_shared_libs
         ;;

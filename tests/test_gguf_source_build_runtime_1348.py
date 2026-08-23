@@ -16,6 +16,7 @@ import ast
 import importlib
 import os
 import re
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -131,6 +132,16 @@ def test_platform_slug_maps_linux_arm64_to_aarch64_binary():
          patch("platform.machine", return_value="aarch64"):
         assert gguf_backend._platform_slug() == "linux-aarch64"
 
+    # Both accepted ARM64 spellings must resolve to linux-aarch64.
+    with patch("platform.system", return_value="Linux"), \
+         patch("platform.machine", return_value="arm64"):
+        assert gguf_backend._platform_slug() == "linux-aarch64"
+
+    # The aarch64 slug is Linux-only — other systems keep their own mapping.
+    with patch("platform.system", return_value="FreeBSD"), \
+         patch("platform.machine", return_value="aarch64"):
+        assert gguf_backend._platform_slug() == "linux-x86_64"
+
     with patch("platform.system", return_value="Linux"), \
          patch("platform.machine", return_value="x86_64"):
         assert gguf_backend._platform_slug() == "linux-x86_64"
@@ -138,10 +149,26 @@ def test_platform_slug_maps_linux_arm64_to_aarch64_binary():
 
 def test_build_script_accepts_linux_aarch64():
     script = (REPO / "scripts/build-omnivoice-tts.sh").read_text()
+    # Syntax-valid bash (catches breakage before CI burns a runner).
+    subprocess.run(
+        ["bash", "-n", str(REPO / "scripts/build-omnivoice-tts.sh")],
+        check=True,
+    )
     assert "linux-aarch64" in script
     # The Vulkan attempt must degrade to CPU, never hard-fail the build
-    # when the host lacks the Vulkan dev deps.
+    # when the host lacks the Vulkan dev deps OR when configure succeeds
+    # but compile/link fails (P1: Vulkan failure drops CPU fallback).
     assert "GGML_VULKAN=ON" in script
+    retry = re.search(
+        r"if ! cmake --build build .*?fi\n\s*cp -v build/omnivoice-tts",
+        script,
+        re.DOTALL,
+    )
+    assert retry, (
+        "linux-aarch64 branch must guard cmake --build and retry CPU-only "
+        "when the Vulkan build fails at compile/link"
+    )
+    assert "retrying CPU-only" in retry.group(0)
 
 
 def test_build_script_copies_shared_libs_on_every_platform_branch():

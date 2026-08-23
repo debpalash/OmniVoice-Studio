@@ -77,7 +77,7 @@ Both spike URLs are **real, live, and the intended artifacts**. The "VoiceStudio
 
 # GGUF variant — adds a bundled binary, not a Python dep
 # Built once per platform in CI and stored alongside the Tauri installer:
-#   bin/omnivoice-tts-{darwin-arm64,darwin-x86_64,windows-x86_64,linux-x86_64}
+#   bin/omnivoice-tts-{darwin-arm64,darwin-x86_64,windows-x86_64,linux-x86_64,linux-aarch64}
 # Quants pulled at first use via huggingface_hub
 ```
 
@@ -229,7 +229,8 @@ bin/                          # bundled in installer (per platform)
 ├── omnivoice-tts-darwin-arm64
 ├── omnivoice-tts-darwin-x86_64
 ├── omnivoice-tts-windows-x86_64.exe
-└── omnivoice-tts-linux-x86_64
+├── omnivoice-tts-linux-x86_64
+└── omnivoice-tts-linux-aarch64
 
 .planning/decisions/
 ├── SPIKE-01-gguf.md          # ADR (this research → human review → ratified)
