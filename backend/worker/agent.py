@@ -247,7 +247,7 @@ def _save_consumed_token_hash(path: str, token_text: str) -> None:
     except Exception:
         try:
             os.unlink(temporary)
-        except OSError:
+        except OSError:  # best effort: preserve the original write/replace error
             pass
         raise
 
