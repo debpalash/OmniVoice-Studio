@@ -46,6 +46,15 @@ failing at spawn time; build one with
 `scripts/build-omnivoice-tts.sh --platform <slug>` or use the default
 in-process engine.
 
+**Linux ARM64 (Asahi Apple Silicon):** the `linux-aarch64` binary prefers
+GGML's Vulkan backend when built on a host with `glslc` and the Khronos
+SPIRV headers installed (Arch: `pacman -S shaderc spirv-headers`; Debian:
+`apt install glslc libvulkan-dev spirv-headers`), so Apple GPUs accelerate
+generation through the open-source Honeykrisp driver. Without those deps the
+build falls back to CPU. Expect roughly 2–4x slower generation than macOS
+Metal while upstream Mesa and llama.cpp Vulkan optimizations mature; still
+well ahead of CPU-only.
+
 ## Integrity and self-healing
 
 Before reporting ready, the engine:

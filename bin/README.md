@@ -7,7 +7,8 @@ VoiceStudio installer. Today:
 |------|------------|---------|
 | `omnivoice-tts-darwin-arm64` | `ServeurpersoCom/omnivoice.cpp` @ pinned SHA | GGUF inference runtime — Apple Silicon |
 | `omnivoice-tts-darwin-x86_64` | same | Intel Mac |
-| `omnivoice-tts-linux-x86_64` | same | Linux |
+| `omnivoice-tts-linux-x86_64` | same | Linux (x86_64) |
+| `omnivoice-tts-linux-aarch64` | same | Linux ARM64 — Apple Silicon under Asahi; built with GGML Vulkan where the toolchain supports it, so the Honeykrisp driver can accelerate generation |
 | `omnivoice-tts-windows-x86_64.exe` | same | Windows |
 | `checksums.sha256` | computed by `scripts/build-omnivoice-tts.sh` | SHA-256 manifest — verified by `VoiceStudioGGUFBackend.is_available()` |
 

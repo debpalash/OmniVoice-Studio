@@ -17,6 +17,7 @@ import importlib
 import os
 import re
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -120,6 +121,29 @@ def test_every_spawn_of_the_engine_binary_passes_the_loader_env():
 # ── the build script ships the shared libs it links against ─────────────────
 
 
+def test_platform_slug_maps_linux_arm64_to_aarch64_binary():
+    """Asahi Apple Silicon — Linux/aarch64 hosts must resolve the
+    linux-aarch64 binary, not silently fall into linux-x86_64 (which
+    can never run on ARM)."""
+    from engines.omnivoice_gguf import backend as gguf_backend
+
+    with patch("platform.system", return_value="Linux"), \
+         patch("platform.machine", return_value="aarch64"):
+        assert gguf_backend._platform_slug() == "linux-aarch64"
+
+    with patch("platform.system", return_value="Linux"), \
+         patch("platform.machine", return_value="x86_64"):
+        assert gguf_backend._platform_slug() == "linux-x86_64"
+
+
+def test_build_script_accepts_linux_aarch64():
+    script = (REPO / "scripts/build-omnivoice-tts.sh").read_text()
+    assert "linux-aarch64" in script
+    # The Vulkan attempt must degrade to CPU, never hard-fail the build
+    # when the host lacks the Vulkan dev deps.
+    assert "GGML_VULKAN=ON" in script
+
+
 def test_build_script_copies_shared_libs_on_every_platform_branch():
     script = (REPO / "scripts/build-omnivoice-tts.sh").read_text()
     assert "copy_shared_libs()" in script
@@ -127,7 +151,7 @@ def test_build_script_copies_shared_libs_on_every_platform_branch():
     # the bug lived in ALL platform branches, not just Linux.
     binary_cps = re.findall(r'cp -v build/(?:Release/)?omnivoice-tts(?:\.exe)? "\$BIN_DIR', script)
     calls = script.count("copy_shared_libs\n")
-    assert len(binary_cps) == 4
+    assert len(binary_cps) == 5
     assert calls == len(binary_cps), (
         "every platform branch that copies the binary must also call "
         "copy_shared_libs — otherwise that platform's dynamic build "

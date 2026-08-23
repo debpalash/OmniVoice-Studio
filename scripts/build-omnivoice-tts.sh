@@ -8,7 +8,7 @@
 #
 # Usage:
 #   scripts/build-omnivoice-tts.sh \
-#       --platform {darwin-arm64|darwin-x86_64|windows-x86_64|linux-x86_64} \
+#       --platform {darwin-arm64|darwin-x86_64|windows-x86_64|linux-x86_64|linux-aarch64} \
 #       --commit-sha <40hex>
 #
 # Required tools: git, cmake, ninja or make, a working C++17 compiler,
@@ -55,7 +55,7 @@ if ! [[ "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
 fi
 
 case "$PLATFORM" in
-    darwin-arm64|darwin-x86_64|windows-x86_64|linux-x86_64) ;;
+    darwin-arm64|darwin-x86_64|windows-x86_64|linux-x86_64|linux-aarch64) ;;
     *)
         echo "Unknown --platform: $PLATFORM" >&2
         exit 1
@@ -111,6 +111,29 @@ case "$PLATFORM" in
             cmake -B build -DCMAKE_BUILD_TYPE=Release
             cmake --build build --config Release -j
         fi
+        cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
+        copy_shared_libs
+        ;;
+    linux-aarch64)
+        # Apple Silicon under Asahi Linux: prefer GGML's Vulkan backend so
+        # the Honeykrisp driver can accelerate generation, but degrade to
+        # CPU when the Vulkan dev deps (glslc, SPIRV headers) are absent —
+        # same graceful-fallback pattern as darwin-arm64 Metal above.
+        # ggml-vulkan needs <spirv/unified1/spirv.hpp> at compile time
+        # (Arch: spirv-headers, Debian/Ubuntu: spirv-headers) and glslc to
+        # compile its compute shaders; a configure-only probe misses the
+        # header, hence the compile check.
+        VULKAN_FLAGS=()
+        if command -v glslc >/dev/null 2>&1 &&
+            printf '#include <spirv/unified1/spirv.hpp>\nint main(){}\n' |
+                c++ -fsyntax-only -x c++ - 2>/dev/null; then
+            if cmake -B build -DCMAKE_BUILD_TYPE=Release -DGGML_VULKAN=ON; then
+                VULKAN_FLAGS=(-DGGML_VULKAN=ON)
+            fi
+            rm -rf build
+        fi
+        cmake -B build -DCMAKE_BUILD_TYPE=Release "${VULKAN_FLAGS[@]}"
+        cmake --build build --config Release -j
         cp -v build/omnivoice-tts "$BIN_DIR/$OUT_NAME"
         copy_shared_libs
         ;;

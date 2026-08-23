@@ -51,6 +51,13 @@ jobs:
           - os: ubuntu-latest
             platform: linux-x86_64
             experimental: false
+          - os: ubuntu-24.04-arm
+            platform: linux-aarch64
+            # Apple Silicon under Asahi Linux. Experimental: the Vulkan
+            # (Honeykrisp GPU) build path is new and the hosted arm64
+            # runner has no GPU — it validates that the binary builds;
+            # on-host Vulkan acceleration is exercised by users.
+            experimental: true
           - os: windows-latest
             platform: windows-x86_64
             experimental: false
@@ -80,10 +87,17 @@ jobs:
       # Linux-only: upstream `buildcpu.sh` enables `-DGGML_BLAS=ON` which
       # requires a system BLAS implementation at cmake configure time.
       - name: Linux system deps (BLAS for ggml-blas backend)
-        if: matrix.platform == 'linux-x86_64'
+        if: startsWith(matrix.platform, 'linux')
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenblas-dev pkg-config
+
+      # linux-aarch64: let the build script's Vulkan path (Honeykrisp GPU
+      # on Asahi) engage instead of silently falling back to CPU.
+      - name: Vulkan dev deps (linux-aarch64 GPU backend)
+        if: matrix.platform == 'linux-aarch64'
+        run: |
+          sudo apt-get install -y glslc libvulkan-dev spirv-headers
 
       - name: Build omnivoice-tts
         shell: bash
