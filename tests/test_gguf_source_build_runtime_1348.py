@@ -149,7 +149,13 @@ def _write_fake_tool(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
-def _run_linux_arm_build(tmp_path: Path, *, prerequisites: bool, fail_build: bool):
+def _run_linux_arm_build(
+    tmp_path: Path,
+    *,
+    prerequisites: bool,
+    fail_configure: bool,
+    fail_build: bool,
+):
     """Execute the real build script against hermetic fake build tools."""
     checkout = tmp_path / "checkout"
     scripts = checkout / "scripts"
@@ -185,6 +191,9 @@ if [[ "${1:-}" == "--build" ]]; then
     chmod +x build/omnivoice-tts
 else
     mkdir -p build
+    if [[ "$FAKE_FAIL_CONFIGURE" == "1" && "$*" == *"-DGGML_VULKAN=ON"* ]]; then
+        exit 1
+    fi
 fi
 """,
     )
@@ -194,6 +203,7 @@ fi
         {
             "PATH": str(fake_bin) + os.pathsep + env["PATH"],
             "FAKE_CMAKE_LOG": str(cmake_log),
+            "FAKE_FAIL_CONFIGURE": "1" if fail_configure else "0",
             "FAKE_FAIL_BUILD": "1" if fail_build else "0",
             "FAKE_FAILED_ONCE": str(failed_once),
         }
@@ -217,22 +227,28 @@ fi
 
 
 @pytest.mark.parametrize(
-    ("prerequisites", "fail_build"),
-    [(True, False), (False, False), (True, True)],
+    ("prerequisites", "fail_configure", "fail_build"),
+    [
+        (True, False, False),
+        (False, False, False),
+        (True, True, False),
+        (True, False, True),
+    ],
 )
 def test_linux_arm_build_falls_back_to_cpu(
-    tmp_path, prerequisites, fail_build
+    tmp_path, prerequisites, fail_configure, fail_build
 ):
     result, cmake_calls = _run_linux_arm_build(
         tmp_path,
         prerequisites=prerequisites,
+        fail_configure=fail_configure,
         fail_build=fail_build,
     )
 
     assert result.returncode == 0, result.stderr
     configure_calls = [call for call in cmake_calls if not call.startswith("--build")]
     build_calls = [call for call in cmake_calls if call.startswith("--build")]
-    if prerequisites and not fail_build:
+    if prerequisites and not (fail_configure or fail_build):
         assert any("-DGGML_VULKAN=ON" in call for call in configure_calls)
         assert "-DGGML_VULKAN=ON" in configure_calls[-1]
         assert len(build_calls) == 1
@@ -241,7 +257,10 @@ def test_linux_arm_build_falls_back_to_cpu(
     else:
         assert all("-DGGML_VULKAN=ON" not in call for call in configure_calls)
         assert len(build_calls) == 1
-    if fail_build:
+    if fail_configure:
+        assert len(build_calls) == 1
+        assert "-DGGML_VULKAN=ON" not in configure_calls[-1]
+    elif fail_build:
         assert len(build_calls) == 2
         assert "-DGGML_VULKAN=ON" not in configure_calls[-1]
 
