@@ -199,8 +199,8 @@ def test_a_join_the_control_plane_never_accepts_is_not_a_success(client, monkeyp
 def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tmp_path):
     """A rejoin that fails must not cost the user the control plane they had.
 
-    Pinning the new certificate overwrites the old one on disk, so without a
-    rollback a mistyped code left the machine unable to reconnect to anything.
+    Trust state is staged until acceptance, but the UI still stops the working
+    agent while it tries the new code and must resume it on failure.
     """
     c, settings = client
     calls = _stub_agent(monkeypatch, never_registers="That code has expired.")
@@ -209,21 +209,8 @@ def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tm
     settings["worker_mode_enabled"] = "true"
     settings["worker_endpoint"] = "studio-mac:7443"
 
-    # The join overwrites the pinned certificate before it fails, exactly as
-    # pin_certificate does on the real path.
-    original_start = worker_agent.agent.start
-
-    async def _start_and_pin(*, token_text: str = "", endpoint: str = ""):
-        # Only a start that redeems a token re-pins, exactly like the real
-        # path — the rollback's own start() reuses what is on disk.
-        if token_text:
-            pinned.write_bytes(b"the-control-plane-that-rejected-us")
-        await original_start(token_text=token_text, endpoint=endpoint)
-
-    monkeypatch.setattr(worker_agent.agent, "start", _start_and_pin)
-
     assert c.post("/workers/agent/join", json={"token": "ovw_expired"}).status_code == 409
-    # The certificate the machine still needs, put back after the failed pin.
+    # The certificate the machine still needs remains the active trust root.
     assert pinned.read_bytes() == b"previous-control-plane"
     # …and the agent it was running is dialling again. Without the rollback the
     # machine sits stopped until someone notices and toggles it back on: the

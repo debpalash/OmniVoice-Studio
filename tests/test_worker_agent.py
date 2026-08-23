@@ -211,6 +211,13 @@ class _RegisteringClient(_FakeClient):
         await asyncio.Event().wait()
 
 
+class _RejectingClient(_FakeClient):
+    """The candidate control plane refuses registration before the callback."""
+
+    async def run_forever(self):
+        raise RuntimeError("AUTH_FAILED: registration rejected")
+
+
 @pytest.mark.asyncio
 async def test_environment_only_startup_enrolls_and_advertises_capabilities(
     monkeypatch, tmp_path
@@ -237,16 +244,15 @@ async def test_environment_only_startup_enrolls_and_advertises_capabilities(
     }
     remembered = []
 
-    def _pin(token_text):
+    def _verify(token_text):
         assert token_text == "ovw_headless"
-        (tmp_path / "control-plane.pinned.crt").write_bytes(b"pinned certificate")
         return "studio.internal:7443", b"pinned certificate"
 
     monkeypatch.setenv("OMNIVOICE_WORKER_MODE", "1")
     monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", "ovw_headless")
     monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
     monkeypatch.setattr(agent, "_paths", lambda: locations)
-    monkeypatch.setattr(agent, "pin_certificate", _pin)
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _verify)
     monkeypatch.setattr(agent, "_remember_endpoint", remembered.append)
     monkeypatch.setattr(capabilities, "discover", lambda **_: expected_capabilities)
     monkeypatch.setattr(capabilities, "describe_gpus", lambda: [{"vendor": "nvidia"}])
@@ -263,6 +269,7 @@ async def test_environment_only_startup_enrolls_and_advertises_capabilities(
         await instance.stop()
 
     assert remembered == ["studio.internal:7443"]
+    assert (tmp_path / "control-plane.pinned.crt").read_bytes() == b"pinned certificate"
     assert (tmp_path / "worker-id").read_text(encoding="utf-8") == "headless-worker"
     assert (tmp_path / "enrollment-token.sha256").read_text(encoding="ascii") == (
         agent._token_hash("ovw_headless")
@@ -297,7 +304,7 @@ async def test_headless_readiness_rejects_missing_or_invalid_tokens(
         monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
         monkeypatch.setattr(
             agent,
-            "pin_certificate",
+            "_verify_enrollment_token",
             lambda _token: (_ for _ in ()).throw(ValueError(message)),
         )
     else:
@@ -331,7 +338,7 @@ async def test_a_consumed_environment_token_is_not_redeemed_after_restart(
     def _redeem_again(_token):
         raise AssertionError("a persisted one-use token was redeemed twice")
 
-    monkeypatch.setattr(agent, "pin_certificate", _redeem_again)
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _redeem_again)
 
     instance = agent.WorkerAgent()
     try:
@@ -341,6 +348,104 @@ async def test_a_consumed_environment_token_is_not_redeemed_after_restart(
 
     assert enrolled.last.config.worker_id == "headless-worker"
     assert enrolled.last.config.enrollment_token == ""
+
+
+@pytest.mark.asyncio
+async def test_legacy_same_environment_token_is_not_redeemed(
+    monkeypatch, enrolled, tmp_path, control_plane_tls
+):
+    """Upgrade a legacy Compose volume without spending its old token again."""
+    from worker import capabilities
+    from worker.transport import client as transport
+
+    creds, endpoint = control_plane_tls
+    token = identity.mint_enrollment_token(
+        endpoint=endpoint, cert_fingerprint=creds.fingerprint
+    ).encode()
+    (tmp_path / "control-plane.pinned.crt").write_bytes(creds.certificate_pem)
+    (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
+    monkeypatch.setenv("OMNIVOICE_WORKER_ENDPOINT", endpoint)
+    monkeypatch.setattr(agent, "_stored_endpoint", lambda: endpoint)
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+
+    def _redeem_again(_token):
+        raise AssertionError("the legacy enrollment token was redeemed twice")
+
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _redeem_again)
+    monkeypatch.setattr(transport, "WorkerClient", _RegisteringClient)
+    _RegisteringClient.last = None
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+        await instance.wait_until_registered(timeout=1)
+    finally:
+        await instance.stop()
+
+    assert _RegisteringClient.last.config.enrollment_token == ""
+    assert (tmp_path / "control-plane.pinned.crt").read_bytes() == creds.certificate_pem
+    assert agent._load_consumed_token_hash(
+        str(tmp_path / "enrollment-token.sha256")
+    ) == agent._token_hash(token)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replacement_kind", ["endpoint", "certificate"])
+async def test_legacy_replacement_token_moves_a_non_revoked_worker(
+    monkeypatch, enrolled, tmp_path, replacement_kind
+):
+    """An unmarked legacy volume can still adopt a distinct control plane."""
+    from worker import capabilities
+    from worker.transport import client as transport
+
+    old_endpoint = "old-studio.internal:7443"
+    old_creds = tls.generate_self_signed(hostnames=["old-studio.internal"])
+    new_endpoint = (
+        "new-studio.internal:7443"
+        if replacement_kind == "endpoint"
+        else old_endpoint
+    )
+    new_fingerprint = (
+        old_creds.fingerprint if replacement_kind == "endpoint" else "ab" * 32
+    )
+    token = identity.mint_enrollment_token(
+        endpoint=new_endpoint, cert_fingerprint=new_fingerprint
+    ).encode()
+    old_certificate = old_creds.certificate_pem
+    (tmp_path / "control-plane.pinned.crt").write_bytes(old_certificate)
+    (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
+    monkeypatch.setenv("OMNIVOICE_WORKER_ENDPOINT", old_endpoint)
+    monkeypatch.setattr(agent, "_stored_endpoint", lambda: old_endpoint)
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+    verified = []
+    remembered = []
+
+    def _verify(token_text):
+        verified.append(token_text)
+        return new_endpoint, b"new pinned certificate"
+
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _verify)
+    monkeypatch.setattr(agent, "_remember_endpoint", remembered.append)
+    monkeypatch.setattr(transport, "WorkerClient", _RegisteringClient)
+    _RegisteringClient.last = None
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+        assert (tmp_path / "control-plane.pinned.crt").read_bytes() == old_certificate
+        await instance.wait_until_registered(timeout=1)
+    finally:
+        await instance.stop()
+
+    assert verified == [token]
+    assert _RegisteringClient.last.config.enrollment_token == token
+    assert (tmp_path / "control-plane.pinned.crt").read_bytes() == b"new pinned certificate"
+    assert remembered == [new_endpoint]
+    assert agent._load_consumed_token_hash(
+        str(tmp_path / "enrollment-token.sha256")
+    ) == agent._token_hash(token)
 
 
 @pytest.mark.asyncio
@@ -362,7 +467,7 @@ async def test_a_fresh_environment_token_moves_a_non_revoked_worker(
         redeemed.append(token_text)
         return "new-studio.internal:7443", b"new pinned certificate"
 
-    monkeypatch.setattr(agent, "pin_certificate", _redeem)
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _redeem)
 
     instance = agent.WorkerAgent()
     try:
@@ -372,6 +477,64 @@ async def test_a_fresh_environment_token_moves_a_non_revoked_worker(
 
     assert redeemed == ["ovw_fresh"]
     assert enrolled.last.config.enrollment_token == "ovw_fresh"
+
+
+@pytest.mark.asyncio
+async def test_rejected_replacement_preserves_the_working_enrollment(
+    monkeypatch, tmp_path, control_plane_tls
+):
+    """Verification may stage new trust, but rejection must commit none of it."""
+    from worker import capabilities
+    from worker.transport import client as transport
+
+    replacement_creds, replacement_endpoint = control_plane_tls
+    old_creds = tls.generate_self_signed(hostnames=["old-studio.internal"])
+    old_endpoint = "old-studio.internal:7443"
+    old_worker_id = "working-worker"
+    old_token_hash = agent._token_hash("ovw_old")
+    token = identity.mint_enrollment_token(
+        endpoint=replacement_endpoint,
+        cert_fingerprint=replacement_creds.fingerprint,
+    ).encode()
+    locations = {
+        "root": str(tmp_path),
+        "worker_key": str(tmp_path / "worker.key"),
+        "pinned_cert": str(tmp_path / "control-plane.pinned.crt"),
+        "worker_id": str(tmp_path / "worker-id"),
+        "enrollment_token_hash": str(tmp_path / "enrollment-token.sha256"),
+    }
+    (tmp_path / "control-plane.pinned.crt").write_bytes(old_creds.certificate_pem)
+    (tmp_path / "worker-id").write_text(old_worker_id, encoding="utf-8")
+    (tmp_path / "enrollment-token.sha256").write_text(
+        old_token_hash, encoding="ascii"
+    )
+    remembered = []
+    monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
+    monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
+    monkeypatch.setattr(agent, "_paths", lambda: locations)
+    monkeypatch.setattr(agent, "_stored_endpoint", lambda: old_endpoint)
+    monkeypatch.setattr(agent, "_remember_endpoint", remembered.append)
+    monkeypatch.setattr(capabilities, "discover", lambda **_: [])
+    monkeypatch.setattr(capabilities, "describe_gpus", lambda: [])
+    monkeypatch.setattr(transport, "WorkerClient", _RejectingClient)
+    _RejectingClient.last = None
+
+    instance = agent.WorkerAgent()
+    try:
+        await instance.start()
+        with pytest.raises(RuntimeError, match="registration rejected"):
+            await instance.wait_until_registered(timeout=1)
+    finally:
+        await instance.stop()
+
+    assert _RejectingClient.last.config.certificate_pem == replacement_creds.certificate_pem
+    assert (tmp_path / "control-plane.pinned.crt").read_bytes() == old_creds.certificate_pem
+    assert (tmp_path / "worker-id").read_text(encoding="utf-8") == old_worker_id
+    assert (tmp_path / "enrollment-token.sha256").read_text(
+        encoding="ascii"
+    ) == old_token_hash
+    assert remembered == []
+    assert instance.status()["endpoint"] == old_endpoint
 
 
 @pytest.mark.asyncio
@@ -394,7 +557,7 @@ async def test_a_partial_or_corrupt_token_hash_is_treated_as_legacy_state(
     def _redeem_again(_token):
         raise AssertionError("corrupt legacy state retried a spent token")
 
-    monkeypatch.setattr(agent, "pin_certificate", _redeem_again)
+    monkeypatch.setattr(agent, "_verify_enrollment_token", _redeem_again)
 
     instance = agent.WorkerAgent()
     try:

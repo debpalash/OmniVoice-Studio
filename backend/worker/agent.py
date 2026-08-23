@@ -252,6 +252,27 @@ def _save_consumed_token_hash(path: str, token_text: str) -> None:
         raise
 
 
+def _save_pinned_certificate(path: str, certificate: bytes) -> None:
+    """Atomically replace the certificate only after enrollment is accepted."""
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, exist_ok=True)
+    file_descriptor, temporary = tempfile.mkstemp(
+        prefix=".control-plane.", suffix=".tmp", dir=directory
+    )
+    try:
+        with os.fdopen(file_descriptor, "wb") as fh:
+            fh.write(certificate)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except OSError:  # best effort: preserve the original write/replace error
+            pass
+        raise
+
+
 def fetch_server_certificate(endpoint: str, *, timeout: float = 10.0) -> bytes:
     """Retrieve the certificate the control plane presents, unvalidated.
 
@@ -273,8 +294,8 @@ def fetch_server_certificate(endpoint: str, *, timeout: float = 10.0) -> bytes:
     return ssl.DER_cert_to_PEM_cert(der).encode("ascii")
 
 
-def pin_certificate(token_text: str, *, cert_path: Optional[str] = None) -> tuple[str, bytes]:
-    """Resolve a token into (endpoint, trusted certificate), pinning on first use.
+def _verify_enrollment_token(token_text: str) -> tuple[str, bytes]:
+    """Resolve a token into a verified endpoint and certificate without persisting it.
 
     Raises ``ValueError`` when the presented certificate does not match the
     token. There is deliberately no override.
@@ -294,11 +315,49 @@ def pin_certificate(token_text: str, *, cert_path: Optional[str] = None) -> tupl
             "fresh token on the control plane and try again."
         )
 
-    path = cert_path or _paths()["pinned_cert"]
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as fh:
-        fh.write(certificate)
     return token.endpoint, certificate
+
+
+def pin_certificate(token_text: str, *, cert_path: Optional[str] = None) -> tuple[str, bytes]:
+    """Verify and atomically pin the certificate from an enrollment token."""
+    endpoint, certificate = _verify_enrollment_token(token_text)
+    _save_pinned_certificate(cert_path or _paths()["pinned_cert"], certificate)
+    return endpoint, certificate
+
+
+def _legacy_environment_token_replaces_enrollment(
+    token_text: str, *, endpoint: str, cert_path: str
+) -> bool:
+    """Distinguish a replacement token from the spent token in legacy state.
+
+    Releases before the token-hash marker persisted the original Compose token
+    beside a worker id. Re-spending that token breaks every restart, while
+    ignoring every unmarked token prevents a non-revoked worker from moving to
+    another control plane. The token's endpoint and certificate fingerprint
+    identify which enrollment it belongs to without contacting either server.
+
+    A malformed token is treated as the already-spent legacy value. That keeps
+    a working key enrollment usable and lets the normal authenticated reconnect
+    migrate it by writing the hash marker after registration.
+    """
+    from worker.identity import EnrollmentToken  # noqa: PLC0415
+    from worker.transport.client import verify_pin  # noqa: PLC0415
+
+    try:
+        token = EnrollmentToken.decode(token_text)
+    except (TypeError, ValueError):
+        return False
+
+    if token.endpoint.strip() != endpoint.strip():
+        return True
+    try:
+        with open(cert_path, "rb") as fh:
+            certificate = fh.read()
+        return not verify_pin(certificate, token.cert_fingerprint)
+    except (OSError, TypeError, ValueError):
+        # A valid token can recover an enrollment whose local trust material is
+        # absent or corrupt; it cannot be the token for that unusable state.
+        return True
 
 
 class WorkerAgent:
@@ -385,23 +444,41 @@ class WorkerAgent:
             locations["root"], "enrollment-token.sha256"
         )
         consumed_token_hash = _load_consumed_token_hash(token_hash_path)
+        stored_endpoint = _stored_endpoint()
+        current_endpoint = (
+            stored_endpoint
+            or endpoint
+            or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
+        )
         environment_token_is_new = bool(
             environment_token
-            and consumed_token_hash
-            and _token_hash(environment_token) != consumed_token_hash
+            and (
+                (
+                    consumed_token_hash
+                    and _token_hash(environment_token) != consumed_token_hash
+                )
+                or (
+                    worker_id
+                    and not consumed_token_hash
+                    and _legacy_environment_token_replaces_enrollment(
+                        environment_token,
+                        endpoint=current_endpoint,
+                        cert_path=locations["pinned_cert"],
+                    )
+                )
+            )
         )
         token_text = explicit_token or environment_token
         should_enroll = bool(
             token_text and (explicit_token or not worker_id or environment_token_is_new)
         )
         if should_enroll:
-            endpoint, certificate = await asyncio.to_thread(pin_certificate, token_text)
-            # The token carries the address; remembering it is what makes the
-            # NEXT launch work. Without this a machine that joined from the UI
-            # came back up enrolled but with nowhere to dial, and the only fix
-            # was an environment variable — the barrier the join flow exists to
-            # remove.
-            _remember_endpoint(endpoint)
+            # Verify in memory, but do not replace a working enrollment until
+            # the new control plane accepts this worker. A rejected token must
+            # leave the certificate, endpoint, id, and token marker untouched.
+            endpoint, certificate = await asyncio.to_thread(
+                _verify_enrollment_token, token_text
+            )
         else:
             token_text = ""
             # Already enrolled: reuse the certificate pinned at join time.
@@ -424,7 +501,8 @@ class WorkerAgent:
                     "This machine does not know which control plane to dial. Paste a fresh "
                     "join code, or set OMNIVOICE_WORKER_ENDPOINT to its host:port."
                 )
-        self.endpoint = endpoint
+        if not should_enroll:
+            self.endpoint = endpoint
 
         # Unavailable engines are reported too, so the control plane can tell
         # "this worker has no such engine" from "it has it but the weights
@@ -462,6 +540,9 @@ class WorkerAgent:
                 locations["worker_id"],
                 token_hash_path=token_hash_path,
                 enrollment_token=(token_text if should_enroll else environment_token),
+                cert_path=(locations["pinned_cert"] if should_enroll else ""),
+                certificate=(certificate if should_enroll else b""),
+                endpoint=(endpoint if should_enroll else ""),
             ),
         )
         self._task = asyncio.create_task(self._client.run_forever(), name="worker-agent")
@@ -473,9 +554,23 @@ class WorkerAgent:
         )
 
     def _on_registered(
-        self, worker_id_path: str, *, token_hash_path: str = "", enrollment_token: str = ""
+        self,
+        worker_id_path: str,
+        *,
+        token_hash_path: str = "",
+        enrollment_token: str = "",
+        cert_path: str = "",
+        certificate: bytes = b"",
+        endpoint: str = "",
     ):
         def handle(worker_id) -> None:
+            if cert_path and certificate:
+                _save_pinned_certificate(cert_path, certificate)
+                # The token carries the address; remembering it here makes the
+                # next launch work without sacrificing the previous endpoint
+                # when this registration is rejected.
+                _remember_endpoint(endpoint)
+                self.endpoint = endpoint
             save_worker_id(worker_id_path, worker_id)
             if token_hash_path:
                 try:

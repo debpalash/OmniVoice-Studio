@@ -214,10 +214,9 @@ async def join_control_plane(request: JoinRequest) -> dict:
     # says it joined and never lends anything (CodeRabbit).
     _refuse_when_env_pinned(worker_agent)
     async with worker_agent.agent.lifecycle:
-        # A rejoin replaces a working enrollment. Keep enough to put it back:
-        # pinning the new certificate overwrites the old one on disk, so a
-        # failed rejoin would otherwise leave the machine unable to reconnect
-        # to the control plane it was already serving.
+        # A rejoin stops a working agent before the replacement is accepted.
+        # Keep the UI rollback even though the agent stages new trust state:
+        # failure must resume the control plane this machine was serving.
         previous = worker_agent.snapshot_enrollment()
         await worker_agent.agent.stop()
         try:
