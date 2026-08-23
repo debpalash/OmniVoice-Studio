@@ -5,6 +5,8 @@ export const LONGFORM_DB_SCHEMA = 1;
 
 export interface DurableLongformRecord {
   schema: typeof LONGFORM_DB_SCHEMA;
+  /** Monotonic writer revision; absent records are treated as legacy revision 0. */
+  revision?: number;
   payload: Record<string, unknown>;
 }
 
@@ -51,14 +53,13 @@ export function createIndexedDbLongformStore(
 
   function openDatabase(): Promise<IDBDatabase> {
     if (databasePromise) return databasePromise;
-    databasePromise = new Promise((resolve, reject) => {
+    const opening = new Promise<IDBDatabase>((resolve, reject) => {
       let request: IDBOpenDBRequest;
       try {
         const factory = getFactory();
         if (!factory) throw new DOMException('IndexedDB unavailable', 'NotSupportedError');
         request = factory.open(LONGFORM_DB_NAME, LONGFORM_DB_SCHEMA);
       } catch (error) {
-        databasePromise = null;
         reject(error);
         return;
       }
@@ -78,24 +79,29 @@ export function createIndexedDbLongformStore(
         const database = request.result;
         database.onversionchange = () => {
           database.close();
-          databasePromise = null;
+          if (databasePromise === opening) databasePromise = null;
         };
         resolve(database);
       };
       request.onerror = () => {
         if (settled) return;
         settled = true;
-        databasePromise = null;
         reject(request.error ?? new DOMException('Database open failed', 'UnknownError'));
       };
       request.onblocked = () => {
         if (settled) return;
         settled = true;
-        databasePromise = null;
         reject(new DOMException('Database open blocked', 'InvalidStateError'));
       };
     });
-    return databasePromise;
+    databasePromise = opening;
+    void opening.catch(() => {
+      // The Promise executor runs synchronously, so clearing databasePromise
+      // inside its catch path is overwritten by the assignment above. Clear the
+      // exact cached attempt only after rejection instead, allowing a retry.
+      if (databasePromise === opening) databasePromise = null;
+    });
+    return opening;
   }
 
   return {

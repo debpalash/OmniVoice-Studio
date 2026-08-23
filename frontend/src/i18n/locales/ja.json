@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "プロジェクトを読み込めませんでした",
+    "storage_unavailable_body": "VoiceStudio はローカルのプロジェクトストレージを読み取れませんでした。データは変更されていません。安全に開くには再試行してください。"
+  },
   "backendUnreachable": {
     "contact_recent": "{{ago}}前までは応答していましたが、応答が止まりました — リクエストの途中でクラッシュしたか、強制終了された可能性が高いです。",
     "contact_never": "このセッションでは一度も応答していません — そもそも起動していない可能性があります。",

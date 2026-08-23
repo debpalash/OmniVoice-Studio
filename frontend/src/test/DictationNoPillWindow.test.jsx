@@ -37,8 +37,14 @@ const mountRoot = () => {
   document.body.appendChild(root);
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules();
+  const longformPersistence = await import('../utils/longformPersistence');
+  longformPersistence.configureLongformDurableStoreForTests({
+    read: async () => null,
+    write: async () => {},
+    clear: async () => {},
+  });
   mountRoot();
   delete document.documentElement.dataset.window;
   delete window.__OV_WINDOW__;

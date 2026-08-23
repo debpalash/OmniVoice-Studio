@@ -33,8 +33,14 @@ const setLabel = (label) =>
 describe('the widget window marks itself on <html>', () => {
   let root;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
+    const longformPersistence = await import('../utils/longformPersistence');
+    longformPersistence.configureLongformDurableStoreForTests({
+      read: async () => null,
+      write: async () => {},
+      clear: async () => {},
+    });
     const root = document.createElement('div');
     root.id = 'root';
     document.body.appendChild(root);

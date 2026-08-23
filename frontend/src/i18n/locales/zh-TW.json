@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "無法載入專案",
+    "storage_unavailable_body": "VoiceStudio 無法讀取本機專案儲存空間。你的資料未被變更。請重試以安全開啟專案。"
+  },
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前還有回應，之後停止回應——很可能是在處理請求時當機或被強制終止。",
     "contact_never": "本次工作階段中它從未回應——可能根本沒有啟動。",

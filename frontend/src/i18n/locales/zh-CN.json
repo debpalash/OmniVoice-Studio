@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "无法加载项目",
+    "storage_unavailable_body": "VoiceStudio 无法读取本地项目存储。你的数据未被更改。请重试以安全打开项目。"
+  },
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前还在响应，随后停止了响应——很可能是在处理请求时崩溃或被强制终止。",
     "contact_never": "本次会话中它从未响应过——可能根本没有启动。",

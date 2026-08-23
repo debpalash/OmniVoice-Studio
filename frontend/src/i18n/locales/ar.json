@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "تعذّر تحميل المشاريع",
+    "storage_unavailable_body": "تعذّر على VoiceStudio قراءة مساحة تخزين المشاريع المحلية. لم يتم تغيير بياناتك. أعد المحاولة لفتحها بأمان."
+  },
   "backendUnreachable": {
     "contact_recent": "كان يستجيب قبل {{ago}} ثم توقف عن الاستجابة — على الأرجح أنه انهار أو تم إنهاؤه في منتصف الطلب.",
     "contact_never": "لم يستجب إطلاقًا في هذه الجلسة — ربما لم يبدأ التشغيل أصلًا.",

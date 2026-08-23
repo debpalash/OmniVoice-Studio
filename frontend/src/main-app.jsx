@@ -20,6 +20,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import DesktopCaptureShortcutBridge from './components/DesktopCaptureShortcutBridge';
 import CaptureWidget from './components/CaptureWidget.jsx';
+import LongformPersistenceGate from './components/LongformPersistenceGate.jsx';
 import { useAppStore } from './store';
 import { installConsoleCapture } from './utils/consoleBuffer.js';
 import { installGlobalErrorHandlers } from './utils/globalErrorHandlers.js';
@@ -116,19 +117,21 @@ export async function bootstrapApp() {
             {isWidget ? (
               <CaptureWidget />
             ) : (
-              <>
-                <App />
-                {isDesktopShell && <DesktopCaptureShortcutBridge />}
-                {/* The desktop shell owns a separate global-hotkey widget
+              <LongformPersistenceGate>
+                <>
+                  <App />
+                  {isDesktopShell && <DesktopCaptureShortcutBridge />}
+                  {/* The desktop shell owns a separate global-hotkey widget
                     window. Browser/Docker builds do not, so mount the same
                     capture engine here to provide the documented focused-page
                     Ctrl+Shift+Space fallback. */}
-                {!isDesktopShell && (
-                  <div className="capture-pill-host">
-                    <CaptureWidget />
-                  </div>
-                )}
-              </>
+                  {!isDesktopShell && (
+                    <div className="capture-pill-host">
+                      <CaptureWidget />
+                    </div>
+                  )}
+                </>
+              </LongformPersistenceGate>
             )}
           </RemoteAuthGate>
         </QueryClientProvider>

@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Nie udało się wczytać projektów",
+    "storage_unavailable_body": "VoiceStudio nie mógł odczytać lokalnego magazynu projektów. Twoje dane nie zostały zmienione. Spróbuj ponownie, aby bezpiecznie je otworzyć."
+  },
   "backendUnreachable": {
     "contact_recent": "Jeszcze {{ago}} temu odpowiadał, a potem przestał — najprawdopodobniej uległ awarii lub został zakończony w trakcie żądania.",
     "contact_never": "W tej sesji nie odpowiedział ani razu — możliwe, że w ogóle się nie uruchomił.",

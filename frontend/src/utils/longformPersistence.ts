@@ -18,6 +18,10 @@ export type { DurableLongformRecord, LongformDurableStore } from './indexedDbLon
 
 const QUIET_DELAY_MS = 250;
 const MAXIMUM_DELAY_MS = 1_000;
+const DEFAULT_READ_ATTEMPTS = 3;
+const FALLBACK_REVISION_FIELD = 'longformFallbackRevision';
+const HYDRATION_ERROR_FIELD = 'longformPersistenceError';
+export const LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR = 'LongformLocalFallbackClearError';
 
 /** Fields whose size grows with a manuscript, cast, or saved-project count. */
 const UNBOUNDED_LONGFORM_KEYS = [
@@ -52,7 +56,9 @@ export interface LongformPersistenceOptions<S> {
   now?: () => number;
   quietDelayMs?: number;
   maximumDelayMs?: number;
+  readAttempts?: number;
   warn?: (message: string) => void;
+  flushLocalStorage?: () => unknown;
   getPagehideTarget?: () => ListenerTarget | null;
   getVisibilityTarget?: () => VisibilityTarget | null;
 }
@@ -123,6 +129,15 @@ function compactLongformState(stateValue: unknown): JsonObject {
   return compact;
 }
 
+function resetLongformState(stateValue: unknown): JsonObject {
+  return {
+    ...compactLongformState(stateValue),
+    currentProjectId: null,
+    coverRef: null,
+    lastOutput: '',
+  };
+}
+
 function containsLongformPayload(stateValue: unknown): boolean {
   const state = asObject(stateValue);
   return UNBOUNDED_LONGFORM_KEYS.some((key) => Object.prototype.hasOwnProperty.call(state, key));
@@ -132,13 +147,41 @@ function mergePayload(stateValue: unknown, payload: JsonObject): JsonObject {
   return { ...compactLongformState(stateValue), ...payload };
 }
 
-function compactEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
-  return { ...value, state: compactLongformState(value.state) as S };
+type VersionedStorageValue<S> = StorageValue<S> & {
+  [FALLBACK_REVISION_FIELD]?: number;
+};
+
+function validRevision(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
-function fullEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
+function fallbackRevision<S>(value: StorageValue<S> | null): number {
+  if (!value) return 0;
+  const revision = (value as VersionedStorageValue<S>)[FALLBACK_REVISION_FIELD];
+  return validRevision(revision) ? revision : 0;
+}
+
+function durableRevision(value: DurableLongformRecord | null): number {
+  return validRevision(value?.revision) ? value.revision : 0;
+}
+
+function compactEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
+  const compact = { ...value } as VersionedStorageValue<S>;
+  delete compact[FALLBACK_REVISION_FIELD];
+  compact.state = compactLongformState(value.state) as S;
+  return compact;
+}
+
+function resetEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
+  const reset = compactEnvelope(value);
+  reset.state = resetLongformState(value.state) as S;
+  return reset;
+}
+
+function fullEnvelope<S>(value: StorageValue<S>, revision: number): VersionedStorageValue<S> {
   return {
     ...value,
+    [FALLBACK_REVISION_FIELD]: revision,
     state: {
       ...compactLongformState(value.state),
       ...extractLongformPayload(value.state),
@@ -176,6 +219,7 @@ export function createLongformPersistence<S>(
   const now = options.now ?? (() => Date.now());
   const quietDelayMs = options.quietDelayMs ?? QUIET_DELAY_MS;
   const maximumDelayMs = options.maximumDelayMs ?? MAXIMUM_DELAY_MS;
+  const readAttempts = options.readAttempts ?? DEFAULT_READ_ATTEMPTS;
   const warn = options.warn ?? ((message: string) => console.warn(message));
   const getPagehideTarget =
     options.getPagehideTarget ??
@@ -187,11 +231,15 @@ export function createLongformPersistence<S>(
   if (quietDelayMs < 0 || maximumDelayMs < quietDelayMs) {
     throw new RangeError('Persistence delays must satisfy 0 <= quiet <= maximum');
   }
+  if (!Number.isSafeInteger(readAttempts) || readAttempts < 1) {
+    throw new RangeError('Persistence read attempts must be a positive integer');
+  }
 
   let pending: PendingWrite<S> | null = null;
   let nextGeneration = 0;
   let nextWindowGeneration = 0;
   let durablePayloadKnown = false;
+  let durableReadUncertain = false;
   let payloadDirty = false;
   let latestPayloadReferences: JsonObject | null = null;
   let writeChain: Promise<void> = Promise.resolve();
@@ -199,6 +247,7 @@ export function createLongformPersistence<S>(
   let writesSuspended = false;
   let epoch = 0;
   let storageName: string | null = null;
+  let nextRevision = 0;
   const warnedFailures = new Set<string>();
 
   function warnFailure(operation: string, error: unknown): void {
@@ -225,8 +274,10 @@ export function createLongformPersistence<S>(
 
   async function commit(entry: PendingWrite<S>, commitEpoch: number): Promise<void> {
     if (commitEpoch !== epoch || getRole() !== 'main') return;
+    const revision = ++nextRevision;
     const record: DurableLongformRecord = {
       schema: LONGFORM_DB_SCHEMA,
+      revision,
       payload: extractLongformPayload(entry.value.state),
     };
 
@@ -238,7 +289,10 @@ export function createLongformPersistence<S>(
       // IndexedDB may be disabled by policy. Preserve the old full-envelope
       // fallback instead of silently dropping persistence altogether.
       try {
-        options.localStorage.setItem(entry.name, fullEnvelope(entry.value));
+        options.localStorage.setItem(entry.name, fullEnvelope(entry.value, revision));
+        // The normal localStorage lifecycle listener may already have run before
+        // this async IndexedDB rejection. Force its newly queued fallback out now.
+        options.flushLocalStorage?.();
       } catch (localError) {
         warnFailure('fallback-write', localError);
       }
@@ -332,10 +386,80 @@ export function createLongformPersistence<S>(
 
     const localValue = await readLocal(name);
     let durableRecord: DurableLongformRecord | null = null;
-    try {
-      durableRecord = await resolveDurableStore().read();
-    } catch (error) {
-      warnFailure('read', error);
+    let readError: unknown;
+    for (let attempt = 0; attempt < readAttempts; attempt += 1) {
+      try {
+        durableRecord = await resolveDurableStore().read();
+        readError = undefined;
+        break;
+      } catch (error) {
+        readError = error;
+        if (attempt + 1 < readAttempts) await Promise.resolve();
+      }
+    }
+
+    if (readError !== undefined) {
+      warnFailure('read', readError);
+      durablePayloadKnown = false;
+      durableReadUncertain = true;
+      payloadDirty = false;
+      latestPayloadReferences = localValue
+        ? pickPayloadReferences(asObject(localValue.state))
+        : null;
+      if (getRole() === 'readonly') return localValue;
+      const unavailable = localValue ?? {
+        state: {} as S,
+        version: options.currentVersion,
+      };
+      return {
+        ...unavailable,
+        state: {
+          ...asObject(unavailable.state),
+          [HYDRATION_ERROR_FIELD]: true,
+        } as S,
+      };
+    }
+
+    durableReadUncertain = false;
+    const localRevision = fallbackRevision(localValue);
+    const storedRevision = durableRevision(durableRecord);
+    nextRevision = Math.max(nextRevision, localRevision, storedRevision);
+
+    if (
+      durableRecord &&
+      localValue &&
+      containsLongformPayload(localValue.state) &&
+      localRevision > storedRevision
+    ) {
+      const payload = extractLongformPayload(localValue.state);
+      latestPayloadReferences = pickPayloadReferences(asObject(localValue.state));
+      durablePayloadKnown = false;
+      payloadDirty = true;
+      if (getRole() === 'main') {
+        try {
+          await resolveDurableStore().write({
+            schema: LONGFORM_DB_SCHEMA,
+            revision: localRevision,
+            payload,
+          });
+          durablePayloadKnown = true;
+          payloadDirty = false;
+          try {
+            options.localStorage.setItem(name, compactEnvelope(localValue));
+          } catch (error) {
+            warnFailure('compact', error);
+          }
+        } catch (error) {
+          warnFailure('migrate', error);
+        }
+      }
+      return {
+        ...localValue,
+        state: {
+          ...asObject(localValue.state),
+          [HYDRATION_ERROR_FIELD]: false,
+        } as S,
+      };
     }
 
     if (durableRecord) {
@@ -362,10 +486,21 @@ export function createLongformPersistence<S>(
           warnFailure('compact', error);
         }
       }
-      return merged;
+      return {
+        ...merged,
+        state: {
+          ...asObject(merged.state),
+          [HYDRATION_ERROR_FIELD]: false,
+        } as S,
+      };
     }
 
-    if (!localValue) return null;
+    if (!localValue) {
+      return {
+        state: { [HYDRATION_ERROR_FIELD]: false } as S,
+        version: options.currentVersion,
+      };
+    }
     const state = asObject(localValue.state);
     const payloadReferences = pickPayloadReferences(state);
     latestPayloadReferences = payloadReferences;
@@ -373,6 +508,7 @@ export function createLongformPersistence<S>(
     if (containsLongformPayload(state) && getRole() === 'main') {
       const record: DurableLongformRecord = {
         schema: LONGFORM_DB_SCHEMA,
+        revision: localRevision || ++nextRevision,
         payload: extractLongformPayload(state),
       };
       try {
@@ -394,7 +530,13 @@ export function createLongformPersistence<S>(
         warnFailure('migrate', error);
       }
     }
-    return localValue;
+    return {
+      ...localValue,
+      state: {
+        ...asObject(localValue.state),
+        [HYDRATION_ERROR_FIELD]: false,
+      } as S,
+    };
   }
 
   const storage: PersistStorage<S> = {
@@ -402,6 +544,10 @@ export function createLongformPersistence<S>(
     setItem(name, value) {
       storageName = name;
       if (getRole() !== 'main' || writesSuspended) return;
+      // A failed read leaves the in-memory long-form fields at slice defaults.
+      // The main window is gated until a successful rehydrate reconciles them;
+      // never let those placeholders become authoritative in the meantime.
+      if (durableReadUncertain) return;
       const state = asObject(value.state);
       const references = pickPayloadReferences(state);
       const payloadChanged = !samePayloadReferences(latestPayloadReferences, references);
@@ -434,14 +580,15 @@ export function createLongformPersistence<S>(
     epoch += 1;
     await writeChain;
     durablePayloadKnown = false;
+    durableReadUncertain = false;
     payloadDirty = false;
     latestPayloadReferences = null;
     try {
       await resolveDurableStore().clear();
       if (storageName) {
         const localValue = await options.localStorage.getItem(storageName);
-        if (localValue && containsLongformPayload(localValue.state)) {
-          await options.localStorage.setItem(storageName, compactEnvelope(localValue));
+        if (localValue) {
+          await options.localStorage.setItem(storageName, resetEnvelope(localValue));
         }
       }
     } catch (error) {
@@ -484,10 +631,12 @@ export function createLongformPersistence<S>(
     lifecycleCleanup?.();
     lifecycleCleanup = null;
     durablePayloadKnown = false;
+    durableReadUncertain = false;
     payloadDirty = false;
     writesSuspended = false;
     latestPayloadReferences = null;
     storageName = null;
+    nextRevision = 0;
     nextGeneration = 0;
     nextWindowGeneration = 0;
     warnedFailures.clear();
@@ -511,6 +660,7 @@ const applicationPersistence = createLongformPersistence<JsonObject>({
   durableStore: () => applicationDurableStore,
   currentVersion: 9,
   getRole: getPersistenceRole,
+  flushLocalStorage: flushLocalPendingWrites,
 });
 
 export function createLongformZustandStorage<S>(): PersistStorage<S> {
@@ -529,7 +679,7 @@ export async function clearLongformProjects(): Promise<void> {
   // coalesced adapter. Make that trim durable before Settings reports success.
   const summary = flushLocalPendingWrites();
   if (summary.failed > 0) {
-    throw new DOMException('Long-form local fallback could not be cleared', 'QuotaExceededError');
+    throw new DOMException('', LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
   }
 }
 

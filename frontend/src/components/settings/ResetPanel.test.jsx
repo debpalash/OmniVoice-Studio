@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import toast from 'react-hot-toast';
+
+const clearLongformProjects = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../../utils/longformPersistence', () => ({
+  clearLongformProjects: (...args) => clearLongformProjects(...args),
+  LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR: 'LongformLocalFallbackClearError',
+}));
+vi.mock('react-hot-toast', () => ({
+  default: { error: vi.fn(), success: vi.fn() },
+}));
 
 import ResetPanel, {
   PRESETS,
@@ -148,6 +158,7 @@ describe('reset planning', () => {
 describe('ResetPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLongformProjects.mockResolvedValue(undefined);
     localStorage.clear();
     window.__TAURI_INTERNALS__ = {};
     invoke.mockImplementation(async (cmd) => {
@@ -222,6 +233,23 @@ describe('ResetPanel', () => {
     fireEvent.click(screen.getByTestId('reset-tier-assets'));
     fireEvent.click(screen.getByTestId('factory-reset-open'));
     expect(await screen.findByTestId('reset-shared-warning')).toBeInTheDocument();
+  });
+
+  it('maps a local fallback clear failure to localized recovery text', async () => {
+    clearLongformProjects.mockRejectedValueOnce(
+      new DOMException('', 'LongformLocalFallbackClearError'),
+    );
+    render(<ResetPanel />);
+    await waitFor(() => expect(screen.getByTestId('reset-tier-everything')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('reset-tier-everything'));
+    fireEvent.click(screen.getByTestId('factory-reset-open'));
+    fireEvent.change(await screen.findByTestId('reset-type-confirm'), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Reset failed: Unknown error'));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('LongformLocalFallback'));
   });
 
   it('stays silent about sharing when the cache is app-private (Windows, portable)', async () => {

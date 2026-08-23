@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projects couldn't be loaded",
+    "storage_unavailable_body": "VoiceStudio couldn't read local project storage. Your data has not been changed. Retry to open it safely."
+  },
   "pronunciation": {
     "title": "Pronunciation dictionary",
     "help": "Teach the engine how to say tricky words. Each entry replaces a word with a respelling before synthesis, so it applies on every engine. Scope an entry to one language or leave it Global. Inline, [[word|respelling]] overrides the dictionary once.",

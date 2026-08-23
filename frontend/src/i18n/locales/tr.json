@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projeler yüklenemedi",
+    "storage_unavailable_body": "VoiceStudio yerel proje depolamasını okuyamadı. Verileriniz değiştirilmedi. Güvenle açmak için yeniden deneyin."
+  },
   "backendUnreachable": {
     "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",
     "contact_never": "Bu oturumda hiç yanıt vermedi — hiç başlamamış olabilir.",

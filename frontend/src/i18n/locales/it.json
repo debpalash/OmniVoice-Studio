@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Impossibile caricare i progetti",
+    "storage_unavailable_body": "VoiceStudio non è riuscito a leggere l’archivio locale dei progetti. I tuoi dati non sono stati modificati. Riprova per aprirli in sicurezza."
+  },
   "backendUnreachable": {
     "contact_recent": "Rispondeva {{ago}} fa e poi ha smesso di rispondere — molto probabilmente è andato in crash o è stato terminato durante una richiesta.",
     "contact_never": "Non ha risposto affatto in questa sessione — forse non si è mai avviato.",

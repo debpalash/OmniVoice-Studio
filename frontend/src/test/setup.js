@@ -42,7 +42,16 @@ const longformPersistence = await import('../utils/longformPersistence');
 // contract and tear down every timer/listener/suspension afterward.
 persistence.configurePersistenceRole('main');
 beforeEach(() => {
-  longformPersistence.resetLongformPersistenceForTests();
+  let longformRecord = null;
+  longformPersistence.configureLongformDurableStoreForTests({
+    read: async () => (longformRecord ? structuredClone(longformRecord) : null),
+    write: async (record) => {
+      longformRecord = structuredClone(record);
+    },
+    clear: async () => {
+      longformRecord = null;
+    },
+  });
   persistence.resetCoalescedJsonStorageForTests();
   persistence.configurePersistenceRole('main');
 });

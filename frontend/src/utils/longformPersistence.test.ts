@@ -6,6 +6,7 @@ import {
   type DurableLongformRecord,
   type LongformDurableStore,
 } from './longformPersistence';
+import { createCoalescedJsonStorage } from './coalescedJsonStorage';
 
 type TestState = Record<string, unknown>;
 
@@ -218,6 +219,161 @@ describe('split long-form persistence', () => {
     ]);
   });
 
+  it('recovers a newer full fallback instead of compacting it behind stale IndexedDB', async () => {
+    const local = createLocalStorage();
+    const durable = createDurableStore();
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: () => {},
+    });
+    const first = legacyEnvelope('durable A');
+    first.version = 9;
+    const second = legacyEnvelope('fallback B');
+    second.version = 9;
+
+    await controller.storage.getItem('omnivoice.app');
+    controller.storage.setItem('omnivoice.app', first);
+    await controller.flushPendingWrites();
+    expect(durable.read()?.payload.script).toBe('durable A');
+
+    vi.mocked(durable.store.write).mockRejectedValueOnce(
+      new DOMException('content intentionally omitted', 'QuotaExceededError'),
+    );
+    controller.storage.setItem('omnivoice.app', second);
+    await controller.flushPendingWrites();
+    expect(local.read()?.state.script).toBe('fallback B');
+    expect(durable.read()?.payload.script).toBe('durable A');
+
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: () => {},
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+
+    expect(restored?.state.script).toBe('fallback B');
+    expect(durable.read()?.payload.script).toBe('fallback B');
+    expect(local.read()?.state).not.toHaveProperty('script');
+  });
+
+  it('retries a transient IndexedDB read before exposing project state', async () => {
+    const local = createLocalStorage();
+    const durable = createDurableStore();
+    const initial = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const persisted = legacyEnvelope('durable manuscript');
+    persisted.version = 9;
+    await initial.storage.getItem('omnivoice.app');
+    initial.storage.setItem('omnivoice.app', persisted);
+    await initial.flushPendingWrites();
+    vi.mocked(durable.store.read).mockClear();
+    vi.mocked(durable.store.read).mockRejectedValueOnce(
+      new DOMException('content intentionally omitted', 'UnknownError'),
+    );
+
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: () => {},
+    });
+    const restored = await controller.storage.getItem('omnivoice.app');
+
+    expect(restored?.state.script).toBe('durable manuscript');
+    expect(restored?.state.longformPersistenceError).toBe(false);
+    expect(durable.store.read).toHaveBeenCalledTimes(2);
+  });
+
+  it('gates writes instead of replacing durable projects after persistent read errors', async () => {
+    const local = createLocalStorage();
+    const durable = createDurableStore();
+    const initial = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const persisted = legacyEnvelope('durable manuscript');
+    persisted.version = 9;
+    await initial.storage.getItem('omnivoice.app');
+    initial.storage.setItem('omnivoice.app', persisted);
+    await initial.flushPendingWrites();
+    vi.mocked(durable.store.write).mockClear();
+    vi.mocked(durable.store.read).mockRejectedValue(
+      new DOMException('content intentionally omitted', 'UnknownError'),
+    );
+
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      readAttempts: 2,
+      warn: () => {},
+    });
+    const unavailable = await controller.storage.getItem('omnivoice.app');
+    expect(unavailable?.state).not.toHaveProperty('script');
+    expect(unavailable?.state.longformPersistenceError).toBe(true);
+
+    const unrelatedUpdate = legacyEnvelope('fresh defaults');
+    unrelatedUpdate.version = 9;
+    unrelatedUpdate.state.theme = 'light';
+    controller.storage.setItem('omnivoice.app', unrelatedUpdate);
+    await controller.flushPendingWrites();
+
+    expect(durable.store.write).not.toHaveBeenCalled();
+    expect(durable.read()?.payload.script).toBe('durable manuscript');
+
+    vi.mocked(durable.store.read).mockImplementation(async () => durable.read());
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+    expect(restored?.state.script).toBe('durable manuscript');
+  });
+
+  it('flushes a full local fallback when pagehide already ran the local listener', async () => {
+    const raw = new Map<string, string>();
+    const localController = createCoalescedJsonStorage({
+      getStorage: () => ({
+        getItem: (key) => raw.get(key) ?? null,
+        setItem: (key, value) => raw.set(key, value),
+        removeItem: (key) => raw.delete(key),
+      }),
+    });
+    localController.configurePersistenceRole('main');
+    const durable = createDurableStore();
+    vi.mocked(durable.store.write).mockRejectedValue(
+      new DOMException('content intentionally omitted', 'QuotaExceededError'),
+    );
+    const controller = createLongformPersistence({
+      localStorage: localController.createZustandJsonStorage(),
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: () => {},
+      flushLocalStorage: () => localController.flushPendingWrites(),
+    });
+    const cleanupLocal = localController.installPersistenceLifecycleFlush();
+    const cleanupLongform = controller.installLifecycleFlush();
+
+    await controller.storage.getItem('omnivoice.app');
+    const envelope = legacyEnvelope('pagehide fallback');
+    envelope.version = 9;
+    controller.storage.setItem('omnivoice.app', envelope);
+    window.dispatchEvent(new Event('pagehide'));
+    await controller.flushPendingWrites();
+
+    expect(JSON.parse(raw.get('omnivoice.app')!).state.script).toBe('pagehide fallback');
+    cleanupLongform();
+    cleanupLocal();
+  });
+
   it('keeps an explicit content reset from being resurrected before reload', async () => {
     const local = createLocalStorage();
     const durable = createDurableStore();
@@ -243,6 +399,47 @@ describe('split long-form persistence', () => {
     expect(durable.read()).toBeNull();
     expect(local.read()?.state).not.toHaveProperty('script');
     expect(local.read()?.state).not.toHaveProperty('storyProjects');
+  });
+
+  it('clears bounded references to deleted long-form content before reload', async () => {
+    const local = createLocalStorage({
+      version: 9,
+      state: {
+        theme: 'dark',
+        currentProjectId: 'p_deleted',
+        coverRef: { filename: 'deleted.png', serverPath: '/covers/deleted.png' },
+        lastOutput: 'deleted-book.m4b',
+        outputFormat: 'm4b',
+      },
+    });
+    const durable = createDurableStore({
+      schema: 1,
+      payload: legacyEnvelope('delete me').state,
+    });
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+
+    await controller.storage.getItem('omnivoice.app');
+    await controller.clearDurable();
+
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+    expect(restored?.state).toMatchObject({
+      theme: 'dark',
+      currentProjectId: null,
+      coverRef: null,
+      lastOutput: '',
+      outputFormat: 'm4b',
+    });
+    expect(restored?.state).not.toHaveProperty('script');
+    expect(durable.read()).toBeNull();
   });
 
   it('waits out an in-flight write before clearing durable projects', async () => {

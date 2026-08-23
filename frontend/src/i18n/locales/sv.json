@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projekten kunde inte läsas in",
+    "storage_unavailable_body": "VoiceStudio kunde inte läsa det lokala projektlagret. Dina data har inte ändrats. Försök igen för att öppna dem säkert."
+  },
   "backendUnreachable": {
     "contact_recent": "Den svarade för {{ago}} sedan och slutade sedan svara — den kraschade eller avslutades troligen mitt i en förfrågan.",
     "contact_never": "Den har inte svarat alls under den här sessionen — den kanske aldrig startade.",

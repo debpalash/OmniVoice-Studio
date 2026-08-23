@@ -52,7 +52,10 @@ import { SettingsSection } from './primitives';
 import { fmtBytes } from './bytes';
 import StorageTargetRow from './StorageTargetRow';
 import { clearLocalPreferences } from '../../utils/prefKeys';
-import { clearLongformProjects } from '../../utils/longformPersistence';
+import {
+  clearLongformProjects,
+  LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR,
+} from '../../utils/longformPersistence';
 import { clearHistory } from '../../api/generate';
 import { clearDubHistory } from '../../api/dub';
 
@@ -220,12 +223,14 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
       reloadTimerRef.current = setTimeout(() => window.location.reload(), 400);
     } catch (e) {
       setBusy(false);
-      toast.error(
-        t('settings.reset_failed', {
-          defaultValue: 'Reset failed: {{message}}',
-          message: e?.message || String(e),
-        }),
-      );
+      const message =
+        e?.name === LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR
+          ? t('settings.shortcut_reset_failed', { message: t('bootstrap.unknown_error') })
+          : t('settings.reset_failed', {
+              defaultValue: 'Reset failed: {{message}}',
+              message: e?.message || String(e),
+            });
+      toast.error(message);
     }
   };
 

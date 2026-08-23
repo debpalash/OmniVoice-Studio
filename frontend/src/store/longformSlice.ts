@@ -112,6 +112,8 @@ interface LongformProject {
 }
 
 export interface LongformSlice {
+  /** Transient startup gate; never included in the persisted partial state. */
+  longformPersistenceError: boolean;
   // Stories working state (existing field names — consumers unchanged):
   storyTracks: StoryTrack[];
   cast: CastMember[];
@@ -215,6 +217,7 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
   set,
   get,
 ) => ({
+  longformPersistenceError: false,
   storyTracks: [],
   cast: DEFAULT_CAST.map((c) => ({ ...c })),
   storyProjects: [],

@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Proyek tidak dapat dimuat",
+    "storage_unavailable_body": "VoiceStudio tidak dapat membaca penyimpanan proyek lokal. Data Anda tidak diubah. Coba lagi untuk membukanya dengan aman."
+  },
   "backendUnreachable": {
     "contact_recent": "Backend masih merespons {{ago}} yang lalu lalu berhenti merespons — kemungkinan besar crash atau dihentikan di tengah permintaan.",
     "contact_never": "Backend sama sekali belum merespons pada sesi ini — mungkin tidak pernah berhasil dijalankan.",

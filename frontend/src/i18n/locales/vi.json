@@ -1,4 +1,8 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Không thể tải dự án",
+    "storage_unavailable_body": "VoiceStudio không thể đọc bộ nhớ dự án cục bộ. Dữ liệu của bạn chưa bị thay đổi. Hãy thử lại để mở dữ liệu an toàn."
+  },
   "backendUnreachable": {
     "contact_recent": "Nó vẫn phản hồi cách đây {{ago}} rồi ngừng phản hồi — rất có thể nó đã gặp sự cố hoặc bị buộc dừng giữa một yêu cầu.",
     "contact_never": "Nó chưa hề phản hồi trong phiên này — có thể nó chưa bao giờ khởi động.",
