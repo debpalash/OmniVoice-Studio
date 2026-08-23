@@ -149,7 +149,7 @@ User opens app / first run           │  Settings → Engines → Default      
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ SubprocessBackend (Phase 2 primitive)                                   │
 │                                                                         │
-│  spawn:  bin/omnivoice-tts-{darwin-arm64|x86_64|win|linux}              │
+│  spawn:  bin/omnivoice-tts-{darwin-arm64|x86_64|win|linux|linux-arm64}  │
 │          --model    $HF_HUB_CACHE/.../omnivoice-base-{Q}.gguf           │
 │          --codec    $HF_HUB_CACHE/.../omnivoice-tokenizer-{Q}.gguf      │
 │          --lang     <user lang>                                         │
