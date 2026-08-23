@@ -51,6 +51,16 @@ fn scenario_child() {
     let get = |k: &str| std::env::var(k).unwrap_or_default();
     let get_ms = |k: &str| get(k).parse::<u64>().ok();
 
+    let spawn_log = get("OMNIVOICE_SCENARIO_SPAWN_LOG");
+    if !spawn_log.is_empty() {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(spawn_log)
+            .expect("open scenario spawn log");
+        writeln!(file, "{}", std::process::id()).expect("record scenario child");
+    }
+
     if let Some(delay) = get_ms("OMNIVOICE_SCENARIO_START_DELAY_MS") {
         std::thread::sleep(Duration::from_millis(delay));
     }
@@ -61,7 +71,14 @@ fn scenario_child() {
     if let Some(serve_ms) = get_ms("OMNIVOICE_SCENARIO_SERVE_MS") {
         let port: u16 = get("OMNIVOICE_PORT").parse().expect("OMNIVOICE_PORT");
         let progress_only = get("OMNIVOICE_SCENARIO_PROGRESS_ONLY") == "1";
-        let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind scenario port");
+        let listener = match std::net::TcpListener::bind(("127.0.0.1", port)) {
+            Ok(listener) => listener,
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                eprintln!("FATAL: scenario backend could not bind port {port}: {error}");
+                std::process::exit(app_lib::backend::EXIT_PORT_IN_USE);
+            }
+            Err(error) => panic!("bind scenario port: {error}"),
+        };
         listener.set_nonblocking(true).unwrap();
         let deadline = if serve_ms == 0 {
             None
@@ -89,7 +106,10 @@ fn scenario_child() {
                     } else if progress_only {
                         "HTTP/1.1 503 X\r\nContent-Length: 0\r\n\r\n".to_string()
                     } else if req.starts_with("GET /system/info") {
-                        let body = r#"{"data_dir": "/x", "app_version": "0.0.0"}"#;
+                        let body = format!(
+                            r#"{{"data_dir": "/x", "app_version": "{}"}}"#,
+                            env!("CARGO_PKG_VERSION")
+                        );
                         format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", body.len(), body)
                     } else {
                         "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n[]".to_string()
@@ -145,6 +165,7 @@ const SCENARIO_ENV: &[&str] = &[
     "OMNIVOICE_SCENARIO_SERVE_MS",
     "OMNIVOICE_SCENARIO_PROGRESS_ONLY",
     "OMNIVOICE_SCENARIO_START_DELAY_MS",
+    "OMNIVOICE_SCENARIO_SPAWN_LOG",
     "OMNIVOICE_BACKEND_CMD",
     "OMNIVOICE_LOG_DIR",
     "OMNIVOICE_PORT",
@@ -213,7 +234,11 @@ impl TestApp {
         let app = tauri::test::mock_builder()
             .build(tauri::test::mock_context(tauri::test::noop_assets()))
             .expect("mock app");
-        app.manage(BackendState { process: Mutex::new(None), spawned_at: Mutex::new(None) });
+        app.manage(BackendState {
+            lifecycle: Mutex::new(()),
+            process: Mutex::new(None),
+            spawned_at: Mutex::new(None),
+        });
         app.manage(AppFlags {
             quitting: AtomicBool::new(false),
             dictating: AtomicBool::new(false),
@@ -316,7 +341,74 @@ fn join_with_timeout(h: std::thread::JoinHandle<()>, timeout: Duration, what: &s
     let _ = h.join();
 }
 
+fn recorded_spawn_count(path: &std::path::Path) -> usize {
+    std::fs::read_to_string(path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count()
+}
+
 // ── Scenarios ─────────────────────────────────────────────────────────────
+
+/// #1635 — launch bootstrap and Retry used to probe an empty port together,
+/// spawn independently, and overwrite the one tracked child. The untracked
+/// winner stayed healthy while the loser wrote a false port-conflict crash.
+#[test]
+fn concurrent_bootstrap_and_retry_share_one_backend_child() {
+    let t = TestApp::new(&Scenario {
+        serve_ms: Some(0), // serve until the harness stops the child
+        ..Default::default()
+    });
+    let spawn_log = t._logdir.path().join("scenario-spawns.log");
+    std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
+    // Hold both real child processes before bind so both launch owners have
+    // time to reach spawn on the broken implementation.
+    std::env::set_var("OMNIVOICE_SCENARIO_START_DELAY_MS", "300");
+
+    let gate = Arc::new(std::sync::Barrier::new(3));
+    let launch = |gate: Arc<std::sync::Barrier>, handle, stage| {
+        std::thread::spawn(move || {
+            gate.wait();
+            spawn_backend_and_wait(&handle, &stage);
+        })
+    };
+    let bootstrap = launch(gate.clone(), t.handle(), t.stage.clone());
+    let retry = launch(gate.clone(), t.handle(), t.stage.clone());
+    gate.wait();
+
+    assert!(
+        wait_until(Duration::from_secs(20), || matches!(
+            t.stage_snapshot(),
+            BootstrapStage::Ready
+        )),
+        "concurrent launch never produced a healthy backend"
+    );
+    assert!(
+        wait_until(Duration::from_secs(10), || bootstrap.is_finished() || retry.is_finished()),
+        "the losing launch owner did not attach to the healthy child"
+    );
+    assert_eq!(
+        recorded_spawn_count(&spawn_log),
+        1,
+        "bootstrap + Retry must create exactly one OS child"
+    );
+    assert!(
+        app_lib::backend::backend_ready(
+            std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap()
+        ),
+        "the shared child must pass both readiness probes"
+    );
+    assert!(
+        t.markers().markers.is_empty(),
+        "a serialized launch must not manufacture a bind-crash marker"
+    );
+
+    t.quit();
+    t.kill_tracked_child();
+    join_with_timeout(bootstrap, Duration::from_secs(10), "concurrent bootstrap shutdown");
+    join_with_timeout(retry, Duration::from_secs(10), "concurrent retry shutdown");
+}
 
 /// S1 — the backend exits EXIT_PORT_IN_USE: the user must read a port
 /// conflict (in the exact phrasing BootstrapSplash.detectHints localizes),

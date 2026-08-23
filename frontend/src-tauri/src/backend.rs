@@ -550,7 +550,7 @@ fn backend_cmd_override() -> Option<Vec<String>> {
     parse_backend_cmd_override(&std::env::var("OMNIVOICE_BACKEND_CMD").ok()?)
 }
 
-pub fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
+pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
     let log_path = backend_log_path();
     let err_path = log_path.with_file_name("backend_err.log");
     log::info!(

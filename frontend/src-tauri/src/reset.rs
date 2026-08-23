@@ -40,7 +40,7 @@ use serde::Serialize;
 use tauri::Manager;
 
 use crate::bootstrap::BootstrapState;
-use crate::{backend_port, AppFlags};
+use crate::AppFlags;
 
 /// Every scope the UI can offer. Two of them (`ui_prefs`, `history`) own no
 /// files — they are listed here so the frontend has one registry to render, but
@@ -391,26 +391,22 @@ pub async fn reset_purge(app: tauri::AppHandle, scopes: Vec<String>) -> Result<R
         return Ok(report);
     }
 
-    // Stop the backend first. `set_backend_kill_intended` tells the #941/#567
-    // supervisor this death is deliberate, so it neither writes a crash marker
-    // nor races us by respawning a backend into the directories we are deleting.
-    // Note we do NOT set `flags.quitting` — that is the uninstall path, and it
-    // would stop us from starting the backend again at the end.
-    crate::bootstrap::set_backend_kill_intended(true);
-    crate::backend::kill_orphan_on_port(backend_port());
-
     let purge_app = app.clone();
     let mut report = tauri::async_runtime::spawn_blocking(move || {
-        // Give the process a moment to actually exit and drop its file handles;
-        // on Windows a mapped weights file stays locked until it does.
-        std::thread::sleep(std::time::Duration::from_millis(600));
+        // The lifecycle guard spans stop + purge. Bootstrap, Retry, and the
+        // supervisor cannot spawn into directories while they are deleted.
+        crate::bootstrap::with_backend_stopped(&purge_app, || {
+            // Give Windows mapped weights and their drainer threads a moment
+            // to release file handles after the tracked child has exited.
+            std::thread::sleep(std::time::Duration::from_millis(600));
 
-        let roots = roots_for(&purge_app);
-        let home = dirs_next::home_dir();
-        purge_scopes(&roots, &wanted, home.as_deref())
+            let roots = roots_for(&purge_app);
+            let home = dirs_next::home_dir();
+            purge_scopes(&roots, &wanted, home.as_deref())
+        })
     })
     .await
-    .map_err(|e| format!("reset failed: {e}"))?;
+    .map_err(|e| format!("reset failed: {e}"))??;
 
     // Back up. The fresh backend re-runs ensure_dirs() and alembic, so a deleted
     // database returns empty instead of missing. If the app is on its way out

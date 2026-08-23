@@ -632,6 +632,12 @@ the error persistently on a current build, that's section **14** (a wedged GPU
 job), section **14d** (the backend never started), or the crash notice above —
 not this window.
 
+Desktop startup, **Retry**, storage reset, setup re-entry, and automatic crash
+recovery also share one backend lifecycle owner. Overlapping start attempts
+wait and attach to the healthy process, while reset/setup keep exclusive
+ownership through teardown. They no longer launch a second backend that fails
+on port 3900 and leaves a misleading crash notice (#1635).
+
 ## 14c. "Can't reach the backend" in a browser — `bun run dev`, Docker, or LAN share
 
 **Symptom:** you're using VoiceStudio **outside the desktop app** — the dev

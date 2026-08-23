@@ -982,19 +982,11 @@ pub fn complete_setup(
         custom(&cfg.models_dir),
     );
 
-    // `--setup` re-entry: a backend from the previous configuration may
-    // still be serving. retry_bootstrap would attach to it and the new
-    // env/mirror/layout settings would never apply — tear it down so the
-    // restart spawns with the just-saved plan. (No-op on a true first run:
-    // nothing is listening yet.)
-    if crate::backend::port_in_use(crate::backend_port()) {
-        log::info!(
-            "Backend still running on port {} — restarting it so the new setup applies",
-            crate::backend_port()
-        );
-        crate::backend::kill_orphan_on_port(crate::backend_port());
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    }
+    // `--setup` re-entry: a backend from the previous configuration may still
+    // be serving — or may be between process spawn and port bind. Stop it
+    // under lifecycle ownership so neither bootstrap nor the supervisor can
+    // race the restart using the just-saved plan (#1635).
+    crate::bootstrap::with_backend_stopped(&app, || {})?;
 
     set_stage(&state.stage, BootstrapStage::Checking);
     crate::bootstrap::retry_bootstrap(app, state);

@@ -51,6 +51,10 @@ pub fn backend_port() -> u16 {
 // ── Shared state types ────────────────────────────────────────────────────
 
 pub struct BackendState {
+    /// Serializes every desktop lifecycle owner from its first port/process
+    /// probe through child tracking and readiness. Bootstrap, Retry, reset,
+    /// setup re-entry, and the crash supervisor must never launch in parallel.
+    pub lifecycle: Mutex<()>,
     pub process: Mutex<Option<Child>>,
     /// When the tracked child was spawned — feeds the crash marker's
     /// `uptime_s` (#941). Set alongside `process` in bootstrap.rs.
@@ -955,6 +959,7 @@ pub fn run() {
             let stage_handle = bootstrap_state.stage.clone();
             app.manage(bootstrap_state);
             app.manage(BackendState {
+                lifecycle: Mutex::new(()),
                 process: Mutex::new(None),
                 spawned_at: Mutex::new(None),
             });
@@ -975,68 +980,11 @@ pub fn run() {
                     set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
                     return;
                 }
-                match backend::running_backend_version(backend_port()) {
-                    Some(v) if backend::same_app_version(&v) => {
-                        if backend::backend_deep_healthy(backend_port()) {
-                            log::info!(
-                                "Port {} already serving VoiceStudio backend v{} — attaching",
-                                backend_port(), v
-                            );
-                            set_stage(&stage_handle, BootstrapStage::Ready);
-                            return;
-                        }
-                        // Same version but a DB-touching probe fails: a backend whose
-                        // install was wiped/corrupted while it kept running. Attaching
-                        // would look alive and 500 on everything — replace it.
-                        log::warn!(
-                            "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
-                            backend_port(), v
-                        );
-                        backend::kill_orphan_on_port(backend_port());
-                        std::thread::sleep(Duration::from_millis(500));
-                    }
-                    Some(v) => {
-                        // Healthy-but-stale backend from a previous version —
-                        // the post-update orphan that made new installs run
-                        // old backend code. Replace it (see backend.rs
-                        // same_app_version for the full story).
-                        log::warn!(
-                            "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
-                            backend_port(),
-                            if v.is_empty() { "<unknown>" } else { v.as_str() },
-                            env!("CARGO_PKG_VERSION"),
-                        );
-                        backend::kill_orphan_on_port(backend_port());
-                        std::thread::sleep(Duration::from_millis(500));
-                    }
-                    None => {}
-                }
-                if backend::port_in_use(backend_port()) {
-                    log::warn!(
-                        "Port {} in use — taking ownership (killing whatever's there)",
-                        backend_port()
-                    );
-                    backend::kill_orphan_on_port(backend_port());
-                    std::thread::sleep(Duration::from_millis(500));
-                }
-                // First-run gate: never auto-install. With nothing on disk to
-                // attach to, park on the setup screen and wait for the user to
-                // confirm an install plan — `complete_setup` restarts the
-                // bootstrap from there. Existing pre-setup-screen installs
-                // (venv present) are migrated here — the bootstrap thread is
-                // the only place that write happens — then pass straight
-                // through the read-only is_first_run check.
-                setup::migrate_existing_install_if_needed(&app_handle);
-                if setup::is_first_run(&app_handle) {
-                    log::info!("First run — awaiting setup screen confirmation before installing");
-                    set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
-                    return;
-                }
-                // Spawn + health-poll loop shared with the Retry button —
-                // includes the #314 broken-venv self-heal (quarantine the
-                // venv and rebuild once when the backend exits with
-                // "No pyvenv.cfg file" / code 106).
-                bootstrap::spawn_backend_and_wait(&app_handle, &stage_handle);
+                // Probe/attach, the first-run gate, spawn, child tracking, and
+                // readiness are one serialized lifecycle operation. A Retry
+                // arriving during launch waits and attaches instead of
+                // creating a second backend on the same port (#1635).
+                bootstrap::spawn_initial_backend_and_wait(&app_handle, &stage_handle);
             });
             Ok(())
         })
