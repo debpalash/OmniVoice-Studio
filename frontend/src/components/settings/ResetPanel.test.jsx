@@ -4,9 +4,9 @@ import React from 'react';
 import toast from 'react-hot-toast';
 
 const clearLongformProjects = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('../../utils/longformPersistence', () => ({
+vi.mock('../../utils/longformPersistence', async (importOriginal) => ({
+  ...(await importOriginal()),
   clearLongformProjects: (...args) => clearLongformProjects(...args),
-  LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR: 'LongformLocalFallbackClearError',
 }));
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },

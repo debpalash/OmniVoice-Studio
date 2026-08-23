@@ -21,6 +21,8 @@ function isDurableRecord(value: unknown): value is DurableLongformRecord {
   const record = value as Partial<DurableLongformRecord>;
   return (
     record.schema === LONGFORM_DB_SCHEMA &&
+    (record.revision === undefined ||
+      (Number.isSafeInteger(record.revision) && record.revision >= 0)) &&
     record.payload !== null &&
     typeof record.payload === 'object' &&
     !Array.isArray(record.payload)
@@ -51,6 +53,21 @@ export function createIndexedDbLongformStore(
 ): LongformDurableStore {
   let databasePromise: Promise<IDBDatabase> | null = null;
 
+  function invalidateDatabase(
+    database: IDBDatabase,
+    opening: Promise<IDBDatabase>,
+    close: boolean,
+  ): void {
+    if (close) {
+      try {
+        database.close();
+      } catch {
+        // The connection is already unusable; clearing the cache is enough.
+      }
+    }
+    if (databasePromise === opening) databasePromise = null;
+  }
+
   function openDatabase(): Promise<IDBDatabase> {
     if (databasePromise) return databasePromise;
     const opening = new Promise<IDBDatabase>((resolve, reject) => {
@@ -78,9 +95,9 @@ export function createIndexedDbLongformStore(
         settled = true;
         const database = request.result;
         database.onversionchange = () => {
-          database.close();
-          if (databasePromise === opening) databasePromise = null;
+          invalidateDatabase(database, opening, true);
         };
+        database.onclose = () => invalidateDatabase(database, opening, false);
         resolve(database);
       };
       request.onerror = () => {
@@ -104,25 +121,47 @@ export function createIndexedDbLongformStore(
     return opening;
   }
 
+  async function withDatabase<T>(operation: (database: IDBDatabase) => Promise<T>): Promise<T> {
+    const opening = openDatabase();
+    const database = await opening;
+    try {
+      return await operation(database);
+    } catch (error) {
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        (error as { name?: unknown }).name === 'InvalidStateError'
+      ) {
+        invalidateDatabase(database, opening, true);
+      }
+      throw error;
+    }
+  }
+
   return {
-    async read() {
-      const database = await openDatabase();
-      const transaction = database.transaction(LONGFORM_DB_STORE, 'readonly');
-      const request = transaction.objectStore(LONGFORM_DB_STORE).get(LONGFORM_DB_RECORD_ID);
-      const [value] = await Promise.all([requestResult(request), transactionDone(transaction)]);
-      return isDurableRecord(value) ? value : null;
+    read() {
+      return withDatabase(async (database) => {
+        const transaction = database.transaction(LONGFORM_DB_STORE, 'readonly');
+        const request = transaction.objectStore(LONGFORM_DB_STORE).get(LONGFORM_DB_RECORD_ID);
+        const [value] = await Promise.all([requestResult(request), transactionDone(transaction)]);
+        if (value === undefined) return null;
+        if (!isDurableRecord(value)) throw new DOMException('', 'DataError');
+        return value;
+      });
     },
-    async write(record) {
-      const database = await openDatabase();
-      const transaction = database.transaction(LONGFORM_DB_STORE, 'readwrite');
-      transaction.objectStore(LONGFORM_DB_STORE).put(record, LONGFORM_DB_RECORD_ID);
-      await transactionDone(transaction);
+    write(record) {
+      return withDatabase(async (database) => {
+        const transaction = database.transaction(LONGFORM_DB_STORE, 'readwrite');
+        transaction.objectStore(LONGFORM_DB_STORE).put(record, LONGFORM_DB_RECORD_ID);
+        await transactionDone(transaction);
+      });
     },
-    async clear() {
-      const database = await openDatabase();
-      const transaction = database.transaction(LONGFORM_DB_STORE, 'readwrite');
-      transaction.objectStore(LONGFORM_DB_STORE).delete(LONGFORM_DB_RECORD_ID);
-      await transactionDone(transaction);
+    clear() {
+      return withDatabase(async (database) => {
+        const transaction = database.transaction(LONGFORM_DB_STORE, 'readwrite');
+        transaction.objectStore(LONGFORM_DB_STORE).delete(LONGFORM_DB_RECORD_ID);
+        await transactionDone(transaction);
+      });
     },
   };
 }

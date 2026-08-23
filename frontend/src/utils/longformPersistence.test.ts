@@ -374,6 +374,51 @@ describe('split long-form persistence', () => {
     cleanupLocal();
   });
 
+  it('flushes compact state after a successful async pagehide commit', async () => {
+    const raw = new Map<string, string>();
+    const localController = createCoalescedJsonStorage({
+      getStorage: () => ({
+        getItem: (key) => raw.get(key) ?? null,
+        setItem: (key, value) => raw.set(key, value),
+        removeItem: (key) => raw.delete(key),
+      }),
+    });
+    localController.configurePersistenceRole('main');
+    const durable = createDurableStore();
+    const controller = createLongformPersistence({
+      localStorage: localController.createZustandJsonStorage(),
+      durableStore: durable.store,
+      currentVersion: 9,
+      flushLocalStorage: () => localController.flushPendingWrites(),
+    });
+    // main-app installs these in this order: the local listener runs before
+    // the async IndexedDB listener during the same lifecycle event.
+    const cleanupLocal = localController.installPersistenceLifecycleFlush();
+    const cleanupLongform = controller.installLifecycleFlush();
+
+    await controller.storage.getItem('omnivoice.app');
+    const envelope = legacyEnvelope('successfully committed manuscript');
+    envelope.version = 9;
+    envelope.state.coverRef = { filename: 'cover.png', serverPath: '/covers/cover.png' };
+    envelope.state.lastOutput = 'book.m4b';
+    controller.storage.setItem('omnivoice.app', envelope);
+    window.dispatchEvent(new Event('pagehide'));
+    await controller.flushPendingWrites();
+
+    expect(raw.get('omnivoice.app')).toBeDefined();
+    const compact = JSON.parse(raw.get('omnivoice.app')!);
+    expect(compact.state).toMatchObject({
+      theme: 'dark',
+      currentProjectId: 'p_book',
+      coverRef: { filename: 'cover.png', serverPath: '/covers/cover.png' },
+      lastOutput: 'book.m4b',
+    });
+    expect(compact.state).not.toHaveProperty('script');
+    expect(compact.state).not.toHaveProperty('storyProjects');
+    cleanupLongform();
+    cleanupLocal();
+  });
+
   it('keeps an explicit content reset from being resurrected before reload', async () => {
     const local = createLocalStorage();
     const durable = createDurableStore();

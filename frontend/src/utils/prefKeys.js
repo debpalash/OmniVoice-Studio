@@ -15,6 +15,9 @@
  * key that is in neither bucket.
  */
 import { suspendJsonWrites } from './coalescedJsonStorage';
+import { preserveRevisionedLongformFallback } from './longformPersistence';
+
+const APPLICATION_STATE_KEY = 'omnivoice.app';
 
 /** Prefixes owned by UI preferences — factory reset clears every match. */
 export const PREF_KEY_PREFIXES = [
@@ -59,8 +62,8 @@ export function isPrefKey(key) {
 }
 
 /**
- * Remove every persisted in-app preference (and nothing else) from storage.
- * Returns the list of keys that were removed.
+ * Reset every persisted in-app preference (and nothing else) in storage.
+ * Returns the list of keys that were reset.
  */
 export function clearLocalPreferences(storage = window.localStorage) {
   const resumeWrites = suspendJsonWrites(isPrefKey);
@@ -71,7 +74,21 @@ export function clearLocalPreferences(storage = window.localStorage) {
         ? Array.from({ length: storageLength }, (_, i) => storage.key(i))
         : Object.keys(storage);
     const doomed = keys.filter((k) => k && isPrefKey(k));
-    for (const k of doomed) storage.removeItem(k);
+    const longformFallback =
+      doomed.includes(APPLICATION_STATE_KEY) && typeof storage.getItem === 'function'
+        ? preserveRevisionedLongformFallback(storage.getItem(APPLICATION_STATE_KEY))
+        : null;
+    for (const k of doomed) {
+      if (
+        k === APPLICATION_STATE_KEY &&
+        longformFallback !== null &&
+        typeof storage.setItem === 'function'
+      ) {
+        storage.setItem(APPLICATION_STATE_KEY, longformFallback);
+      } else {
+        storage.removeItem(k);
+      }
+    }
     // A successful reset intentionally keeps matching writes suspended until
     // the scheduled reload. Background state updates and pagehide must not
     // recreate preferences that the user just removed.

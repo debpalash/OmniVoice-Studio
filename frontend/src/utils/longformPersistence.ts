@@ -143,6 +143,30 @@ function containsLongformPayload(stateValue: unknown): boolean {
   return UNBOUNDED_LONGFORM_KEYS.some((key) => Object.prototype.hasOwnProperty.call(state, key));
 }
 
+/** Retain only the project payload from an IDB-failure fallback during a preference reset. */
+export function preserveRevisionedLongformFallback(rawValue: string | null): string | null {
+  if (rawValue === null) return null;
+  try {
+    const parsed = JSON.parse(rawValue) as unknown;
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const envelope = parsed as JsonObject;
+    const revision = envelope[FALLBACK_REVISION_FIELD];
+    if (!validRevision(revision) || revision === 0 || !containsLongformPayload(envelope.state)) {
+      return null;
+    }
+    const preserved: JsonObject = {
+      [FALLBACK_REVISION_FIELD]: revision,
+      state: extractLongformPayload(envelope.state),
+    };
+    if (Object.prototype.hasOwnProperty.call(envelope, 'version')) {
+      preserved.version = envelope.version;
+    }
+    return JSON.stringify(preserved);
+  } catch {
+    return null;
+  }
+}
+
 function mergePayload(stateValue: unknown, payload: JsonObject): JsonObject {
   return { ...compactLongformState(stateValue), ...payload };
 }
@@ -310,6 +334,9 @@ export function createLongformPersistence<S>(
     }
     try {
       options.localStorage.setItem(entry.name, compactEnvelope(entry.value));
+      // A lifecycle flush of the coalesced adapter may already have run before
+      // this asynchronous IndexedDB commit completed.
+      options.flushLocalStorage?.();
     } catch (error) {
       // The durable payload is already committed. A stale/full local envelope
       // remains a safe fallback and will be compacted on a later hydration.

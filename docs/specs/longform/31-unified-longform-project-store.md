@@ -12,7 +12,11 @@
 > revision markers choose the newest full fallback without discarding a newer
 > edit. Startup retries IndexedDB reads three times; a persistent failure gates
 > the main UI behind a localized Retry action and blocks writes until projects
-> are reconciled. Content reset also clears bounded references to deleted files.
+> are reconciled. Malformed records fail closed into that gate, and retries
+> reopen connections invalidated by closure or transaction state. Lifecycle
+> commits force-flush their compact local envelope; preference-only reset strips
+> bounded preferences while retaining a revisioned full fallback. Content reset
+> also clears bounded references to deleted files.
 
 Today there are two long-form text-to-speech editors — **Stories** (`frontend/src/components/StoriesEditor.jsx`, multi-voice cast + per-line tracks) and **Audiobook** (`frontend/src/pages/AudiobookTab.jsx`, single raw-text script + book metadata) — and they share *nothing* at the data layer. Stories has a persisted project model in `storiesSlice` (cast/tracks/projects in localStorage via the root zustand persist); Audiobook has **zero persistence** (title/author/narrator/genre/cover/lexicon/format/loudness/text all live in component `useState` at `AudiobookTab.jsx:21-48` and evaporate on tab switch or reload).
 
