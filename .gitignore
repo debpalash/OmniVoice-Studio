@@ -159,6 +159,13 @@ tests/probe/reports/
 # reports). Working notes for whoever is driving a change, not a repo artifact.
 /remote/
 
+# OmniVoice GGUF runtime build artifacts (scripts/build-omnivoice-tts.sh).
+# Only 0-byte placeholders of omnivoice-tts-* are tracked; real binaries,
+# the checksums manifest and the copied libggml shared libs ship via CI.
+bin/libggml*
+bin/checksums.sha256
+bin/omnivoice-tts-linux-aarch64
+
 # Dubbing-demo intermediates. The .mp4/.srt/manifest.json in this directory ARE
 # committed (they ship with the app); the per-language source WAVs are just the
 # inputs scripts/render_dub_demo_audio.py hands to scripts/build_dub_demo.sh.
