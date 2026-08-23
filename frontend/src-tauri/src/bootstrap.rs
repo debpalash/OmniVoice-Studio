@@ -214,6 +214,9 @@ pub fn respawn_backend(
     }
     let stage_handle = stage;
     std::thread::spawn(move || {
+        if app_is_quitting(&app) {
+            return;
+        }
         let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
         if skip_spawn {
             log::info!("TAURI_SKIP_BACKEND set — not spawning");
@@ -239,9 +242,9 @@ enum LaunchOutcome {
 }
 
 /// Run a teardown while holding the same lifecycle ownership every spawn path
-/// uses. Reset, Clean & Retry, and setup re-entry keep this guard until their
-/// on-disk mutation is complete, so neither bootstrap nor the supervisor can
-/// resurrect the backend underneath them.
+/// uses. Reset, Clean & Retry, setup re-entry, uninstall, and app exit join
+/// launch through this guard; disk mutations keep it until they are complete,
+/// so neither bootstrap nor the supervisor can resurrect the backend.
 pub fn with_backend_stopped<R: tauri::Runtime, T>(
     app: &tauri::AppHandle<R>,
     action: impl FnOnce() -> T,
@@ -381,23 +384,28 @@ fn launch_backend_and_wait<R: tauri::Runtime>(
     let outcome = {
         let state = app.state::<BackendState>();
         let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
-        match prepare_backend_launch(app, stage_handle) {
-            LaunchPreparation::Attach | LaunchPreparation::Failed => LaunchOutcome::Done,
-            LaunchPreparation::Spawn => {
-                if first_run_gate {
-                    crate::setup::migrate_existing_install_if_needed(app);
-                    if crate::setup::is_first_run(app) {
-                        log::info!(
-                            "First run — awaiting setup screen confirmation before installing"
-                        );
-                        set_backend_kill_intended(false);
-                        set_stage(stage_handle, BootstrapStage::AwaitingSetup);
-                        LaunchOutcome::Done
+        if app_is_quitting(app) {
+            log::info!("App is quitting — backend launch cancelled");
+            LaunchOutcome::Done
+        } else {
+            match prepare_backend_launch(app, stage_handle) {
+                LaunchPreparation::Attach | LaunchPreparation::Failed => LaunchOutcome::Done,
+                LaunchPreparation::Spawn => {
+                    if first_run_gate {
+                        crate::setup::migrate_existing_install_if_needed(app);
+                        if crate::setup::is_first_run(app) {
+                            log::info!(
+                                "First run — awaiting setup screen confirmation before installing"
+                            );
+                            set_backend_kill_intended(false);
+                            set_stage(stage_handle, BootstrapStage::AwaitingSetup);
+                            LaunchOutcome::Done
+                        } else {
+                            spawn_with_supervisor_owner(app, stage_handle)
+                        }
                     } else {
                         spawn_with_supervisor_owner(app, stage_handle)
                     }
-                } else {
-                    spawn_with_supervisor_owner(app, stage_handle)
                 }
             }
         }
@@ -436,6 +444,9 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
 ) -> bool {
     let mut venv_heal_attempted = false;
     'bootstrap: loop {
+        if app_is_quitting(app) {
+            return false;
+        }
         spawn_and_track_backend(app, stage_handle);
         let start = std::time::Instant::now();
         // Early-bind narration: the backend answers /startup/progress within
@@ -445,6 +456,10 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
         // None and the wait looks exactly as it did before.
         let mut last_step = String::new();
         while start.elapsed() < startup_budget() {
+            if app_is_quitting(app) {
+                log::info!("App is quitting — backend startup poll cancelled");
+                return false;
+            }
             if crate::backend::backend_ready(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
                 return true;
@@ -584,6 +599,9 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
             }
             std::thread::sleep(Duration::from_millis(500));
         }
+        if app_is_quitting(app) {
+            return false;
+        }
         let err_tail = crate::backend::read_error_log_tail_for_run(20);
         let msg = if err_tail.is_empty() {
             format!("Backend did not respond within {} s", startup_budget().as_secs())
@@ -683,7 +701,40 @@ fn spawn_and_track_backend<R: tauri::Runtime>(
     stage_handle: &Arc<Mutex<BootstrapStage>>,
 ) {
     let child = crate::backend::spawn_backend(app, Some(stage_handle));
+    #[cfg(debug_assertions)]
+    wait_for_tracking_test_gate(
+        "OMNIVOICE_TEST_BEFORE_TRACK_ENTERED",
+        "OMNIVOICE_TEST_BEFORE_TRACK_RELEASE",
+    );
     track_backend_child(app, child);
+    #[cfg(debug_assertions)]
+    wait_for_tracking_test_gate(
+        "OMNIVOICE_TEST_AFTER_TRACK_ENTERED",
+        "OMNIVOICE_TEST_AFTER_TRACK_RELEASE",
+    );
+}
+
+/// Deterministic fault-injection seam around child tracking. These are the
+/// precise pre-bind shutdown/uninstall races that process-only or port-only
+/// teardown used to lose. Compiled out of release builds.
+#[cfg(debug_assertions)]
+fn wait_for_tracking_test_gate(entered_var: &str, release_var: &str) {
+    let Some(entered) = std::env::var_os(entered_var) else {
+        return;
+    };
+    let Some(release) = std::env::var_os(release_var) else {
+        return;
+    };
+    let entered = std::path::PathBuf::from(entered);
+    let release = std::path::PathBuf::from(release);
+    if let Err(error) = std::fs::write(&entered, b"spawned") {
+        log::warn!("Could not arm lifecycle test seam {entered_var}: {error}");
+        return;
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !release.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 /// Seconds since the tracked backend child was spawned (0 when unknown).
@@ -880,6 +931,9 @@ fn supervise_backend<R: tauri::Runtime>(
         // stay atomic with respect to every other owner (#1635).
         let state = app.state::<BackendState>();
         let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
+        if app_is_quitting(app) {
+            return;
+        }
         if SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner {
             return;
         }

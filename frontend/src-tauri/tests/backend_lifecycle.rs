@@ -28,7 +28,7 @@ use app_lib::bootstrap::{
     set_backend_kill_intended,
 };
 use app_lib::uninstall::{purge_uninstall_targets, UninstallTarget};
-use app_lib::{AppFlags, BackendState, CaptureDispatchState};
+use app_lib::{shutdown_backend_for_exit, AppFlags, BackendState, CaptureDispatchState};
 
 static HARNESS: Mutex<()> = Mutex::new(());
 
@@ -64,17 +64,6 @@ fn scenario_child() {
 
     if let Some(delay) = get_ms("OMNIVOICE_SCENARIO_START_DELAY_MS") {
         std::thread::sleep(Duration::from_millis(delay));
-    }
-
-    let observe_path = get("OMNIVOICE_SCENARIO_OBSERVE_PATH");
-    let observation_log = get("OMNIVOICE_SCENARIO_OBSERVATION_LOG");
-    if !observe_path.is_empty() && !observation_log.is_empty() {
-        let observation = if std::path::Path::new(&observe_path).exists() {
-            "present"
-        } else {
-            "missing"
-        };
-        std::fs::write(observation_log, observation).expect("record scenario observation");
     }
 
     // Serve /system/info + /profiles (the two probes behind backend_ready)
@@ -178,8 +167,10 @@ const SCENARIO_ENV: &[&str] = &[
     "OMNIVOICE_SCENARIO_PROGRESS_ONLY",
     "OMNIVOICE_SCENARIO_START_DELAY_MS",
     "OMNIVOICE_SCENARIO_SPAWN_LOG",
-    "OMNIVOICE_SCENARIO_OBSERVE_PATH",
-    "OMNIVOICE_SCENARIO_OBSERVATION_LOG",
+    "OMNIVOICE_TEST_BEFORE_TRACK_ENTERED",
+    "OMNIVOICE_TEST_BEFORE_TRACK_RELEASE",
+    "OMNIVOICE_TEST_AFTER_TRACK_ENTERED",
+    "OMNIVOICE_TEST_AFTER_TRACK_RELEASE",
     "OMNIVOICE_BACKEND_CMD",
     "OMNIVOICE_LOG_DIR",
     "OMNIVOICE_PORT",
@@ -363,6 +354,13 @@ fn recorded_spawn_count(path: &std::path::Path) -> usize {
         .count()
 }
 
+fn process_is_alive(pid: u32) -> bool {
+    let pid = sysinfo::Pid::from_u32(pid);
+    let mut system = sysinfo::System::new();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
+    system.process(pid).is_some()
+}
+
 // ── Scenarios ─────────────────────────────────────────────────────────────
 
 /// #1635 — launch bootstrap and Retry used to probe an empty port together,
@@ -435,20 +433,31 @@ fn uninstall_waits_for_an_unbound_tracked_child_before_deleting() {
         ..Default::default()
     });
     let spawn_log = t._logdir.path().join("scenario-uninstall-spawns.log");
-    let observation_log = t._logdir.path().join("scenario-uninstall-observation.log");
+    let after_track = t._logdir.path().join("uninstall-after-track-entered");
+    let release_track = t._logdir.path().join("uninstall-release-after-track");
     let target_path = t._logdir.path().join("OmniVoice");
     std::fs::create_dir_all(&target_path).expect("create synthetic uninstall target");
     std::fs::write(target_path.join("live-env.txt"), b"live").expect("seed uninstall target");
     std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
-    std::env::set_var("OMNIVOICE_SCENARIO_START_DELAY_MS", "1500");
-    std::env::set_var("OMNIVOICE_SCENARIO_OBSERVE_PATH", &target_path);
-    std::env::set_var("OMNIVOICE_SCENARIO_OBSERVATION_LOG", &observation_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_START_DELAY_MS", "5000");
+    std::env::set_var("OMNIVOICE_TEST_AFTER_TRACK_ENTERED", &after_track);
+    std::env::set_var("OMNIVOICE_TEST_AFTER_TRACK_RELEASE", &release_track);
 
     let bootstrap = t.run_bootstrap();
-    assert!(
-        wait_until(Duration::from_secs(10), || recorded_spawn_count(&spawn_log) == 1),
-        "scenario child was never spawned"
-    );
+    let reached_gate = wait_until(Duration::from_secs(10), || {
+        after_track.exists() && recorded_spawn_count(&spawn_log) == 1
+    });
+    if !reached_gate {
+        let _ = std::fs::write(&release_track, b"release");
+    }
+    assert!(reached_gate, "scenario child never reached the tracked pre-bind gate");
+    let pid: u32 = std::fs::read_to_string(&spawn_log)
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
     let port = std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap();
     assert!(
         !app_lib::backend::port_in_use(port),
@@ -468,29 +477,97 @@ fn uninstall_waits_for_an_unbound_tracked_child_before_deleting() {
     };
     let purge = std::thread::spawn(move || purge_uninstall_targets(&app, vec![target], false));
 
-    assert!(
-        wait_until(Duration::from_secs(10), || observation_log.exists()),
-        "scenario child never observed the target before binding"
-    );
-    let observation = std::fs::read_to_string(&observation_log).unwrap();
-    assert_eq!(
-        observation, "present",
-        "uninstall deleted the live environment before stopping the pre-bind child"
-    );
+    let purged_while_prebind = wait_until(Duration::from_secs(2), || purge.is_finished());
+    let target_survived_until_launch_released = target_path.exists();
+    std::fs::write(&release_track, b"release").unwrap();
+    join_with_timeout(bootstrap, Duration::from_secs(10), "uninstall overlap shutdown");
     let report = purge.join().expect("purge thread panicked").expect("purge failed");
+    assert!(
+        !purged_while_prebind && target_survived_until_launch_released,
+        "uninstall deleted the live environment before joining the tracked pre-bind child"
+    );
     assert_eq!(report.removed, vec![target_string]);
     assert!(!target_path.exists(), "target must be removed after the child stops");
     assert!(
         t.app.state::<BackendState>().process.lock().unwrap().is_none(),
         "uninstall must not leave the tracked child orphaned"
     );
+    assert!(!process_is_alive(pid), "uninstall left backend pid {pid} orphaned");
     assert!(
         wait_until(Duration::from_secs(5), || !app_lib::backend::port_in_use(port)),
         "the stopped child must release its backend port"
     );
     assert_eq!(recorded_spawn_count(&spawn_log), 1, "uninstall must not spawn a replacement");
     assert!(t.markers().markers.is_empty(), "an intentional uninstall is not a crash");
-    join_with_timeout(bootstrap, Duration::from_secs(10), "uninstall overlap shutdown");
+}
+
+/// #1635 production-exit follow-up — ExitRequested used to inspect only the
+/// process slot, outside lifecycle ownership. If exit landed after OS spawn
+/// but before tracking, bootstrap installed the child afterwards and left it
+/// alive. The production exit path must join launch, then stop that child.
+#[test]
+fn production_exit_joins_a_prebind_spawn_and_leaves_no_orphan() {
+    let t = TestApp::new(&Scenario {
+        serve_ms: Some(0),
+        ..Default::default()
+    });
+    let spawn_log = t._logdir.path().join("scenario-exit-spawns.log");
+    let before_track = t._logdir.path().join("before-track-entered");
+    let release_track = t._logdir.path().join("release-before-track");
+    std::env::set_var("OMNIVOICE_SCENARIO_SPAWN_LOG", &spawn_log);
+    std::env::set_var("OMNIVOICE_SCENARIO_START_DELAY_MS", "1500");
+    std::env::set_var("OMNIVOICE_TEST_BEFORE_TRACK_ENTERED", &before_track);
+    std::env::set_var("OMNIVOICE_TEST_BEFORE_TRACK_RELEASE", &release_track);
+
+    let bootstrap = t.run_bootstrap();
+    let reached_gate = wait_until(Duration::from_secs(10), || {
+        before_track.exists() && recorded_spawn_count(&spawn_log) == 1
+    });
+    if !reached_gate {
+        let _ = std::fs::write(&release_track, b"release");
+    }
+    assert!(reached_gate, "backend never reached the spawned-but-untracked test gate");
+    let pid: u32 = std::fs::read_to_string(&spawn_log)
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let port = std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap();
+    let child_is_prebind = !app_lib::backend::port_in_use(port);
+    if !child_is_prebind {
+        let _ = std::fs::write(&release_track, b"release");
+    }
+    assert!(child_is_prebind, "precondition: child is pre-bind");
+
+    let app = t.handle();
+    let shutdown = std::thread::spawn(move || shutdown_backend_for_exit(&app));
+    let quitting = wait_until(Duration::from_secs(5), || {
+        t.app
+            .state::<AppFlags>()
+            .quitting
+            .load(std::sync::atomic::Ordering::SeqCst)
+    });
+    if quitting {
+        assert!(!shutdown.is_finished(), "exit must join the active lifecycle owner");
+    }
+    std::fs::write(&release_track, b"release").unwrap();
+    assert!(quitting, "production exit did not raise quitting before teardown");
+
+    join_with_timeout(bootstrap, Duration::from_secs(10), "production exit bootstrap");
+    join_with_timeout(shutdown, Duration::from_secs(10), "production exit teardown");
+    assert!(
+        t.app.state::<BackendState>().process.lock().unwrap().is_none(),
+        "production exit must clear the tracked child"
+    );
+    assert!(
+        wait_until(Duration::from_secs(5), || !process_is_alive(pid)),
+        "production exit left backend pid {pid} orphaned"
+    );
+    assert!(!app_lib::backend::port_in_use(port), "orphan must not claim the port later");
+    assert_eq!(recorded_spawn_count(&spawn_log), 1, "shutdown must not respawn");
+    assert!(t.markers().markers.is_empty(), "intentional exit is not a crash");
 }
 
 /// S1 — the backend exits EXIT_PORT_IN_USE: the user must read a port

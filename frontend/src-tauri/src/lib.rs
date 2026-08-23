@@ -27,7 +27,6 @@ use std::collections::VecDeque;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
@@ -53,7 +52,7 @@ pub fn backend_port() -> u16 {
 pub struct BackendState {
     /// Serializes every desktop lifecycle owner from its first port/process
     /// probe through child tracking and readiness. Bootstrap, Retry, reset,
-    /// setup re-entry, and the crash supervisor must never launch in parallel.
+    /// setup/uninstall, shutdown, and the crash supervisor never overlap.
     pub lifecycle: Mutex<()>,
     pub process: Mutex<Option<Child>>,
     /// When the tracked child was spawned — feeds the crash marker's
@@ -455,6 +454,22 @@ mod pill_noactivate_tests {
 }
 
 // ── Tauri entry ───────────────────────────────────────────────────────────
+
+/// Production `ExitRequested` teardown, exposed so the real-child lifecycle
+/// harness exercises the exact shutdown path used by the desktop event loop.
+#[doc(hidden)]
+pub fn shutdown_backend_for_exit<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
+    // Raise the quitting flag FIRST: exits that don't pass through the tray
+    // Quit item (macOS ⌘Q, OS session end) would otherwise let a death watcher
+    // observe our own termination and record a false crash marker (#941).
+    app_handle
+        .state::<AppFlags>()
+        .quitting
+        .store(true, Ordering::SeqCst);
+    if let Err(error) = bootstrap::with_backend_stopped(app_handle, || {}) {
+        log::warn!("Could not fully stop the backend during app exit: {error}");
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -1014,46 +1029,7 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
-            // Raise the quitting flag FIRST: exits that don't pass through the
-            // tray Quit item (macOS ⌘Q, OS session end) would otherwise let a
-            // death watcher observe our own SIGTERM below and record a false
-            // "backend crashed" marker (#941).
-            app_handle
-                .state::<AppFlags>()
-                .quitting
-                .store(true, Ordering::SeqCst);
-            if let Ok(mut lock) = app_handle.state::<BackendState>().process.lock() {
-                if let Some(ref mut child) = *lock {
-                    let pid = child.id();
-                    log::info!("Shutting down backend (pid {})", pid);
-
-                    #[cfg(unix)]
-                    {
-                        unsafe {
-                            libc::kill(pid as i32, libc::SIGTERM);
-                        }
-                        let start = std::time::Instant::now();
-                        loop {
-                            match child.try_wait() {
-                                Ok(Some(_)) => break,
-                                Ok(None) if start.elapsed() < Duration::from_secs(2) => {
-                                    std::thread::sleep(Duration::from_millis(100));
-                                }
-                                _ => {
-                                    log::warn!("Backend didn't exit in 2 s — SIGKILL");
-                                    let _ = child.kill();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        let _ = child.kill();
-                    }
-                    let _ = child.wait();
-                }
-            }
+            shutdown_backend_for_exit(app_handle);
         }
     });
 }
