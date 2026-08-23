@@ -351,8 +351,9 @@ async def test_a_consumed_environment_token_is_not_redeemed_after_restart(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("remembered_endpoint", [True, False])
 async def test_legacy_same_environment_token_is_not_redeemed(
-    monkeypatch, enrolled, tmp_path, control_plane_tls
+    monkeypatch, enrolled, tmp_path, control_plane_tls, remembered_endpoint
 ):
     """Upgrade a legacy Compose volume without spending its old token again."""
     from worker import capabilities
@@ -365,8 +366,12 @@ async def test_legacy_same_environment_token_is_not_redeemed(
     (tmp_path / "control-plane.pinned.crt").write_bytes(creds.certificate_pem)
     (tmp_path / "worker-id").write_text("headless-worker", encoding="utf-8")
     monkeypatch.setenv("OMNIVOICE_WORKER_TOKEN", token)
-    monkeypatch.setenv("OMNIVOICE_WORKER_ENDPOINT", endpoint)
-    monkeypatch.setattr(agent, "_stored_endpoint", lambda: endpoint)
+    if remembered_endpoint:
+        monkeypatch.setenv("OMNIVOICE_WORKER_ENDPOINT", endpoint)
+        monkeypatch.setattr(agent, "_stored_endpoint", lambda: endpoint)
+    else:
+        monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
+        monkeypatch.setattr(agent, "_stored_endpoint", lambda: "")
     monkeypatch.setattr(capabilities, "discover", lambda **_: [])
 
     def _redeem_again(_token):
@@ -384,6 +389,7 @@ async def test_legacy_same_environment_token_is_not_redeemed(
         await instance.stop()
 
     assert _RegisteringClient.last.config.enrollment_token == ""
+    assert _RegisteringClient.last.config.endpoint == endpoint
     assert (tmp_path / "control-plane.pinned.crt").read_bytes() == creds.certificate_pem
     assert agent._load_consumed_token_hash(
         str(tmp_path / "enrollment-token.sha256")

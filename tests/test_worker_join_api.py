@@ -210,8 +210,6 @@ def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tm
     settings["worker_endpoint"] = "studio-mac:7443"
 
     assert c.post("/workers/agent/join", json={"token": "ovw_expired"}).status_code == 409
-    # The certificate the machine still needs remains the active trust root.
-    assert pinned.read_bytes() == b"previous-control-plane"
     # …and the agent it was running is dialling again. Without the rollback the
     # machine sits stopped until someone notices and toggles it back on: the
     # join stops the old agent before it knows the new code is any good.

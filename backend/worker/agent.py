@@ -325,10 +325,10 @@ def pin_certificate(token_text: str, *, cert_path: Optional[str] = None) -> tupl
     return endpoint, certificate
 
 
-def _legacy_environment_token_replaces_enrollment(
+def _classify_legacy_environment_token(
     token_text: str, *, endpoint: str, cert_path: str
-) -> bool:
-    """Distinguish a replacement token from the spent token in legacy state.
+) -> tuple[bool, str]:
+    """Return ``(is_replacement, decoded_endpoint)`` for a legacy token.
 
     Releases before the token-hash marker persisted the original Compose token
     beside a worker id. Re-spending that token breaks every restart, while
@@ -346,18 +346,19 @@ def _legacy_environment_token_replaces_enrollment(
     try:
         token = EnrollmentToken.decode(token_text)
     except (TypeError, ValueError):
-        return False
+        return False, ""
 
-    if token.endpoint.strip() != endpoint.strip():
-        return True
+    token_endpoint = token.endpoint.strip()
+    if endpoint.strip() and token_endpoint != endpoint.strip():
+        return True, token_endpoint
     try:
         with open(cert_path, "rb") as fh:
             certificate = fh.read()
-        return not verify_pin(certificate, token.cert_fingerprint)
+        return not verify_pin(certificate, token.cert_fingerprint), token_endpoint
     except (OSError, TypeError, ValueError):
         # A valid token can recover an enrollment whose local trust material is
         # absent or corrupt; it cannot be the token for that unusable state.
-        return True
+        return True, token_endpoint
 
 
 class WorkerAgent:
@@ -450,6 +451,16 @@ class WorkerAgent:
             or endpoint
             or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
         )
+        legacy_token_is_new = False
+        legacy_token_endpoint = ""
+        if environment_token and worker_id and not consumed_token_hash:
+            legacy_token_is_new, legacy_token_endpoint = (
+                _classify_legacy_environment_token(
+                    environment_token,
+                    endpoint=current_endpoint,
+                    cert_path=locations["pinned_cert"],
+                )
+            )
         environment_token_is_new = bool(
             environment_token
             and (
@@ -457,15 +468,7 @@ class WorkerAgent:
                     consumed_token_hash
                     and _token_hash(environment_token) != consumed_token_hash
                 )
-                or (
-                    worker_id
-                    and not consumed_token_hash
-                    and _legacy_environment_token_replaces_enrollment(
-                        environment_token,
-                        endpoint=current_endpoint,
-                        cert_path=locations["pinned_cert"],
-                    )
-                )
+                or legacy_token_is_new
             )
         )
         token_text = explicit_token or environment_token
@@ -495,6 +498,7 @@ class WorkerAgent:
                 endpoint
                 or (os.environ.get("OMNIVOICE_WORKER_ENDPOINT") or "").strip()
                 or _stored_endpoint()
+                or legacy_token_endpoint
             )
             if not endpoint:
                 raise RuntimeError(
