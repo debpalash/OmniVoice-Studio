@@ -1,0 +1,286 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PersistStorage, StorageValue } from 'zustand/middleware';
+
+import {
+  createLongformPersistence,
+  type DurableLongformRecord,
+  type LongformDurableStore,
+} from './longformPersistence';
+
+type TestState = Record<string, unknown>;
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createLocalStorage(initial: StorageValue<TestState> | null = null, quota = false) {
+  let value = initial ? clone(initial) : null;
+  const storage: PersistStorage<TestState> = {
+    getItem: vi.fn(() => (value ? clone(value) : null)),
+    setItem: vi.fn((_name, next) => {
+      if (quota) throw new DOMException('content intentionally omitted', 'QuotaExceededError');
+      value = clone(next);
+    }),
+    removeItem: vi.fn(() => {
+      value = null;
+    }),
+  };
+  return {
+    storage,
+    read: () => (value ? clone(value) : null),
+    replace: (next: StorageValue<TestState> | null) => {
+      value = next ? clone(next) : null;
+    },
+  };
+}
+
+function createDurableStore(initial: DurableLongformRecord | null = null) {
+  let value = initial ? clone(initial) : null;
+  const store: LongformDurableStore = {
+    read: vi.fn(async () => (value ? clone(value) : null)),
+    write: vi.fn(async (next) => {
+      value = clone(next);
+    }),
+    clear: vi.fn(async () => {
+      value = null;
+    }),
+  };
+  return { store, read: () => (value ? clone(value) : null) };
+}
+
+function legacyEnvelope(script: string): StorageValue<TestState> {
+  return {
+    version: 8,
+    state: {
+      theme: 'dark',
+      currentProjectId: 'p_book',
+      storyTracks: [
+        {
+          id: 1,
+          character: 'narrator',
+          text: script,
+          profileId: null,
+          emotion: null,
+          speed: null,
+          generating: true,
+          audioUrl: 'blob:runtime-only',
+        },
+      ],
+      cast: [{ id: 'narrator', name: 'Narrator', color: '#fabd2f', profileId: null }],
+      storyProjects: [{ id: 'p_book', name: 'Book', script, tracks: [], cast: [] }],
+      script,
+      meta: { title: 'Book' },
+      lexicon: { VoiceStudio: 'voice studio' },
+      voiceCast: {},
+    },
+  };
+}
+
+describe('split long-form persistence', () => {
+  beforeEach(() => vi.useFakeTimers());
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('commits a v8 payload before trimming the legacy localStorage envelope', async () => {
+    const events: string[] = [];
+    const local = createLocalStorage(legacyEnvelope('legacy manuscript'));
+    const durable = createDurableStore();
+    vi.mocked(durable.store.write).mockImplementation(async (record) => {
+      events.push('indexeddb');
+      await Promise.resolve();
+      (durable.store.write as any).record = clone(record);
+    });
+    vi.mocked(local.storage.setItem).mockImplementation((_name, value) => {
+      events.push('localStorage');
+      (local.storage.setItem as any).value = clone(value);
+    });
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+
+    const hydrated = await controller.storage.getItem('omnivoice.app');
+    expect(hydrated?.state.script).toBe('legacy manuscript');
+    expect(events).toEqual(['indexeddb']);
+
+    controller.storage.setItem('omnivoice.app', { ...hydrated!, version: 9 });
+    expect(events).toEqual(['indexeddb', 'localStorage']);
+    const compact = (local.storage.setItem as any).value;
+    expect(compact.state).not.toHaveProperty('script');
+    expect(compact.state).not.toHaveProperty('storyProjects');
+  });
+
+  it('round-trips a large project while keeping localStorage bounded', async () => {
+    const largeScript = 'A long chapter. '.repeat(400_000);
+    const envelope = legacyEnvelope(largeScript);
+    envelope.version = 9;
+    const local = createLocalStorage();
+    const durable = createDurableStore();
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+
+    await controller.storage.getItem('omnivoice.app');
+    controller.storage.setItem('omnivoice.app', envelope);
+    await vi.advanceTimersByTimeAsync(250);
+    await controller.flushPendingWrites();
+
+    const compact = local.read();
+    const persisted = durable.read();
+    expect(JSON.stringify(compact).length).toBeLessThan(100_000);
+    expect(compact?.state).not.toHaveProperty('script');
+    expect(persisted?.payload.script).toBe(largeScript);
+    expect(persisted).not.toBeNull();
+    expect((persisted!.payload.storyTracks as TestState[])[0]).not.toHaveProperty('generating');
+    expect((persisted!.payload.storyTracks as TestState[])[0]).not.toHaveProperty('audioUrl');
+
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+    expect(restored?.state.script).toBe(largeScript);
+    expect(restored).not.toBeNull();
+    expect((restored!.state.storyProjects as TestState[])[0].script).toBe(largeScript);
+  });
+
+  it('recovers from localStorage quota failure using the committed durable payload', async () => {
+    const largeScript = 'quota-safe manuscript '.repeat(300_000);
+    const legacy = legacyEnvelope(largeScript);
+    const local = createLocalStorage(legacy, true);
+    const durable = createDurableStore();
+    const warnings: string[] = [];
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: (warning) => warnings.push(warning),
+    });
+
+    const hydrated = await controller.storage.getItem('omnivoice.app');
+    controller.storage.setItem('omnivoice.app', { ...hydrated!, version: 9 });
+
+    expect(local.read()).toEqual(legacy);
+    expect(durable.read()?.payload.script).toBe(largeScript);
+    expect(warnings).toEqual([
+      '[persistence] compact failed for omnivoice.longform (QuotaExceededError)',
+    ]);
+
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: () => {},
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+    expect(restored?.state.script).toBe(largeScript);
+    expect(restored).not.toBeNull();
+    expect((restored!.state.storyProjects as TestState[])[0].name).toBe('Book');
+  });
+
+  it('retains the full legacy fallback when IndexedDB is out of quota', async () => {
+    const legacy = legacyEnvelope('last recoverable copy');
+    const local = createLocalStorage(legacy);
+    const durable = createDurableStore();
+    vi.mocked(durable.store.write).mockRejectedValue(
+      new DOMException('content intentionally omitted', 'QuotaExceededError'),
+    );
+    const warnings: string[] = [];
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      warn: (warning) => warnings.push(warning),
+    });
+
+    const hydrated = await controller.storage.getItem('omnivoice.app');
+    expect(local.read()).toEqual(legacy);
+    expect(local.storage.setItem).not.toHaveBeenCalled();
+
+    // Zustand's post-hydration v9 write retries IndexedDB, then falls back to
+    // the still-full local envelope instead of trimming the only durable copy.
+    controller.storage.setItem('omnivoice.app', { ...hydrated!, version: 9 });
+    await vi.advanceTimersByTimeAsync(250);
+    await controller.flushPendingWrites();
+
+    expect(local.read()?.state.script).toBe('last recoverable copy');
+    expect(local.read()?.state).toHaveProperty('storyProjects');
+    expect(warnings).toEqual([
+      '[persistence] migrate failed for omnivoice.longform (QuotaExceededError)',
+      '[persistence] write failed for omnivoice.longform (QuotaExceededError)',
+    ]);
+  });
+
+  it('keeps an explicit content reset from being resurrected before reload', async () => {
+    const local = createLocalStorage();
+    const durable = createDurableStore();
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+    const envelope = legacyEnvelope('remove me');
+    envelope.version = 9;
+
+    controller.storage.setItem('omnivoice.app', envelope);
+    await controller.flushPendingWrites();
+    expect(durable.read()?.payload.script).toBe('remove me');
+
+    // Simulate a previous compact write failing under quota: Settings must
+    // trim this recoverable v8 fallback as well as delete IndexedDB.
+    local.replace(legacyEnvelope('legacy fallback'));
+    await controller.clearDurable();
+    controller.storage.setItem('omnivoice.app', legacyEnvelope('must not return'));
+    await vi.runAllTimersAsync();
+
+    expect(durable.read()).toBeNull();
+    expect(local.read()?.state).not.toHaveProperty('script');
+    expect(local.read()?.state).not.toHaveProperty('storyProjects');
+  });
+
+  it('waits out an in-flight write before clearing durable projects', async () => {
+    let durableValue: DurableLongformRecord | null = null;
+    let releaseWrite = () => {};
+    const durableStore: LongformDurableStore = {
+      read: vi.fn(async () => durableValue),
+      write: vi.fn(
+        (record) =>
+          new Promise<void>((resolve) => {
+            releaseWrite = () => {
+              durableValue = clone(record);
+              resolve();
+            };
+          }),
+      ),
+      clear: vi.fn(async () => {
+        durableValue = null;
+      }),
+    };
+    const controller = createLongformPersistence({
+      localStorage: createLocalStorage().storage,
+      durableStore,
+      currentVersion: 9,
+    });
+
+    controller.storage.setItem('omnivoice.app', legacyEnvelope('in flight'));
+    const flushing = controller.flushPendingWrites();
+    await Promise.resolve();
+    expect(durableStore.write).toHaveBeenCalledOnce();
+
+    const clearing = controller.clearDurable();
+    expect(durableStore.clear).not.toHaveBeenCalled();
+    releaseWrite();
+    await flushing;
+    await clearing;
+
+    expect(durableStore.clear).toHaveBeenCalledOnce();
+    expect(durableValue).toBeNull();
+  });
+});

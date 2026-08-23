@@ -5,11 +5,10 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import { useAppStore } from '../store';
 import LanguageSwitchPrompt from '../components/LanguageSwitchPrompt';
+import { configureLongformDurableStoreForTests } from '../utils/longformPersistence';
 
 const withI18n = (node) => <I18nextProvider i18n={i18n}>{node}</I18nextProvider>;
 
-// The real store's persist has already hydrated (empty localStorage, sync
-// storage), so `hasHydrated()` is true and the component renders immediately.
 function seed(partial) {
   useAppStore.setState({
     locale: 'de',
@@ -19,7 +18,19 @@ function seed(partial) {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  let durableRecord = null;
+  configureLongformDurableStoreForTests({
+    read: async () => durableRecord,
+    write: async (record) => {
+      durableRecord = structuredClone(record);
+    },
+    clear: async () => {
+      durableRecord = null;
+    },
+  });
+  // Production bootstrap now awaits async IndexedDB hydration before render.
+  await useAppStore.persist.rehydrate();
   seed({});
 });
 afterEach(() => {

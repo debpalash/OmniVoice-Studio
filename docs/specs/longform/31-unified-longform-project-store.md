@@ -2,6 +2,15 @@
 
 ## TL;DR
 
+> **Persistence amendment (2026-08-24, #1636):** the unified in-memory model and
+> Zustand actions below are unchanged, but the localStorage-only storage design
+> is superseded. Schema v9 stores unbounded `storyTracks`, `cast`,
+> `storyProjects`, `script`, `meta`, `lexicon`, and `voiceCast` in the local
+> IndexedDB database `omnivoice.longform`; `omnivoice.app` keeps only bounded
+> preferences and ids. Upgrading a v8 envelope commits its long-form payload to
+> IndexedDB before trimming localStorage. If compacting localStorage hits quota,
+> the committed IndexedDB record remains authoritative on the next launch.
+
 Today there are two long-form text-to-speech editors — **Stories** (`frontend/src/components/StoriesEditor.jsx`, multi-voice cast + per-line tracks) and **Audiobook** (`frontend/src/pages/AudiobookTab.jsx`, single raw-text script + book metadata) — and they share *nothing* at the data layer. Stories has a persisted project model in `storiesSlice` (cast/tracks/projects in localStorage via the root zustand persist); Audiobook has **zero persistence** (title/author/narrator/genre/cover/lexicon/format/loudness/text all live in component `useState` at `AudiobookTab.jsx:21-48` and evaporate on tab switch or reload).
 
 This spec introduces **one project concept** — a `LongformProject` — that both editors bind to. It carries the shared book identity (`title/author/narrator/genre/year/description` + cover + lexicon) once, alongside the structured content (cast + tracks + raw script), plus a `mode` discriminator (`'stories' | 'audiobook'`). This (a) gives Audiobook the persistence it lacks today, (b) lets a single saved project be re-opened in either editor, turning **#24 (Story ⇄ Audiobook convert)** from a data-shuttling problem into a `mode` toggle, and (c) consolidates the two divergent persistence stories into one slice with a tested localStorage migration that is backward-compatible with existing `storyProjects`.
@@ -253,7 +262,7 @@ export interface LongformProject {
 }
 ```
 
-Concrete persisted-record example (a saved Audiobook-mode project, as it lives inside `omnivoice.app` localStorage → `state.longformProjects[0]`):
+Concrete project-record example (a saved Audiobook-mode project, as it lives in the `omnivoice.longform` IndexedDB payload → `storyProjects[0]`):
 ```json
 {
   "id": "p_4f9ab2c1",
@@ -676,7 +685,7 @@ Each relevant hard rule, and exactly how this task satisfies it:
 | `_trackId` reseed effect (`StoriesEditor.jsx:135-140`) doesn't re-run on cross-session `loadProject` → new-line id collision | Medium | Latent today (dep array `[]`, single-mount), made reachable by Projects-list load. Change dep array to `[currentProjectId]` or reseed in the add path; called out in Integration. |
 | #24 imports the existing `parseScript` regexes onto the unified `script` without a ReDoS pass | Medium | #31 carries **zero** new user-input regex (Constraints → CodeQL). Explicitly hand the ReDoS-review duty to #24/#27 in Dependencies + a code comment on the `convertMode` seam so a future PR doesn't wire `parseScript` over user `script` blind to the `js/redos` gate. |
 | In-flight render abandoned on tab switch / reload (no resume) | Low | Explicitly NOT resumed in v1 (F1–F3); inputs survive via store, transient render flags (component `useState`, never in `partialize`) never persist, so no ghost spinner. Backend-job resume is `longformJobs` territory, out of scope. |
-| Persisting loose working metadata bloats localStorage | Low | Same pattern already used for `storyTracks` (`index.ts:109-110`). Strings + small dicts; a single big book is well under quota. No eviction policy in v1 (Stories already unbounded); D4 flags dozens-of-big-projects for v0.4 if reported. |
+| Long manuscripts or many projects exhaust localStorage quota | High | Schema v9 moves every unbounded long-form field to IndexedDB and leaves only bounded preferences/ids in `omnivoice.app`. Migration commits IndexedDB before trimming the v8 fallback, and quota-failure tests prove the durable record still restores. |
 | Controlled-input `undefined → string` warning on v4-migrated projects | Low | Every metadata `<input value>` binds to a guaranteed default (A4) — read `meta.title ?? ''`, never bare; slice init + load-time default-fill ensure `meta.*` are always strings, `lexicon`/`coverRef` always object/null. |
 | Scope creep into #24 | Medium | Hard line: 31c (mode toggle/convert UI + content transforms `scriptToTracks`/`tracksToScript`) is explicitly out; ship 31a/31b only. The "defer until #24" caveat is honored by shipping just the store + Audiobook binding whose shape is already determined by the two existing editors. |
 | Two content models (`tracks` vs `script`) drift in a single project | Low (v1) | v1 keeps one authoritative per `mode`; only the matching editor binds working state. Cross-editing is #24's concern with explicit convert. `convertMode` flips the flag only (G1). |

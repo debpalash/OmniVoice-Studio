@@ -20,12 +20,14 @@ import ErrorBoundary from './components/ErrorBoundary';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import DesktopCaptureShortcutBridge from './components/DesktopCaptureShortcutBridge';
 import CaptureWidget from './components/CaptureWidget.jsx';
+import { useAppStore } from './store';
 import { installConsoleCapture } from './utils/consoleBuffer.js';
 import { installGlobalErrorHandlers } from './utils/globalErrorHandlers.js';
 import {
   configurePersistenceRole,
   installPersistenceLifecycleFlush,
 } from './utils/coalescedJsonStorage';
+import { installLongformPersistenceLifecycleFlush } from './utils/longformPersistence';
 
 installConsoleCapture();
 // After console capture so the underlying console.error of each uncaught
@@ -73,7 +75,11 @@ export async function detectIsWidget(locationSearch = window.location.search) {
 export async function bootstrapApp() {
   const isWidget = await detectIsWidget();
   configurePersistenceRole(isWidget ? 'readonly' : 'main');
-  if (!isWidget) installPersistenceLifecycleFlush();
+  await useAppStore.persist.rehydrate();
+  if (!isWidget) {
+    installPersistenceLifecycleFlush();
+    installLongformPersistenceLifecycleFlush();
+  }
   const isDesktopShell = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   // The widget window is `transparent: true` (tauri.conf.json), but it loads

@@ -23,8 +23,9 @@
  * Disk scopes are executed by the Rust shell (`reset.rs`), which stops the
  * backend, deletes, and starts it again — a running backend cannot delete the
  * weights it has mapped into memory, nor recreate the directories it lost. The
- * two scopes that own no files are handled here: UI preferences (localStorage)
- * and history (the DELETE endpoints, which take rows and audio together).
+ * Browser-owned state is handled here too: UI preferences (localStorage),
+ * long-form projects (IndexedDB), and history (the DELETE endpoints, which
+ * take rows and audio together).
  *
  * Outside the Tauri shell (browser / Docker) there is no local install to clear,
  * so only the preferences tier is offered.
@@ -51,6 +52,7 @@ import { SettingsSection } from './primitives';
 import { fmtBytes } from './bytes';
 import StorageTargetRow from './StorageTargetRow';
 import { clearLocalPreferences } from '../../utils/prefKeys';
+import { clearLongformProjects } from '../../utils/longformPersistence';
 import { clearHistory } from '../../api/generate';
 import { clearDubHistory } from '../../api/dub';
 
@@ -124,6 +126,7 @@ export function plan(selected) {
     disk,
     prefs: selected.includes('ui_prefs'),
     history: selected.includes('history') && !selected.includes('content'),
+    longformProjects: selected.includes('content'),
     restart: disk.length > 0,
   };
 }
@@ -198,6 +201,7 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
           );
         }
       }
+      if (steps.longformProjects) await clearLongformProjects();
       // Preferences last: the reload below is what makes them take effect, and if
       // anything above threw we would rather not have wiped them for nothing.
       if (steps.prefs) clearLocalPreferences();

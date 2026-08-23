@@ -11,13 +11,13 @@
  *     here.
  *   - Selectors live at call sites (`useStore(s => s.foo)`).
  *
- * localStorage persistence uses zustand's own middleware so reloads keep
- * your quality/dual-subs/glossary-visibility choice.
+ * Zustand persistence keeps bounded preferences in localStorage and stores
+ * unbounded long-form documents in IndexedDB.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { createZustandJsonStorage } from '../utils/coalescedJsonStorage';
+import { createLongformZustandStorage } from '../utils/longformPersistence';
 
 import type { PrefsSlice } from './prefsSlice';
 import { createPrefsSlice, FONT_OPTIONS, FONT_STACKS } from './prefsSlice';
@@ -83,7 +83,7 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: APP_STORE_KEY,
-      storage: createZustandJsonStorage(),
+      storage: createLongformZustandStorage(),
       // Only persist user prefs + glossary. Pipeline / transient state is opt-out.
       partialize: (s) => ({
         translateQuality: s.translateQuality,
@@ -138,16 +138,9 @@ export const useAppStore = create<AppStore>()(
         galleryViewMode: s.galleryViewMode,
         galleryZone: s.galleryZone,
         archetypeFilters: s.archetypeFilters,
-        // Stories Editor — persist the project; strip transient runtime fields
-        // (generating, audioUrl) so a dead blob: URL / stuck spinner never rehydrates.
-        storyTracks: s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) => ({
-          id,
-          character,
-          text,
-          profileId,
-          emotion,
-          speed,
-        })),
+        // The split storage adapter moves long-form payloads to IndexedDB and
+        // strips transient runtime fields there, at the deferred commit point.
+        storyTracks: s.storyTracks,
         cast: s.cast,
         storyProjects: s.storyProjects,
         currentProjectId: s.currentProjectId,
@@ -176,7 +169,10 @@ export const useAppStore = create<AppStore>()(
         firedMilestones: s.firedMilestones,
         optedOut: s.optedOut,
       }),
-      version: 8,
+      version: 9,
+      // IndexedDB hydration is asynchronous. Bootstrap resolves main/widget
+      // ownership first, then explicitly hydrates before React renders.
+      skipHydration: true,
       // Drop old persisted shapes rather than crashing the app. Every field
       // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
       // for new fields (timingStrategy etc.) and keep any keys we still write
@@ -243,7 +239,10 @@ export const useAppStore = create<AppStore>()(
           // brand-new v7 store should show the scale check.
           p.uiScaleConfigured = true;
         }
-        return p as Partial<AppStore>; // also covers version > 6 (downgrade→upgrade)
+        // v9 moves unbounded long-form payloads to IndexedDB. The storage
+        // adapter commits that durable record before this migrated state can
+        // replace the full legacy envelope; no in-memory shape changes here.
+        return p as Partial<AppStore>; // also covers future versions (downgrade→upgrade)
       },
     },
   ),

@@ -9,6 +9,11 @@
 | Dependencies | None |
 | Rollback | Revert the PR; the existing keys and schemas remain readable |
 
+> **Successor amendment (2026-08-24, #1636):** this plan remains the design
+> record for coalescing browser writes, but its localStorage-only format is no
+> longer current. Schema v9 keeps that coalescer for bounded `omnivoice.app`
+> preferences/ids and persists unbounded long-form documents in IndexedDB.
+
 ## Executive decision
 
 The first optimization PR should remove synchronous JSON serialization and `localStorage` writes from high-frequency interaction paths. It should preserve the existing `omnivoice.app` and `omni_ui` contracts, coalesce each burst to the latest value, flush within a bounded window, and prevent deferred writes from undoing Factory Reset.

@@ -97,6 +97,7 @@ describe('reset planning', () => {
     // pointless round-trip against records that are about to cease to exist.
     const steps = plan(['history', 'content']);
     expect(steps.history).toBe(false);
+    expect(steps.longformProjects).toBe(true);
     expect(steps.disk).toEqual(['content']);
   });
 

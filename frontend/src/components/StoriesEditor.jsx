@@ -5,7 +5,8 @@
  * per-line voice override, and editable text with [pause]/[voice:] markers.
  * A Cast panel maps each character → a voice once; lines inherit it. "Generate"
  * stitches every line (+ pauses) into a single downloadable audiobook WAV.
- * State persists via the zustand storiesSlice (localStorage).
+ * State persists via the zustand longformSlice (IndexedDB, with bounded prefs
+ * and ids in the root localStorage envelope).
  *
  * Spec: docs/superpowers/specs/2026-05-30-stories-editor-studio-design.md
  */

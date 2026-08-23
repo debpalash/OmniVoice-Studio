@@ -4,7 +4,8 @@
  * preserve. Factory reset promises "reset ALL in-app preferences" — before
  * this registry it only removed the zustand blob ('omnivoice.app'), leaving
  * nav-rail side, capture live-typing, stories speed, dismissed-tip flags and
- * the legacy 'omni_ui' blob behind.
+ * the legacy 'omni_ui' blob behind. Long-form user data now lives separately
+ * in IndexedDB and is intentionally preserved by a preferences-only reset.
  *
  * Adding a new persisted preference? Pick a key under one of
  * PREF_KEY_PREFIXES (preferred: 'omnivoice.<area>.<name>') and factory reset
