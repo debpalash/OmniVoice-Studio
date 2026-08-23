@@ -914,25 +914,6 @@ export default function CaptureWidget({ onDismiss }) {
     [dismiss],
   );
 
-  // The widget can unmount while a successful delivery is waiting to hide the
-  // pill (tests swap jsdom documents; Tauri can replace the widget webview).
-  // Invalidate async continuations and cancel both long-lived timeouts so none
-  // can update React after this component's document is gone.
-  useEffect(
-    () => () => {
-      captureGenerationRef.current += 1;
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-        dismissTimerRef.current = null;
-      }
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-      }
-    },
-    [],
-  );
-
   // Stop every capture input (recorder / worklet / tracks) without touching
   // the pill state — shared by stop, cancel and the WS error path.
   const stopCaptureGraph = useCallback(() => {
@@ -947,6 +928,51 @@ export default function CaptureWidget({ onDismiss }) {
       streamRef.current = null;
     }
   }, [teardownAec]);
+
+  // The widget can unmount while startup, capture, transcription or a delayed
+  // dismissal is still in flight (Tauri can replace the widget webview). Make
+  // every continuation stale, detach its transport callbacks, and release every
+  // browser-owned capture resource without updating React during teardown.
+  useEffect(
+    () => () => {
+      captureGenerationRef.current += 1;
+      pendingNativeStartRef.current = null;
+      startRecordingRef.current = null;
+      stopRecordingRef.current = null;
+      wsHadFinalRef.current = true;
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      const ws = wsRef.current;
+      wsRef.current = null;
+      wsPendingRef.current = [];
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        try {
+          ws.close();
+        } catch (err) {
+          console.warn('capture socket teardown failed:', err);
+        }
+      }
+      const recorder = mediaRecorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+      }
+      stopCaptureGraph();
+      mediaRecorderRef.current = null;
+      chunksRef.current = [];
+    },
+    [stopCaptureGraph],
+  );
 
   // Esc = abort. Stops capture, discards the audio and any in-flight result
   // (nothing is pasted), closes the socket and hides the pill.
@@ -1233,6 +1259,7 @@ export default function CaptureWidget({ onDismiss }) {
 
   const startRecordingImpl = useCallback(
     async (generation, startupSessionId = outputSessionIdRef.current) => {
+      const isCurrent = () => generation === captureGenerationRef.current;
       // A newer native session can adopt this microphone graph while setup is
       // still awaiting permissions/worklets. If the old attempt then fails,
       // release only its original lease; finishing the adopted lease would
@@ -1253,7 +1280,9 @@ export default function CaptureWidget({ onDismiss }) {
       // 'prompt'/'granted'/'unknown' proceed exactly as before (getUserMedia
       // raises the OS prompt; micError.js stays the reactive fallback), and
       // outside Tauri checkMicrophone() is always 'unknown' → unchanged.
-      if ((await checkMicrophone()) === 'denied') {
+      const microphoneState = await checkMicrophone();
+      if (!isCurrent()) return;
+      if (microphoneState === 'denied') {
         holdStartRef.current = null;
         showMicDeniedGuide(t);
         setTrayRecording(false);
@@ -1270,6 +1299,10 @@ export default function CaptureWidget({ onDismiss }) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
         });
+        if (!isCurrent()) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         streamRef.current = stream;
         chunksRef.current = [];
         recordingFormatRef.current = { mimeType: 'audio/webm', extension: 'webm' };
@@ -1310,10 +1343,11 @@ export default function CaptureWidget({ onDismiss }) {
             ? null
             : startSupportedMediaRecorder(stream, {
                 onData: (e) => {
-                  if (e.data.size === 0) return;
+                  if (!isCurrent() || e.data.size === 0) return;
                   if (e.data.type) recordingFormatRef.current = audioFormatForMimeType(e.data.type);
                   chunksRef.current.push(e.data);
                   void e.data.arrayBuffer().then((buf) => {
+                    if (!isCurrent()) return;
                     const ws = wsRef.current;
                     if (ws && ws.readyState === WebSocket.OPEN) ws.send(buf);
                     else wsPendingRef.current.push(buf);
@@ -1347,6 +1381,10 @@ export default function CaptureWidget({ onDismiss }) {
           if (pcmMode) params.push('sr=16000');
           const wsPath = params.length ? `/ws/transcribe?${params.join('&')}` : '/ws/transcribe';
           const endpoint = await authenticatedWsUrl(wsPath, { apiBase: API });
+          if (!isCurrent()) {
+            stopCaptureGraph();
+            return;
+          }
           const ws = new WebSocket(endpoint);
           ws.binaryType = 'arraybuffer';
           const failRawPcmSession = () => {
@@ -1366,6 +1404,7 @@ export default function CaptureWidget({ onDismiss }) {
             return true;
           };
           ws.onopen = () => {
+            if (!isCurrent() || wsRef.current !== ws) return;
             for (const buf of wsPendingRef.current) {
               try {
                 ws.send(buf);
@@ -1378,7 +1417,7 @@ export default function CaptureWidget({ onDismiss }) {
             wsPendingRef.current = [];
           };
           ws.onmessage = async (evt) => {
-            if (wsRef.current !== ws) return;
+            if (!isCurrent() || wsRef.current !== ws) return;
             let msg;
             try {
               msg = JSON.parse(evt.data);
@@ -1547,7 +1586,7 @@ export default function CaptureWidget({ onDismiss }) {
             }
           };
           ws.onerror = () => {
-            if (wsRef.current !== ws) return;
+            if (!isCurrent() || wsRef.current !== ws) return;
             wsRef.current = null;
             failRawPcmSession();
           };
@@ -1555,7 +1594,7 @@ export default function CaptureWidget({ onDismiss }) {
             // A terminal path can await native session release while a new
             // candidate is activated and starts its own socket. The old close
             // must never clear or finalise that newer recording.
-            if (wsRef.current !== ws) return;
+            if (!isCurrent() || wsRef.current !== ws) return;
             wsRef.current = null;
             if (sherpaModeRef.current) {
               // Sherpa: nothing to POST (no WebM blob). If the socket dropped
@@ -1593,6 +1632,10 @@ export default function CaptureWidget({ onDismiss }) {
           };
           wsRef.current = ws;
         } catch {
+          if (!isCurrent()) {
+            stopCaptureGraph();
+            return;
+          }
           wsRef.current = null;
           if (pcmMode) {
             // Raw-PCM has no POST fallback — a socket that can't even be
@@ -1622,7 +1665,12 @@ export default function CaptureWidget({ onDismiss }) {
           // second audio pipeline).
           const [{ startMicCapture }, { frameFromFloat, floatToInt16, AEC_NEAR, AEC_FAR }] =
             await Promise.all([import('../utils/aec/micCapture'), import('../utils/aec/pcm')]);
+          if (!isCurrent()) {
+            stopCaptureGraph();
+            return;
+          }
           const sendBuf = (buf) => {
+            if (!isCurrent()) return;
             const ws = wsRef.current;
             if (ws && ws.readyState === WebSocket.OPEN) {
               try {
@@ -1640,8 +1688,12 @@ export default function CaptureWidget({ onDismiss }) {
             // sherpa+AEC combo too — the backend demuxes the tag before the
             // sherpa handler sees the cleaned near-end PCM.
             const { subscribeFarEnd } = await import('../utils/aec/farEndBus');
+            if (!isCurrent()) {
+              stopCaptureGraph();
+              return;
+            }
             const sendTagged = (float32, kind) => sendBuf(frameFromFloat(float32, kind));
-            aecStopRef.current = await startMicCapture(
+            const stopMicCapture = await startMicCapture(
               stream,
               (f) => {
                 waveRef.current.push(f);
@@ -1649,12 +1701,18 @@ export default function CaptureWidget({ onDismiss }) {
               },
               { sampleRate: 16000 },
             );
+            if (!isCurrent()) {
+              await stopMicCapture();
+              stopCaptureGraph();
+              return;
+            }
+            aecStopRef.current = stopMicCapture;
             farEndUnsubRef.current = subscribeFarEnd((f) => sendTagged(f, AEC_FAR));
           } else {
             // Untagged int16 frames for the plain sherpa live path. Send the
             // Int16Array's underlying buffer verbatim (little-endian on every
             // target platform = numpy's native int16 read on the server).
-            aecStopRef.current = await startMicCapture(
+            const stopMicCapture = await startMicCapture(
               stream,
               (f) => {
                 waveRef.current.push(f);
@@ -1663,6 +1721,12 @@ export default function CaptureWidget({ onDismiss }) {
               },
               { sampleRate: 16000 },
             );
+            if (!isCurrent()) {
+              await stopMicCapture();
+              stopCaptureGraph();
+              return;
+            }
+            aecStopRef.current = stopMicCapture;
           }
           mediaRecorderRef.current = null;
         } else {
@@ -1677,7 +1741,7 @@ export default function CaptureWidget({ onDismiss }) {
         // 'recording' now would clobber that state and — with the socket gone —
         // strand the next Stop on "Transcribing…" forever. Release the capture
         // inputs and leave the pill alone.
-        if (wsHadFinalRef.current) {
+        if (!isCurrent() || wsHadFinalRef.current) {
           stopCaptureGraph();
           return;
         }
@@ -1701,6 +1765,10 @@ export default function CaptureWidget({ onDismiss }) {
         }
       } catch (err) {
         holdStartRef.current = null;
+        if (!isCurrent()) {
+          stopCaptureGraph();
+          return;
+        }
         // Same guard as the success path above (#1175 review): the session may
         // already have RESOLVED while setup was failing — a connect-time WS
         // error frame (e.g. the typed asr_model_missing preflight) or an
@@ -1762,18 +1830,22 @@ export default function CaptureWidget({ onDismiss }) {
         await startRecordingImpl(generation, sessionId);
       } finally {
         startInFlightRef.current = false;
-        const pending = pendingNativeStartRef.current;
-        if (pending) {
-          if (
-            pending.sequence !== nativeStartSequenceRef.current ||
-            outputSessionIdRef.current !== pending.sessionId
-          ) {
-            pendingNativeStartRef.current = null;
-          } else {
-            const current = stateRef.current;
-            pendingNativeStartRef.current = null;
-            if (current !== 'recording' && current !== 'transcribing') {
-              await startRecordingRef.current?.(pending.trackHold, pending.sessionId);
+        if (generation !== captureGenerationRef.current) {
+          pendingNativeStartRef.current = null;
+        } else {
+          const pending = pendingNativeStartRef.current;
+          if (pending) {
+            if (
+              pending.sequence !== nativeStartSequenceRef.current ||
+              outputSessionIdRef.current !== pending.sessionId
+            ) {
+              pendingNativeStartRef.current = null;
+            } else {
+              const current = stateRef.current;
+              pendingNativeStartRef.current = null;
+              if (current !== 'recording' && current !== 'transcribing') {
+                await startRecordingRef.current?.(pending.trackHold, pending.sessionId);
+              }
             }
           }
         }
@@ -1790,6 +1862,7 @@ export default function CaptureWidget({ onDismiss }) {
     const ws = wsRef.current;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
       const sendEof = () => {
+        if (generation !== captureGenerationRef.current || wsRef.current !== ws) return;
         try {
           ws.send('EOF');
         } catch (err) {

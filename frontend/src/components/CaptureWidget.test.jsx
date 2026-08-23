@@ -730,6 +730,135 @@ describe('CaptureWidget', () => {
     }
   });
 
+  it('cancels the fallback and closes its socket when unmounted while transcribing', async () => {
+    mocks.state.dictationMode = 'hold';
+    mocks.state.dictationModelId = null;
+    const stopTrack = vi.fn();
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => ({ getTracks: () => [{ stop: stopTrack }] }),
+      },
+    });
+    const { unmount } = render(withI18n(<CaptureWidget />));
+    const ws = await startNativeSession('fallback-unmount-session');
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await mocks.holder.handlers['tray-dictate-stop']();
+      });
+
+      expect(screen.getByText(/Transcribing/)).toBeInTheDocument();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(ws.readyState).toBe(FakeWebSocket.CLOSED);
+      expect(stopTrack).toHaveBeenCalledOnce();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      expect(mocks.apiFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes an active socket and capture graph when the widget unmounts', async () => {
+    const stopTrack = vi.fn();
+    const stopMic = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => ({ getTracks: () => [{ stop: stopTrack }] }),
+      },
+    });
+    mocks.holder.startMic = vi.fn(async (_stream, onFrame) => {
+      mocks.holder.onFrame = onFrame;
+      return stopMic;
+    });
+    const { unmount } = render(withI18n(<CaptureWidget />));
+    const ws = await startNativeSession('active-unmount-session');
+
+    unmount();
+
+    expect(ws.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(stopMic).toHaveBeenCalledOnce();
+  });
+
+  it('releases a microphone stream that resolves after the widget unmounts', async () => {
+    let resolveMicrophone;
+    const stopTrack = vi.fn();
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveMicrophone = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+    const { unmount } = render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    act(() => {
+      void mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'pending-microphone-session' },
+      });
+    });
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+
+    unmount();
+    await act(async () => {
+      resolveMicrophone({ getTracks: () => [{ stop: stopTrack }] });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
+  it('does not open a socket when its authenticated URL resolves after unmount', async () => {
+    let resolveEndpoint;
+    mocks.authenticatedWsUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveEndpoint = resolve;
+        }),
+    );
+    const stopTrack = vi.fn();
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => ({ getTracks: () => [{ stop: stopTrack }] }),
+      },
+    });
+    const { unmount } = render(withI18n(<CaptureWidget />));
+    await waitFor(() => expect(mocks.holder.handlers['tray-dictate']).toBeTypeOf('function'));
+
+    act(() => {
+      void mocks.holder.handlers['tray-dictate']({
+        payload: { sessionId: 'pending-ticket-session' },
+      });
+    });
+    await waitFor(() => expect(mocks.authenticatedWsUrl).toHaveBeenCalledOnce());
+
+    unmount();
+    await act(async () => {
+      resolveEndpoint('ws://test/ws/transcribe?ws_ticket=late');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
   it('keeps native delivery session-bound and never pre-writes the WebView clipboard', async () => {
     render(withI18n(<CaptureWidget />));
     const ws = await startNativeSession('native-session-7');
