@@ -464,6 +464,9 @@ def test_remote_stream_unexpected_failure_keeps_private_details_out_of_logs(
     client, monkeypatch, caplog
 ):
     """The remote catch-all journals privately but logs and returns constants."""
+    from core import error_journal
+
+    error_journal.clear()
     private = (
         "TOKEN=remote-secret /home/alice/private-reference.wav "
         r"C:\Users\alice\private-reference.wav"
@@ -482,6 +485,12 @@ def test_remote_stream_unexpected_failure_keeps_private_details_out_of_logs(
     assert r"C:\Users\alice" not in exposed
     assert "Traceback" not in caplog.text
     assert "RuntimeError" in caplog.text
+    entries = [e for e in error_journal.recent() if e.get("route") == "/generate"]
+    assert entries
+    stored = repr(entries[0])
+    assert "remote-secret" not in stored
+    assert "/home/alice" not in stored
+    assert r"C:\Users\alice" not in stored
 
 
 def test_legacy_worker_missing_weights_returns_typed_409_before_submit(
