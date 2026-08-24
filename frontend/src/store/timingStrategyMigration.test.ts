@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { discardPendingWrites } from '../utils/coalescedJsonStorage';
+import { discardLongformPendingWrites } from '../utils/longformPersistence';
 import { APP_STORE_KEY, useAppStore } from './index';
 
 async function rehydrate(state: object, version: number) {
+  discardLongformPendingWrites();
   discardPendingWrites((key) => key === APP_STORE_KEY);
   localStorage.setItem(APP_STORE_KEY, JSON.stringify({ state, version }));
   await useAppStore.persist.rehydrate();
@@ -13,6 +15,7 @@ describe('timing-strategy v8 migration', () => {
   beforeEach(() => {
     localStorage.clear();
     useAppStore.setState(useAppStore.getInitialState(), true);
+    discardLongformPendingWrites();
     discardPendingWrites((key) => key === APP_STORE_KEY);
   });
 

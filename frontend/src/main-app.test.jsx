@@ -41,6 +41,19 @@ vi.mock('./utils/coalescedJsonStorage', async (importOriginal) => {
   };
 });
 
+vi.mock('./utils/persistenceLifecycle', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    installDesktopPersistenceExitHandshake() {
+      bootstrapProbe.order.push('install:exit-handshake');
+      // A damaged Tauri bridge can leave event registration pending forever.
+      // bootstrapApp must render without awaiting this non-critical promise.
+      return new Promise(() => {});
+    },
+  };
+});
+
 // detectIsWidget() awaits a dynamic import of the Tauri window API; in jsdom
 // that import never settles and would hang bootstrapApp(). Stub it to a plain
 // main window so the mount path is deterministic and fast.
@@ -86,9 +99,10 @@ describe('bootstrapApp root error boundary', () => {
     // And it must be the actual recovery UI showing the real error, not just
     // any stray node — so the user has a way forward without restarting the app.
     expect(root.textContent).toMatch(/simulated top-level render crash/);
-    expect(bootstrapProbe.order.slice(0, 3)).toEqual([
+    expect(bootstrapProbe.order.slice(0, 4)).toEqual([
       'configure:main',
       'install:lifecycle',
+      'install:exit-handshake',
       'render:app',
     ]);
     expect(getCurrentWindowMock).not.toHaveBeenCalled();

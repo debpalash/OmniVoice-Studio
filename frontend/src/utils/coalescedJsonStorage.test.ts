@@ -210,6 +210,17 @@ describe('coalesced JSON storage', () => {
     expect(storage.data.get('unavailable')).toBe('{"state":{"count":9},"version":7}');
   });
 
+  it('offers a truthful physical read for destructive reset invariants', () => {
+    const storage = createMemoryStorage({ malformed: '{oops' });
+    const controller = createCoalescedJsonStorage({ getStorage: () => storage });
+
+    expect(() => controller.readDurableJsonValue('malformed')).toThrow(SyntaxError);
+    storage.getItem.mockImplementationOnce(() => {
+      throw new DOMException('private content', 'SecurityError');
+    });
+    expect(() => controller.readDurableJsonValue('unavailable')).toThrowError(DOMException);
+  });
+
   it('cancels pending work before adapter removal and propagates main-window removal errors', () => {
     const storage = createMemoryStorage({ key: '{"old":true}' });
     const controller = createCoalescedJsonStorage({ getStorage: () => storage });

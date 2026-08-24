@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Không thể tải dự án",
+    "storage_unavailable_body": "VoiceStudio không thể đọc bộ nhớ dự án cục bộ. Dữ liệu của bạn chưa bị thay đổi. Hãy thử lại để mở dữ liệu an toàn.",
+    "clear_projects": "Xóa các dự án đã lưu",
+    "clear_confirm": "Thao tác này sẽ xóa vĩnh viễn tất cả dự án Truyện và Sách nói đã lưu cùng mọi bản nháp chưa lưu để VoiceStudio có thể mở lại. Không thể hoàn tác. Tiếp tục?"
+  },
   "backendUnreachable": {
     "contact_recent": "Nó vẫn phản hồi cách đây {{ago}} rồi ngừng phản hồi — rất có thể nó đã gặp sự cố hoặc bị buộc dừng giữa một yêu cầu.",
     "contact_never": "Nó chưa hề phản hồi trong phiên này — có thể nó chưa bao giờ khởi động.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Không thể đăng ký: {{message}}",
     "shortcut_reset": "Đặt lại về mặc định",
     "shortcut_reset_failed": "Đặt lại không thành công: {{message}}",
+    "reset_longform_failed": "VoiceStudio không thể xóa an toàn các dự án đã lưu. Dữ liệu dự án của bạn không bị thay đổi; hãy giải phóng dung lượng hoặc khởi động lại ứng dụng rồi thử lại.",
     "cancel": "Hủy",
     "hf_token_also_clear": "Đồng thời xóa",
     "hf_token_clear_btn": "Xóa token",

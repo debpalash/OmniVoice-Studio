@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Nie udało się wczytać projektów",
+    "storage_unavailable_body": "VoiceStudio nie mógł odczytać lokalnego magazynu projektów. Twoje dane nie zostały zmienione. Spróbuj ponownie, aby bezpiecznie je otworzyć.",
+    "clear_projects": "Usuń zapisane projekty",
+    "clear_confirm": "Spowoduje to trwałe usunięcie wszystkich zapisanych projektów Opowieści i Audiobooków oraz niezapisanych wersji roboczych, aby VoiceStudio mogło się ponownie otworzyć. Tej operacji nie można cofnąć. Kontynuować?"
+  },
   "backendUnreachable": {
     "contact_recent": "Jeszcze {{ago}} temu odpowiadał, a potem przestał — najprawdopodobniej uległ awarii lub został zakończony w trakcie żądania.",
     "contact_never": "W tej sesji nie odpowiedział ani razu — możliwe, że w ogóle się nie uruchomił.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Nie udało się zarejestrować: {{message}}",
     "shortcut_reset": "Przywróć ustawienia domyślne",
     "shortcut_reset_failed": "Resetowanie nie powiodło się: {{message}}",
+    "reset_longform_failed": "VoiceStudio nie mógł bezpiecznie usunąć zapisanych projektów. Dane projektów nie zostały zmienione; zwolnij miejsce lub uruchom aplikację ponownie i spróbuj jeszcze raz.",
     "cancel": "Anuluj",
     "hf_token_also_clear": "Wyczyść również",
     "hf_token_clear_btn": "Wyczyść token",

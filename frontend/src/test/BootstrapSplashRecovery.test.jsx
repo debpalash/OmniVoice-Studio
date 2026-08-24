@@ -14,6 +14,7 @@ import { BootstrapSplash, useBootstrapStage } from '../components/BootstrapSplas
 
 const invokeMock = vi.fn();
 const revealMock = vi.fn();
+const persistenceMocks = vi.hoisted(() => ({ flush: vi.fn() }));
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args) => invokeMock(...args),
@@ -23,6 +24,10 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 vi.mock('@tauri-apps/plugin-opener', () => ({
   revealItemInDir: (...args) => revealMock(...args),
+}));
+vi.mock('../utils/persistenceLifecycle', async (importOriginal) => ({
+  ...(await importOriginal()),
+  flushApplicationPersistence: (...args) => persistenceMocks.flush(...args),
 }));
 
 /** A promise that never settles — the exact #879 IPC failure mode. */
@@ -34,6 +39,7 @@ beforeEach(() => {
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   invokeMock.mockReset();
   revealMock.mockReset();
+  persistenceMocks.flush.mockReset().mockResolvedValue({ failed: 0 });
 });
 
 afterEach(() => {
@@ -187,6 +193,30 @@ describe('BootstrapSplash — ipc_lost recovery panel', () => {
       fireEvent.click(screen.getByRole('button', { name: /Repair and restart/ }));
       await act(async () => {});
       expect(invokeMock).not.toHaveBeenCalledWith('clear_webview_cache_and_relaunch');
+    } finally {
+      restore();
+    }
+  });
+
+  it('Windows: persistence failure does not strand the explicit repair action', async () => {
+    const restore = setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    persistenceMocks.flush.mockRejectedValue(new DOMException('blocked', 'SecurityError'));
+    invokeMock.mockResolvedValue(undefined);
+    try {
+      render(<BootstrapSplash stage="ipc_lost" message={null} />);
+      fireEvent.click(screen.getByRole('button', { name: /Repair and restart/ }));
+
+      await waitFor(() =>
+        expect(invokeMock).toHaveBeenCalledWith('clear_webview_cache_and_relaunch'),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[persistence] cache-repair flush failed',
+        expect.any(DOMException),
+      );
     } finally {
       restore();
     }

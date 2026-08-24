@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projekten kunde inte läsas in",
+    "storage_unavailable_body": "VoiceStudio kunde inte läsa det lokala projektlagret. Dina data har inte ändrats. Försök igen för att öppna dem säkert.",
+    "clear_projects": "Rensa sparade projekt",
+    "clear_confirm": "Detta tar permanent bort alla sparade Berättelse- och Ljudboksprojekt och alla osparade utkast så att VoiceStudio kan öppnas igen. Det går inte att ångra. Fortsätta?"
+  },
   "backendUnreachable": {
     "contact_recent": "Den svarade för {{ago}} sedan och slutade sedan svara — den kraschade eller avslutades troligen mitt i en förfrågan.",
     "contact_never": "Den har inte svarat alls under den här sessionen — den kanske aldrig startade.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Kunde inte registrera: {{message}}",
     "shortcut_reset": "Återställ till standard",
     "shortcut_reset_failed": "Återställning misslyckades: {{message}}",
+    "reset_longform_failed": "VoiceStudio kunde inte rensa de sparade projekten på ett säkert sätt. Dina projektdata ändrades inte; frigör lagringsutrymme eller starta om appen och försök igen.",
     "cancel": "Avbryt",
     "hf_token_also_clear": "Rensa också",
     "hf_token_clear_btn": "Rensa token",

@@ -2,12 +2,30 @@
 
 | Field | Decision |
 | --- | --- |
-| Status | Implemented in draft PR #1541; CI and review pending |
+| Status | Historical coalescer plan; storage and hydration ownership superseded by PR #1636 |
 | Target | One focused frontend PR |
 | Priority | P1 responsiveness and data-safety hardening |
 | Risk | Medium: persistence timing changes, persisted formats do not |
 | Dependencies | None |
 | Rollback | Revert the PR; the existing keys and schemas remain readable |
+
+> **Successor amendment (2026-08-24, PR #1636):** the body below is retained as
+> the historical PR #1541 coalescer design. Its uses of “current”, `{version: 7}`,
+> and synchronous hydration describe that 2026-08-13 baseline, not today's
+> runtime. PR #1636 retains the coalescer for bounded browser state, moves
+> unbounded long-form data to IndexedDB, and makes store hydration explicitly
+> asynchronous after window ownership is known.
+
+### Persisted-version ownership after PR #1636
+
+| Version/era | Owner | Data and migration contract |
+| --- | --- | --- |
+| Historical Zustand v4 → v5 | `frontend/src/store/index.ts` → `migrateAppStore` | The retained `version < 5` migration normalizes legacy v4 project records into the unified long-form shape. This is an old-envelope migration, not the current storage version. |
+| Historical coalescer baseline v7 | PR #1541 and this plan | The complete persisted Zustand projection lived in synchronous `localStorage` as `{ state, version: 7 }`. References to v7 and synchronous `getItem` below are historical acceptance criteria. |
+| Current Zustand envelope v9 | `frontend/src/store/index.ts` plus `frontend/src/utils/longformPersistence.ts` | `omnivoice.app` remains the Zustand key, but its normal localStorage copy is a bounded v9 envelope. During upgrade, the split adapter commits any legacy full long-form payload before compacting that envelope. |
+| Current IndexedDB schema 1 | `frontend/src/utils/indexedDbLongformStore.ts` | `omnivoice.longform` owns the unbounded workspace payload and its writer revision. Bootstrap uses `skipHydration`, resolves main/widget ownership, and awaits the async split-store rehydrate before rendering. |
+
+The Zustand envelope version (`9`) and IndexedDB database schema (`1`) are independent counters with separate owners; “schema v9” must not be used as a name for the IndexedDB format.
 
 ## Executive decision
 
@@ -52,7 +70,7 @@ Representative serialized sizes were approximately 156 KB for `omnivoice.app` an
 
 ## Goal
 
-For a rapid sequence of edits, perform no JSON serialization or physical storage write in the originating interaction task and persist only the newest value after the burst, while retaining synchronous hydration and the current recovery formats.
+At the PR #1541 baseline, perform no JSON serialization or physical storage write in the originating interaction task and persist only the newest value after the burst, while retaining that baseline's synchronous hydration and recovery formats. The successor matrix above records the later hydration and format changes.
 
 ## Scope
 
@@ -77,19 +95,19 @@ For a rapid sequence of edits, perform no JSON serialization or physical storage
 - New dependencies, user-visible strings, locale files, or an app version bump.
 - Hardware-sensitive timing assertions in CI.
 
-## Compatibility and safety invariants
+## Historical PR #1541 compatibility and safety invariants
 
 The implementation must preserve all of the following:
 
 | Contract | Required invariant |
 | --- | --- |
 | Zustand key | `omnivoice.app` |
-| Zustand envelope | `{ state, version: 7 }`, serialized with normal `JSON.stringify` semantics |
+| Zustand envelope at the #1541 baseline | `{ state, version: 7 }`, serialized with normal `JSON.stringify` semantics |
 | Zustand projection | Existing `partialize` fields and transient-field stripping remain semantically unchanged |
-| Zustand migration | Existing v1-v7 migration behavior remains unchanged |
+| Zustand migration at the #1541 baseline | Existing v1-v7 migration behavior remains unchanged |
 | Legacy recovery key | `omni_ui` |
 | Legacy recovery shape | Exact current field names, omission behavior, and `sanitizeOmniUi` restore path |
-| Hydration | Synchronous; no loading gate or async race is introduced |
+| Hydration at the #1541 baseline | Synchronous; no loading gate or async race is introduced |
 | Durability | When serialization/storage succeeds and the browser runs timers, a dirty key is attempted within 1,000 ms of its first unflushed change |
 | Lifecycle | `pagehide` and hidden-document events attempt pending values; both events together cause at most one physical write per unchanged generation |
 | Reset | A removed preference key cannot be recreated by old or newly queued work before the reset reload |
@@ -97,7 +115,7 @@ The implementation must preserve all of the following:
 | Privacy | Logs may contain a key and error name, never persisted user content |
 | Platform parity | Same default behavior on macOS, Windows, Linux, browser, and Docker |
 
-Direct consumers such as `utils/donationMoments.js`, E2E state seeding, long-form recovery, and the preference-key registry must continue to parse the existing envelope without changes. The donation opt-out's primary `omnivoice.donate.optOut` flag remains an immediate, separate write; add a compatibility assertion that its immediate behavior and the flushed legacy-envelope fallback both remain valid.
+For PR #1541, direct consumers such as `utils/donationMoments.js`, E2E state seeding, long-form recovery, and the preference-key registry had to continue parsing the then-existing envelope without changes. The donation opt-out's primary `omnivoice.donate.optOut` flag remained an immediate, separate write; its immediate behavior and flushed legacy-envelope fallback required compatibility coverage.
 
 Concurrent browser/Docker tabs are explicitly not promoted to a coordinated multi-writer system in this PR. They retain unsupported last-physical-writer-wins behavior. The PR description must state that boundary; adding cross-tab revisions or `BroadcastChannel` arbitration would be a separate data-consistency design.
 
@@ -171,6 +189,7 @@ After `detectIsWidget()` resolves, `bootstrapApp()` should configure the role an
 - Flush on `visibilitychange` only when `document.visibilityState === 'hidden'`.
 - Do not add `beforeunload`; it is unnecessary and can interfere with back/forward caching.
 - Lifecycle flush uses the same generation/cancellation checks as timer flushes. If hidden visibility and `pagehide` both fire, the second invocation observes a clean generation and performs no second serialization/write.
+- Treat page lifecycle events as best-effort only for asynchronous IndexedDB work. On desktop, prevent the first native exit request, ask the main webview to await the long-form commit and then drain the compact local envelope, and acknowledge exit afterward; a three-second native timeout must still close or relaunch if the webview cannot respond. Intentional frontend reload/relaunch actions await the same ordered helper before navigating.
 
 ### 5. Zustand integration
 
@@ -465,7 +484,7 @@ The PR is ready for review only when all are true:
 
 ## Rollback plan
 
-No data rollback or migration is required. Reverting the adapter wiring restores immediate writes, and both old and new builds read the same `omnivoice.app` v7 envelope and `omni_ui` object. If a release-only issue appears, revert the PR rather than introducing a second persistence mode or format.
+This was PR #1541's rollback plan: no data migration was then required because both builds read the same v7 envelope. It is not a current rollback instruction after PR #1636; reverting the split v9/IndexedDB storage requires its migration and downgrade guarantees rather than assuming a v7-only localStorage layout.
 
 ## Follow-up queue
 
@@ -474,6 +493,6 @@ These are intentionally not part of the first PR:
 1. **Incremental dub scheduling.** Add a 300 ms debounce, pass `AbortController.signal` through `apiPost`, use a monotonic request revision, cancel outside Dub, and prove one request per burst plus stale-response rejection.
 2. **Transactional dub undo.** Profile `pushUndo`, which currently stringifies the complete segment array per edit and retains up to 50 snapshots. If material, group edits by segment/field and focus or idle boundary while preserving one-step undo behavior.
 3. **Workspace isolation.** Profile React commits after persistence remediation; then extract one workspace at a time, moving heavy hooks/imports behind lazy boundaries. Source length and selector count alone are not success metrics.
-4. **Document storage migration.** Consider IndexedDB or a worker only if representative post-PR flushes remain over budget. That work requires an independent migration, downgrade, reset, quota, and async-hydration design.
+4. **Document storage migration — completed by successor PR #1636.** The Zustand envelope is now v9, while IndexedDB schema 1 stores unbounded long-form documents with migration, downgrade, reset, quota, and async-hydration coverage. No second migration is pending from this historical plan.
 
 Each follow-up must begin from a fresh trace. None should be pulled into this PR merely because it is nearby.

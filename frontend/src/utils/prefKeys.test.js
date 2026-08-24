@@ -117,6 +117,101 @@ describe('prefKeys registry', () => {
       expect(localStorage.getItem('omni_transcriptions')).toBe('[{"text":"hi"}]');
     });
 
+    it('preserves project data in a revisioned full fallback while resetting preferences', () => {
+      localStorage.setItem(
+        'omnivoice.app',
+        JSON.stringify({
+          version: 9,
+          longformFallbackRevision: 3,
+          state: {
+            theme: 'dark',
+            currentProjectId: 'p_book',
+            script: 'newer fallback manuscript',
+            storyProjects: [{ id: 'p_book', name: 'Book' }],
+          },
+        }),
+      );
+      localStorage.setItem('omnivoice.navRailSide', 'right');
+
+      const reset = clearLocalPreferences();
+
+      expect(reset).toEqual(expect.arrayContaining(['omnivoice.app', 'omnivoice.navRailSide']));
+      const fallback = JSON.parse(localStorage.getItem('omnivoice.app'));
+      expect(fallback).toEqual({
+        version: 9,
+        longformFallbackRevision: 3,
+        state: {
+          script: 'newer fallback manuscript',
+          storyProjects: [{ id: 'p_book', name: 'Book' }],
+        },
+      });
+      expect(localStorage.getItem('omnivoice.navRailSide')).toBeNull();
+    });
+
+    it('preserves an unrevisioned legacy fallback when adding its revision hit quota', () => {
+      localStorage.setItem(
+        'omnivoice.app',
+        JSON.stringify({
+          version: 8,
+          state: {
+            theme: 'dark',
+            script: 'last recoverable manuscript',
+            storyProjects: [{ id: 'p_book', name: 'Book' }],
+          },
+        }),
+      );
+
+      clearLocalPreferences();
+
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 8,
+        state: {
+          script: 'last recoverable manuscript',
+          storyProjects: [{ id: 'p_book', name: 'Book' }],
+        },
+      });
+    });
+
+    it('preserves a pending IndexedDB-clear tombstone during a preference reset', () => {
+      localStorage.setItem(
+        'omnivoice.app',
+        JSON.stringify({
+          version: 9,
+          longformPendingDurableClear: true,
+          state: { theme: 'dark', currentProjectId: null },
+        }),
+      );
+
+      clearLocalPreferences();
+
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 9,
+        longformPendingDurableClear: true,
+        state: {},
+      });
+    });
+
+    it('preserves physical-removal intent while resetting preferences', () => {
+      localStorage.setItem(
+        'omnivoice.app',
+        JSON.stringify({
+          version: 9,
+          longformPendingDurableClear: true,
+          longformPendingStorageRemove: true,
+          state: {},
+        }),
+      );
+
+      clearLocalPreferences();
+
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 9,
+        longformPendingDurableClear: true,
+        longformPendingStorageRemove: true,
+        state: {},
+      });
+    });
+
     it('prevents pending and post-reset writes from resurrecting preferences', () => {
       vi.useFakeTimers();
       localStorage.setItem('omnivoice.app', '{"state":{"old":true},"version":7}');

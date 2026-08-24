@@ -7,7 +7,7 @@ import type { StateCreator } from 'zustand';
  *
  * This generalizes the former `storiesSlice`: the persisted field names
  * (`storyProjects`/`storyTracks`/`cast`/`currentProjectId`) are KEPT so every
- * existing consumer and every existing localStorage blob keeps working with no
+ * existing consumer and every legacy persisted envelope keeps working with no
  * change — the project SHAPE gains optional book-identity fields, default-filled
  * on load so older records never surface `undefined` to a controlled input.
  *
@@ -112,6 +112,8 @@ interface LongformProject {
 }
 
 export interface LongformSlice {
+  /** Transient startup gate; never included in the persisted partial state. */
+  longformPersistenceError: boolean;
   // Stories working state (existing field names — consumers unchanged):
   storyTracks: StoryTrack[];
   cast: CastMember[];
@@ -215,6 +217,7 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
   set,
   get,
 ) => ({
+  longformPersistenceError: false,
   storyTracks: [],
   cast: DEFAULT_CAST.map((c) => ({ ...c })),
   storyProjects: [],
