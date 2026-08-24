@@ -703,6 +703,14 @@ fn attached_backend_health_grace_recovers_without_false_crash_or_port_failure() 
                 .state::<BackendState>()
                 .attached
                 .load(std::sync::atomic::Ordering::SeqCst)
+            && t
+                .app
+                .state::<BackendState>()
+                .attached_health
+                .lock()
+                .unwrap()
+                .failures
+                == 0
     }));
 
     assert!(process_is_alive(external_pid));

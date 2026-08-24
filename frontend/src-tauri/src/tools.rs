@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
+#[cfg(target_os = "macos")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -63,6 +65,10 @@ pub struct OwnedProcessTree {
     process_group: libc::pid_t,
     #[cfg(unix)]
     nested_drain: OwnedFd,
+    #[cfg(target_os = "macos")]
+    exit_kqueue: OwnedFd,
+    #[cfg(target_os = "macos")]
+    root_exit_observed: AtomicBool,
     #[cfg(windows)]
     job: std::os::windows::io::OwnedHandle,
 }
@@ -70,19 +76,57 @@ pub struct OwnedProcessTree {
 impl OwnedProcessTree {
     #[cfg(unix)]
     fn root_exited_unreaped(&self) -> io::Result<bool> {
-        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
-        let result = unsafe {
-            libc::waitid(
-                libc::P_PID,
-                self.root_pid as libc::id_t,
-                &mut info,
-                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
-            )
-        };
-        if result != 0 {
-            return Err(io::Error::last_os_error());
+        #[cfg(target_os = "macos")]
+        {
+            // Darwin may reject waitid(WNOWAIT) with EPERM. The kqueue was
+            // registered while this Child was created, so NOTE_EXIT observes
+            // the same process identity without consuming its wait status.
+            if self.root_exit_observed.load(Ordering::Acquire) {
+                return Ok(true);
+            }
+            let mut event: libc::kevent = unsafe { std::mem::zeroed() };
+            let timeout = libc::timespec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            };
+            let result = unsafe {
+                libc::kevent(
+                    self.exit_kqueue.as_raw_fd(),
+                    std::ptr::null(),
+                    0,
+                    &mut event,
+                    1,
+                    &timeout,
+                )
+            };
+            if result < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if result == 0 {
+                return Ok(false);
+            }
+            if event.flags & libc::EV_ERROR != 0 {
+                return Err(io::Error::from_raw_os_error(event.data as i32));
+            }
+            self.root_exit_observed.store(true, Ordering::Release);
+            return Ok(true);
         }
-        Ok(unsafe { info.si_pid() } != 0)
+        #[cfg(not(target_os = "macos"))]
+        {
+            let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+            let result = unsafe {
+                libc::waitid(
+                    libc::P_PID,
+                    self.root_pid as libc::id_t,
+                    &mut info,
+                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+                )
+            };
+            if result != 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(unsafe { info.si_pid() } != 0)
+        }
     }
 
     #[cfg(unix)]
@@ -202,6 +246,37 @@ fn create_nested_drain() -> io::Result<(OwnedFd, OwnedFd)> {
     Ok((read, write))
 }
 
+#[cfg(target_os = "macos")]
+fn watch_process_exit(pid: u32) -> io::Result<OwnedFd> {
+    let raw_fd = unsafe { libc::kqueue() };
+    if raw_fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let queue = unsafe { OwnedFd::from_raw_fd(raw_fd) };
+    let change = libc::kevent {
+        ident: pid as libc::uintptr_t,
+        filter: libc::EVFILT_PROC,
+        flags: libc::EV_ADD | libc::EV_ENABLE,
+        fflags: libc::NOTE_EXIT,
+        data: 0,
+        udata: std::ptr::null_mut(),
+    };
+    let result = unsafe {
+        libc::kevent(
+            queue.as_raw_fd(),
+            &change,
+            1,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null(),
+        )
+    };
+    if result < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(queue)
+}
+
 fn nested_drain_timeout() -> Duration {
     #[cfg(debug_assertions)]
     if let Some(timeout) = std::env::var("OMNIVOICE_TEST_NESTED_DRAIN_TIMEOUT_MS")
@@ -257,11 +332,25 @@ pub fn spawn_process_tree(cmd: &mut Command) -> io::Result<ContainedChild> {
             });
         }
         cmd.process_group(0);
+        #[cfg(target_os = "macos")]
+        let mut child = cmd.spawn()?;
+        #[cfg(not(target_os = "macos"))]
         let child = cmd.spawn()?;
         drop(nested_drain_write);
         let root_pid = child.id();
         let process_group = i32::try_from(root_pid)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "pid exceeds i32"))?;
+        #[cfg(target_os = "macos")]
+        let exit_kqueue = match watch_process_exit(root_pid) {
+            Ok(queue) => queue,
+            Err(error) => {
+                unsafe {
+                    libc::kill(-process_group, libc::SIGKILL);
+                }
+                let _ = child.wait();
+                return Err(error);
+            }
+        };
         return Ok(ContainedChild {
             child,
             tree: OwnedProcessTree {
@@ -269,6 +358,10 @@ pub fn spawn_process_tree(cmd: &mut Command) -> io::Result<ContainedChild> {
                 terminated: false,
                 process_group,
                 nested_drain,
+                #[cfg(target_os = "macos")]
+                exit_kqueue,
+                #[cfg(target_os = "macos")]
+                root_exit_observed: AtomicBool::new(false),
             },
         });
     }
@@ -1082,6 +1175,21 @@ fn redact_home_prefix(text: &str, home: &str) -> String {
 mod uv_tests {
     use super::*;
     use std::ffi::OsStr;
+
+    #[cfg(unix)]
+    #[test]
+    fn contained_exit_probe_preserves_a_live_child() {
+        let mut command = Command::new("sleep");
+        command.arg("30");
+        let ContainedChild {
+            mut child,
+            mut tree,
+        } = spawn_process_tree(&mut command).expect("spawn contained test child");
+
+        assert!(contained_child_exit(&mut child, &mut tree).unwrap().is_none());
+        terminate_process_tree(&mut child, &mut tree, Duration::ZERO)
+            .expect("terminate the still-owned process tree");
+    }
 
     #[cfg(unix)]
     #[test]
