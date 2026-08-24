@@ -3,7 +3,7 @@
     "storage_unavailable_title": "Projeler yüklenemedi",
     "storage_unavailable_body": "VoiceStudio yerel proje depolamasını okuyamadı. Verileriniz değiştirilmedi. Güvenle açmak için yeniden deneyin.",
     "clear_projects": "Kayıtlı projeleri temizle",
-    "clear_confirm": "VoiceStudio'nun yeniden açılabilmesi için kayıtlı tüm Hikâyeler ve Sesli Kitap projeleri kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?"
+    "clear_confirm": "VoiceStudio'nun yeniden açılabilmesi için kayıtlı tüm Hikâyeler ve Sesli Kitap projeleri ile kaydedilmemiş tüm taslaklar kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?"
   },
   "backendUnreachable": {
     "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",

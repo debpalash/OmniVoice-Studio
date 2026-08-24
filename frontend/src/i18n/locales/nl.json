@@ -3,7 +3,7 @@
     "storage_unavailable_title": "Projecten konden niet worden geladen",
     "storage_unavailable_body": "VoiceStudio kon de lokale projectopslag niet lezen. Je gegevens zijn niet gewijzigd. Probeer opnieuw om ze veilig te openen.",
     "clear_projects": "Opgeslagen projecten wissen",
-    "clear_confirm": "Hiermee worden alle opgeslagen Verhalen- en Luisterboekprojecten permanent verwijderd, zodat VoiceStudio opnieuw kan openen. Dit kan niet ongedaan worden gemaakt. Doorgaan?"
+    "clear_confirm": "Hiermee worden alle opgeslagen Verhalen- en Luisterboekprojecten en niet-opgeslagen concepten permanent verwijderd, zodat VoiceStudio opnieuw kan openen. Dit kan niet ongedaan worden gemaakt. Doorgaan?"
   },
   "backendUnreachable": {
     "contact_recent": "Het reageerde {{ago}} geleden nog en stopte toen met reageren — waarschijnlijk is het midden in een verzoek gecrasht of beëindigd.",

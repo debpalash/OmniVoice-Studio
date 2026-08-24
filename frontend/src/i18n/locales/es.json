@@ -3,7 +3,7 @@
     "storage_unavailable_title": "No se pudieron cargar los proyectos",
     "storage_unavailable_body": "VoiceStudio no pudo leer el almacenamiento local de proyectos. Tus datos no se han modificado. Vuelve a intentarlo para abrirlos de forma segura.",
     "clear_projects": "Borrar proyectos guardados",
-    "clear_confirm": "Esto elimina permanentemente todos los proyectos guardados de Historias y Audiolibros para que VoiceStudio pueda volver a abrirse. No se puede deshacer. ¿Continuar?"
+    "clear_confirm": "Esto elimina permanentemente todos los proyectos guardados de Historias y Audiolibros y cualquier borrador sin guardar para que VoiceStudio pueda volver a abrirse. No se puede deshacer. ¿Continuar?"
   },
   "backendUnreachable": {
     "contact_recent": "Estaba respondiendo hace {{ago}} y dejó de responder — lo más probable es que se haya bloqueado o haya sido terminado en mitad de una petición.",

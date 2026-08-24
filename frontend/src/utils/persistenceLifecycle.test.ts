@@ -60,6 +60,25 @@ describe('application persistence lifecycle', () => {
     expect(warn).toHaveBeenCalledWith('[persistence] 1 local write(s) could not be flushed');
   });
 
+  it('runs an explicit recovery action when the pre-action flush rejects', async () => {
+    const action = vi.fn(() => 'recovered');
+    const warn = vi.fn();
+    const error = new DOMException('blocked', 'SecurityError');
+
+    await expect(
+      afterApplicationPersistence(action, {
+        flushLongform: vi.fn(async () => {
+          throw error;
+        }),
+        flushLocal: vi.fn(cleanSummary),
+        warn,
+      }),
+    ).resolves.toBe('recovered');
+
+    expect(action).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith('[persistence] pre-action flush failed', error);
+  });
+
   it('confirms native exit only after the requested async flush settles', async () => {
     let onFlushRequest: (() => void) | undefined;
     let finishLongform!: () => void;

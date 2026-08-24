@@ -3,7 +3,7 @@
     "storage_unavailable_title": "Impossible de charger les projets",
     "storage_unavailable_body": "VoiceStudio n’a pas pu lire le stockage local des projets. Vos données n’ont pas été modifiées. Réessayez pour les ouvrir en toute sécurité.",
     "clear_projects": "Effacer les projets enregistrés",
-    "clear_confirm": "Cette action supprime définitivement tous les projets Histoires et Livres audio enregistrés afin que VoiceStudio puisse s’ouvrir à nouveau. Elle est irréversible. Continuer ?"
+    "clear_confirm": "Cette action supprime définitivement tous les projets Histoires et Livres audio enregistrés ainsi que tout brouillon non enregistré afin que VoiceStudio puisse s’ouvrir à nouveau. Elle est irréversible. Continuer ?"
   },
   "backendUnreachable": {
     "contact_recent": "Il répondait il y a {{ago}} puis a cessé de répondre — il a très probablement planté ou a été arrêté en pleine requête.",

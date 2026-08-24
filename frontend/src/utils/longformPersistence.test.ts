@@ -3,6 +3,7 @@ import type { PersistStorage, StorageValue } from 'zustand/middleware';
 
 import {
   createLongformPersistence,
+  LONGFORM_LOCAL_FALLBACK_WRITE_ERROR,
   type DurableLongformRecord,
   type LongformDurableStore,
 } from './longformPersistence';
@@ -260,6 +261,30 @@ describe('split long-form persistence', () => {
     expect(local.read()?.state).not.toHaveProperty('script');
   });
 
+  it('prefers a later full fallback when another tab reused the durable revision', async () => {
+    const localValue = legacyEnvelope('later fallback B') as StorageValue<TestState> & {
+      longformFallbackRevision: number;
+    };
+    localValue.version = 9;
+    localValue.longformFallbackRevision = 6;
+    const local = createLocalStorage(localValue);
+    const durable = createDurableStore({
+      schema: 1,
+      revision: 6,
+      payload: legacyEnvelope('earlier durable A').state,
+    });
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+    });
+
+    const restored = await controller.storage.getItem('omnivoice.app');
+
+    expect(restored?.state.script).toBe('later fallback B');
+    expect(durable.read()?.payload.script).toBe('later fallback B');
+  });
+
   it('retries a transient IndexedDB read before exposing project state', async () => {
     const local = createLocalStorage();
     const durable = createDurableStore();
@@ -337,6 +362,185 @@ describe('split long-form persistence', () => {
     });
     const restored = await reloaded.storage.getItem('omnivoice.app');
     expect(restored?.state.script).toBe('durable manuscript');
+  });
+
+  it('treats an undefined IndexedDB rejection as a failed read', async () => {
+    const local = createLocalStorage();
+    const write = vi.fn(async () => {});
+    const durableStore: LongformDurableStore = {
+      read: vi.fn(async () => {
+        throw undefined;
+      }),
+      write,
+      clear: vi.fn(async () => {}),
+    };
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore,
+      currentVersion: 9,
+      readAttempts: 1,
+      warn: () => {},
+    });
+
+    const unavailable = await controller.storage.getItem('omnivoice.app');
+    expect(unavailable?.state.longformPersistenceError).toBe(true);
+
+    controller.storage.setItem('omnivoice.app', legacyEnvelope('must not overwrite'));
+    await controller.flushPendingWrites();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('lets an explicit reset recover when IndexedDB is permanently unavailable', async () => {
+    const local = createLocalStorage();
+    const blocked = new DOMException('private content', 'SecurityError');
+    const durableStore: LongformDurableStore = {
+      read: vi.fn(async () => {
+        throw blocked;
+      }),
+      write: vi.fn(async () => {
+        throw blocked;
+      }),
+      clear: vi.fn(async () => {
+        throw blocked;
+      }),
+    };
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore,
+      currentVersion: 9,
+      readAttempts: 1,
+      warn: () => {},
+    });
+
+    const unavailable = await controller.storage.getItem('omnivoice.app');
+    expect(unavailable?.state.longformPersistenceError).toBe(true);
+    await expect(controller.clearDurable()).resolves.toBeUndefined();
+    expect(local.read()).toMatchObject({
+      longformPendingDurableClear: true,
+      state: { currentProjectId: null },
+    });
+
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore,
+      currentVersion: 9,
+      readAttempts: 1,
+      warn: () => {},
+    });
+    const recovered = await reloaded.storage.getItem('omnivoice.app');
+    expect(recovered?.state.longformPersistenceError).toBe(false);
+    expect(recovered?.state).not.toHaveProperty('script');
+  });
+
+  it('removes a pending-clear tombstone after IndexedDB recovers', async () => {
+    const tombstone = {
+      version: 9,
+      longformPendingDurableClear: true,
+      state: { currentProjectId: null },
+    } as StorageValue<TestState>;
+    const local = createLocalStorage(tombstone);
+    let unavailable = true;
+    let durableValue: DurableLongformRecord | null = {
+      schema: 1,
+      revision: 4,
+      payload: legacyEnvelope('previously inaccessible').state,
+    };
+    const durableStore: LongformDurableStore = {
+      read: vi.fn(async () => clone(durableValue)),
+      write: vi.fn(async (record) => {
+        durableValue = clone(record);
+      }),
+      clear: vi.fn(async () => {
+        if (unavailable) throw new DOMException('private content', 'SecurityError');
+        durableValue = null;
+      }),
+    };
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore,
+      currentVersion: 9,
+      warn: () => {},
+    });
+
+    await controller.storage.getItem('omnivoice.app');
+    unavailable = false;
+    await controller.clearDurable();
+    expect(local.read()).not.toHaveProperty('longformPendingDurableClear');
+
+    await durableStore.write({
+      schema: 1,
+      revision: 1,
+      payload: legacyEnvelope('new project after recovery').state,
+    });
+    const clearCalls = vi.mocked(durableStore.clear).mock.calls.length;
+    const reloaded = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore,
+      currentVersion: 9,
+    });
+    const restored = await reloaded.storage.getItem('omnivoice.app');
+
+    expect(restored?.state.script).toBe('new project after recovery');
+    expect(durableStore.clear).toHaveBeenCalledTimes(clearCalls);
+  });
+
+  it('does not clear IndexedDB when the physical local reset snapshot cannot be read', async () => {
+    const local = createLocalStorage({ version: 9, state: { theme: 'dark' } });
+    const durable = createDurableStore({
+      schema: 1,
+      revision: 2,
+      payload: legacyEnvelope('only durable copy').state,
+    });
+    const controller = createLongformPersistence({
+      localStorage: local.storage,
+      durableStore: durable.store,
+      currentVersion: 9,
+      readDurableLocalStorage: () => {
+        throw new DOMException('private content', 'SecurityError');
+      },
+      warn: () => {},
+    });
+    await controller.storage.getItem('omnivoice.app');
+
+    await expect(controller.clearDurable()).rejects.toHaveProperty('name', 'SecurityError');
+    expect(durable.store.clear).not.toHaveBeenCalled();
+    expect(durable.read()?.payload.script).toBe('only durable copy');
+  });
+
+  it('reports a failed full fallback flush instead of acknowledging persistence', async () => {
+    const raw = new Map<string, string>([
+      ['omnivoice.app', JSON.stringify(legacyEnvelope('last physical copy'))],
+    ]);
+    const localController = createCoalescedJsonStorage({
+      getStorage: () => ({
+        getItem: (key) => raw.get(key) ?? null,
+        setItem: () => {
+          throw new DOMException('content intentionally omitted', 'QuotaExceededError');
+        },
+        removeItem: (key) => raw.delete(key),
+      }),
+      warn: () => {},
+    });
+    localController.configurePersistenceRole('main');
+    const durable = createDurableStore();
+    vi.mocked(durable.store.write).mockRejectedValue(
+      new DOMException('content intentionally omitted', 'QuotaExceededError'),
+    );
+    const controller = createLongformPersistence({
+      localStorage: localController.createZustandJsonStorage(),
+      durableStore: durable.store,
+      currentVersion: 9,
+      flushLocalStorage: () => localController.flushPendingWrites(),
+      warn: () => {},
+    });
+    const hydrated = await controller.storage.getItem('omnivoice.app');
+    controller.storage.setItem('omnivoice.app', { ...hydrated!, version: 9 });
+
+    await expect(controller.flushPendingWrites()).rejects.toHaveProperty(
+      'name',
+      LONGFORM_LOCAL_FALLBACK_WRITE_ERROR,
+    );
+    expect(JSON.parse(raw.get('omnivoice.app')!).state.script).toBe('last physical copy');
   });
 
   it('flushes a full local fallback when pagehide already ran the local listener', async () => {

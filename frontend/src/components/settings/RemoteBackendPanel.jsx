@@ -168,6 +168,12 @@ export default function RemoteBackendPanel({ reload = reloadAfterApplicationPers
       }
       // api/client.ts resolves the base once at module load.
       await reload();
+    } catch (error) {
+      toast.error(
+        t('settings.save_failed', {
+          message: error?.message || t('bootstrap.unknown_error'),
+        }),
+      );
     } finally {
       setSaving(false);
     }

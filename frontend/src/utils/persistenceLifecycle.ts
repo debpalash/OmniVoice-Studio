@@ -59,7 +59,15 @@ export async function afterApplicationPersistence<T>(
   action: () => T | Promise<T>,
   dependencies: PersistenceFlushDependencies = {},
 ): Promise<T> {
-  await flushApplicationPersistence(dependencies);
+  const warn = dependencies.warn ?? defaultWarn;
+  try {
+    await flushApplicationPersistence(dependencies);
+  } catch (error) {
+    // An explicit reload/relaunch must remain available as a recovery action
+    // when persistence itself is blocked. Adapters have already retained every
+    // durable copy they could; match the bounded native-exit handshake.
+    warn('[persistence] pre-action flush failed', error);
+  }
   return await action();
 }
 

@@ -291,8 +291,18 @@ export default function Settings() {
       const tid = toast.loading(t('settings.updater_downloading', { version: update.version }));
       await invoke('install_update', { channel });
       toast.success(t('settings.updater_installed'), { id: tid });
-      await flushApplicationPersistence();
-      await relaunch();
+      try {
+        await flushApplicationPersistence();
+      } catch (error) {
+        console.warn('[persistence] installed-update flush failed', error);
+      }
+      try {
+        await relaunch();
+      } catch (error) {
+        setUpdateState('error');
+        toast.error(t('update.failed'));
+        console.warn('Installed update could not relaunch:', error);
+      }
     } catch (e) {
       setUpdateState('error');
       toast.error(t('settings.update_check_failed', { message: e?.message || e }));

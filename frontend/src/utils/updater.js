@@ -94,7 +94,13 @@ export async function installUpdate(store) {
     });
     await invoke('install_update', { channel });
     store.setUpdateReady();
-    await flushApplicationPersistence();
+    try {
+      await flushApplicationPersistence();
+    } catch (error) {
+      // The update is already installed. Persistence failure must not rewrite
+      // that successful state as an install error or strand the relaunch.
+      console.warn('[persistence] installed-update flush failed', error);
+    }
     await relaunch();
   } catch (e) {
     console.warn('Update install failed:', e);

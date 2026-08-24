@@ -35,7 +35,12 @@ import { createGenerateSlice } from './generateSlice';
 import type { PillSlice } from './pillSlice';
 import { createPillSlice } from './pillSlice';
 import type { LongformSlice } from './longformSlice';
-import { createLongformSlice, genProjectId } from './longformSlice';
+import {
+  createLongformSlice,
+  DEFAULT_OVERRIDES,
+  genProjectId,
+  SLICE_DEFAULTS,
+} from './longformSlice';
 import type { UpdaterSlice } from './updaterSlice';
 import { createUpdaterSlice } from './updaterSlice';
 import type { GallerySlice } from './gallerySlice';
@@ -58,6 +63,47 @@ export type AppStore = PrefsSlice &
   DonationSlice;
 
 export const APP_STORE_KEY = 'omnivoice.app';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Shape-safe, non-throwing upgrade for the legacy v4 project records. */
+export function migrateAppStore(persisted: unknown, version: number): Partial<AppStore> {
+  if (!isRecord(persisted)) return {} as Partial<AppStore>;
+  const p = persisted;
+  if (version < 4 && !Object.prototype.hasOwnProperty.call(p, 'timingStrategy')) {
+    p.timingStrategy = 'concise';
+  }
+  if (version < 5) {
+    const raw = Array.isArray(p.storyProjects) ? p.storyProjects : [];
+    p.storyProjects = raw.filter(isRecord).map((sp) => ({
+      ...sp,
+      id: typeof sp.id === 'string' && sp.id.trim() ? sp.id : genProjectId(),
+      name: typeof sp.name === 'string' && sp.name.trim() ? sp.name : 'Untitled',
+      mode: sp.mode === 'audiobook' ? 'audiobook' : 'stories',
+      cast: Array.isArray(sp.cast) ? sp.cast : [],
+      tracks: Array.isArray(sp.tracks) ? sp.tracks : [],
+      script: typeof sp.script === 'string' ? sp.script : SLICE_DEFAULTS.script,
+      meta: isRecord(sp.meta) ? sp.meta : {},
+      lexicon: isRecord(sp.lexicon) ? sp.lexicon : {},
+      coverRef: isRecord(sp.coverRef) ? sp.coverRef : null,
+      outputFormat: sp.outputFormat === 'mp3' ? 'mp3' : 'm4b',
+      loudness: sp.loudness === 'acx' || sp.loudness === 'podcast' ? sp.loudness : 'off',
+      defaultVoice: typeof sp.defaultVoice === 'string' ? sp.defaultVoice : null,
+      language: typeof sp.language === 'string' ? sp.language : SLICE_DEFAULTS.language,
+      overrides: isRecord(sp.overrides)
+        ? { ...DEFAULT_OVERRIDES, ...sp.overrides }
+        : { ...DEFAULT_OVERRIDES },
+      voiceCast: isRecord(sp.voiceCast) ? sp.voiceCast : {},
+      updatedAt:
+        typeof sp.updatedAt === 'number' && Number.isFinite(sp.updatedAt) ? sp.updatedAt : 0,
+    }));
+    p.projectMode = 'stories';
+  }
+  if (version < 7) p.uiScaleConfigured = true;
+  return p as Partial<AppStore>;
+}
 
 /**
  * `useAppStore` — single root store. Don't create siblings. Slices compose here.
@@ -177,73 +223,9 @@ export const useAppStore = create<AppStore>()(
       // has a safe default in its slice, so v1/v2/v3 users pick up v4 defaults
       // for new fields (timingStrategy etc.) and keep any keys we still write
       // today. Upgrade > crash.
-      migrate: (persisted, version) => {
-        if (!persisted || typeof persisted !== 'object') return {} as Partial<AppStore>; // D1
-        const p = persisted as any;
-        // v8 changes the fresh-install default to strict_slot. Do not rewrite
-        // an existing timingStrategy: persisted values are user preferences,
-        // and the historical concise default is indistinguishable from an
-        // explicit choice. Records without the field inherit the slice default.
-        if (version < 4) {
-          // v1 → v2 added reviewMode; v2 → v3 added mode/sidebar/generate knobs;
-          // v3 → v4 added timingStrategy. All of those have slice defaults, so
-          // v3 and earlier had no timingStrategy field and therefore behaved
-          // as concise. Preserve that historical behavior for existing
-          // envelopes; only fresh/v4+ records inherit today's strict default.
-          if (!Object.prototype.hasOwnProperty.call(p, 'timingStrategy')) {
-            p.timingStrategy = 'concise';
-          }
-        }
-        if (version < 5) {
-          // #31: each saved Stories project becomes a LongformProject. Defaults
-          // FIRST, real fields LAST (spread wins), so id/name/cast/tracks/
-          // updatedAt always survive; new book-identity fields seed to defaults.
-          // The field name stays `storyProjects` (every consumer reads it), so
-          // no key rename — only the per-project shape is enriched. Never throws;
-          // malformed entries are dropped (D2/D3).
-          const raw = Array.isArray(p.storyProjects) ? p.storyProjects : []; // D2
-          p.storyProjects = raw
-            .filter((sp: any) => sp && typeof sp === 'object') // D3
-            .map((sp: any) => ({
-              id: genProjectId(),
-              name: 'Untitled',
-              mode: 'stories',
-              cast: [],
-              tracks: [],
-              script: '',
-              meta: {},
-              lexicon: {},
-              coverRef: null,
-              outputFormat: 'm4b',
-              loudness: 'off',
-              defaultVoice: null,
-              voiceCast: {},
-              updatedAt: 0,
-              ...sp,
-            }));
-          // Loose working fields seed to defaults; absent ones fall through to
-          // slice init. A dangling currentProjectId is harmless (loadProject
-          // no-ops). NB: set `projectMode` (the long-form field), NOT `mode`
-          // (that's the app navigation mode owned by uiSlice).
-          p.projectMode = 'stories';
-          // fall through to the < 6 branch
-        }
-        if (version < 6) {
-          // #007: donation-prompt fields are new. Every field has a safe slice
-          // default (INITIAL_DONATION), so a v5→v6 user simply picks those up —
-          // pass through untouched. Never throws.
-        }
-        if (version < 7) {
-          // Existing installs already passed first-run and may intentionally
-          // use exactly 100%. Mark all v1–v6 records as configured; only a
-          // brand-new v7 store should show the scale check.
-          p.uiScaleConfigured = true;
-        }
-        // v9 moves unbounded long-form payloads to IndexedDB. The storage
-        // adapter commits that durable record before this migrated state can
-        // replace the full legacy envelope; no in-memory shape changes here.
-        return p as Partial<AppStore>; // also covers future versions (downgrade→upgrade)
-      },
+      // v9 moves unbounded long-form payloads to IndexedDB. The storage adapter
+      // commits that durable record before this migration can trim localStorage.
+      migrate: migrateAppStore,
     },
   ),
 );

@@ -11,13 +11,13 @@
 > IndexedDB before trimming localStorage. If compacting localStorage hits quota,
 > revision markers choose the newest full fallback without discarding a newer
 > edit. Startup retries IndexedDB reads three times; a persistent failure gates
-> the main UI behind a localized Retry action and blocks writes until projects
-> are reconciled. Malformed records fail closed into that gate, and retries
-> reopen connections invalidated by closure or transaction state. Lifecycle
-> commits force-flush their compact local envelope; preference-only reset first
-> settles pending long-form writes, then strips bounded preferences while
-> retaining a revisioned full fallback. Content reset also clears bounded
-> references to deleted files.
+> the main UI behind localized Retry and explicit-clear actions. Explicit clear
+> first persists a local tombstone, so permanently blocked IndexedDB does not
+> trap startup or later resurrect inaccessible projects. Malformed records fail
+> closed into that gate, and retries reopen invalid connections. Lifecycle
+> commits force-flush their compact local envelope; preference-only reset keeps
+> revisioned and legacy full fallbacks plus pending-clear tombstones. Content
+> reset also clears bounded references to deleted files.
 
 Today there are two long-form text-to-speech editors — **Stories** (`frontend/src/components/StoriesEditor.jsx`, multi-voice cast + per-line tracks) and **Audiobook** (`frontend/src/pages/AudiobookTab.jsx`, single raw-text script + book metadata) — and they share *nothing* at the data layer. Stories has a persisted project model in `storiesSlice` (cast/tracks/projects in localStorage via the root zustand persist); Audiobook has **zero persistence** (title/author/narrator/genre/cover/lexicon/format/loudness/text all live in component `useState` at `AudiobookTab.jsx:21-48` and evaporate on tab switch or reload).
 
@@ -47,7 +47,7 @@ This spec introduces **one project concept** — a `LongformProject` — that bo
 ### Non-goals (explicitly deferred)
 - **#24's convert UI / mode-toggle button** — not built here. We ship the store + the `convertMode` action; the toggle button and the "open this project in the other editor" UX is #24.
 - **Backend changes.** `/longform/render`, `/audiobook` + `/audiobook/{plan,preview,cover,import}`, `/stories/encode` endpoints are untouched. This is a frontend store + binding change only. The SSE event vocabulary (pinned below in API/data shapes → SSE) is **read-only contract** here — neither editor's event handling changes.
-- **No alembic / `omnivoice_data/` change.** LongformProject is browser localStorage state (zustand persist via `store/index.ts:55-132`), not backend DB. The "backward-compatible project data → schema change goes through alembic" constraint applies to the **Python/`omnivoice_data/` SQLite path only**; the *localStorage analog* of that same constraint (no data loss, no manual migration) is satisfied here by the **versioned lazy `migrate` fn** (zustand persist's equivalent of an alembic upgrade — see Constraints → Backward-compatible data). Confirmed: Audiobook metadata/cover are client-side only today (the only server contact is `audiobookUploadCover` → `POST /audiobook/cover`, which returns `{ path: string }`, not stored project state).
+- **No alembic / `omnivoice_data/` change.** LongformProject is browser-owned state: Zustand supplies the in-memory/versioned shape, while schema v9 splits bounded fields into localStorage and unbounded documents into IndexedDB. The alembic rule applies only to the Python `omnivoice_data/` SQLite path, which is untouched. Browser upgrades are ordered and versioned in the storage adapter. Audiobook cover references remain client-side; `POST /audiobook/cover` returns a local backend path rather than storing project state.
 - **No change to the rendered output** of either editor — same spans, same SSE handling (`utils/sseParse.js`).
 - Merging the actual editor *components* into one — they stay two components; only the store unifies. (Component merge, if ever, is downstream of #22 shared `<VoiceSelector>`.)
 - Cover-file persistence as bytes. localStorage can't hold the blob; we persist only a re-uploadable reference + filename (see API/data shapes).
@@ -103,14 +103,14 @@ A second slice would require a second projects list, two `currentProjectId`s, an
 ### Migration strategy (zustand persist `version` 4 → 5)
 The root store's persist config (`store/index.ts:55-132`) bumps `version: 4` (`:115`) → `version: 5`, and the `migrate` function (`:120-130`) gains a `version < 5` branch that:
 1. Renames nothing destructively — old keys `storyProjects`, `storyTracks`, `cast`, `currentProjectId` (persisted at `index.ts:109-113`) are **read** and mapped forward.
-2. For each old `StoryProject` (`{id,name,tracks,cast,updatedAt}`), produces a `LongformProject` by spreading it over defaults: `mode: 'stories'`, `meta: {}`, `lexicon: {}`, `outputFormat: 'm4b'`, `loudness: 'off'`, `coverRef: null`, `defaultVoice: null`, `script: ''`. The spread `...sp` goes **last** so original `id/name/cast/tracks/updatedAt` always win over defaults.
+2. For each old `StoryProject` (`{id,name,tracks,cast,updatedAt}`), produces a `LongformProject`, then validates nested fields so `null` or a wrong type cannot override usable defaults. Non-empty string ids/names and array tracks/cast survive; invalid values become a generated id, `Untitled`, and empty arrays.
 3. Maps the loose working state: `storyTracks` and `cast` pass through unchanged (keep `storyTracks`/`cast` as the persisted/working key names to minimize component churn — see Working-state naming); seeds the new working metadata fields (`mode`, `meta`, `script`, `lexicon`, `coverRef`, `outputFormat`, `loudness`, `defaultVoice`) to defaults.
 4. Returns the upgraded partial. The migrate fn must **never throw** — `index.ts:121` already returns `{}` for non-object input, and `:122-128` passes old shapes through (`version < 4` branch). **Upgrade > crash** is this codebase's stated migration philosophy (the comment at `index.ts:116-119`, verified verbatim: *"Drop old persisted shapes rather than crashing the app… Upgrade > crash."*); we keep it: anything missing falls through to slice init defaults.
 
 **Migration must defend against malformed persisted data (enumerated):**
 - `p.storyProjects` is **not an array** (corrupted blob, hand-edited localStorage, partial write) → `Array.isArray` guard, treat as `[]`; do not throw.
 - An individual project entry is **not an object** (e.g. `null`, a string) → skip it (filter to objects) rather than spreading a non-object; never produce a `storyProjects` entry that lacks `id`/`name`.
-- A project entry is **missing `tracks`/`cast`/`id`/`name`/`updatedAt`** → defaults fill them (`tracks: []`, `cast: []`, generated `id`, `name: 'Untitled'`, `updatedAt: 0`). A project with no `id` is still openable (we synthesize one) rather than silently dropped — but if `id` synthesis would collide, last-write-wins on save is acceptable (matches existing `saveProject` upsert at `:95-98`).
+- A project entry has missing, null, or wrong-typed `tracks`/`cast`/`id`/`name`/`updatedAt` → post-spread normalization fills them (`tracks: []`, `cast: []`, generated `id`, `name: 'Untitled'`, `updatedAt: 0`). A project with no usable `id` is still openable rather than silently dropped.
 - `currentProjectId` points to a project that **no longer exists** post-migration (e.g. was the malformed one we skipped) → leave `currentProjectId` as-is; the load-time guard in `loadProject` (`if (!p) return`, `:103`) already no-ops harmlessly, and `currentProject` (`StoriesEditor.jsx:217`) resolves to `null` → blank working state, no crash. Optionally null it during migration; either is safe.
 - `version` is `> 5` (user downgraded the app, then re-upgraded) → the function returns `persisted` unchanged via the final passthrough (`:129`); new fields already present, no double-migration.
 - `version` is `< 4` → existing `version < 4` branch (`:122-128`) runs **first**, then falls through to the `version < 5` branch in the same call (ordering: handle `< 4` passthrough, then `< 5` upgrade). Confirm a v2/v3 blob (no `storyProjects` key at all) yields `storyProjects: []`, not a throw.
@@ -152,8 +152,8 @@ This section enumerates every state the feature must handle and the exact behavi
 - **D1. Corrupted / non-object persisted blob** → `migrate` returns `{}` (`index.ts:121` guard); store boots to all slice defaults. No crash. *Test #6 garbage case.*
 - **D2. `storyProjects` non-array** → treated as `[]` (Array.isArray guard). *See Migration → malformed defenses.*
 - **D3. Malformed individual project entries** → object-filter + default-fill; never drop silently except non-objects. *See Migration.*
-- **D4. localStorage write fails (quota exceeded / private-mode).** zustand persist's `setItem` throwing is swallowed by the middleware (it logs, does not crash the app). Working state still functions in-memory for the session; it just won't survive reload. We add no new failure surface here, but the spec **acknowledges** large books (50-chapter scripts as a single `script` string + tracks) push localStorage size; quota is realistically multi-MB so a single book is fine, but a user with dozens of saved big projects could hit it. Mitigation note: no eviction policy in v1 (Stories already persists projects unbounded); flag for v0.4 if reported.
-- **D5. Two app windows / tabs open simultaneously** (Tauri can have multiple webviews) both writing the persisted store → last-write-wins, standard localStorage behavior; zustand persist does not cross-tab-sync by default. No regression vs. today (Stories already has this). Out of scope to fix; note it. (Identical on macOS/Windows/Linux — not a platform divergence; see Constraints → Cross-platform parity.)
+- **D4. IndexedDB write fails (quota/policy/private mode).** The adapter writes a revisioned full fallback to localStorage and synchronously verifies the coalesced flush. If that fallback also cannot be written, the orderly flush rejects instead of falsely acknowledging durability; intentional recovery reload/exit actions log the failure and continue. Preference reset preserves even an unrevisioned legacy full envelope because it may be the last copy left after adding the revision itself exceeded quota.
+- **D5. Two browser main tabs write the same revision.** Each tab can start from revision N and independently produce N+1. A full local fallback with a revision equal to IndexedDB wins on hydration (`>=`), because that local write necessarily followed the durable record it is recovering from. Desktop's widget remains read-only and cannot create this collision.
 - **D6. Migration runs but `cast` working field is missing on a v4 blob that only had `storyProjects`** (user never touched the editor) → working `cast` falls through to slice init `DEFAULT_CAST` (`:68`). Confirmed safe.
 
 ### E. Routing / open-from-Projects edge cases
@@ -526,27 +526,35 @@ export type StoriesSlice = LongformSlice;              // alias for storiesSlice
 // `omnivoice.longform` IndexedDB payload without renaming it.
 ```
 
-### `partialize` block (exact diff vs `index.ts:107-113`)
+### Pre-adapter Zustand projection vs durable storage
+
+`partialize` still projects the complete in-memory long-form state so Zustand's
+migration and slice API remain unchanged:
+
 ```ts
-// Stories/Longform Editor — persist the project; strip transient runtime fields
-// (generating, audioUrl) so a dead blob: URL / stuck spinner never rehydrates.
-storyTracks:   s.storyTracks.map(({ id, character, text, profileId, emotion, speed }) =>
-                  ({ id, character, text, profileId, emotion, speed })),  // UNCHANGED (:109-110)
-cast:             s.cast,                  // UNCHANGED (:111)
-storyProjects:    s.storyProjects,         // compatibility key retained (:112)
-currentProjectId: s.currentProjectId,      // UNCHANGED (:113)
-// NEW loose working fields (unsaved Audiobook session survives reload, F3-safe):
-script:           s.script,
-meta:             s.meta,
-lexicon:          s.lexicon,
-coverRef:         s.coverRef,
-outputFormat:     s.outputFormat,
-loudness:         s.loudness,
-defaultVoice:     s.defaultVoice,
-mode:             s.mode,
-// DO NOT add: generating/output/progress/exporting/exportPct — they are component
-// useState (AudiobookTab.jsx:25-30, StoriesEditor.jsx:147-148), not slice fields.
+{
+  storyTracks: s.storyTracks,
+  cast: s.cast,
+  storyProjects: s.storyProjects, // compatibility key retained
+  script: s.script,
+  meta: s.meta,
+  lexicon: s.lexicon,
+  voiceCast: s.voiceCast,
+  currentProjectId: s.currentProjectId,
+  coverRef: s.coverRef,
+  outputFormat: s.outputFormat,
+  loudness: s.loudness,
+  defaultVoice: s.defaultVoice,
+  projectMode: s.projectMode,
+}
 ```
+
+The schema-v9 storage adapter then splits that projection. IndexedDB
+`omnivoice.longform/documents/workspace` owns the unbounded payload
+(`storyTracks`, `cast`, `storyProjects`, `script`, `meta`, `lexicon`,
+`voiceCast`). localStorage `omnivoice.app` receives only bounded fields such as
+`currentProjectId`, `coverRef`, output preferences, app preferences, and ids.
+Transient track fields are stripped while constructing the IndexedDB record.
 
 ### Migration (v4 → v5), FULL `migrate` fn body (replaces `index.ts:120-130`)
 ```ts
@@ -562,13 +570,15 @@ migrate: (persisted, version) => {
     p.storyProjects = rawProjects
       .filter((sp: any) => sp && typeof sp === 'object')                            // (D3) drop non-objects
       .map((sp: any) => ({
-        // defaults FIRST…
-        id: genProjectId(), name: 'Untitled', mode: 'stories',
-        cast: [], tracks: [], script: '', meta: {}, lexicon: {},
-        coverRef: null, outputFormat: 'm4b', loudness: 'off',
-        defaultVoice: null, updatedAt: 0,
-        // …then real fields win (spread LAST): id/name/cast/tracks/updatedAt
         ...sp,
+        // Validate AFTER spread: malformed values cannot erase usable defaults.
+        id: typeof sp.id === 'string' && sp.id.trim() ? sp.id : genProjectId(),
+        name: typeof sp.name === 'string' && sp.name.trim() ? sp.name : 'Untitled',
+        mode: sp.mode === 'audiobook' ? 'audiobook' : 'stories',
+        cast: Array.isArray(sp.cast) ? sp.cast : [],
+        tracks: Array.isArray(sp.tracks) ? sp.tracks : [],
+        updatedAt: typeof sp.updatedAt === 'number' && Number.isFinite(sp.updatedAt)
+          ? sp.updatedAt : 0,
       }));
     // Loose working fields seed to defaults; storyTracks/cast pass through (D6).
     p.mode = 'stories';
@@ -593,27 +603,35 @@ onOpenStory={(id) => {
 }}
 ```
 
-### Persisted-blob shape (whole `omnivoice.app` localStorage value)
+### Persisted storage shapes (schema v9)
 ```jsonc
-// localStorage["omnivoice.app"] = { state: {...}, version: 5 }
-// v5 `state` (relevant slice keys only — other slices' keys unchanged):
+// localStorage["omnivoice.app"] — bounded compact envelope
 {
   "state": {
-    "storyTracks": [ /* StoryTrack[] working */ ],
-    "cast": [ { "id": "narrator", "name": "Narrator", "color": "#fabd2f", "profileId": null } ],
-    "storyProjects": [ /* LongformProject[] — see record example above */ ],
     "currentProjectId": "p_4f9ab2c1",
-    "script": "",
-    "meta": {},
-    "lexicon": {},
     "coverRef": null,
     "outputFormat": "m4b",
     "loudness": "off",
     "defaultVoice": null,
-    "mode": "stories"
-    // … plus all other slices' persisted keys (translateQuality, etc.)
+    "projectMode": "stories"
+    // … plus bounded fields from other slices; no manuscript/project arrays
   },
-  "version": 5
+  "version": 9
+}
+
+// IndexedDB omnivoice.longform / documents / workspace — durable payload
+{
+  "schema": 1,
+  "revision": 12,
+  "payload": {
+    "storyTracks": [ /* sanitized StoryTrack[] working */ ],
+    "cast": [ /* CastMember[] */ ],
+    "storyProjects": [ /* LongformProject[]; compatibility key retained */ ],
+    "script": "",
+    "meta": {},
+    "lexicon": {},
+    "voiceCast": {}
+  }
 }
 ```
 
@@ -650,11 +668,11 @@ All frontend tests run via `bunx vitest run` (package.json script `"test": "vite
 
 Each relevant hard rule, and exactly how this task satisfies it:
 
-- **Backward-compatible project data (no manual migration; DB→alembic / localStorage→versioned `migrate`).** Existing `storyProjects` in localStorage (persisted at `index.ts:112`, persist `version: 4`) must keep working with zero user action. **No `omnivoice_data/` SQLite / alembic touched** — this state is browser localStorage, so the alembic clause does not literally apply; its *intent* (versioned, tested, lossless upgrade with no manual step) is satisfied by zustand-persist's `version`-bump + lazy `migrate` fn — the localStorage analog of an alembic upgrade. Bump `version: 4 → 5` (`index.ts:115`), add a `version < 5` branch (`:120-130`, full body pinned in API/data shapes → Migration) that maps every old `StoryProject` forward (spread `...sp` **last** so original fields always win), seeds defaults, and **never throws** (matches the existing non-object guard `:121` and the "Upgrade > crash" philosophy `:116-119`). Malformed/corrupt blobs degrade to defaults, never a white screen (D1–D6). The alias bridge keeps the 6 `storyProjects` consumers compiling. The migrate is the data-integrity gate — Test #3 enumerates the realistic v4 blob + all malformed cases.
+- **Backward-compatible project data (no manual migration; DB→alembic / browser storage→versioned migration).** Existing v4–v8 `storyProjects` envelopes keep working with zero user action. The v5 shape migration validates nested project fields after applying defaults; schema v9 then commits the complete long-form payload to IndexedDB before compacting localStorage. Neither browser schema touches `omnivoice_data/` SQLite, so no alembic revision applies. Malformed data fails to defaults or the recovery gate, never a white screen.
 
-- **Cross-platform parity (default behavior identical on macOS/Windows/Linux; platform-only features behind opt-in).** This task is **pure frontend store/UI logic in the Tauri webview** — JS/TS only, **zero platform branches, zero OS/shell/path APIs, no new Tauri permissions**. localStorage, zustand persist, React controlled inputs, and `setMode` routing behave **identically** on all three platforms. No default-feature divergence → no P0 platform risk, and nothing here is platform-only so nothing needs an opt-in gate. The two pre-existing cross-platform-identical behaviors we *inherit* (multi-window last-write-wins D5; localStorage quota D4) are the same on every OS and are not regressions. The Audiobook cover `serverPath` is a *local* backend path returned by `/audiobook/cover` and validated by `_safe_cover_path` (`audiobook.py:451`) — same code path on all platforms.
+- **Cross-platform parity (default behavior identical on macOS/Windows/Linux; platform-only features behind opt-in).** The split localStorage/IndexedDB adapter is standard browser behavior on every supported shell. Tauri's widget is explicitly read-only; browser main tabs use revision arbitration for collisions. The Windows-only WebView repair clears cache-only directories and preserves both storage databases.
 
-- **Local-first guarantee (no cloud, no accounts, no API keys, no third-party telemetry; app fully functional offline).** Every new field lives in **browser localStorage**; the only network contact is the **existing local backend** (`/audiobook/cover`, `/audiobook`, `/longform/render`) — **no new endpoint, no external host, no telemetry, no credential**. Nothing in this task phones home; persistence and migration work fully offline. The cover `serverPath` references the user's own local VoiceStudio backend, never a remote store.
+- **Local-first guarantee (no cloud, no accounts, no API keys, no third-party telemetry; app fully functional offline).** Bounded fields live in localStorage and manuscript/project payloads live in local IndexedDB. Neither layer makes a network call. Existing cover/render requests still target the configured VoiceStudio backend.
 
 - **CodeQL — `js/redos` / polynomial-ReDoS on user-input regex (and `py/*`).** Verified: `security.yml:94-96` runs CodeQL `security-and-quality` on **both `python` and `javascript-typescript`** (`:74`), with `*.test.{ts,tsx,js,jsx}` excluded from analysis (`:102-105`). This is a **frontend-only** task, so the relevant query is the **JS/TS ReDoS** one, not `py/*`. **This task introduces no new regex over user-pasted text** — the only new "validation" is the two-value `rec.mode === 'audiobook' ? … : …` literal-equality check (E3) and the `convertMode` membership guard (G3), and the migrate fn uses only `typeof`/`Array.isArray`/spread (no regex). Existing parsers (`parseScript.js:14-39` builds `attributionName` regexes from a `TAG_VERBS` alternation and runs them on user-pasted script via `autoCast`) are **untouched** here. ⚠️ **Hand-off flag for #24:** #24 *will* call `parseScript`/`importStory` on the `script` string to populate `tracks`. If #24 adds or modifies any regex that consumes the user `script`, it must run the ReDoS discipline from MEMORY (`codeql-redos-regex`): no overlapping `\s*`/`.+`, exclude both delimiters in `[^x]*`, atomic groups OK on py≥3.11 — and re-audit the existing `parseScript` alternations under the same lens. #31 carries the ReDoS *zero-delta*; #24 inherits the *duty*.
 

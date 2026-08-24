@@ -4,6 +4,8 @@ import {
   createZustandJsonStorage,
   flushPendingWrites as flushLocalPendingWrites,
   getPersistenceRole,
+  readDurableJsonValue,
+  type FlushSummary,
   type PersistenceRole,
 } from './coalescedJsonStorage';
 import {
@@ -20,8 +22,10 @@ const QUIET_DELAY_MS = 250;
 const MAXIMUM_DELAY_MS = 1_000;
 const DEFAULT_READ_ATTEMPTS = 3;
 const FALLBACK_REVISION_FIELD = 'longformFallbackRevision';
+const PENDING_DURABLE_CLEAR_FIELD = 'longformPendingDurableClear';
 const HYDRATION_ERROR_FIELD = 'longformPersistenceError';
 export const LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR = 'LongformLocalFallbackClearError';
+export const LONGFORM_LOCAL_FALLBACK_WRITE_ERROR = 'LongformLocalFallbackWriteError';
 
 /** Fields whose size grows with a manuscript, cast, or saved-project count. */
 const UNBOUNDED_LONGFORM_KEYS = [
@@ -58,7 +62,10 @@ export interface LongformPersistenceOptions<S> {
   maximumDelayMs?: number;
   readAttempts?: number;
   warn?: (message: string) => void;
-  flushLocalStorage?: () => unknown;
+  flushLocalStorage?: () => FlushSummary;
+  readDurableLocalStorage?: (
+    name: string,
+  ) => StorageValue<S> | null | Promise<StorageValue<S> | null>;
   getPagehideTarget?: () => ListenerTarget | null;
   getVisibilityTarget?: () => VisibilityTarget | null;
 }
@@ -143,7 +150,7 @@ function containsLongformPayload(stateValue: unknown): boolean {
   return UNBOUNDED_LONGFORM_KEYS.some((key) => Object.prototype.hasOwnProperty.call(state, key));
 }
 
-/** Retain only the project payload from an IDB-failure fallback during a preference reset. */
+/** Retain only project data/tombstones while resetting bounded preferences. */
 export function preserveRevisionedLongformFallback(rawValue: string | null): string | null {
   if (rawValue === null) return null;
   try {
@@ -151,13 +158,17 @@ export function preserveRevisionedLongformFallback(rawValue: string | null): str
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     const envelope = parsed as JsonObject;
     const revision = envelope[FALLBACK_REVISION_FIELD];
-    if (!validRevision(revision) || revision === 0 || !containsLongformPayload(envelope.state)) {
+    const pendingClear = envelope[PENDING_DURABLE_CLEAR_FIELD] === true;
+    if (!pendingClear && !containsLongformPayload(envelope.state)) {
       return null;
     }
     const preserved: JsonObject = {
-      [FALLBACK_REVISION_FIELD]: revision,
       state: extractLongformPayload(envelope.state),
     };
+    if (validRevision(revision) && revision > 0) {
+      preserved[FALLBACK_REVISION_FIELD] = revision;
+    }
+    if (pendingClear) preserved[PENDING_DURABLE_CLEAR_FIELD] = true;
     if (Object.prototype.hasOwnProperty.call(envelope, 'version')) {
       preserved.version = envelope.version;
     }
@@ -173,6 +184,7 @@ function mergePayload(stateValue: unknown, payload: JsonObject): JsonObject {
 
 type VersionedStorageValue<S> = StorageValue<S> & {
   [FALLBACK_REVISION_FIELD]?: number;
+  [PENDING_DURABLE_CLEAR_FIELD]?: boolean;
 };
 
 function validRevision(value: unknown): value is number {
@@ -192,6 +204,7 @@ function durableRevision(value: DurableLongformRecord | null): number {
 function compactEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
   const compact = { ...value } as VersionedStorageValue<S>;
   delete compact[FALLBACK_REVISION_FIELD];
+  delete compact[PENDING_DURABLE_CLEAR_FIELD];
   compact.state = compactLongformState(value.state) as S;
   return compact;
 }
@@ -202,15 +215,36 @@ function resetEnvelope<S>(value: StorageValue<S>): StorageValue<S> {
   return reset;
 }
 
-function fullEnvelope<S>(value: StorageValue<S>, revision: number): VersionedStorageValue<S> {
+function pendingClearEnvelope<S>(value: StorageValue<S>): VersionedStorageValue<S> {
   return {
+    ...resetEnvelope(value),
+    [PENDING_DURABLE_CLEAR_FIELD]: true,
+  };
+}
+
+function withoutPendingClear<S>(value: StorageValue<S>): StorageValue<S> {
+  const next = { ...value } as VersionedStorageValue<S>;
+  delete next[PENDING_DURABLE_CLEAR_FIELD];
+  return next;
+}
+
+function fullEnvelope<S>(
+  value: StorageValue<S>,
+  revision: number,
+  pendingDurableClear = false,
+): VersionedStorageValue<S> {
+  const full = {
     ...value,
     [FALLBACK_REVISION_FIELD]: revision,
     state: {
       ...compactLongformState(value.state),
       ...extractLongformPayload(value.state),
     } as S,
-  };
+  } as VersionedStorageValue<S>;
+  if (pendingDurableClear) {
+    (full as JsonObject)[PENDING_DURABLE_CLEAR_FIELD] = true;
+  }
+  return full;
 }
 
 interface PendingWrite<S> {
@@ -245,6 +279,8 @@ export function createLongformPersistence<S>(
   const maximumDelayMs = options.maximumDelayMs ?? MAXIMUM_DELAY_MS;
   const readAttempts = options.readAttempts ?? DEFAULT_READ_ATTEMPTS;
   const warn = options.warn ?? ((message: string) => console.warn(message));
+  const readDurableLocalStorage =
+    options.readDurableLocalStorage ?? ((name: string) => options.localStorage.getItem(name));
   const getPagehideTarget =
     options.getPagehideTarget ??
     (() => (typeof window === 'undefined' ? null : (window as ListenerTarget)));
@@ -272,6 +308,8 @@ export function createLongformPersistence<S>(
   let epoch = 0;
   let storageName: string | null = null;
   let nextRevision = 0;
+  let pendingDurableClear = false;
+  let fallbackWriteError: unknown = null;
   const warnedFailures = new Set<string>();
 
   function warnFailure(operation: string, error: unknown): void {
@@ -280,6 +318,11 @@ export function createLongformPersistence<S>(
     if (warnedFailures.has(warningId)) return;
     warnedFailures.add(warningId);
     warn(`[persistence] ${operation} failed for ${LONGFORM_DB_NAME} (${errorClass})`);
+  }
+
+  function flushLocalOrThrow(errorName: string): void {
+    const summary = options.flushLocalStorage?.();
+    if (summary && summary.failed > 0) throw new DOMException('', errorName);
   }
 
   function clearPendingTimers(entry: PendingWrite<S>): void {
@@ -306,6 +349,10 @@ export function createLongformPersistence<S>(
     };
 
     try {
+      if (pendingDurableClear) {
+        await resolveDurableStore().clear();
+        pendingDurableClear = false;
+      }
       await resolveDurableStore().write(record);
     } catch (error) {
       warnFailure('write', error);
@@ -313,17 +360,23 @@ export function createLongformPersistence<S>(
       // IndexedDB may be disabled by policy. Preserve the old full-envelope
       // fallback instead of silently dropping persistence altogether.
       try {
-        options.localStorage.setItem(entry.name, fullEnvelope(entry.value, revision));
+        await options.localStorage.setItem(
+          entry.name,
+          fullEnvelope(entry.value, revision, pendingDurableClear),
+        );
         // The normal localStorage lifecycle listener may already have run before
         // this async IndexedDB rejection. Force its newly queued fallback out now.
-        options.flushLocalStorage?.();
+        flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_WRITE_ERROR);
+        fallbackWriteError = null;
       } catch (localError) {
+        fallbackWriteError = localError;
         warnFailure('fallback-write', localError);
       }
       return;
     }
 
     if (commitEpoch !== epoch || getRole() !== 'main') return;
+    fallbackWriteError = null;
     durablePayloadKnown = true;
     if (
       samePayloadReferences(latestPayloadReferences, entry.payloadReferences) &&
@@ -365,7 +418,19 @@ export function createLongformPersistence<S>(
       const observedChain = writeChain;
       await observedChain;
       if (getRole() !== 'main') return;
-      if (pending === null && observedChain === writeChain) return;
+      if (pending === null && observedChain === writeChain) {
+        if (fallbackWriteError !== null) {
+          if (!options.flushLocalStorage) throw fallbackWriteError;
+          try {
+            flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_WRITE_ERROR);
+            fallbackWriteError = null;
+          } catch (error) {
+            fallbackWriteError = error;
+            throw error;
+          }
+        }
+        return;
+      }
     }
   }
 
@@ -382,7 +447,7 @@ export function createLongformPersistence<S>(
         generation,
         windowGeneration: previous.windowGeneration,
         quietTimer: setTimer(() => {
-          if (pending?.generation === generation) void flushPendingWrites();
+          if (pending?.generation === generation) void flushPendingWrites().catch(() => {});
         }, quietDelayMs),
         maximumTimer: previous.maximumTimer,
       };
@@ -401,11 +466,13 @@ export function createLongformPersistence<S>(
       maximumTimer: null,
     };
     entry.quietTimer = setTimer(() => {
-      if (pending?.generation === generation) void flushPendingWrites();
+      if (pending?.generation === generation) void flushPendingWrites().catch(() => {});
     }, quietDelayMs);
     entry.maximumTimer = setTimer(
       () => {
-        if (pending?.windowGeneration === windowGeneration) void flushPendingWrites();
+        if (pending?.windowGeneration === windowGeneration) {
+          void flushPendingWrites().catch(() => {});
+        }
       },
       Math.max(0, firstQueuedAt + maximumDelayMs - now()),
     );
@@ -425,21 +492,68 @@ export function createLongformPersistence<S>(
     storageName = name;
     if (pending?.name === name) return pending.value;
 
-    const localValue = await readLocal(name);
+    let localValue = await readLocal(name);
+    if (
+      localValue &&
+      (localValue as VersionedStorageValue<S>)[PENDING_DURABLE_CLEAR_FIELD] === true
+    ) {
+      pendingDurableClear = true;
+      const resetLocal = withoutPendingClear(localValue);
+      if (getRole() === 'main') {
+        try {
+          await resolveDurableStore().clear();
+          pendingDurableClear = false;
+          localValue = resetLocal;
+          try {
+            await options.localStorage.setItem(name, resetLocal);
+            flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
+          } catch (error) {
+            // The physical tombstone remains authoritative and will retry on the
+            // next launch; the inaccessible project payload was still cleared.
+            warnFailure('clear-tombstone-trim', error);
+          }
+        } catch (error) {
+          warnFailure('clear', error);
+          latestPayloadReferences = pickPayloadReferences(asObject(localValue.state));
+          durablePayloadKnown = false;
+          durableReadUncertain = false;
+          payloadDirty = false;
+          return {
+            ...localValue,
+            state: {
+              ...asObject(localValue.state),
+              [HYDRATION_ERROR_FIELD]: false,
+            } as S,
+          };
+        }
+      }
+      if (pendingDurableClear) {
+        return {
+          ...localValue,
+          state: {
+            ...asObject(localValue.state),
+            [HYDRATION_ERROR_FIELD]: false,
+          } as S,
+        };
+      }
+    }
     let durableRecord: DurableLongformRecord | null = null;
+    let readFailed = false;
     let readError: unknown;
     for (let attempt = 0; attempt < readAttempts; attempt += 1) {
       try {
         durableRecord = await resolveDurableStore().read();
+        readFailed = false;
         readError = undefined;
         break;
       } catch (error) {
+        readFailed = true;
         readError = error;
         if (attempt + 1 < readAttempts) await Promise.resolve();
       }
     }
 
-    if (readError !== undefined) {
+    if (readFailed) {
       warnFailure('read', readError);
       durablePayloadKnown = false;
       durableReadUncertain = true;
@@ -470,7 +584,7 @@ export function createLongformPersistence<S>(
       durableRecord &&
       localValue &&
       containsLongformPayload(localValue.state) &&
-      localRevision > storedRevision
+      localRevision >= storedRevision
     ) {
       const payload = extractLongformPayload(localValue.state);
       latestPayloadReferences = pickPayloadReferences(asObject(localValue.state));
@@ -608,9 +722,30 @@ export function createLongformPersistence<S>(
       storageName = name;
       if (getRole() !== 'main') return;
       options.localStorage.removeItem(name);
-      return clearDurable();
+      return removeDurableAfterLocalRemoval();
     },
   };
+
+  async function removeDurableAfterLocalRemoval(): Promise<void> {
+    writesSuspended = true;
+    discardPendingWrites();
+    epoch += 1;
+    await writeChain;
+    try {
+      await resolveDurableStore().clear();
+      durablePayloadKnown = false;
+      durableReadUncertain = false;
+      payloadDirty = false;
+      latestPayloadReferences = null;
+      pendingDurableClear = false;
+      fallbackWriteError = null;
+      nextRevision = 0;
+    } catch (error) {
+      writesSuspended = false;
+      warnFailure('clear', error);
+      throw error;
+    }
+  }
 
   async function clearDurable(): Promise<void> {
     writesSuspended = true;
@@ -620,22 +755,59 @@ export function createLongformPersistence<S>(
     // delete transaction; otherwise a slow write could resurrect reset data.
     epoch += 1;
     await writeChain;
+    if (!storageName) {
+      writesSuspended = false;
+      throw new DOMException('', 'InvalidStateError');
+    }
+
+    let localValue: StorageValue<S> | null;
+    try {
+      // Make the physical local envelope truthful before taking a reset snapshot.
+      // The normal Zustand adapter deliberately hides read/parse failures; this
+      // reset path must propagate them before touching the only IndexedDB copy.
+      flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
+      localValue = await readDurableLocalStorage(storageName);
+
+      // Persist the deletion intent before clearing IndexedDB. If IndexedDB is
+      // blocked by policy, this tombstone keeps old projects hidden and retries
+      // the physical clear on a later launch instead of trapping the user in the
+      // recovery gate or resurrecting data after an explicit reset.
+      const base =
+        localValue ?? ({ state: {} as S, version: options.currentVersion } as StorageValue<S>);
+      await options.localStorage.setItem(storageName, pendingClearEnvelope(base));
+      flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
+    } catch (error) {
+      writesSuspended = false;
+      warnFailure('clear-local', error);
+      throw error;
+    }
+
     durablePayloadKnown = false;
     durableReadUncertain = false;
     payloadDirty = false;
     latestPayloadReferences = null;
+    fallbackWriteError = null;
+    nextRevision = 0;
+
     try {
       await resolveDurableStore().clear();
-      if (storageName) {
-        const localValue = await options.localStorage.getItem(storageName);
-        if (localValue) {
-          await options.localStorage.setItem(storageName, resetEnvelope(localValue));
-        }
-      }
+      pendingDurableClear = false;
     } catch (error) {
-      writesSuspended = false;
+      pendingDurableClear = true;
       warnFailure('clear', error);
-      throw error;
+      return;
+    }
+
+    try {
+      await options.localStorage.setItem(
+        storageName,
+        resetEnvelope(localValue ?? { state: {} as S }),
+      );
+      flushLocalOrThrow(LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
+    } catch (error) {
+      // The already-durable tombstone is a safe completed reset. Leaving it in
+      // place merely causes one idempotent clear retry on the next startup.
+      warnFailure('clear-tombstone-trim', error);
     }
   }
 
@@ -646,10 +818,12 @@ export function createLongformPersistence<S>(
     const pagehideTarget = getPagehideTarget();
     const visibilityTarget = getVisibilityTarget();
     const onPagehide: EventListener = () => {
-      void flushPendingWrites();
+      void flushPendingWrites().catch(() => {});
     };
     const onVisibilityChange: EventListener = () => {
-      if (visibilityTarget?.visibilityState === 'hidden') void flushPendingWrites();
+      if (visibilityTarget?.visibilityState === 'hidden') {
+        void flushPendingWrites().catch(() => {});
+      }
     };
     pagehideTarget?.addEventListener('pagehide', onPagehide);
     visibilityTarget?.addEventListener('visibilitychange', onVisibilityChange);
@@ -678,6 +852,8 @@ export function createLongformPersistence<S>(
     latestPayloadReferences = null;
     storageName = null;
     nextRevision = 0;
+    pendingDurableClear = false;
+    fallbackWriteError = null;
     nextGeneration = 0;
     nextWindowGeneration = 0;
     warnedFailures.clear();
@@ -702,6 +878,7 @@ const applicationPersistence = createLongformPersistence<JsonObject>({
   currentVersion: 9,
   getRole: getPersistenceRole,
   flushLocalStorage: flushLocalPendingWrites,
+  readDurableLocalStorage: (name) => readDurableJsonValue<StorageValue<JsonObject>>(name),
 });
 
 export function createLongformZustandStorage<S>(): PersistStorage<S> {

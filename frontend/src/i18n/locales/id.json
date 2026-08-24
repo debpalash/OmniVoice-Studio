@@ -3,7 +3,7 @@
     "storage_unavailable_title": "Proyek tidak dapat dimuat",
     "storage_unavailable_body": "VoiceStudio tidak dapat membaca penyimpanan proyek lokal. Data Anda tidak diubah. Coba lagi untuk membukanya dengan aman.",
     "clear_projects": "Hapus proyek tersimpan",
-    "clear_confirm": "Tindakan ini menghapus permanen semua proyek Cerita dan Buku Audio yang tersimpan agar VoiceStudio dapat dibuka kembali. Tindakan ini tidak dapat dibatalkan. Lanjutkan?"
+    "clear_confirm": "Tindakan ini menghapus permanen semua proyek Cerita dan Buku Audio yang tersimpan serta draf yang belum disimpan agar VoiceStudio dapat dibuka kembali. Tindakan ini tidak dapat dibatalkan. Lanjutkan?"
   },
   "backendUnreachable": {
     "contact_recent": "Backend masih merespons {{ago}} yang lalu lalu berhenti merespons — kemungkinan besar crash atau dihentikan di tengah permintaan.",

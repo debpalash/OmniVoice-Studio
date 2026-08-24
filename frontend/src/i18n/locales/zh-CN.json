@@ -3,7 +3,7 @@
     "storage_unavailable_title": "无法加载项目",
     "storage_unavailable_body": "VoiceStudio 无法读取本地项目存储。你的数据未被更改。请重试以安全打开项目。",
     "clear_projects": "清除已保存的项目",
-    "clear_confirm": "这将永久删除所有已保存的故事和有声书项目，以便 VoiceStudio 能够重新打开。此操作无法撤销。是否继续？"
+    "clear_confirm": "这将永久删除所有已保存的故事和有声书项目以及所有未保存的草稿，以便 VoiceStudio 能够重新打开。此操作无法撤销。是否继续？"
   },
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前还在响应，随后停止了响应——很可能是在处理请求时崩溃或被强制终止。",

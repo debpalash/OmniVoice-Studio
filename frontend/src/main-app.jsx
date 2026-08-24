@@ -81,7 +81,10 @@ export async function bootstrapApp() {
   if (!isWidget) {
     installPersistenceLifecycleFlush();
     installLongformPersistenceLifecycleFlush();
-    await installDesktopPersistenceExitHandshake();
+    // Listener registration is non-critical startup work. A damaged Tauri IPC
+    // bridge can leave `listen()` pending forever; native exit still has its
+    // bounded timeout, so never hold the first React render behind this promise.
+    void installDesktopPersistenceExitHandshake();
   }
   const isDesktopShell = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 

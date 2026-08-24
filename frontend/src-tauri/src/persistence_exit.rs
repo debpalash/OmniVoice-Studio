@@ -97,10 +97,8 @@ impl PersistenceExitState {
 
     fn complete(&self) -> Option<ExitPlan> {
         let Ok(mut inner) = self.inner.lock() else {
-            return Some(ExitPlan {
-                code: 0,
-                action: ExitAction::Exit,
-            });
+            log::warn!("Persistence exit state lock poisoned");
+            return None;
         };
         if inner.phase != ExitPhase::Waiting {
             return None;
@@ -234,6 +232,17 @@ mod tests {
         assert_eq!(state.request(None), ExitRequestDecision::BeginFlush);
 
         assert!(state.complete().is_some());
+        assert!(state.complete().is_none());
+    }
+
+    #[test]
+    fn poisoned_lock_never_synthesizes_an_unrequested_exit() {
+        let state = PersistenceExitState::default();
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = state.inner.lock().unwrap();
+            panic!("poison test lock");
+        });
+
         assert!(state.complete().is_none());
     }
 

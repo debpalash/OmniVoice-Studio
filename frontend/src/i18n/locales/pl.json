@@ -3,7 +3,7 @@
     "storage_unavailable_title": "Nie udało się wczytać projektów",
     "storage_unavailable_body": "VoiceStudio nie mógł odczytać lokalnego magazynu projektów. Twoje dane nie zostały zmienione. Spróbuj ponownie, aby bezpiecznie je otworzyć.",
     "clear_projects": "Usuń zapisane projekty",
-    "clear_confirm": "Spowoduje to trwałe usunięcie wszystkich zapisanych projektów Opowieści i Audiobooków, aby VoiceStudio mogło się ponownie otworzyć. Tej operacji nie można cofnąć. Kontynuować?"
+    "clear_confirm": "Spowoduje to trwałe usunięcie wszystkich zapisanych projektów Opowieści i Audiobooków oraz niezapisanych wersji roboczych, aby VoiceStudio mogło się ponownie otworzyć. Tej operacji nie można cofnąć. Kontynuować?"
   },
   "backendUnreachable": {
     "contact_recent": "Jeszcze {{ago}} temu odpowiadał, a potem przestał — najprawdopodobniej uległ awarii lub został zakończony w trakcie żądania.",

@@ -3,7 +3,7 @@
     "storage_unavailable_title": "無法載入專案",
     "storage_unavailable_body": "VoiceStudio 無法讀取本機專案儲存空間。你的資料未被變更。請重試以安全開啟專案。",
     "clear_projects": "清除已儲存的專案",
-    "clear_confirm": "這將永久刪除所有已儲存的故事與有聲書專案，讓 VoiceStudio 能重新開啟。此操作無法復原。是否繼續？"
+    "clear_confirm": "這將永久刪除所有已儲存的故事與有聲書專案以及所有未儲存的草稿，讓 VoiceStudio 能重新開啟。此操作無法復原。是否繼續？"
   },
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前還有回應，之後停止回應——很可能是在處理請求時當機或被強制終止。",
