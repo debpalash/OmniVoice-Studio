@@ -939,7 +939,7 @@ def _finish_input_cache_mutation(path: str) -> None:
 
 
 def _fsync_file(path: str) -> None:
-    with open(path, "rb") as handle:
+    with open(path, "r+b") as handle:
         os.fsync(handle.fileno())
 
 

@@ -142,7 +142,10 @@ _ORPHAN_UPLOAD_RETRY_LIMIT = 1000
 
 def _fsync_file(path: str) -> None:
     """Make bytes already written to ``path`` survive a successful ACK."""
-    with open(path, "rb") as handle:
+    # Windows' _commit rejects read-only descriptors with EBADF. Every path
+    # passed here is a worker-owned artifact, so reopen it write-capable before
+    # asking the platform to flush the bytes.
+    with open(path, "r+b") as handle:
         os.fsync(handle.fileno())
 
 

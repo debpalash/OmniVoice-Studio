@@ -172,7 +172,7 @@ def _fsync_parent_directory(directory: str) -> None:
 
 
 def _fsync_file(path: str) -> None:
-    with open(path, "rb") as handle:
+    with open(path, "r+b") as handle:
         os.fsync(handle.fileno())
 
 

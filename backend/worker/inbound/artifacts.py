@@ -1143,7 +1143,7 @@ def _ensure_durable_directory(root: str, directory: str) -> None:
 
 def _durable_replace(source: str, destination: str) -> None:
     """Publish a complete file only after its bytes and rename are durable."""
-    with open(source, "rb") as handle:
+    with open(source, "r+b") as handle:
         os.fsync(handle.fileno())
     os.replace(source, destination)
     _fsync_parent_directory(os.path.dirname(destination) or ".")
@@ -1151,7 +1151,7 @@ def _durable_replace(source: str, destination: str) -> None:
 
 def _durable_existing_file(path: str) -> None:
     """Re-establish durability before adopting a crash-surviving final."""
-    with open(path, "rb") as handle:
+    with open(path, "r+b") as handle:
         os.fsync(handle.fileno())
     _fsync_parent_directory(os.path.dirname(path) or ".")
 

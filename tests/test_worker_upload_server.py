@@ -38,6 +38,23 @@ from worker.transport.server import REQUIRED_FEATURES, SESSION_METADATA_KEY, Wor
 ENGINE, MODEL, OP = "indextts", "IndexTTS-2", "tts"
 
 
+def test_artifact_fsync_uses_a_windows_compatible_descriptor(tmp_path, monkeypatch):
+    artifact = tmp_path / "artifact.wav"
+    artifact.write_bytes(b"audio")
+    real_open = open
+    modes = []
+
+    def observed_open(path, mode="r", *args, **kwargs):
+        modes.append(mode)
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(server_module, "open", observed_open, raising=False)
+
+    server_module._fsync_file(str(artifact))
+
+    assert modes == ["r+b"]
+
+
 @pytest.fixture
 def db(tmp_path, monkeypatch):
     """Throwaway DB, patched where the stores actually read it."""
