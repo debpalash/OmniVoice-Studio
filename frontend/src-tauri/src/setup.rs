@@ -959,34 +959,12 @@ fn complete_setup_blocking(
     }
     cfg.locale = plan.locale.clone().filter(|l| !l.is_empty());
 
-    if plan.install_mode == "portable" {
-        // Create the portable folder and seed config.json INSIDE it first, so
-        // `config_path` resolves portable from here on and the whole install
-        // (env + data + config) travels as one folder.
-        let base = planned_portable_base(&plan).ok_or("Portable anchor disappeared")?;
-        fs::create_dir_all(&base).map_err(|e| format!("Could not create {}: {e}", base.display()))?;
-        // Record WHERE it is before seeding it — `portable_base()` has to
-        // resolve to this folder on the next launch, and the config inside it
-        // cannot say so (nothing would know where to look).
-        if base != portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME)).unwrap_or_default() {
-            let how = record_portable_dir(&app, &base)?;
-            log::info!("Portable folder relocated — recorded via {how}");
-        } else {
-            // Back to the default: drop any earlier relocation so a stale
-            // pointer can't outrank it.
-            clear_portable_dir(&app);
-        }
-        config::save_config_at(&base.join("config.json"), &cfg)?;
-    } else {
+    if plan.install_mode != "portable" {
         for (dir, _) in &targets {
-            fs::create_dir_all(dir).map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
+            fs::create_dir_all(dir)
+                .map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
         }
     }
-    // The plan must actually persist before bootstrap starts — a swallowed
-    // write error here would bootstrap into a stale layout from disk while
-    // the UI reports success.
-    let cfg_path = config::config_path(&app).ok_or("Could not resolve the config file path")?;
-    config::save_config_at(&cfg_path, &cfg)?;
 
     // Custom paths are home-relative PII — log default-vs-custom flags, not
     // the raw locations.
@@ -999,13 +977,59 @@ fn complete_setup_blocking(
         custom(&cfg.models_dir),
     );
 
-    // `--setup` re-entry: a backend from the previous configuration may still
-    // be serving — or may be between process spawn and port bind. Stop it
-    // under lifecycle ownership so neither bootstrap nor the supervisor can
-    // race the restart using the just-saved plan (#1635).
-    if let Err(error) = crate::bootstrap::with_backend_stopped(&app, || {}) {
-        log::warn!("Setup could not stop the previous backend: {error}");
-        return Err("backend_stop_failed".into());
+    // `--setup` re-entry: stop the previous backend before committing the new
+    // durable layout. A failed stop must leave the old config/pointer active;
+    // otherwise its automatic recovery would launch against a half-applied
+    // setup plan.
+    let persisted = crate::bootstrap::with_backend_stopped(&app, || -> Result<(), String> {
+        if plan.install_mode == "portable" {
+            // Create the portable folder and seed config.json INSIDE it first,
+            // so `config_path` resolves portable from here on and the whole
+            // install (env + data + config) travels as one folder.
+            let base = planned_portable_base(&plan).ok_or("Portable anchor disappeared")?;
+            fs::create_dir_all(&base)
+                .map_err(|e| format!("Could not create {}: {e}", base.display()))?;
+            // Record WHERE it is before seeding it — `portable_base()` has to
+            // resolve to this folder on the next launch, and the config inside
+            // it cannot say so (nothing would know where to look).
+            if base
+                != portable_anchor()
+                    .map(|a| a.join(PORTABLE_DIR_NAME))
+                    .unwrap_or_default()
+            {
+                let how = record_portable_dir(&app, &base)?;
+                log::info!("Portable folder relocated — recorded via {how}");
+            } else {
+                // Back to the default: drop any earlier relocation so a stale
+                // pointer can't outrank it.
+                clear_portable_dir(&app);
+            }
+            config::save_config_at(&base.join("config.json"), &cfg)?;
+        }
+        // The plan must actually persist before bootstrap starts — a swallowed
+        // write error here would bootstrap into a stale layout from disk while
+        // the UI reports success.
+        let cfg_path = config::config_path(&app).ok_or("Could not resolve the config file path")?;
+        config::save_config_at(&cfg_path, &cfg)
+    });
+    match persisted {
+        Err(error) => {
+            // with_backend_stopped already re-arms the old backend for every
+            // non-terminal caller.
+            log::warn!("Setup could not stop the previous backend: {error}");
+            return Err("backend_stop_failed".into());
+        }
+        Ok(Err(error)) => {
+            // The stop succeeded but persistence did not; restore service on
+            // the surviving layout instead of leaving the settings UI down.
+            crate::bootstrap::respawn_backend(
+                app,
+                state.stage.clone(),
+                state.logs.clone(),
+            );
+            return Err(error);
+        }
+        Ok(Ok(())) => {}
     }
 
     set_stage(&state.stage, BootstrapStage::Checking);

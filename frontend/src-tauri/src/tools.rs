@@ -7,6 +7,11 @@ use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
 use crate::config::get_effective_region;
 #[allow(unused_imports)] // Used in cfg(linux) and cfg(windows) blocks
 use crate::config::resolve_github_url;
@@ -24,8 +29,8 @@ use crate::bootstrap::{BootstrapStage, set_stage};
 /// pipes/among nulls stdout+stderr, so nothing visible or logged is lost.
 ///
 /// Short-lived bootstrap/tools spawns route through this chokepoint;
-/// long-running children use [`configure_process_tree`], which preserves the
-/// same flag while also making descendants terminable. No-op on macOS/Linux —
+/// long-running children use [`spawn_process_tree`], which preserves the same
+/// flag while also making descendants terminable. No-op on macOS/Linux —
 /// there is no per-process console to hide there, so behaviour is unchanged on
 /// those platforms (default-parity rule: no stray windows on any OS).
 ///
@@ -42,60 +47,364 @@ pub fn no_window(cmd: &mut Command) -> &mut Command {
     cmd
 }
 
-/// Put a long-running child in a tree we can terminate as one unit. Unix uses
-/// a dedicated process group; Windows combines the existing no-console flag
-/// with `CREATE_NEW_PROCESS_GROUP`, while `taskkill /T` supplies tree teardown.
-pub fn configure_process_tree(cmd: &mut Command) -> &mut Command {
+/// A spawned child plus its non-reusable OS containment primitive. Unix uses
+/// an inherited process group plus a CLOEXEC drain channel for deliberately
+/// nested operation groups; Windows uses a Job Object assigned while the root
+/// is suspended, before it can create any descendants.
+pub struct ContainedChild {
+    pub child: Child,
+    pub tree: OwnedProcessTree,
+}
+
+pub struct OwnedProcessTree {
+    root_pid: u32,
+    terminated: bool,
+    #[cfg(unix)]
+    process_group: libc::pid_t,
+    #[cfg(unix)]
+    nested_drain: OwnedFd,
+    #[cfg(windows)]
+    job: std::os::windows::io::OwnedHandle,
+}
+
+impl OwnedProcessTree {
+    #[cfg(unix)]
+    fn root_exited_unreaped(&self) -> io::Result<bool> {
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                self.root_pid as libc::id_t,
+                &mut info,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        if result != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(unsafe { info.si_pid() } != 0)
+    }
+
+    #[cfg(unix)]
+    fn signal_group(&self, signal: libc::c_int) -> io::Result<()> {
+        if unsafe { libc::kill(-self.process_group, signal) } == 0 {
+            return Ok(());
+        }
+        let error = io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    }
+
+    fn force_terminate(&mut self) -> io::Result<()> {
+        if self.terminated {
+            return Ok(());
+        }
+        #[cfg(unix)]
+        self.signal_group(libc::SIGKILL)?;
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use windows::Win32::Foundation::HANDLE;
+            use windows::Win32::System::JobObjects::TerminateJobObject;
+
+            unsafe {
+                TerminateJobObject(HANDLE(self.job.as_raw_handle()), 1)
+                    .map_err(windows_error)?;
+            }
+        }
+        self.terminated = true;
+        Ok(())
+    }
+
+    fn wait_nested_drain(&mut self, timeout: Duration) -> io::Result<()> {
+        #[cfg(unix)]
+        {
+            let fd = self.nested_drain.as_raw_fd();
+            let deadline = std::time::Instant::now() + timeout;
+            loop {
+                if nested_drain_eof(fd)? {
+                    return Ok(());
+                }
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                if remaining.is_zero() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!(
+                            "nested backend operations did not drain within {timeout:?}"
+                        ),
+                    ));
+                }
+                let millis = remaining.as_millis().clamp(1, i32::MAX as u128) as i32;
+                let mut pollfd = libc::pollfd {
+                    fd,
+                    events: libc::POLLIN | libc::POLLHUP | libc::POLLERR,
+                    revents: 0,
+                };
+                let result = unsafe { libc::poll(&mut pollfd, 1, millis) };
+                if result > 0 {
+                    continue;
+                }
+                if result == 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!(
+                            "nested backend operations did not drain within {timeout:?}"
+                        ),
+                    ));
+                }
+                let error = io::Error::last_os_error();
+                if error.kind() != io::ErrorKind::Interrupted {
+                    return Err(error);
+                }
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = timeout;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(unix)]
+fn nested_drain_eof(fd: RawFd) -> io::Result<bool> {
+    let mut buffer = [0u8; 64];
+    loop {
+        let read = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), buffer.len()) };
+        if read == 0 {
+            return Ok(true);
+        }
+        if read > 0 {
+            continue;
+        }
+        let error = io::Error::last_os_error();
+        if error.kind() == io::ErrorKind::WouldBlock {
+            return Ok(false);
+        }
+        if error.kind() != io::ErrorKind::Interrupted {
+            return Err(error);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn create_nested_drain() -> io::Result<(OwnedFd, OwnedFd)> {
+    // UnixStream::pair creates both descriptors CLOEXEC atomically inside the
+    // standard library on Linux and macOS. A pipe()+fcntl sequence would have
+    // an inheritance race with another thread spawning between those calls.
+    let (read, write) = UnixStream::pair()?;
+    read.set_nonblocking(true)?;
+    let read = unsafe { OwnedFd::from_raw_fd(read.into_raw_fd()) };
+    let write = unsafe { OwnedFd::from_raw_fd(write.into_raw_fd()) };
+    Ok((read, write))
+}
+
+fn nested_drain_timeout() -> Duration {
+    #[cfg(debug_assertions)]
+    if let Some(timeout) = std::env::var("OMNIVOICE_TEST_NESTED_DRAIN_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|&millis| millis > 0)
+    {
+        return Duration::from_millis(timeout);
+    }
+    Duration::from_secs(5)
+}
+
+impl Drop for OwnedProcessTree {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        if !self.terminated && self.root_exited_unreaped().is_ok() {
+            // Cancellation/panic fallback. The waitid success proves the root
+            // is still our unreaped child, so its group ID cannot have been
+            // reused. ECHILD deliberately falls through without signalling.
+            let _ = self.signal_group(libc::SIGKILL);
+        }
+        // Windows JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE provides this fallback
+        // automatically when `job` is dropped.
+    }
+}
+
+/// Spawn into deterministic containment. No descendant discovery is involved:
+/// ordinary children inherit this process group/job at creation, while nested
+/// Python operation owners inherit a drain writer which Rust joins on teardown.
+pub fn spawn_process_tree(cmd: &mut Command) -> io::Result<ContainedChild> {
+    // Python operation owners may open a nested session for local timeouts;
+    // their inherited drain writer makes that handoff joinable from Rust.
+    cmd.env("OMNIVOICE_DESKTOP_CONTAINED", "1");
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
+        let (nested_drain, nested_drain_write) = create_nested_drain()?;
+        let nested_drain_fd = nested_drain_write.as_raw_fd();
+        cmd.env("OMNIVOICE_DESKTOP_DRAIN_FD", nested_drain_fd.to_string());
+        unsafe {
+            cmd.pre_exec(move || {
+                let flags = libc::fcntl(nested_drain_fd, libc::F_GETFD);
+                if flags < 0
+                    || libc::fcntl(
+                        nested_drain_fd,
+                        libc::F_SETFD,
+                        flags & !libc::FD_CLOEXEC,
+                    ) < 0
+                {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
         cmd.process_group(0);
+        let child = cmd.spawn()?;
+        drop(nested_drain_write);
+        let root_pid = child.id();
+        let process_group = i32::try_from(root_pid)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "pid exceeds i32"))?;
+        return Ok(ContainedChild {
+            child,
+            tree: OwnedProcessTree {
+                root_pid,
+                terminated: false,
+                process_group,
+                nested_drain,
+            },
+        });
     }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+        const CREATE_SUSPENDED: u32 = 0x0000_0004;
+
+        let job = create_kill_on_close_job()?;
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED);
+        let mut child = cmd.spawn()?;
+        if let Err(error) = assign_job_and_resume(&job, &child) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+        let root_pid = child.id();
+        return Ok(ContainedChild {
+            child,
+            tree: OwnedProcessTree {
+                root_pid,
+                terminated: false,
+                job,
+            },
+        });
     }
-    cmd
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = cmd;
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "process containment is unsupported on this platform",
+        ))
+    }
 }
 
-/// Ask a long-running child tree to stop, wait a bounded interval, then force
-/// the whole tree down and reap the tracked parent. On Unix, SIGTERM lets
-/// uvicorn run FastAPI lifespan cleanup (including its run sentinel). A Windows
-/// backend uses `CREATE_NO_WINDOW`, so non-forced `taskkill` is only a
-/// best-effort first phase and lifespan cleanup is not guaranteed there; the
-/// forced tree fallback prevents descendants from retaining ports or files.
+/// Observe an unexpected root death without a PID check/signal race. Unix
+/// leaves the root unreaped while signalling its still-reserved process group
+/// and waiting for every nested owner to drain; Windows terminates the stable
+/// Job handle after the stable Child handle reports exit.
+pub fn contained_child_exit(
+    child: &mut Child,
+    tree: &mut OwnedProcessTree,
+) -> io::Result<Option<ExitStatus>> {
+    #[cfg(unix)]
+    {
+        match tree.root_exited_unreaped() {
+            Ok(false) => return Ok(None),
+            Ok(true) => {
+                // Do not reap the root until group cleanup succeeds: the
+                // zombie is what keeps this process-group ID non-reusable.
+                tree.force_terminate()?;
+                tree.wait_nested_drain(nested_drain_timeout())?;
+                let status = child.try_wait()?;
+                return Ok(status);
+            }
+            Err(error) if error.raw_os_error() == Some(libc::ECHILD) => {
+                // Another owner already reaped this root. Refuse to signal its
+                // numeric group: it may since have been reused by a foreign
+                // process. Production lifecycle paths never take this branch.
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "process-tree root {} was already reaped; refusing a reusable group ID",
+                        tree.root_pid
+                    ),
+                ));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    #[cfg(windows)]
+    {
+        let status = child.try_wait()?;
+        if status.is_some() {
+            tree.force_terminate()?;
+        }
+        Ok(status)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = tree;
+        child.try_wait()
+    }
+}
+
+/// Ask the contained tree to stop, then force the same stable containment
+/// primitive before reaping the root. On Unix the unreaped root reserves the
+/// process-group ID and keeps drain-timeout retries safe; a foreign group can
+/// never be substituted between an identity check and signal. Windows never
+/// signals by PID at all.
 pub fn terminate_process_tree(
     child: &mut Child,
+    tree: &mut OwnedProcessTree,
     graceful_timeout: Duration,
 ) -> io::Result<ExitStatus> {
     let pid = child.id();
     #[cfg(unix)]
-    let _ = signal_unix_process_tree(pid, libc::SIGTERM);
+    match tree.root_exited_unreaped() {
+        Ok(true) => {
+            tree.force_terminate()?;
+            tree.wait_nested_drain(nested_drain_timeout())?;
+            return child.wait();
+        }
+        Ok(false) => tree.signal_group(libc::SIGTERM)?,
+        Err(error) if error.raw_os_error() == Some(libc::ECHILD) => {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "process-tree root {pid} was already reaped; refusing a reusable group ID"
+                ),
+            ));
+        }
+        Err(error) => return Err(error),
+    }
     #[cfg(windows)]
-    let _ = taskkill_process_tree(pid, false);
+    {
+        // A console-less GUI child has no reliable graceful control event.
+        // Terminating the stable job is the existing forced fallback, now
+        // guaranteed to include every descendant.
+        tree.force_terminate()?;
+    }
 
     let deadline = std::time::Instant::now() + graceful_timeout;
-    let mut status = None;
     while std::time::Instant::now() < deadline {
-        if status.is_none() {
-            match child.try_wait() {
-                Ok(observed) => status = observed,
-                Err(error) => {
-                    log::warn!("Could not poll process-tree root pid {pid}: {error}; forcing it");
-                    break;
-                }
-            }
+        #[cfg(unix)]
+        if tree.root_exited_unreaped()? {
+            tree.force_terminate()?;
+            tree.wait_nested_drain(nested_drain_timeout())?;
+            return child.wait();
         }
-        if status.is_some() {
-            #[cfg(unix)]
-            if !unix_process_tree_alive(pid) {
-                return Ok(status.expect("status checked above"));
-            }
-            #[cfg(windows)]
-            return Ok(status.expect("status checked above"));
+        #[cfg(windows)]
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
         }
         std::thread::sleep(Duration::from_millis(50));
     }
@@ -103,79 +412,94 @@ pub fn terminate_process_tree(
     log::warn!(
         "Process tree rooted at pid {pid} did not stop within {graceful_timeout:?}; forcing it"
     );
-    #[cfg(unix)]
-    {
-        let _ = signal_unix_process_tree(pid, libc::SIGKILL);
-    }
-    #[cfg(windows)]
-    {
-        let _ = taskkill_process_tree(pid, true);
-    }
-    if status.is_none() {
-        // Last-resort parent kill if the platform tree command itself failed.
-        let _ = child.kill();
-        status = Some(child.wait()?);
-    }
-    let status = status.expect("child status set by wait or try_wait");
-
-    #[cfg(unix)]
-    {
-        let deadline = std::time::Instant::now() + Duration::from_secs(2);
-        while unix_process_tree_alive(pid) && std::time::Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        if unix_process_tree_alive(pid) {
-            return Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                format!("process group {pid} survived SIGKILL"),
-            ));
-        }
-    }
-    Ok(status)
-}
-
-#[cfg(unix)]
-fn signal_unix_process_tree(pid: u32, signal: libc::c_int) -> io::Result<()> {
-    let pid = i32::try_from(pid)
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "pid exceeds i32"))?;
-    if unsafe { libc::kill(-pid, signal) } == 0 {
-        return Ok(());
-    }
-    let group_error = io::Error::last_os_error();
-    if group_error.raw_os_error() != Some(libc::ESRCH) {
-        return Err(group_error);
-    }
-    if unsafe { libc::kill(pid, signal) } == 0 {
-        return Ok(());
-    }
-    let process_error = io::Error::last_os_error();
-    if process_error.raw_os_error() == Some(libc::ESRCH) {
-        Ok(())
-    } else {
-        Err(process_error)
-    }
-}
-
-#[cfg(unix)]
-fn unix_process_tree_alive(pid: u32) -> bool {
-    let Ok(pid) = i32::try_from(pid) else {
-        return false;
-    };
-    if unsafe { libc::kill(-pid, 0) } == 0 {
-        return true;
-    }
-    io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+    tree.force_terminate()?;
+    let _ = child.kill();
+    tree.wait_nested_drain(nested_drain_timeout())?;
+    child.wait()
 }
 
 #[cfg(windows)]
-fn taskkill_process_tree(pid: u32, force: bool) -> io::Result<ExitStatus> {
-    let mut command = Command::new("taskkill");
-    let pid = pid.to_string();
-    command.args(["/PID", pid.as_str(), "/T"]);
-    if force {
-        command.arg("/F");
+fn windows_error(error: windows_core::Error) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, error.to_string())
+}
+
+#[cfg(windows)]
+fn create_kill_on_close_job() -> io::Result<std::os::windows::io::OwnedHandle> {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::JobObjects::{
+        CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+        SetInformationJobObject,
+    };
+
+    let job = unsafe { CreateJobObjectW(None, None).map_err(windows_error)? };
+    let job = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(job.0) };
+    let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    unsafe {
+        SetInformationJobObject(
+            HANDLE(job.as_raw_handle()),
+            JobObjectExtendedLimitInformation,
+            std::ptr::addr_of!(info).cast(),
+            std::mem::size_of_val(&info) as u32,
+        )
+        .map_err(windows_error)?;
+        Ok(job)
     }
-    no_window(&mut command).status()
+}
+
+#[cfg(windows)]
+fn assign_job_and_resume(
+    job: &std::os::windows::io::OwnedHandle,
+    child: &Child,
+) -> io::Result<()> {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle};
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
+    };
+    use windows::Win32::System::JobObjects::AssignProcessToJobObject;
+    use windows::Win32::System::Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME};
+
+    unsafe {
+        AssignProcessToJobObject(
+            HANDLE(job.as_raw_handle()),
+            HANDLE(child.as_raw_handle()),
+        )
+        .map_err(windows_error)?;
+    }
+
+    let snapshot = unsafe {
+        CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0).map_err(windows_error)?
+    };
+    let snapshot = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(snapshot.0) };
+    let mut entry = THREADENTRY32 {
+        dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+        ..Default::default()
+    };
+    unsafe {
+        Thread32First(HANDLE(snapshot.as_raw_handle()), &mut entry).map_err(windows_error)?;
+    }
+    loop {
+        if entry.th32OwnerProcessID == child.id() {
+            let thread = unsafe {
+                OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID)
+                    .map_err(windows_error)?
+            };
+            let thread = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(thread.0) };
+            if unsafe { ResumeThread(HANDLE(thread.as_raw_handle())) } == u32::MAX {
+                return Err(io::Error::last_os_error());
+            }
+            return Ok(());
+        }
+        if unsafe { Thread32Next(HANDLE(snapshot.as_raw_handle()), &mut entry) }.is_err() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "suspended child primary thread was not found",
+            ));
+        }
+    }
 }
 
 // Version of the Astral `uv` binary we download at first run when no system
@@ -758,6 +1082,24 @@ fn redact_home_prefix(text: &str, home: &str) -> String {
 mod uv_tests {
     use super::*;
     use std::ffi::OsStr;
+
+    #[cfg(unix)]
+    #[test]
+    fn reaped_root_refuses_to_signal_a_reusable_process_group() {
+        let mut command = Command::new("sleep");
+        command.arg("30");
+        let ContainedChild {
+            mut child,
+            mut tree,
+        } = spawn_process_tree(&mut command).expect("spawn contained test child");
+        child.kill().unwrap();
+        child.wait().unwrap(); // deliberately discard the stable root identity
+
+        let error = terminate_process_tree(&mut child, &mut tree, Duration::ZERO)
+            .expect_err("a reusable numeric process-group id must never be signalled");
+        assert!(error.to_string().contains("already reaped"));
+        assert!(error.to_string().contains("refusing"));
+    }
 
     #[test]
     fn installer_uses_app_private_unmanaged_mode() {

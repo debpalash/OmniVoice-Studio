@@ -5,7 +5,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -199,18 +199,17 @@ fn raw_http_get(url: &str, timeout: Duration) -> Result<String, String> {
 /// Keep in sync with `_EXIT_PORT_IN_USE` there.
 pub const EXIT_PORT_IN_USE: i32 = 78;
 
-/// Kill whoever holds `port`, then confirm it actually came free.
+/// Confirm whether `port` is free. An unowned listener is never killed by
+/// numeric PID: even a successful HTTP identity probe cannot make a reusable
+/// PID/process-group identifier safe to signal.
 ///
 /// #1223: every caller used to kill-then-sleep-then-spawn unconditionally, so
-/// a holder we cannot kill — a different user's process, a `taskkill` blocked
-/// by policy, a socket sitting in TIME_WAIT that the Windows `netstat`
-/// LISTENING filter can't even see — was indistinguishable from success. The
-/// backend then died on the bind with a raw errno and the user got "Backend
-/// died (exit code 1)".
+/// a holder we do not own was indistinguishable from success. The backend then
+/// died on the bind with a raw errno and the user got "Backend died (exit code
+/// 1)".
 ///
-/// Returns true when the port is free afterwards. Polls rather than sleeping a
-/// flat interval: the common case (our own orphan) frees in well under 500ms,
-/// and the uncommon case deserves longer than one guess.
+/// Returns true when the port is free afterwards. Polling accommodates the
+/// short close handoff after a contained backend has just been drained.
 pub fn free_port_or_report(port: u16) -> bool {
     kill_orphan_on_port(port);
     for _ in 0..20 {
@@ -220,79 +219,23 @@ pub fn free_port_or_report(port: u16) -> bool {
         std::thread::sleep(Duration::from_millis(100));
     }
     log::error!(
-        "Port {} is still held after attempting to kill its owner — the \
-         backend cannot bind it. Another application (or a process owned by a \
-         different user) is using the port.",
+        "Port {} is still held by an unowned listener — the backend cannot \
+         bind it. Quit the other VoiceStudio instance or application and try \
+         again.",
         port
     );
     false
 }
 
-/// Kill whatever process owns the port.
-#[cfg(unix)]
+/// An HTTP response can justify attaching to a healthy same-version backend,
+/// but never grants process ownership. Deliberately refuse orphan cleanup:
+/// signalling a PID discovered through lsof/netstat has an unavoidable reuse
+/// race, and a matching foreign service must never be terminated.
 pub fn kill_orphan_on_port(port: u16) {
-    if let Ok(out) = Command::new("lsof")
-        .args(["-ti", &format!(":{}", port)])
-        .output()
-    {
-        if out.status.success() {
-            let pids = String::from_utf8_lossy(&out.stdout);
-            for pid in pids.split_whitespace() {
-                if let Ok(pid_n) = pid.parse::<i32>() {
-                    log::warn!("Killing orphan process tree {} on port {}", pid_n, port);
-                    // VoiceStudio backends are process-group leaders. Signal
-                    // that group first so Unix matches Windows `/T` and does
-                    // not leave engine descendants holding files. A foreign
-                    // listener may not lead a group named by its PID; fall
-                    // back to the owning process in that case.
-                    let group_result = unsafe { libc::kill(-pid_n, libc::SIGKILL) };
-                    if group_result != 0 {
-                        unsafe {
-                            libc::kill(pid_n, libc::SIGKILL);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[cfg(not(unix))]
-pub fn kill_orphan_on_port(port: u16) {
-    // `netstat -ano` lists listening sockets with their owning PID.
-    // Parse the output to find the process listening on exactly `port`.
-    // no_window: this orphan-kill probe runs on every launch; without it a
-    // netstat console window flashes each time the app starts.
-    let out = match crate::tools::no_window(Command::new("netstat").args(["-ano", "-p", "TCP"])).output() {
-        Ok(o) => o,
-        Err(_) => return,
-    };
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    // Match the local address ending in ":PORT" exactly to avoid false
-    // positives (e.g. :3900 must not match port 39000).
-    let port_suffix = format!(":{}", port);
-    for line in stdout.lines() {
-        if !line.to_uppercase().contains("LISTENING") {
-            continue;
-        }
-        // Local address is the second whitespace-delimited field.
-        // Format: "  TCP    0.0.0.0:3900           0.0.0.0:0   LISTENING   1234"
-        let local_addr = line.split_whitespace().nth(1).unwrap_or("");
-        if !local_addr.ends_with(&port_suffix) {
-            continue;
-        }
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if let Some(pid_str) = parts.last() {
-            if let Ok(pid) = pid_str.parse::<u32>() {
-                log::warn!("Killing orphan process {} on port {} (Windows)", pid, port);
-                let pid_arg = pid.to_string();
-                let _ = crate::tools::no_window(
-                    // `/T` also releases files held by subprocess engines.
-                    Command::new("taskkill").args(["/PID", pid_arg.as_str(), "/T", "/F"]),
-                )
-                .output();
-            }
-        }
+    if port_in_use(port) {
+        log::warn!(
+            "Refusing to signal the unowned listener on port {port}; only desktop-contained backends are terminable"
+        );
     }
 }
 
@@ -560,7 +503,10 @@ fn backend_cmd_override() -> Option<Vec<String>> {
     parse_backend_cmd_override(&std::env::var("OMNIVOICE_BACKEND_CMD").ok()?)
 }
 
-pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress: Option<&Arc<Mutex<BootstrapStage>>>) -> Option<Child> {
+pub(crate) fn spawn_backend<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    progress: Option<&Arc<Mutex<BootstrapStage>>>,
+) -> Option<crate::tools::ContainedChild> {
     let log_path = backend_log_path();
     let err_path = log_path.with_file_name("backend_err.log");
     log::info!(
@@ -611,7 +557,12 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
         );
     }
 
-    let mut env: Vec<(String, String)> = vec![("PYTHONUNBUFFERED".into(), "1".into())];
+    let mut env: Vec<(String, String)> = vec![
+        ("PYTHONUNBUFFERED".into(), "1".into()),
+        // Backend-managed engines/installers must inherit the desktop-owned
+        // process group/Job rather than escaping into a new session.
+        ("OMNIVOICE_DESKTOP_CONTAINED".into(), "1".into()),
+    ];
     // Pin the child's OMNIVOICE_PORT to the value Rust resolved so Python's
     // network_share.backend_port() always agrees with the uvicorn --port we
     // pass below — otherwise a user-set OMNIVOICE_PORT would change the
@@ -683,10 +634,6 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
     for (k, v) in &env {
         cmd.env(k, v);
     }
-    // Own process group/tree: graceful shutdown reaches uvicorn lifespan
-    // cleanup, and the bounded fallback also removes subprocess engines.
-    // On Windows this retains CREATE_NO_WINDOW (#1153).
-    crate::tools::configure_process_tree(&mut cmd);
     match cmd_override {
         Some(ref argv) => {
             cmd.args(&argv[1..]);
@@ -705,16 +652,13 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
             ]);
         }
     }
-    let mut child = match cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut contained = match crate::tools::spawn_process_tree(&mut cmd) {
         Ok(c) => {
             log::info!(
                 "Backend started via venv python {} (pid {})",
                 python.display(),
-                c.id()
+                c.child.id()
             );
             c
         }
@@ -738,7 +682,7 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
         }
     };
 
-    if let Some(stdout_pipe) = child.stdout.take() {
+    if let Some(stdout_pipe) = contained.child.stdout.take() {
         let app_clone = app.clone();
         let mut out_file = stdout_file;
         std::thread::spawn(move || {
@@ -754,7 +698,7 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
         });
     }
 
-    if let Some(stderr_pipe) = child.stderr.take() {
+    if let Some(stderr_pipe) = contained.child.stderr.take() {
         let app_clone = app.clone();
         // Tracked (not detached): the next spawn joins this handle so this
         // run's buffered tail flushes before the next run's offset is taken.
@@ -775,7 +719,7 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progre
         }
     }
 
-    Some(child)
+    Some(contained)
 }
 
 #[cfg(test)]

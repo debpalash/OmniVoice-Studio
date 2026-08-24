@@ -374,6 +374,14 @@ pub fn purge_scopes(roots: &Roots, wanted: &[String], home: Option<&Path>) -> Re
     report
 }
 
+async fn run_retained_reset<T: Send + 'static>(
+    worker: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(worker)
+        .await
+        .map_err(|error| format!("reset failed: {error}"))?
+}
+
 /// Delete the selected scopes, then bring the backend back.
 ///
 /// Unknown or frontend-only scope names are ignored rather than erroring: the
@@ -392,10 +400,10 @@ pub async fn reset_purge(app: tauri::AppHandle, scopes: Vec<String>) -> Result<R
     }
 
     let purge_app = app.clone();
-    let mut report = tauri::async_runtime::spawn_blocking(move || {
+    run_retained_reset(move || {
         // The lifecycle guard spans stop + purge. Bootstrap, Retry, and the
         // supervisor cannot spawn into directories while they are deleted.
-        crate::bootstrap::with_backend_stopped(&purge_app, || {
+        let mut report = crate::bootstrap::with_backend_stopped(&purge_app, || {
             // Give Windows mapped weights and their drainer threads a moment
             // to release file handles after the tracked child has exited.
             std::thread::sleep(std::time::Duration::from_millis(600));
@@ -403,28 +411,72 @@ pub async fn reset_purge(app: tauri::AppHandle, scopes: Vec<String>) -> Result<R
             let roots = roots_for(&purge_app);
             let home = dirs_next::home_dir();
             purge_scopes(&roots, &wanted, home.as_deref())
-        })
+        })?;
+
+        // Finalization belongs to this retained worker, not the invoking IPC
+        // future. A reload/closed webview can drop the await without stranding
+        // the stopped backend.
+        let flags = purge_app.state::<AppFlags>();
+        if !flags.quitting.load(std::sync::atomic::Ordering::SeqCst)
+            && !flags.uninstalling.load(std::sync::atomic::Ordering::SeqCst)
+        {
+            let state = purge_app.state::<BootstrapState>();
+            crate::bootstrap::respawn_backend(
+                purge_app.clone(),
+                state.stage.clone(),
+                state.logs.clone(),
+            );
+            report.restarted = true;
+        } else {
+            crate::bootstrap::set_backend_kill_intended(false);
+        }
+        Ok(report)
     })
     .await
-    .map_err(|e| format!("reset failed: {e}"))??;
-
-    // Back up. The fresh backend re-runs ensure_dirs() and alembic, so a deleted
-    // database returns empty instead of missing. If the app is on its way out
-    // anyway, don't fight the shutdown.
-    let flags = app.state::<AppFlags>();
-    if !flags.quitting.load(std::sync::atomic::Ordering::SeqCst) {
-        let state = app.state::<BootstrapState>();
-        crate::bootstrap::respawn_backend(app.clone(), state.stage.clone(), state.logs.clone());
-        report.restarted = true;
-    } else {
-        crate::bootstrap::set_backend_kill_intended(false);
-    }
-    Ok(report)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aborted_reset_future_does_not_cancel_retained_finalization() {
+        let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let release = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let finalized = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let entered2 = entered.clone();
+        let release2 = release.clone();
+        let finalized2 = finalized.clone();
+
+        let task = tauri::async_runtime::spawn(run_retained_reset(move || {
+            entered2.store(true, std::sync::atomic::Ordering::SeqCst);
+            while !release2.load(std::sync::atomic::Ordering::SeqCst) {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            finalized2.store(true, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !entered.load(std::sync::atomic::Ordering::SeqCst)
+            && std::time::Instant::now() < deadline
+        {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(entered.load(std::sync::atomic::Ordering::SeqCst));
+        task.abort();
+        release.store(true, std::sync::atomic::Ordering::SeqCst);
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !finalized.load(std::sync::atomic::Ordering::SeqCst)
+            && std::time::Instant::now() < deadline
+        {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(
+            finalized.load(std::sync::atomic::Ordering::SeqCst),
+            "dropping the IPC await must not cancel backend restart/finalization"
+        );
+    }
 
     fn roots(tmp: &Path) -> Roots {
         Roots {

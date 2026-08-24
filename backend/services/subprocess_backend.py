@@ -32,9 +32,9 @@ Threat-model summary (see Plan 02-01 frontmatter):
               AUTH-05 installed (``HFTokenRedactor``) on the root logger.
     T-02-04 — compromised sidecar emitting unexpected ops: parent allowlist
               ``PARENT_INBOUND_OPS`` rejects everything else.
-    T-02-05 — Tauri group-kill scope: ``start_new_session=True`` on Unix
-              and ``CREATE_NEW_PROCESS_GROUP`` on Windows isolate the
-              sidecar's process group.
+    T-02-05 — nested containment: a retained supervisor process group/Job owns
+              each engine operation and is linked to backend death by a control
+              pipe, while still permitting independent timeout teardown.
 """
 from __future__ import annotations
 
@@ -56,9 +56,15 @@ from typing import Optional
 import numpy as np
 import torch
 
+from core.contained_subprocess import spawn_owned
 from services.tts_backend import TTSBackend
 
 logger = logging.getLogger("omnivoice.subprocess_backend")
+
+
+def _sidecar_containment_kwargs() -> dict:
+    """Containment is supplied atomically by ``spawn_owned`` on every OS."""
+    return {}
 
 
 def _os_exec_refusal(exc: OSError) -> str:
@@ -470,12 +476,7 @@ class SubprocessBackend(TTSBackend):
             "env": env,
             "bufsize": 0,  # unbuffered binary pipes
         }
-        # Process-group isolation so the Tauri lib.rs group-kill in shutdown
-        # doesn't escape into other children. See T-02-05.
-        if sys.platform == "win32":
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        else:
-            kwargs["start_new_session"] = True
+        kwargs.update(_sidecar_containment_kwargs())
 
         # `venv_python()` resolves the engine's interpreter, and on a cold
         # first run that is not cheap: it spawns each candidate to import the
@@ -509,7 +510,7 @@ class SubprocessBackend(TTSBackend):
             self.id, Path(python_path).name, Path(script_path).name,
         )
         try:
-            self._proc = subprocess.Popen([python_path, script_path], **kwargs)
+            self._proc = spawn_owned([python_path, script_path], **kwargs)
         except OSError as exc:
             raise InvalidBinaryError(
                 python_path,

@@ -1,4 +1,3 @@
-import math
 import os
 import sys
 
@@ -9,6 +8,24 @@ import sys
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
+
+# PyInstaller re-executes this entry module when the frozen backend binary is
+# launched. Nested operation supervisors therefore dispatch here, before math,
+# logging, FastAPI, torch, or any application initialization. Source launches
+# use this same entry contract so frozen/source behavior cannot drift.
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--supervise":
+    from core.contained_subprocess import supervisor_main
+
+    raise SystemExit(supervisor_main(sys.argv[1:]))
+
+# Rust clears CLOEXEC only for the backend exec. Re-arm PEP 446 immediately:
+# nested supervisors receive this descriptor solely through explicit pass_fds,
+# so a third-party close_fds=False child cannot hold the desktop drain barrier.
+from core.contained_subprocess import secure_backend_drain_fd  # noqa: E402
+
+secure_backend_drain_fd()
+
+import math  # noqa: E402
 
 # Windows: run every child process (ffmpeg, engine sidecars, yt-dlp, demucs, …)
 # WITHOUT popping a console window. The backend itself is spawned console-less by

@@ -55,13 +55,39 @@ pub struct BackendState {
     /// setup/uninstall, shutdown, and the crash supervisor never overlap.
     pub lifecycle: Mutex<()>,
     pub process: Mutex<Option<Child>>,
+    /// Stable OS containment for a desktop-spawned backend. Unix keeps the
+    /// root unreaped until its inherited process group is drained; Windows
+    /// owns a kill-on-close Job handle. Neither path signals a reusable PID.
+    pub owned_tree: Mutex<Option<tools::OwnedProcessTree>>,
+    /// A healthy same-version backend which predates this desktop launch.
+    /// It is health-supervised but deliberately never killed by PID: there is
+    /// no safe way to adopt ownership of an arbitrary external process tree.
+    pub attached: AtomicBool,
+    /// Consecutive deep-health failures for an unowned attachment. A single
+    /// busy/slow response is not process death; the supervisor confirms a
+    /// sustained outage before considering a safe replacement.
+    pub attached_health: Mutex<AttachedHealthState>,
     /// When the tracked child was spawned — feeds the crash marker's
     /// `uptime_s` (#941). Set alongside `process` in bootstrap.rs.
     pub spawned_at: Mutex<Option<std::time::Instant>>,
 }
 
+#[derive(Default)]
+pub struct AttachedHealthState {
+    pub failures: u32,
+    pub unhealthy_since: Option<std::time::Instant>,
+}
+
 pub struct AppFlags {
     pub quitting: AtomicBool,
+    /// A destructive uninstall is stopping the backend but is not itself a
+    /// terminal app exit until the purge succeeds. Keeping this separate from
+    /// `quitting` lets CloseRequested keep the main window alive and lets a
+    /// failed purge recover without overwriting a concurrent real exit.
+    pub uninstalling: AtomicBool,
+    /// Generation which owns `uninstalling`. A stale join/panic finalizer may
+    /// only release its own claim, never a newer uninstall attempt.
+    pub uninstall_owner: std::sync::atomic::AtomicU64,
     /// Whether dictation is currently recording. The tray's Start/Stop item
     /// used to infer this from `widget.is_visible()`, which stopped meaning
     /// anything once the widget became a permanently hidden host. The frontend
@@ -689,6 +715,8 @@ pub fn run() {
 
             app.manage(AppFlags {
                 quitting: AtomicBool::new(false),
+                uninstalling: AtomicBool::new(false),
+                uninstall_owner: std::sync::atomic::AtomicU64::new(0),
                 dictating: AtomicBool::new(false),
                 capture: Mutex::new(CaptureDispatchState::default()),
                 output: dictation_output::DictationOutput::default(),
@@ -976,6 +1004,9 @@ pub fn run() {
             app.manage(BackendState {
                 lifecycle: Mutex::new(()),
                 process: Mutex::new(None),
+                owned_tree: Mutex::new(None),
+                attached: AtomicBool::new(false),
+                attached_health: Mutex::new(AttachedHealthState::default()),
                 spawned_at: Mutex::new(None),
             });
 

@@ -9,8 +9,11 @@ safety (never delete a user's own clone), and the router wiring.
 """
 import io
 import os
+import subprocess
+import sys
 import tarfile
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -45,6 +48,7 @@ def _clean_state(monkeypatch, tmp_path):
     monkeypatch.setattr(si, "_jobs", {})
     monkeypatch.delenv("OMNIVOICE_INDEXTTS_DIR", raising=False)
     monkeypatch.delenv("OMNIVOICE_FAKE_SIDE_DIR", raising=False)
+    monkeypatch.delenv("OMNIVOICE_DESKTOP_CONTAINED", raising=False)
     yield
 
 
@@ -281,10 +285,7 @@ def test_git_failure_falls_back_to_tarball(monkeypatch):
     assert (si.managed_checkout(spec) / "pyproject.toml").is_file()
 
 
-def test_kill_tree_uses_taskkill_on_windows(monkeypatch):
-    """On Windows proc.kill() fells only the direct child — a spawned git/uv
-    helper would keep writing into the checkout past the timeout. The tree
-    kill must go through taskkill /T there (POSIX uses killpg)."""
+def test_legacy_kill_fallback_uses_only_direct_stable_handle(monkeypatch):
     calls = {}
     monkeypatch.setattr(si.os, "name", "nt")
     monkeypatch.setattr(
@@ -293,9 +294,95 @@ def test_kill_tree_uses_taskkill_on_windows(monkeypatch):
     )
     proc = SimpleNamespace(pid=4242, kill=lambda: calls.setdefault("plain_kill", True))
     si._kill_tree(proc)
-    assert calls["argv"][:4] == ["taskkill", "/F", "/T", "/PID"]
-    assert calls["argv"][4] == "4242"
-    assert "plain_kill" not in calls  # taskkill succeeded — no fallback
+    assert calls == {"plain_kill": True}
+
+
+def test_desktop_installer_needs_no_unmanaged_spawn_flags(monkeypatch):
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_CONTAINED", "1")
+    monkeypatch.setattr(si.os, "name", "posix")
+    assert si._install_containment_kwargs() == {}
+
+
+def test_standalone_installer_also_delegates_to_nested_owner(monkeypatch):
+    monkeypatch.delenv("OMNIVOICE_DESKTOP_CONTAINED", raising=False)
+    monkeypatch.setattr(si.os, "name", "posix")
+    assert si._install_containment_kwargs() == {}
+
+
+def test_desktop_windows_timeout_never_taskkills_a_reusable_pid(monkeypatch):
+    calls = {}
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_CONTAINED", "1")
+    monkeypatch.setattr(si.os, "name", "nt")
+    monkeypatch.setattr(
+        si.subprocess,
+        "run",
+        lambda *args, **kwargs: calls.setdefault("taskkill", True),
+    )
+    proc = SimpleNamespace(pid=4242, kill=lambda: calls.setdefault("handle_kill", True))
+    si._kill_tree(proc)
+    assert calls == {"handle_kill": True}
+
+
+def test_desktop_installer_timeout_kills_nested_helper_before_it_can_mutate(
+    monkeypatch, tmp_path
+):
+    """A timed-out uv/git root must not leave its pipe-owning helpers alive."""
+    marker = tmp_path / "late-mutation"
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_CONTAINED", "1")
+    drain_read, drain_write = os.pipe()
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_DRAIN_FD", str(drain_write))
+    child_script = (
+        "import os,time; time.sleep(1); "
+        "open(os.environ['OMNIVOICE_TIMEOUT_MARKER'], 'w').write('bad')"
+    )
+    script = (
+        "import subprocess,sys,time; "
+        f"subprocess.Popen([sys.executable, '-c', {child_script!r}]); "
+        "time.sleep(60)"
+    )
+    env = os.environ.copy()
+    env["OMNIVOICE_TIMEOUT_MARKER"] = str(marker)
+    job = si._new_job("fake-side")
+
+    try:
+        assert si._run_logged(job, [sys.executable, "-c", script], timeout=0.2, env=env) == -1
+        time.sleep(1.2)
+        assert not marker.exists()
+    finally:
+        os.close(drain_write)
+        os.close(drain_read)
+
+
+def test_backend_death_closes_control_pipe_and_kills_nested_operation(tmp_path):
+    """Outer desktop teardown reaches an operation which owns a nested group."""
+    marker = tmp_path / "mutation-after-backend-death"
+    operation = (
+        "import os,time; time.sleep(1); "
+        "open(os.environ['OMNIVOICE_TIMEOUT_MARKER'], 'w').write('bad')"
+    )
+    backend = (
+        "import os,sys,time; "
+        "from core.contained_subprocess import spawn_owned; "
+        f"spawn_owned([sys.executable, '-c', {operation!r}]); "
+        "time.sleep(.2); os._exit(0)"
+    )
+    env = os.environ.copy()
+    env["OMNIVOICE_DESKTOP_CONTAINED"] = "1"
+    env["OMNIVOICE_TIMEOUT_MARKER"] = str(marker)
+    env["PYTHONPATH"] = str(Path(__file__).parents[1] / "backend")
+
+    run_kwargs = {}
+    drain_fds = None
+    if os.name == "posix":
+        drain_fds = os.pipe()
+        env["OMNIVOICE_DESKTOP_DRAIN_FD"] = str(drain_fds[1])
+        run_kwargs["pass_fds"] = (drain_fds[1],)
+    assert subprocess.run([sys.executable, "-c", backend], env=env, **run_kwargs).returncode == 0
+    if drain_fds is not None:
+        os.close(drain_fds[1])
+        os.close(drain_fds[0])
+    time.sleep(1.2)
+    assert not marker.exists()
 
 
 def test_safe_extract_members_blocks_tar_slip(tmp_path):

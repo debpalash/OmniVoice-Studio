@@ -106,10 +106,7 @@ export default function UninstallPanel() {
       toast.error(
         t('settings.uninstall_failed', {
           defaultValue: 'Could not remove the data: {{message}}',
-          message:
-            message === 'uninstall_task_failed'
-              ? t('bootstrap.unknown_error')
-              : message,
+          message: message === 'uninstall_task_failed' ? t('bootstrap.unknown_error') : message,
         }),
       );
     }
