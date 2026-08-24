@@ -71,6 +71,8 @@ async def test_inbound_startup_error_is_not_returned_to_the_api(monkeypatch):
 
     class Node:
         startup_error = private
+        running = False
+        port = 0
 
         async def start(self):
             return None
@@ -90,3 +92,52 @@ async def test_inbound_startup_error_is_not_returned_to_the_api(monkeypatch):
 
     assert exc.value.status_code == 409
     assert private not in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_live_inbound_listener_rejects_endpoint_changes_before_persisting(
+    monkeypatch,
+):
+    from api.routers import workers
+    from worker.inbound import service as inbound_service
+
+    mutations = []
+
+    class Node:
+        running = True
+        port = 7444
+
+        async def start(self):
+            raise AssertionError("a live listener must not be started in place")
+
+    monkeypatch.setattr(inbound_service, "enabled_override", lambda: None)
+    monkeypatch.setattr(inbound_service, "bind_host", lambda: "0.0.0.0")
+    monkeypatch.setattr(inbound_service, "bind_port", lambda: 7444)
+    monkeypatch.setattr(
+        inbound_service,
+        "set_bind_host",
+        lambda value: mutations.append(("bind", value)),
+    )
+    monkeypatch.setattr(
+        inbound_service,
+        "set_bind_port",
+        lambda value: mutations.append(("port", value)),
+    )
+    monkeypatch.setattr(
+        inbound_service,
+        "set_enabled",
+        lambda value: mutations.append(("enabled", value)),
+    )
+    monkeypatch.setattr(inbound_service, "node", Node())
+
+    with pytest.raises(workers.HTTPException) as exc:
+        await workers.set_inbound_enabled(
+            workers.InboundEnableRequest(
+                enabled=True,
+                bind="127.0.0.1",
+                port=7445,
+            )
+        )
+
+    assert exc.value.status_code == 409
+    assert mutations == []

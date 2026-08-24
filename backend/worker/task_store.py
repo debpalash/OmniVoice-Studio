@@ -17,6 +17,7 @@ flips the task to completed, so the ack can only follow a durable fact.
 """
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import logging
@@ -25,7 +26,8 @@ import os
 import re
 import shutil
 import time
-from typing import Iterable, Iterator, Optional
+import uuid
+from typing import Callable, Iterable, Iterator, Optional
 
 from core.db import db_conn
 from core.path_security import UnsafePath, resolve_within, safe_filename
@@ -133,6 +135,7 @@ INPUTS_PARAM_KEY = "inputs"
 
 _HASH_CHUNK_BYTES = 1024 * 1024
 _SAFE_EXTENSION = re.compile(r"^\.[A-Za-z0-9]{1,8}$")
+_CONTENT_ARTIFACT = re.compile(r"^([0-9a-f]{64})(?:\.[A-Za-z0-9]{1,8})?$")
 
 
 class InputStagingError(RuntimeError):
@@ -141,6 +144,60 @@ class InputStagingError(RuntimeError):
     Raised rather than swallowed: a clone whose reference audio silently went
     missing does not fail, it renders someone else's voice.
     """
+
+
+def _fsync_parent_directory(directory: str) -> None:
+    """Persist directory entry changes where the platform supports it."""
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if directory_flag is None:
+        return
+    unsupported = {
+        errno.EINVAL,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | directory_flag)
+    except OSError as exc:
+        if exc.errno in unsupported:
+            return
+        raise
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        if exc.errno not in unsupported:
+            raise
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_file(path: str) -> None:
+    with open(path, "r+b") as handle:
+        os.fsync(handle.fileno())
+
+
+def _durable_makedirs(directory: str) -> None:
+    """Create a directory hierarchy and persist each parent entry."""
+    target = os.path.abspath(directory)
+    missing: list[str] = []
+    current = target
+    while not os.path.isdir(current):
+        if os.path.exists(current):
+            raise NotADirectoryError(current)
+        missing.append(current)
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    for path in reversed(missing):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            if not os.path.isdir(path):
+                raise
+        _fsync_parent_directory(os.path.dirname(path) or ".")
+    if not missing:
+        _fsync_parent_directory(os.path.dirname(target) or ".")
 
 
 def artifact_root(*, create_dir: bool = True) -> str:
@@ -154,7 +211,7 @@ def artifact_root(*, create_dir: bool = True) -> str:
 
     root = paths()["artifacts"]
     if create_dir:
-        os.makedirs(os.path.join(root, INPUTS_DIRNAME), exist_ok=True)
+        _durable_makedirs(os.path.join(root, INPUTS_DIRNAME))
     return root
 
 
@@ -183,7 +240,40 @@ def _digest(path: str) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def stage_input(source: str, *, root: Optional[str] = None, now: Optional[float] = None) -> dict:
+def _staged_entry_matches(path: str, entry: dict) -> bool:
+    """Verify staged bytes against both metadata and their content address."""
+    if not os.path.isfile(path):
+        return False
+    artifact_id = str(entry.get("artifact_id") or "")
+    portable_name = artifact_id.replace("\\", "/").rsplit("/", 1)[-1]
+    named = _CONTENT_ARTIFACT.fullmatch(portable_name)
+    if named is None:
+        return False
+    try:
+        actual_digest, actual_size = _digest(path)
+    except OSError:
+        return False
+    recorded_digest = str(entry.get("sha256") or "").strip().lower()
+    recorded_size = entry.get("size_bytes")
+    if recorded_digest and actual_digest != recorded_digest:
+        return False
+    if recorded_size is not None:
+        try:
+            if actual_size != int(recorded_size):
+                return False
+        except (TypeError, ValueError):
+            return False
+    if actual_digest != named.group(1):
+        return False
+    # Backfill metadata on a legacy row once its content address proves it.
+    entry["sha256"] = actual_digest
+    entry["size_bytes"] = actual_size
+    return True
+
+
+def stage_input(
+    source: str, *, root: Optional[str] = None, now: Optional[float] = None
+) -> dict:
     """Copy one input into the artifact store, keyed by its content hash.
 
     Returns the record that ends up on the task row. ``source`` is kept in it
@@ -195,27 +285,58 @@ def stage_input(source: str, *, root: Optional[str] = None, now: Optional[float]
     try:
         digest, size = _digest(source)
     except OSError as exc:
-        raise InputStagingError(f"Could not read the task input {source!r}: {exc}") from exc
+        raise InputStagingError(
+            f"Could not read the task input {source!r}: {exc}"
+        ) from exc
 
     artifact_id = os.path.join(INPUTS_DIRNAME, f"{digest}{_extension(source)}")
     try:
         destination = resolve_within(base, artifact_id)
     except UnsafePath as exc:  # pragma: no cover — the id is ours, hex only
-        raise InputStagingError(f"Refusing to stage {source!r} outside the artifact store") from exc
+        raise InputStagingError(
+            f"Refusing to stage {source!r} outside the artifact store"
+        ) from exc
 
+    partial = destination.with_name(
+        f".{destination.name}.{uuid.uuid4().hex}.part"
+    )
     try:
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        # Same size at a content-addressed name means the same bytes: the only
-        # writer is the rename below, so a truncated file cannot exist here.
-        if not (destination.is_file() and destination.stat().st_size == size):
-            partial = destination.with_name(destination.name + ".part")
+        _durable_makedirs(str(destination.parent))
+        expected = {
+            "artifact_id": artifact_id,
+            "sha256": digest,
+            "size_bytes": size,
+        }
+        if not _staged_entry_matches(str(destination), expected):
             shutil.copyfile(source, partial)
+            copied_digest, copied_size = _digest(str(partial))
+            if copied_digest != digest or copied_size != size:
+                raise InputStagingError(
+                    f"The task input {source!r} changed while it was being staged."
+                )
+            _fsync_file(str(partial))
             os.replace(partial, destination)
+            _fsync_parent_directory(str(destination.parent))
         # Freshness, not decoration: the purge dates an unreferenced input by
         # its mtime, so re-using a staged voice has to renew it.
         os.utime(destination, (stamp, stamp))
+        _fsync_file(str(destination))
+        _fsync_parent_directory(str(destination.parent))
     except OSError as exc:
-        raise InputStagingError(f"Could not stage the task input {source!r}: {exc}") from exc
+        raise InputStagingError(
+            f"Could not stage the task input {source!r}: {exc}"
+        ) from exc
+    finally:
+        try:
+            os.remove(partial)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            logger.debug(
+                "Could not remove the staged-input partial %s",
+                partial,
+                exc_info=True,
+            )
 
     filename = os.path.basename(str(source)) or f"{digest}{_extension(source)}"
     return {
@@ -254,8 +375,13 @@ def ensure_staged(
     """
     params = task.params if isinstance(task.params, dict) else {}
     recorded = params.get(INPUTS_PARAM_KEY)
-    entries: list[dict] = [e for e in recorded if isinstance(e, dict)] if isinstance(recorded, list) else []
-    if root:
+    entries: list[dict] = (
+        [e for e in recorded if isinstance(e, dict)]
+        if isinstance(recorded, list)
+        else []
+    )
+    base = root or artifact_root()
+    if entries:
         # A task may have been staged when it was submitted under the default
         # store, then dispatched by a servicer configured with another store.
         # Recorded metadata is not proof that this servicer can serve it.
@@ -263,7 +389,10 @@ def ensure_staged(
         for entry in entries:
             artifact_id = str(entry.get("artifact_id") or "")
             try:
-                available = bool(artifact_id and resolve_within(root, artifact_id).is_file())
+                path = resolve_within(base, artifact_id)
+                available = bool(
+                    artifact_id and _staged_entry_matches(str(path), entry)
+                )
             except UnsafePath:
                 available = False
             if available:
@@ -271,7 +400,7 @@ def ensure_staged(
                 continue
             source = str(entry.get("source") or "")
             if source and os.path.isfile(source):
-                replacement = stage_input(source, root=root, now=now)
+                replacement = stage_input(source, root=base, now=now)
                 replacement.update(key=entry.get("key"), index=entry.get("index"))
                 refreshed.append(replacement)
             else:
@@ -289,7 +418,7 @@ def ensure_staged(
         # id here. Only what exists on this disk is an input.
         if not os.path.isfile(value):
             continue
-        entry = stage_input(value, root=root, now=now)
+        entry = stage_input(value, root=base, now=now)
         entry["key"] = key
         entry["index"] = index
         entries.append(entry)
@@ -345,6 +474,63 @@ def _referenced_artifacts(conn) -> set[str]:
     return referenced
 
 
+def _purge_result_directories(
+    task_ids: Iterable[str], *, root: Optional[str] = None
+) -> tuple[list[str], int]:
+    """Delete result directories before their owning rows become unreachable."""
+    task_ids = list(task_ids)
+    try:
+        base = root or artifact_root(create_dir=False)
+    except Exception:  # pragma: no cover — no data dir at all
+        logger.debug("No artifact root to purge", exc_info=True)
+        return [], 0
+    if not os.path.isdir(base):
+        return task_ids, 0
+
+    cleaned: list[str] = []
+    removed = 0
+    for task_id in task_ids:
+        try:
+            path = resolve_within(base, safe_filename(task_id))
+        except UnsafePath:
+            continue
+        if not os.path.exists(path):
+            try:
+                _fsync_parent_directory(base)
+            except OSError:
+                logger.debug(
+                    "Could not persist task artifact cleanup at %s",
+                    base,
+                    exc_info=True,
+                )
+                continue
+            cleaned.append(task_id)
+            continue
+        if not os.path.isdir(path):
+            logger.warning("Refusing to purge non-directory task artifact %s", path)
+            continue
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            logger.debug("Could not purge task artifacts at %s", path, exc_info=True)
+            continue
+        try:
+            _fsync_parent_directory(base)
+        except OSError:
+            # The bytes are gone from this process's view, but the directory
+            # deletion is not a crash-durable fact yet. Keep the DB row as the
+            # retry index until a later sweep can establish that barrier.
+            logger.debug(
+                "Could not persist task artifact cleanup at %s",
+                base,
+                exc_info=True,
+            )
+            continue
+        cleaned.append(task_id)
+        removed += 1
+    return cleaned, removed
+
+
 def purge_artifacts(
     task_ids: Iterable[str], referenced: set[str], *, cutoff: float, root: Optional[str] = None
 ) -> int:
@@ -356,7 +542,7 @@ def purge_artifacts(
     rows were judged by. Nothing here raises — a purge that fails is a disk
     that stays fuller than we wanted, not a failed request.
     """
-    removed = 0
+    _cleaned, removed = _purge_result_directories(task_ids, root=root)
     try:
         base = root or artifact_root(create_dir=False)
     except Exception:  # pragma: no cover — no data dir at all
@@ -364,15 +550,6 @@ def purge_artifacts(
         return 0
     if not os.path.isdir(base):
         return 0
-
-    for task_id in task_ids:
-        try:
-            path = resolve_within(base, safe_filename(task_id))
-        except UnsafePath:
-            continue
-        if os.path.isdir(path):
-            shutil.rmtree(path, ignore_errors=True)
-            removed += 1
 
     inputs_dir = os.path.join(base, INPUTS_DIRNAME)
     try:
@@ -484,6 +661,25 @@ def _upsert_attempts(conn, task: Task) -> None:
         )
 
 
+def _save_with_conn(conn, task: Task, *, stamp: float) -> None:
+    conn.execute(
+        "UPDATE remote_tasks SET state=?, excluded_json=?, error_json=?, result_ref=?, "
+        "updated_at=?, deadline_at=?, finished_at=?, pinned_worker_id=? WHERE id=?",
+        (
+            task.state.value,
+            json.dumps(sorted(task.excluded_workers)),
+            _dump_error(task.error),
+            task.result_ref,
+            stamp,
+            task.deadline_at,
+            task.finished_at,
+            task.pinned_worker_id,
+            task.task_id,
+        ),
+    )
+    _upsert_attempts(conn, task)
+
+
 def save(task: Task, *, now: Optional[float] = None) -> None:
     """Write the whole task + attempt graph.
 
@@ -492,22 +688,22 @@ def save(task: Task, *, now: Optional[float] = None) -> None:
     """
     stamp = resolve(now)
     with db_conn() as conn:
-        conn.execute(
-            "UPDATE remote_tasks SET state=?, excluded_json=?, error_json=?, result_ref=?, "
-            "updated_at=?, deadline_at=?, finished_at=?, pinned_worker_id=? WHERE id=?",
-            (
-                task.state.value,
-                json.dumps(sorted(task.excluded_workers)),
-                _dump_error(task.error),
-                task.result_ref,
-                stamp,
-                task.deadline_at,
-                task.finished_at,
-                task.pinned_worker_id,
-                task.task_id,
-            ),
-        )
-        _upsert_attempts(conn, task)
+        _save_with_conn(conn, task, stamp=stamp)
+
+
+def save_many(
+    tasks: Iterable[Task],
+    *,
+    now: Optional[float] = None,
+    before_save: Optional[Callable[[object], None]] = None,
+) -> None:
+    """Persist one reconciliation generation atomically."""
+    stamp = resolve(now)
+    with db_conn() as conn:
+        if before_save is not None:
+            before_save(conn)
+        for task in tasks:
+            _save_with_conn(conn, task, stamp=stamp)
 
 
 def commit_result(
@@ -584,23 +780,30 @@ def load_unfinished() -> list[Task]:
     still be rendering, and reconciliation decides each one's fate once the
     workers reconnect.
     """
-    live = ", ".join(f"'{s.value}'" for s in TaskState if not s.terminal)
+    live = json.dumps([s.value for s in TaskState if not s.terminal])
     with db_conn() as conn:
         rows = conn.execute(
-            f"SELECT * FROM remote_tasks WHERE state IN ({live}) ORDER BY priority ASC, created_at ASC"
+            """
+            SELECT * FROM remote_tasks
+            WHERE state IN (SELECT value FROM json_each(?))
+            ORDER BY priority ASC, created_at ASC
+            """,
+            (live,),
         ).fetchall()
         return [_row_to_task(r, _attempts_for(conn, r["id"])) for r in rows]
 
 
 def list_tasks(*, states: Optional[Iterable[TaskState]] = None, limit: int = 100) -> list[Task]:
-    sql = "SELECT * FROM remote_tasks"
-    params: list = []
     if states:
-        placeholders = ", ".join("?" for _ in states)
-        sql += f" WHERE state IN ({placeholders})"
-        params.extend(s.value for s in states)
-    sql += " ORDER BY created_at DESC LIMIT ?"
-    params.append(limit)
+        sql = """
+            SELECT * FROM remote_tasks
+            WHERE state IN (SELECT value FROM json_each(?))
+            ORDER BY created_at DESC LIMIT ?
+        """
+        params = (json.dumps([s.value for s in states]), limit)
+    else:
+        sql = "SELECT * FROM remote_tasks ORDER BY created_at DESC LIMIT ?"
+        params = (limit,)
     with db_conn() as conn:
         rows = conn.execute(sql, params).fetchall()
         return [_row_to_task(r, _attempts_for(conn, r["id"])) for r in rows]
@@ -611,6 +814,7 @@ def purge_finished(
     older_than_seconds: float = 7 * 24 * 3600,
     now: Optional[float] = None,
     root: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> int:
     """Drop old finished tasks — rows *and* the bytes they own.
 
@@ -619,31 +823,66 @@ def purge_finished(
     audio. Neither was ever deleted, so the feature grew the user's disk for
     as long as they used it.
     """
+    if limit is not None and limit <= 0:
+        return 0
     cutoff = resolve(now) - older_than_seconds
-    terminal = ", ".join(f"'{s.value}'" for s in TaskState if s.terminal)
+    terminal = json.dumps([s.value for s in TaskState if s.terminal])
     with db_conn() as conn:
         doomed = [
             row["id"]
             for row in conn.execute(
-                f"SELECT id FROM remote_tasks WHERE state IN ({terminal}) AND finished_at < ?",
-                (cutoff,),
+                """
+                SELECT id FROM remote_tasks
+                WHERE state IN (SELECT value FROM json_each(?))
+                  AND finished_at < ?
+                ORDER BY finished_at ASC, id ASC
+                LIMIT ?
+                """,
+                (terminal, cutoff, -1 if limit is None else int(limit)),
             ).fetchall()
         ]
-        conn.execute(
-            f"DELETE FROM remote_task_attempts WHERE task_id IN "
-            f"(SELECT id FROM remote_tasks WHERE state IN ({terminal}) AND finished_at < ?)",
-            (cutoff,),
-        )
-        cur = conn.execute(
-            f"DELETE FROM remote_tasks WHERE state IN ({terminal}) AND finished_at < ?", (cutoff,)
-        )
-        removed = cur.rowcount
+    # Results are attempt-scoped. Delete them before their task rows, so a
+    # crash or transient Windows lock cannot erase the only index from which a
+    # future sweep could find those bytes.
+    cleaned, _artifacts_removed = _purge_result_directories(doomed, root=root)
+    with db_conn() as conn:
+        eligible: list[str] = []
+        if cleaned:
+            eligible = [
+                row["id"]
+                for row in conn.execute(
+                    """
+                    SELECT id FROM remote_tasks
+                    WHERE id IN (SELECT value FROM json_each(?))
+                      AND state IN (SELECT value FROM json_each(?))
+                      AND finished_at < ?
+                    """,
+                    (json.dumps(cleaned), terminal, cutoff),
+                ).fetchall()
+            ]
+        removed = 0
+        if eligible:
+            conn.execute(
+                """
+                DELETE FROM remote_task_attempts
+                WHERE task_id IN (SELECT value FROM json_each(?))
+                """,
+                (json.dumps(eligible),),
+            )
+            cur = conn.execute(
+                """
+                DELETE FROM remote_tasks
+                WHERE id IN (SELECT value FROM json_each(?))
+                """,
+                (json.dumps(eligible),),
+            )
+            removed = cur.rowcount
         # Read the survivors inside the same transaction that deleted the
         # rows: an input is only unreferenced relative to what is left.
         referenced = _referenced_artifacts(conn)
-    # Filesystem work outside the transaction — a slow rmtree must not hold
-    # SQLite's write lock against the dispatch loop.
-    purge_artifacts(doomed, referenced, cutoff=cutoff, root=root)
+    # Shared content-addressed inputs remain discoverable without their old
+    # task row, so they can be swept after the transaction.
+    purge_artifacts((), referenced, cutoff=cutoff, root=root)
     return removed
 
 

@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Optional
 
-from worker.capacity import derive_concurrency
+from worker.capacity import clamp_concurrency, derive_concurrency
 from worker.deadlines import Deadlines
 from worker.errors import ErrorClass, WorkerError
 from worker.lifecycle import Attempt, PriorityClass, Task
@@ -225,7 +225,7 @@ def capability_to_pb(cap: dict) -> pb.ModelCapability:
         resident=bool(cap.get("resident")),
         min_memory_bytes=int(cap.get("min_memory_bytes") or 0),
         precision=str(cap.get("precision") or ""),
-        derived_concurrency=max(0, declared),
+        derived_concurrency=clamp_concurrency(declared, allow_zero=True),
         cpu_fallback=bool(cap.get("cpu_fallback")),
         repo_ids=list(cap.get("repo_ids") or []),
         display_name=str(cap.get("display_name") or ""),
@@ -243,7 +243,9 @@ def capability_from_pb(message: pb.ModelCapability) -> dict:
         "resident": message.resident,
         "min_memory_bytes": message.min_memory_bytes,
         "precision": message.precision,
-        "derived_concurrency": message.derived_concurrency,
+        "derived_concurrency": clamp_concurrency(
+            message.derived_concurrency, allow_zero=True
+        ),
         "cpu_fallback": message.cpu_fallback,
         "repo_ids": list(message.repo_ids),
         "display_name": message.display_name,

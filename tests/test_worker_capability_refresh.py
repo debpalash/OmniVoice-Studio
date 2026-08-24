@@ -1,5 +1,6 @@
 import asyncio
 import json
+import threading
 
 import pytest
 
@@ -32,6 +33,120 @@ async def test_refresh_sends_capability_update():
 
 
 @pytest.mark.asyncio
+async def test_register_and_refresh_share_one_off_loop_capability_probe():
+    started = threading.Event()
+    release = threading.Event()
+    main_thread = threading.current_thread()
+    calls = 0
+
+    def probe():
+        nonlocal calls
+        assert threading.current_thread() is not main_thread
+        calls += 1
+        started.set()
+        release.wait(5)
+        return [{
+            "engine": "omnivoice",
+            "model_id": "omnivoice:default",
+            "operations": ["tts"],
+            "supported": True,
+            "installed": True,
+            "downloaded": True,
+        }]
+
+    client = _client(probe)
+    registering = asyncio.create_task(client.build_register_request())
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+    refreshing = asyncio.create_task(client.refresh_capabilities())
+    await asyncio.sleep(0)
+
+    try:
+        assert calls == 1
+    finally:
+        release.set()
+    request = await asyncio.wait_for(registering, timeout=1)
+    await asyncio.wait_for(refreshing, timeout=1)
+
+    assert calls == 1
+    assert request.capabilities[0].model_id == "omnivoice:default"
+    frame = await client._outbox.get()
+    assert frame.capabilities.capabilities[0].model_id == "omnivoice:default"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_slow_probe_keeps_control_responsive_and_drains_thread():
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+
+    def probe():
+        started.set()
+        release.wait()
+        finished.set()
+        return []
+
+    client = _client(probe)
+    refreshing = asyncio.create_task(client.refresh_capabilities())
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+
+    await client._on_server_message(pb.ServerMessage(ping=pb.Ping(nonce=42)))
+    pong = await asyncio.wait_for(client._outbox.get(), timeout=1)
+    assert pong.pong.nonce == 42
+    assert not refreshing.done()
+
+    refreshing.cancel()
+    await asyncio.sleep(0)
+    assert not refreshing.done(), "probe thread was abandoned on cancellation"
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(refreshing, timeout=1)
+
+    assert finished.is_set()
+    assert client._outbox.empty(), "cancelled probe published a late capability frame"
+
+
+@pytest.mark.asyncio
+async def test_task_slot_stays_reserved_until_its_capability_probe_finishes():
+    started = threading.Event()
+    release = threading.Event()
+
+    def probe():
+        started.set()
+        release.wait()
+        return []
+
+    async def execute(_assignment):
+        return {"meta": {}, "payload": b""}
+
+    client = _client(probe)
+    client._execute = execute
+    first = pb.TaskAssignment(
+        ref=pb.TaskRef(task_id="first", attempt_id="attempt-1")
+    )
+    await client._on_assignment(first)
+    first_task = client._running["first/attempt-1"]
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+
+    heartbeat = client.heartbeat_message().heartbeat
+    assert heartbeat.active_tasks == 1
+    assert heartbeat.available_slots == 0
+
+    second = pb.TaskAssignment(
+        ref=pb.TaskRef(task_id="second", attempt_id="attempt-2")
+    )
+    await client._on_assignment(second)
+    assert "second/attempt-2" not in client._running
+    frames = []
+    while not client._outbox.empty():
+        frames.append(await client._outbox.get())
+    assert any(frame.WhichOneof("payload") == "rejected" for frame in frames)
+
+    release.set()
+    await asyncio.wait_for(first_task, timeout=1)
+    assert client._running == {}
+
+
+@pytest.mark.asyncio
 async def test_prewarm_resolves_catalog_repo_and_refreshes(monkeypatch):
     loaded = []
     client = _client(lambda: [{
@@ -48,6 +163,170 @@ async def test_prewarm_resolves_catalog_repo_and_refreshes(monkeypatch):
     ))
     assert loaded == ["omnivoice"]
     assert (await client._outbox.get()).WhichOneof("payload") == "capabilities"
+
+
+@pytest.mark.asyncio
+async def test_authority_loss_cancels_and_drains_a_blocked_prewarm(monkeypatch):
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+    probes = 0
+
+    def probe():
+        nonlocal probes
+        probes += 1
+        return [{
+            "engine": "omnivoice",
+            "model_id": "omnivoice:default",
+            "operations": ["tts"],
+            "supported": True,
+            "installed": True,
+            "downloaded": False,
+            "repo_ids": ["k2-fsa/OmniVoice"],
+        }]
+
+    client = _client(probe)
+    client.config.capabilities = probe()
+
+    async def blocked_install(_repo_id):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    monkeypatch.setattr(client, "_install_catalog_repo", blocked_install)
+    await client._on_server_message(pb.ServerMessage(prewarm=pb.PrewarmRequest(
+        model_id="omnivoice:default", download_if_missing=True,
+    )))
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    await client.stop()
+
+    assert cancelled.is_set()
+    assert client._maintenance == set()
+    assert probes == 1, "cancelled prewarm must not publish a late capability refresh"
+    assert client._outbox.empty()
+
+
+@pytest.mark.asyncio
+async def test_authority_loss_waits_for_a_blocking_prewarm_thread(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    probes = 0
+
+    def probe():
+        nonlocal probes
+        probes += 1
+        return [{
+            "engine": "omnivoice",
+            "model_id": "omnivoice:default",
+            "operations": ["tts"],
+            "supported": True,
+            "installed": True,
+            "downloaded": True,
+        }]
+
+    def blocked_load(_engine):
+        started.set()
+        release.wait()
+        finished.set()
+
+    client = _client(probe)
+    client.config.capabilities = probe()
+    monkeypatch.setattr("worker.executor.TaskExecutor._load_backend", blocked_load)
+    await client._on_server_message(pb.ServerMessage(prewarm=pb.PrewarmRequest(
+        model_id="omnivoice:default",
+    )))
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+
+    stopping = asyncio.create_task(client.stop())
+    await asyncio.sleep(0)
+    assert not stopping.done(), "authority returned while the load thread was active"
+    release.set()
+    await asyncio.wait_for(stopping, timeout=1)
+
+    assert finished.is_set()
+    assert probes == 1
+    assert client._outbox.empty()
+
+
+@pytest.mark.asyncio
+async def test_blocked_prewarm_does_not_delay_active_task_cancellation():
+    client = _client(lambda: [])
+    maintenance_cancelled = asyncio.Event()
+    release_maintenance = asyncio.Event()
+    task_cancelled = asyncio.Event()
+
+    async def blocked_maintenance():
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            maintenance_cancelled.set()
+            await release_maintenance.wait()
+
+    async def active_task():
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            task_cancelled.set()
+            raise
+
+    maintenance = asyncio.create_task(blocked_maintenance())
+    running = asyncio.create_task(active_task())
+    client._maintenance.add(maintenance)
+    client._running["task/attempt"] = running
+    await asyncio.sleep(0)
+
+    stopping = asyncio.create_task(client.stop())
+    await asyncio.wait_for(maintenance_cancelled.wait(), timeout=1)
+    await asyncio.wait_for(task_cancelled.wait(), timeout=1)
+    assert not stopping.done()
+
+    release_maintenance.set()
+    await asyncio.wait_for(stopping, timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_remote_install_waits_for_its_background_task(monkeypatch):
+    from api.routers.setup import download as setup_download
+    from utils import download_aggregator, hf_progress
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+    repo_id = "k2-fsa/OmniVoice"
+
+    async def background_install():
+        started.set()
+        await release.wait()
+        finished.set()
+
+    async def fake_install(req):
+        task = asyncio.create_task(background_install())
+        setup_download._install_tasks.add(task)
+        setup_download._install_tasks_by_repo[req.repo_id] = task
+        task.add_done_callback(setup_download._install_tasks.discard)
+        return {"status": "install_started", "repo_id": req.repo_id}
+
+    monkeypatch.setattr(setup_download, "install_model", fake_install)
+    monkeypatch.setattr(hf_progress, "install", lambda: None)
+    monkeypatch.setattr(download_aggregator, "install", lambda: None)
+    client = _client(lambda: [])
+    installing = asyncio.create_task(client._install_catalog_repo(repo_id))
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    installing.cancel()
+    await asyncio.sleep(0)
+    assert not installing.done(), "authority returned while the install was active"
+    release.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(installing, timeout=1)
+    assert finished.is_set()
+    setup_download._install_tasks_by_repo.pop(repo_id, None)
+    setup_download._cancelled.discard(repo_id)
 
 
 @pytest.mark.asyncio
@@ -90,8 +369,25 @@ async def test_remote_download_without_terminal_progress_times_out(monkeypatch):
     from api.routers.setup import download as setup_download
     from utils import download_aggregator, hf_progress
 
-    async def fake_install(_req):
-        return {"status": "install_started"}
+    repo_id = "k2-fsa/OmniVoice"
+    finished = asyncio.Event()
+
+    async def background_install():
+        while repo_id not in setup_download._cancelled:
+            await asyncio.sleep(0)
+        finished.set()
+
+    async def fake_install(req):
+        task = asyncio.create_task(background_install())
+        setup_download._install_tasks.add(task)
+        setup_download._install_tasks_by_repo[req.repo_id] = task
+
+        def retire(completed):
+            setup_download._install_tasks.discard(completed)
+            setup_download._install_tasks_by_repo.pop(req.repo_id, None)
+
+        task.add_done_callback(retire)
+        return {"status": "install_started", "repo_id": req.repo_id}
 
     monkeypatch.setattr(setup_download, "install_model", fake_install)
     monkeypatch.setattr(hf_progress, "install", lambda: None)
@@ -104,7 +400,11 @@ async def test_remote_download_without_terminal_progress_times_out(monkeypatch):
     )
 
     with pytest.raises(TimeoutError):
-        await client._install_catalog_repo("k2-fsa/OmniVoice")
+        await client._install_catalog_repo(repo_id)
+
+    assert finished.is_set()
+    assert repo_id not in setup_download._install_tasks_by_repo
+    assert repo_id not in setup_download._cancelled
 
 
 @pytest.mark.asyncio
@@ -114,9 +414,11 @@ async def test_control_plane_stamps_authenticated_target_on_progress():
     events = []
     listener_id = hf_progress.register_listener(events.append)
     try:
-        session = type("Session", (), {"worker_id": "gpu2"})()
+        session = type("Session", (), {"worker_id": "gpu2", "revoked": False})()
+        servicer = object.__new__(WorkerServicer)
+        servicer._sessions = {"gpu2": session}
         await WorkerServicer._handle(
-            object.__new__(WorkerServicer),
+            servicer,
             session,
             pb.WorkerMessage(download_progress=pb.DownloadProgress(
                 event_json=json.dumps({

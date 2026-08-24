@@ -30,6 +30,7 @@ import json
 import os
 import shutil
 import sqlite3
+import threading
 
 import pytest
 
@@ -221,6 +222,60 @@ def test_staging_twice_stages_once(artifacts, voice, monkeypatch):
     assert len(task_store.ensure_staged(task, now=1001.0)) == 1
 
 
+def test_staged_input_is_durable_before_the_task_row_can_commit(
+    db, artifacts, voice, monkeypatch
+):
+    real_fsync = task_store._fsync_file
+    fsynced = []
+
+    def fail_first_file_barrier(path):
+        fsynced.append(os.fspath(path))
+        raise OSError("disk barrier failed")
+
+    monkeypatch.setattr(task_store, "_fsync_file", fail_first_file_barrier)
+    with pytest.raises(task_store.InputStagingError, match="barrier failed"):
+        task_store.create(_task(ref_audio=voice), now=1000.0)
+
+    assert fsynced and fsynced[0].endswith(".part")
+    assert task_store.get("t1") is None
+    assert not list(
+        (resolve_within(artifacts, task_store.INPUTS_DIRNAME)).glob("*.part")
+    )
+    monkeypatch.setattr(task_store, "_fsync_file", real_fsync)
+
+
+@pytest.mark.parametrize("damage", [b"", b"x" * 1028])
+def test_existing_staged_input_is_verified_before_reuse(
+    artifacts, voice, damage
+):
+    task = _task(ref_audio=voice)
+    entry = task_store.ensure_staged(task, now=1000.0)[0]
+    staged = resolve_within(artifacts, entry["artifact_id"])
+    if damage:
+        damage = damage[: entry["size_bytes"]]
+        if len(damage) < entry["size_bytes"]:
+            damage += b"x" * (entry["size_bytes"] - len(damage))
+    staged.write_bytes(damage)
+
+    refreshed = task_store.ensure_staged(task, root=artifacts, now=1001.0)
+
+    assert refreshed[0]["sha256"] == entry["sha256"]
+    assert staged.read_bytes() == open(voice, "rb").read()
+
+
+def test_corrupt_durable_input_without_its_source_is_never_dispatched(
+    db, artifacts, voice
+):
+    task_store.create(_task(ref_audio=voice), now=1000.0)
+    recovered = task_store.get("t1")
+    entry = recovered.params[task_store.INPUTS_PARAM_KEY][0]
+    staged = resolve_within(artifacts, entry["artifact_id"])
+    staged.write_bytes(b"x" * entry["size_bytes"])
+
+    with pytest.raises(task_store.InputStagingError, match="unavailable"):
+        task_store.ensure_staged(recovered, root=artifacts, now=1001.0)
+
+
 def test_a_parameter_that_is_not_a_file_is_left_alone(artifacts):
     task = _task(ref_audio="voice-profile-id")
 
@@ -340,6 +395,130 @@ async def test_the_second_clone_of_a_voice_transfers_nothing(
 
 
 @pytest.mark.asyncio
+async def test_a_same_size_corrupt_cache_entry_is_hashed_off_loop_and_refetched(
+    tmp_path, monkeypatch
+):
+    payload = b"correct reference bytes"
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/reference.wav",
+        filename="reference.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    cache = tmp_path / "inputs"
+    cache.mkdir()
+    destination = cache / executor_module._cache_name(ref)
+    destination.write_bytes(b"x" * len(payload))
+    calls = []
+    verifier_threads = []
+    event_loop_thread = threading.get_ident()
+    real_already_held = executor_module._already_held
+
+    def observed_already_held(path, advertised):
+        verifier_threads.append(threading.get_ident())
+        return real_already_held(path, advertised)
+
+    async def fetch(_ref, partial):
+        calls.append(partial)
+        with open(partial, "wb") as handle:
+            handle.write(payload)
+
+    monkeypatch.setattr(executor_module, "_already_held", observed_already_held)
+    result = await TaskExecutor(input_dir=str(cache))._fetch_one(ref, fetch)
+
+    assert calls
+    assert open(result, "rb").read() == payload
+    assert verifier_threads and verifier_threads[0] != event_loop_thread
+
+
+@pytest.mark.asyncio
+async def test_a_corrupt_shared_cache_generation_is_never_deleted_or_replaced(
+    tmp_path
+):
+    payload = b"correct reference bytes"
+    corrupt = b"x" * len(payload)
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/reference.wav",
+        filename="reference.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    cache = tmp_path / "inputs"
+    cache.mkdir()
+    destination = cache / executor_module._cache_name(ref)
+    destination.write_bytes(corrupt)
+    assert executor_module._lease_input_cache_path(str(destination))
+
+    async def fetch(_ref, partial):
+        # The first execution's active lease still names these bytes. A cache
+        # repair must not unlink them before or replace them afterwards.
+        assert destination.read_bytes() == corrupt
+        with open(partial, "wb") as handle:
+            handle.write(payload)
+
+    try:
+        result = await TaskExecutor(input_dir=str(cache))._fetch_one(ref, fetch)
+
+        assert result != str(destination)
+        assert result.endswith(".wav")
+        assert destination.read_bytes() == corrupt
+        assert open(result, "rb").read() == payload
+        key = executor_module._cache_path_key(str(destination))
+        assert executor_module._INPUT_CACHE_LEASES[key] == 1
+        assert executor_module._INPUT_CACHE_MUTATIONS == set()
+    finally:
+        executor_module._release_input_cache_path(str(destination))
+
+
+@pytest.mark.asyncio
+async def test_fetched_input_is_fsynced_and_renamed_before_reuse(
+    tmp_path, monkeypatch
+):
+    payload = b"durable reference audio"
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/reference.wav",
+        filename="reference.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    cache = tmp_path / "inputs"
+    events = []
+    real_replace = executor_module.os.replace
+
+    def fsync_file(path):
+        assert open(path, "rb").read() == payload
+        events.append(("fsync-file", path))
+
+    def replace(source, destination):
+        events.append(("replace", source, destination))
+        real_replace(source, destination)
+
+    def fsync_directory(directory):
+        events.append(("fsync-directory", directory))
+
+    async def fetch(_ref, partial):
+        with open(partial, "wb") as handle:
+            handle.write(payload)
+        events.clear()
+
+    monkeypatch.setattr(executor_module, "_fsync_file", fsync_file)
+    monkeypatch.setattr(executor_module.os, "replace", replace)
+    monkeypatch.setattr(
+        executor_module, "_fsync_parent_directory", fsync_directory
+    )
+    result = await TaskExecutor(input_dir=str(cache))._fetch_one(ref, fetch)
+    events.append(("returned", result))
+
+    partial = events[0][1]
+    assert events == [
+        ("fsync-file", partial),
+        ("replace", partial, result),
+        ("fsync-directory", str(cache)),
+        ("returned", result),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_concurrent_fetches_use_distinct_partial_files(tmp_path):
     payload = b"same artifact" * 64
     ref = pb.ArtifactRef(
@@ -367,6 +546,77 @@ async def test_concurrent_fetches_use_distinct_partial_files(tmp_path):
     assert all(path.endswith(".part") for path in destinations)
     assert open(first, "rb").read() == payload
     assert not list((tmp_path / "inputs").glob("*.part"))
+
+
+@pytest.mark.asyncio
+async def test_cancelled_fetch_discards_its_partial_file(tmp_path):
+    payload = b"partial input"
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/cancelled.wav",
+        filename="cancelled.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    download_started = asyncio.Event()
+
+    async def fetch(_ref, destination):
+        with open(destination, "wb") as handle:
+            handle.write(payload)
+        download_started.set()
+        await asyncio.Event().wait()
+
+    cache = tmp_path / "inputs"
+    task = asyncio.create_task(TaskExecutor(input_dir=str(cache))._fetch_one(ref, fetch))
+    await download_started.wait()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not list(cache.glob("*.part"))
+
+
+@pytest.mark.asyncio
+async def test_cancelled_hash_waits_for_verifier_before_discarding_partial_file(
+    tmp_path, monkeypatch
+):
+    payload = b"input waiting for verification"
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/verifying.wav",
+        filename="verifying.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    verify_started = threading.Event()
+    release_verify = threading.Event()
+    verifying_path: list[str] = []
+
+    def blocked_verify(path, _ref):
+        with open(path, "rb"):
+            verifying_path.append(path)
+            verify_started.set()
+            release_verify.wait(timeout=5)
+
+    async def fetch(_ref, destination):
+        with open(destination, "wb") as handle:
+            handle.write(payload)
+
+    monkeypatch.setattr(executor_module, "_verify", blocked_verify)
+    cache = tmp_path / "inputs"
+    task = asyncio.create_task(TaskExecutor(input_dir=str(cache))._fetch_one(ref, fetch))
+    assert await asyncio.to_thread(verify_started.wait, 2)
+
+    task.cancel()
+    await asyncio.sleep(0)
+    try:
+        assert not task.done(), "cancellation returned while the hash thread still held the file"
+        assert os.path.exists(verifying_path[0])
+    finally:
+        release_verify.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not list(cache.glob("*.part"))
 
 
 @pytest.mark.asyncio
@@ -457,10 +707,99 @@ def test_cache_pruner_never_removes_in_flight_partial_files(tmp_path):
     partial.write_bytes(b"x" * 500)
     (directory / "complete.bin").write_bytes(b"x" * 100)
 
-    executor_module._prune_input_cache(str(directory), limit_bytes=0)
+    executor_module._lease_input_cache_path(str(partial))
+    try:
+        executor_module._prune_input_cache(
+            str(directory),
+            limit_bytes=0,
+            now=partial.stat().st_mtime
+            + executor_module._STALE_INPUT_PARTIAL_SECONDS
+            + 1,
+        )
+    finally:
+        executor_module._release_input_cache_path(str(partial))
 
     assert partial.read_bytes() == b"x" * 500
     assert not (directory / "complete.bin").exists()
+
+
+def test_cache_pruner_counts_young_partials_and_sweeps_stale_ones(tmp_path):
+    directory = tmp_path / "cache"
+    directory.mkdir()
+    now = 10_000.0
+    stale = directory / "stale.unique.part"
+    young = directory / "young.unique.part"
+    complete = directory / "complete.bin"
+    stale.write_bytes(b"s" * 500)
+    young.write_bytes(b"y" * 500)
+    complete.write_bytes(b"c" * 100)
+    os.utime(
+        stale,
+        (
+            now - executor_module._STALE_INPUT_PARTIAL_SECONDS - 1,
+            now - executor_module._STALE_INPUT_PARTIAL_SECONDS - 1,
+        ),
+    )
+    os.utime(young, (now, now))
+    os.utime(complete, (now, now))
+
+    executor_module._prune_input_cache(
+        str(directory), limit_bytes=500, now=now
+    )
+
+    assert not stale.exists()
+    assert young.exists()
+    assert not complete.exists(), "young partial bytes must count toward the ceiling"
+
+
+@pytest.mark.asyncio
+async def test_execute_leases_materialized_inputs_against_concurrent_pruning(
+    tmp_path, monkeypatch
+):
+    payload = b"active reference audio"
+    ref = pb.ArtifactRef(
+        artifact_id="inputs/active.wav",
+        filename="active.wav",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+    assignment = pb.TaskAssignment(
+        operation="clone",
+        params_json=json.dumps({"text": "hello", "ref_audio": ref.artifact_id}),
+        inputs=[ref],
+    )
+    cache = tmp_path / "cache"
+    executor = TaskExecutor(input_dir=str(cache))
+    handler_started = asyncio.Event()
+    release_handler = asyncio.Event()
+    active_path = []
+
+    async def fetch(_ref, partial):
+        with open(partial, "wb") as handle:
+            handle.write(payload)
+
+    async def blocked_handler(_assignment, params, _report):
+        active_path.append(params["ref_audio"])
+        handler_started.set()
+        await release_handler.wait()
+        assert os.path.isfile(active_path[0])
+        return {"payload": b"", "meta": {}}
+
+    monkeypatch.setattr(executor, "_run_tts", blocked_handler)
+    execution = asyncio.create_task(executor.execute(assignment, fetch_input=fetch))
+    await asyncio.wait_for(handler_started.wait(), timeout=2)
+    evictable = cache / "older.bin"
+    evictable.write_bytes(b"old")
+
+    executor_module._prune_input_cache(str(cache), limit_bytes=0)
+
+    assert os.path.isfile(active_path[0])
+    assert not evictable.exists()
+    release_handler.set()
+    await execution
+
+    executor_module._prune_input_cache(str(cache), limit_bytes=0)
+    assert not os.path.exists(active_path[0])
 
 
 # ── The disk ───────────────────────────────────────────────────────────────

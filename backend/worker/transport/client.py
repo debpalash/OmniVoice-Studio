@@ -48,8 +48,10 @@ from typing import Awaitable, Callable, Optional, Protocol
 
 import grpc
 
+from worker.async_utils import drain_task, to_thread_and_drain_on_cancel
 from worker import errors as worker_errors
 from worker import identity
+from worker.capacity import clamp_concurrency
 from worker.errors import ErrorClass, WorkerError
 from worker.identity import EnrollmentToken, WorkerKeypair
 from worker.protocol.gen import worker_v1_pb2 as pb
@@ -103,6 +105,8 @@ class ArtifactTransport(Protocol):
 
     async def stage_in(self, ref: pb.ArtifactRef, destination: str) -> None: ...
 
+    def result_acked(self, artifacts: list[pb.ArtifactRef]) -> None: ...
+
 # Used when an assignment carries no lease (an older control plane, or a test).
 # Mirrors deadlines.py's _HEARTBEAT_GRACE_S * 4.
 _DEFAULT_PROGRESS_LEASE_SECONDS = 120.0
@@ -113,6 +117,29 @@ _MIN_KEEPALIVE_INTERVAL_SECONDS = 0.05
 
 # Reporter keywords the client offers the executor, per task.
 _EXECUTOR_KWARGS = frozenset({"on_progress", "on_model_loading", "fetch_input"})
+
+
+def _write_all(handle, payload: bytes) -> None:
+    """Write a complete chunk, including through short-writing file wrappers."""
+    remaining = memoryview(payload)
+    while remaining:
+        written = handle.write(remaining)
+        if written is None or written <= 0:
+            raise OSError("input destination made no write progress")
+        remaining = remaining[written:]
+
+
+def _close_and_remove(handle, destination: str) -> None:
+    """Finish file cleanup as one blocking operation after cancellation."""
+    if handle is not None:
+        with contextlib.suppress(OSError):
+            handle.close()
+    with contextlib.suppress(OSError):
+        os.remove(destination)
+
+
+class TerminalRegistrationError(RuntimeError):
+    """A registration failure that reconnecting cannot repair."""
 
 
 def keepalive_interval(lease_seconds: float) -> float:
@@ -267,28 +294,44 @@ class WorkerClient:
         cancel: Optional[Callable[[str], Awaitable[None]]] = None,
         capability_probe: Optional[Callable[[], list[dict]]] = None,
         on_registered: Optional[Callable[[str], None]] = None,
+        on_activated: Optional[Callable[[str], None]] = None,
         artifacts: Optional["ArtifactTransport"] = None,
+        drain_active_work: Optional[Callable[[], Awaitable[None]]] = None,
     ) -> None:
         self.config = config
+        self.config.max_concurrent_tasks = clamp_concurrency(
+            self.config.max_concurrent_tasks
+        )
         self._execute = execute
         self._cancel = cancel
         self._capability_probe = capability_probe
+        # Discovery imports engine adapters and inspects model storage. Share
+        # one off-loop probe across reconnect/task/prewarm/idle refresh races;
+        # a cancelled waiter drains it before returning so no detached probe
+        # can mutate global engine state after authority is gone.
+        self._capability_probe_task: Optional[asyncio.Task] = None
         # Outbound mode moves artifacts with RPCs this side initiates
         # (UploadResult / DownloadArtifact), which is only possible because
         # this side dialled. In inbound mode the node cannot call the panel at
         # all, so both directions are driven from the panel and this hook
         # swaps in the staging that makes that work. None means outbound.
         self._artifacts = artifacts
+        self._drain_active_work = drain_active_work
         # Lets the agent persist the server-assigned id. Without it a restarted
         # worker signs its challenge with an empty worker_id, the signature
         # never matches, and reconnecting needs a fresh enrollment token —
         # which would make key-based identity pointless.
         self._on_registered = on_registered
+        # Register only reserves a provisional server generation. Readiness is
+        # published separately, after ConfigUpdate proves Control activated it.
+        self._on_activated = on_activated
+        self._activation_confirmed = False
         self._reporter_kwargs = _accepted_reporter_kwargs(execute)
         self._outbox = _Outbox()
         self._pending: dict[str, PendingResult] = {}
         self._running: dict[str, asyncio.Task] = {}
         self._keepalives: dict[str, asyncio.Task] = {}
+        self._maintenance: set[asyncio.Task] = set()
         self._epoch = 0
         self._session_token = ""
         # Negotiated by ConfigUpdate; None means "use the executor's own
@@ -298,6 +341,12 @@ class WorkerClient:
         # same channel rather than the control stream.
         self._stub = None
         self._stop = asyncio.Event()
+        # Drain is a graceful reconnect, not terminal shutdown. This event
+        # half-closes only the current stream after every active result is ACKed
+        # while ``_stop`` remains reserved for cancelling the agent itself.
+        self._reconnect_requested = asyncio.Event()
+        self._draining = False
+        self._accepting_assignments = True
 
     # ── Connection ────────────────────────────────────────────────────────
 
@@ -318,12 +367,21 @@ class WorkerClient:
 
     async def run_forever(self) -> None:
         """Connect, serve, and reconnect until stopped."""
+        if not self._stop.is_set():
+            self._accepting_assignments = True
         attempt = 0
         while not self._stop.is_set():
             try:
                 await self._connect_once()
                 attempt = 0
             except asyncio.CancelledError:
+                raise
+            except TerminalRegistrationError:
+                # The control plane has made a durable decision that this
+                # identity may not reconnect. Work deliberately survives an
+                # ordinary network drop, but must not survive revocation and
+                # keep using the GPU with no authority able to cancel it.
+                await self._cancel_active_work()
                 raise
             except Exception as exc:
                 attempt += 1
@@ -338,6 +396,52 @@ class WorkerClient:
 
     async def stop(self) -> None:
         self._stop.set()
+        self._reconnect_requested.set()
+        await self._cancel_active_work()
+
+    async def _cancel_active_work(self) -> None:
+        """Cancel retained tasks without permanently disabling reconnect."""
+        # Close admission before taking any snapshots. Attach/Control may still
+        # have a frame ready while revocation drains an uninterruptible GPU
+        # call; accepting that frame here lets it escape the snapshot entirely.
+        self._accepting_assignments = False
+        maintenance = list(self._maintenance)
+        for task in maintenance:
+            task.cancel()
+        running = list(self._running.items())
+        keepalives = list(self._keepalives.values())
+        for key, task in running:
+            self._stop_keepalive(key)
+            task.cancel()
+        for keepalive in keepalives:
+            keepalive.cancel()
+        cancel_callbacks = []
+        if self._cancel is not None:
+            cancel_callbacks = [
+                asyncio.create_task(self._cancel(key.split("/")[0]))
+                for key, _task in running
+            ]
+        # Cancel every maintenance, task, and keepalive wrapper before awaiting
+        # any uninterruptible one.  A prewarm stuck in a model-load thread must
+        # not delay revocation of active user renders.
+        draining = [
+            *maintenance,
+            *(task for _key, task in running),
+            *keepalives,
+            *cancel_callbacks,
+        ]
+        if draining:
+            await asyncio.gather(
+                *draining, return_exceptions=True
+            )
+        self._maintenance.clear()
+        for key, task in running:
+            if self._running.get(key) is task:
+                self._running.pop(key, None)
+        if self._drain_active_work is not None:
+            await self._drain_active_work()
+        self._keepalives.clear()
+        self._pending.clear()
 
     async def _connect_once(self) -> None:
         async with self._channel() as channel:
@@ -359,6 +463,8 @@ class WorkerClient:
             try:
                 async for message in stream:
                     await self._on_server_message(message)
+                    if self._stop.is_set():
+                        break
             finally:
                 heartbeat.cancel()
                 # The channel closes with this block, so a stub kept past it
@@ -375,7 +481,27 @@ class WorkerClient:
     # before; inbound calls them from the Attach handler. Neither mode gets its
     # own copy of registration, zombie reconciliation or redelivery.
 
-    def build_register_request(self) -> pb.RegisterRequest:
+    async def _probe_capabilities(self) -> list[dict]:
+        if self._capability_probe is None:
+            return list(self.config.capabilities or [])
+        task = self._capability_probe_task
+        if task is None or task.done():
+            task = asyncio.create_task(
+                to_thread_and_drain_on_cancel(self._capability_probe),
+                name="worker-capability-probe",
+            )
+            self._capability_probe_task = task
+        try:
+            capabilities = await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await drain_task(task)
+            raise
+        finally:
+            if task.done() and self._capability_probe_task is task:
+                self._capability_probe_task = None
+        return list(capabilities or [])
+
+    async def build_register_request(self) -> pb.RegisterRequest:
         """This worker's self-description. Identical in both modes."""
         challenge = identity.new_challenge()
         nonce = identity.new_challenge()
@@ -387,9 +513,8 @@ class WorkerClient:
                 nonce=nonce,
             )
         )
-        capabilities = (
-            self._capability_probe() if self._capability_probe else self.config.capabilities
-        )
+        capabilities = await self._probe_capabilities()
+        self.config.capabilities = capabilities
         return pb.RegisterRequest(
             envelope=pb.Envelope(sequence=self._epoch),
             protocol_version_min=PROTOCOL_VERSION,
@@ -403,7 +528,9 @@ class WorkerClient:
             key_id=self.config.keypair.key_id,
             host=codec.host_to_pb(self.config.host or describe_host()),
             capabilities=[codec.capability_to_pb(c) for c in capabilities],
-            max_concurrent_tasks=self.config.max_concurrent_tasks,
+            max_concurrent_tasks=clamp_concurrency(
+                self.config.max_concurrent_tasks
+            ),
             in_flight=[
                 codec.task_ref(t.split("/")[0], t.split("/")[1], self._epoch)
                 for t in self._running
@@ -415,26 +542,79 @@ class WorkerClient:
     async def accept_registration(self, response: pb.RegisterResponse) -> None:
         """Adopt the control plane's answer and recover in-flight state."""
         if response.error.code:
-            raise RuntimeError(f"{response.error.code}: {response.error.message}")
+            raise TerminalRegistrationError(
+                f"{response.error.code}: {response.error.message}"
+            )
+        # An enrollment token is already spent when this response arrives.
+        # Commit the reconnect identity before adopting the live session; if
+        # local durable state cannot be written, retrying the spent token can
+        # never repair the worker and must reach the caller immediately.
+        if self._on_registered is not None:
+            try:
+                await to_thread_and_drain_on_cancel(
+                    self._on_registered, response.worker_id
+                )
+            except Exception as exc:
+                raise TerminalRegistrationError(
+                    "LOCAL_STATE: accepted enrollment could not be persisted"
+                ) from exc
 
+        self._draining = False
+        self._reconnect_requested.clear()
+        if not self._stop.is_set():
+            self._accepting_assignments = True
+        self._activation_confirmed = False
         self._epoch = response.session_epoch
         self._session_token = response.session_token
         self.config.worker_id = response.worker_id
         # The token is spent; every later connection proves key possession.
         self.config.enrollment_token = ""
-        if self._on_registered is not None:
-            try:
-                self._on_registered(response.worker_id)
-            except Exception:
-                logger.warning("Could not persist the worker id", exc_info=True)
 
         authoritative = {ref.attempt_id for ref in response.authoritative_in_flight}
         await self._cancel_zombies(authoritative)
         await self._redeliver_pending()
 
+    def confirm_activation(self) -> None:
+        """Publish readiness once Control proves the provisional session live."""
+        if self._activation_confirmed:
+            return
+        if self._on_activated is not None:
+            try:
+                self._on_activated(self.config.worker_id)
+            except Exception as exc:
+                raise TerminalRegistrationError(
+                    "LOCAL_STATE: activated enrollment could not be published"
+                ) from exc
+        self._activation_confirmed = True
+
     async def next_outbound(self) -> pb.WorkerMessage:
         """The next frame this worker wants to send."""
         return await self._outbox.get()
+
+    def prepare_inbound_session(self) -> None:
+        """Start a fresh stream while retaining running and pending work.
+
+        An inbound listener creates the protocol owner once per panel key, not
+        once per transport generation. Frames queued for the dead stream are
+        stale, but `_running` and `_pending` are precisely the state the next
+        Register must reconcile and redeliver.
+        """
+        self._outbox = _Outbox()
+        self._session_token = ""
+        self._stub = None
+        self._draining = False
+        self._reconnect_requested.clear()
+        if not self._stop.is_set():
+            self._accepting_assignments = True
+
+    @property
+    def reconnect_requested(self) -> bool:
+        return self._reconnect_requested.is_set()
+
+    @property
+    def outbound_pending(self) -> bool:
+        """Whether a terminal/control frame still needs transport delivery."""
+        return not self._outbox.empty()
 
     def start_heartbeat(self, response: pb.RegisterResponse) -> asyncio.Task:
         """Begin the heartbeat this session's liveness depends on.
@@ -458,14 +638,27 @@ class WorkerClient:
         await self._on_server_message(message)
 
     async def _register(self, stub) -> pb.RegisterResponse:
-        return await stub.Register(self.build_register_request())
+        return await stub.Register(await self.build_register_request())
 
     # ── Outbound ──────────────────────────────────────────────────────────
 
     async def _outbound(self):
-        while True:
-            message = await self._outbox.get()
-            yield message
+        while not self._reconnect_requested.is_set():
+            message = asyncio.create_task(self._outbox.get())
+            reconnect = asyncio.create_task(self._reconnect_requested.wait())
+            try:
+                done, _pending = await asyncio.wait(
+                    {message, reconnect}, return_when=asyncio.FIRST_COMPLETED
+                )
+                if message not in done:
+                    return
+                yield message.result()
+                self._maybe_finish_drain()
+            finally:
+                for task in (message, reconnect):
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(message, reconnect, return_exceptions=True)
 
     async def _send(self, message: pb.WorkerMessage, *, bulk: bool = False) -> None:
         """Enqueue a frame. ``bulk`` is for anything that can be large.
@@ -479,17 +672,19 @@ class WorkerClient:
     async def _heartbeat_loop(self, interval: float) -> None:
         while True:
             await asyncio.sleep(interval)
-            await self._send(
-                pb.WorkerMessage(
-                    heartbeat=pb.Heartbeat(
-                        active_tasks=len(self._running),
-                        available_slots=max(
-                            0, self.config.max_concurrent_tasks - len(self._running)
-                        ),
-                        resident_models=self._resident_models(),
-                    )
-                )
+            await self._send(self.heartbeat_message())
+
+    def heartbeat_message(self) -> pb.WorkerMessage:
+        """Build the worker's current liveness/capacity frame."""
+        return pb.WorkerMessage(
+            heartbeat=pb.Heartbeat(
+                active_tasks=len(self._running),
+                available_slots=max(
+                    0, self.config.max_concurrent_tasks - len(self._running)
+                ),
+                resident_models=self._resident_models(),
             )
+        )
 
     def _resident_models(self) -> list[str]:
         return [
@@ -503,7 +698,7 @@ class WorkerClient:
         if self._capability_probe is None:
             return
         try:
-            capabilities = self._capability_probe()
+            capabilities = await self._probe_capabilities()
             self.config.capabilities = capabilities
             await self._send(pb.WorkerMessage(capabilities=pb.CapabilityUpdate(
                 capabilities=[codec.capability_to_pb(c) for c in capabilities]
@@ -531,9 +726,14 @@ class WorkerClient:
         # keepalive for an attempt the server has disowned is exactly the
         # frame that resurrects a cancelled task.
         self._stop_keepalive(key)
-        task = self._running.pop(key, None)
+        task = self._running.get(key)
         if task is not None:
             task.cancel()
+            # CancelAck releases server capacity. Do not send it while an
+            # uninterruptible synthesis/load thread still owns the GPU, or the
+            # replacement assignment can overlap and corrupt or OOM the worker.
+            await asyncio.gather(task, return_exceptions=True)
+            self._running.pop(key, None)
         if self._cancel is not None:
             await self._cancel(key.split("/")[0])
 
@@ -550,24 +750,76 @@ class WorkerClient:
             )
         elif kind == "result_ack":
             # Only now is it safe to forget the result.
-            self._pending.pop(self._key(message.result_ack.ref), None)
+            pending = self._pending.pop(self._key(message.result_ack.ref), None)
+            if pending is not None and self._artifacts is not None:
+                result_acked_async = getattr(
+                    self._artifacts, "result_acked_async", None
+                )
+                if callable(result_acked_async):
+                    await result_acked_async(pending.artifacts)
+                else:
+                    result_acked = getattr(self._artifacts, "result_acked", None)
+                    if callable(result_acked):
+                        result_acked(pending.artifacts)
+            self._maybe_finish_drain()
         elif kind == "config":
             if message.config.max_concurrent_tasks:
-                self.config.max_concurrent_tasks = message.config.max_concurrent_tasks
+                self.config.max_concurrent_tasks = clamp_concurrency(
+                    message.config.max_concurrent_tasks
+                )
             if message.config.inline_result_threshold_bytes:
                 # Negotiated, so the two sides cannot drift: the control plane
                 # is the one that knows how much it is willing to take on the
                 # control stream, and it may lower this at any time.
                 self._inline_threshold = int(message.config.inline_result_threshold_bytes)
+            self.confirm_activation()
         elif kind == "ping":
             # Answer immediately; the server times the round trip.
             await self._send(pb.WorkerMessage(pong=pb.Pong(nonce=message.ping.nonce)))
         elif kind == "drain":
-            self._stop.set()
+            self._accepting_assignments = False
+            self._draining = True
+            if message.drain.reconnect_to:
+                self.config.endpoint = message.drain.reconnect_to
+            self._maybe_finish_drain()
         elif kind == "shutdown":
+            await self._cancel_active_work()
             self._stop.set()
+            if self._artifacts is not None:
+                await self._send(
+                    pb.WorkerMessage(
+                        goodbye=pb.WorkerGoodbye(
+                            reason="The control-plane connection was removed."
+                        )
+                    )
+                )
+            # Publish the terminal acknowledgement before asking the inbound
+            # Attach loop to leave.  Reversing these lets that loop observe
+            # reconnect_requested and close the stream with Goodbye still
+            # queued, so the control plane cannot prove remote work drained.
+            self._reconnect_requested.set()
         elif kind == "prewarm":
-            asyncio.create_task(self._on_prewarm(message.prewarm), name="worker-prewarm")
+            if not self._accepting_assignments:
+                return
+            task = asyncio.create_task(
+                self._on_prewarm(message.prewarm), name="worker-prewarm"
+            )
+            self._maintenance.add(task)
+            task.add_done_callback(self._maintenance_finished)
+
+    def _maintenance_finished(self, task: asyncio.Task) -> None:
+        self._maintenance.discard(task)
+        self._maybe_finish_drain()
+
+    def _maybe_finish_drain(self) -> None:
+        if (
+            self._draining
+            and not self._running
+            and not self._pending
+            and not self._maintenance
+            and self._outbox.empty()
+        ):
+            self._reconnect_requested.set()
 
     async def _on_prewarm(self, request: pb.PrewarmRequest) -> None:
         """Load/download a catalog model, then report the resulting capability."""
@@ -591,15 +843,20 @@ class WorkerClient:
                 await self._install_catalog_repo(repo_ids[0])
             from worker.executor import TaskExecutor  # noqa: PLC0415
 
-            await asyncio.to_thread(TaskExecutor._load_backend, engine)
+            await to_thread_and_drain_on_cancel(TaskExecutor._load_backend, engine)
+        except asyncio.CancelledError:
+            raise
         except Exception:
             logger.warning("Prewarm failed for %s", engine or request.model_id, exc_info=True)
-        finally:
-            await self.refresh_capabilities()
+        await self.refresh_capabilities()
 
     async def _install_catalog_repo(self, repo_id: str) -> None:
         """Run the existing setup installer and pipe its hf_progress upstream."""
-        from api.routers.setup.download import InstallModelRequest, install_model  # noqa: PLC0415
+        from api.routers.setup.download import (  # noqa: PLC0415
+            InstallModelRequest,
+            cancel_install_and_wait,
+            install_model,
+        )
         from utils import download_aggregator, hf_progress  # noqa: PLC0415
 
         hf_progress.install()
@@ -627,12 +884,20 @@ class WorkerClient:
                 loop.call_soon_threadsafe(_finish)
 
         listener_id = hf_progress.register_listener(listener)
+        started_install = False
+        install_completed = False
         try:
-            await install_model(InstallModelRequest(repo_id=repo_id, target="local"))
+            response = await install_model(
+                InstallModelRequest(repo_id=repo_id, target="local")
+            )
+            started_install = response.get("status") == "install_started"
             event = await asyncio.wait_for(terminal, timeout=_FALLBACK_MODEL_LOAD_SECONDS)
             if event.get("phase") != "install_done":
                 raise RuntimeError(event.get("error") or "model install did not complete")
+            install_completed = True
         finally:
+            if started_install and not install_completed:
+                await cancel_install_and_wait(repo_id)
             hf_progress.unregister_listener(listener_id)
 
     @staticmethod
@@ -641,6 +906,20 @@ class WorkerClient:
 
     async def _on_assignment(self, assignment: pb.TaskAssignment) -> None:
         key = self._key(assignment.ref)
+        if not self._accepting_assignments or self._stop.is_set():
+            await self._send(
+                pb.WorkerMessage(
+                    rejected=pb.TaskRejected(
+                        ref=assignment.ref,
+                        error=pb.Error(
+                            error_class=pb.ERROR_CLASS_TRANSIENT,
+                            code="WORKER_STOPPING",
+                            message="The worker is relinquishing this control plane.",
+                        ),
+                    )
+                )
+            )
+            return
         if len(self._running) >= self.config.max_concurrent_tasks:
             # Declining because we are full is normal and penalty-free; the
             # scheduler's view of our capacity is only ever advisory.
@@ -672,9 +951,11 @@ class WorkerClient:
             # release the slot too, or the reserved task keeps running work
             # the scheduler never saw accepted — and double-executes after
             # reassignment. The stream-death case lands here as well.
-            task = self._running.pop(key, None)
+            task = self._running.get(key)
             if task is not None:
                 task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                self._running.pop(key, None)
             raise
 
     async def _run(self, assignment: pb.TaskAssignment) -> None:
@@ -745,14 +1026,32 @@ class WorkerClient:
             failure: WorkerError = (
                 exc.error if isinstance(exc, TaskFailure) else worker_errors.from_exception(exc)
             )
+            if (
+                failure.error_class is ErrorClass.TIMEOUT
+                and self._drain_active_work is not None
+            ):
+                # A timeout only ends the coroutine's wait; Python cannot
+                # cancel the GPU thread underneath it. Do not send FAILED or
+                # release this admission slot until the executor proves that
+                # work relinquished the device, otherwise a capacity-1 worker
+                # can accept a replacement on top of the timed-out render.
+                await self._drain_active_work()
             await self._fail(assignment.ref, failure)
         finally:
             # Also covers the abnormal exits — cancellation, a crash between
             # the two _stop_keepalive calls above — so the timer can never
             # outlive the task that owns it.
             self._stop_keepalive(key)
-            self._running.pop(key, None)
-            await self.refresh_capabilities()
+            # Discovery may inspect the just-used backend. Keep the admission
+            # reservation until that off-loop probe has drained, otherwise a
+            # heartbeat can advertise the slot while this generation still
+            # owns task-finalization work. The inner finally also releases it
+            # when shutdown cancels the refresh waiter.
+            try:
+                await self.refresh_capabilities()
+            finally:
+                self._running.pop(key, None)
+                self._maybe_finish_drain()
 
     async def _fail(self, ref: pb.TaskRef, error: WorkerError) -> None:
         await self._send(
@@ -855,8 +1154,12 @@ class WorkerClient:
         await self._report_upload(ref, 0.0)
 
         offset = 0
+        metadata = ((SESSION_METADATA_KEY, self._session_token),)
         for _ in range(_MAX_UPLOAD_RESUMES):
-            ack = await stub.UploadResult(self._result_chunks(ref, artifact, payload, offset))
+            ack = await stub.UploadResult(
+                self._result_chunks(ref, artifact, payload, offset),
+                metadata=metadata,
+            )
             if ack.committed:
                 break
             resumed = int(ack.bytes_received)
@@ -967,25 +1270,29 @@ class WorkerClient:
         request.session_token = self._session_token
         offset = 0
         complete = False
+        handle = None
         try:
-            with open(destination, "wb") as handle:
-                async for chunk in self._stub.DownloadArtifact(request):
-                    if int(chunk.offset) != offset:
-                        raise RuntimeError(
-                            f"input offset {chunk.offset} did not match {offset} bytes received"
-                        )
-                    handle.write(chunk.data)
-                    offset += len(chunk.data)
-                    if chunk.last:
-                        complete = True
-                        break
+            handle = await to_thread_and_drain_on_cancel(open, destination, "wb")
+            async for chunk in self._stub.DownloadArtifact(request):
+                if int(chunk.offset) != offset:
+                    raise RuntimeError(
+                        f"input offset {chunk.offset} did not match {offset} bytes received"
+                    )
+                await to_thread_and_drain_on_cancel(_write_all, handle, chunk.data)
+                offset += len(chunk.data)
+                if chunk.last:
+                    complete = True
+                    break
+            await to_thread_and_drain_on_cancel(handle.close)
+            handle = None
+        except asyncio.CancelledError:
+            await to_thread_and_drain_on_cancel(_close_and_remove, handle, destination)
+            raise
         except Exception:
-            with contextlib.suppress(OSError):
-                os.remove(destination)
+            await to_thread_and_drain_on_cancel(_close_and_remove, handle, destination)
             raise
         if not complete:
-            with contextlib.suppress(OSError):
-                os.remove(destination)
+            await to_thread_and_drain_on_cancel(_close_and_remove, None, destination)
             raise RuntimeError("input download ended before its final chunk")
 
     def _executor_kwargs(self, assignment: pb.TaskAssignment) -> dict[str, Callable]:
@@ -1120,6 +1427,7 @@ __all__ = [
     "MAX_MESSAGE_BYTES",
     "UPLOAD_STAGE",
     "PendingResult",
+    "TerminalRegistrationError",
     "WorkerClient",
     "WorkerConfig",
     "backoff_delay",

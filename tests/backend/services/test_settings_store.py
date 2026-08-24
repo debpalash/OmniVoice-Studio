@@ -17,6 +17,7 @@ import sqlite3
 import sys
 import threading
 import time
+from contextlib import nullcontext
 
 import pytest
 
@@ -54,6 +55,23 @@ def test_round_trip_token(isolated_db):
     from services import settings_store
     settings_store.set_hf_token(SAMPLE_TOKEN)
     assert settings_store.get_hf_token() == SAMPLE_TOKEN
+
+
+def test_text_state_preserves_null_as_present_but_empty(isolated_db, monkeypatch):
+    from services import settings_store
+    from core import db
+
+    class NullRow:
+        def execute(self, *_args):
+            return self
+
+        @staticmethod
+        def fetchone():
+            return (None,)
+
+    monkeypatch.setattr(db, "db_conn", lambda: nullcontext(NullRow()))
+
+    assert settings_store.get_text_state("worker.mode") == (True, "")
 
 
 def test_stored_value_is_encrypted_not_plaintext(isolated_db):

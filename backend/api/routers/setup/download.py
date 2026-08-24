@@ -76,6 +76,7 @@ _cancelled: set[str] = set()
 _active_installs: set[str] = set()
 _active_installs_lock = threading.Lock()
 _install_tasks: set[asyncio.Task] = set()
+_install_tasks_by_repo: dict[str, asyncio.Task] = {}
 
 
 def _download_max_workers() -> int:
@@ -420,16 +421,11 @@ async def install_model(req: InstallModelRequest):
                 f"Retry in {remaining}s or check your network."
             ),
         )
-    with _active_installs_lock:
-        if req.repo_id in _active_installs:
-            return {"status": "already_running", "repo_id": req.repo_id}
-        _active_installs.add(req.repo_id)
     loop = asyncio.get_running_loop()
 
     def _do():
         token = hf_progress.current_repo_id.set(req.repo_id)
         target_token = hf_progress.current_target.set("local")
-        _cancelled.discard(req.repo_id)  # clear any stale cancel from a prior run
         hf_progress.emit({
             "repo_id": req.repo_id,
             "filename": req.repo_id,
@@ -688,15 +684,51 @@ async def install_model(req: InstallModelRequest):
             with _active_installs_lock:
                 _active_installs.discard(req.repo_id)
 
-    try:
-        task = loop.create_task(asyncio.to_thread(_do))
-        _install_tasks.add(task)
-        task.add_done_callback(_install_tasks.discard)
-    except Exception:
-        with _active_installs_lock:
+    with _active_installs_lock:
+        if req.repo_id in _active_installs:
+            return {"status": "already_running", "repo_id": req.repo_id}
+        _active_installs.add(req.repo_id)
+        # Admission and task publication are one atomic generation boundary:
+        # cancellation can never observe an admitted install without its task.
+        _cancelled.discard(req.repo_id)
+        try:
+            task = loop.create_task(asyncio.to_thread(_do))
+            _install_tasks.add(task)
+            _install_tasks_by_repo[req.repo_id] = task
+        except Exception:
             _active_installs.discard(req.repo_id)
-        raise
+            raise
+
+    def install_finished(completed: asyncio.Task) -> None:
+        with _active_installs_lock:
+            _install_tasks.discard(completed)
+            if _install_tasks_by_repo.get(req.repo_id) is completed:
+                _install_tasks_by_repo.pop(req.repo_id, None)
+
+    task.add_done_callback(install_finished)
     return {"status": "install_started", "repo_id": req.repo_id}
+
+
+async def cancel_install_and_wait(repo_id: str) -> None:
+    """Request cancellation and retain authority until its thread exits."""
+    from worker.async_utils import drain_task  # noqa: PLC0415
+
+    with _active_installs_lock:
+        _cancelled.add(repo_id)
+        _install_cooldowns.pop(repo_id, None)
+        task = _install_tasks_by_repo.get(repo_id)
+    if task is None:
+        return
+    try:
+        # asyncio.to_thread cannot stop snapshot_download mid-file. Cancelling
+        # its wrapper would only detach the thread, so wait until the blocking
+        # call observes the flag or naturally returns.
+        await drain_task(task)
+    finally:
+        with _active_installs_lock:
+            current = _install_tasks_by_repo.get(repo_id)
+            if current is None or current is task:
+                _cancelled.discard(repo_id)
 
 
 @router.post("/models/install/cancel")

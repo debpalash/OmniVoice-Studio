@@ -295,3 +295,105 @@ def test_live_tasks_are_never_purged(db):
     task_store.create(_task(), now=1000.0)
     assert task_store.purge_finished(older_than_seconds=0, now=1_000_000.0) == 0
     assert task_store.get("t1") is not None
+
+
+def test_finished_task_purge_is_bounded_and_oldest_first(db, tmp_path):
+    for index in range(3):
+        task = _task(f"t{index + 1}")
+        task_store.create(task, now=1000.0 + index)
+        task.state = TaskState.COMPLETED
+        task.finished_at = 1000.0 + index
+        task_store.save(task, now=1000.0 + index)
+
+    removed = task_store.purge_finished(
+        older_than_seconds=10,
+        now=2000.0,
+        root=str(tmp_path / "artifacts"),
+        limit=2,
+    )
+
+    assert removed == 2
+    assert task_store.get("t1") is None
+    assert task_store.get("t2") is None
+    assert task_store.get("t3") is not None
+
+
+def test_failed_result_cleanup_keeps_its_db_index_for_the_next_sweep(
+    db, tmp_path, monkeypatch
+):
+    root = tmp_path / "artifacts"
+    result_dir = root / "t1"
+    result_dir.mkdir(parents=True)
+    (result_dir / "a1.bin").write_bytes(b"rendered audio")
+    task = _task()
+    task_store.create(task, now=1000.0)
+    task.state = TaskState.COMPLETED
+    task.finished_at = 1000.0
+    task_store.save(task, now=1000.0)
+    real_rmtree = task_store.shutil.rmtree
+
+    def interrupted_cleanup(_path):
+        raise OSError("process stopped before artifact deletion")
+
+    monkeypatch.setattr(task_store.shutil, "rmtree", interrupted_cleanup)
+    assert (
+        task_store.purge_finished(
+            older_than_seconds=10, now=2000.0, root=str(root)
+        )
+        == 0
+    )
+    assert task_store.get("t1") is not None
+    assert result_dir.is_dir()
+
+    monkeypatch.setattr(task_store.shutil, "rmtree", real_rmtree)
+    assert (
+        task_store.purge_finished(
+            older_than_seconds=10, now=2000.0, root=str(root)
+        )
+        == 1
+    )
+    assert task_store.get("t1") is None
+    assert not result_dir.exists()
+
+
+def test_result_directory_delete_is_durable_before_its_row_is_forgotten(
+    db, tmp_path, monkeypatch
+):
+    root = tmp_path / "artifacts"
+    result_dir = root / "t1"
+    result_dir.mkdir(parents=True)
+    (result_dir / "a1.bin").write_bytes(b"rendered audio")
+    task = _task()
+    task_store.create(task, now=1000.0)
+    task.state = TaskState.COMPLETED
+    task.finished_at = 1000.0
+    task_store.save(task, now=1000.0)
+    real_fsync_parent = task_store._fsync_parent_directory
+
+    def fail_artifact_root_fsync(directory):
+        if str(directory) == str(root):
+            raise OSError("artifact-root fsync failed")
+        return real_fsync_parent(directory)
+
+    monkeypatch.setattr(
+        task_store, "_fsync_parent_directory", fail_artifact_root_fsync
+    )
+    assert (
+        task_store.purge_finished(
+            older_than_seconds=10, now=2000.0, root=str(root)
+        )
+        == 0
+    )
+    assert not result_dir.exists()
+    assert task_store.get("t1") is not None
+
+    monkeypatch.setattr(
+        task_store, "_fsync_parent_directory", real_fsync_parent
+    )
+    assert (
+        task_store.purge_finished(
+            older_than_seconds=10, now=2000.0, root=str(root)
+        )
+        == 1
+    )
+    assert task_store.get("t1") is None

@@ -23,7 +23,9 @@ administration.
 
 ## What you need
 
-* VoiceStudio on both machines, on versions no more than two releases apart.
+* VoiceStudio builds with a compatible worker protocol on both machines. The
+  durable-enrollment v2 boundary requires updating both sides; the app refuses
+  an unsafe pairing with an update instruction before any task runs.
 * The worker machine must be able to **reach** this one over the network. Same
   LAN is enough at home; across networks, a VPN such as
   [Tailscale](https://tailscale.com/) is the reliable answer. The worker dials
@@ -40,6 +42,23 @@ Settings → System → Remote workers → turn on **Use remote workers**.
 
 The panel shows the address workers should connect to, and a **Generate token**
 button.
+
+For a Docker Compose Studio, start it with the host address workers can reach;
+Compose publishes the TLS worker port (`7443`) separately from the loopback-only
+web UI:
+
+```bash
+OMNIVOICE_WORKER_ENDPOINT_HOST=192.168.1.20 \
+OMNIVOICE_WORKER_PUBLISH_HOST=0.0.0.0 docker compose \
+  -f deploy/docker-compose.yml --profile gpu up -d
+```
+
+Use the host's LAN or private-overlay address, not the container's bridge IP.
+The worker port is published on loopback by default; setting
+`OMNIVOICE_WORKER_PUBLISH_HOST=0.0.0.0` is the explicit opt-in that makes it
+reachable from the LAN. Keep the default when a host-side tunnel or proxy
+provides reachability. Until remote workers are enabled in VoiceStudio, the
+container has no process listening on the published control-plane port.
 
 **2. Generate a join code.**
 
@@ -64,8 +83,35 @@ another code.
 Headless machines still take the environment route:
 
 ```bash
-OMNIVOICE_WORKER_TOKEN='ovw_…' OMNIVOICE_WORKER_MODE=1 omnivoice
+OMNIVOICE_WORKER_TOKEN='ovw_…' OMNIVOICE_WORKER_MODE=1 \
+  uv run uvicorn backend.main:app --host 127.0.0.1 --port 3900
 ```
+
+Run that command from the repository root. Uvicorn hosts the application
+lifespan that owns the worker agent; binding it to loopback means no Studio UI
+is exposed, and no browser interaction is required.
+
+For a worker-only NVIDIA Docker container, use the included Compose profile:
+
+```bash
+OMNIVOICE_WORKER_TOKEN='ovw_…' docker compose \
+  -f deploy/docker-compose.yml --profile worker-gpu up -d
+```
+
+Use `worker-rocm` instead for AMD GPUs. Neither profile publishes an HTTP
+port. The control-plane address inside the join code must be reachable from
+the container, so use its LAN or private-overlay address rather than
+`127.0.0.1`. Worker identity, pinned certificate, and endpoint persist in the
+profile's data volume. After the first successful enrollment, restarts ignore
+that same now-spent environment token and reconnect by proving possession of
+the identity key. Replacing it with a fresh join code can move a non-revoked
+worker to another control plane. A revoked identity remains revoked; start
+with a fresh worker data volume to generate a new identity.
+
+The container reports healthy only after the control plane accepts its initial
+registration. A missing, malformed, expired, or rejected join code leaves the
+worker service running for diagnosis but unhealthy; inspect its logs, correct
+the token, and recreate the container.
 
 `OMNIVOICE_WORKER_MODE` wins over the in-app switch when it is set, so a
 deployment that pins worker mode cannot be turned off from the UI — the panel
@@ -216,12 +262,13 @@ in 45s" — and **Resume** clears it immediately when you've fixed the machine.
 launch VoiceStudio recovers those tasks and reconciles with each worker about
 what is genuinely still in flight.
 
-**Version or feature mismatch.** The protocol keeps a two-release compatibility
-window, but release numbers alone do not prove that a worker understands every
-additive command. Registration therefore also declares named features for task
-inputs, progress leases, remote model downloads, and the voice-identity render
-pipeline. A worker outside the
-version window, or one missing a required feature, is refused with
+**Version or feature mismatch.** Release numbers alone do not prove that a
+worker understands every additive command. Registration negotiates an explicit
+protocol range and declares named features for task inputs, progress leases,
+remote model downloads, and the voice-identity render pipeline. Durable
+enrollment changed the handshake from protocol v1 to v2, so that boundary is
+intentionally incompatible in either direction. A worker outside the supported
+protocol range, or one missing a required feature, is refused with
 `UPGRADE_REQUIRED` and an update instruction before any task runs. It can never
 silently render without reference audio, substitute a different voice, or leave
 a download stuck at 0%.
@@ -280,13 +327,14 @@ new code.
 | `OMNIVOICE_REMOTE_WORKERS` | `1`/`0` — enable without the UI (headless, Docker) |
 | `OMNIVOICE_WORKER_PORT` | Control-plane port (default `7443`) |
 | `OMNIVOICE_WORKER_ENDPOINT_HOST` | Override the address shown to workers |
+| `OMNIVOICE_WORKER_PUBLISH_HOST` | Compose-only host address for publishing the control-plane port (default `127.0.0.1`; set `0.0.0.0` to opt into LAN reachability) |
 | `OMNIVOICE_INBOUND_NODE` | `1`/`0` — accept connections from other panels |
 | `OMNIVOICE_INBOUND_BIND` | Address to accept them on (default `127.0.0.1`) |
 | `OMNIVOICE_INBOUND_PORT` | Port to accept them on (default `7444`) |
 | `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` | How long a model may sit unused before its VRAM is handed back (default `600`, minimum `5`) |
 | `OMNIVOICE_IDLE_SWEEP_SECONDS` | How often that check runs (default `60`, minimum `1`) |
 | `OMNIVOICE_WORKER_MODE` | `1` on the worker machine — overrides the in-app switch |
-| `OMNIVOICE_WORKER_TOKEN` | Join code, first run only (the in-app Join box is the usual route) |
+| `OMNIVOICE_WORKER_TOKEN` | Join code, consumed on first successful enrollment; a persisted container value is ignored on later restarts |
 | `OMNIVOICE_WORKER_ENDPOINT` | Control plane to dial when no code is being redeemed; normally remembered from the code |
 
 `OMNIVOICE_ENGINE_IDLE_UNLOAD_SECONDS` and `OMNIVOICE_IDLE_SWEEP_SECONDS` exist
@@ -333,10 +381,10 @@ scripts/verify-remote-worker.sh \
 `WORKER_ID`, `WORKER_SSH_TARGET`, `WORKER_START_COMMAND`, `VOICESTUDIO_API`,
 and `WORKER_CONTROL_PORT` are equivalent environment variables. Pass
 `--worker-start-command` (or its environment equivalent) when the worker does
-not start with `OMNIVOICE_WORKER_MODE=1 omnivoice`; it is printed only in the
-manual worker-loss procedure. The worker id is optional only when exactly one
-worker is connected. The script requires an SSH target so it can verify the
-worker's OS and NVIDIA GPU before accepting any result.
+not use the headless command documented above; it is printed only in the manual
+worker-loss procedure. The worker id is optional only when exactly one worker
+is connected. The script requires an SSH target so it can verify the worker's
+OS and NVIDIA GPU before accepting any result.
 
 The check never deletes model caches or user data. It selects an engine the
 worker itself reports as absent for the missing-model check. Operations that

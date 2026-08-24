@@ -144,6 +144,7 @@ GET /v1/audio/voices
 GET /watermark/status
 GET /workers
 GET /workers/agent
+GET /workers/agent/readiness
 GET /workers/inbound
 GET /workers/target
 GET /workers/tasks

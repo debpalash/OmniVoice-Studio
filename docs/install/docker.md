@@ -159,6 +159,31 @@ on the host. The backend inside the container binds to `0.0.0.0` so the
 host port mapping can forward — the host-side `127.0.0.1` binding is what
 enforces loopback-only.
 
+### Worker-only GPU container
+
+To lend a headless GPU to VoiceStudio running on another machine, generate a
+join code on that control plane and start one of the worker profiles:
+
+```bash
+# NVIDIA
+OMNIVOICE_WORKER_TOKEN='ovw_…' docker compose \
+  -f deploy/docker-compose.yml --profile worker-gpu up -d
+
+# AMD / ROCm
+OMNIVOICE_WORKER_TOKEN='ovw_…' docker compose \
+  -f deploy/docker-compose.yml --profile worker-rocm up -d
+```
+
+These profiles publish no HTTP port and require no browser UI. The join code
+must advertise a LAN or private-overlay address the container can reach, not
+the control plane's `127.0.0.1`. Enrollment state persists in a dedicated
+volume, so the container reconnects after a restart even though the join code
+is single-use. Container health becomes green only after the control plane
+accepts that registration; a missing or invalid token stays unhealthy instead
+of reporting the generic web backend as ready. See [Remote GPU
+workers](../remote-workers.md) for enrollment, approval, routing, and security
+details.
+
 ## LAN access
 
 <a id="lan-access"></a>
