@@ -21,6 +21,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use tauri::Manager;
 
 use crate::AppFlags;
 
@@ -217,20 +218,28 @@ fn finish_uninstall_attempt<T>(
 /// app afterwards (the Python env it runs on is gone, so there is nothing to
 /// return to).
 #[tauri::command]
-pub fn uninstall_purge(
+pub async fn uninstall_purge(
     app: tauri::AppHandle,
     include_models: bool,
-    flags: tauri::State<'_, AppFlags>,
 ) -> Result<UninstallReport, String> {
     // Mark the app as quitting BEFORE the backend dies, so the #567 supervisor
     // treats the death as intentional and doesn't respawn a backend into the
     // very directories we are about to delete.
-    flags
+    app.state::<AppFlags>()
         .quitting
         .store(true, std::sync::atomic::Ordering::SeqCst);
-    let targets = uninstall_scan(app.clone());
-    let result = purge_uninstall_targets(&app, targets, include_models);
-    finish_uninstall_attempt(&flags.quitting, result)
+    let purge_app = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let targets = uninstall_scan(purge_app.clone());
+        purge_uninstall_targets(&purge_app, targets, include_models)
+    })
+    .await
+    .map_err(|error| {
+        log::error!("Uninstall task failed to join: {error}");
+        "uninstall_task_failed".to_string()
+    })
+    .and_then(|result| result);
+    finish_uninstall_attempt(&app.state::<AppFlags>().quitting, result)
 }
 
 #[cfg(test)]

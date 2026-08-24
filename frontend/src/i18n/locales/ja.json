@@ -2191,6 +2191,7 @@
     "retry_load": "再試行"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio は以前のバックエンドを安全に停止できませんでした。他の VoiceStudio のウィンドウまたはプロセスを閉じて、もう一度お試しください。",
     "loading": "セットアップを準備中…",
     "title": "VoiceStudio のセットアップ",
     "subtitle": "まだ何もインストールされていません。保存先を確認してから開始してください。後で設定から変更できます。",

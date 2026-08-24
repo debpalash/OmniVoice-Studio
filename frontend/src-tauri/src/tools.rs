@@ -61,11 +61,12 @@ pub fn configure_process_tree(cmd: &mut Command) -> &mut Command {
     cmd
 }
 
-/// Ask a long-running child tree to stop cleanly, wait a bounded interval,
-/// then force the whole tree down and reap the tracked parent. The graceful
-/// phase lets uvicorn run FastAPI lifespan cleanup (including its run
-/// sentinel); the tree fallback prevents engine/install descendants from
-/// retaining ports or Windows file locks.
+/// Ask a long-running child tree to stop, wait a bounded interval, then force
+/// the whole tree down and reap the tracked parent. On Unix, SIGTERM lets
+/// uvicorn run FastAPI lifespan cleanup (including its run sentinel). A Windows
+/// backend uses `CREATE_NO_WINDOW`, so non-forced `taskkill` is only a
+/// best-effort first phase and lifespan cleanup is not guaranteed there; the
+/// forced tree fallback prevents descendants from retaining ports or files.
 pub fn terminate_process_tree(
     child: &mut Child,
     graceful_timeout: Duration,

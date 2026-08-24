@@ -2191,6 +2191,7 @@
     "retry_load": "Yeniden dene"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio önceki arka ucu güvenli biçimde durduramadı. Diğer VoiceStudio pencerelerini veya işlemlerini kapatıp yeniden deneyin.",
     "loading": "Kurulum hazırlanıyor…",
     "title": "VoiceStudio'yu kur",
     "subtitle": "Henüz hiçbir şey kurulmadı — her şeyin nereye gideceğini gözden geçirin, sonra başlatın. Daha sonra Ayarlar'dan değiştirebilirsiniz.",

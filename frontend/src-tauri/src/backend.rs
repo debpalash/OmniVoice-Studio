@@ -239,9 +239,17 @@ pub fn kill_orphan_on_port(port: u16) {
             let pids = String::from_utf8_lossy(&out.stdout);
             for pid in pids.split_whitespace() {
                 if let Ok(pid_n) = pid.parse::<i32>() {
-                    log::warn!("Killing orphan process {} on port {}", pid_n, port);
-                    unsafe {
-                        libc::kill(pid_n, libc::SIGKILL);
+                    log::warn!("Killing orphan process tree {} on port {}", pid_n, port);
+                    // VoiceStudio backends are process-group leaders. Signal
+                    // that group first so Unix matches Windows `/T` and does
+                    // not leave engine descendants holding files. A foreign
+                    // listener may not lead a group named by its PID; fall
+                    // back to the owning process in that case.
+                    let group_result = unsafe { libc::kill(-pid_n, libc::SIGKILL) };
+                    if group_result != 0 {
+                        unsafe {
+                            libc::kill(pid_n, libc::SIGKILL);
+                        }
                     }
                 }
             }

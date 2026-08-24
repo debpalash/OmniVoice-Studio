@@ -2191,6 +2191,7 @@
     "retry_load": "Thử lại"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio không thể dừng backend trước đó một cách an toàn. Hãy đóng mọi cửa sổ hoặc tiến trình VoiceStudio khác rồi thử lại.",
     "loading": "Đang chuẩn bị thiết lập…",
     "title": "Thiết lập VoiceStudio",
     "subtitle": "Chưa có gì được cài đặt — hãy xem lại nơi lưu mọi thứ rồi bắt đầu. Có thể thay đổi sau trong Cài đặt.",

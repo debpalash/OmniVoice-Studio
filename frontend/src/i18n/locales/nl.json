@@ -2191,6 +2191,7 @@
     "retry_load": "Opnieuw proberen"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio kon de vorige backend niet veilig stoppen. Sluit alle andere VoiceStudio-vensters of -processen en probeer het opnieuw.",
     "loading": "Installatie voorbereiden…",
     "title": "VoiceStudio instellen",
     "subtitle": "Er is nog niets geïnstalleerd — controleer waar alles komt te staan en start daarna. Later te wijzigen in Instellingen.",

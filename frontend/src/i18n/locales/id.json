@@ -2191,6 +2191,7 @@
     "retry_load": "Coba lagi"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio tidak dapat menghentikan backend sebelumnya dengan aman. Tutup jendela atau proses VoiceStudio lain, lalu coba lagi.",
     "loading": "Menyiapkan penyiapan…",
     "title": "Siapkan VoiceStudio",
     "subtitle": "Belum ada yang terpasang — tinjau ke mana semuanya disimpan, lalu mulai. Bisa diubah nanti di Pengaturan.",

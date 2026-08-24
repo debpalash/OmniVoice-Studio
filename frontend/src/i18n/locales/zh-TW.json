@@ -2191,6 +2191,7 @@
     "retry_load": "重試"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio 無法安全停止先前的後端。請關閉其他 VoiceStudio 視窗或程序，然後重試。",
     "loading": "正在準備安裝精靈…",
     "title": "設定 VoiceStudio",
     "subtitle": "尚未安裝任何內容——先確認各項儲存位置，再開始安裝。之後可在設定中變更。",

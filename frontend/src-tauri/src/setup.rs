@@ -882,9 +882,26 @@ pub fn check_install_target(path: String) -> TargetCheck {
 /// parked) bootstrap. Any `Err` keeps the app in `AwaitingSetup` with the
 /// message surfaced on the setup screen — nothing was installed.
 #[tauri::command]
-pub fn complete_setup(
+pub async fn complete_setup(
     app: tauri::AppHandle,
     state: tauri::State<'_, BootstrapState>,
+    plan: InstallPlan,
+) -> Result<(), String> {
+    let owned_state = BootstrapState {
+        stage: state.stage.clone(),
+        logs: state.logs.clone(),
+    };
+    tauri::async_runtime::spawn_blocking(move || complete_setup_blocking(app, owned_state, plan))
+        .await
+        .map_err(|error| {
+            log::error!("Setup task failed to join: {error}");
+            "setup_task_failed".to_string()
+        })?
+}
+
+fn complete_setup_blocking(
+    app: tauri::AppHandle,
+    state: BootstrapState,
     plan: InstallPlan,
 ) -> Result<(), String> {
     if !matches!(plan.install_mode.as_str(), "installed" | "portable") {
@@ -986,10 +1003,13 @@ pub fn complete_setup(
     // be serving — or may be between process spawn and port bind. Stop it
     // under lifecycle ownership so neither bootstrap nor the supervisor can
     // race the restart using the just-saved plan (#1635).
-    crate::bootstrap::with_backend_stopped(&app, || {})?;
+    if let Err(error) = crate::bootstrap::with_backend_stopped(&app, || {}) {
+        log::warn!("Setup could not stop the previous backend: {error}");
+        return Err("backend_stop_failed".into());
+    }
 
     set_stage(&state.stage, BootstrapStage::Checking);
-    crate::bootstrap::retry_bootstrap(app, state);
+    crate::bootstrap::respawn_backend(app, state.stage, state.logs);
     Ok(())
 }
 

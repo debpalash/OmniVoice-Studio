@@ -640,9 +640,11 @@ disk changes, and shutdown joins any in-progress launch before stopping it.
 They no longer launch a second backend that fails on port 3900, leave a
 misleading crash notice, delete an environment from under a starting child,
 or orphan one on exit. Quitting also interrupts a first-run `uv` install
-instead of waiting for a long download to finish, gives backend lifespan
-cleanup a bounded grace period, then force-stops any surviving subprocess
-engines so they cannot retain ports or files (#1635).
+instead of waiting for a long download to finish. Unix builds give backend
+lifespan cleanup a bounded SIGTERM grace period; Windows' hidden backend has no
+console, so its initial stop is best-effort and may proceed directly to the
+bounded forced tree cleanup. Surviving subprocess engines cannot retain ports
+or files (#1635).
 
 ## 14c. "Can't reach the backend" in a browser — `bun run dev`, Docker, or LAN share
 

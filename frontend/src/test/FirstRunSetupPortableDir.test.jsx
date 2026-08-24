@@ -74,7 +74,8 @@ const renderSetup = () =>
     </I18nextProvider>,
   );
 
-beforeEach(() => {
+beforeEach(async () => {
+  await i18n.changeLanguage('en');
   invokeMock.mockReset();
   openMock.mockReset();
 });
@@ -125,6 +126,35 @@ describe('FirstRunSetup — portable folder is choosable', () => {
       expect(call[1].plan.portableDir).toBe('/Volumes/SSD/VoiceStudio');
       expect(call[1].plan.installMode).toBe('portable');
     });
+  });
+
+  it('localizes a lifecycle stop failure instead of exposing the Rust error code', async () => {
+    const state = setupState();
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'get_setup_state') return state;
+      if (cmd === 'check_install_target') return { writable: true, freeBytes: 500e9 };
+      if (cmd === 'complete_setup') throw new Error('backend_stop_failed');
+      return undefined;
+    });
+    renderSetup();
+
+    const startBtn = () =>
+      screen
+        .getAllByRole('button')
+        .find((button) => /start installation/i.test(button.textContent || ''));
+    await waitFor(
+      () => {
+        expect(startBtn()).toBeTruthy();
+        expect(startBtn().disabled).toBe(false);
+      },
+      { timeout: 4000 },
+    );
+    await act(async () => {
+      startBtn().click();
+    });
+
+    expect(await screen.findByText(/couldn't safely stop the previous backend/i)).toBeTruthy();
+    expect(screen.queryByText('backend_stop_failed')).toBeNull();
   });
 
   it('promises portability only for a folder INSIDE the app directory', async () => {

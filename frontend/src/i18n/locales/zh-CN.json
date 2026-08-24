@@ -2198,6 +2198,7 @@
     "retry_load": "重试"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio 无法安全停止先前的后端。请关闭其他 VoiceStudio 窗口或进程，然后重试。",
     "loading": "正在准备安装向导…",
     "title": "设置 VoiceStudio",
     "subtitle": "尚未安装任何内容——先确认各项存储位置，再开始安装。之后可在设置中更改。",

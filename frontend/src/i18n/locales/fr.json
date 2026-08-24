@@ -2191,6 +2191,7 @@
     "retry_load": "Réessayer"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio n’a pas pu arrêter l’ancien backend en toute sécurité. Fermez toute autre fenêtre ou tout autre processus VoiceStudio, puis réessayez.",
     "loading": "Préparation de la configuration…",
     "title": "Configurer VoiceStudio",
     "subtitle": "Rien n'est encore installé : vérifiez où tout sera placé, puis lancez. Modifiable plus tard dans les Réglages.",

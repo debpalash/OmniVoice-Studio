@@ -2918,6 +2918,7 @@
     "follow_cta": "Follow on X"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio couldn't safely stop the previous backend. Close any other VoiceStudio window or process, then try again.",
     "loading": "Preparing setup…",
     "title": "Set up VoiceStudio",
     "subtitle": "Nothing's installed yet — review where everything goes, then start. Change it later in Settings.",

@@ -2191,6 +2191,7 @@
     "retry_load": "재시도"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio가 이전 백엔드를 안전하게 중지하지 못했습니다. 다른 VoiceStudio 창이나 프로세스를 닫은 후 다시 시도하세요.",
     "loading": "설정 준비 중…",
     "title": "VoiceStudio 설정",
     "subtitle": "아직 아무것도 설치되지 않았습니다. 저장 위치를 확인한 뒤 시작하세요. 나중에 설정에서 변경할 수 있습니다.",
