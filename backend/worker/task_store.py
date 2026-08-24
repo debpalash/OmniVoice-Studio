@@ -780,23 +780,30 @@ def load_unfinished() -> list[Task]:
     still be rendering, and reconciliation decides each one's fate once the
     workers reconnect.
     """
-    live = ", ".join(f"'{s.value}'" for s in TaskState if not s.terminal)
+    live = json.dumps([s.value for s in TaskState if not s.terminal])
     with db_conn() as conn:
         rows = conn.execute(
-            f"SELECT * FROM remote_tasks WHERE state IN ({live}) ORDER BY priority ASC, created_at ASC"
+            """
+            SELECT * FROM remote_tasks
+            WHERE state IN (SELECT value FROM json_each(?))
+            ORDER BY priority ASC, created_at ASC
+            """,
+            (live,),
         ).fetchall()
         return [_row_to_task(r, _attempts_for(conn, r["id"])) for r in rows]
 
 
 def list_tasks(*, states: Optional[Iterable[TaskState]] = None, limit: int = 100) -> list[Task]:
-    sql = "SELECT * FROM remote_tasks"
-    params: list = []
     if states:
-        placeholders = ", ".join("?" for _ in states)
-        sql += f" WHERE state IN ({placeholders})"
-        params.extend(s.value for s in states)
-    sql += " ORDER BY created_at DESC LIMIT ?"
-    params.append(limit)
+        sql = """
+            SELECT * FROM remote_tasks
+            WHERE state IN (SELECT value FROM json_each(?))
+            ORDER BY created_at DESC LIMIT ?
+        """
+        params = (json.dumps([s.value for s in states]), limit)
+    else:
+        sql = "SELECT * FROM remote_tasks ORDER BY created_at DESC LIMIT ?"
+        params = (limit,)
     with db_conn() as conn:
         rows = conn.execute(sql, params).fetchall()
         return [_row_to_task(r, _attempts_for(conn, r["id"])) for r in rows]
@@ -819,19 +826,20 @@ def purge_finished(
     if limit is not None and limit <= 0:
         return 0
     cutoff = resolve(now) - older_than_seconds
-    terminal = ", ".join(f"'{s.value}'" for s in TaskState if s.terminal)
+    terminal = json.dumps([s.value for s in TaskState if s.terminal])
     with db_conn() as conn:
-        selection = (
-            f"SELECT id FROM remote_tasks WHERE state IN ({terminal}) "
-            "AND finished_at < ? ORDER BY finished_at ASC, id ASC"
-        )
-        selection_params: list = [cutoff]
-        if limit is not None:
-            selection += " LIMIT ?"
-            selection_params.append(int(limit))
         doomed = [
             row["id"]
-            for row in conn.execute(selection, selection_params).fetchall()
+            for row in conn.execute(
+                """
+                SELECT id FROM remote_tasks
+                WHERE state IN (SELECT value FROM json_each(?))
+                  AND finished_at < ?
+                ORDER BY finished_at ASC, id ASC
+                LIMIT ?
+                """,
+                (terminal, cutoff, -1 if limit is None else int(limit)),
+            ).fetchall()
         ]
     # Results are attempt-scoped. Delete them before their task rows, so a
     # crash or transient Windows lock cannot erase the only index from which a
@@ -840,24 +848,33 @@ def purge_finished(
     with db_conn() as conn:
         eligible: list[str] = []
         if cleaned:
-            placeholders = ", ".join("?" for _ in cleaned)
             eligible = [
                 row["id"]
                 for row in conn.execute(
-                    f"SELECT id FROM remote_tasks WHERE id IN ({placeholders}) "
-                    f"AND state IN ({terminal}) AND finished_at < ?",
-                    [*cleaned, cutoff],
+                    """
+                    SELECT id FROM remote_tasks
+                    WHERE id IN (SELECT value FROM json_each(?))
+                      AND state IN (SELECT value FROM json_each(?))
+                      AND finished_at < ?
+                    """,
+                    (json.dumps(cleaned), terminal, cutoff),
                 ).fetchall()
             ]
         removed = 0
         if eligible:
-            placeholders = ", ".join("?" for _ in eligible)
             conn.execute(
-                f"DELETE FROM remote_task_attempts WHERE task_id IN ({placeholders})",
-                eligible,
+                """
+                DELETE FROM remote_task_attempts
+                WHERE task_id IN (SELECT value FROM json_each(?))
+                """,
+                (json.dumps(eligible),),
             )
             cur = conn.execute(
-                f"DELETE FROM remote_tasks WHERE id IN ({placeholders})", eligible
+                """
+                DELETE FROM remote_tasks
+                WHERE id IN (SELECT value FROM json_each(?))
+                """,
+                (json.dumps(eligible),),
             )
             removed = cur.rowcount
         # Read the survivors inside the same transaction that deleted the

@@ -432,29 +432,30 @@ def update_capabilities(
     max_concurrent_tasks: Optional[int] = None,
     _conn=None,
 ) -> None:
-    sets = ["capabilities_json = ?"]
-    params: list = [json.dumps(capabilities)]
-    if host is not None:
-        sets.append("host_json = ?")
-        params.append(json.dumps(host))
-    if max_concurrent_tasks is not None:
-        sets.append("max_concurrent_tasks = ?")
-        params.append(clamp_concurrency(max_concurrent_tasks))
-    params.append(worker_id)
+    params = (
+        json.dumps(capabilities),
+        json.dumps(host) if host is not None else None,
+        clamp_concurrency(max_concurrent_tasks)
+        if max_concurrent_tasks is not None
+        else None,
+        worker_id,
+    )
+    sql = """
+        UPDATE remote_workers
+        SET capabilities_json = ?,
+            host_json = COALESCE(?, host_json),
+            max_concurrent_tasks = COALESCE(?, max_concurrent_tasks)
+        WHERE id = ?
+    """
     if _conn is not None:
         # The caller owns the surrounding SQLite transaction. Acquiring the
         # authority lock inside it can deadlock against revoke, which takes
         # that lock before waiting for the same database write lock.
-        _conn.execute(
-            f"UPDATE remote_workers SET {', '.join(sets)} WHERE id = ?", params
-        )
+        _conn.execute(sql, params)
     else:
         with _AUTHORITY_LOCK:
             with db_conn() as conn:
-                conn.execute(
-                    f"UPDATE remote_workers SET {', '.join(sets)} WHERE id = ?",
-                    params,
-                )
+                conn.execute(sql, params)
 
 
 def update_policy(
@@ -465,28 +466,27 @@ def update_policy(
     priority: Optional[int] = None,
 ) -> Optional[RemoteWorker]:
     """Atomically update user-controlled policy and return the committed row."""
-    sets: list[str] = []
-    params: list = []
-    if name is not None:
-        sets.append("name = ?")
-        params.append(name)
-    if enabled is not None:
-        sets.append("enabled = ?")
-        params.append(1 if enabled else 0)
-    if priority is not None:
-        sets.append("priority = ?")
-        params.append(max(0, min(100, int(priority))))
-
     with _AUTHORITY_LOCK, db_conn() as conn:
         row = conn.execute(
             "SELECT * FROM remote_workers WHERE id = ?", (worker_id,)
         ).fetchone()
         if row is None:
             return None
-        if sets:
+        if name is not None or enabled is not None or priority is not None:
             conn.execute(
-                f"UPDATE remote_workers SET {', '.join(sets)} WHERE id = ?",
-                [*params, worker_id],
+                """
+                UPDATE remote_workers
+                SET name = COALESCE(?, name),
+                    enabled = COALESCE(?, enabled),
+                    priority = COALESCE(?, priority)
+                WHERE id = ?
+                """,
+                (
+                    name,
+                    1 if enabled is True else 0 if enabled is False else None,
+                    max(0, min(100, int(priority))) if priority is not None else None,
+                    worker_id,
+                ),
             )
             row = conn.execute(
                 "SELECT * FROM remote_workers WHERE id = ?", (worker_id,)
