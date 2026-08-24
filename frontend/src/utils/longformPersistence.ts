@@ -344,15 +344,29 @@ export function createLongformPersistence<S>(
     }
   }
 
-  function flushPendingWrites(): Promise<void> {
-    if (getRole() !== 'main' || pending === null) return writeChain;
-    const entry = pending;
-    clearPendingTimers(entry);
-    pending = null;
-    const commitEpoch = epoch;
-    const task = writeChain.then(() => commit(entry, commitEpoch));
-    writeChain = task.catch(() => {});
-    return task;
+  async function flushPendingWrites(): Promise<void> {
+    if (getRole() !== 'main') return await writeChain;
+
+    // An orderly exit keeps the webview alive while this promise settles. If
+    // an input event queues a newer generation during the IndexedDB commit,
+    // include that generation too instead of acknowledging exit with a dirty
+    // timer still pending. A concurrent timer flush may take the entry first;
+    // observing writeChain by identity makes us wait for that task as well.
+    while (true) {
+      if (pending !== null) {
+        const entry = pending;
+        clearPendingTimers(entry);
+        pending = null;
+        const commitEpoch = epoch;
+        const task = writeChain.then(() => commit(entry, commitEpoch));
+        writeChain = task.catch(() => {});
+      }
+
+      const observedChain = writeChain;
+      await observedChain;
+      if (getRole() !== 'main') return;
+      if (pending === null && observedChain === writeChain) return;
+    }
   }
 
   function schedule(value: StorageValue<S>, name: string, payloadReferences: JsonObject): void {

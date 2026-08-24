@@ -1,7 +1,9 @@
 {
   "longformPersistence": {
     "storage_unavailable_title": "Projekten kunde inte läsas in",
-    "storage_unavailable_body": "VoiceStudio kunde inte läsa det lokala projektlagret. Dina data har inte ändrats. Försök igen för att öppna dem säkert."
+    "storage_unavailable_body": "VoiceStudio kunde inte läsa det lokala projektlagret. Dina data har inte ändrats. Försök igen för att öppna dem säkert.",
+    "clear_projects": "Rensa sparade projekt",
+    "clear_confirm": "Detta tar permanent bort alla sparade Berättelse- och Ljudboksprojekt så att VoiceStudio kan öppnas igen. Det går inte att ångra. Fortsätta?"
   },
   "backendUnreachable": {
     "contact_recent": "Den svarade för {{ago}} sedan och slutade sedan svara — den kraschade eller avslutades troligen mitt i en förfrågan.",

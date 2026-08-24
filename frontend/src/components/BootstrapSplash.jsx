@@ -31,6 +31,7 @@ import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';
 import { getApiBase } from '../utils/apiBase';
 import { startSplashWatchdog, startHealthRecoveryPoll } from '../utils/splashWatchdog';
+import { flushApplicationPersistence } from '../utils/persistenceLifecycle';
 import { Button, Progress, Select } from '../ui';
 import UiScaleControl from './UiScaleControl';
 
@@ -301,9 +302,10 @@ function IpcLostRecovery({ t }) {
     setRepairing(true);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      // On success the process relaunches and this promise never settles;
-      // the timeout only fires when the IPC layer is too broken even for
-      // this one call — then we fall back to manual instructions.
+      await flushApplicationPersistence();
+      // The command returns once the persistence-gated restart is queued; its
+      // native three-second deadline handles a webview that cannot acknowledge.
+      // This outer timeout catches an IPC bridge too broken to queue it at all.
       await withTimeout(invoke('clear_webview_cache_and_relaunch'), 8000);
     } catch (e) {
       if (e?.message !== 'ipc timeout') console.error('repair failed', e);

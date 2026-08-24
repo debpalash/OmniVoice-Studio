@@ -1,7 +1,9 @@
 {
   "longformPersistence": {
     "storage_unavailable_title": "Không thể tải dự án",
-    "storage_unavailable_body": "VoiceStudio không thể đọc bộ nhớ dự án cục bộ. Dữ liệu của bạn chưa bị thay đổi. Hãy thử lại để mở dữ liệu an toàn."
+    "storage_unavailable_body": "VoiceStudio không thể đọc bộ nhớ dự án cục bộ. Dữ liệu của bạn chưa bị thay đổi. Hãy thử lại để mở dữ liệu an toàn.",
+    "clear_projects": "Xóa các dự án đã lưu",
+    "clear_confirm": "Thao tác này sẽ xóa vĩnh viễn tất cả dự án Truyện và Sách nói đã lưu để VoiceStudio có thể mở lại. Không thể hoàn tác. Tiếp tục?"
   },
   "backendUnreachable": {
     "contact_recent": "Nó vẫn phản hồi cách đây {{ago}} rồi ngừng phản hồi — rất có thể nó đã gặp sự cố hoặc bị buộc dừng giữa một yêu cầu.",

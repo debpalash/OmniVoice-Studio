@@ -1,7 +1,9 @@
 {
   "longformPersistence": {
     "storage_unavailable_title": "Projekte konnten nicht geladen werden",
-    "storage_unavailable_body": "VoiceStudio konnte den lokalen Projektspeicher nicht lesen. Deine Daten wurden nicht verändert. Versuche es erneut, um sie sicher zu öffnen."
+    "storage_unavailable_body": "VoiceStudio konnte den lokalen Projektspeicher nicht lesen. Deine Daten wurden nicht verändert. Versuche es erneut, um sie sicher zu öffnen.",
+    "clear_projects": "Gespeicherte Projekte löschen",
+    "clear_confirm": "Dadurch werden alle gespeicherten Story- und Hörbuchprojekte dauerhaft gelöscht, damit VoiceStudio wieder geöffnet werden kann. Dies kann nicht rückgängig gemacht werden. Fortfahren?"
   },
   "backendUnreachable": {
     "contact_recent": "Es hat vor {{ago}} noch geantwortet und dann aufgehört zu reagieren — höchstwahrscheinlich ist es mitten in einer Anfrage abgestürzt oder wurde beendet.",

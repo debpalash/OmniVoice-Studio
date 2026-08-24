@@ -33,4 +33,25 @@ describe('LongformPersistenceGate', () => {
     await waitFor(() => expect(rehydrate).toHaveBeenCalledOnce());
     expect(await screen.findByTestId('project-ui')).toBeInTheDocument();
   });
+
+  it('offers destructive recovery when durable storage stays unavailable', async () => {
+    const rehydrate = vi.spyOn(useAppStore.persist, 'rehydrate').mockResolvedValue(undefined);
+    const clearProjects = vi.fn(async () => {});
+    const confirm = vi.fn(async () => true);
+    const reload = vi.fn();
+    render(
+      <LongformPersistenceGate clearProjects={clearProjects} confirm={confirm} reload={reload}>
+        <div data-testid="project-ui">Project UI</div>
+      </LongformPersistenceGate>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(rehydrate).toHaveBeenCalledOnce());
+    expect(screen.queryByTestId('project-ui')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear saved projects' }));
+    await waitFor(() => expect(clearProjects).toHaveBeenCalledOnce());
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(reload).toHaveBeenCalledOnce();
+  });
 });

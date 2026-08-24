@@ -134,6 +134,7 @@ describe('split long-form persistence', () => {
 
     const compact = local.read();
     const persisted = durable.read();
+    expect(compact).not.toBeNull();
     expect(JSON.stringify(compact).length).toBeLessThan(100_000);
     expect(compact?.state).not.toHaveProperty('script');
     expect(persisted?.payload.script).toBe(largeScript);
@@ -524,5 +525,42 @@ describe('split long-form persistence', () => {
 
     expect(durableStore.clear).toHaveBeenCalledOnce();
     expect(durableValue).toBeNull();
+  });
+
+  it('keeps an orderly flush open for edits queued during its IndexedDB commit', async () => {
+    let durableValue: DurableLongformRecord | null = null;
+    let releaseFirstWrite = () => {};
+    let writes = 0;
+    const durableStore: LongformDurableStore = {
+      read: vi.fn(async () => durableValue),
+      write: vi.fn(async (record) => {
+        writes += 1;
+        if (writes === 1) {
+          await new Promise<void>((resolve) => {
+            releaseFirstWrite = resolve;
+          });
+        }
+        durableValue = clone(record);
+      }),
+      clear: vi.fn(async () => {
+        durableValue = null;
+      }),
+    };
+    const controller = createLongformPersistence({
+      localStorage: createLocalStorage().storage,
+      durableStore,
+      currentVersion: 9,
+    });
+
+    controller.storage.setItem('omnivoice.app', legacyEnvelope('first edit'));
+    const draining = controller.flushPendingWrites();
+    await vi.waitFor(() => expect(durableStore.write).toHaveBeenCalledOnce());
+
+    controller.storage.setItem('omnivoice.app', legacyEnvelope('latest edit'));
+    releaseFirstWrite();
+    await draining;
+
+    expect(durableStore.write).toHaveBeenCalledTimes(2);
+    expect((durableValue as DurableLongformRecord | null)?.payload.script).toBe('latest edit');
   });
 });

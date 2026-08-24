@@ -21,6 +21,7 @@ import { LS_BACKEND_URL, LS_API_KEY, API } from '../../api/client';
 import { clearAdminSession, exchangeApiKey, getAdminSession } from '../../api/authSession';
 import { askConfirm } from '../../utils/dialog';
 import { disableRemoteBackend, probeRemoteBackend } from '../../utils/remoteBackendProbe';
+import { reloadAfterApplicationPersistence } from '../../utils/persistenceLifecycle';
 import { SettingsSection, SettingRow, InfoHint, SettingsInput } from './primitives';
 import { Button, Badge } from '../../ui';
 
@@ -59,7 +60,7 @@ function removeLegacyMaster() {
   }
 }
 
-export default function RemoteBackendPanel({ reload = () => window.location.reload() }) {
+export default function RemoteBackendPanel({ reload = reloadAfterApplicationPersistence }) {
   const { t } = useTranslation();
   const [url, setUrl] = useState(storedBackendUrl);
   const [key, setKey] = useState('');
@@ -166,7 +167,7 @@ export default function RemoteBackendPanel({ reload = () => window.location.relo
         removeLegacyMaster();
       }
       // api/client.ts resolves the base once at module load.
-      reload();
+      await reload();
     } finally {
       setSaving(false);
     }

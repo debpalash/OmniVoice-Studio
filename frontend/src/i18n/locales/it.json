@@ -1,7 +1,9 @@
 {
   "longformPersistence": {
     "storage_unavailable_title": "Impossibile caricare i progetti",
-    "storage_unavailable_body": "VoiceStudio non è riuscito a leggere l’archivio locale dei progetti. I tuoi dati non sono stati modificati. Riprova per aprirli in sicurezza."
+    "storage_unavailable_body": "VoiceStudio non è riuscito a leggere l’archivio locale dei progetti. I tuoi dati non sono stati modificati. Riprova per aprirli in sicurezza.",
+    "clear_projects": "Cancella i progetti salvati",
+    "clear_confirm": "Questa operazione elimina definitivamente tutti i progetti Storie e Audiolibri salvati, così VoiceStudio potrà riaprirsi. Non può essere annullata. Continuare?"
   },
   "backendUnreachable": {
     "contact_recent": "Rispondeva {{ago}} fa e poi ha smesso di rispondere — molto probabilmente è andato in crash o è stato terminato durante una richiesta.",

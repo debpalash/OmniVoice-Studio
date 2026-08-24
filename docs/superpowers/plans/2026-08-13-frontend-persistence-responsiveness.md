@@ -176,6 +176,7 @@ After `detectIsWidget()` resolves, `bootstrapApp()` should configure the role an
 - Flush on `visibilitychange` only when `document.visibilityState === 'hidden'`.
 - Do not add `beforeunload`; it is unnecessary and can interfere with back/forward caching.
 - Lifecycle flush uses the same generation/cancellation checks as timer flushes. If hidden visibility and `pagehide` both fire, the second invocation observes a clean generation and performs no second serialization/write.
+- Treat page lifecycle events as best-effort only for asynchronous IndexedDB work. On desktop, prevent the first native exit request, ask the main webview to await the long-form commit and then drain the compact local envelope, and acknowledge exit afterward; a three-second native timeout must still close or relaunch if the webview cannot respond. Intentional frontend reload/relaunch actions await the same ordered helper before navigating.
 
 ### 5. Zustand integration
 
@@ -479,6 +480,6 @@ These are intentionally not part of the first PR:
 1. **Incremental dub scheduling.** Add a 300 ms debounce, pass `AbortController.signal` through `apiPost`, use a monotonic request revision, cancel outside Dub, and prove one request per burst plus stale-response rejection.
 2. **Transactional dub undo.** Profile `pushUndo`, which currently stringifies the complete segment array per edit and retains up to 50 snapshots. If material, group edits by segment/field and focus or idle boundary while preserving one-step undo behavior.
 3. **Workspace isolation.** Profile React commits after persistence remediation; then extract one workspace at a time, moving heavy hooks/imports behind lazy boundaries. Source length and selector count alone are not success metrics.
-4. **Document storage migration.** Consider IndexedDB or a worker only if representative post-PR flushes remain over budget. That work requires an independent migration, downgrade, reset, quota, and async-hydration design.
+4. **Document storage migration — superseded.** Schema v9 now stores unbounded long-form documents in IndexedDB with migration, downgrade, reset, quota, and async-hydration coverage; no second migration is pending from this plan.
 
 Each follow-up must begin from a fresh trace. None should be pulled into this PR merely because it is nearby.

@@ -29,6 +29,7 @@ import {
   installPersistenceLifecycleFlush,
 } from './utils/coalescedJsonStorage';
 import { installLongformPersistenceLifecycleFlush } from './utils/longformPersistence';
+import { installDesktopPersistenceExitHandshake } from './utils/persistenceLifecycle';
 
 installConsoleCapture();
 // After console capture so the underlying console.error of each uncaught
@@ -80,6 +81,7 @@ export async function bootstrapApp() {
   if (!isWidget) {
     installPersistenceLifecycleFlush();
     installLongformPersistenceLifecycleFlush();
+    await installDesktopPersistenceExitHandshake();
   }
   const isDesktopShell = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 

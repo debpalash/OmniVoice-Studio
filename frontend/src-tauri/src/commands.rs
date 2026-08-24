@@ -1258,7 +1258,8 @@ pub fn reveal_host_path(app: tauri::AppHandle, path: String) -> Result<(), Strin
 //
 // Deleting EBWebView from inside a running app fails — the WebView2 browser
 // processes hold locks on the profile — so this is a two-step dance:
-//   1. the command writes a marker file next to the cache and relaunches;
+//   1. the command writes a marker file, then requests a relaunch through the
+//      bounded frontend persistence handshake;
 //   2. the fresh process calls `clear_webview_cache_if_marked()` at the very
 //      top of `run()`, before any webview exists, and deletes the cache
 //      there — retrying briefly while the old instance's WebView2 children
@@ -1307,7 +1308,7 @@ pub fn clear_webview_cache_and_relaunch(app: tauri::AppHandle) -> Result<(), Str
         "WebView cache repair requested (#879) — relaunching to clear {}",
         cache.display()
     );
-    app.restart()
+    crate::persistence_exit::request_restart(&app)
 }
 
 /// Startup half of the repair: if the previous run left the marker, delete

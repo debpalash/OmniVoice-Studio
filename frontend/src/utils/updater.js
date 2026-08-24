@@ -16,6 +16,7 @@
  * Both no-op outside a packaged Tauri build.
  */
 import { normalizeChannel } from './updateChannel';
+import { flushApplicationPersistence } from './persistenceLifecycle';
 
 export function isTauri() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -93,6 +94,7 @@ export async function installUpdate(store) {
     });
     await invoke('install_update', { channel });
     store.setUpdateReady();
+    await flushApplicationPersistence();
     await relaunch();
   } catch (e) {
     console.warn('Update install failed:', e);

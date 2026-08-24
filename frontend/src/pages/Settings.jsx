@@ -9,6 +9,7 @@ import { systemLogs, systemLogsTauri, clearSystemLogs, clearTauriLogs } from '..
 import { useSysinfo, useModelStatus, useSystemInfo } from '../api/hooks';
 import { getFrontendLogs, clearFrontendLogs } from '../utils/consoleBuffer';
 import { resolveAboutVersion } from '../utils/appVersion';
+import { flushApplicationPersistence } from '../utils/persistenceLifecycle';
 import { SettingsSection } from '../components/settings/primitives';
 import { useAppStore } from '../store';
 // Panels — re-hosted as-is; the redesign reorganizes them, not their logic.
@@ -290,6 +291,7 @@ export default function Settings() {
       const tid = toast.loading(t('settings.updater_downloading', { version: update.version }));
       await invoke('install_update', { channel });
       toast.success(t('settings.updater_installed'), { id: tid });
+      await flushApplicationPersistence();
       await relaunch();
     } catch (e) {
       setUpdateState('error');

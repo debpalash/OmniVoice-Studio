@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../api/client';
 import { exchangeApiKey } from '../api/authSession';
+import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 // On a remote device the backend can demand EITHER a LAN-share PIN
 // (NetworkAccessMiddleware → "PIN required") OR an API key (BearerKeyMiddleware
@@ -42,7 +43,7 @@ export default function RemoteAuthGate({ children, forceGate = false, forceMode 
     if (mode === 'pin') {
       try {
         sessionStorage.setItem('ov_pin', v);
-        window.location.reload();
+        await reloadAfterApplicationPersistence();
       } catch {
         setError({ status: undefined });
       }
@@ -57,7 +58,7 @@ export default function RemoteAuthGate({ children, forceGate = false, forceMode 
     setPending(true);
     try {
       await exchangeApiKey(v, { apiBase: API });
-      window.location.reload();
+      await reloadAfterApplicationPersistence();
     } catch (exchangeError) {
       setError({ status: exchangeError?.status });
     } finally {

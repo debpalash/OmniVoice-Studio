@@ -2,6 +2,7 @@ import { ServerOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui';
 import { disableRemoteBackend } from '../utils/remoteBackendProbe';
+import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 const DETAIL_KEYS = {
   tls: 'settings.remote_backend_error_tls',
@@ -16,7 +17,7 @@ export default function RemoteBackendRecovery({
   failure,
   onRetry,
   onOpenSettings,
-  reload = () => location.reload(),
+  reload = reloadAfterApplicationPersistence,
 }) {
   const { t } = useTranslation();
   const detail = t(DETAIL_KEYS[failure.kind], { status: failure.status });

@@ -57,6 +57,7 @@ import {
   flushLongformPendingWrites,
   LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR,
 } from '../../utils/longformPersistence';
+import { reloadAfterApplicationPersistence } from '../../utils/persistenceLifecycle';
 import { clearHistory } from '../../api/generate';
 import { clearDubHistory } from '../../api/dub';
 
@@ -224,7 +225,7 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
       // The backend is coming back up behind us; the bootstrap splash and the
       // reconnecting banner (#1094) own that wait, so all this has to do is get
       // the UI back to a clean slate.
-      reloadTimerRef.current = setTimeout(() => window.location.reload(), 400);
+      reloadTimerRef.current = setTimeout(() => void reloadAfterApplicationPersistence(), 400);
     } catch (e) {
       setBusy(false);
       const message =

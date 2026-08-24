@@ -1,7 +1,9 @@
 {
   "longformPersistence": {
     "storage_unavailable_title": "Projects couldn't be loaded",
-    "storage_unavailable_body": "VoiceStudio couldn't read local project storage. Your data has not been changed. Retry to open it safely."
+    "storage_unavailable_body": "VoiceStudio couldn't read local project storage. Your data has not been changed. Retry to open it safely.",
+    "clear_projects": "Clear saved projects",
+    "clear_confirm": "This permanently deletes all saved Stories and Audiobook projects so VoiceStudio can reopen. This cannot be undone. Continue?"
   },
   "pronunciation": {
     "title": "Pronunciation dictionary",
