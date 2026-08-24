@@ -198,15 +198,17 @@ class _InboundHarness:
         self.connection = self.worker.NodeConnection(self.servicer, connection)
         self.connector_task = asyncio.create_task(self.connection.run_forever())
         if wait:
-            def worker_is_ready():
+            def worker_is_activated():
                 if len(self.pool) != 1:
                     return False
                 live = next(iter(self.pool))
-                return live.record.schedulable and live.supports(
-                    engine=ENGINE, model_id=MODEL, operation=OP
+                return (
+                    live.record.schedulable
+                    and not live.registration_pending
+                    and live.supports(engine=ENGINE, model_id=MODEL, operation=OP)
                 )
 
-            await _until(worker_is_ready)
+            await _until(worker_is_activated)
         return self.connection
 
     async def stop(self):
@@ -252,6 +254,8 @@ async def test_a_panel_that_dials_a_node_ends_up_with_a_schedulable_worker(inbou
     assert len(inbound.pool) == 1
     worker = next(iter(inbound.pool))
     assert worker.record.schedulable is True
+    assert worker.registration_pending is False
+    assert worker.capacity.can_accept(ENGINE, MODEL)
     # Capabilities crossed the inverted stream, so the scheduler can actually
     # pick this worker rather than merely knowing it exists.
     assert worker.supports(engine=ENGINE, model_id=MODEL, operation=OP)
