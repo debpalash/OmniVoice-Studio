@@ -23,6 +23,7 @@ appears and is replaced by the GPU gateway.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -31,6 +32,7 @@ from pydantic import BaseModel, Field
 
 from api.dependencies import require_admin
 from worker import registry, routing, service
+from worker.async_utils import drain_task, to_thread_and_defer_cancellation
 
 logger = logging.getLogger("omnivoice.worker")
 
@@ -190,6 +192,63 @@ def _refuse_when_env_pinned(worker_agent) -> None:
         )
 
 
+async def _finish_cleanup(awaitable):
+    """Run rollback to completion even if its HTTP task was cancelled."""
+    task = asyncio.create_task(awaitable)
+    await drain_task(task)
+    return task.result()
+
+
+async def _set_worker_mode(worker_agent, enabled: bool) -> None:
+    _result, cancelled = await to_thread_and_defer_cancellation(
+        worker_agent.set_worker_mode_enabled, enabled
+    )
+    if cancelled:
+        raise asyncio.CancelledError
+
+
+async def _restore_agent_transaction(
+    worker_agent, previous: dict, *, was_running: bool
+) -> None:
+    """Restore durable enrollment/settings and the exact prior live state."""
+    try:
+        await _finish_cleanup(worker_agent.agent.stop())
+        await _finish_cleanup(worker_agent.restore_enrollment(previous))
+        if was_running and not worker_agent.agent.running:
+            await _finish_cleanup(worker_agent.agent.start())
+        elif not was_running and worker_agent.agent.running:
+            await _finish_cleanup(worker_agent.agent.stop())
+    except worker_agent.EnrollmentRollbackError:
+        raise
+    except BaseException as exc:
+        message = (
+            "The previous worker state could not be restored safely. "
+            "Worker mode remains stopped; fix its enrollment/settings storage, then retry."
+        )
+        with contextlib.suppress(BaseException):
+            await _finish_cleanup(worker_agent.agent.stop())
+        worker_agent.agent.last_error = message
+        raise worker_agent.EnrollmentRollbackError(message) from exc
+
+
+def _raise_agent_transaction_failure(
+    worker_agent, operation: BaseException, rollback: BaseException | None
+) -> None:
+    if isinstance(operation, asyncio.CancelledError):
+        if rollback is not None:
+            logger.error(
+                "Worker rollback failed during request cancellation",
+                exc_info=(type(rollback), rollback, rollback.__traceback__),
+            )
+        raise operation
+    if rollback is not None:
+        raise HTTPException(status_code=409, detail=str(rollback)) from rollback
+    if isinstance(operation, Exception):
+        worker_agent.agent.last_error = str(operation)
+        raise HTTPException(status_code=409, detail=str(operation)) from operation
+    raise operation
+
+
 @router.post("/agent/join")
 async def join_control_plane(request: JoinRequest) -> dict:
     """Redeem a join code and start working for that control plane.
@@ -214,25 +273,37 @@ async def join_control_plane(request: JoinRequest) -> dict:
     # says it joined and never lends anything (CodeRabbit).
     _refuse_when_env_pinned(worker_agent)
     async with worker_agent.agent.lifecycle:
-        # A rejoin stops a working agent before the replacement is accepted.
-        # Keep the UI rollback even though the agent stages new trust state:
-        # failure must resume the control plane this machine was serving.
-        previous = worker_agent.snapshot_enrollment()
-        await worker_agent.agent.stop()
         try:
+            previous, cancelled = await to_thread_and_defer_cancellation(
+                worker_agent.snapshot_enrollment
+            )
+        except worker_agent.EnrollmentStateError as exc:
+            worker_agent.agent.last_error = str(exc)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if cancelled:
+            raise asyncio.CancelledError
+        was_running = worker_agent.agent.running
+
+        # A rejoin stops a working agent before the replacement is accepted.
+        # Stop, acceptance and the durable setting are one transaction: every
+        # failure, including cancellation, restores both trust and live state.
+        try:
+            await worker_agent.agent.stop()
             await worker_agent.agent.start(token_text=token)
             # Success is the control plane ACCEPTING this worker, not the
             # connection being scheduled — see wait_until_registered.
             await worker_agent.agent.wait_until_registered()
-        except Exception as exc:
-            worker_agent.agent.last_error = str(exc)
-            await worker_agent.agent.stop()
-            await worker_agent.restore_enrollment(previous)
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            await _set_worker_mode(worker_agent, True)
+        except BaseException as exc:
+            rollback_exc = None
+            try:
+                await _restore_agent_transaction(
+                    worker_agent, previous, was_running=was_running
+                )
+            except BaseException as rollback_error:
+                rollback_exc = rollback_error
+            _raise_agent_transaction_failure(worker_agent, exc, rollback_exc)
         worker_agent.agent.last_error = ""
-        # Persisted only after the join actually worked: a machine that failed
-        # to enrol must not come back up trying again forever.
-        worker_agent.set_worker_mode_enabled(True)
         return worker_agent.agent.status()
 
 
@@ -248,19 +319,35 @@ async def set_agent_enabled(request: EnableRequest) -> dict:
 
     _refuse_when_env_pinned(worker_agent)
     async with worker_agent.agent.lifecycle:
-        if request.enabled:
-            try:
+        try:
+            previous, cancelled = await to_thread_and_defer_cancellation(
+                worker_agent.snapshot_enrollment
+            )
+        except worker_agent.EnrollmentStateError as exc:
+            worker_agent.agent.last_error = str(exc)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if cancelled:
+            raise asyncio.CancelledError
+        was_running = worker_agent.agent.running
+
+        try:
+            if request.enabled:
                 await worker_agent.agent.start()
                 await worker_agent.agent.wait_until_registered()
-            except Exception as exc:
-                worker_agent.agent.last_error = str(exc)
+                await _set_worker_mode(worker_agent, True)
+            else:
                 await worker_agent.agent.stop()
-                raise HTTPException(status_code=409, detail=str(exc)) from exc
-            worker_agent.agent.last_error = ""
-            worker_agent.set_worker_mode_enabled(True)
-        else:
-            await worker_agent.agent.stop()
-            worker_agent.set_worker_mode_enabled(False)
+                await _set_worker_mode(worker_agent, False)
+        except BaseException as exc:
+            rollback_exc = None
+            try:
+                await _restore_agent_transaction(
+                    worker_agent, previous, was_running=was_running
+                )
+            except BaseException as rollback_error:
+                rollback_exc = rollback_error
+            _raise_agent_transaction_failure(worker_agent, exc, rollback_exc)
+        worker_agent.agent.last_error = ""
         return worker_agent.agent.status()
 
 
@@ -276,9 +363,14 @@ def create_enrollment(request: EnrollRequest) -> dict:
             status_code=409,
             detail="Remote workers are turned off. Enable them in Settings → System → Remote workers first.",
         )
-    token = service.control_plane.create_enrollment(
-        endpoint=request.endpoint, label=request.label, ttl_seconds=request.ttl_seconds
-    )
+    try:
+        token = service.control_plane.create_enrollment(
+            endpoint=request.endpoint,
+            label=request.label,
+            ttl_seconds=request.ttl_seconds,
+        )
+    except service.EndpointCertificateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {
         "token": token.encode(),
         "endpoint": token.endpoint,
@@ -288,23 +380,55 @@ def create_enrollment(request: EnrollRequest) -> dict:
     }
 
 
+def _persist_worker_update(
+    worker_id: str, request: WorkerUpdate
+):
+    """Write policy on a worker thread; live publication stays loop-owned."""
+    return registry.update_policy(
+        worker_id,
+        name=request.name,
+        enabled=request.enabled,
+        priority=request.priority,
+    )
+
+
 @router.patch("/{worker_id}")
-def update_worker(worker_id: str, request: WorkerUpdate) -> dict:
-    worker = registry.get(worker_id)
-    if worker is None:
+async def update_worker(worker_id: str, request: WorkerUpdate) -> dict:
+    pool = service.control_plane.pool if service.control_plane.running else None
+    live = None
+    was_pending = False
+    if pool is not None:
+        # Quiesce dispatch before releasing authority for the SQLite write.
+        # The publication after the await restores the exact prior state, so a
+        # concurrent registration handoff remains quiesced for its own reason.
+        with registry.authority_guard():
+            live = pool.get(worker_id)
+            if live is not None:
+                was_pending = live.registration_pending
+                live.registration_pending = True
+    updated = None
+    cancelled = False
+    try:
+        updated, cancelled = await to_thread_and_defer_cancellation(
+            _persist_worker_update, worker_id, request
+        )
+    finally:
+        if pool is not None:
+            with registry.authority_guard():
+                if updated is not None:
+                    # Pool state, including the cached record the scheduler
+                    # reads, belongs to the app's event loop.
+                    pool.refresh_record(updated)
+                current = pool.get(worker_id)
+                if current is live:
+                    current.registration_pending = was_pending
+    if updated is None:
+        if cancelled:
+            raise asyncio.CancelledError
         raise HTTPException(status_code=404, detail="No such worker.")
-    if request.name is not None:
-        registry.rename(worker_id, request.name)
-    if request.enabled is not None:
-        registry.set_enabled(worker_id, request.enabled)
-    if request.priority is not None:
-        registry.set_priority(worker_id, request.priority)
-    updated = registry.get(worker_id)
-    # Keep the live copy in step, so the scheduler and its logs do not go on
-    # using the name or priority this worker had when it connected.
-    if updated is not None and service.control_plane.running:
-        service.control_plane.pool.refresh_record(updated)
-    return updated.to_dict() if updated else {}
+    if cancelled:
+        raise asyncio.CancelledError
+    return updated.to_dict()
 
 
 @router.post("/{worker_id}/consent")
@@ -318,7 +442,7 @@ def grant_consent(worker_id: str) -> dict:
 
 
 @router.post("/{worker_id}/resume")
-def clear_breaker(worker_id: str) -> dict:
+async def clear_breaker(worker_id: str) -> dict:
     """Clear a paused worker's circuit breakers.
 
     The user fixed the machine and knows it — a breaker with no manual clear is
@@ -333,18 +457,53 @@ def clear_breaker(worker_id: str) -> dict:
 
 
 @router.delete("/{worker_id}")
-def revoke_worker(worker_id: str) -> dict:
+async def revoke_worker(worker_id: str) -> dict:
     """Remove a worker — which means revoke its key, not hide the row.
 
     Its in-flight work is released so it can be retried elsewhere rather than
     waiting out a lease on a machine that will never answer again.
     """
-    if registry.get(worker_id) is None:
+    pool = service.control_plane.pool if service.control_plane.running else None
+    live = None
+    was_pending = False
+    if pool is not None:
+        with registry.authority_guard():
+            live = pool.get(worker_id)
+            if live is not None:
+                was_pending = live.registration_pending
+                live.registration_pending = True
+    try:
+        revoked, cancelled = await to_thread_and_defer_cancellation(
+            registry.revoke, worker_id
+        )
+    except BaseException:
+        if pool is not None:
+            with registry.authority_guard():
+                current = pool.get(worker_id)
+                if current is live:
+                    current.registration_pending = was_pending
+        raise
+    if not revoked:
+        if pool is not None:
+            with registry.authority_guard():
+                current = pool.get(worker_id)
+                if current is live:
+                    current.registration_pending = was_pending
+        if cancelled:
+            raise asyncio.CancelledError
         raise HTTPException(status_code=404, detail="No such worker.")
-    registry.revoke(worker_id)
-    if service.control_plane.running:
-        service.control_plane.scheduler.on_disconnected(worker_id)
-        service.control_plane.pool.breakers.forget_worker(worker_id)
+
+    # The tombstone committed before any egress/session mutation. Everything
+    # below is loop-owned and published under the same scheduler authority read
+    # used by next_assignment(), so no task can bind in the handoff window.
+    with registry.authority_guard():
+        if service.control_plane.running:
+            if service.control_plane.servicer is not None:
+                service.control_plane.servicer.revoke_worker_sessions(worker_id)
+            service.control_plane.scheduler.on_disconnected(worker_id)
+            service.control_plane.pool.breakers.forget_worker(worker_id)
+    if cancelled:
+        raise asyncio.CancelledError
     return {"ok": True, "revoked": worker_id}
 
 
@@ -388,7 +547,9 @@ async def submit_task(request: Request, body: SubmitTaskRequest) -> dict:
 
     scheduler = service.control_plane.scheduler
     try:
-        task = scheduler.submit(
+        submit = getattr(scheduler, "submit_async", None)
+        submit = submit if callable(submit) else scheduler.submit
+        submitted = submit(
             operation=body.operation,
             engine=body.engine,
             model_id=body.model_id,
@@ -397,6 +558,7 @@ async def submit_task(request: Request, body: SubmitTaskRequest) -> dict:
             deadline_seconds=body.deadline_seconds,
             pinned_worker_id=routing.decide().worker_id or None,
         )
+        task = await submitted if asyncio.iscoroutine(submitted) else submitted
     except QueueFull as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
 
@@ -518,8 +680,33 @@ async def set_inbound_enabled(request: InboundEnableRequest) -> dict:
                 "machine. Change that environment setting and restart VoiceStudio."
             ),
         )
+
+    requested_bind = (
+        inbound_service.normalise_bind_host(request.bind)
+        if request.bind
+        else inbound_service.bind_host()
+    )
+    requested_port = request.port or inbound_service.bind_port()
+    if (
+        request.enabled
+        and inbound_service.node.running
+        and (
+            requested_bind != inbound_service.bind_host()
+            or requested_port != inbound_service.node.port
+        )
+    ):
+        # start() is intentionally idempotent while a listener owns its
+        # socket. Persisting a new endpoint here would make the UI report a
+        # narrower/different bind while the original socket stayed live.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Turn off Accept connections before changing its bind address "
+                "or port."
+            ),
+        )
     if request.bind:
-        inbound_service.set_bind_host(request.bind)
+        inbound_service.set_bind_host(requested_bind)
     if request.port:
         inbound_service.set_bind_port(request.port)
     inbound_service.set_enabled(request.enabled)
@@ -548,6 +735,7 @@ def issue_inbound_key(request: IssueKeyRequest) -> dict:
     is stored, so it cannot be shown again, only replaced.
     """
     from worker.inbound import service as inbound_service  # noqa: PLC0415
+    from worker.inbound.keys import KeyLimitExceeded  # noqa: PLC0415
 
     if not inbound_service.node.running:
         raise HTTPException(
@@ -557,7 +745,10 @@ def issue_inbound_key(request: IssueKeyRequest) -> dict:
                 "Settings → System → Remote workers → Accept connections first."
             ),
         )
-    issued = inbound_service.node.keys.issue(request.label)
+    try:
+        issued = inbound_service.node.keys.issue(request.label)
+    except KeyLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {
         "key_id": issued.key.key_id,
         "label": issued.key.label,
@@ -568,12 +759,12 @@ def issue_inbound_key(request: IssueKeyRequest) -> dict:
 
 
 @router.delete("/inbound/keys/{key_id}")
-def revoke_inbound_key(key_id: str) -> dict:
+async def revoke_inbound_key(key_id: str) -> dict:
     """Revoke one panel. Everyone else stays connected — the whole reason keys
     are per panel rather than one shared node key."""
     from worker.inbound import service as inbound_service  # noqa: PLC0415
 
-    if not inbound_service.node.keys.revoke(key_id):
+    if not await inbound_service.node.revoke_key(key_id):
         raise HTTPException(status_code=404, detail="No such key.")
     return inbound_service.node.snapshot()
 
@@ -592,6 +783,7 @@ async def add_inbound_connection(request: ConnectRequest) -> dict:
     """Paste a connection string from a GPU machine and dial it."""
     from worker.inbound import service as inbound_service  # noqa: PLC0415
     from worker.inbound.connection_string import InvalidConnectionString  # noqa: PLC0415
+    from worker.inbound.connector import InboundConnectionError  # noqa: PLC0415
 
     if not service.control_plane.running:
         raise HTTPException(
@@ -610,12 +802,18 @@ async def add_inbound_connection(request: ConnectRequest) -> dict:
         # surfaces as "cannot connect", which is what a firewall, a wrong port
         # and a dead node all say too.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except InboundConnectionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"endpoint": connection.endpoint, "connections": inbound_service.outbound.snapshot()}
 
 
 @router.delete("/inbound/connections/{endpoint}")
 async def remove_inbound_connection(endpoint: str) -> dict:
     from worker.inbound import service as inbound_service  # noqa: PLC0415
+    from worker.inbound.connector import InboundConnectionError  # noqa: PLC0415
 
-    await inbound_service.outbound.remove(endpoint)
+    try:
+        await inbound_service.outbound.remove(endpoint)
+    except InboundConnectionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {"connections": inbound_service.outbound.snapshot()}

@@ -7,7 +7,9 @@
 // Rules of the road (goal_v2.md A5):
 //   * Additive-only within v1. Never renumber, never reuse a field number.
 //   * Version negotiation happens at Register; the server may refuse with
-//     UPGRADE_REQUIRED. Supported skew window is N-2.
+//     UPGRADE_REQUIRED. Semantic protocol v2 is intentionally incompatible
+//     with v1 because enrollment became a durable two-phase handshake; never
+//     infer a release-based skew window across that boundary.
 //   * The Control stream carries SMALL messages only. Artifacts (reference
 //     audio in, rendered audio/video out) move through UploadResult /
 //     DownloadArtifact. A large payload on the control stream head-of-line

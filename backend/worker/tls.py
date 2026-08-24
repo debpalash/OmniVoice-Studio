@@ -20,15 +20,21 @@ There is deliberately no way to disable verification.
 from __future__ import annotations
 
 import datetime as _dt
+import errno
 import ipaddress
 import logging
 import os
 import socket
 import ssl
+import tempfile
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
@@ -39,6 +45,8 @@ logger = logging.getLogger("omnivoice.worker")
 
 _CERT_VALID_DAYS = 825  # the CA/Browser Forum maximum; long enough to be quiet
 _RENEW_WITHIN_DAYS = 30
+_PENDING_PAIR_MAGIC = b"omnivoice-tls-pair-v1\n"
+_PROCESS_CREDENTIAL_LOCK = threading.Lock()
 
 
 def unverified_client_context() -> ssl.SSLContext:
@@ -72,7 +80,7 @@ def _san_entries(hostnames: list[str]) -> list[x509.GeneralName]:
     """
     entries: list[x509.GeneralName] = []
     for host in hostnames:
-        host = (host or "").strip()
+        host = _normalise_host(host)
         if not host:
             continue
         try:
@@ -118,9 +126,23 @@ def covers(credentials: "ServerCredentials", host: str) -> bool:
         ).value
     except Exception:
         return False
-    names = set(san.get_values_for_type(x509.DNSName))
-    names |= {str(ip) for ip in san.get_values_for_type(x509.IPAddress)}
-    return host in names
+    names = {_normalise_host(name) for name in san.get_values_for_type(x509.DNSName)}
+    names |= {
+        _normalise_host(str(ip)) for ip in san.get_values_for_type(x509.IPAddress)
+    }
+    return _normalise_host(host) in names
+
+
+def _normalise_host(host: str) -> str:
+    """Canonicalise a SAN identity for comparison, not for DNS resolution."""
+    candidate = (host or "").strip().strip("[]")
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        # DNS names are case-insensitive, and a trailing root dot does not
+        # name a different host. cryptography intentionally does no matching
+        # for us because the certificate is its own trust root.
+        return candidate.rstrip(".").lower()
 
 
 def default_hostnames() -> list[str]:
@@ -206,25 +228,50 @@ def load_or_create(
     desktop control plane presents as "my workers all went offline" with
     nothing in the UI explaining why.
     """
-    existing = _load(cert_path, key_path)
-    wanted = hostnames or default_hostnames()
-    # Every explicitly requested identity must be present. This matters for an
-    # inbound listener bound to a user-entered LAN address: keeping a stable
-    # certificate that does not name that address makes mandatory hostname
-    # verification fail even though its fingerprint is correct.
-    missing = [
-        host for host in wanted if existing is not None and not covers(existing, host)
-    ]
-    if existing is not None and not _expiring_soon(existing) and not missing:
-        return existing
-    if existing is not None:
-        reason = (
-            "expiring" if _expiring_soon(existing) else "missing a requested hostname"
-        )
-        logger.info("Control-plane certificate is %s — regenerating.", reason)
-    credentials = generate_self_signed(hostnames=wanted)
-    _save(cert_path, key_path, credentials)
-    return credentials
+    with _credential_lock(cert_path):
+        existing = _load(cert_path, key_path)
+        pending_present, pending = _load_pending_pair(cert_path, key_path)
+        if existing is not None and pending_present:
+            # A valid final pair is either the old generation (the transaction
+            # never began replacing it) or the fully committed new one. Both
+            # are safer than rotating a pin merely because cleanup was cut
+            # short. The lock makes it safe to remove the stale journal here.
+            _remove_pending_pair(cert_path, key_path)
+        elif existing is None and pending is not None:
+            logger.warning(
+                "Recovering an interrupted control-plane TLS credential update."
+            )
+            _install_pair(cert_path, key_path, pending)
+            _remove_pending_pair(cert_path, key_path)
+            existing = pending
+
+        wanted = hostnames or default_hostnames()
+        # Every explicitly requested identity must be present. This matters for
+        # a listener bound to a user-entered address: keeping a stable
+        # certificate that does not name it makes mandatory hostname
+        # verification fail even though its fingerprint is correct.
+        missing = [
+            host
+            for host in wanted
+            if existing is not None and not covers(existing, host)
+        ]
+        if existing is not None and not _expiring_soon(existing) and not missing:
+            return existing
+        if existing is not None:
+            reason = (
+                "expiring"
+                if _expiring_soon(existing)
+                else "missing a requested hostname"
+            )
+            logger.info("Control-plane certificate is %s — regenerating.", reason)
+        elif pending_present and pending is None:
+            logger.warning(
+                "Ignoring a corrupt interrupted TLS credential update and "
+                "generating a new pair."
+            )
+        credentials = generate_self_signed(hostnames=wanted)
+        _save(cert_path, key_path, credentials)
+        return credentials
 
 
 def _load(cert_path: str, key_path: str) -> Optional[ServerCredentials]:
@@ -233,11 +280,40 @@ def _load(cert_path: str, key_path: str) -> Optional[ServerCredentials]:
             cert_pem = fh.read()
         with open(key_path, "rb") as fh:
             key_pem = fh.read()
-    except (FileNotFoundError, PermissionError):
+    except FileNotFoundError:
         return None
+    return _credentials_from_pem(cert_pem, key_pem)
+
+
+def _credentials_from_pem(
+    cert_pem: bytes, key_pem: bytes
+) -> Optional[ServerCredentials]:
+    """Parse a credential pair only when the private key belongs to the cert."""
     try:
         certificate = x509.load_pem_x509_certificate(cert_pem)
-    except ValueError:
+        private_key = serialization.load_pem_private_key(key_pem, password=None)
+        certificate_public_key = certificate.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        private_public_key = private_key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        certificate.public_key().verify(
+            certificate.signature,
+            certificate.tbs_certificate_bytes,
+            ec.ECDSA(certificate.signature_hash_algorithm),
+        )
+    except (
+        AttributeError,
+        InvalidSignature,
+        TypeError,
+        UnsupportedAlgorithm,
+        ValueError,
+    ):
+        return None
+    if certificate_public_key != private_public_key:
         return None
     return ServerCredentials(
         certificate_pem=cert_pem,
@@ -258,19 +334,205 @@ def _expiring_soon(
 
 
 def _save(cert_path: str, key_path: str, credentials: ServerCredentials) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(cert_path)), exist_ok=True)
-    with open(cert_path, "wb") as fh:
-        fh.write(credentials.certificate_pem)
-    # The private key gets the same 0600 treatment as worker keys.
-    fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.write(fd, credentials.private_key_pem)
-    finally:
-        os.close(fd)
+    """Durably replace a pair, leaving enough state to finish after a crash.
+
+    No filesystem atomically renames two independent paths. A mode-0600
+    journal is therefore made durable first; the loader uses it only when the
+    final paths are torn or corrupt. Each final path is itself an atomic
+    sibling rename, and the journal is removed only after both directory
+    entries and their contents are durable.
+    """
+    pending_path = _pending_pair_path(cert_path, key_path)
+    _atomic_write(pending_path, _encode_pending_pair(credentials))
+    _install_pair(cert_path, key_path, credentials)
+    _remove_pending_pair(cert_path, key_path)
+
+
+def _install_pair(
+    cert_path: str, key_path: str, credentials: ServerCredentials
+) -> None:
+    # Key first, certificate second: the public certificate is the commit
+    # marker. A crash between them is detected by _load and recovered from the
+    # already-durable pending pair.
+    _atomic_write(key_path, credentials.private_key_pem)
     try:
         os.chmod(key_path, 0o600)
     except OSError:
+        # Windows and some network filesystems do not honour POSIX modes; the
+        # key remains in the app's per-user data directory there.
         pass
+    _atomic_write(cert_path, credentials.certificate_pem)
+    installed = _load(cert_path, key_path)
+    if installed is None or installed.fingerprint != credentials.fingerprint:
+        raise OSError("TLS credential pair failed verification after persistence")
+
+
+def _atomic_write(path: str, payload: bytes) -> None:
+    """Fsync and atomically replace one mode-restricted credential file."""
+    directory = os.path.dirname(os.path.abspath(path))
+    _durable_makedirs(directory)
+    fd, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(path)}.", suffix=".tmp", dir=directory
+    )
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporary, path)
+        _fsync_parent_directory(directory)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def _pending_pair_path(cert_path: str, key_path: str) -> str:
+    cert_name = os.path.basename(cert_path)
+    key_name = os.path.basename(key_path)
+    directory = os.path.dirname(os.path.abspath(cert_path))
+    return os.path.join(directory, f".{cert_name}.{key_name}.pending")
+
+
+def _encode_pending_pair(credentials: ServerCredentials) -> bytes:
+    certificate = credentials.certificate_pem
+    return (
+        _PENDING_PAIR_MAGIC
+        + str(len(certificate)).encode("ascii")
+        + b"\n"
+        + certificate
+        + credentials.private_key_pem
+    )
+
+
+def _load_pending_pair(
+    cert_path: str, key_path: str
+) -> tuple[bool, Optional[ServerCredentials]]:
+    path = _pending_pair_path(cert_path, key_path)
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except FileNotFoundError:
+        return False, None
+    if not raw.startswith(_PENDING_PAIR_MAGIC):
+        return True, None
+    size_line, separator, payload = raw[len(_PENDING_PAIR_MAGIC) :].partition(b"\n")
+    if not separator:
+        return True, None
+    try:
+        certificate_size = int(size_line)
+    except ValueError:
+        return True, None
+    if certificate_size <= 0 or certificate_size >= len(payload):
+        return True, None
+    return True, _credentials_from_pem(
+        payload[:certificate_size], payload[certificate_size:]
+    )
+
+
+def _remove_pending_pair(cert_path: str, key_path: str) -> None:
+    path = _pending_pair_path(cert_path, key_path)
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    _fsync_parent_directory(os.path.dirname(path) or ".")
+
+
+def _fsync_parent_directory(directory: str) -> None:
+    """Make a preceding directory-entry change durable where supported."""
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if directory_flag is None:
+        return
+    unsupported = {
+        errno.EINVAL,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | directory_flag)
+    except OSError as exc:
+        if exc.errno in unsupported:
+            return
+        raise
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        if exc.errno not in unsupported:
+            raise
+    finally:
+        os.close(descriptor)
+
+
+def _durable_makedirs(directory: str) -> None:
+    """Persist every newly-created credential-directory entry."""
+    target = os.path.abspath(directory)
+    missing: list[str] = []
+    current = target
+    while not os.path.isdir(current):
+        if os.path.exists(current):
+            if os.path.isdir(current):
+                break
+            raise NotADirectoryError(current)
+        missing.append(current)
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+
+    for path in reversed(missing):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            if not os.path.isdir(path):
+                raise
+        _fsync_parent_directory(os.path.dirname(path) or ".")
+
+    if not missing:
+        # Retry the exact barrier that may have failed after a prior mkdir.
+        _fsync_parent_directory(os.path.dirname(target) or ".")
+
+
+@contextmanager
+def _credential_lock(cert_path: str) -> Iterator[None]:
+    """Serialise first-start/renewal across threads and app processes."""
+    directory = os.path.dirname(os.path.abspath(cert_path))
+    _durable_makedirs(directory)
+    lock_path = os.path.join(directory, f".{os.path.basename(cert_path)}.lock")
+    with _PROCESS_CREDENTIAL_LOCK:
+        descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        is_windows = os.name == "nt"
+        acquired = False
+        try:
+            if is_windows:
+                import msvcrt  # noqa: PLC0415
+
+                if os.fstat(descriptor).st_size == 0:
+                    os.write(descriptor, b"\0")
+                    os.fsync(descriptor)
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl  # noqa: PLC0415
+
+                fcntl.flock(descriptor, fcntl.LOCK_EX)
+            acquired = True
+            yield
+        finally:
+            try:
+                if acquired and is_windows:
+                    import msvcrt  # noqa: PLC0415
+
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+                elif acquired:
+                    import fcntl  # noqa: PLC0415
+
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+            finally:
+                os.close(descriptor)
 
 
 def pin_matches(certificate_der: bytes, expected_fingerprint: str) -> bool:

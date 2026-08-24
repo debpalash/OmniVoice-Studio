@@ -8,8 +8,8 @@
 #    docker compose -f deploy/docker-compose.yml --profile worker-gpu up   # NVIDIA worker
 #    docker compose -f deploy/docker-compose.yml --profile worker-rocm up  # AMD worker
 #
-#  The Studio services all publish host port 3900, so every service is opt-in
-#  via a profile. Worker-only services publish no host port.
+#  The Studio services publish the UI on loopback and the authenticated TLS
+#  worker control plane on 7443. Worker-only services publish no host port.
 #
 #  First run downloads ~4 GB of models. Progress is shown in logs.
 #  Open http://localhost:3900 once the health check passes.
@@ -35,6 +35,7 @@ services:
     profiles: ["cpu"]
     ports:
       - "127.0.0.1:3900:3900"
+      - "${OMNIVOICE_WORKER_PUBLISH_HOST:-127.0.0.1}:${OMNIVOICE_WORKER_PORT:-7443}:${OMNIVOICE_WORKER_PORT:-7443}"
     volumes:
       - omnivoice-data:/app/omnivoice_data
     environment:
@@ -55,6 +56,8 @@ services:
       # discoverable. If you front the container with your own auth proxy on
       # loopback, set this to 0 to re-enable the strict gate.
       - OMNIVOICE_SERVER_MODE=1
+      - OMNIVOICE_WORKER_PORT=${OMNIVOICE_WORKER_PORT:-7443}
+      - OMNIVOICE_WORKER_ENDPOINT_HOST=${OMNIVOICE_WORKER_ENDPOINT_HOST:-}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -73,6 +76,7 @@ services:
     profiles: ["gpu"]
     ports:
       - "127.0.0.1:3900:3900"
+      - "${OMNIVOICE_WORKER_PUBLISH_HOST:-127.0.0.1}:${OMNIVOICE_WORKER_PORT:-7443}:${OMNIVOICE_WORKER_PORT:-7443}"
     volumes:
       - omnivoice-data:/app/omnivoice_data
     environment:
@@ -88,6 +92,8 @@ services:
       # See the CPU service above — relaxes the loopback origin gate for the
       # headless Docker deployment (issue #261). Set to 0 to re-enable it.
       - OMNIVOICE_SERVER_MODE=1
+      - OMNIVOICE_WORKER_PORT=${OMNIVOICE_WORKER_PORT:-7443}
+      - OMNIVOICE_WORKER_ENDPOINT_HOST=${OMNIVOICE_WORKER_ENDPOINT_HOST:-}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -123,6 +129,7 @@ services:
     profiles: ["rocm"]
     ports:
       - "127.0.0.1:3900:3900"
+      - "${OMNIVOICE_WORKER_PUBLISH_HOST:-127.0.0.1}:${OMNIVOICE_WORKER_PORT:-7443}:${OMNIVOICE_WORKER_PORT:-7443}"
     devices:
       - /dev/kfd
       - /dev/dri
@@ -138,6 +145,8 @@ services:
       # loopback origin gate for the headless Docker deployment.
       - OMNIVOICE_BIND_HOST=0.0.0.0
       - OMNIVOICE_SERVER_MODE=1
+      - OMNIVOICE_WORKER_PORT=${OMNIVOICE_WORKER_PORT:-7443}
+      - OMNIVOICE_WORKER_ENDPOINT_HOST=${OMNIVOICE_WORKER_ENDPOINT_HOST:-}
       # RDNA3 consumer cards (RX 7900 XTX/XT and friends, gfx1100): if the
       # GPU is not detected, uncomment the override below. The backend
       # auto-sets it for known consumer GFX IDs, so try without it first.

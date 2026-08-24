@@ -254,6 +254,29 @@ def get_text(key: str, default: Optional[str] = None) -> Optional[str]:
         return default
 
 
+def get_text_state(key: str) -> tuple[bool, str]:
+    """Return ``(is_present, value)`` without hiding storage failures.
+
+    Rollback snapshots must distinguish a missing row from an unreadable
+    database.  ``get_text`` deliberately collapses those cases for ordinary
+    preference reads, so transactional callers use this strict variant.
+    """
+    if key == _TOKEN_KEY or key.startswith(_SECRET_PREFIX):
+        raise ValueError(
+            "get_text_state refuses to read an encrypted secret row; "
+            "use get_hf_token()/get_secret() for secrets"
+        )
+    from core.db import db_conn
+
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+    if row is None:
+        return False, ""
+    return True, str(row[0])
+
+
 def set_text(key: str, value: str) -> None:
     """Persist a non-encrypted text value into the settings table.
 
@@ -272,6 +295,19 @@ def set_text(key: str, value: str) -> None:
             "VALUES (?, ?, ?)",
             (key, value, time.time()),
         )
+
+
+def clear_text(key: str) -> None:
+    """Remove a non-encrypted text setting, preserving a missing-row default."""
+    if key == _TOKEN_KEY or key.startswith(_SECRET_PREFIX):
+        raise ValueError(
+            "clear_text refuses to delete an encrypted secret row; "
+            "use clear_hf_token()/clear_secret() for secrets"
+        )
+    from core.db import db_conn
+
+    with db_conn() as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
 
 
 # ── Phase 4 Plan 04-01 (GGUF-04): per-engine quant override ────────────────

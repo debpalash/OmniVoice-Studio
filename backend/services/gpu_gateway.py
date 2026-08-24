@@ -499,7 +499,9 @@ async def _run_remote(
         deadline = _default_deadline(call.operation, params.get("text"))
 
     try:
-        task = scheduler.submit(
+        submit = getattr(scheduler, "submit_async", None)
+        submit = submit if callable(submit) else scheduler.submit
+        submitted = submit(
             operation=call.operation,
             engine=call.engine,
             model_id=call.model_id,
@@ -508,6 +510,7 @@ async def _run_remote(
             deadline_seconds=deadline,
             pinned_worker_id=decision.worker_id,
         )
+        task = await submitted if asyncio.iscoroutine(submitted) else submitted
     except QueueFull as exc:
         raise _NotDispatched(str(exc)) from exc
 

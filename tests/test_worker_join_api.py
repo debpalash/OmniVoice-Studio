@@ -20,6 +20,8 @@ What is pinned here is what makes the flow survive contact with reality:
 """
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -40,8 +42,16 @@ def client(monkeypatch, tmp_path):
             return settings.get(key, default)
 
         @staticmethod
+        def get_text_state(key):
+            return key in settings, settings.get(key, "")
+
+        @staticmethod
         def set_text(key, value):
             settings[key] = value
+
+        @staticmethod
+        def clear_text(key):
+            settings.pop(key, None)
 
     # Both bindings: `from services import settings_store` resolves the package
     # ATTRIBUTE when another test has already imported the real module, and the
@@ -54,6 +64,7 @@ def client(monkeypatch, tmp_path):
     monkeypatch.delenv("OMNIVOICE_WORKER_MODE", raising=False)
     monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT", raising=False)
     monkeypatch.setattr(worker_agent.agent, "last_error", "")
+    monkeypatch.setattr(worker_agent.agent, "endpoint", "")
     monkeypatch.setattr(
         worker_agent, "_paths", lambda: {"pinned_cert": str(tmp_path / "pinned.crt")}
     )
@@ -151,6 +162,22 @@ def test_join_redeems_the_code_and_persists_worker_mode(client, monkeypatch):
     assert body["endpoint"] == "studio-mac:7443"
 
 
+def test_explicit_join_can_repair_a_corrupt_enrollment_manifest(
+    client, monkeypatch, tmp_path
+):
+    """Corrupt committed state fails closed on startup but must not brick Join."""
+    c, settings = client
+    (tmp_path / "enrollment.json").write_text("{not json", encoding="utf-8")
+    (tmp_path / "pinned.crt").write_bytes(b"stale compatibility certificate")
+    calls = _stub_agent(monkeypatch)
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_fresh"})
+
+    assert response.status_code == 200
+    assert ("start", "ovw_fresh") in calls
+    assert settings["worker_mode_enabled"] == "true"
+
+
 def test_join_stops_any_previous_connection_first(client, monkeypatch):
     c, _ = client
     calls = _stub_agent(monkeypatch)
@@ -218,6 +245,233 @@ def test_a_failed_rejoin_restores_the_working_enrollment(client, monkeypatch, tm
     )
     assert settings["worker_endpoint"] == "studio-mac:7443"
     assert settings["worker_mode_enabled"] == "true"
+
+
+def test_failed_control_after_registration_restores_the_previous_manifest(
+    client, monkeypatch, tmp_path
+):
+    """Register acceptance replaces the manifest before Control activation.
+
+    If Control then fails, rollback must restore the exact previous generation,
+    not merely its legacy certificate and endpoint mirrors.
+    """
+    c, settings = client
+    manifest_path = tmp_path / "enrollment.json"
+    worker_agent._save_enrollment_manifest(
+        str(manifest_path),
+        endpoint="old-studio:7443",
+        certificate=b"old certificate",
+        worker_id="old-worker",
+        token_hash=worker_agent._token_hash("ovw_old"),
+    )
+    old_generation = manifest_path.read_bytes()
+    settings["worker_mode_enabled"] = "true"
+    settings["worker_endpoint"] = "old-studio:7443"
+    calls = []
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        calls.append(("start", token_text))
+        if token_text:
+            # This is the accepted Register callback: the new identity is
+            # durable locally, but the Config/activation confirmation is not.
+            worker_agent._save_enrollment_manifest(
+                str(manifest_path),
+                endpoint="new-studio:7443",
+                certificate=b"new certificate",
+                worker_id="new-worker",
+                token_hash=worker_agent._token_hash(token_text),
+            )
+
+    async def stop():
+        calls.append(("stop", ""))
+
+    async def wait_until_registered(timeout: float = 20.0):
+        raise RuntimeError("Control closed before activation")
+
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(
+        worker_agent.agent, "wait_until_registered", wait_until_registered
+    )
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_new"})
+
+    assert response.status_code == 409
+    assert manifest_path.read_bytes() == old_generation
+    assert worker_agent._load_enrollment_manifest(str(manifest_path))["worker_id"] == (
+        "old-worker"
+    )
+    assert calls[-1] == ("start", "")
+
+
+def test_join_refuses_to_replace_a_manifest_it_cannot_back_up(
+    client, monkeypatch, tmp_path
+):
+    c, _settings = client
+    calls = _stub_agent(monkeypatch)
+    manifest_path = tmp_path / "enrollment.json"
+    manifest_path.write_bytes(b"existing enrollment generation")
+    existing = manifest_path.read_bytes()
+    real_open = open
+
+    def unreadable_manifest(path, *args, **kwargs):
+        if str(path) == str(manifest_path) and args and args[0] == "rb":
+            raise PermissionError("manifest is unreadable")
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(worker_agent, "open", unreadable_manifest, raising=False)
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_repair"})
+
+    assert response.status_code == 409
+    assert "backed up safely" in response.json()["detail"]
+    assert manifest_path.read_bytes() == existing
+    assert calls == []
+
+
+def test_join_refuses_to_stop_when_settings_cannot_be_snapshotted(
+    client, monkeypatch
+):
+    c, settings = client
+    calls = _stub_agent(monkeypatch)
+    settings["worker_mode_enabled"] = "true"
+    settings["worker_endpoint"] = "old-studio:7443"
+    import services
+
+    def unreadable_setting(_key):
+        raise OSError("settings database is unreadable")
+
+    monkeypatch.setattr(services.settings_store, "get_text_state", unreadable_setting)
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_repair"})
+
+    assert response.status_code == 409
+    assert "settings cannot be backed up safely" in response.json()["detail"]
+    assert settings == {
+        "worker_mode_enabled": "true",
+        "worker_endpoint": "old-studio:7443",
+    }
+    assert calls == []
+
+
+def test_join_surfaces_rollback_failure_as_actionable_conflict(
+    client, monkeypatch
+):
+    c, _settings = client
+    calls = _stub_agent(monkeypatch, never_registers="Replacement activation failed.")
+
+    async def fail_rollback(_previous):
+        raise worker_agent.EnrollmentRollbackError(
+            "The previous enrollment could not be restored; worker mode remains stopped."
+        )
+
+    monkeypatch.setattr(worker_agent, "restore_enrollment", fail_rollback)
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_replacement"})
+
+    assert response.status_code == 409
+    assert "could not be restored" in response.json()["detail"]
+    assert calls[-1][0] == "stop"
+
+
+def test_failed_legacy_upgrade_restores_every_identity_mirror(
+    client, monkeypatch, tmp_path
+):
+    c, settings = client
+    pinned = tmp_path / "pinned.crt"
+    worker_id = tmp_path / "worker-id"
+    token_hash = tmp_path / "enrollment-token.sha256"
+    manifest = tmp_path / "enrollment.json"
+    pinned.write_bytes(b"old certificate")
+    worker_id.write_bytes(b"old-worker\n")
+    token_hash.write_bytes(worker_agent._token_hash("ovw_old").encode("ascii"))
+    old_files = {
+        pinned: pinned.read_bytes(),
+        worker_id: worker_id.read_bytes(),
+        token_hash: token_hash.read_bytes(),
+    }
+    settings["worker_mode_enabled"] = "true"
+    settings["worker_endpoint"] = "old-studio:7443"
+    worker_agent.agent.endpoint = "old-runtime:7443"
+    calls = []
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        calls.append(("start", token_text))
+        if not token_text:
+            return
+        worker_agent._save_enrollment_manifest(
+            str(manifest),
+            endpoint="new-studio:7443",
+            certificate=b"new certificate",
+            worker_id="new-worker",
+            token_hash=worker_agent._token_hash(token_text),
+        )
+        pinned.write_bytes(b"new certificate")
+        worker_id.write_bytes(b"new-worker")
+        token_hash.write_bytes(worker_agent._token_hash(token_text).encode("ascii"))
+        worker_agent._remember_endpoint("new-studio:7443")
+        worker_agent.agent.endpoint = "new-studio:7443"
+
+    async def stop():
+        calls.append(("stop", ""))
+
+    async def wait_until_registered(timeout: float = 20.0):
+        raise RuntimeError("Control closed before activation")
+
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(
+        worker_agent.agent, "wait_until_registered", wait_until_registered
+    )
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_new"})
+
+    assert response.status_code == 409
+    assert not manifest.exists()
+    assert {path: path.read_bytes() for path in old_files} == old_files
+    assert settings["worker_endpoint"] == "old-studio:7443"
+    assert calls[-1] == ("start", "")
+
+
+def test_first_failed_join_restores_endpoint_absence(client, monkeypatch, tmp_path):
+    c, settings = client
+    manifest = tmp_path / "enrollment.json"
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        worker_agent._save_enrollment_manifest(
+            str(manifest),
+            endpoint="new-studio:7443",
+            certificate=b"new certificate",
+            worker_id="new-worker",
+            token_hash=worker_agent._token_hash(token_text),
+        )
+        (tmp_path / "worker-id").write_text("new-worker", encoding="utf-8")
+        (tmp_path / "enrollment-token.sha256").write_text(
+            worker_agent._token_hash(token_text), encoding="ascii"
+        )
+        worker_agent._remember_endpoint("new-studio:7443")
+        worker_agent.agent.endpoint = "new-studio:7443"
+
+    async def stop():
+        pass
+
+    async def wait_until_registered(timeout: float = 20.0):
+        raise RuntimeError("Control closed before activation")
+
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(
+        worker_agent.agent, "wait_until_registered", wait_until_registered
+    )
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_new"})
+
+    assert response.status_code == 409
+    assert "worker_endpoint" not in settings
+    assert worker_agent.agent.endpoint == ""
+    assert not manifest.exists()
+    assert not (tmp_path / "worker-id").exists()
+    assert not (tmp_path / "enrollment-token.sha256").exists()
 
 
 def test_an_env_pinned_machine_refuses_to_be_toggled(client, monkeypatch):
@@ -315,3 +569,205 @@ def test_the_redeemed_endpoint_is_remembered_for_the_next_launch(client, monkeyp
     assert settings["worker_endpoint"] == "studio-mac:7443"
     assert worker_agent._stored_endpoint() == "studio-mac:7443"
     assert c.get("/workers/agent").json()["endpoint"] == "studio-mac:7443"
+
+
+def test_join_rolls_back_when_enabling_worker_mode_cannot_commit(
+    client, monkeypatch, tmp_path
+):
+    c, settings = client
+    state = {"running": False}
+    manifest = tmp_path / "enrollment.json"
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        state["running"] = True
+        worker_agent.agent.endpoint = "new-studio:7443"
+        worker_agent._save_enrollment_manifest(
+            str(manifest),
+            endpoint="new-studio:7443",
+            certificate=b"new certificate",
+            worker_id="new-worker",
+            token_hash=worker_agent._token_hash(token_text),
+        )
+        worker_agent._remember_endpoint("new-studio:7443")
+
+    async def stop():
+        state["running"] = False
+
+    async def registered(timeout: float = 20.0):
+        return None
+
+    monkeypatch.setattr(type(worker_agent.agent), "running", property(lambda _self: state["running"]))
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(worker_agent.agent, "wait_until_registered", registered)
+
+    import services
+
+    real_set_text = services.settings_store.set_text
+
+    def fail_mode_commit(key, value):
+        if key == "worker_mode_enabled" and value == "true":
+            raise OSError("settings commit failed")
+        real_set_text(key, value)
+
+    monkeypatch.setattr(
+        services.settings_store, "set_text", staticmethod(fail_mode_commit)
+    )
+
+    response = c.post("/workers/agent/join", json={"token": "ovw_new"})
+
+    assert response.status_code == 409
+    assert "settings commit failed" in response.json()["detail"]
+    assert state["running"] is False
+    assert not manifest.exists()
+    assert "worker_endpoint" not in settings
+    assert "worker_mode_enabled" not in settings
+
+
+@pytest.mark.asyncio
+async def test_join_cancellation_restores_the_previous_enrollment_and_agent(
+    client, monkeypatch, tmp_path
+):
+    _c, settings = client
+    settings["worker_mode_enabled"] = "true"
+    settings["worker_endpoint"] = "old-studio:7443"
+    manifest = tmp_path / "enrollment.json"
+    worker_agent._save_enrollment_manifest(
+        str(manifest),
+        endpoint="old-studio:7443",
+        certificate=b"old certificate",
+        worker_id="old-worker",
+        token_hash=worker_agent._token_hash("ovw_old"),
+    )
+    previous = manifest.read_bytes()
+    state = {"running": True}
+    waiting = asyncio.Event()
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        state["running"] = True
+        if token_text:
+            worker_agent._save_enrollment_manifest(
+                str(manifest),
+                endpoint="new-studio:7443",
+                certificate=b"new certificate",
+                worker_id="new-worker",
+                token_hash=worker_agent._token_hash(token_text),
+            )
+            worker_agent._remember_endpoint("new-studio:7443")
+            worker_agent.agent.endpoint = "new-studio:7443"
+
+    async def stop():
+        state["running"] = False
+
+    async def never_registered(timeout: float = 20.0):
+        waiting.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(type(worker_agent.agent), "running", property(lambda _self: state["running"]))
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(
+        worker_agent.agent, "wait_until_registered", never_registered
+    )
+
+    request = asyncio.create_task(
+        workers_router.join_control_plane(workers_router.JoinRequest(token="ovw_new"))
+    )
+    await asyncio.wait_for(waiting.wait(), timeout=1)
+    request.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(request, timeout=1)
+
+    assert manifest.read_bytes() == previous
+    assert settings["worker_endpoint"] == "old-studio:7443"
+    assert settings["worker_mode_enabled"] == "true"
+    assert worker_agent.agent.endpoint == "old-studio:7443"
+    assert state["running"] is True
+
+
+@pytest.mark.parametrize(
+    ("enabled", "previous_mode", "previous_running"),
+    [(True, None, False), (False, "true", True)],
+)
+def test_toggle_setting_failure_restores_durable_and_live_state(
+    client,
+    monkeypatch,
+    enabled,
+    previous_mode,
+    previous_running,
+):
+    c, settings = client
+    if previous_mode is not None:
+        settings["worker_mode_enabled"] = previous_mode
+    state = {"running": previous_running}
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        state["running"] = True
+
+    async def stop():
+        state["running"] = False
+
+    async def registered(timeout: float = 20.0):
+        return None
+
+    monkeypatch.setattr(type(worker_agent.agent), "running", property(lambda _self: state["running"]))
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+    monkeypatch.setattr(worker_agent.agent, "wait_until_registered", registered)
+
+    import services
+
+    real_set_text = services.settings_store.set_text
+    failing_value = "true" if enabled else "false"
+
+    def fail_requested_commit(key, value):
+        if key == "worker_mode_enabled" and value == failing_value:
+            raise OSError("settings commit failed")
+        real_set_text(key, value)
+
+    monkeypatch.setattr(
+        services.settings_store, "set_text", staticmethod(fail_requested_commit)
+    )
+
+    response = c.post("/workers/agent/enabled", json={"enabled": enabled})
+
+    assert response.status_code == 409
+    assert state["running"] is previous_running
+    assert settings.get("worker_mode_enabled") == previous_mode
+
+
+@pytest.mark.asyncio
+async def test_toggle_cancellation_restores_the_previous_live_state(
+    client, monkeypatch
+):
+    _c, settings = client
+    settings["worker_mode_enabled"] = "true"
+    state = {"running": True, "stop_calls": 0}
+    stopping = asyncio.Event()
+
+    async def start(*, token_text: str = "", endpoint: str = ""):
+        state["running"] = True
+
+    async def stop():
+        state["stop_calls"] += 1
+        state["running"] = False
+        if state["stop_calls"] == 1:
+            stopping.set()
+            await asyncio.Event().wait()
+
+    monkeypatch.setattr(type(worker_agent.agent), "running", property(lambda _self: state["running"]))
+    monkeypatch.setattr(worker_agent.agent, "start", start)
+    monkeypatch.setattr(worker_agent.agent, "stop", stop)
+
+    request = asyncio.create_task(
+        workers_router.set_agent_enabled(workers_router.EnableRequest(enabled=False))
+    )
+    await asyncio.wait_for(stopping.wait(), timeout=1)
+    request.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(request, timeout=1)
+
+    assert state["running"] is True
+    assert settings["worker_mode_enabled"] == "true"

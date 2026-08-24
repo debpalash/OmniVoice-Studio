@@ -59,10 +59,18 @@ _VRAM_PER_JOB_BYTES = 5 * 1024**3
 #   cpu     — oversubscription just thrashes
 _ALWAYS_SERIAL = frozenset({"mps", "mlx", "cpu", ""})
 
-# Absolute ceiling regardless of how much memory a card reports. Beyond this
-# the bottleneck stops being VRAM and starts being scheduler overhead and
-# host-side I/O contention.
-_MAX_DERIVED = 4
+# Absolute protocol ceiling regardless of how much memory a peer reports.
+# Beyond this the bottleneck stops being VRAM and starts being scheduler
+# overhead and host-side I/O contention.  It is public because every wire
+# boundary must clamp to the same number; a UINT32_MAX heartbeat must not grow
+# a scheduler queue that local derivation would never create.
+MAX_CONCURRENT_TASKS = 4
+
+
+def clamp_concurrency(value: int, *, allow_zero: bool = False) -> int:
+    """Bound an advertised concurrency value to the server's safe range."""
+    minimum = 0 if allow_zero else 1
+    return max(minimum, min(MAX_CONCURRENT_TASKS, int(value)))
 
 # Bounds on how long a parked slot is held. The caller passes the timed-out
 # job's own execution budget — the longest its thread can still legitimately be
@@ -104,7 +112,7 @@ def derive_concurrency(
     budget = max(min_model_bytes, _VRAM_PER_JOB_BYTES)
     if budget <= 0:
         return 1
-    return max(1, min(_MAX_DERIVED, int(free_memory_bytes // budget)))
+    return clamp_concurrency(int(free_memory_bytes // budget))
 
 
 @dataclass
@@ -148,6 +156,9 @@ class WorkerCapacity:
     backend: str = ""
     resident_models: set[str] = field(default_factory=set)
     slots: dict[str, ModelSlot] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.max_concurrent_tasks = clamp_concurrency(self.max_concurrent_tasks)
 
     @staticmethod
     def slot_key(engine: str, model_id: str) -> str:
@@ -197,6 +208,21 @@ class WorkerCapacity:
                 self.slot_key(engine, model_id), ModelSlot(engine=engine, model_id=model_id)
             )
         slot.active += 1
+
+    def reserve_unknown(self) -> None:
+        """Consume worker-wide capacity for claimed work we cannot classify.
+
+        Reconciliation will tell the peer to cancel a terminal or unknown
+        attempt, but until that cancellation lands it is still using the GPU.
+        """
+        self.active_tasks += 1
+
+    def release_unknown(self) -> bool:
+        """Release one exact reconciled claim with no model-slot identity."""
+        if self.active_tasks <= 0:
+            return False
+        self.active_tasks -= 1
+        return True
 
     def release(
         self,
@@ -267,8 +293,12 @@ class WorkerCapacity:
     ) -> None:
         """Adopt a heartbeat snapshot. The worker is the source of truth for
         what it is actually running."""
-        self.active_tasks = max(0, active_tasks)
-        reported_ceiling = self.active_tasks + max(0, available_slots)
+        self.active_tasks = clamp_concurrency(active_tasks, allow_zero=True)
+        bounded_available = clamp_concurrency(available_slots, allow_zero=True)
+        bounded_available = min(
+            bounded_available, MAX_CONCURRENT_TASKS - self.active_tasks
+        )
+        reported_ceiling = self.active_tasks + bounded_available
         if reported_ceiling > 0:
             # Adopted, not merely grown. The worker computes this as its own
             # ``max_concurrent_tasks``, so a ceiling we refuse to lower is one
@@ -305,4 +335,10 @@ class WorkerCapacity:
         }
 
 
-__all__ = ["ModelSlot", "WorkerCapacity", "derive_concurrency"]
+__all__ = [
+    "MAX_CONCURRENT_TASKS",
+    "ModelSlot",
+    "WorkerCapacity",
+    "clamp_concurrency",
+    "derive_concurrency",
+]

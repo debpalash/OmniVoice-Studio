@@ -22,7 +22,10 @@ which a real server round trip would only obscure.
 from __future__ import annotations
 
 import asyncio
+import builtins
 import hashlib
+import threading
+import time
 
 import pytest
 
@@ -36,6 +39,7 @@ from worker.transport.client import (
     WorkerConfig,
     _Outbox,
 )
+from worker.transport.server import SESSION_METADATA_KEY
 
 ENGINE, MODEL, OP = "indextts", "indextts:v2", "tts"
 LEASE_SECONDS = 1
@@ -51,12 +55,14 @@ class _FakeStub:
 
     def __init__(self, *, error: Exception | None = None, chunk_delay: float = 0.0) -> None:
         self.chunks: list[pb.ResultChunk] = []
+        self.metadata = []
         self.calls = 0
         self._error = error
         self._chunk_delay = chunk_delay
 
-    async def UploadResult(self, request_iterator) -> pb.ResultAck:  # noqa: N802
+    async def UploadResult(self, request_iterator, metadata=()) -> pb.ResultAck:  # noqa: N802
         self.calls += 1
+        self.metadata.append(tuple(metadata))
         if self._error is not None:
             raise self._error
         received = 0
@@ -75,8 +81,9 @@ class _FakeStub:
 
 
 class _ResumingStub(_FakeStub):
-    async def UploadResult(self, request_iterator) -> pb.ResultAck:  # noqa: N802
+    async def UploadResult(self, request_iterator, metadata=()) -> pb.ResultAck:  # noqa: N802
         self.calls += 1
+        self.metadata.append(tuple(metadata))
         first = None
         current = []
         async for chunk in request_iterator:
@@ -128,6 +135,130 @@ async def test_declared_input_is_downloaded_with_the_session_and_written_locally
     await client._fetch_input(pb.ArtifactRef(artifact_id="inputs/voice.wav"), str(destination))
 
     assert destination.read_bytes() == b"reference audio"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_input_download_removes_the_partial_destination(tmp_path):
+    download_blocked = asyncio.Event()
+
+    class Stub:
+        def DownloadArtifact(self, _request):  # noqa: N802
+            async def chunks():
+                yield pb.ArtifactChunk(offset=0, data=b"partial", last=False)
+                download_blocked.set()
+                await asyncio.Event().wait()
+
+            return chunks()
+
+    client = _client(_returning(b""), stub=Stub())
+    destination = tmp_path / "voice.part"
+    task = asyncio.create_task(
+        client._fetch_input(pb.ArtifactRef(artifact_id="inputs/voice.wav"), str(destination))
+    )
+    await download_blocked.wait()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not destination.exists()
+
+
+@pytest.mark.asyncio
+async def test_input_file_writes_are_off_loop_and_complete_short_writes(tmp_path, monkeypatch):
+    write_started = threading.Event()
+    release_write = threading.Event()
+    real_open = builtins.open
+    write_calls = 0
+
+    class ShortBlockingFile:
+        def __init__(self, path):
+            self._handle = real_open(path, "wb")
+
+        def write(self, payload):
+            nonlocal write_calls
+            write_calls += 1
+            write_started.set()
+            release_write.wait(timeout=5)
+            return self._handle.write(payload[:2])
+
+        def close(self):
+            self._handle.close()
+
+    monkeypatch.setattr(builtins, "open", lambda path, _mode: ShortBlockingFile(path))
+
+    class Stub:
+        def DownloadArtifact(self, _request):  # noqa: N802
+            async def chunks():
+                yield pb.ArtifactChunk(offset=0, data=b"reference audio", last=True)
+
+            return chunks()
+
+    def delayed_release():
+        assert write_started.wait(timeout=5)
+        time.sleep(0.2)
+        release_write.set()
+
+    release_thread = threading.Thread(target=delayed_release)
+    release_thread.start()
+    client = _client(_returning(b""), stub=Stub())
+    destination = tmp_path / "voice.part"
+    task = asyncio.create_task(
+        client._fetch_input(pb.ArtifactRef(artifact_id="inputs/voice.wav"), str(destination))
+    )
+    ticks = 0
+    while not release_write.is_set():
+        ticks += 1
+        await asyncio.sleep(0.01)
+    await task
+    release_thread.join(timeout=1)
+
+    assert ticks >= 3, "a blocked file write stalled the worker event loop"
+    assert write_calls > 1, "short writes must be retried until the chunk is complete"
+    assert destination.read_bytes() == b"reference audio"
+
+
+@pytest.mark.asyncio
+async def test_cancel_during_input_write_drains_then_removes_partial_file(tmp_path, monkeypatch):
+    write_started = threading.Event()
+    release_write = threading.Event()
+    real_open = builtins.open
+
+    class BlockingFile:
+        def __init__(self, path):
+            self._handle = real_open(path, "wb")
+
+        def write(self, payload):
+            write_started.set()
+            release_write.wait(timeout=5)
+            return self._handle.write(payload)
+
+        def close(self):
+            self._handle.close()
+
+    monkeypatch.setattr(builtins, "open", lambda path, _mode: BlockingFile(path))
+
+    class Stub:
+        def DownloadArtifact(self, _request):  # noqa: N802
+            async def chunks():
+                yield pb.ArtifactChunk(offset=0, data=b"partial", last=True)
+
+            return chunks()
+
+    client = _client(_returning(b""), stub=Stub())
+    destination = tmp_path / "voice.part"
+    task = asyncio.create_task(
+        client._fetch_input(pb.ArtifactRef(artifact_id="inputs/voice.wav"), str(destination))
+    )
+    assert await asyncio.to_thread(write_started.wait, 5)
+    task.cancel()
+    await asyncio.sleep(0)
+    assert not task.done(), "cancellation detached an in-flight file write"
+    release_write.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not destination.exists()
 
 
 def _assignment(*, lease_seconds: int = LEASE_SECONDS) -> pb.TaskAssignment:
@@ -224,6 +355,7 @@ async def test_an_oversized_result_is_uploaded_not_failed():
             f"delivery failed instead of uploading: {message.failed.error.code}"
         )
         assert stub.uploaded == OVERSIZED
+        assert stub.metadata == [((SESSION_METADATA_KEY, "sess-1"),)]
         assert not message.result.inline_payload
         assert [a.artifact_id for a in message.result.artifacts] == [ARTIFACT_ID]
     finally:

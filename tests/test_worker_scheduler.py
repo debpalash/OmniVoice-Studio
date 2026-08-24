@@ -92,6 +92,24 @@ def test_submit_queues_a_task():
     assert sched.queue_depth == 1
 
 
+def test_failed_durable_admission_never_publishes_a_ghost_task(monkeypatch):
+    from worker import scheduler as scheduler_module
+
+    sched = Scheduler(_pool(_record("w1")), persist=True)
+    monkeypatch.setattr(
+        scheduler_module.task_store,
+        "create",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("disk full")),
+    )
+
+    with pytest.raises(OSError, match="disk full"):
+        _submit(sched)
+
+    assert sched.queue_depth == 0
+    assert sched._tasks == {}
+    assert sched.next_assignment(now=1000.0) is None
+
+
 def test_idempotency_key_deduplicates_client_retries():
     """A client HTTP retry must not produce a second render of the same text."""
     sched = _scheduler(_pool(_record("w1")))
@@ -648,6 +666,35 @@ def test_reconnect_does_not_mistake_another_live_task_for_a_zombie():
 
     assert sched.on_reconnected("w1", in_flight=claimed, now=1010.0) == []
     assert all(task.state is TaskState.RUNNING for task in tasks)
+
+
+@pytest.mark.asyncio
+async def test_reconnect_failure_resolves_an_existing_waiter():
+    sched = _scheduler(_pool(_record("w1")))
+    task = _submit(sched, max_attempts=1)
+    assignment = sched.next_assignment(now=1000.0)
+    assert assignment is not None
+    waiter = asyncio.create_task(sched.wait(task.task_id, timeout=1))
+    await asyncio.sleep(0)
+
+    sched.on_reconnected("w1", in_flight=set(), now=1010.0)
+
+    assert await waiter is task
+    assert task.state is TaskState.FAILED
+
+
+def test_reconnect_notifies_listeners_when_missing_work_is_requeued():
+    sched = _scheduler(_pool(_record("w1")))
+    task = _submit(sched, max_attempts=2)
+    assignment = sched.next_assignment(now=1000.0)
+    events = []
+    sched.on_change(lambda event, changed: events.append((event, changed.task_id)))
+
+    sched.on_reconnected("w1", in_flight=set(), now=1010.0)
+
+    assert assignment.attempt.state.terminal
+    assert task.state is TaskState.QUEUED
+    assert events == [("requeued", task.task_id)]
 
 
 # ── Sweeper ────────────────────────────────────────────────────────────────

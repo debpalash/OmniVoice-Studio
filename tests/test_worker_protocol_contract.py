@@ -19,7 +19,12 @@ import re
 import pytest
 
 from worker.protocol.gen import worker_v1_pb2 as pb
-from worker.transport.server import REQUIRED_FEATURES, WorkerServicer
+from worker.transport.server import (
+    MIN_SUPPORTED_VERSION,
+    PROTOCOL_VERSION,
+    REQUIRED_FEATURES,
+    WorkerServicer,
+)
 
 _PROTO = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -76,6 +81,44 @@ def test_registration_declares_semantic_features(proto):
     assert "repeated string features = 17;" in _message_body(proto, "RegisterRequest")
 
 
+def test_durable_registration_excludes_v1_in_both_directions():
+    """A v1 peer cannot safely participate in the two-phase handshake."""
+    assert MIN_SUPPORTED_VERSION == PROTOCOL_VERSION == 2
+
+
+@pytest.mark.asyncio
+async def test_v1_outbound_worker_is_refused_before_registration():
+    servicer = object.__new__(WorkerServicer)
+
+    response = await servicer.Register(
+        pb.RegisterRequest(
+            protocol_version_min=1,
+            protocol_version_max=1,
+            features=sorted(REQUIRED_FEATURES),
+        ),
+        None,
+    )
+
+    assert response.error.code == "UPGRADE_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_v1_inbound_node_is_refused_before_registration():
+    servicer = object.__new__(WorkerServicer)
+
+    response = await servicer.register_inbound(
+        None,
+        pb.RegisterRequest(
+            protocol_version_min=1,
+            protocol_version_max=1,
+            features=sorted(REQUIRED_FEATURES),
+        ),
+        address="",
+    )
+
+    assert response.error.code == "UPGRADE_REQUIRED"
+
+
 @pytest.mark.asyncio
 async def test_old_worker_is_visibly_refused_before_running_wrong_audio():
     """An old peer can share v1's protobuf shape while missing render parity.
@@ -85,7 +128,11 @@ async def test_old_worker_is_visibly_refused_before_running_wrong_audio():
     """
     servicer = object.__new__(WorkerServicer)
     response = await servicer.Register(
-        pb.RegisterRequest(protocol_version_min=1, protocol_version_max=1), None
+        pb.RegisterRequest(
+            protocol_version_min=PROTOCOL_VERSION,
+            protocol_version_max=PROTOCOL_VERSION,
+        ),
+        None,
     )
 
     assert response.error.code == "UPGRADE_REQUIRED"

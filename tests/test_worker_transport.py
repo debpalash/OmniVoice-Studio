@@ -9,8 +9,11 @@ scheduler is exactly what this layer exists to get right.
 from __future__ import annotations
 
 import asyncio
+import os
 import socket
 import sqlite3
+import threading
+from types import SimpleNamespace
 
 import grpc
 import pytest
@@ -25,12 +28,14 @@ from worker.protocol.gen import worker_v1_pb2_grpc as pb_grpc
 from worker.scheduler import Scheduler
 from worker.transport import codec
 from worker.transport.client import (
+    TerminalRegistrationError,
     WorkerClient,
     WorkerConfig,
     backoff_delay,
     config_from_token,
 )
 from worker.transport.server import (
+    PROTOCOL_VERSION,
     REQUIRED_FEATURES,
     ControlPlaneBindError,
     WorkerServicer,
@@ -96,6 +101,108 @@ def test_certificate_is_persisted_and_reused(tmp_path):
     first = tls.load_or_create(cert, key, hostnames=["localhost"])
     second = tls.load_or_create(cert, key, hostnames=["localhost"])
     assert first.fingerprint == second.fingerprint
+
+
+def test_new_tls_credential_directory_retries_its_parent_barrier(
+    tmp_path, monkeypatch
+):
+    parent = tmp_path / "data"
+    parent.mkdir()
+    directory = parent / "workers"
+    cert, key = str(directory / "c.pem"), str(directory / "k.pem")
+    real_fsync_parent = tls._fsync_parent_directory
+    failed = False
+
+    def fail_once(path):
+        nonlocal failed
+        if os.path.abspath(path) == str(parent) and not failed:
+            failed = True
+            raise OSError("credential directory barrier failed")
+        return real_fsync_parent(path)
+
+    monkeypatch.setattr(tls, "_fsync_parent_directory", fail_once)
+    with pytest.raises(OSError, match="credential directory barrier failed"):
+        tls.load_or_create(cert, key, hostnames=["localhost"])
+
+    assert directory.is_dir()
+    assert not os.path.exists(cert)
+    assert not os.path.exists(key)
+
+    retried = []
+
+    def record_retry(path):
+        retried.append(os.path.abspath(path))
+        return real_fsync_parent(path)
+
+    monkeypatch.setattr(tls, "_fsync_parent_directory", record_retry)
+    tls.load_or_create(cert, key, hostnames=["localhost"])
+
+    assert str(parent) in retried
+    assert os.path.isfile(cert)
+    assert os.path.isfile(key)
+
+
+def test_mismatched_certificate_and_private_key_are_replaced(tmp_path):
+    """A torn two-file update must never be accepted as server credentials."""
+    first = tls.generate_self_signed(hostnames=["localhost"])
+    other = tls.generate_self_signed(hostnames=["localhost"])
+    cert = str(tmp_path / "c.pem")
+    key = str(tmp_path / "k.pem")
+    (tmp_path / "c.pem").write_bytes(first.certificate_pem)
+    (tmp_path / "k.pem").write_bytes(other.private_key_pem)
+
+    assert tls._load(cert, key) is None
+    repaired = tls.load_or_create(cert, key, hostnames=["localhost"])
+
+    assert repaired.fingerprint != first.fingerprint
+    assert tls._load(cert, key).fingerprint == repaired.fingerprint
+
+
+def test_certificate_with_a_corrupt_signature_is_not_reused(tmp_path):
+    credentials = tls.generate_self_signed(hostnames=["localhost"])
+    corrupted_der = bytearray(credentials.certificate_der)
+    corrupted_der[-1] ^= 1
+    corrupted_certificate = tls.x509.load_der_x509_certificate(bytes(corrupted_der))
+    cert = str(tmp_path / "c.pem")
+    key = str(tmp_path / "k.pem")
+    (tmp_path / "c.pem").write_bytes(
+        corrupted_certificate.public_bytes(tls.serialization.Encoding.PEM)
+    )
+    (tmp_path / "k.pem").write_bytes(credentials.private_key_pem)
+
+    assert tls._load(cert, key) is None
+
+
+def test_interrupted_pair_commit_recovers_the_durable_generation(
+    tmp_path, monkeypatch
+):
+    """The journal closes the crash window between the two atomic renames."""
+    cert = str(tmp_path / "c.pem")
+    key = str(tmp_path / "k.pem")
+    tls.load_or_create(cert, key, hostnames=["localhost"])
+    replacement = tls.generate_self_signed(hostnames=["localhost"])
+    real_replace = tls.os.replace
+    failed = False
+
+    def interrupt_before_certificate(source, destination):
+        nonlocal failed
+        if destination == cert and not failed:
+            failed = True
+            raise OSError("simulated power loss before certificate rename")
+        return real_replace(source, destination)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(tls.os, "replace", interrupt_before_certificate)
+        with pytest.raises(OSError, match="simulated power loss"):
+            tls._save(cert, key, replacement)
+
+    assert tls._load(cert, key) is None
+    assert (tmp_path / ".c.pem.k.pem.pending").is_file()
+    recovered = tls.load_or_create(cert, key, hostnames=["localhost"])
+
+    assert recovered.fingerprint == replacement.fingerprint
+    assert tls._load(cert, key).fingerprint == replacement.fingerprint
+    assert not (tmp_path / ".c.pem.k.pem.pending").exists()
 
 
 def test_expiry_check_supports_cryptography_41_certificate_api(monkeypatch):
@@ -254,9 +361,11 @@ async def test_cancel_is_sent_and_ack_releases_the_parked_slot(tmp_path):
 
     class Session:
         worker_id = "w1"
+        revoked = False
 
         def __init__(self):
             self.sent = []
+            self.pending_claim_cancels = set()
 
         async def send(self, message):
             self.sent.append(message)
@@ -312,6 +421,225 @@ def test_backoff_is_jittered():
     assert backoff_delay(5, jitter=lambda: 0.5) == 8.0
 
 
+@pytest.mark.asyncio
+async def test_registration_refusal_escapes_the_reconnect_loop(monkeypatch):
+    """A spent or rejected token needs a new user action, not backoff forever."""
+
+    async def execute(_assignment):
+        return {}
+
+    client = WorkerClient(
+        WorkerConfig(
+            endpoint="panel.invalid:7443",
+            cert_fingerprint="",
+            certificate_pem=b"certificate",
+            keypair=WorkerKeypair.generate(),
+            enrollment_token="spent-token",
+        ),
+        execute=execute,
+    )
+    attempts = 0
+
+    async def refused():
+        nonlocal attempts
+        attempts += 1
+        await client.accept_registration(
+            pb.RegisterResponse(
+                error=pb.Error(
+                    error_class=pb.ERROR_CLASS_PROTOCOL,
+                    code="AUTH_FAILED",
+                    message="registration rejected",
+                )
+            )
+        )
+
+    monkeypatch.setattr(client, "_connect_once", refused)
+
+    with pytest.raises(TerminalRegistrationError, match="AUTH_FAILED"):
+        await asyncio.wait_for(client.run_forever(), timeout=0.1)
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_terminal_reconnect_refusal_cancels_work_retained_across_disconnect(
+    monkeypatch,
+):
+    cancelled = asyncio.Event()
+    cancel_callbacks = []
+
+    async def execute(_assignment):
+        return {}
+
+    async def cancel(task_id):
+        cancel_callbacks.append(task_id)
+
+    client = WorkerClient(
+        WorkerConfig(
+            endpoint="panel.invalid:7443",
+            cert_fingerprint="",
+            certificate_pem=b"certificate",
+            keypair=WorkerKeypair.generate(),
+            worker_id="revoked-worker",
+        ),
+        execute=execute,
+        cancel=cancel,
+    )
+
+    async def retained_work():
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    work = asyncio.create_task(retained_work())
+    await asyncio.sleep(0)
+    client._running["task-1/attempt-1"] = work
+
+    async def refused():
+        raise TerminalRegistrationError("AUTH_FAILED: worker was revoked")
+
+    monkeypatch.setattr(client, "_connect_once", refused)
+
+    with pytest.raises(TerminalRegistrationError, match="AUTH_FAILED"):
+        await client.run_forever()
+
+    assert cancelled.is_set()
+    assert work.done()
+    assert client._running == {}
+    assert cancel_callbacks == ["task-1"]
+
+
+@pytest.mark.asyncio
+async def test_registration_persistence_failure_adopts_no_live_session():
+    """The server response is not usable until its reconnect identity is durable."""
+
+    async def execute(_assignment):
+        return {}
+
+    config = WorkerConfig(
+        endpoint="panel.invalid:7443",
+        cert_fingerprint="",
+        certificate_pem=b"certificate",
+        keypair=WorkerKeypair.generate(),
+        worker_id="old-worker",
+        enrollment_token="one-use-token",
+    )
+
+    def fail_persistence(_worker_id):
+        raise OSError("disk full")
+
+    client = WorkerClient(config, execute=execute, on_registered=fail_persistence)
+
+    with pytest.raises(TerminalRegistrationError, match="LOCAL_STATE"):
+        await client.accept_registration(
+            pb.RegisterResponse(
+                worker_id="new-worker",
+                session_token="new-session",
+                session_epoch=4,
+            )
+        )
+
+    assert config.worker_id == "old-worker"
+    assert config.enrollment_token == "one-use-token"
+    assert client._epoch == 0
+    assert client._session_token == ""
+
+
+@pytest.mark.asyncio
+async def test_registration_persistence_is_off_loop_and_drained_before_adoption():
+    """Cancellation cannot publish a session while its identity write is active."""
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    main_thread = threading.current_thread()
+
+    async def execute(_assignment):
+        return {}
+
+    def persist(_worker_id):
+        assert threading.current_thread() is not main_thread
+        started.set()
+        release.wait()
+        finished.set()
+
+    config = WorkerConfig(
+        endpoint="panel.invalid:7443",
+        cert_fingerprint="",
+        certificate_pem=b"certificate",
+        keypair=WorkerKeypair.generate(),
+        worker_id="old-worker",
+        enrollment_token="one-use-token",
+    )
+    client = WorkerClient(config, execute=execute, on_registered=persist)
+    accepting = asyncio.create_task(client.accept_registration(
+        pb.RegisterResponse(
+            worker_id="new-worker",
+            session_token="new-session",
+            session_epoch=4,
+        )
+    ))
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+
+    await client._on_server_message(pb.ServerMessage(ping=pb.Ping(nonce=7)))
+    assert (await asyncio.wait_for(client._outbox.get(), timeout=1)).pong.nonce == 7
+
+    accepting.cancel()
+    await asyncio.sleep(0)
+    assert not accepting.done(), "identity write was abandoned on cancellation"
+    assert config.worker_id == "old-worker"
+    assert config.enrollment_token == "one-use-token"
+    assert client._epoch == 0
+    assert client._session_token == ""
+
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(accepting, timeout=1)
+
+    assert finished.is_set()
+    assert config.worker_id == "old-worker"
+    assert config.enrollment_token == "one-use-token"
+    assert client._epoch == 0
+    assert client._session_token == ""
+
+
+@pytest.mark.asyncio
+async def test_provisional_registration_is_not_ready_until_control_config_arrives():
+    registered = []
+    activated = []
+
+    async def execute(_assignment):
+        return {}
+
+    client = WorkerClient(
+        WorkerConfig(
+            endpoint="panel.invalid:7443",
+            cert_fingerprint="",
+            certificate_pem=b"certificate",
+            keypair=WorkerKeypair.generate(),
+            enrollment_token="one-use-token",
+        ),
+        execute=execute,
+        on_registered=registered.append,
+        on_activated=activated.append,
+    )
+    response = pb.RegisterResponse(
+        worker_id="worker-1", session_token="session-1", session_epoch=1
+    )
+
+    await client.accept_registration(response)
+
+    assert registered == ["worker-1"]
+    assert activated == []
+    await client._on_server_message(
+        pb.ServerMessage(config=pb.ConfigUpdate(max_concurrent_tasks=1))
+    )
+    await client._on_server_message(
+        pb.ServerMessage(config=pb.ConfigUpdate(max_concurrent_tasks=1))
+    )
+    assert activated == ["worker-1"]
+
+
 # ── End to end ─────────────────────────────────────────────────────────────
 
 
@@ -343,7 +671,15 @@ class _Harness:
             private_key_pem=self.creds.private_key_pem,
         )
 
-    async def connect_worker(self, *, execute=None, capabilities=None, max_concurrent_tasks=2):
+    async def connect_worker(
+        self,
+        *,
+        execute=None,
+        capabilities=None,
+        max_concurrent_tasks=2,
+        on_registered=None,
+        wait=True,
+    ):
         token = registry.create_enrollment(
             endpoint=f"localhost:{self.port}", cert_fingerprint=self.creds.fingerprint
         )
@@ -362,9 +698,14 @@ class _Harness:
             self.executed.append(assignment.ref.task_id)
             return {"meta": {"ok": True}, "payload": b"audio-bytes"}
 
-        self.client = WorkerClient(config, execute=execute or _default_execute)
+        self.client = WorkerClient(
+            config,
+            execute=execute or _default_execute,
+            on_registered=on_registered,
+        )
         self.client_task = asyncio.create_task(self.client.run_forever())
-        await self._await_connection()
+        if wait:
+            await self._await_connection()
         return self.client
 
     async def _await_connection(self, timeout=10.0):
@@ -417,6 +758,30 @@ async def test_worker_enrolls_over_tls(harness):
     assert len(stored) == 1
     assert stored[0].name == "test-worker"
     assert stored[0].schedulable is True
+
+
+@pytest.mark.asyncio
+async def test_unpersisted_registration_never_becomes_a_connected_worker(
+    harness, monkeypatch
+):
+    """Register is provisional until the worker durably accepts its identity."""
+    from worker.transport import server as server_module
+
+    monkeypatch.setattr(server_module, "_REGISTRATION_OPEN_TIMEOUT_SECONDS", 0.01)
+
+    def fail_persistence(_worker_id):
+        raise OSError("disk full")
+
+    await harness.connect_worker(on_registered=fail_persistence, wait=False)
+
+    with pytest.raises(TerminalRegistrationError, match="LOCAL_STATE"):
+        await asyncio.wait_for(harness.client_task, timeout=2)
+    await asyncio.sleep(0.05)
+
+    assert len(harness.pool) == 0
+    assert harness.servicer._sessions == {}
+    harness.scheduler.submit(operation=OP, engine=ENGINE, model_id=MODEL)
+    assert harness.scheduler.next_assignment() is None
 
 
 @pytest.mark.asyncio
@@ -679,10 +1044,18 @@ async def test_control_stream_missing_worker_does_not_leak_open_flag():
     session = type(
         "Session",
         (),
-        {"stream_open": False, "worker_id": "gone", "send": None},
+        {
+            "stream_open": False,
+            "activated": False,
+            "revoked": False,
+            "registration": None,
+            "worker_id": "gone",
+            "send": None,
+        },
     )()
     servicer = object.__new__(WorkerServicer)
     servicer.pool = type("Pool", (), {"get": lambda _self, _worker_id: None})()
+    servicer._sessions = {"gone": session}
     servicer._session_from_metadata = lambda _context: session
 
     class Context:
@@ -699,6 +1072,9 @@ async def test_control_stream_missing_worker_does_not_leak_open_flag():
 async def test_control_stream_setup_failure_clears_open_flag():
     class Session:
         stream_open = False
+        activated = False
+        revoked = False
+        registration = None
         worker_id = "w1"
         session = type("Token", (), {"token": "session-token"})()
 
@@ -723,6 +1099,10 @@ async def test_control_stream_setup_failure_clears_open_flag():
     with pytest.raises(RuntimeError, match="queue closed"):
         await servicer.Control(None, object())
     assert session.stream_open is False
+    assert servicer._sessions == {}
+    assert servicer._by_token == {}
+
+
 @pytest.mark.asyncio
 async def test_stream_start_refuses_a_worker_removed_after_registration(tmp_path):
     """Both stream directions must leave a raced session reusable/closed."""
@@ -757,6 +1137,15 @@ async def test_stream_start_refuses_a_worker_removed_after_registration(tmp_path
     await servicer.run_inbound_stream(session, no_messages(), connection)
     assert session.stream_open is False
     assert session.connection is None
+
+
+@pytest.mark.asyncio
+async def test_inbound_stream_refuses_a_duplicate_open():
+    session = SimpleNamespace(stream_open=True)
+    servicer = object.__new__(WorkerServicer)
+
+    with pytest.raises(RuntimeError, match="already has an open stream"):
+        await servicer.run_inbound_stream(session, None, object())
 
 
 @pytest.mark.asyncio
@@ -831,8 +1220,8 @@ async def test_registration_refuses_an_unknown_key(harness, db):
         response = await stub.Register(
             pb.RegisterRequest(
                 features=sorted(REQUIRED_FEATURES),
-                protocol_version_min=1,
-                protocol_version_max=1,
+                protocol_version_min=PROTOCOL_VERSION,
+                protocol_version_max=PROTOCOL_VERSION,
                 public_key=stranger.public_bytes(),
                 challenge=b"c" * 32,
                 challenge_signature=b"x" * 64,
@@ -975,6 +1364,22 @@ def test_certificate_regenerates_when_an_explicit_listener_host_is_added(tmp_pat
 
     assert second.fingerprint != first.fingerprint
     assert tls.covers(second, "192.168.0.110")
+
+
+def test_bracketed_ipv6_is_encoded_as_an_ip_certificate_identity():
+    from cryptography import x509
+
+    credentials = tls.generate_self_signed(hostnames=["[::1]"])
+    certificate = x509.load_der_x509_certificate(credentials.certificate_der)
+    san = certificate.extensions.get_extension_for_class(
+        x509.SubjectAlternativeName
+    ).value
+
+    assert [str(value) for value in san.get_values_for_type(x509.IPAddress)] == [
+        "::1"
+    ]
+    assert san.get_values_for_type(x509.DNSName) == []
+    assert tls.covers(credentials, "::1")
 
 
 @pytest.mark.asyncio

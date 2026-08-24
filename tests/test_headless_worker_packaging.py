@@ -60,6 +60,26 @@ def test_compose_has_worker_only_gpu_profiles(service_name, profile, image_suffi
     ]
 
 
+@pytest.mark.parametrize(
+    "service_name", ["omnivoice", "omnivoice-gpu", "omnivoice-rocm"]
+)
+def test_compose_studios_publish_a_reachable_worker_control_plane(service_name):
+    compose = yaml.safe_load(
+        (ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    )
+    service = compose["services"][service_name]
+    environment = _environment(service)
+
+    assert (
+        "${OMNIVOICE_WORKER_PUBLISH_HOST:-127.0.0.1}:"
+        "${OMNIVOICE_WORKER_PORT:-7443}:${OMNIVOICE_WORKER_PORT:-7443}"
+    ) in service["ports"]
+    assert environment["OMNIVOICE_WORKER_PORT"] == "${OMNIVOICE_WORKER_PORT:-7443}"
+    assert environment["OMNIVOICE_WORKER_ENDPOINT_HOST"] == (
+        "${OMNIVOICE_WORKER_ENDPOINT_HOST:-}"
+    )
+
+
 def test_headless_docs_and_acceptance_script_use_the_supported_backend_command():
     guide = (ROOT / "docs" / "remote-workers.md").read_text(encoding="utf-8")
     acceptance = (ROOT / "scripts" / "verify-remote-worker.sh").read_text(

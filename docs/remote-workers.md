@@ -23,7 +23,9 @@ administration.
 
 ## What you need
 
-* VoiceStudio on both machines, on versions no more than two releases apart.
+* VoiceStudio builds with a compatible worker protocol on both machines. The
+  durable-enrollment v2 boundary requires updating both sides; the app refuses
+  an unsafe pairing with an update instruction before any task runs.
 * The worker machine must be able to **reach** this one over the network. Same
   LAN is enough at home; across networks, a VPN such as
   [Tailscale](https://tailscale.com/) is the reliable answer. The worker dials
@@ -40,6 +42,23 @@ Settings → System → Remote workers → turn on **Use remote workers**.
 
 The panel shows the address workers should connect to, and a **Generate token**
 button.
+
+For a Docker Compose Studio, start it with the host address workers can reach;
+Compose publishes the TLS worker port (`7443`) separately from the loopback-only
+web UI:
+
+```bash
+OMNIVOICE_WORKER_ENDPOINT_HOST=192.168.1.20 \
+OMNIVOICE_WORKER_PUBLISH_HOST=0.0.0.0 docker compose \
+  -f deploy/docker-compose.yml --profile gpu up -d
+```
+
+Use the host's LAN or private-overlay address, not the container's bridge IP.
+The worker port is published on loopback by default; setting
+`OMNIVOICE_WORKER_PUBLISH_HOST=0.0.0.0` is the explicit opt-in that makes it
+reachable from the LAN. Keep the default when a host-side tunnel or proxy
+provides reachability. Until remote workers are enabled in VoiceStudio, the
+container has no process listening on the published control-plane port.
 
 **2. Generate a join code.**
 
@@ -243,12 +262,13 @@ in 45s" — and **Resume** clears it immediately when you've fixed the machine.
 launch VoiceStudio recovers those tasks and reconciles with each worker about
 what is genuinely still in flight.
 
-**Version or feature mismatch.** The protocol keeps a two-release compatibility
-window, but release numbers alone do not prove that a worker understands every
-additive command. Registration therefore also declares named features for task
-inputs, progress leases, remote model downloads, and the voice-identity render
-pipeline. A worker outside the
-version window, or one missing a required feature, is refused with
+**Version or feature mismatch.** Release numbers alone do not prove that a
+worker understands every additive command. Registration negotiates an explicit
+protocol range and declares named features for task inputs, progress leases,
+remote model downloads, and the voice-identity render pipeline. Durable
+enrollment changed the handshake from protocol v1 to v2, so that boundary is
+intentionally incompatible in either direction. A worker outside the supported
+protocol range, or one missing a required feature, is refused with
 `UPGRADE_REQUIRED` and an update instruction before any task runs. It can never
 silently render without reference audio, substitute a different voice, or leave
 a download stuck at 0%.
@@ -307,6 +327,7 @@ new code.
 | `OMNIVOICE_REMOTE_WORKERS` | `1`/`0` — enable without the UI (headless, Docker) |
 | `OMNIVOICE_WORKER_PORT` | Control-plane port (default `7443`) |
 | `OMNIVOICE_WORKER_ENDPOINT_HOST` | Override the address shown to workers |
+| `OMNIVOICE_WORKER_PUBLISH_HOST` | Compose-only host address for publishing the control-plane port (default `127.0.0.1`; set `0.0.0.0` to opt into LAN reachability) |
 | `OMNIVOICE_INBOUND_NODE` | `1`/`0` — accept connections from other panels |
 | `OMNIVOICE_INBOUND_BIND` | Address to accept them on (default `127.0.0.1`) |
 | `OMNIVOICE_INBOUND_PORT` | Port to accept them on (default `7444`) |

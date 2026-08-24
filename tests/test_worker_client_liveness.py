@@ -18,10 +18,12 @@ when, which a server round trip would only obscure.
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
 from worker.errors import ErrorClass
+from worker.executor import TaskExecutor
 from worker.identity import WorkerKeypair
 from worker.protocol.gen import worker_v1_pb2 as pb
 from worker.transport.client import (
@@ -39,7 +41,12 @@ ENGINE, MODEL, OP = "indextts", "indextts:v2", "tts"
 LEASE_SECONDS = 1
 
 
-def _client(execute, *, max_concurrent_tasks: int = 1) -> WorkerClient:
+def _client(
+    execute,
+    *,
+    max_concurrent_tasks: int = 1,
+    drain_active_work=None,
+) -> WorkerClient:
     """A client that is never connected; only its outbox is read."""
     config = WorkerConfig(
         endpoint="127.0.0.1:1",
@@ -49,7 +56,11 @@ def _client(execute, *, max_concurrent_tasks: int = 1) -> WorkerClient:
         worker_id="w-1",
         max_concurrent_tasks=max_concurrent_tasks,
     )
-    return WorkerClient(config, execute=execute)
+    return WorkerClient(
+        config,
+        execute=execute,
+        drain_active_work=drain_active_work,
+    )
 
 
 def _assignment(*, lease_seconds: int = LEASE_SECONDS) -> pb.TaskAssignment:
@@ -123,7 +134,204 @@ def test_keepalive_interval_is_a_third_of_the_lease():
 def test_a_missing_lease_falls_back_rather_than_spinning():
     """An older control plane sends no deadlines at all; 0/3 would busy-loop."""
     assert keepalive_interval(0) == 40.0
+
+
+@pytest.mark.asyncio
+async def test_cancel_ack_waits_until_execution_relinquishes_its_slot():
+    started = asyncio.Event()
+    cancellation_seen = asyncio.Event()
+    release = asyncio.Event()
+
+    async def execute(_assignment, **_kwargs):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancellation_seen.set()
+            await release.wait()
+            raise
+
+    client = _client(execute)
+    assignment = _assignment()
+    await client._on_assignment(assignment)
+    await asyncio.wait_for(started.wait(), timeout=1)
+    # Remove ACCEPTED/STARTED so the assertion below observes only CancelAck.
+    while not client._outbox.empty():
+        await client._outbox.get()
+
+    cancelling = asyncio.create_task(
+        client._on_server_message(
+            pb.ServerMessage(cancel=pb.TaskCancel(ref=assignment.ref))
+        )
+    )
+    await asyncio.wait_for(cancellation_seen.wait(), timeout=1)
+
+    assert not cancelling.done()
+    assert client._key(assignment.ref) in client._running
+    assert client._outbox.empty()
+    replacement = _assignment()
+    replacement.ref.attempt_id = "a-2"
+    await client._on_assignment(replacement)
+    refusal = await client._outbox.get()
+    assert refusal.WhichOneof("payload") == "rejected"
+
+    release.set()
+    await asyncio.wait_for(cancelling, timeout=1)
+    ack = await client._outbox.get()
+    assert ack.WhichOneof("payload") == "cancel_ack"
+
+
+@pytest.mark.asyncio
+async def test_timeout_keeps_capacity_reserved_until_engine_thread_exits():
+    executor = TaskExecutor()
+    synth_started = threading.Event()
+    release_synth = threading.Event()
+    synth_finished = threading.Event()
+    drain_started = asyncio.Event()
+
+    def blocked_synth():
+        synth_started.set()
+        release_synth.wait()
+        synth_finished.set()
+
+    async def execute(_assignment, **_kwargs):
+        await executor._bounded_thread(
+            blocked_synth,
+            timeout=0.01,
+            code="EXECUTION_TIMEOUT",
+            what="Synthesis",
+        )
+        return {"meta": {}, "payload": b""}
+
+    async def drain_active_work():
+        drain_started.set()
+        await executor.drain_active_work()
+
+    client = _client(execute, drain_active_work=drain_active_work)
+    wire = _Wire(client)
+    first = _assignment()
+    try:
+        await client._on_assignment(first)
+        await asyncio.wait_for(asyncio.to_thread(synth_started.wait), timeout=1)
+        await asyncio.wait_for(drain_started.wait(), timeout=1)
+
+        assert client._key(first.ref) in client._running
+        assert "failed" not in wire.kinds()
+
+        replacement = _assignment()
+        replacement.ref.attempt_id = "a-2"
+        await client._on_assignment(replacement)
+        refusal = await wire.until("rejected", timeout=1)
+        assert refusal.rejected.error.code == "WORKER_AT_CAPACITY"
+
+        release_synth.set()
+        failed = await wire.until("failed", timeout=1)
+        assert failed.failed.error.code == "EXECUTION_TIMEOUT"
+        await _settle(client, timeout=1)
+        assert synth_finished.is_set()
+    finally:
+        release_synth.set()
+        await wire.close()
+
+
+@pytest.mark.asyncio
+async def test_stop_closes_assignment_admission_before_draining():
+    started = asyncio.Event()
+    cancellation_seen = asyncio.Event()
+    release = asyncio.Event()
+    second_started = asyncio.Event()
+
+    async def execute(assignment, **_kwargs):
+        if assignment.ref.attempt_id == "a-2":
+            second_started.set()
+            await asyncio.Event().wait()
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancellation_seen.set()
+            await release.wait()
+            raise
+
+    client = _client(execute, max_concurrent_tasks=2)
+    first = _assignment()
+    await client._on_assignment(first)
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    stopping = asyncio.create_task(client.stop())
+    await asyncio.wait_for(cancellation_seen.wait(), timeout=1)
+    second = _assignment()
+    second.ref.attempt_id = "a-2"
+    await client._on_assignment(second)
+
+    assert second_started.is_set() is False
+    assert client._key(second.ref) not in client._running
+    refusal = await client._outbox.get()
+    while refusal.WhichOneof("payload") != "rejected":
+        refusal = await client._outbox.get()
+    assert refusal.rejected.error.code == "WORKER_STOPPING"
+    release.set()
+    await asyncio.wait_for(stopping, timeout=1)
+    assert client._running == {}
     assert keepalive_interval(-5) == 40.0
+
+
+@pytest.mark.asyncio
+async def test_graceful_drain_keeps_the_stream_until_the_result_is_acked():
+    started = asyncio.Event()
+    release = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def execute(_assignment, **_kwargs):
+        started.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        return {"meta": {"ok": True}, "payload": b"audio"}
+
+    client = _client(execute, max_concurrent_tasks=2)
+    wire = _Wire(client)
+    assignment = _assignment()
+    try:
+        await client._on_assignment(assignment)
+        await asyncio.wait_for(started.wait(), timeout=1)
+        await client._on_server_message(
+            pb.ServerMessage(
+                drain=pb.Drain(
+                    deadline_seconds=300,
+                    reconnect_to="replacement.invalid:7443",
+                )
+            )
+        )
+
+        assert client._stop.is_set() is False
+        assert client.reconnect_requested is False
+        assert cancelled.is_set() is False
+        assert client.config.endpoint == "replacement.invalid:7443"
+
+        replacement = _assignment()
+        replacement.ref.attempt_id = "a-2"
+        await client._on_assignment(replacement)
+        refusal = await wire.until("rejected", timeout=1)
+        assert refusal.rejected.error.code == "WORKER_STOPPING"
+
+        release.set()
+        result = await wire.until("result", timeout=1)
+        await _settle(client, timeout=1)
+        assert client.reconnect_requested is False
+        assert cancelled.is_set() is False
+
+        await client._on_server_message(
+            pb.ServerMessage(
+                result_ack=pb.ResultAckMessage(ref=result.result.ref)
+            )
+        )
+        assert client.reconnect_requested is True
+        assert client._pending == {}
+    finally:
+        await wire.close()
 
 
 @pytest.mark.asyncio
@@ -281,7 +489,7 @@ async def test_an_oversized_result_uploads_then_enters_the_redelivery_set():
         return {"meta": {"bytes": len(oversized), "inline": False}, "payload": oversized}
 
     class Stub:
-        async def UploadResult(self, chunks):  # noqa: N802
+        async def UploadResult(self, chunks, metadata=()):  # noqa: N802
             received = 0
             async for chunk in chunks:
                 assert chunk.offset == received
@@ -419,7 +627,7 @@ async def test_a_receiver_that_never_commits_cannot_spin_the_upload_forever():
         return {"meta": {"bytes": len(payload)}, "payload": payload}
 
     class Oscillating:
-        async def UploadResult(self, chunks):  # noqa: N802
+        async def UploadResult(self, chunks, metadata=()):  # noqa: N802
             async for _ in chunks:
                 pass
             rounds.append(len(rounds))

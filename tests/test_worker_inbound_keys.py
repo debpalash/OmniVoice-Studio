@@ -7,6 +7,7 @@ pinning metadata, hashing at rest, per-key revocation and auth throttling.
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import stat
@@ -34,6 +35,77 @@ def test_the_plaintext_key_is_never_written_to_disk(store, tmp_path):
     assert all("secret" not in row for row in store.list_keys())
 
 
+def test_artifact_rpc_authentication_does_not_persist_telemetry(store, monkeypatch):
+    issued = store.issue("Panel")
+    writes = 0
+
+    def count_write():
+        nonlocal writes
+        writes += 1
+        raise AssertionError("artifact authentication attempted a disk write")
+
+    monkeypatch.setattr(store, "_save_locked", count_write)
+
+    assert (
+        store.authenticate(
+            issued.secret, peer="10.0.0.1", record_seen=False
+        )
+        is not None
+    )
+    assert writes == 0
+    row = store.list_keys()[0]
+    assert row["last_seen_at"] == 0
+    assert row["last_seen_peer"] == ""
+
+
+def test_attach_authentication_coalesces_last_seen_writes(tmp_path, monkeypatch):
+    from worker.inbound.keys import KeyStore
+
+    clock = [100.0]
+    store = KeyStore(
+        str(tmp_path / "inbound-keys.json"), now=lambda: clock[0]
+    )
+    issued = store.issue("Panel")
+    real_save = store._save_locked
+    writes = 0
+
+    def count_write():
+        nonlocal writes
+        writes += 1
+        real_save()
+
+    monkeypatch.setattr(store, "_save_locked", count_write)
+
+    assert store.authenticate(issued.secret, peer="10.0.0.1") is not None
+    for _ in range(20):
+        clock[0] += 1.0
+        assert store.authenticate(issued.secret, peer="10.0.0.1") is not None
+    assert writes == 1
+
+    clock[0] = 160.0
+    assert store.authenticate(issued.secret, peer="10.0.0.2") is not None
+    assert writes == 2
+    row = store.list_keys()[0]
+    assert row["last_seen_at"] == 160.0
+    assert row["last_seen_peer"] == "10.0.0.2"
+
+
+def test_failed_last_seen_write_restores_in_memory_telemetry(store, monkeypatch):
+    issued = store.issue("Panel")
+
+    def fail_write():
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store, "_save_locked", fail_write)
+
+    with pytest.raises(OSError, match="disk full"):
+        store.authenticate(issued.secret, peer="10.0.0.1")
+
+    row = store.list_keys()[0]
+    assert row["last_seen_at"] == 0.0
+    assert row["last_seen_peer"] == ""
+
+
 def test_revoking_one_panel_leaves_the_others_working(store):
     """The whole reason keys are per-panel rather than one shared node key."""
     alice = store.issue("Alice")
@@ -43,6 +115,190 @@ def test_revoking_one_panel_leaves_the_others_working(store):
 
     assert store.authenticate(alice.secret, peer="10.0.0.1") is None
     assert store.authenticate(bob.secret, peer="10.0.0.2") is not None
+
+
+def test_revocation_replace_fsyncs_its_parent_directory(store, tmp_path, monkeypatch):
+    from worker.inbound import keys as keys_module
+
+    issued = store.issue("Alice")
+    events = []
+    directory_descriptor = 900_001
+    directory_flag = getattr(keys_module.os, "O_DIRECTORY", 0x10000)
+    real_open = keys_module.os.open
+    real_fsync = keys_module.os.fsync
+    real_close = keys_module.os.close
+    real_replace = keys_module.os.replace
+
+    monkeypatch.setattr(keys_module.os, "O_DIRECTORY", directory_flag, raising=False)
+
+    def tracked_open(path, flags, mode=0o777, *, dir_fd=None):
+        if str(path) == str(tmp_path) and flags == keys_module.os.O_RDONLY | directory_flag:
+            events.append("open-parent")
+            return directory_descriptor
+        if dir_fd is None:
+            return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    def tracked_fsync(descriptor):
+        if descriptor == directory_descriptor:
+            events.append("fsync-parent")
+            return None
+        return real_fsync(descriptor)
+
+    def tracked_close(descriptor):
+        if descriptor == directory_descriptor:
+            events.append("close-parent")
+            return None
+        return real_close(descriptor)
+
+    def tracked_replace(source, destination):
+        events.append("replace")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(keys_module.os, "open", tracked_open)
+    monkeypatch.setattr(keys_module.os, "fsync", tracked_fsync)
+    monkeypatch.setattr(keys_module.os, "close", tracked_close)
+    monkeypatch.setattr(keys_module.os, "replace", tracked_replace)
+
+    assert store.revoke(issued.key.key_id) is True
+
+    assert events == ["replace", "open-parent", "fsync-parent", "close-parent"]
+
+
+def test_revocation_reports_a_real_parent_directory_fsync_failure(
+    store, tmp_path, monkeypatch
+):
+    from worker.inbound import keys as keys_module
+
+    issued = store.issue("Alice")
+    directory_descriptor = 900_002
+    directory_flag = getattr(keys_module.os, "O_DIRECTORY", 0x10000)
+    real_open = keys_module.os.open
+    real_fsync = keys_module.os.fsync
+    real_close = keys_module.os.close
+    monkeypatch.setattr(keys_module.os, "O_DIRECTORY", directory_flag, raising=False)
+
+    def failing_open(path, flags, mode=0o777, *, dir_fd=None):
+        if str(path) == str(tmp_path) and flags == keys_module.os.O_RDONLY | directory_flag:
+            return directory_descriptor
+        if dir_fd is None:
+            return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    def failing_fsync(descriptor):
+        if descriptor == directory_descriptor:
+            raise OSError(errno.EIO, "directory writeback failed")
+        return real_fsync(descriptor)
+
+    def tracked_close(descriptor):
+        if descriptor == directory_descriptor:
+            return None
+        return real_close(descriptor)
+
+    monkeypatch.setattr(keys_module.os, "open", failing_open)
+    monkeypatch.setattr(keys_module.os, "fsync", failing_fsync)
+    monkeypatch.setattr(keys_module.os, "close", tracked_close)
+
+    with pytest.raises(OSError) as exc_info:
+        store.revoke(issued.key.key_id)
+
+    assert exc_info.value.errno == errno.EIO
+    # The replacement may already be visible even though its crash durability
+    # is unknown, so failure remains fail-closed in this process.
+    assert store.authenticate(issued.secret, peer="10.0.0.1") is None
+
+
+def test_failed_revocation_stays_denied_and_retries_persistence(
+    store, tmp_path, monkeypatch
+):
+    from worker.inbound.keys import KeyStore
+
+    issued = store.issue("Alice")
+    real_save = store._save_locked
+    attempts = 0
+
+    def fail_once():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("disk full")
+        real_save()
+
+    monkeypatch.setattr(store, "_save_locked", fail_once)
+
+    with pytest.raises(OSError, match="disk full"):
+        store.revoke(issued.key.key_id)
+    assert store.authenticate(issued.secret, peer="10.0.0.1") is None
+
+    assert store.revoke(issued.key.key_id) is True
+    reopened = KeyStore(str(tmp_path / "inbound-keys.json"))
+    assert reopened.authenticate(issued.secret, peer="10.0.0.1") is None
+    assert attempts == 2
+
+
+def test_failed_key_issue_restores_the_previous_collision_entry(
+    store, monkeypatch
+):
+    from worker.inbound import keys as keys_module
+
+    monkeypatch.setattr(keys_module.secrets, "token_urlsafe", lambda _size: "fixed")
+    original = store.issue("Original")
+    real_save = store._save_locked
+
+    monkeypatch.setattr(
+        store,
+        "_save_locked",
+        lambda: (_ for _ in ()).throw(OSError("disk full")),
+    )
+    with pytest.raises(OSError, match="disk full"):
+        store.issue("Replacement")
+
+    rows = store.list_keys()
+    assert len(rows) == 1
+    assert rows[0]["label"] == "Original"
+    monkeypatch.setattr(store, "_save_locked", real_save)
+    assert store.authenticate(original.secret, peer="10.0.0.1") is not None
+
+
+def test_panel_key_count_is_bounded_and_revoked_slots_are_reclaimed(
+    store, monkeypatch
+):
+    from worker.inbound import keys as keys_module
+
+    monkeypatch.setattr(keys_module, "MAX_PANEL_KEYS", 2)
+    first = store.issue("First")
+    store.issue("Second")
+
+    with pytest.raises(keys_module.KeyLimitExceeded, match="as many panel keys"):
+        store.issue("Third")
+
+    assert store.revoke(first.key.key_id) is True
+    replacement = store.issue("Replacement")
+    rows = store.list_keys()
+    assert len(rows) == 2
+    assert replacement.key.key_id in {row["key_id"] for row in rows}
+    assert first.key.key_id not in {row["key_id"] for row in rows}
+
+
+def test_failed_key_write_restores_a_pruned_revoked_slot(store, monkeypatch):
+    from worker.inbound import keys as keys_module
+
+    monkeypatch.setattr(keys_module, "MAX_PANEL_KEYS", 1)
+    first = store.issue("First")
+    assert store.revoke(first.key.key_id) is True
+    monkeypatch.setattr(
+        store,
+        "_save_locked",
+        lambda: (_ for _ in ()).throw(OSError("disk full")),
+    )
+
+    with pytest.raises(OSError, match="disk full"):
+        store.issue("Replacement")
+
+    rows = store.list_keys()
+    assert len(rows) == 1
+    assert rows[0]["key_id"] == first.key.key_id
+    assert rows[0]["revoked"] is True
 
 
 def test_a_wrong_key_is_throttled_before_it_can_be_guessed(store, monkeypatch):
@@ -123,6 +379,63 @@ def test_keys_survive_a_restart(store, tmp_path):
     reopened = KeyStore(str(tmp_path / "inbound-keys.json"))
 
     assert reopened.authenticate(issued.secret, peer="10.0.0.1") is not None
+
+
+def test_failed_worker_id_save_never_becomes_in_memory_truth(store, monkeypatch):
+    """Every callback must retry until the panel-assigned id is durable."""
+    issued = store.issue("Alice")
+    attempts = []
+
+    def fail_save():
+        attempts.append(1)
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store, "_save_locked", fail_save)
+
+    for _ in range(2):
+        with pytest.raises(OSError, match="disk full"):
+            store.remember_worker_id(issued.key.key_id, "panel-worker")
+        assert store.worker_id_for(issued.key.key_id) == ""
+
+    assert len(attempts) == 2
+
+
+def test_a_revoked_key_cannot_persist_a_registration_identity(store):
+    issued = store.issue("Alice")
+    assert store.revoke(issued.key.key_id) is True
+
+    with pytest.raises(PermissionError, match="revoked"):
+        store.remember_worker_id(issued.key.key_id, "panel-worker")
+
+    assert store.worker_id_for(issued.key.key_id) == ""
+
+
+def test_partial_worker_id_write_keeps_the_previous_file_and_identity(
+    store, tmp_path, monkeypatch
+):
+    """A short write followed by disk failure must not replace valid keys."""
+    issued = store.issue("Alice")
+    path = tmp_path / "inbound-keys.json"
+    original = path.read_bytes()
+    real_write = os.write
+    writes = 0
+
+    def short_then_fail(fd, payload):
+        nonlocal writes
+        writes += 1
+        if writes == 1:
+            return real_write(fd, payload[:8])
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "write", short_then_fail)
+
+    with pytest.raises(OSError, match="disk full"):
+        store.remember_worker_id(issued.key.key_id, "panel-worker")
+
+    assert writes == 2, "the save must continue after a short write"
+    assert path.read_bytes() == original
+    assert store.worker_id_for(issued.key.key_id) == ""
+    assert not path.with_suffix(".json.tmp").exists()
 
 
 def test_pasted_connection_secrets_use_the_protected_key_file(store, tmp_path):
@@ -323,6 +636,26 @@ def test_a_wider_bind_is_reported_as_exposed():
     assert inbound_service.is_exposed("0.0.0.0") is True
     assert inbound_service.is_exposed("192.168.0.110") is True
     assert inbound_service.is_exposed("localhost") is False
+
+
+def test_a_bracketed_ipv6_loopback_is_normalised_before_bind_and_advertise(
+    monkeypatch,
+):
+    from worker.inbound import service as inbound_service
+
+    monkeypatch.setenv("OMNIVOICE_INBOUND_BIND", "[::1]")
+    saved = {}
+    monkeypatch.setattr(
+        inbound_service,
+        "_set_setting",
+        lambda name, value: saved.__setitem__(name, value),
+    )
+
+    assert inbound_service.bind_host() == "::1"
+    assert inbound_service.advertised_host() == "::1"
+    assert inbound_service.is_exposed("[::1]") is False
+    inbound_service.set_bind_host("[::1]")
+    assert saved[inbound_service._BIND_KEY] == "::1"
 
 
 def test_inbound_is_off_unless_it_was_turned_on(monkeypatch):
