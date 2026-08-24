@@ -475,7 +475,8 @@ async def test_cancelled_resume_drains_rehash_and_releases_logical_lease(
 
     def blocked_rehash(upload):
         started.set()
-        release.wait()
+        if not release.wait(timeout=2):
+            raise TimeoutError("test did not release resume rehash")
         original_rehash(upload)
 
     real_remove = server_module.os.remove
@@ -492,12 +493,13 @@ async def test_cancelled_resume_drains_rehash_and_releases_logical_lease(
             [pb.ResultChunk(ref=ref, offset=held, data=payload[held:], last=True)]
         )
     )
-    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
-
-    resumed.cancel()
-    await asyncio.sleep(0)
-    assert not resumed.done(), "cancellation returned while resume rehash still ran"
-    release.set()
+    try:
+        await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+        resumed.cancel()
+        await asyncio.sleep(0)
+        assert not resumed.done(), "cancellation returned while resume rehash still ran"
+    finally:
+        release.set()
     with pytest.raises(asyncio.CancelledError):
         await resumed
 
