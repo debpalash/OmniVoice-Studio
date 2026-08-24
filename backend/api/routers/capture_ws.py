@@ -38,11 +38,14 @@ Protocol:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import os
 import tempfile
 import time
+import uuid
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -51,6 +54,9 @@ from services.text_polish import polish_text
 
 router = APIRouter()
 logger = logging.getLogger("omnivoice.capture_ws")
+
+SPEECH_PROTOCOL = "voicestudio.speech.v1"
+PLATFORM_STREAM_PATH = "/v1/audio/transcriptions/stream"
 
 # How often (seconds) to run transcription on the accumulated buffer.
 # Shorter = more responsive but more GPU load.
@@ -81,6 +87,39 @@ _AEC_FAR = 0x01   # playback reference frame (feed the echo model only)
 # absurd rate must never be believed: it would re-open the unbounded-memory
 # path the recovery-tail cap closed.
 SR_MIN, SR_MAX = 8000, 96000
+
+
+def _is_end_control(text: str | None) -> bool:
+    """Accept the versioned JSON control frame and the legacy ``EOF`` frame."""
+    if text == "EOF":
+        return True
+    if not text:
+        return False
+    try:
+        message = json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return isinstance(message, dict) and message.get("type") == "input_audio.end"
+
+
+class _PlatformWebSocket:
+    """Add v1 session metadata without changing the legacy WebSocket contract."""
+
+    def __init__(self, websocket: WebSocket):
+        self._websocket = websocket
+        self.session_id = uuid.uuid4().hex
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._websocket, name)
+
+    async def send_json(self, data: Any, mode: str = "text") -> None:
+        if isinstance(data, dict):
+            data = dict(data)
+            data.setdefault("protocol", SPEECH_PROTOCOL)
+            data.setdefault("session_id", self.session_id)
+            if data.get("type") == "final":
+                data.setdefault("final_kind", "summary")
+        await self._websocket.send_json(data, mode=mode)
 
 
 def _bounded_sample_rate(query_params) -> int:
@@ -194,9 +233,13 @@ def _select_sherpa_spec(websocket: WebSocket):
     return _usable_spec(mid) if mid else None
 
 
+@router.websocket(PLATFORM_STREAM_PATH)
 @router.websocket("/ws/transcribe")
 async def ws_transcribe(websocket: WebSocket):
     """Stream audio in, get partial + final transcription out."""
+    is_platform_stream = websocket.url.path == PLATFORM_STREAM_PATH
+    if is_platform_stream:
+        websocket = _PlatformWebSocket(websocket)
     # Loopback origin guard — refuse anything not from 127.0.0.1, ::1, or
     # localhost. Privileged HTTP routers use Depends(require_admin) at router
     # level; WebSocket dependency injection differs across FastAPI versions, so we
@@ -211,6 +254,16 @@ async def ws_transcribe(websocket: WebSocket):
         return
 
     await websocket.accept()
+    if is_platform_stream:
+        await websocket.send_json({
+            "type": "session.started",
+            "input_format": (
+                "audio/pcm;encoding=s16le;channels=1"
+                if _requested_pcm_sample_rate(websocket.query_params) is not None
+                else "audio/webm;codecs=opus"
+            ),
+            "sample_rate": _bounded_sample_rate(websocket.query_params),
+        })
 
     # Live-dictation engine selection. When a sherpa-onnx model is selected
     # (via ?model= or the dictation.model_id pref) AND sherpa is installed,
@@ -333,7 +386,7 @@ async def ws_transcribe(websocket: WebSocket):
                     total_bytes += len(data)
                     last_audio_time = time.monotonic()
                     continue
-                if msg.get("text") == "EOF":
+                if _is_end_control(msg.get("text")):
                     # Client signals end-of-audio but stays connected for `final`.
                     running = False
                     break
@@ -656,7 +709,7 @@ async def _recv_pcm_frame(websocket: WebSocket, aec):
                 return "skip", b""
             return "near", aec.process_near_end(payload)
         return "near", data
-    if msg.get("text") == "EOF":
+    if _is_end_control(msg.get("text")):
         return "eof", b""
     return "skip", b""
 

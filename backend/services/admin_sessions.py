@@ -33,7 +33,9 @@ WS_TICKET_PREFIX = "ovs_ws_ticket_"
 _TOKEN_BYTES = 32
 _ENCODED_TOKEN_LENGTH = 43
 _TOKEN_BODY_RE = re.compile(rf"^[A-Za-z0-9_-]{{{_ENCODED_TOKEN_LENGTH}}}$")
-_ALLOWED_WS_PATHS = frozenset({"/ws/events", "/ws/transcribe"})
+_ALLOWED_WS_PATHS = frozenset(
+    {"/ws/events", "/ws/transcribe", "/v1/audio/transcriptions/stream"}
+)
 _ADMIN_CAPABILITIES = frozenset({"consume", "admin"})
 _KEY_GENERATION_INFO = b"omnivoice-admin-key-generation-v1"
 

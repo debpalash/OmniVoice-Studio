@@ -254,7 +254,7 @@ FastAPI backend
 
 <a id="api"></a>
 
-## OpenAI-compatible API
+## Local speech platform and OpenAI-compatible API
 
 Point an OpenAI-compatible audio client at the local backend:
 
@@ -267,6 +267,8 @@ Point an OpenAI-compatible audio client at the local backend:
 |---|---|
 | `POST /v1/audio/speech` | TTS to `mp3`, `opus`, `aac`, `flac`, `wav`, or `pcm`; select a profile with `voice` and an engine with `model` |
 | `POST /v1/audio/transcriptions` | STT to `json`, `text`, `verbose_json`, `srt`, or `vtt` |
+| `WS /v1/audio/transcriptions/stream` | Live PCM/WebM transcription with partial, utterance, and session-final events |
+| `GET /.well-known/voicestudio-speech` | Discover HTTP, WebSocket, MCP, and native dictation-control transports |
 | `GET /v1/audio/voices` | List local voice profiles and engines |
 
 ```python
@@ -283,7 +285,12 @@ with client.audio.speech.with_streaming_response.create(
     response.stream_to_file("speech.wav")
 ```
 
-The full API reference is in **Settings → OpenAPI Reference**. For LAN, Tailscale, or proxy access, read [API authentication](docs/api-auth.md) before exposing the backend.
+The bundled Rust control sidecar also lets Herdr, coding agents, VS Code,
+desktop apps, and TUIs trigger the existing system-wide dictation flow or reuse
+its safe native insertion. See the [speech platform guide](docs/speech-platform.md).
+The full API reference is in **Settings → OpenAPI Reference**. For LAN,
+Tailscale, or proxy access, read [API authentication](docs/api-auth.md) before
+exposing the backend.
 
 ### Agent skills
 
@@ -312,7 +319,7 @@ The [notebook](notebooks/OmniVoice_Studio_Colab.ipynb) runs the app and web UI o
 | Fix setup | [Troubleshooting](docs/install/troubleshooting.md) · [model downloads](docs/downloading-models.md) · [Hugging Face token](docs/setup/huggingface-token.md) |
 | Choose an engine | [Engine guides](docs/engines/README.md) · [benchmarks](docs/benchmarks.md) · [expressive speech](docs/expressive-speech.md) |
 | Tune hardware | [Performance](docs/performance.md) · [remote workers](docs/remote-workers.md) |
-| Build integrations | [API auth](docs/api-auth.md) · [MCP](docs/mcp.md) · [examples](examples/README.md) |
+| Build integrations | [Speech platform](docs/speech-platform.md) · [API auth](docs/api-auth.md) · [MCP](docs/mcp.md) · [examples](examples/README.md) |
 | Build VoiceStudio | [Contributing](.github/CONTRIBUTING.md) · [engine acceptance](docs/engine-acceptance.md) |
 | Track changes | [Changelog](CHANGELOG.md) · [roadmap](docs/ROADMAP.md) · [latest release](https://github.com/debpalash/VoiceStudio/releases/latest) |
 | Remove everything | [Uninstall guide](docs/install/uninstall.md) |

@@ -17,6 +17,7 @@ pub mod dictation_output;
 pub mod dictation_shortcut;
 pub mod reset;
 pub mod setup;
+pub mod speech_sidecar;
 pub mod tools;
 pub mod uninstall;
 pub mod updater_channel;
@@ -484,7 +485,12 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         // Single-instance MUST be registered first.
-        .plugin(tauri_plugin_single_instance::init(move |app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
+            if let Some(action) = speech_sidecar::cli_dictation_action(&argv) {
+                log::info!("Second-instance dictation control: {action:?}");
+                speech_sidecar::dispatch_action(app, action);
+                return;
+            }
             log::info!("Second instance attempted — focusing existing window");
             // Always the studio window, never the widget. In pill mode this
             // used to target "widget" and show() it — which is precisely the
@@ -674,6 +680,19 @@ pub fn run() {
                 capture: Mutex::new(CaptureDispatchState::default()),
                 output: dictation_output::DictationOutput::default(),
             });
+            match speech_sidecar::start(app.handle().clone()) {
+                Ok(sidecar) => {
+                    log::info!("Speech control API ready on port {}", sidecar.port);
+                    app.manage(sidecar);
+                }
+                Err(error) => {
+                    log::warn!("Speech control API unavailable: {error}");
+                }
+            }
+            let initial_args: Vec<String> = std::env::args().collect();
+            if let Some(action) = speech_sidecar::cli_dictation_action(&initial_args) {
+                speech_sidecar::dispatch_action(app.handle(), action);
+            }
             app.manage(TrayHandle {
                 tray: Mutex::new(None),
                 dictate: Mutex::new(None),

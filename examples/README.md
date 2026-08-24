@@ -1,12 +1,14 @@
 # VoiceStudio Examples
 
-This directory contains scripts and configs for training, fine-tuning, and evaluating VoiceStudio.
+This directory contains integration examples plus scripts and configs for
+training, fine-tuning, and evaluating VoiceStudio.
 
 | Use Case | Script | Description |
 |---|---|---|
 | Training from scratch | [run_emilia.sh](run_emilia.sh) | Full pipeline on the Emilia dataset (data check, tokenization, training) |
 | Fine-tuning | [run_finetune.sh](run_finetune.sh) | Fine-tune from a pretrained checkpoint using your own JSONL data |
 | Evaluation | [run_eval.sh](run_eval.sh) | Evaluate WER, speaker similarity, and UTMOS on standard test sets |
+| Herdr dictation | [speech-platform/herdr-config.toml](speech-platform/herdr-config.toml) | Trigger the bundled Rust dictation sidecar from detached Herdr command bindings |
 
 ---
 
@@ -115,4 +117,3 @@ bash examples/run_eval.sh
 ```
 
 > See [docs/evaluation.md](../docs/evaluation.md) for metrics details, test set preparation, and running individual metrics.
-

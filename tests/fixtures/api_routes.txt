@@ -22,6 +22,7 @@ DELETE /pronunciation/{entry_id}
 DELETE /workers/inbound/connections/{endpoint}
 DELETE /workers/inbound/keys/{key_id}
 DELETE /workers/{worker_id}
+GET /.well-known/voicestudio-speech
 GET /api/mcp/bindings
 GET /api/settings/analytics
 GET /api/settings/asr-openai-compat
@@ -140,6 +141,7 @@ GET /system/tailscale/status
 GET /tasks/stream/{task_id}
 GET /tools/effects
 GET /tools/plugins
+GET /v1/audio/capabilities
 GET /v1/audio/voices
 GET /watermark/status
 GET /workers
@@ -285,6 +287,7 @@ PUT /history/{history_id}/starred
 PUT /profiles/{profile_id}
 PUT /projects/{project_id}
 PUT /pronunciation/{entry_id}
+WS /v1/audio/transcriptions/stream
 WS /ws/events
 WS /ws/transcribe
 WS /ws/tts

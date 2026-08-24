@@ -255,6 +255,21 @@ def test_ws_ticket_is_path_bound_single_use_and_origin_checked(key_env):
     assert exc_info.value.code == 1008
 
 
+def test_platform_ws_accepts_path_bound_ticket(key_env):
+    from services.admin_sessions import admin_session_store
+
+    path = "/v1/audio/transcriptions/stream"
+    session = admin_session_store.issue(key_env)
+    ticket = admin_session_store.issue_ws_ticket(session.token, path, key_env)
+
+    with _client().websocket_connect(
+        f"{path}?ws_ticket={ticket.token}",
+        headers={"Origin": "http://testserver"},
+    ) as ws:
+        assert ws.receive_json()["type"] == "session.started"
+        ws.close()
+
+
 def test_ws_ticket_wrong_path_consumes_ticket(key_env):
     from services.admin_sessions import admin_session_store
 
