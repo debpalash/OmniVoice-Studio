@@ -204,9 +204,11 @@ fn finish_uninstall_attempt<T>(
     quitting: &std::sync::atomic::AtomicBool,
     result: Result<T, String>,
 ) -> Result<T, String> {
-    // A successful purge is immediately followed by application exit.  A
-    // teardown failure returns control to the still-running settings UI, so
-    // leaving this set would permanently disable backend supervision/restart.
+    // Every completed purge is immediately followed by application exit. An
+    // Ok report may include per-target failures after other targets were
+    // already removed; restoring supervision then could respawn the backend
+    // into a partially deleted environment. Only an Err means teardown could
+    // not complete and returns control to a usable settings UI.
     if result.is_err() {
         quitting.store(false, std::sync::atomic::Ordering::SeqCst);
     }
@@ -261,6 +263,17 @@ mod tests {
         quitting.store(true, std::sync::atomic::Ordering::SeqCst);
         assert!(finish_uninstall_attempt(&quitting, Ok(())).is_ok());
         assert!(quitting.load(std::sync::atomic::Ordering::SeqCst));
+
+        let partial = UninstallReport {
+            removed: vec!["environment".into()],
+            failed: vec!["models".into()],
+            freed_bytes: 1,
+        };
+        assert!(finish_uninstall_attempt(&quitting, Ok(partial)).is_ok());
+        assert!(
+            quitting.load(std::sync::atomic::Ordering::SeqCst),
+            "a partial purge must still quit instead of respawning into deleted targets"
+        );
     }
 
     #[test]
