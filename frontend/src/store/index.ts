@@ -34,7 +34,7 @@ import type { GenerateSlice } from './generateSlice';
 import { createGenerateSlice } from './generateSlice';
 import type { PillSlice } from './pillSlice';
 import { createPillSlice } from './pillSlice';
-import type { LongformSlice } from './longformSlice';
+import type { LongformOverrides, LongformSlice } from './longformSlice';
 import {
   createLongformSlice,
   DEFAULT_OVERRIDES,
@@ -68,6 +68,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function nullableFiniteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function normalizeLongformOverrides(value: unknown): LongformOverrides {
+  if (!isRecord(value)) return { ...DEFAULT_OVERRIDES };
+  return {
+    numStep: nullableFiniteNumber(value.numStep),
+    guidanceScale: nullableFiniteNumber(value.guidanceScale),
+    posTemp: nullableFiniteNumber(value.posTemp),
+    classTemp: nullableFiniteNumber(value.classTemp),
+    postprocess:
+      typeof value.postprocess === 'boolean' ? value.postprocess : DEFAULT_OVERRIDES.postprocess,
+    seed: nullableFiniteNumber(value.seed),
+    varyRepeats:
+      typeof value.varyRepeats === 'boolean' ? value.varyRepeats : DEFAULT_OVERRIDES.varyRepeats,
+    emoText: typeof value.emoText === 'string' ? value.emoText : DEFAULT_OVERRIDES.emoText,
+    emoAlpha: nullableFiniteNumber(value.emoAlpha),
+  };
+}
+
 /** Shape-safe, non-throwing upgrade for the legacy v4 project records. */
 export function migrateAppStore(persisted: unknown, version: number): Partial<AppStore> {
   if (!isRecord(persisted)) return {} as Partial<AppStore>;
@@ -92,9 +113,7 @@ export function migrateAppStore(persisted: unknown, version: number): Partial<Ap
       loudness: sp.loudness === 'acx' || sp.loudness === 'podcast' ? sp.loudness : 'off',
       defaultVoice: typeof sp.defaultVoice === 'string' ? sp.defaultVoice : null,
       language: typeof sp.language === 'string' ? sp.language : SLICE_DEFAULTS.language,
-      overrides: isRecord(sp.overrides)
-        ? { ...DEFAULT_OVERRIDES, ...sp.overrides }
-        : { ...DEFAULT_OVERRIDES },
+      overrides: normalizeLongformOverrides(sp.overrides),
       voiceCast: isRecord(sp.voiceCast) ? sp.voiceCast : {},
       updatedAt:
         typeof sp.updatedAt === 'number' && Number.isFinite(sp.updatedAt) ? sp.updatedAt : 0,

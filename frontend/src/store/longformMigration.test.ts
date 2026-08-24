@@ -58,4 +58,38 @@ describe('long-form v5 migration', () => {
       updatedAt: 0,
     });
   });
+
+  it('keeps only well-typed legacy override fields', () => {
+    const migrated = migrateAppStore(
+      {
+        storyProjects: [
+          {
+            overrides: {
+              numStep: {},
+              guidanceScale: 2.5,
+              postprocess: false,
+              seed: Number.POSITIVE_INFINITY,
+              varyRepeats: 'yes',
+              emoText: 'calm',
+              unknown: true,
+            },
+          },
+        ],
+      },
+      4,
+    );
+    const projects = migrated.storyProjects ?? [];
+
+    expect(projects[0].overrides).toEqual({
+      numStep: null,
+      guidanceScale: 2.5,
+      posTemp: null,
+      classTemp: null,
+      postprocess: false,
+      seed: null,
+      varyRepeats: false,
+      emoText: 'calm',
+      emoAlpha: null,
+    });
+  });
 });
