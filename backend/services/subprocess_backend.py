@@ -62,11 +62,6 @@ from services.tts_backend import TTSBackend
 logger = logging.getLogger("omnivoice.subprocess_backend")
 
 
-def _sidecar_containment_kwargs() -> dict:
-    """Containment is supplied atomically by ``spawn_owned`` on every OS."""
-    return {}
-
-
 def _os_exec_refusal(exc: OSError) -> str:
     """User-facing cause for a spawn-time OSError, built from errno/strerror
     only — ``str(exc)`` commonly embeds ``exc.filename`` (the interpreter's
@@ -476,8 +471,6 @@ class SubprocessBackend(TTSBackend):
             "env": env,
             "bufsize": 0,  # unbuffered binary pipes
         }
-        kwargs.update(_sidecar_containment_kwargs())
-
         # `venv_python()` resolves the engine's interpreter, and on a cold
         # first run that is not cheap: it spawns each candidate to import the
         # engine (bounded, but tens of seconds on a slow disk), and if none is

@@ -250,11 +250,13 @@ def spawn_owned(argv: list[str], **kwargs: Any) -> "subprocess.Popen | OwnedPope
     try:
         proc = subprocess.Popen(wrapper_argv, **wrapper_kwargs)
     except BaseException:
-        for fd in (control_read, control_write, result_read, result_write):
+        # The finally block exclusively owns the child-side endpoints. Closing
+        # them here as well risks closing a reused descriptor in another thread.
+        for fd in (control_write, result_read):
             try:
                 os.close(fd)
             except OSError:
-                # A partial spawn may already have closed an inherited endpoint.
+                # A partial spawn may already have closed a parent-side endpoint.
                 pass
         raise
     finally:
@@ -262,7 +264,7 @@ def spawn_owned(argv: list[str], **kwargs: Any) -> "subprocess.Popen | OwnedPope
             try:
                 os.close(fd)
             except OSError:
-                # The spawn-failure path above may already have closed it.
+                # Popen may have consumed an inherited child-side endpoint.
                 pass
     return OwnedPopen(proc, control_write, result_read)
 

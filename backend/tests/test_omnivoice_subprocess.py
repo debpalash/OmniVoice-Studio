@@ -17,17 +17,18 @@ import json
 import math
 import array
 import base64
+import io
 import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
 from services.subprocess_backend import (
     RECV_TIMEOUT_S,
     SubprocessBackend,
-    _sidecar_containment_kwargs,
 )
 from services.tts_backend import get_backend_class
 from engines.omnivoice_subprocess import OmniVoiceSubprocessBackend
@@ -153,15 +154,38 @@ def test_base_default_recv_timeout_is_60s():
     assert _PlainBackend().recv_timeout_s == 60.0
 
 
-def test_desktop_sidecar_needs_no_unmanaged_spawn_flags(monkeypatch):
-    monkeypatch.setenv("OMNIVOICE_DESKTOP_CONTAINED", "1")
-    assert _sidecar_containment_kwargs() == {}
+def test_sidecar_spawn_delegates_all_containment_to_nested_owner(monkeypatch, tmp_path):
+    from services import subprocess_backend as backend_module
 
+    captured = {}
 
-def test_standalone_sidecar_also_delegates_to_nested_owner(monkeypatch):
-    monkeypatch.delenv("OMNIVOICE_DESKTOP_CONTAINED", raising=False)
-    monkeypatch.setattr("services.subprocess_backend.sys.platform", "linux")
-    assert _sidecar_containment_kwargs() == {}
+    class StubProcess:
+        stderr = io.BytesIO()
+
+        @staticmethod
+        def poll():
+            return None
+
+    def fake_spawn(argv, **kwargs):
+        captured.update(kwargs)
+        return StubProcess()
+
+    monkeypatch.setattr(_PlainBackend, "venv_python", classmethod(lambda cls: Path(sys.executable)))
+    monkeypatch.setattr(
+        _PlainBackend,
+        "sidecar_script",
+        classmethod(lambda cls: tmp_path / "stub.py"),
+    )
+    monkeypatch.setattr(backend_module, "spawn_owned", fake_spawn)
+    monkeypatch.setattr(backend_module, "_ensure_reaper_running", lambda: None)
+    backend = _PlainBackend()
+    monkeypatch.setattr(backend, "_recv_with_timeout", lambda _timeout: {"op": "ready"})
+
+    try:
+        backend._spawn()
+        assert not ({"start_new_session", "creationflags", "preexec_fn"} & captured.keys())
+    finally:
+        backend._proc = None
 
 
 def test_omnivoice_subprocess_recv_timeout_overrides_default():
