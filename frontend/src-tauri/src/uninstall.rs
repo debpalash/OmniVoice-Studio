@@ -199,6 +199,19 @@ pub fn purge_uninstall_targets<R: tauri::Runtime>(
     })
 }
 
+fn finish_uninstall_attempt<T>(
+    quitting: &std::sync::atomic::AtomicBool,
+    result: Result<T, String>,
+) -> Result<T, String> {
+    // A successful purge is immediately followed by application exit.  A
+    // teardown failure returns control to the still-running settings UI, so
+    // leaving this set would permanently disable backend supervision/restart.
+    if result.is_err() {
+        quitting.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+    result
+}
+
 /// Stop the backend and delete the scanned folders. `include_models` opts into
 /// the shared Hugging Face cache. Returns what was removed; the caller quits the
 /// app afterwards (the Python env it runs on is gone, so there is nothing to
@@ -216,12 +229,26 @@ pub fn uninstall_purge(
         .quitting
         .store(true, std::sync::atomic::Ordering::SeqCst);
     let targets = uninstall_scan(app.clone());
-    purge_uninstall_targets(&app, targets, include_models)
+    let result = purge_uninstall_targets(&app, targets, include_models);
+    finish_uninstall_attempt(&flags.quitting, result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_uninstall_restores_backend_supervision() {
+        let quitting = std::sync::atomic::AtomicBool::new(true);
+
+        let result: Result<(), String> = Err("backend tree is still running".into());
+        assert!(finish_uninstall_attempt(&quitting, result).is_err());
+        assert!(!quitting.load(std::sync::atomic::Ordering::SeqCst));
+
+        quitting.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert!(finish_uninstall_attempt(&quitting, Ok(())).is_ok());
+        assert!(quitting.load(std::sync::atomic::Ordering::SeqCst));
+    }
 
     #[test]
     fn refuses_root_home_and_foreign_paths() {
