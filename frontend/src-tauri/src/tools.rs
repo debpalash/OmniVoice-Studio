@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
 #[cfg(target_os = "macos")]
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -68,7 +68,7 @@ pub struct OwnedProcessTree {
     #[cfg(target_os = "macos")]
     exit_kqueue: OwnedFd,
     #[cfg(target_os = "macos")]
-    root_exit_observed: AtomicBool,
+    root_exit_state: AtomicU8,
     #[cfg(windows)]
     job: std::os::windows::io::OwnedHandle,
 }
@@ -81,8 +81,12 @@ impl OwnedProcessTree {
             // Darwin may reject waitid(WNOWAIT) with EPERM. The kqueue was
             // registered while this Child was created, so NOTE_EXIT observes
             // the same process identity without consuming its wait status.
-            if self.root_exit_observed.load(Ordering::Acquire) {
-                return Ok(true);
+            // NOTE_REAP keeps the filter alive through wait(2), allowing us
+            // to reject a group ID after another caller consumed that status.
+            const EXITED: u8 = 1;
+            const REAPED: u8 = 2;
+            if self.root_exit_state.load(Ordering::Acquire) == REAPED {
+                return Err(io::Error::from_raw_os_error(libc::ECHILD));
             }
             let mut event: libc::kevent = unsafe { std::mem::zeroed() };
             let timeout = libc::timespec {
@@ -103,13 +107,19 @@ impl OwnedProcessTree {
                 return Err(io::Error::last_os_error());
             }
             if result == 0 {
-                return Ok(false);
+                return Ok(self.root_exit_state.load(Ordering::Acquire) == EXITED);
             }
             if event.flags & libc::EV_ERROR != 0 {
                 return Err(io::Error::from_raw_os_error(event.data as i32));
             }
-            self.root_exit_observed.store(true, Ordering::Release);
-            return Ok(true);
+            if event.fflags & libc::NOTE_REAP != 0 {
+                self.root_exit_state.store(REAPED, Ordering::Release);
+                return Err(io::Error::from_raw_os_error(libc::ECHILD));
+            }
+            if event.fflags & libc::NOTE_EXIT != 0 {
+                self.root_exit_state.store(EXITED, Ordering::Release);
+            }
+            return Ok(self.root_exit_state.load(Ordering::Acquire) == EXITED);
         }
         #[cfg(not(target_os = "macos"))]
         {
@@ -257,7 +267,7 @@ fn watch_process_exit(pid: u32) -> io::Result<OwnedFd> {
         ident: pid as libc::uintptr_t,
         filter: libc::EVFILT_PROC,
         flags: libc::EV_ADD | libc::EV_ENABLE,
-        fflags: libc::NOTE_EXIT,
+        fflags: libc::NOTE_EXIT | libc::NOTE_REAP,
         data: 0,
         udata: std::ptr::null_mut(),
     };
@@ -361,7 +371,7 @@ pub fn spawn_process_tree(cmd: &mut Command) -> io::Result<ContainedChild> {
                 #[cfg(target_os = "macos")]
                 exit_kqueue,
                 #[cfg(target_os = "macos")]
-                root_exit_observed: AtomicBool::new(false),
+                root_exit_state: AtomicU8::new(0),
             },
         });
     }
