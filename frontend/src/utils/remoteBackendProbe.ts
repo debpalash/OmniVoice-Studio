@@ -23,7 +23,7 @@ export function configuredRemoteBackend(): { url: string } | null {
   }
 }
 
-export async function disableRemoteBackend(reload: () => void): Promise<void> {
+export async function disableRemoteBackend(reload: () => void | Promise<void>): Promise<void> {
   let target = '';
   try {
     target = localStorage.getItem(LS_BACKEND_URL)?.trim().replace(/\/+$/, '') || '';
@@ -48,7 +48,7 @@ export async function disableRemoteBackend(reload: () => void): Promise<void> {
     }
   }
   clearAdminSession();
-  reload();
+  await reload();
 }
 
 function transportKind(url: URL, error: unknown): RemoteProbeKind {

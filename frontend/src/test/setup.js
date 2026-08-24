@@ -35,16 +35,28 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 const persistence = await import('../utils/coalescedJsonStorage');
+const longformPersistence = await import('../utils/longformPersistence');
 
 // Application bootstrap resolves this role before rendering. Unit tests import
 // the store directly, so give each test the equivalent isolated main-window
 // contract and tear down every timer/listener/suspension afterward.
 persistence.configurePersistenceRole('main');
 beforeEach(() => {
+  let longformRecord = null;
+  longformPersistence.configureLongformDurableStoreForTests({
+    read: async () => (longformRecord ? structuredClone(longformRecord) : null),
+    write: async (record) => {
+      longformRecord = structuredClone(record);
+    },
+    clear: async () => {
+      longformRecord = null;
+    },
+  });
   persistence.resetCoalescedJsonStorageForTests();
   persistence.configurePersistenceRole('main');
 });
 afterEach(() => {
+  longformPersistence.resetLongformPersistenceForTests();
   persistence.resetCoalescedJsonStorageForTests();
 });
 

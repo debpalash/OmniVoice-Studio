@@ -15,6 +15,7 @@ pub mod config;
 pub mod crash;
 pub mod dictation_output;
 pub mod dictation_shortcut;
+pub mod persistence_exit;
 pub mod reset;
 pub mod setup;
 pub mod tools;
@@ -598,6 +599,7 @@ pub fn run() {
             commands::open_input_monitoring_settings,
             commands::set_tray_recording,
             commands::quit_app,
+            persistence_exit::confirm_persistence_flush,
             commands::save_text_file,
             commands::reveal_host_path,
             commands::get_dictation_shortcut,
@@ -721,6 +723,7 @@ pub fn run() {
                 capture: Mutex::new(CaptureDispatchState::default()),
                 output: dictation_output::DictationOutput::default(),
             });
+            app.manage(persistence_exit::PersistenceExitState::default());
             app.manage(TrayHandle {
                 tray: Mutex::new(None),
                 dictate: Mutex::new(None),
@@ -866,13 +869,10 @@ pub fn run() {
                             let mut cfg = crate::config::load_config(app);
                             cfg.launch_as_widget = false;
                             crate::config::save_config(app, &cfg);
-                            if let Ok(exe) = std::env::current_exe() {
-                                let _ = std::process::Command::new(exe).spawn();
+                            if let Err(error) = persistence_exit::request_spawned_relaunch(app, vec![])
+                            {
+                                log::error!("Could not switch to studio mode: {error}");
                             }
-                            app.state::<AppFlags>()
-                                .quitting
-                                .store(true, Ordering::SeqCst);
-                            app.exit(0);
                         }
                         "switch_to_pill" => {
                             // Mirror of "open_studio" but the other direction:
@@ -881,15 +881,12 @@ pub fn run() {
                             let mut cfg = crate::config::load_config(app);
                             cfg.launch_as_widget = true;
                             crate::config::save_config(app, &cfg);
-                            if let Ok(exe) = std::env::current_exe() {
-                                let _ = std::process::Command::new(exe)
-                                    .arg("--pill")
-                                    .spawn();
+                            if let Err(error) = persistence_exit::request_spawned_relaunch(
+                                app,
+                                vec!["--pill".into()],
+                            ) {
+                                log::error!("Could not switch to pill mode: {error}");
                             }
-                            app.state::<AppFlags>()
-                                .quitting
-                                .store(true, Ordering::SeqCst);
-                            app.exit(0);
                         }
                         "dictate" => {
                             // Toggle start/stop. This used to ask the widget
@@ -1059,7 +1056,10 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| {
-        if let tauri::RunEvent::ExitRequested { .. } = event {
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
+            if !persistence_exit::handle_exit_requested(app_handle, code, &api) {
+                return;
+            }
             shutdown_backend_for_exit(app_handle);
         }
     });

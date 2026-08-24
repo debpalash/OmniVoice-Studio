@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Impossibile caricare i progetti",
+    "storage_unavailable_body": "VoiceStudio non è riuscito a leggere l’archivio locale dei progetti. I tuoi dati non sono stati modificati. Riprova per aprirli in sicurezza.",
+    "clear_projects": "Cancella i progetti salvati",
+    "clear_confirm": "Questa operazione elimina definitivamente tutti i progetti Storie e Audiolibri salvati e qualsiasi bozza non salvata, così VoiceStudio potrà riaprirsi. Non può essere annullata. Continuare?"
+  },
   "backendUnreachable": {
     "contact_recent": "Rispondeva {{ago}} fa e poi ha smesso di rispondere — molto probabilmente è andato in crash o è stato terminato durante una richiesta.",
     "contact_never": "Non ha risposto affatto in questa sessione — forse non si è mai avviato.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Impossibile registrarsi: {{message}}",
     "shortcut_reset": "Ripristina le impostazioni predefinite",
     "shortcut_reset_failed": "Reimpostazione non riuscita: {{message}}",
+    "reset_longform_failed": "VoiceStudio non ha potuto cancellare in modo sicuro i progetti salvati. I dati dei progetti non sono stati modificati; libera spazio di archiviazione o riavvia l’app, quindi riprova.",
     "cancel": "Annulla",
     "hf_token_also_clear": "Cancella anche",
     "hf_token_clear_btn": "Cancella token",

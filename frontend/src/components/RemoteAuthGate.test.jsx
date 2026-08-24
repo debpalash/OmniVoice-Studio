@@ -41,6 +41,27 @@ describe('RemoteAuthGate', () => {
     expect(sessionStorage.getItem('ov_pin')).toBe('999111');
   });
 
+  it('coalesces repeated PIN submissions while persistence-aware reload is pending', async () => {
+    let finishReload;
+    const reload = vi.fn(() => new Promise((resolve) => (finishReload = resolve)));
+    render(
+      <RemoteAuthGate forceGate reload={reload}>
+        <div>app-content</div>
+      </RemoteAuthGate>,
+    );
+    fireEvent.change(screen.getByLabelText(/access pin/i), { target: { value: '999111' } });
+    const button = screen.getByRole('button', { name: /connect/i });
+    const form = button.closest('form');
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(button).toBeDisabled();
+    finishReload();
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
   it('exchanges the entered API key without persisting the master (apikey mode)', async () => {
     render(
       <RemoteAuthGate forceGate forceMode="apikey">

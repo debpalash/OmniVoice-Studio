@@ -31,6 +31,7 @@ import i18n, { LANGUAGES } from '../i18n';
 import { useAppStore } from '../store';
 import { getApiBase } from '../utils/apiBase';
 import { startSplashWatchdog, startHealthRecoveryPoll } from '../utils/splashWatchdog';
+import { flushApplicationPersistence } from '../utils/persistenceLifecycle';
 import { Button, Progress, Select } from '../ui';
 import UiScaleControl from './UiScaleControl';
 
@@ -101,7 +102,8 @@ function defaultLogDirForPlatform() {
 }
 
 /** WebView2 profile cache path shown in the manual-repair fallback (#879). */
-const WEBVIEW_CACHE_PATH_WIN = '%LOCALAPPDATA%\\com.debpalash.omnivoice-studio\\EBWebView';
+const WEBVIEW_CACHE_PATH_WIN =
+  '%LOCALAPPDATA%\\com.debpalash.omnivoice-studio\\EBWebView\\Default\\Cache';
 
 /** True on Windows. Deliberately reads the user agent, NOT a Tauri plugin —
  *  in the recovery state IPC is presumed dead, so OS detection must not
@@ -272,7 +274,8 @@ function JourneyRail({ t }) {
  * silent AND the backend never answered /health within the recovery window.
  * Explains what happened and offers actionable exits instead of an infinite
  * spinner. The "Repair and restart" affordance is Windows-only (it clears the
- * WebView2 `EBWebView` profile cache — a Windows-specific artifact) and only
+ * cache-only directories under the WebView2 `EBWebView` profile — a
+ * Windows-specific artifact) and only
  * exists inside this error-recovery state, never as default-mode UI.
  */
 function IpcLostRecovery({ t }) {
@@ -301,9 +304,16 @@ function IpcLostRecovery({ t }) {
     setRepairing(true);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      // On success the process relaunches and this promise never settles;
-      // the timeout only fires when the IPC layer is too broken even for
-      // this one call — then we fall back to manual instructions.
+      try {
+        await flushApplicationPersistence();
+      } catch (error) {
+        // Persistence may be the broken subsystem that led here. Keep the
+        // explicit recovery action available, matching the native exit timeout.
+        console.warn('[persistence] cache-repair flush failed', error);
+      }
+      // The command returns once the persistence-gated restart is queued; its
+      // native three-second deadline handles a webview that cannot acknowledge.
+      // This outer timeout catches an IPC bridge too broken to queue it at all.
       await withTimeout(invoke('clear_webview_cache_and_relaunch'), 8000);
     } catch (e) {
       if (e?.message !== 'ipc timeout') console.error('repair failed', e);

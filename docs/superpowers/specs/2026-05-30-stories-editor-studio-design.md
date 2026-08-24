@@ -66,7 +66,7 @@ StoryProject = { id, name, tracks: StoryTrack[], cast: CastMember[], updatedAt }
 
 - Effective voice for a track = `track.profileId ?? cast[track.character].profileId ?? null` (→ /generate default).
 - Effective emotion/speed = per-line override, else cast/global default.
-- Persistence: zustand `persist` → `localStorage` (key `omnivoice.app`, via `partialize`). **No DB / no alembic** — satisfies the backward-compatible-project-data constraint trivially. Transient fields (`generating`, `audioUrl`) are stripped on persist.
+- Persistence: zustand `persist` splits unbounded project/manuscript data into the local IndexedDB database `omnivoice.longform`; `omnivoice.app` localStorage retains bounded preferences and ids. **No backend DB / no alembic.** Transient fields (`generating`, `audioUrl`) are stripped at the durable commit boundary. Existing v8 localStorage data migrates only after IndexedDB commits successfully (#1636).
 
 ## 5. Backend touchpoints
 
@@ -99,7 +99,7 @@ Each phase is independently shippable to `main` and leaves the editor more usefu
 - **Per-character stems:** one WAV per cast voice (mute others), zipped.
 - **Chapter markers:** explicit "Chapter" break lines → a sidecar cue sheet (and embedded if M4B).
 - **MP3/M4B export:** optional backend `/stories/encode` via ffmpeg.
-- **Named projects:** multiple saved stories (rename/duplicate/delete), still localStorage.
+- **Named projects:** multiple saved stories (rename/duplicate/delete), persisted in IndexedDB.
 - **Regenerate-one + export panel** with format/quality choices.
 
 ## 7. File structure
@@ -127,8 +127,8 @@ Each phase is independently shippable to `main` and leaves the editor more usefu
 
 ## 10. Constraints honored
 
-- **No DB / alembic:** localStorage persistence only.
-- **Default features work on every platform:** Web Audio, localStorage, native DnD, `/generate`, `spawn_subprocess` (cross-platform-hardened) — no platform divergence; no opt-in needed.
+- **No backend DB / alembic:** browser-owned projects use IndexedDB; bounded preferences/ids remain in localStorage.
+- **Default features work on every platform:** Web Audio, IndexedDB, localStorage, native DnD, `/generate`, `spawn_subprocess` (cross-platform-hardened) — no platform divergence; no opt-in needed.
 - **PIN/LAN-share safe:** all synth goes through `apiFetch` (API base + PIN).
 - **Localization hard rule:** all user-facing strings via i18n; any CJK only in `i18n/locales/zh-CN.json`.
 - **No new runtime deps** for Phases 1–3 (Web Audio + hand-rolled WAV + native DnD). Phase 2 `.epub` and Phase 4 MP3 may add one small dep each, evaluated at that phase.

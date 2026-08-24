@@ -54,10 +54,13 @@ export interface CoalescedJsonStorageOptions {
 export interface CoalescedJsonStorageController {
   queueJsonWrite<T>(key: string, readLatestValue: () => T): () => void;
   createZustandJsonStorage<S>(): PersistStorage<S>;
+  /** Read only the physical JSON value, propagating access/parse failures. */
+  readDurableJsonValue<T>(key: string): T | null;
   flushPendingWrites(): FlushSummary;
   discardPendingWrites(predicate?: StorageKeyPredicate): number;
   suspendJsonWrites(predicate: StorageKeyPredicate): () => void;
   configurePersistenceRole(role: WritablePersistenceRole): void;
+  getPersistenceRole(): PersistenceRole;
   installPersistenceLifecycleFlush(): () => void;
   resetForTests(): void;
 }
@@ -361,6 +364,11 @@ export function createCoalescedJsonStorage(
     }
   }
 
+  function readDurableJsonValue<T>(key: string): T | null {
+    const rawValue = getStorage().getItem(key);
+    return rawValue === null ? null : (parse(rawValue) as T);
+  }
+
   function removeItem(key: string): void {
     cancelPending(key);
     staged.delete(key);
@@ -460,6 +468,10 @@ export function createCoalescedJsonStorage(
     if (firstRemovalError !== undefined) throw firstRemovalError;
   }
 
+  function getPersistenceRole(): PersistenceRole {
+    return role;
+  }
+
   function installPersistenceLifecycleFlush(): () => void {
     if (role !== 'main') return () => {};
     if (lifecycleCleanup) return lifecycleCleanup;
@@ -504,10 +516,12 @@ export function createCoalescedJsonStorage(
   return {
     queueJsonWrite,
     createZustandJsonStorage,
+    readDurableJsonValue,
     flushPendingWrites,
     discardPendingWrites,
     suspendJsonWrites,
     configurePersistenceRole,
+    getPersistenceRole,
     installPersistenceLifecycleFlush,
     resetForTests,
   };
@@ -517,10 +531,12 @@ const applicationStorage = createCoalescedJsonStorage();
 
 export const queueJsonWrite = applicationStorage.queueJsonWrite;
 export const createZustandJsonStorage = applicationStorage.createZustandJsonStorage;
+export const readDurableJsonValue = applicationStorage.readDurableJsonValue;
 export const flushPendingWrites = applicationStorage.flushPendingWrites;
 export const discardPendingWrites = applicationStorage.discardPendingWrites;
 export const suspendJsonWrites = applicationStorage.suspendJsonWrites;
 export const configurePersistenceRole = applicationStorage.configurePersistenceRole;
+export const getPersistenceRole = applicationStorage.getPersistenceRole;
 export const installPersistenceLifecycleFlush = applicationStorage.installPersistenceLifecycleFlush;
 
 /** Test/HMR teardown for the application singleton. Never clears durable data. */
