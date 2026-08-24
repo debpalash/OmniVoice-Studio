@@ -157,6 +157,7 @@
     "shortcut_register_failed": "No se pudo registrar: {{message}}",
     "shortcut_reset": "Restablecer los valores predeterminados",
     "shortcut_reset_failed": "Error al restablecer: {{message}}",
+    "reset_longform_failed": "VoiceStudio no pudo borrar de forma segura los proyectos guardados. Los datos de tus proyectos no se modificaron; libera espacio de almacenamiento o reinicia la aplicación y vuelve a intentarlo.",
     "cancel": "Cancelar",
     "hf_token_also_clear": "Borrar también",
     "hf_token_clear_btn": "Borrar token",

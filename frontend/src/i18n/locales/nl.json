@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Kon niet registreren: {{message}}",
     "shortcut_reset": "Resetten naar standaard",
     "shortcut_reset_failed": "Reset mislukt: {{message}}",
+    "reset_longform_failed": "VoiceStudio kon de opgeslagen projecten niet veilig wissen. Je projectgegevens zijn niet gewijzigd; maak opslagruimte vrij of start de app opnieuw en probeer het nogmaals.",
     "cancel": "Annuleer",
     "hf_token_also_clear": "Ook wissen",
     "hf_token_clear_btn": "Token wissen",

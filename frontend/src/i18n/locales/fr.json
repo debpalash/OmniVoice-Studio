@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Impossible de s'inscrire : {{message}}",
     "shortcut_reset": "Réinitialiser aux valeurs par défaut",
     "shortcut_reset_failed": "Échec de la réinitialisation : {{message}}",
+    "reset_longform_failed": "VoiceStudio n’a pas pu effacer les projets enregistrés en toute sécurité. Les données de vos projets sont restées intactes ; libérez de l’espace ou redémarrez l’application, puis réessayez.",
     "cancel": "Annuler",
     "hf_token_also_clear": "Effacer aussi",
     "hf_token_clear_btn": "Effacer le jeton",

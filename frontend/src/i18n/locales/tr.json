@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Kaydedilemedi: {{message}}",
     "shortcut_reset": "Varsayılana sıfırla",
     "shortcut_reset_failed": "Sıfırlama başarısız oldu: {{message}}",
+    "reset_longform_failed": "VoiceStudio kaydedilmiş projeleri güvenli bir şekilde temizleyemedi. Proje verileriniz değiştirilmedi; depolama alanı açın veya uygulamayı yeniden başlatıp tekrar deneyin.",
     "cancel": "İptal",
     "hf_token_also_clear": "Ayrıca temizle",
     "hf_token_clear_btn": "Belirteci temizle",

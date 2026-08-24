@@ -290,7 +290,7 @@ describe('ResetPanel', () => {
     expect(await screen.findByTestId('reset-shared-warning')).toBeInTheDocument();
   });
 
-  it('maps a local fallback clear failure to localized recovery text', async () => {
+  it('maps a local fallback clear failure to dedicated localized recovery text', async () => {
     clearLongformProjects.mockRejectedValueOnce(
       new DOMException('', 'LongformLocalFallbackClearError'),
     );
@@ -303,8 +303,27 @@ describe('ResetPanel', () => {
     });
     fireEvent.click(screen.getByTestId('factory-reset-confirm'));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Reset failed: Unknown error'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'VoiceStudio couldn’t safely clear saved projects. Your project data was left intact; free some storage or restart the app, then try again.',
+      ),
+    );
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('LongformLocalFallback'));
+  });
+
+  it('does not redundantly flush long-form writes after clearing projects', async () => {
+    render(<ResetPanel />);
+    await waitFor(() => expect(screen.getByTestId('reset-tier-everything')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('reset-tier-everything'));
+    fireEvent.click(screen.getByTestId('factory-reset-open'));
+    fireEvent.change(await screen.findByTestId('reset-type-confirm'), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(clearLongformProjects).toHaveBeenCalledOnce();
+    expect(flushLongformPendingWrites).not.toHaveBeenCalled();
   });
 
   it('stays silent about sharing when the cache is app-private (Windows, portable)', async () => {

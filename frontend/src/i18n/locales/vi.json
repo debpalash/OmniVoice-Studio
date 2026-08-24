@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Không thể đăng ký: {{message}}",
     "shortcut_reset": "Đặt lại về mặc định",
     "shortcut_reset_failed": "Đặt lại không thành công: {{message}}",
+    "reset_longform_failed": "VoiceStudio không thể xóa an toàn các dự án đã lưu. Dữ liệu dự án của bạn không bị thay đổi; hãy giải phóng dung lượng hoặc khởi động lại ứng dụng rồi thử lại.",
     "cancel": "Hủy",
     "hf_token_also_clear": "Đồng thời xóa",
     "hf_token_clear_btn": "Xóa token",

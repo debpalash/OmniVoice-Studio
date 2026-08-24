@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Kunde inte registrera: {{message}}",
     "shortcut_reset": "Återställ till standard",
     "shortcut_reset_failed": "Återställning misslyckades: {{message}}",
+    "reset_longform_failed": "VoiceStudio kunde inte rensa de sparade projekten på ett säkert sätt. Dina projektdata ändrades inte; frigör lagringsutrymme eller starta om appen och försök igen.",
     "cancel": "Avbryt",
     "hf_token_also_clear": "Rensa också",
     "hf_token_clear_btn": "Rensa token",

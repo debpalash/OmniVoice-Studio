@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Не вдалося зареєструватися: {{message}}",
     "shortcut_reset": "Скинути до замовчування",
     "shortcut_reset_failed": "Помилка скидання: {{message}}",
+    "reset_longform_failed": "VoiceStudio не вдалося безпечно видалити збережені проєкти. Дані проєктів не змінено; звільніть місце або перезапустіть застосунок і повторіть спробу.",
     "cancel": "Скасувати",
     "hf_token_also_clear": "Також очистити",
     "hf_token_clear_btn": "Очистити токен",

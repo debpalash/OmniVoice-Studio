@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Не удалось зарегистрироваться: {{message}}",
     "shortcut_reset": "Сбросить настройки по умолчанию",
     "shortcut_reset_failed": "Сброс не удался: {{message}}",
+    "reset_longform_failed": "VoiceStudio не удалось безопасно удалить сохранённые проекты. Данные проектов не изменены; освободите место или перезапустите приложение и повторите попытку.",
     "cancel": "Отмена",
     "hf_token_also_clear": "Также очистить",
     "hf_token_clear_btn": "Очистить токен",

@@ -890,15 +890,13 @@ export const discardLongformPendingWrites = applicationPersistence.discardPendin
 export const installLongformPersistenceLifecycleFlush =
   applicationPersistence.installLifecycleFlush;
 
-/** Clear browser-owned projects for Settings' explicit destructive content reset. */
+/**
+ * Clear browser-owned projects for Settings' explicit destructive content reset.
+ * `clearDurable` flushes pending local writes, durably records deletion intent,
+ * and only then clears IndexedDB; its successful return needs no second flush.
+ */
 export async function clearLongformProjects(): Promise<void> {
   await applicationPersistence.clearDurable();
-  // clearDurable may have queued removal of a legacy full envelope through the
-  // coalesced adapter. Make that trim durable before Settings reports success.
-  const summary = flushLocalPendingWrites();
-  if (summary.failed > 0) {
-    throw new DOMException('', LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR);
-  }
 }
 
 /** Inject a deterministic durable store without replacing the Zustand adapter. */

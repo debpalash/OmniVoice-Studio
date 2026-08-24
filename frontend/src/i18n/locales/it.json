@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Impossibile registrarsi: {{message}}",
     "shortcut_reset": "Ripristina le impostazioni predefinite",
     "shortcut_reset_failed": "Reimpostazione non riuscita: {{message}}",
+    "reset_longform_failed": "VoiceStudio non ha potuto cancellare in modo sicuro i progetti salvati. I dati dei progetti non sono stati modificati; libera spazio di archiviazione o riavvia l’app, quindi riprova.",
     "cancel": "Annulla",
     "hf_token_also_clear": "Cancella anche",
     "hf_token_clear_btn": "Cancella token",

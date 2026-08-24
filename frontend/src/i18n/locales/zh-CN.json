@@ -393,6 +393,7 @@
     "shortcut_register_failed": "无法注册：{{message}}",
     "shortcut_reset": "重置为默认值",
     "shortcut_reset_failed": "重置失败：{{message}}",
+    "reset_longform_failed": "VoiceStudio 无法安全清除已保存的项目。您的项目数据未被更改；请释放一些存储空间或重启应用后再试。",
     "cancel": "取消",
     "hf_token_also_clear": "同时清除",
     "hf_token_clear_btn": "清除令牌",

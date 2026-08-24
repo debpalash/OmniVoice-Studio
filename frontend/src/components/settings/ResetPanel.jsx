@@ -207,10 +207,12 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
         }
       }
       if (steps.longformProjects) await clearLongformProjects();
-      // Settle long-form first so an IndexedDB failure can materialize its full
-      // fallback before preference reset decides what project data to preserve.
       if (steps.prefs) {
-        await flushLongformPendingWrites();
+        // If projects are being retained, settle them first so an IndexedDB
+        // failure can materialize its full fallback before preference reset
+        // decides what to preserve. clearLongformProjects already performs the
+        // ordered flush when content is intentionally being deleted.
+        if (!steps.longformProjects) await flushLongformPendingWrites();
         clearLocalPreferences();
       }
 
@@ -230,7 +232,7 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
       setBusy(false);
       const message =
         e?.name === LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR
-          ? t('settings.shortcut_reset_failed', { message: t('bootstrap.unknown_error') })
+          ? t('settings.reset_longform_failed')
           : t('settings.reset_failed', {
               defaultValue: 'Reset failed: {{message}}',
               message: e?.message || String(e),

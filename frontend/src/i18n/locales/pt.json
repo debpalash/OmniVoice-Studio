@@ -157,6 +157,7 @@
     "shortcut_register_failed": "Não foi possível registrar: {{message}}",
     "shortcut_reset": "Redefinir para o padrão",
     "shortcut_reset_failed": "Falha na reinicialização: {{message}}",
+    "reset_longform_failed": "O VoiceStudio não conseguiu limpar com segurança os projetos salvos. Os dados dos seus projetos não foram alterados; libere espaço de armazenamento ou reinicie o aplicativo e tente novamente.",
     "cancel": "Cancelar",
     "hf_token_also_clear": "Limpar também",
     "hf_token_clear_btn": "Limpar token",

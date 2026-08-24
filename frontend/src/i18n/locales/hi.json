@@ -157,6 +157,7 @@
     "shortcut_register_failed": "पंजीकरण नहीं हो सका: {{message}}",
     "shortcut_reset": "डिफ़ॉल्ट पर रीसेट करें",
     "shortcut_reset_failed": "रीसेट विफल: {{message}}",
+    "reset_longform_failed": "VoiceStudio सेव किए गए प्रोजेक्ट सुरक्षित रूप से साफ़ नहीं कर सका। आपका प्रोजेक्ट डेटा नहीं बदला गया; कुछ स्टोरेज खाली करें या ऐप को फिर से शुरू करके दोबारा कोशिश करें।",
     "cancel": "रद्द करें",
     "hf_token_also_clear": "साथ ही साफ़ करें",
     "hf_token_clear_btn": "टोकन साफ़ करें",

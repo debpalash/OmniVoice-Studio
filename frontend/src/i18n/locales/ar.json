@@ -157,6 +157,7 @@
     "shortcut_register_failed": "تعذر التسجيل: {{message}}",
     "shortcut_reset": "إعادة التعيين إلى الوضع الافتراضي",
     "shortcut_reset_failed": "فشلت إعادة التعيين: {{message}}",
+    "reset_longform_failed": "تعذّر على VoiceStudio مسح المشاريع المحفوظة بأمان. بقيت بيانات مشاريعك دون تغيير؛ حرّر بعض مساحة التخزين أو أعد تشغيل التطبيق، ثم حاول مرة أخرى.",
     "cancel": "إلغاء",
     "hf_token_also_clear": "امسح أيضًا",
     "hf_token_clear_btn": "مسح الرمز",

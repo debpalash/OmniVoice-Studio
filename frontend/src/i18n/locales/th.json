@@ -157,6 +157,7 @@
     "shortcut_register_failed": "ไม่สามารถลงทะเบียนได้: {{message}}",
     "shortcut_reset": "รีเซ็ตเป็นค่าเริ่มต้น",
     "shortcut_reset_failed": "การรีเซ็ตล้มเหลว: {{message}}",
+    "reset_longform_failed": "VoiceStudio ไม่สามารถล้างโปรเจกต์ที่บันทึกไว้ได้อย่างปลอดภัย ข้อมูลโปรเจกต์ของคุณไม่ได้ถูกเปลี่ยนแปลง โปรดเพิ่มพื้นที่ว่างหรือเริ่มแอปใหม่แล้วลองอีกครั้ง",
     "cancel": "ยกเลิก",
     "hf_token_also_clear": "ล้างด้วย",
     "hf_token_clear_btn": "ล้างโทเค็น",

@@ -157,6 +157,7 @@
     "shortcut_register_failed": "無法註冊：{{message}}",
     "shortcut_reset": "重設為預設值",
     "shortcut_reset_failed": "重置失敗：{{message}}",
+    "reset_longform_failed": "VoiceStudio 無法安全清除已儲存的專案。您的專案資料未被變更；請釋放一些儲存空間或重新啟動應用程式後再試。",
     "cancel": "取消",
     "hf_token_also_clear": "一併清除",
     "hf_token_clear_btn": "清除代幣",

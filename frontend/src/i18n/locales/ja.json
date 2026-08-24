@@ -157,6 +157,7 @@
     "shortcut_register_failed": "登録できませんでした: {{message}}",
     "shortcut_reset": "デフォルトにリセットする",
     "shortcut_reset_failed": "リセットに失敗しました: {{message}}",
+    "reset_longform_failed": "VoiceStudio は保存済みプロジェクトを安全に消去できませんでした。プロジェクトデータは変更されていません。ストレージの空き容量を増やすかアプリを再起動して、もう一度お試しください。",
     "cancel": "キャンセル",
     "hf_token_also_clear": "あわせてクリア",
     "hf_token_clear_btn": "トークンをクリア",
