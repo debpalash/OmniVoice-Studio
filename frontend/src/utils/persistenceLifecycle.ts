@@ -2,7 +2,7 @@ import {
   flushPendingWrites as flushLocalPendingWrites,
   type FlushSummary,
 } from './coalescedJsonStorage';
-import { flushLongformPendingWrites } from './longformPersistence';
+import { flushLongformPendingWritesForExit } from './longformPersistence';
 
 export const DESKTOP_PERSISTENCE_FLUSH_EVENT = 'persistence://flush-requested';
 export const CONFIRM_PERSISTENCE_FLUSH_COMMAND = 'confirm_persistence_flush';
@@ -34,7 +34,7 @@ function defaultWarn(message: string, error?: unknown): void {
 export async function flushApplicationPersistence(
   dependencies: PersistenceFlushDependencies = {},
 ): Promise<FlushSummary> {
-  const flushLongform = dependencies.flushLongform ?? flushLongformPendingWrites;
+  const flushLongform = dependencies.flushLongform ?? flushLongformPendingWritesForExit;
   const flushLocal = dependencies.flushLocal ?? flushLocalPendingWrites;
   const warn = dependencies.warn ?? defaultWarn;
 

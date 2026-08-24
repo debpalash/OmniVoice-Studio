@@ -191,6 +191,27 @@ describe('prefKeys registry', () => {
       });
     });
 
+    it('preserves physical-removal intent while resetting preferences', () => {
+      localStorage.setItem(
+        'omnivoice.app',
+        JSON.stringify({
+          version: 9,
+          longformPendingDurableClear: true,
+          longformPendingStorageRemove: true,
+          state: {},
+        }),
+      );
+
+      clearLocalPreferences();
+
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 9,
+        longformPendingDurableClear: true,
+        longformPendingStorageRemove: true,
+        state: {},
+      });
+    });
+
     it('prevents pending and post-reset writes from resurrecting preferences', () => {
       vi.useFakeTimers();
       localStorage.setItem('omnivoice.app', '{"state":{"old":true},"version":7}');

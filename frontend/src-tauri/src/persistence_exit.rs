@@ -140,6 +140,9 @@ fn complete_pending_exit(app: &tauri::AppHandle, source: &str) -> bool {
 }
 
 fn schedule_timeout(app: tauri::AppHandle) {
+    // The frontend materializes its latest full localStorage fallback before
+    // awaiting IndexedDB. A blocked transaction may outlive this deadline,
+    // but the timeout cannot overtake the only recoverable project copy.
     std::thread::spawn(move || {
         std::thread::sleep(EXIT_FLUSH_TIMEOUT);
         if complete_pending_exit(&app, "native timeout") {

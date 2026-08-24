@@ -84,14 +84,17 @@ describe('app-store persistence scheduling', () => {
     expect(setItem).not.toHaveBeenCalled();
 
     useAppStore.persist.clearStorage();
-    expect(localStorage.getItem(APP_STORE_KEY)).toBeNull();
+    await vi.waitFor(() => expect(localStorage.getItem(APP_STORE_KEY)).toBeNull());
+    const writesAfterClear = setItem.mock.calls.filter(([key]) => key === APP_STORE_KEY).length;
     const cleanupLifecycle = installPersistenceLifecycleFlush();
     window.dispatchEvent(new Event('pagehide'));
     expect(flushPendingWrites().attempted).toBe(0);
 
     await vi.runAllTimersAsync();
     expect(localStorage.getItem(APP_STORE_KEY)).toBeNull();
-    expect(setItem.mock.calls.filter(([key]) => key === APP_STORE_KEY)).toHaveLength(0);
+    expect(setItem.mock.calls.filter(([key]) => key === APP_STORE_KEY)).toHaveLength(
+      writesAfterClear,
+    );
     cleanupLifecycle();
   });
 
