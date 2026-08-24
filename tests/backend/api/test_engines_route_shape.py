@@ -238,12 +238,14 @@ def test_omnivoice_entry_has_in_process_isolation_mode(fresh_app):
     assert by_id["omnivoice"]["isolation_mode"] == "in-process"
 
 
-def test_gpu_compat_omnivoice_has_cuda_mps_cpu(fresh_app):
-    """OmniVoice ships with CUDA/MPS/CPU paths — surface that in the matrix."""
+def test_gpu_compat_omnivoice_variants_include_rocm(fresh_app):
+    """Both OmniVoice paths use torch's HIP-backed CUDA device on ROCm."""
     client = _client(fresh_app)
     r = client.get("/engines")
     by_id = {b["id"]: b for b in r.json()["tts"]["backends"]}
-    assert set(by_id["omnivoice"]["gpu_compat"]) == {"cuda", "mps", "cpu"}
+    expected = {"cuda", "rocm", "mps", "cpu"}
+    assert set(by_id["omnivoice"]["gpu_compat"]) == expected
+    assert set(by_id["omnivoice-subprocess"]["gpu_compat"]) == expected
 
 
 # ── select_engine host-routing gate (no silent CPU fallback) ────────────────
@@ -260,6 +262,17 @@ def _force_host(monkeypatch, family="cpu"):
 
 def _force_cpu_host(monkeypatch):
     _force_host(monkeypatch, "cpu")
+
+
+def test_omnivoice_variants_route_to_rocm(fresh_app, monkeypatch):
+    _force_host(monkeypatch, "rocm")
+
+    body = _client(fresh_app).get("/engines").json()
+    by_id = {b["id"]: b for b in body["tts"]["backends"]}
+    for backend_id in ("omnivoice", "omnivoice-subprocess"):
+        assert by_id[backend_id]["effective_device"] == "rocm"
+        assert by_id[backend_id]["routing_status"] == "accelerated"
+        assert by_id[backend_id]["routing_reason"] is None
 
 
 def test_select_blocks_engine_unavailable_on_this_host(fresh_app, monkeypatch):

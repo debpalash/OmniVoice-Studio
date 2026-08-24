@@ -120,6 +120,9 @@ ROCm container `omnivoice-studio-rocm` (CPU: `omnivoice-studio`, NVIDIA:
 (ROCm-built PyTorch reports through `torch.cuda.*` — `True` plus your card's
 name means torch can see the GPU.) That check alone isn't proof the app is
 using it: **Settings → System** shows the device VoiceStudio actually resolved.
+**Model Catalogue → Engines** should report both `omnivoice` and
+`omnivoice-subprocess` as accelerated on ROCm, rather than a CPU-fallback
+warning.
 If it reads `cpu` while the command above prints `True`, the backend log line
 starting `Falling back to CPU:` names the architecture mismatch it hit.
 
