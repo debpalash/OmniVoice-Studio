@@ -560,7 +560,7 @@ async def test_registration_persistence_is_off_loop_and_drained_before_adoption(
     def persist(_worker_id):
         assert threading.current_thread() is not main_thread
         started.set()
-        release.wait()
+        release.wait(5)
         finished.set()
 
     config = WorkerConfig(
@@ -584,15 +584,16 @@ async def test_registration_persistence_is_off_loop_and_drained_before_adoption(
     await client._on_server_message(pb.ServerMessage(ping=pb.Ping(nonce=7)))
     assert (await asyncio.wait_for(client._outbox.get(), timeout=1)).pong.nonce == 7
 
-    accepting.cancel()
-    await asyncio.sleep(0)
-    assert not accepting.done(), "identity write was abandoned on cancellation"
-    assert config.worker_id == "old-worker"
-    assert config.enrollment_token == "one-use-token"
-    assert client._epoch == 0
-    assert client._session_token == ""
-
-    release.set()
+    try:
+        accepting.cancel()
+        await asyncio.sleep(0)
+        assert not accepting.done(), "identity write was abandoned on cancellation"
+        assert config.worker_id == "old-worker"
+        assert config.enrollment_token == "one-use-token"
+        assert client._epoch == 0
+        assert client._session_token == ""
+    finally:
+        release.set()
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(accepting, timeout=1)
 
@@ -776,7 +777,11 @@ async def test_unpersisted_registration_never_becomes_a_connected_worker(
 
     with pytest.raises(TerminalRegistrationError, match="LOCAL_STATE"):
         await asyncio.wait_for(harness.client_task, timeout=2)
-    await asyncio.sleep(0.05)
+    async def registration_is_retired():
+        while len(harness.pool) or harness.servicer._sessions:
+            await asyncio.sleep(0)
+
+    await asyncio.wait_for(registration_is_retired(), timeout=1)
 
     assert len(harness.pool) == 0
     assert harness.servicer._sessions == {}

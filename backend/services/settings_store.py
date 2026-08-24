@@ -274,6 +274,8 @@ def get_text_state(key: str) -> tuple[bool, str]:
         ).fetchone()
     if row is None:
         return False, ""
+    if row[0] is None:
+        return True, ""
     return True, str(row[0])
 
 

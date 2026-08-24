@@ -91,7 +91,7 @@ async def test_cancelling_execution_drains_the_blocking_engine_thread(monkeypatc
 
     def blocked_load(_engine):
         started.set()
-        release.wait()
+        release.wait(5)
         finished.set()
         return _FakeBackend()
 
@@ -99,10 +99,12 @@ async def test_cancelling_execution_drains_the_blocking_engine_thread(monkeypatc
     execution = asyncio.create_task(TaskExecutor().execute(_FakeAssignment()))
     await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
 
-    execution.cancel()
-    await asyncio.sleep(0)
-    assert not execution.done(), "authority returned while the load thread was active"
-    release.set()
+    try:
+        execution.cancel()
+        await asyncio.sleep(0)
+        assert not execution.done(), "authority returned while the load thread was active"
+    finally:
+        release.set()
 
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(execution, timeout=1)

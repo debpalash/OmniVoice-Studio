@@ -44,7 +44,7 @@ async def test_register_and_refresh_share_one_off_loop_capability_probe():
         assert threading.current_thread() is not main_thread
         calls += 1
         started.set()
-        release.wait()
+        release.wait(5)
         return [{
             "engine": "omnivoice",
             "model_id": "omnivoice:default",
@@ -60,8 +60,10 @@ async def test_register_and_refresh_share_one_off_loop_capability_probe():
     refreshing = asyncio.create_task(client.refresh_capabilities())
     await asyncio.sleep(0)
 
-    assert calls == 1
-    release.set()
+    try:
+        assert calls == 1
+    finally:
+        release.set()
     request = await asyncio.wait_for(registering, timeout=1)
     await asyncio.wait_for(refreshing, timeout=1)
 

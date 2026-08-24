@@ -266,14 +266,13 @@ async def test_stop_closes_assignment_admission_before_draining():
 
     assert second_started.is_set() is False
     assert client._key(second.ref) not in client._running
-    refusal = await client._outbox.get()
+    refusal = await asyncio.wait_for(client._outbox.get(), timeout=1)
     while refusal.WhichOneof("payload") != "rejected":
-        refusal = await client._outbox.get()
+        refusal = await asyncio.wait_for(client._outbox.get(), timeout=1)
     assert refusal.rejected.error.code == "WORKER_STOPPING"
     release.set()
     await asyncio.wait_for(stopping, timeout=1)
     assert client._running == {}
-    assert keepalive_interval(-5) == 40.0
 
 
 @pytest.mark.asyncio

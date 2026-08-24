@@ -445,7 +445,15 @@ async def test_incomplete_upload_expires_when_never_resumed(plane, monkeypatch):
     partial = plane.final_path(task, attempt) + ".part"
     assert ack.error.code == "UPLOAD_INCOMPLETE"
 
-    await asyncio.sleep(0.01)
+    async def partial_is_expired():
+        while (
+            os.path.exists(partial)
+            or plane.servicer._partial_uploads
+            or plane.servicer._partial_upload_expiries
+        ):
+            await asyncio.sleep(0)
+
+    await asyncio.wait_for(partial_is_expired(), timeout=1)
     assert not os.path.exists(partial)
     assert plane.servicer._partial_uploads == {}
     assert plane.servicer._partial_upload_expiries == {}
