@@ -97,6 +97,7 @@ describe('application persistence lifecycle', () => {
 
     await vi.advanceTimersByTimeAsync(24);
     expect(action).not.toHaveBeenCalled();
+    expect(sequence).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     await pending;
 
