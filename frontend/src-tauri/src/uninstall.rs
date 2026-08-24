@@ -203,6 +203,7 @@ pub fn purge_uninstall_targets<R: tauri::Runtime>(
 fn finish_uninstall_attempt<T>(
     quitting: &std::sync::atomic::AtomicBool,
     result: Result<T, String>,
+    recover_backend: impl FnOnce(),
 ) -> Result<T, String> {
     // Every completed purge is immediately followed by application exit. An
     // Ok report may include per-target failures after other targets were
@@ -211,6 +212,9 @@ fn finish_uninstall_attempt<T>(
     // not complete and returns control to a usable settings UI.
     if result.is_err() {
         quitting.store(false, std::sync::atomic::Ordering::SeqCst);
+        // The old supervisor may already have observed `quitting` and exited;
+        // re-enter the serialized launch path instead of only clearing a flag.
+        recover_backend();
     }
     result
 }
@@ -237,7 +241,13 @@ pub async fn uninstall_purge(
         // Keep rollback in the blocking task: dropping the IPC future (for
         // example during a navigation) must not strand supervision disabled
         // after a failed purge that continues running off-thread.
-        finish_uninstall_attempt(&purge_app.state::<AppFlags>().quitting, result)
+        let state = purge_app.state::<crate::bootstrap::BootstrapState>();
+        let stage = state.stage.clone();
+        let logs = state.logs.clone();
+        let recover_app = purge_app.clone();
+        finish_uninstall_attempt(&purge_app.state::<AppFlags>().quitting, result, move || {
+            crate::bootstrap::respawn_backend(recover_app, stage, logs)
+        })
     })
     .await
     .map_err(|error| {
@@ -255,25 +265,37 @@ mod tests {
     #[test]
     fn failed_uninstall_restores_backend_supervision() {
         let quitting = std::sync::atomic::AtomicBool::new(true);
+        let recoveries = std::cell::Cell::new(0);
 
         let result: Result<(), String> = Err("backend tree is still running".into());
-        assert!(finish_uninstall_attempt(&quitting, result).is_err());
+        assert!(finish_uninstall_attempt(&quitting, result, || {
+            assert!(!quitting.load(std::sync::atomic::Ordering::SeqCst));
+            recoveries.set(1);
+        })
+        .is_err());
         assert!(!quitting.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(recoveries.get(), 1, "a failed stop must re-arm the backend");
 
         quitting.store(true, std::sync::atomic::Ordering::SeqCst);
-        assert!(finish_uninstall_attempt(&quitting, Ok(())).is_ok());
+        assert!(finish_uninstall_attempt(&quitting, Ok(()), || recoveries.set(2)).is_ok());
         assert!(quitting.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(
+            recoveries.get(),
+            1,
+            "a successful purge exits without restart"
+        );
 
         let partial = UninstallReport {
             removed: vec!["environment".into()],
             failed: vec!["models".into()],
             freed_bytes: 1,
         };
-        assert!(finish_uninstall_attempt(&quitting, Ok(partial)).is_ok());
+        assert!(finish_uninstall_attempt(&quitting, Ok(partial), || recoveries.set(3)).is_ok());
         assert!(
             quitting.load(std::sync::atomic::Ordering::SeqCst),
             "a partial purge must still quit instead of respawning into deleted targets"
         );
+        assert_eq!(recoveries.get(), 1, "a partial purge must not restart");
     }
 
     #[test]
