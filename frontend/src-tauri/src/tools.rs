@@ -173,6 +173,27 @@ impl OwnedProcessTree {
         Ok(())
     }
 
+    #[cfg(unix)]
+    fn force_terminate_after_root_exit(&mut self) -> io::Result<()> {
+        if self.terminated {
+            return Ok(());
+        }
+        match self.signal_group(libc::SIGKILL) {
+            Ok(()) => {}
+            #[cfg(target_os = "macos")]
+            Err(error) if error.raw_os_error() == Some(libc::EPERM) => {
+                // XNU excludes zombies when iterating an explicit process
+                // group, then reports EPERM when it found no signalable live
+                // member. The unreaped root still reserves this exact group;
+                // the nested-drain join that follows catches any descendant
+                // which actually survived the signal attempt.
+            }
+            Err(error) => return Err(error),
+        }
+        self.terminated = true;
+        Ok(())
+    }
+
     fn wait_nested_drain(&mut self, timeout: Duration) -> io::Result<()> {
         #[cfg(unix)]
         {
@@ -425,7 +446,7 @@ pub fn contained_child_exit(
             Ok(true) => {
                 // Do not reap the root until group cleanup succeeds: the
                 // zombie is what keeps this process-group ID non-reusable.
-                tree.force_terminate()?;
+                tree.force_terminate_after_root_exit()?;
                 tree.wait_nested_drain(nested_drain_timeout())?;
                 let status = child.try_wait()?;
                 return Ok(status);
@@ -474,7 +495,7 @@ pub fn terminate_process_tree(
     #[cfg(unix)]
     match tree.root_exited_unreaped() {
         Ok(true) => {
-            tree.force_terminate()?;
+            tree.force_terminate_after_root_exit()?;
             tree.wait_nested_drain(nested_drain_timeout())?;
             return child.wait();
         }
@@ -501,7 +522,7 @@ pub fn terminate_process_tree(
     while std::time::Instant::now() < deadline {
         #[cfg(unix)]
         if tree.root_exited_unreaped()? {
-            tree.force_terminate()?;
+            tree.force_terminate_after_root_exit()?;
             tree.wait_nested_drain(nested_drain_timeout())?;
             return child.wait();
         }
@@ -1199,6 +1220,29 @@ mod uv_tests {
         assert!(contained_child_exit(&mut child, &mut tree).unwrap().is_none());
         terminate_process_tree(&mut child, &mut tree, Duration::ZERO)
             .expect("terminate the still-owned process tree");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unexpected_root_exit_without_descendants_is_reaped_cleanly() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "exit 7"]);
+        let ContainedChild {
+            mut child,
+            mut tree,
+        } = spawn_process_tree(&mut command).expect("spawn contained test child");
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+
+        loop {
+            if let Some(status) = contained_child_exit(&mut child, &mut tree)
+                .expect("clean an already-exited root")
+            {
+                assert_eq!(status.code(), Some(7));
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "child never exited");
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[cfg(unix)]
