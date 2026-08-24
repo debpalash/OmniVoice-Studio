@@ -93,6 +93,7 @@ class OwnedPopen:
             try:
                 os.close(fd)
             except OSError:
+                # Cleanup is idempotent; another teardown path already closed it.
                 pass
 
     def _read_result(self, fallback: int) -> int:
@@ -113,6 +114,7 @@ class OwnedPopen:
             try:
                 os.close(fd)
             except OSError:
+                # The descriptor may have been closed by cancellation cleanup.
                 pass
 
     def _posix_exited_unreaped(self) -> bool:
@@ -130,6 +132,7 @@ class OwnedPopen:
         try:
             os.killpg(self.pid, sig)
         except ProcessLookupError:
+            # The owned group exited between the waitid probe and the signal.
             pass
 
     def poll(self) -> Optional[int]:
@@ -177,6 +180,7 @@ class OwnedPopen:
                 try:
                     self._proc.terminate()
                 except OSError:
+                    # The wrapper exited after the return-code check.
                     pass
 
     def kill(self) -> None:
@@ -190,6 +194,7 @@ class OwnedPopen:
                 try:
                     self._proc.kill()
                 except OSError:
+                    # The wrapper exited after the return-code check.
                     pass
 
     def __getattr__(self, name: str) -> Any:
@@ -202,6 +207,7 @@ class OwnedPopen:
             try:
                 os.close(fd)
             except OSError:
+                # Finalization may race explicit wait or cancellation cleanup.
                 pass
 
 
@@ -248,6 +254,7 @@ def spawn_owned(argv: list[str], **kwargs: Any) -> "subprocess.Popen | OwnedPope
             try:
                 os.close(fd)
             except OSError:
+                # A partial spawn may already have closed an inherited endpoint.
                 pass
         raise
     finally:
@@ -255,6 +262,7 @@ def spawn_owned(argv: list[str], **kwargs: Any) -> "subprocess.Popen | OwnedPope
             try:
                 os.close(fd)
             except OSError:
+                # The spawn-failure path above may already have closed it.
                 pass
     return OwnedPopen(proc, control_write, result_read)
 
@@ -281,11 +289,13 @@ def _write_result(fd: int, returncode: int) -> None:
     try:
         os.write(fd, _RESULT.pack(int(returncode)))
     except OSError:
+        # The caller may have cancelled and closed its result reader.
         pass
     finally:
         try:
             os.close(fd)
         except OSError:
+            # Writing or cancellation may already have closed the descriptor.
             pass
 
 
@@ -304,6 +314,7 @@ def _supervise_posix(control_fd: int, result_fd: int, argv: list[str]) -> int:
             while os.read(control_fd, 1):
                 pass
         except OSError:
+            # Closing the control descriptor is itself a cancellation signal.
             pass
         os.killpg(os.getpgrp(), signal.SIGKILL)
 
@@ -322,7 +333,7 @@ def _supervise_posix(control_fd: int, result_fd: int, argv: list[str]) -> int:
 
 def _windows_job() -> tuple[Any, Any, Any]:
     import ctypes
-    from ctypes import wintypes
+    import ctypes.wintypes as wintypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
@@ -499,10 +510,12 @@ def _supervise_windows(control_fd: int, result_fd: int, argv: list[str]) -> int:
                 # unassigned operation or rely on the outer desktop Job.
                 child.kill()
             except OSError:
+                # The suspended child may have exited during Job teardown.
                 pass
             try:
                 child.wait(timeout=5)
-            except Exception:
+            except (OSError, subprocess.TimeoutExpired):
+                # The outer desktop Job remains the terminal containment fallback.
                 pass
     finally:
         payload = _RESULT.pack(int(rc))
