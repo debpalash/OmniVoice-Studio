@@ -465,7 +465,7 @@ async def test_superseded_sessions_serialize_one_attempt_result_publication(
             _result(codec.ref_for(attempt), payload=first_payload).result,
         )
     )
-    await asyncio.wait_for(asyncio.to_thread(first_started.wait), timeout=1)
+    assert await asyncio.to_thread(first_started.wait, 1.0)
     second = asyncio.create_task(
         plane.servicer._on_result(
             replacement,
@@ -1416,7 +1416,7 @@ async def test_blocked_reconnect_persistence_does_not_stall_another_worker(
             raise RuntimeError(message)
 
     control = asyncio.create_task(plane.servicer.Control(frames(), Context()))
-    await asyncio.wait_for(asyncio.to_thread(started[0].wait), timeout=1)
+    assert await asyncio.to_thread(started[0].wait, 1.0)
 
     await asyncio.wait_for(
         plane.servicer._handle(
@@ -1445,7 +1445,7 @@ async def test_blocked_reconnect_persistence_does_not_stall_another_worker(
     plane.scheduler._bind(task, live, now=time.time())
 
     close_stream.set()
-    await asyncio.wait_for(asyncio.to_thread(started[1].wait), timeout=1)
+    assert await asyncio.to_thread(started[1].wait, 1.0)
     await asyncio.wait_for(
         plane.servicer._handle(
             plane.session,

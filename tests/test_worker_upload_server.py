@@ -494,7 +494,7 @@ async def test_cancelled_resume_drains_rehash_and_releases_logical_lease(
         )
     )
     try:
-        await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+        assert await asyncio.to_thread(started.wait, 1.0)
         resumed.cancel()
         await asyncio.sleep(0)
         assert not resumed.done(), "cancellation returned while resume rehash still ran"
@@ -739,7 +739,7 @@ async def test_upload_commit_serializes_with_an_inline_result(plane, monkeypatch
             )
         )
     )
-    await asyncio.wait_for(asyncio.to_thread(upload_published.wait), timeout=1)
+    assert await asyncio.to_thread(upload_published.wait, 1.0)
 
     inline = asyncio.create_task(
         plane.servicer._on_result(
@@ -1235,7 +1235,7 @@ async def test_cancelled_piggyback_releases_only_its_upload_reservation(
             context, chunk, retained_session=plane.servicer._sessions[plane.worker_id]
         )
     )
-    await asyncio.wait_for(asyncio.to_thread(first_started.wait), timeout=1)
+    assert await asyncio.to_thread(first_started.wait, 1.0)
 
     second, refusal, _session = await plane.servicer._open_upload(
         context, chunk, retained_session=plane.servicer._sessions[plane.worker_id]
@@ -1296,7 +1296,7 @@ async def test_committed_piggyback_keeps_waiting_owner_reserved(
             retained_session=plane.servicer._sessions[plane.worker_id],
         )
     )
-    await asyncio.wait_for(asyncio.to_thread(first_started.wait), timeout=1)
+    assert await asyncio.to_thread(first_started.wait, 1.0)
 
     second, refusal, _session = await plane.servicer._open_upload(
         context,
