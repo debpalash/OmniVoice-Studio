@@ -5,6 +5,7 @@ import {
   DESKTOP_PERSISTENCE_FLUSH_EVENT,
   flushApplicationPersistence,
   installDesktopPersistenceExitHandshake,
+  PERSISTENCE_FLUSH_TIMEOUT_ERROR,
 } from './persistenceLifecycle';
 
 const cleanSummary = () => ({
@@ -77,6 +78,34 @@ describe('application persistence lifecycle', () => {
 
     expect(action).toHaveBeenCalledOnce();
     expect(warn).toHaveBeenCalledWith('[persistence] pre-action flush failed', error);
+  });
+
+  it('runs an updater/recovery action when IndexedDB never settles', async () => {
+    vi.useFakeTimers();
+    const sequence: string[] = [];
+    const action = vi.fn(() => sequence.push('action'));
+    const warn = vi.fn();
+    const pending = afterApplicationPersistence(action, {
+      flushLongform: vi.fn(() => new Promise<void>(() => {})),
+      flushLocal: vi.fn(() => {
+        sequence.push('local');
+        return cleanSummary();
+      }),
+      timeoutMs: 25,
+      warn,
+    });
+
+    await vi.advanceTimersByTimeAsync(24);
+    expect(action).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+
+    expect(sequence).toEqual(['local', 'action']);
+    expect(warn).toHaveBeenCalledWith(
+      '[persistence] pre-action flush failed',
+      expect.objectContaining({ name: PERSISTENCE_FLUSH_TIMEOUT_ERROR }),
+    );
+    vi.useRealTimers();
   });
 
   it('confirms native exit only after the requested async flush settles', async () => {

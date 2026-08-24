@@ -6,6 +6,8 @@ import { flushLongformPendingWritesForExit } from './longformPersistence';
 
 export const DESKTOP_PERSISTENCE_FLUSH_EVENT = 'persistence://flush-requested';
 export const CONFIRM_PERSISTENCE_FLUSH_COMMAND = 'confirm_persistence_flush';
+export const PERSISTENCE_FLUSH_TIMEOUT_ERROR = 'PersistenceFlushTimeoutError';
+const DEFAULT_PERSISTENCE_FLUSH_TIMEOUT_MS = 2_000;
 
 type Unlisten = () => void;
 type Listen = (event: string, handler: () => void) => Promise<Unlisten>;
@@ -14,6 +16,7 @@ export interface PersistenceFlushDependencies {
   flushLongform?: () => Promise<void>;
   flushLocal?: () => FlushSummary;
   warn?: (message: string, error?: unknown) => void;
+  timeoutMs?: number;
 }
 
 export interface DesktopExitHandshakeDependencies extends PersistenceFlushDependencies {
@@ -24,6 +27,26 @@ export interface DesktopExitHandshakeDependencies extends PersistenceFlushDepend
 
 function defaultWarn(message: string, error?: unknown): void {
   console.warn(message, error);
+}
+
+async function settleLongformWithinDeadline(
+  flush: () => Promise<void>,
+  timeoutMs: number,
+): Promise<void> {
+  const task = flush();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = globalThis.setTimeout(() => {
+      const error = new Error('Long-form persistence did not settle before the exit deadline');
+      error.name = PERSISTENCE_FLUSH_TIMEOUT_ERROR;
+      reject(error);
+    }, timeoutMs);
+  });
+  try {
+    await Promise.race([task, deadline]);
+  } finally {
+    if (timeout !== undefined) globalThis.clearTimeout(timeout);
+  }
 }
 
 /**
@@ -37,11 +60,12 @@ export async function flushApplicationPersistence(
   const flushLongform = dependencies.flushLongform ?? flushLongformPendingWritesForExit;
   const flushLocal = dependencies.flushLocal ?? flushLocalPendingWrites;
   const warn = dependencies.warn ?? defaultWarn;
+  const timeoutMs = dependencies.timeoutMs ?? DEFAULT_PERSISTENCE_FLUSH_TIMEOUT_MS;
 
   let longformFailed = false;
   let longformError: unknown;
   try {
-    await flushLongform();
+    await settleLongformWithinDeadline(flushLongform, timeoutMs);
   } catch (error) {
     longformFailed = true;
     longformError = error;
