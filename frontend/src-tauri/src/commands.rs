@@ -1272,9 +1272,9 @@ pub fn reveal_host_path(app: tauri::AppHandle, path: String) -> Result<(), Strin
 
 const CLEAR_WEBVIEW_MARKER: &str = ".clear-webview-cache";
 const WEBVIEW_CACHE_DIR: &str = "EBWebView";
-/// Retry budget for step 2: `app.restart()` spawns the new process before the
-/// old one has fully exited, so its WebView2 children may still hold locks on
-/// the profile — 20 × 500 ms rides out that handoff.
+/// Retry budget for step 2: the requested restart spawns the new process
+/// before the old one has fully exited, so its WebView2 children may still
+/// hold locks on the profile — 20 × 500 ms rides out that handoff.
 const CLEAR_WEBVIEW_ATTEMPTS: u32 = 20;
 const CLEAR_WEBVIEW_RETRY_DELAY: Duration = Duration::from_millis(500);
 
@@ -1347,7 +1347,7 @@ fn clear_webview_cache_at(marker: &Path, cache: &Path, attempts: u32, retry_dela
     if !cache.exists() {
         return;
     }
-    // `app.restart()` spawns the new process before the old one has fully
+    // The requested restart spawns the new process before the old one has fully
     // exited, so its WebView2 children may still hold locks — retry briefly.
     for attempt in 1..=attempts {
         match fs::remove_dir_all(cache) {

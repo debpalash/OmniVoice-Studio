@@ -117,7 +117,10 @@ fn perform_exit_plan(app: &tauri::AppHandle, plan: ExitPlan, source: &str) {
     log::info!("Persistence exit handshake completed via {source}");
     match plan.action {
         ExitAction::Exit => app.exit(plan.code),
-        ExitAction::Restart => app.restart(),
+        // `restart()` may bypass RunEvent delivery when invoked by a command
+        // on the main thread. `request_restart()` reliably returns through the
+        // ExitRequested callback so the tracked backend is shut down first.
+        ExitAction::Restart => app.request_restart(),
         ExitAction::Spawn(args) => {
             match std::env::current_exe()
                 .and_then(|executable| Command::new(executable).args(args).spawn())
