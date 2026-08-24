@@ -198,7 +198,15 @@ class _InboundHarness:
         self.connection = self.worker.NodeConnection(self.servicer, connection)
         self.connector_task = asyncio.create_task(self.connection.run_forever())
         if wait:
-            await _until(lambda: len(self.pool) == 1)
+            def worker_is_ready():
+                if len(self.pool) != 1:
+                    return False
+                live = next(iter(self.pool))
+                return live.record.schedulable and live.supports(
+                    engine=ENGINE, model_id=MODEL, operation=OP
+                )
+
+            await _until(worker_is_ready)
         return self.connection
 
     async def stop(self):
