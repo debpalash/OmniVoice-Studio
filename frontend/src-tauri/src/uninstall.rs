@@ -231,7 +231,11 @@ pub async fn uninstall_purge(
     let purge_app = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let targets = uninstall_scan(purge_app.clone());
-        purge_uninstall_targets(&purge_app, targets, include_models)
+        let result = purge_uninstall_targets(&purge_app, targets, include_models);
+        // Keep rollback in the blocking task: dropping the IPC future (for
+        // example during a navigation) must not strand supervision disabled
+        // after a failed purge that continues running off-thread.
+        finish_uninstall_attempt(&purge_app.state::<AppFlags>().quitting, result)
     })
     .await
     .map_err(|error| {
@@ -239,7 +243,7 @@ pub async fn uninstall_purge(
         "uninstall_task_failed".to_string()
     })
     .and_then(|result| result);
-    finish_uninstall_attempt(&app.state::<AppFlags>().quitting, result)
+    result
 }
 
 #[cfg(test)]
