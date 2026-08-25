@@ -163,10 +163,16 @@ class OwnedPopen:
             return
         except AttributeError:
             # macOS CPython has no os.waitid (#1656): the ECHILD refusal is
-            # approximated by acting only while this handle still owns an
-            # unreaped leader (callers check _returncode first), and
-            # ProcessLookupError below covers the already-exited group.
-            pass
+            # approximated by refusing once the leader is fully gone (kill(0)
+            # ESRCH means reaped, so the pid must not be signalled), and
+            # ProcessLookupError below covers a group that exited meanwhile.
+            # kill(0) on a *reused* pid still succeeds — that residual window
+            # is inherent to the platform (no WNOWAIT equivalent); callers
+            # bound it by checking _returncode before signalling.
+            try:
+                os.kill(self.pid, 0)
+            except ProcessLookupError:
+                return
         try:
             os.killpg(self.pid, sig)
         except ProcessLookupError:

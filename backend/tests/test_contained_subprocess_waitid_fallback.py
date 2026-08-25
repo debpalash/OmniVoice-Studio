@@ -99,3 +99,22 @@ def test_foreign_reaped_leader_is_refused_without_waitid(no_waitid):
         h._close_control()
         if h._result_fd is not None:
             os.close(h._result_fd)
+
+
+def test_kill_after_foreign_reap_does_not_signal_without_waitid(no_waitid):
+    """CodeRabbit #1657: without the waitid ECHILD probe, kill() must not
+    signal a group whose leader was reaped away — kill(0) ESRCH refuses."""
+    import signal as _signal
+    h, proc = _make_owned([sys.executable, "-c", "pass"])
+    try:
+        while True:
+            pid, _ = os.waitpid(proc.pid, os.WNOHANG)
+            if pid == proc.pid:
+                break
+            time.sleep(0.05)
+        # Leader reaped: the guard must return before reaching killpg.
+        h._signal_owned_group(_signal.SIGKILL)  # must not raise / signal
+    finally:
+        h._close_control()
+        if h._result_fd is not None:
+            os.close(h._result_fd)
