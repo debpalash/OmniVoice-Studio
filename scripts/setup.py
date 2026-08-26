@@ -10,6 +10,12 @@
 2. **CUDA: cuDNN 8 compat** — Ensures cuDNN 8 libraries are available for
    CTranslate2 (faster-whisper / WhisperX) alongside PyTorch 2.8+'s cuDNN 9.
 
+3. **AMD ROCm torch (opt-in)** — with `OMNIVOICE_TORCH_VARIANT=rocm` set,
+   replace the lockfile's CUDA torch build (CPU-only on AMD cards) with the
+   ROCm wheel — the same swap the packaged app's bootstrap performs, so a
+   source install (`bun run desktop`) on an AMD GPU is not stuck on CPU. Runs
+   AFTER `uv sync`, which always restores the locked CUDA build (#1665).
+
 Run automatically as part of `bun run setup:api` — no user action required.
 
 Cross-platform:
@@ -36,6 +42,55 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
+
+
+# ── AMD ROCm torch (opt-in) ────────────────────────────────────────────────
+
+# Keep in sync with ROCM_TORCH_INDEX / rocm_torch_reinstall_args in
+# frontend/src-tauri/src/bootstrap.rs and [tool.uv.constraint-dependencies].
+ROCM_TORCH_INDEX = "https://download.pytorch.org/whl/rocm6.4"
+ROCM_TORCH_PINS = ("torch==2.8.0", "torchaudio==2.8.0", "torchvision==0.23.0")
+
+
+def _rocm_opt_in(environ=os.environ):
+    """Return the ROCm wheel index when the user opted in, else None."""
+    if environ.get("OMNIVOICE_TORCH_VARIANT", "").strip().lower() != "rocm":
+        return None
+    return environ.get("OMNIVOICE_TORCH_INDEX") or ROCM_TORCH_INDEX
+
+
+def _installed_torch_is_rocm():
+    try:
+        import torch  # noqa: WPS433 — deliberately lazy; torch is heavy
+    except Exception:
+        return False
+    return bool(getattr(torch.version, "hip", None))
+
+
+def rocm_torch_reinstall_cmd(index_url, python=None):
+    """`uv pip install` argv targeting THIS venv (not whatever uv guesses)."""
+    return [
+        "uv", "pip", "install", "--reinstall",
+        "--python", python or sys.executable,
+        *ROCM_TORCH_PINS,
+        "--index-url", index_url,
+    ]
+
+
+def _ensure_rocm_torch():
+    index_url = _rocm_opt_in()
+    if index_url is None:
+        return
+    if _installed_torch_is_rocm():
+        print("✓ ROCm torch already installed")
+        return
+    print(f"⚙ OMNIVOICE_TORCH_VARIANT=rocm — swapping torch to the ROCm wheel ({index_url})")
+    try:
+        subprocess.check_call(rocm_torch_reinstall_cmd(index_url))
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"⚠ ROCm torch install failed ({exc}); keeping the default torch build")
+        return
+    print("✓ ROCm torch installed")
 
 
 # ── Windows: VC++ Redistributable ─────────────────────────────────────────
@@ -152,6 +207,10 @@ def main():
     # macOS — no CUDA, nothing to do
     if sys.platform == "darwin":
         return
+
+    # ── Step 2: opt-in AMD ROCm torch (Linux) ─────────────────────────────
+    if sys.platform.startswith("linux"):
+        _ensure_rocm_torch()
 
     compat_dir = _find_compat_dir()
     if compat_dir is None:
