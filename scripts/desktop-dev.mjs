@@ -18,7 +18,7 @@
 // @tauri-apps/cli. All extra args are forwarded untouched.
 // ──────────────────────────────────────────────────────────────────────────
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, delimiter } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
@@ -113,6 +113,15 @@ if (!cargoResolvable(childEnv)) {
     process.exit(1);
   }
 }
+
+// `frontend/dist` is a `bundle.resources` entry in tauri.conf.json, and
+// Tauri's build script refuses to compile when a listed resource path is
+// missing — even under `tauri dev`, where the UI is served by Vite and no
+// `dist` is ever produced. A fresh clone therefore died with
+// "resource path `../../frontend/dist` doesn't exist". Create the (possibly
+// empty) directory so the first `bun run desktop` compiles; harmless when a
+// real `vite build` output is already there.
+mkdirSync(join(process.cwd(), "dist"), { recursive: true });
 
 // Run the workspace-local Tauri CLI in dev mode (cwd is already frontend/),
 // handing it the healed env so its `cargo` spawns inherit the fixed PATH.
