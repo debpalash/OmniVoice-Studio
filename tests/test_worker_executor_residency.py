@@ -19,6 +19,7 @@ than as silence the server has to guess about.
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
@@ -81,6 +82,33 @@ class _FakeBackend:
     def unload(self) -> None:
         type(self).unloaded += 1
 
+
+@pytest.mark.asyncio
+async def test_cancelling_execution_drains_the_blocking_engine_thread(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+
+    def blocked_load(_engine):
+        started.set()
+        release.wait(5)
+        finished.set()
+        return _FakeBackend()
+
+    monkeypatch.setattr(TaskExecutor, "_load_backend", staticmethod(blocked_load))
+    execution = asyncio.create_task(TaskExecutor().execute(_FakeAssignment()))
+    await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=1)
+
+    try:
+        execution.cancel()
+        await asyncio.sleep(0)
+        assert not execution.done(), "authority returned while the load thread was active"
+    finally:
+        release.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(execution, timeout=1)
+    assert finished.is_set()
 
 @pytest.fixture(autouse=True)
 def _live_tts_backend():

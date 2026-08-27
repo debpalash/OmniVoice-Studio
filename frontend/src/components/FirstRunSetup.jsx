@@ -413,11 +413,18 @@ export default function FirstRunSetup() {
       // normal bootstrap progress UI takes over. Nothing to do here.
     } catch (e) {
       if (mounted.current) {
-        setServerError(String(e));
+        const message = e instanceof Error ? e.message : String(e);
+        setServerError(
+          message === 'backend_stop_failed'
+            ? t('firstrun.backend_stop_failed')
+            : message === 'setup_task_failed'
+              ? t('bootstrap.unknown_error')
+              : message,
+        );
         setSubmitting(false);
       }
     }
-  }, [plan, submitting, locale]);
+  }, [plan, submitting, locale, t]);
 
   if (!setup || !plan) {
     return (

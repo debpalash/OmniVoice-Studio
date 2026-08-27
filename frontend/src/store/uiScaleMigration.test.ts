@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { discardPendingWrites } from '../utils/coalescedJsonStorage';
+import { discardLongformPendingWrites } from '../utils/longformPersistence';
 import { APP_STORE_KEY, useAppStore } from './index';
 
 const persist = async (state: object, version: number) => {
   // The test deliberately replaces durable storage with an old fixture. A
   // pending current-state write must not mask that fixture during rehydrate.
+  discardLongformPendingWrites();
   discardPendingWrites((key) => key === APP_STORE_KEY);
   localStorage.setItem(APP_STORE_KEY, JSON.stringify({ state, version }));
   await useAppStore.persist.rehydrate();

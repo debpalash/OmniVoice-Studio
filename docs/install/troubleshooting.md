@@ -632,6 +632,20 @@ the error persistently on a current build, that's section **14** (a wedged GPU
 job), section **14d** (the backend never started), or the crash notice above —
 not this window.
 
+Desktop startup, **Retry**, storage reset, setup re-entry, in-app uninstall,
+app shutdown, and automatic crash recovery also share one backend lifecycle
+owner. Overlapping start attempts wait and attach to the healthy process,
+while reset/setup/uninstall keep exclusive ownership through teardown and
+disk changes, and shutdown joins any in-progress launch before stopping it.
+They no longer launch a second backend that fails on port 3900, leave a
+misleading crash notice, delete an environment from under a starting child,
+or orphan one on exit. Quitting also interrupts a first-run `uv` install
+instead of waiting for a long download to finish. Unix builds give backend
+lifespan cleanup a bounded SIGTERM grace period; Windows' hidden backend has no
+console, so its initial stop is best-effort and may proceed directly to the
+bounded forced tree cleanup. Surviving subprocess engines cannot retain ports
+or files (#1635).
+
 ## 14c. "Can't reach the backend" in a browser — `bun run dev`, Docker, or LAN share
 
 **Symptom:** you're using VoiceStudio **outside the desktop app** — the dev
@@ -732,7 +746,7 @@ IPC custom protocol failed, Tauri will now use the postMessage interface instead
 TypeError: Failed to fetch
 ```
 
-**Cause:** the crash corrupted the WebView2 profile cache at
+**Cause:** the crash corrupted cache directories inside the WebView2 profile at
 `%LOCALAPPDATA%\com.debpalash.omnivoice-studio\EBWebView`. Both the IPC custom
 protocol *and* its postMessage fallback break, so the splash never hears the
 "ready" signal from the app shell (issue #879).
@@ -740,16 +754,25 @@ protocol *and* its postMessage fallback break, so the splash never hears the
 **Fix:** current builds handle this automatically — if the splash gets no IPC
 signal within ~10 s it checks the backend over plain HTTP and proceeds on its
 own; if the backend isn't up either, after ~45 s a recovery panel appears with
-**Repair and restart** (Windows), which clears the WebView cache and relaunches.
-Your voices, projects, and settings are not touched — only browser display data
-is cleared.
+**Repair and restart** (Windows), which clears cache-only directories and
+relaunches. It deliberately preserves `Default\Local Storage` and
+`Default\IndexedDB`, where browser-owned settings and long-form projects live.
 
 On older builds (≤ 0.3.8), or if the automatic repair fails, do it manually:
-quit VoiceStudio, delete the folder below, then start the app again.
+quit VoiceStudio, delete only the cache directories below, then start the app
+again. Do not delete the whole `EBWebView` profile; doing so also deletes
+browser-owned projects and settings.
 
 <!-- validate: skip -->
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
+$voiceStudioWebView = "$env:LOCALAPPDATA\com.debpalash.omnivoice-studio\EBWebView"
+@(
+  "Default\Cache", "Default\Code Cache", "Default\GPUCache", "Default\DawnCache",
+  "Default\Service Worker\CacheStorage", "Default\Service Worker\ScriptCache",
+  "GPUCache", "DawnCache", "ShaderCache", "GrShaderCache", "GraphiteDawnCache"
+) | ForEach-Object {
+  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $voiceStudioWebView $_)
+}
 ```
 
 ## 16. macOS: microphone permission never prompts, VoiceStudio never appears in System Settings

@@ -185,6 +185,33 @@ def test_no_temp_file_is_left_behind(tmp_path):
     assert not (tmp_path / "worker.key.tmp").exists()
 
 
+def test_partial_private_key_write_never_replaces_the_identity(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "worker.key"
+    original = WorkerKeypair.generate()
+    identity.save_worker_key(str(path), original)
+    original_bytes = path.read_bytes()
+    real_write = identity.os.write
+    writes = 0
+
+    def short_then_fail(fd, payload):
+        nonlocal writes
+        writes += 1
+        if writes == 1:
+            return real_write(fd, payload[:16])
+        raise OSError("disk full")
+
+    monkeypatch.setattr(identity.os, "write", short_then_fail)
+
+    with pytest.raises(OSError, match="disk full"):
+        identity.save_worker_key(str(path), WorkerKeypair.generate())
+
+    assert writes == 2
+    assert path.read_bytes() == original_bytes
+    assert not (tmp_path / "worker.key.tmp").exists()
+
+
 def test_load_or_create_is_stable_across_calls(tmp_path):
     path = str(tmp_path / "worker.key")
     first = identity.load_or_create_worker_key(path)

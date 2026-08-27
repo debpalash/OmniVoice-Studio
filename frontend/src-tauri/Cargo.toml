@@ -90,7 +90,7 @@ windows-core = "0.61"
 # `HWND` type — no second copy of the crate enters the dependency graph.
 # Win32_System_Registry: check_microphone reads the CapabilityAccessManager
 # ConsentStore mic toggle (RegGetValueW) for the permissions UX.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_Threading"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Diagnostics_ToolHelp", "Win32_Security"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

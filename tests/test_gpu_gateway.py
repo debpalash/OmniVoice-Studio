@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -201,6 +202,61 @@ async def test_admission_is_local_only(tmp_path, pool_executor, monkeypatch):
         admit=True, executor=pool_executor,
     )
     assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_gateway_input_staging_does_not_block_the_control_plane(
+    tmp_path, monkeypatch
+):
+    from worker import task_store
+    from worker.lifecycle import TaskState
+    from worker.pool import WorkerPool
+    from worker.scheduler import Scheduler
+
+    scheduler = Scheduler(WorkerPool(), persist=True)
+    stage_started = threading.Event()
+    release_stage = threading.Event()
+    staging_thread = []
+
+    def blocked_create(task, **_kwargs):
+        staging_thread.append(threading.current_thread())
+        stage_started.set()
+        assert release_stage.wait(timeout=2)
+        return task
+
+    async def no_preflight(*_args, **_kwargs):
+        pass
+
+    async def settle(active, task_id, **_kwargs):
+        task = active.get(task_id)
+        task.state = TaskState.COMPLETED
+        result = tmp_path / "result.bin"
+        result.write_bytes(b"result")
+        task.result_ref = str(result)
+        return task
+
+    monkeypatch.setattr(task_store, "create", blocked_create)
+    monkeypatch.setattr(gpu_gateway, "preflight", no_preflight)
+    monkeypatch.setattr(gpu_gateway, "_await_task", settle)
+    running = asyncio.create_task(
+        gpu_gateway._run_remote(
+            remote_call(decode=lambda result: result.task_id),
+            REMOTE,
+            control_plane=FakePlane(scheduler),
+        )
+    )
+    while not stage_started.is_set():
+        await asyncio.sleep(0)
+
+    try:
+        await asyncio.wait_for(asyncio.sleep(0), timeout=0.1)
+        assert not running.done()
+        assert len(staging_thread) == 1
+        assert staging_thread[0] is not threading.current_thread()
+    finally:
+        release_stage.set()
+
+    assert await running
 
 
 @pytest.mark.asyncio

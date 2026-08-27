@@ -230,6 +230,59 @@ fn write_portable_pointer(base: &Path) -> Option<&'static str> {
     Some(flavour)
 }
 
+#[derive(Debug)]
+struct FileSnapshot {
+    path: PathBuf,
+    contents: Option<Vec<u8>>,
+}
+
+fn snapshot_file(path: PathBuf) -> Result<FileSnapshot, String> {
+    let contents = match fs::read(&path) {
+        Ok(contents) => Some(contents),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("Could not snapshot {}: {error}", path.display())),
+    };
+    Ok(FileSnapshot { path, contents })
+}
+
+fn snapshot_portable_location() -> Result<Vec<FileSnapshot>, String> {
+    [portable_pointer_path(), config::config_path_for_machine()]
+        .into_iter()
+        .flatten()
+        .map(snapshot_file)
+        .collect()
+}
+
+fn restore_file(snapshot: FileSnapshot) -> Result<(), String> {
+    match snapshot.contents {
+        Some(contents) => {
+            if let Some(parent) = snapshot.path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|error| format!("Could not restore {}: {error}", parent.display()))?;
+            }
+            fs::write(&snapshot.path, contents)
+                .map_err(|error| format!("Could not restore {}: {error}", snapshot.path.display()))
+        }
+        None => match fs::remove_file(&snapshot.path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("Could not restore {}: {error}", snapshot.path.display())),
+        },
+    }
+}
+
+fn restore_portable_location(snapshots: Vec<FileSnapshot>) -> Result<(), String> {
+    let errors: Vec<String> = snapshots
+        .into_iter()
+        .filter_map(|snapshot| restore_file(snapshot).err())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
 /// Persist where a relocated portable folder lives, so the next launch finds
 /// it. Prefers the pointer file (portability preserved); falls back to the
 /// per-user config when the app folder is read-only.
@@ -882,9 +935,26 @@ pub fn check_install_target(path: String) -> TargetCheck {
 /// parked) bootstrap. Any `Err` keeps the app in `AwaitingSetup` with the
 /// message surfaced on the setup screen — nothing was installed.
 #[tauri::command]
-pub fn complete_setup(
+pub async fn complete_setup(
     app: tauri::AppHandle,
     state: tauri::State<'_, BootstrapState>,
+    plan: InstallPlan,
+) -> Result<(), String> {
+    let owned_state = BootstrapState {
+        stage: state.stage.clone(),
+        logs: state.logs.clone(),
+    };
+    tauri::async_runtime::spawn_blocking(move || complete_setup_blocking(app, owned_state, plan))
+        .await
+        .map_err(|error| {
+            log::error!("Setup task failed to join: {error}");
+            "setup_task_failed".to_string()
+        })?
+}
+
+fn complete_setup_blocking(
+    app: tauri::AppHandle,
+    state: BootstrapState,
     plan: InstallPlan,
 ) -> Result<(), String> {
     if !matches!(plan.install_mode.as_str(), "installed" | "portable") {
@@ -942,34 +1012,12 @@ pub fn complete_setup(
     }
     cfg.locale = plan.locale.clone().filter(|l| !l.is_empty());
 
-    if plan.install_mode == "portable" {
-        // Create the portable folder and seed config.json INSIDE it first, so
-        // `config_path` resolves portable from here on and the whole install
-        // (env + data + config) travels as one folder.
-        let base = planned_portable_base(&plan).ok_or("Portable anchor disappeared")?;
-        fs::create_dir_all(&base).map_err(|e| format!("Could not create {}: {e}", base.display()))?;
-        // Record WHERE it is before seeding it — `portable_base()` has to
-        // resolve to this folder on the next launch, and the config inside it
-        // cannot say so (nothing would know where to look).
-        if base != portable_anchor().map(|a| a.join(PORTABLE_DIR_NAME)).unwrap_or_default() {
-            let how = record_portable_dir(&app, &base)?;
-            log::info!("Portable folder relocated — recorded via {how}");
-        } else {
-            // Back to the default: drop any earlier relocation so a stale
-            // pointer can't outrank it.
-            clear_portable_dir(&app);
-        }
-        config::save_config_at(&base.join("config.json"), &cfg)?;
-    } else {
+    if plan.install_mode != "portable" {
         for (dir, _) in &targets {
-            fs::create_dir_all(dir).map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
+            fs::create_dir_all(dir)
+                .map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
         }
     }
-    // The plan must actually persist before bootstrap starts — a swallowed
-    // write error here would bootstrap into a stale layout from disk while
-    // the UI reports success.
-    let cfg_path = config::config_path(&app).ok_or("Could not resolve the config file path")?;
-    config::save_config_at(&cfg_path, &cfg)?;
 
     // Custom paths are home-relative PII — log default-vs-custom flags, not
     // the raw locations.
@@ -982,22 +1030,80 @@ pub fn complete_setup(
         custom(&cfg.models_dir),
     );
 
-    // `--setup` re-entry: a backend from the previous configuration may
-    // still be serving. retry_bootstrap would attach to it and the new
-    // env/mirror/layout settings would never apply — tear it down so the
-    // restart spawns with the just-saved plan. (No-op on a true first run:
-    // nothing is listening yet.)
-    if crate::backend::port_in_use(crate::backend_port()) {
-        log::info!(
-            "Backend still running on port {} — restarting it so the new setup applies",
-            crate::backend_port()
-        );
-        crate::backend::kill_orphan_on_port(crate::backend_port());
-        std::thread::sleep(std::time::Duration::from_millis(500));
+    // `--setup` re-entry: stop the previous backend before committing the new
+    // durable layout. A failed stop must leave the old config/pointer active;
+    // otherwise its automatic recovery would launch against a half-applied
+    // setup plan.
+    let persisted = crate::bootstrap::with_backend_stopped(&app, || -> Result<(), String> {
+        let previous_location = if plan.install_mode == "portable" {
+            Some(snapshot_portable_location()?)
+        } else {
+            None
+        };
+        let result = (|| -> Result<(), String> {
+            if plan.install_mode == "portable" {
+                // Create the portable folder and seed config.json INSIDE it first,
+                // so `config_path` resolves portable from here on and the whole
+                // install (env + data + config) travels as one folder.
+                let base = planned_portable_base(&plan).ok_or("Portable anchor disappeared")?;
+                fs::create_dir_all(&base)
+                    .map_err(|e| format!("Could not create {}: {e}", base.display()))?;
+                // Record WHERE it is before seeding it — `portable_base()` has to
+                // resolve to this folder on the next launch, and the config inside
+                // it cannot say so (nothing would know where to look).
+                if base
+                    != portable_anchor()
+                        .map(|a| a.join(PORTABLE_DIR_NAME))
+                        .unwrap_or_default()
+                {
+                    let how = record_portable_dir(&app, &base)?;
+                    log::info!("Portable folder relocated — recorded via {how}");
+                } else {
+                    // Back to the default: drop any earlier relocation so a stale
+                    // pointer can't outrank it.
+                    clear_portable_dir(&app);
+                }
+                config::save_config_at(&base.join("config.json"), &cfg)?;
+            }
+            // The plan must actually persist before bootstrap starts — a swallowed
+            // write error here would bootstrap into a stale layout from disk while
+            // the UI reports success.
+            let cfg_path =
+                config::config_path(&app).ok_or("Could not resolve the config file path")?;
+            config::save_config_at(&cfg_path, &cfg)
+        })();
+        match (result, previous_location) {
+            (Err(error), Some(snapshot)) => match restore_portable_location(snapshot) {
+                Ok(()) => Err(error),
+                Err(rollback_error) => Err(format!(
+                    "{error}; could not restore the previous portable location: {rollback_error}"
+                )),
+            },
+            (result, _) => result,
+        }
+    });
+    match persisted {
+        Err(error) => {
+            // with_backend_stopped already re-arms the old backend for every
+            // non-terminal caller.
+            log::warn!("Setup could not stop the previous backend: {error}");
+            return Err("backend_stop_failed".into());
+        }
+        Ok(Err(error)) => {
+            // The stop succeeded but persistence did not; restore service on
+            // the surviving layout instead of leaving the settings UI down.
+            crate::bootstrap::respawn_backend(
+                app,
+                state.stage.clone(),
+                state.logs.clone(),
+            );
+            return Err(error);
+        }
+        Ok(Ok(())) => {}
     }
 
     set_stage(&state.stage, BootstrapStage::Checking);
-    crate::bootstrap::retry_bootstrap(app, state);
+    crate::bootstrap::respawn_backend(app, state.stage, state.logs);
     Ok(())
 }
 
@@ -1034,6 +1140,29 @@ mod tests {
         // path would resolve back to the anchor and lose the folder.
         let (_, flavour) = pointer_payload(anchor, anchor);
         assert_eq!(flavour, "pointer-absolute");
+    }
+
+    #[test]
+    fn file_snapshot_restores_present_and_absent_files() {
+        let root = std::env::temp_dir().join(format!(
+            "ov-portable-snapshot-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let present = root.join("present");
+        let absent = root.join("absent");
+        fs::write(&present, b"old").unwrap();
+        let present_snapshot = snapshot_file(present.clone()).unwrap();
+        let absent_snapshot = snapshot_file(absent.clone()).unwrap();
+
+        fs::write(&present, b"new").unwrap();
+        fs::write(&absent, b"new").unwrap();
+        restore_portable_location(vec![present_snapshot, absent_snapshot]).unwrap();
+
+        assert_eq!(fs::read(&present).unwrap(), b"old");
+        assert!(!absent.exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     /// Portable-folder relocation (#1403 follow-up). One test fn, not several:

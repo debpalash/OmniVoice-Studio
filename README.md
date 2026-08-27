@@ -60,7 +60,7 @@
 | macOS 13.3+ | DMG, Apple Silicon | [Install on macOS](docs/install/macos.md) |
 | Windows 10/11 | MSI, x64 | [Install on Windows](docs/install/windows.md) |
 | Linux | AppImage, x86_64 with glibc 2.39+ | [Install on Linux](docs/install/linux.md) |
-| Docker | CUDA, ROCm, or CPU | [Run with Docker](docs/install/docker.md) |
+| Docker | CUDA, ROCm, or CPU; worker-only GPU profiles | [Run with Docker](docs/install/docker.md) |
 
 Download packages from the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest). First launch creates a managed Python environment and downloads the default model. Later launches reuse both.
 

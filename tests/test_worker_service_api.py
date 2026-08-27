@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import threading
 
 import pytest
 
@@ -93,6 +94,38 @@ async def test_a_failing_start_never_takes_the_app_down(monkeypatch):
     monkeypatch.setattr(service.control_plane, "start", _boom)
     await service.start_if_enabled()  # must not raise
     assert service.control_plane.startup_error == "port already in use"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_control_plane_starts_publish_only_one_generation(
+    monkeypatch,
+):
+    plane = service.ControlPlane()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    async def staged_start(*, port=None):
+        nonlocal calls
+        if plane._started:
+            return
+        calls += 1
+        entered.set()
+        await release.wait()
+        plane._started = True
+        plane._port = port
+
+    monkeypatch.setattr(plane, "_start", staged_start)
+    first = asyncio.create_task(plane.start(port=7601))
+    await asyncio.wait_for(entered.wait(), timeout=1)
+    second = asyncio.create_task(plane.start(port=7602))
+    await asyncio.sleep(0)
+
+    assert calls == 1
+    release.set()
+    await asyncio.gather(first, second)
+    assert calls == 1
+    assert plane._port == 7601
 
 
 def test_paths_live_under_the_user_data_directory():
@@ -345,15 +378,39 @@ async def test_enrollment_advertises_the_port_actually_bound(db, monkeypatch, tm
         },
     )
     monkeypatch.delenv("OMNIVOICE_WORKER_PORT", raising=False)
-    monkeypatch.delenv("OMNIVOICE_WORKER_ENDPOINT_HOST", raising=False)
+    monkeypatch.setenv("OMNIVOICE_WORKER_ENDPOINT_HOST", "panel.tailnet.example")
 
     plane = service.ControlPlane()
     await plane.start(port=7601)
     try:
-        assert plane.default_endpoint().endswith(":7601")
-        assert plane.create_enrollment().endpoint.endswith(":7601")
+        from worker import tls
+
+        assert plane.default_endpoint() == "panel.tailnet.example:7601"
+        assert plane.create_enrollment().endpoint == "panel.tailnet.example:7601"
+        assert tls.covers(plane.credentials, "panel.tailnet.example")
     finally:
         await plane.stop()
+
+
+def test_enrollment_refuses_a_host_absent_from_the_live_certificate(
+    client, monkeypatch
+):
+    """Rotating only the token pin cannot add a SAN to the running server."""
+    from worker import tls
+
+    monkeypatch.setattr(service.control_plane, "_started", True)
+    monkeypatch.setattr(
+        service.control_plane,
+        "credentials",
+        tls.generate_self_signed(hostnames=["localhost"]),
+    )
+
+    response = client.post(
+        "/workers/enrollments", json={"endpoint": "panel.tailnet.example:7443"}
+    )
+
+    assert response.status_code == 409
+    assert "OMNIVOICE_WORKER_ENDPOINT_HOST" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -374,6 +431,40 @@ async def test_stopping_releases_everyone_awaiting_a_task():
 
     with pytest.raises(SchedulerStopped):
         await waiter
+
+
+@pytest.mark.asyncio
+async def test_production_artifact_gc_uses_a_bounded_off_loop_batch(
+    tmp_path, monkeypatch
+):
+    from worker import task_store
+
+    calls = []
+    main_thread = threading.current_thread()
+
+    def purge_finished(**kwargs):
+        calls.append((kwargs, threading.current_thread()))
+        return 7
+
+    class Servicer:
+        def __init__(self):
+            self.retries = 0
+
+        def sweep_orphaned_upload_parts(self):
+            self.retries += 1
+
+    monkeypatch.setattr(task_store, "purge_finished", purge_finished)
+    plane = service.ControlPlane()
+    plane.servicer = Servicer()
+    artifact_root = str(tmp_path / "artifacts")
+
+    assert await plane._artifact_gc_once(artifact_root) == 7
+    assert calls[0][0] == {
+        "root": artifact_root,
+        "limit": service._ARTIFACT_GC_BATCH_SIZE,
+    }
+    assert calls[0][1] is not main_thread
+    assert plane.servicer.retries == 1
 
 
 def test_endpoint_falls_back_to_the_configured_port_when_stopped(monkeypatch):
@@ -441,6 +532,14 @@ def test_resume_clears_open_breakers(client, db, monkeypatch):
             now=1000.0,
         )
     assert pool.breakers.allows(worker.id, "e:m", now=1000.0) is False
+    breaker = pool.breakers.get(worker.id, "e:m")
+    real_force_close = breaker.force_close
+
+    def force_close_on_owner_loop():
+        asyncio.get_running_loop()
+        real_force_close()
+
+    monkeypatch.setattr(breaker, "force_close", force_close_on_owner_loop)
 
     monkeypatch.setattr(service.control_plane, "pool", pool)
     monkeypatch.setattr(type(service.control_plane), "running", property(lambda self: True))
@@ -676,6 +775,67 @@ def test_the_real_scheduler_agrees_with_how_the_endpoint_drives_it(client, monke
     assert submitted.state is TaskState.CANCELLED
 
 
+@pytest.mark.asyncio
+async def test_dev_task_input_staging_keeps_the_request_loop_responsive(
+    monkeypatch
+):
+    from api.routers import workers as workers_router
+    from worker import routing, task_store
+    from worker.lifecycle import TaskState
+    from worker.pool import WorkerPool
+    from worker.routing import Decision
+    from worker.scheduler import Scheduler
+
+    scheduler = Scheduler(WorkerPool(), persist=True)
+    stage_started = threading.Event()
+    release_stage = threading.Event()
+    staging_thread = []
+
+    def blocked_create(task, **_kwargs):
+        staging_thread.append(threading.current_thread())
+        stage_started.set()
+        assert release_stage.wait(timeout=2)
+        return task
+
+    async def settle(_request, active, task_id, **_kwargs):
+        task = active.get(task_id)
+        task.state = TaskState.COMPLETED
+        return task
+
+    monkeypatch.setattr(task_store, "create", blocked_create)
+    monkeypatch.setattr(service, "remote_workers_enabled", lambda: True)
+    monkeypatch.setattr(
+        type(service.control_plane), "running", property(lambda self: True)
+    )
+    monkeypatch.setattr(service.control_plane, "scheduler", scheduler)
+    monkeypatch.setattr(routing, "supports_operation", lambda _operation: True)
+    monkeypatch.setattr(
+        routing,
+        "decide",
+        lambda *args, **kwargs: Decision(True, "worker-1", "GPU", "chosen"),
+    )
+    monkeypatch.setattr(workers_router, "_await_terminal", settle)
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    body = workers_router.SubmitTaskRequest(**_BODY)
+    submitting = asyncio.create_task(workers_router.submit_task(Request(), body))
+    while not stage_started.is_set():
+        await asyncio.sleep(0)
+
+    try:
+        await asyncio.wait_for(asyncio.sleep(0), timeout=0.1)
+        assert not submitting.done()
+        assert len(staging_thread) == 1
+        assert staging_thread[0] is not threading.current_thread()
+    finally:
+        release_stage.set()
+
+    assert (await submitting)["state"] == "completed"
+
+
 def test_a_disconnecting_client_cancels_the_task(client, monkeypatch):
     """Otherwise the tab closes, the request is abandoned, and the 4090 keeps
     rendering — holding its only slot — for something nobody will collect."""
@@ -770,6 +930,79 @@ def test_disabling_a_connected_worker_shows_immediately(client, db, monkeypatch,
     assert entry["enabled"] is False
 
 
+def test_revoke_cannot_dispatch_after_commit_before_live_disconnect(
+    client, db, monkeypatch, tmp_path
+):
+    """The durable tombstone and live-pool removal are one authority change."""
+    from worker import registry
+    from worker.scheduler import Scheduler
+
+    worker, pool = _plane_with_connected_worker(monkeypatch, tmp_path)
+    registry.update_capabilities(
+        worker.id,
+        capabilities=[
+            {
+                "engine": "e",
+                "model_id": "m",
+                "operations": ["tts"],
+                "supported": True,
+                "installed": True,
+            }
+        ],
+    )
+    pool.refresh_record(registry.get(worker.id))
+    scheduler = Scheduler(pool, persist=False)
+    scheduler.submit(
+        operation="tts",
+        engine="e",
+        model_id="m",
+        deadline_seconds=60,
+    )
+    monkeypatch.setattr(service.control_plane, "scheduler", scheduler)
+
+    after_commit = threading.Event()
+    allow_disconnect = threading.Event()
+    real_disconnect = scheduler.on_disconnected
+
+    def delayed_disconnect(worker_id):
+        after_commit.set()
+        assert allow_disconnect.wait(2), "test did not release live publication"
+        return real_disconnect(worker_id)
+
+    monkeypatch.setattr(scheduler, "on_disconnected", delayed_disconnect)
+    observed = {}
+
+    def revoke():
+        observed["response"] = client.delete(f"/workers/{worker.id}")
+
+    revoke_thread = threading.Thread(target=revoke)
+    revoke_thread.start()
+    assert after_commit.wait(2), "revoke never reached its live publication"
+    with sqlite3.connect(db) as conn:
+        assert conn.execute(
+            "SELECT revoked FROM remote_workers WHERE id = ?", (worker.id,)
+        ).fetchone()[0] == 1
+
+    assignment_finished = threading.Event()
+
+    def assign():
+        observed["assignment"] = scheduler.next_assignment()
+        assignment_finished.set()
+
+    assignment_thread = threading.Thread(target=assign)
+    assignment_thread.start()
+    assert not assignment_finished.wait(0.05), "revoked worker received new work"
+
+    allow_disconnect.set()
+    revoke_thread.join(2)
+    assignment_thread.join(2)
+
+    assert not revoke_thread.is_alive()
+    assert not assignment_thread.is_alive()
+    assert observed["response"].status_code == 200
+    assert observed["assignment"] is None
+
+
 def test_the_pool_copy_is_refreshed_too(client, db, monkeypatch, tmp_path):
     """Otherwise the scheduler's logs keep naming the worker by its old name."""
     worker, pool = _plane_with_connected_worker(monkeypatch, tmp_path)
@@ -777,6 +1010,104 @@ def test_the_pool_copy_is_refreshed_too(client, db, monkeypatch, tmp_path):
     client.patch(f"/workers/{worker.id}", json={"name": "Studio 4090"})
 
     assert pool.get(worker.id).name == "Studio 4090"
+
+
+def test_worker_update_keeps_sqlite_off_loop_and_live_publication_on_loop(
+    client, db, monkeypatch, tmp_path
+):
+    from api.routers import workers as worker_routes
+
+    worker, pool = _plane_with_connected_worker(monkeypatch, tmp_path)
+    real_persist = worker_routes._persist_worker_update
+    real_refresh = pool.refresh_record
+    observed = {"durable_off_loop": False, "live_on_loop": False}
+
+    def persist_off_loop(worker_id, request):
+        with pytest.raises(RuntimeError, match="no running event loop"):
+            asyncio.get_running_loop()
+        observed["durable_off_loop"] = True
+        return real_persist(worker_id, request)
+
+    def refresh_on_loop(record):
+        asyncio.get_running_loop()
+        observed["live_on_loop"] = True
+        return real_refresh(record)
+
+    monkeypatch.setattr(worker_routes, "_persist_worker_update", persist_off_loop)
+    monkeypatch.setattr(pool, "refresh_record", refresh_on_loop)
+
+    response = client.patch(f"/workers/{worker.id}", json={"name": "Loop-owned"})
+
+    assert response.status_code == 200
+    assert observed == {"durable_off_loop": True, "live_on_loop": True}
+
+
+def test_multi_field_worker_update_is_durable_and_live_atomic(
+    client, db, monkeypatch, tmp_path
+):
+    from worker import registry
+
+    worker, pool = _plane_with_connected_worker(monkeypatch, tmp_path)
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "CREATE TRIGGER fail_late_worker_policy "
+            "BEFORE UPDATE OF name, enabled, priority ON remote_workers "
+            "WHEN NEW.priority = 91 BEGIN "
+            "SELECT RAISE(ABORT, 'late policy write failed'); END"
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="late policy write failed"):
+        client.patch(
+            f"/workers/{worker.id}",
+            json={"enabled": False, "priority": 91},
+        )
+
+    durable = registry.get(worker.id)
+    live = pool.get(worker.id)
+    assert durable is not None
+    assert live is not None
+    assert (durable.enabled, durable.priority) == (True, 50)
+    assert (live.record.enabled, live.record.priority) == (True, 50)
+    assert live.registration_pending is False
+
+
+def test_revoke_mutates_sessions_scheduler_and_breakers_on_owner_loop(
+    client, db, monkeypatch, tmp_path
+):
+    worker, pool = _plane_with_connected_worker(monkeypatch, tmp_path)
+    calls: list[str] = []
+
+    class Servicer:
+        def revoke_worker_sessions(self, worker_id):
+            asyncio.get_running_loop()
+            calls.append(f"session:{worker_id}")
+            return 1
+
+    class Scheduler:
+        def on_disconnected(self, worker_id):
+            asyncio.get_running_loop()
+            calls.append(f"scheduler:{worker_id}")
+            pool.disconnect(worker_id)
+
+    real_forget = pool.breakers.forget_worker
+
+    def forget_on_loop(worker_id):
+        asyncio.get_running_loop()
+        calls.append(f"breaker:{worker_id}")
+        real_forget(worker_id)
+
+    monkeypatch.setattr(service.control_plane, "servicer", Servicer())
+    monkeypatch.setattr(service.control_plane, "scheduler", Scheduler())
+    monkeypatch.setattr(pool.breakers, "forget_worker", forget_on_loop)
+
+    response = client.delete(f"/workers/{worker.id}")
+
+    assert response.status_code == 200
+    assert calls == [
+        f"session:{worker.id}",
+        f"scheduler:{worker.id}",
+        f"breaker:{worker.id}",
+    ]
 
 
 def test_live_fields_still_come_from_the_pool(client, db, monkeypatch, tmp_path):

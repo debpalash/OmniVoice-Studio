@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projeler yüklenemedi",
+    "storage_unavailable_body": "VoiceStudio yerel proje depolamasını okuyamadı. Verileriniz değiştirilmedi. Güvenle açmak için yeniden deneyin.",
+    "clear_projects": "Kayıtlı projeleri temizle",
+    "clear_confirm": "VoiceStudio'nun yeniden açılabilmesi için kayıtlı tüm Hikâyeler ve Sesli Kitap projeleri ile kaydedilmemiş tüm taslaklar kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?"
+  },
   "backendUnreachable": {
     "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",
     "contact_never": "Bu oturumda hiç yanıt vermedi — hiç başlamamış olabilir.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Kaydedilemedi: {{message}}",
     "shortcut_reset": "Varsayılana sıfırla",
     "shortcut_reset_failed": "Sıfırlama başarısız oldu: {{message}}",
+    "reset_longform_failed": "VoiceStudio kaydedilmiş projeleri güvenli bir şekilde temizleyemedi. Proje verileriniz değiştirilmedi; depolama alanı açın veya uygulamayı yeniden başlatıp tekrar deneyin.",
     "cancel": "İptal",
     "hf_token_also_clear": "Ayrıca temizle",
     "hf_token_clear_btn": "Belirteci temizle",
@@ -2191,6 +2198,7 @@
     "retry_load": "Yeniden dene"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio önceki arka ucu güvenli biçimde durduramadı. Diğer VoiceStudio pencerelerini veya işlemlerini kapatıp yeniden deneyin.",
     "loading": "Kurulum hazırlanıyor…",
     "title": "VoiceStudio'yu kur",
     "subtitle": "Henüz hiçbir şey kurulmadı — her şeyin nereye gideceğini gözden geçirin, sonra başlatın. Daha sonra Ayarlar'dan değiştirebilirsiniz.",

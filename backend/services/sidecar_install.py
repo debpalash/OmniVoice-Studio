@@ -60,6 +60,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from core.config import DATA_DIR
+from core.contained_subprocess import OwnedPopen, spawn_owned
 
 logger = logging.getLogger("omnivoice.sidecar_install")
 
@@ -998,6 +999,11 @@ def _step_persist(spec: SidecarSpec, job: dict) -> None:
 # ── Subprocess runner with live log capture ────────────────────────────────
 
 
+def _install_containment_kwargs() -> dict:
+    """Nested process-group/Job ownership is supplied by ``spawn_owned``."""
+    return {}
+
+
 def _run_logged(job: dict, argv: list[str], *, timeout: float,
                 env: "dict[str, str] | None" = None) -> int:
     """Run *argv*, streaming combined stdout+stderr lines into the job log.
@@ -1012,13 +1018,11 @@ def _run_logged(job: dict, argv: list[str], *, timeout: float,
     killed child — a blocking ``for line in proc.stdout`` on this thread
     would hang past the timeout waiting for pipe EOF.
     """
-    popen_kwargs: dict = {}
-    if os.name == "posix":
-        # New session → we can kill the whole process group on timeout
-        # instead of only the direct child.
-        popen_kwargs["start_new_session"] = True
+    # ``spawn_owned`` creates the local timeout group/Job before the operation
+    # starts and links it to backend death through its control pipe.
+    popen_kwargs = _install_containment_kwargs()
     try:
-        proc = subprocess.Popen(
+        proc = spawn_owned(
             argv,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -1053,29 +1057,18 @@ def _run_logged(job: dict, argv: list[str], *, timeout: float,
 
 
 def _kill_tree(proc: "subprocess.Popen") -> None:
-    """Kill the child and its whole process tree, on every platform.
-
-    POSIX: the child was started in its own session, so SIGKILL the group.
-    Windows: ``proc.kill()`` only terminates the direct child — a git/uv
-    helper it spawned would keep running (and writing into the checkout)
-    past our timeout — so use ``taskkill /T`` to fell the tree.
-    """
-    if os.name == "posix":
-        import signal
+    """Kill an operation through its stable nested group/Job owner."""
+    if isinstance(proc, OwnedPopen):
+        # The retained supervisor/process-group or nested Job is the stable
+        # per-operation owner.  Do not fall back to a direct PID kill.
+        proc.kill()
         try:
-            os.killpg(proc.pid, signal.SIGKILL)
-            return
-        except (ProcessLookupError, PermissionError, OSError):
-            pass  # group already gone / not ours — fall through to plain kill
-    else:  # Windows
-        try:
-            subprocess.run(
-                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                capture_output=True, timeout=15,
-            )
-            return
-        except (OSError, subprocess.SubprocessError):
-            pass  # taskkill unavailable/failed — fall through to plain kill
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        return
+    # A test double or a legacy caller without the nested owner can only be
+    # stopped through its stable direct-process handle.
     try:
         proc.kill()
     except OSError:

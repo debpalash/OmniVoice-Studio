@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Não foi possível carregar os projetos",
+    "storage_unavailable_body": "O VoiceStudio não conseguiu ler o armazenamento local de projetos. Os seus dados não foram alterados. Tente novamente para abri-los com segurança.",
+    "clear_projects": "Limpar projetos guardados",
+    "clear_confirm": "Isto elimina permanentemente todos os projetos guardados de Histórias e Audiolivros e quaisquer rascunhos não guardados para que o VoiceStudio possa voltar a abrir. Não é possível desfazer. Continuar?"
+  },
   "backendUnreachable": {
     "contact_recent": "Estava respondendo há {{ago}} e depois parou de responder — muito provavelmente travou ou foi encerrado no meio de uma requisição.",
     "contact_never": "Não respondeu nenhuma vez nesta sessão — pode ser que nunca tenha iniciado.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Não foi possível registrar: {{message}}",
     "shortcut_reset": "Redefinir para o padrão",
     "shortcut_reset_failed": "Falha na reinicialização: {{message}}",
+    "reset_longform_failed": "O VoiceStudio não conseguiu limpar com segurança os projetos salvos. Os dados dos seus projetos não foram alterados; libere espaço de armazenamento ou reinicie o aplicativo e tente novamente.",
     "cancel": "Cancelar",
     "hf_token_also_clear": "Limpar também",
     "hf_token_clear_btn": "Limpar token",
@@ -2191,6 +2198,7 @@
     "retry_load": "Tentar novamente"
   },
   "firstrun": {
+    "backend_stop_failed": "O VoiceStudio não conseguiu parar o backend anterior em segurança. Feche qualquer outra janela ou processo do VoiceStudio e tente novamente.",
     "loading": "Preparando a configuração…",
     "title": "Configurar o VoiceStudio",
     "subtitle": "Nada foi instalado ainda — confira onde tudo será salvo e então comece. Você pode mudar depois nas Configurações.",

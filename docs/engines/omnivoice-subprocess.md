@@ -40,7 +40,8 @@ see no change.
 
 ## Platform support
 
-- **CUDA, MPS, and CPU** (same as the in-process VoiceStudio engine).
+- **CUDA, AMD ROCm on Linux, MPS, and CPU** (same as the in-process
+  VoiceStudio engine).
 - **No extra install.** Unlike IndexTTS / dots.tts / Supertonic-3, this sidecar
   runs under VoiceStudio's own interpreter, because the goal here is crash
   isolation, not dependency isolation. If the default `omnivoice` engine works

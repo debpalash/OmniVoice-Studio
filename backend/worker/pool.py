@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Iterator, Optional
 
 from worker.breaker import BreakerRegistry
-from worker.capacity import WorkerCapacity, derive_concurrency
+from worker.capacity import WorkerCapacity, clamp_concurrency, derive_concurrency
 from worker.clock import resolve
 from worker.identity import Session
 from worker.registry import RemoteWorker
@@ -58,6 +58,9 @@ class ConnectedWorker:
     # The address this worker connected FROM, as the control plane saw it.
     address: str = ""
     draining: bool = False
+    # Registration handoff temporarily stops new assignments without
+    # conflating that transport state with a user-requested drain/shutdown.
+    registration_pending: bool = False
     # Attempt ids this worker claims to be running. Rebuilt on every reconnect
     # from its own report, never inferred.
     in_flight: set[str] = field(default_factory=set)
@@ -82,7 +85,11 @@ class ConnectedWorker:
         """
         if self.stale():
             return "offline"
-        if self.draining or self.capacity.available_slots <= 0:
+        if (
+            self.draining
+            or self.registration_pending
+            or self.capacity.available_slots <= 0
+        ):
             return "busy"
         return "ready"
 
@@ -175,7 +182,7 @@ class WorkerPool:
             epoch=epoch,
             capacity=WorkerCapacity(
                 worker_id=record.id,
-                max_concurrent_tasks=max(1, max_concurrent_tasks),
+                max_concurrent_tasks=clamp_concurrency(max_concurrent_tasks),
                 backend=backend,
             ),
             connected_at=stamp,
@@ -230,6 +237,10 @@ class WorkerPool:
 
     def disconnect(self, worker_id: str) -> Optional[ConnectedWorker]:
         return self._connected.pop(worker_id, None)
+
+    def restore_connection(self, worker: ConnectedWorker) -> None:
+        """Restore an exact live snapshot after replacement activation fails."""
+        self._connected[worker.worker_id] = worker
 
     def get(self, worker_id: str) -> Optional[ConnectedWorker]:
         return self._connected.get(worker_id)
@@ -300,10 +311,14 @@ class WorkerPool:
                 worker.capacity.slots[key] = ModelSlot(
                     engine=cap.get("engine", ""),
                     model_id=cap.get("model_id", ""),
-                    derived_concurrency=max(0, declared),
+                    derived_concurrency=clamp_concurrency(
+                        declared, allow_zero=True
+                    ),
                 )
             else:
-                slot.derived_concurrency = max(0, declared)
+                slot.derived_concurrency = clamp_concurrency(
+                    declared, allow_zero=True
+                )
 
     def stale_workers(self, *, now: Optional[float] = None) -> list[ConnectedWorker]:
         return [w for w in self if w.stale(now=now)]

@@ -16,6 +16,7 @@
  * Both no-op outside a packaged Tauri build.
  */
 import { normalizeChannel } from './updateChannel';
+import { flushApplicationPersistence } from './persistenceLifecycle';
 
 export function isTauri() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -93,6 +94,13 @@ export async function installUpdate(store) {
     });
     await invoke('install_update', { channel });
     store.setUpdateReady();
+    try {
+      await flushApplicationPersistence();
+    } catch (error) {
+      // The update is already installed. Persistence failure must not rewrite
+      // that successful state as an install error or strand the relaunch.
+      console.warn('[persistence] installed-update flush failed', error);
+    }
     await relaunch();
   } catch (e) {
     console.warn('Update install failed:', e);

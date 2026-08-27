@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -137,12 +137,20 @@ pub fn run_streaming<R: tauri::Runtime>(
     stage: &str,
     cmd: &mut Command,
 ) -> io::Result<std::process::ExitStatus> {
+    if backend_stop_requested(app) {
+        return Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "app is quitting",
+        ));
+    }
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    // Windows: no flashing console window for uv/python subprocesses (#first-run
-    // terminal-window storm). No-op on macOS/Linux. stdout/stderr are piped
-    // above, so the splash log still receives every line.
-    crate::tools::no_window(cmd);
-    let mut child = cmd.spawn()?;
+    // Long installs use the same stable containment as the backend. A command
+    // which exits while one of its descendants is still alive is drained
+    // before its root handle is reaped.
+    let crate::tools::ContainedChild {
+        mut child,
+        mut tree,
+    } = crate::tools::spawn_process_tree(cmd)?;
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let app_out = app.clone();
@@ -165,10 +173,30 @@ pub fn run_streaming<R: tauri::Runtime>(
             }
         }
     });
-    let status = child.wait()?;
+    let status = loop {
+        if backend_stop_requested(app) {
+            log::info!("App is quitting — stopping bootstrap subprocess tree (pid {})", child.id());
+            break match crate::tools::terminate_process_tree(
+                &mut child,
+                &mut tree,
+                Duration::from_millis(750),
+            ) {
+                Ok(_) => Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "app quit during bootstrap subprocess",
+                )),
+                Err(error) => Err(error),
+            };
+        }
+        match crate::tools::contained_child_exit(&mut child, &mut tree) {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+            Err(error) => break Err(error),
+        }
+    };
     let _ = h_out.join();
     let _ = h_err.join();
-    Ok(status)
+    status
 }
 
 // ── Tauri commands ────────────────────────────────────────────────────────
@@ -201,8 +229,8 @@ pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapS
 /// deletes data out from under a stopped backend and needs the *same* recovery
 /// afterwards — a fresh process that re-runs `ensure_dirs()` and alembic, so a
 /// wiped database comes back empty rather than missing.
-pub fn respawn_backend(
-    app: tauri::AppHandle,
+pub fn respawn_backend<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     stage: Arc<Mutex<BootstrapStage>>,
     logs: Arc<Mutex<Vec<LogPayload>>>,
 ) {
@@ -214,90 +242,348 @@ pub fn respawn_backend(
     }
     let stage_handle = stage;
     std::thread::spawn(move || {
+        if backend_stop_requested(&app) {
+            return;
+        }
         let skip_spawn = std::env::var("TAURI_SKIP_BACKEND").is_ok();
         if skip_spawn {
             log::info!("TAURI_SKIP_BACKEND set — not spawning");
+            set_backend_kill_intended(false);
             set_stage(&stage_handle, BootstrapStage::Ready);
             return;
-        }
-        match crate::backend::running_backend_version(backend_port()) {
-            Some(v) if crate::backend::same_app_version(&v) => {
-                if crate::backend::backend_deep_healthy(backend_port()) {
-                    log::info!(
-                        "Port {} already serving VoiceStudio backend v{} — attaching",
-                        backend_port(), v
-                    );
-                    set_stage(&stage_handle, BootstrapStage::Ready);
-                    return;
-                }
-                // Same version but a DB-touching probe fails: a backend whose
-                // install was wiped/corrupted while it kept running. Attaching
-                // would look alive and 500 on everything — replace it.
-                log::warn!(
-                    "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
-                    backend_port(), v
-                );
-                    set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
-                crate::backend::kill_orphan_on_port(backend_port());
-                std::thread::sleep(Duration::from_millis(500));
-            }
-            Some(v) => {
-                // A healthy-but-stale backend from a previous version (the
-                // classic post-update orphan). Attaching would silently run
-                // OLD backend code under the new UI — replace it instead.
-                log::warn!(
-                    "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
-                    backend_port(),
-                    if v.is_empty() { "<unknown>" } else { v.as_str() },
-                    env!("CARGO_PKG_VERSION"),
-                );
-                set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
-                crate::backend::kill_orphan_on_port(backend_port());
-                std::thread::sleep(Duration::from_millis(500));
-            }
-            None => {}
-        }
-        if crate::backend::port_in_use(backend_port()) {
-            log::warn!("Port {} in use — taking ownership", backend_port());
-            set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
-            // #1223: verify the port actually came free. Spawning into a port
-            // we failed to reclaim just moves the failure into the backend,
-            // where it surfaced as an unexplained "exit code 1".
-            if !crate::backend::free_port_or_report(backend_port()) {
-                set_stage(
-                    &stage_handle,
-                    BootstrapStage::Failed {
-                        message: format!(
-                            "Port {} is already in use by another application, \
-                             and VoiceStudio could not free it. Quit whatever is \
-                             using that port (another copy of VoiceStudio, or an \
-                             app that claimed it) and try again.",
-                            backend_port()
-                        ),
-                    },
-                );
-                return;
-            }
         }
         spawn_backend_and_wait(&app, &stage_handle);
     });
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LaunchPreparation {
+    SuperviseAttached { owner: u64 },
+    Spawn,
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LaunchOutcome {
+    SupervisedReady { owner: u64 },
+    Done,
+}
+
+/// Run a teardown while holding the same lifecycle ownership every spawn path
+/// uses. Reset, Clean & Retry, setup re-entry, uninstall, and app exit join
+/// launch through this guard; disk mutations keep it until they are complete,
+/// so neither bootstrap nor the supervisor can resurrect the backend.
+pub fn with_backend_stopped<R: tauri::Runtime, T>(
+    app: &tauri::AppHandle<R>,
+    action: impl FnOnce() -> T,
+) -> Result<T, String> {
+    let state = app.state::<BackendState>();
+    let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
+    if let Err(error) = stop_backend_locked(app) {
+        // stop_backend_locked removes the tracked child before terminating
+        // it. A partial teardown error therefore cannot rely on the previous
+        // supervisor still existing; re-enter the serialized launch path for
+        // a recoverable, non-terminal caller. An incomplete tree deliberately
+        // retains the kill-intended fence: spawning alongside survivors could
+        // duplicate engines or race files still held open.
+        if error.restart_safe {
+            set_backend_kill_intended(false);
+        }
+        if error.restart_safe && !backend_stop_requested(app) {
+            if let Some(bootstrap) = app.try_state::<BootstrapState>() {
+                respawn_backend(app.clone(), bootstrap.stage.clone(), bootstrap.logs.clone());
+            }
+        }
+        return Err(error.message);
+    }
+    Ok(action())
+}
+
+/// Stop both the tracked child (including one which has not bound yet) and any
+/// untracked listener. The caller must own `BackendState::lifecycle`.
+struct BackendStopError {
+    message: String,
+    restart_safe: bool,
+}
+
+fn stop_backend_locked<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<(), BackendStopError> {
+    set_backend_kill_intended(true);
+    let state = app.state::<BackendState>();
+    let mut child = state
+        .process
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take();
+    let mut owned_tree = state
+        .owned_tree
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take();
+    let attached = state.attached.swap(false, Ordering::SeqCst);
+    reset_attached_health(&state);
+    *state
+        .spawned_at
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
+
+    if attached {
+        if app
+            .try_state::<AppFlags>()
+            .is_some_and(|flags| flags.quitting.load(Ordering::SeqCst))
+        {
+            // A terminal desktop exit releases an attachment; it does not own
+            // the external backend and therefore must not signal it.
+            return Ok(());
+        }
+        state.attached.store(true, Ordering::SeqCst);
+        set_backend_kill_intended(false);
+        return Err(BackendStopError {
+            message: "Another VoiceStudio instance owns the running backend. Quit that instance before changing or uninstalling its environment.".to_string(),
+            restart_safe: true,
+        });
+    }
+
+    let tree_error = match (child.as_mut(), owned_tree.as_mut()) {
+        (Some(child), Some(tree)) => {
+            // The unreaped root/process handle and containment handle move
+            // together, closing PID-reuse and post-crash descendant races.
+            log::info!("Stopping tracked backend tree (root pid {})", child.id());
+            crate::tools::terminate_process_tree(child, tree, Duration::from_secs(2)).err()
+        }
+        (None, None) => None,
+        _ => Some(io::Error::new(
+            io::ErrorKind::Other,
+            "backend process and containment handles became inconsistent",
+        )),
+    };
+    if let Some(error) = tree_error {
+        log::warn!("Could not fully stop tracked backend tree: {error}");
+        // Preserve both stable handles for a later teardown attempt. In
+        // particular, never fall back to signalling the numeric root PID.
+        if let Some(child) = child {
+            *state.process.lock().unwrap_or_else(|e| e.into_inner()) = Some(child);
+        }
+        if let Some(tree) = owned_tree {
+            *state.owned_tree.lock().unwrap_or_else(|e| e.into_inner()) = Some(tree);
+        }
+        return Err(BackendStopError {
+            message: format!(
+                "VoiceStudio could not fully stop the backend process tree: {error}"
+            ),
+            restart_safe: false,
+        });
+    }
+
+    if crate::backend::port_in_use(backend_port())
+        && !crate::backend::free_port_or_report(backend_port())
+    {
+        return Err(BackendStopError {
+            message: format!(
+                "Port {} is already in use by another application, and VoiceStudio \
+                 could not free it. Quit whatever is using that port (another copy \
+                 of VoiceStudio, or an app that claimed it) and try again.",
+                backend_port()
+            ),
+            restart_safe: false,
+        });
+    }
+    #[cfg(debug_assertions)]
+    if std::env::var_os("OMNIVOICE_TEST_FORCE_STOP_ERROR").is_some() {
+        return Err(BackendStopError {
+            message: "injected backend stop failure".to_string(),
+            restart_safe: true,
+        });
+    }
+    #[cfg(debug_assertions)]
+    if std::env::var_os("OMNIVOICE_TEST_FORCE_INCOMPLETE_STOP_ERROR").is_some() {
+        return Err(BackendStopError {
+            message: "injected incomplete backend tree".to_string(),
+            restart_safe: false,
+        });
+    }
+    Ok(())
+}
+
+fn tracked_backend_exists<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    let state = app.state::<BackendState>();
+    state
+        .process
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some()
+        || state.attached.load(Ordering::SeqCst)
+}
+
+/// Probe, attach, or reclaim the backend while lifecycle ownership is held.
+/// Keeping the initial probe and any kill in the same critical section as
+/// spawn+track closes the empty-port race from #1635.
+fn prepare_backend_launch<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) -> LaunchPreparation {
+    let mut replace = tracked_backend_exists(app);
+    match crate::backend::running_backend_version(backend_port()) {
+        Some(v) if crate::backend::same_app_version(&v) => {
+            if crate::backend::backend_deep_healthy(backend_port()) {
+                if replace {
+                    let owner = SUPERVISOR_OWNER.fetch_add(1, Ordering::SeqCst) + 1;
+                    log::info!(
+                        "Port {} already serving tracked VoiceStudio backend v{} — renewing supervision",
+                        backend_port(),
+                        v
+                    );
+                    set_backend_kill_intended(false);
+                    set_stage(stage_handle, BootstrapStage::Ready);
+                    return LaunchPreparation::SuperviseAttached { owner };
+                }
+                track_attached_backend(app);
+                let owner = SUPERVISOR_OWNER.fetch_add(1, Ordering::SeqCst) + 1;
+                log::info!(
+                    "Port {} already serving VoiceStudio backend v{} — attaching with health supervision (external process remains unowned)",
+                    backend_port(),
+                    v
+                );
+                set_stage(stage_handle, BootstrapStage::Ready);
+                return LaunchPreparation::SuperviseAttached { owner };
+            } else {
+                log::warn!(
+                    "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
+                    backend_port(),
+                    v
+                );
+                replace = true;
+            }
+        }
+        Some(v) => {
+            log::warn!(
+                "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
+                backend_port(),
+                if v.is_empty() { "<unknown>" } else { v.as_str() },
+                env!("CARGO_PKG_VERSION"),
+            );
+            replace = true;
+        }
+        None => {
+            replace |= crate::backend::port_in_use(backend_port());
+        }
+    }
+
+    if replace {
+        log::warn!("Taking lifecycle ownership of backend port {}", backend_port());
+        if let Err(message) = stop_backend_locked(app) {
+            if message.restart_safe {
+                set_backend_kill_intended(false);
+            }
+            set_stage(
+                stage_handle,
+                BootstrapStage::Failed {
+                    message: message.message,
+                },
+            );
+            return LaunchPreparation::Failed;
+        }
+    }
+    LaunchPreparation::Spawn
+}
+
+/// Initial launch preserves the setup-screen gate, but performs it only after
+/// the serialized attach probe. An already-running current backend therefore
+/// still wins over a missing first-run marker.
+pub fn spawn_initial_backend_and_wait<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) {
+    launch_backend_and_wait(app, stage_handle, true);
+}
+
 /// Spawn the backend and poll until it is healthy (→ `Ready`) or dead /
-/// timed out (→ `Failed`). Shared by the launch-time bootstrap (`lib.rs`) and
-/// the Retry button (`retry_bootstrap`) so both get the same recovery
-/// behavior.
+/// timed out (→ `Failed`). Shared by launch, Retry, reset, and setup re-entry.
+pub fn spawn_backend_and_wait<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) {
+    launch_backend_and_wait(app, stage_handle, false);
+}
+
+fn launch_backend_and_wait<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+    first_run_gate: bool,
+) {
+    let outcome = {
+        let state = app.state::<BackendState>();
+        let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
+        if backend_stop_requested(app) {
+            log::info!("App is quitting — backend launch cancelled");
+            LaunchOutcome::Done
+        } else {
+            match prepare_backend_launch(app, stage_handle) {
+                LaunchPreparation::Failed => LaunchOutcome::Done,
+                LaunchPreparation::SuperviseAttached { owner } => {
+                    LaunchOutcome::SupervisedReady { owner }
+                }
+                LaunchPreparation::Spawn => {
+                    if first_run_gate {
+                        crate::setup::migrate_existing_install_if_needed(app);
+                        if crate::setup::is_first_run(app) {
+                            log::info!(
+                                "First run — awaiting setup screen confirmation before installing"
+                            );
+                            set_backend_kill_intended(false);
+                            set_stage(stage_handle, BootstrapStage::AwaitingSetup);
+                            LaunchOutcome::Done
+                        } else {
+                            spawn_with_supervisor_owner(app, stage_handle)
+                        }
+                    } else {
+                        spawn_with_supervisor_owner(app, stage_handle)
+                    }
+                }
+            }
+        }
+    };
+
+    if let LaunchOutcome::SupervisedReady { owner } = outcome {
+        supervise_backend(app, stage_handle, owner);
+    }
+}
+
+/// Invalidate any previous supervisor before creating a replacement child, so
+/// it cannot mistake this child's pre-Ready exit for a post-Ready crash. The
+/// reserved owner starts monitoring only after this launch reaches Ready.
+fn spawn_with_supervisor_owner<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) -> LaunchOutcome {
+    let supervisor_owner = SUPERVISOR_OWNER.fetch_add(1, Ordering::SeqCst) + 1;
+    if spawn_backend_until_ready(app, stage_handle) {
+        LaunchOutcome::SupervisedReady {
+            owner: supervisor_owner,
+        }
+    } else {
+        LaunchOutcome::Done
+    }
+}
+
 ///
 /// #314: when the backend dies with a broken-venv signature ("No pyvenv.cfg
 /// file" / exit code 106 from the CPython venv launcher), the venv — and only
 /// the venv — is removed and the bootstrap re-runs once, recreating it through
 /// the normal `CreatingVenv` / `InstallingDeps` setup path instead of
-/// surfacing the same dead-end failure on every retry.
-pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+/// surfacing the same dead-end failure on every retry. Lifecycle ownership is
+/// already held by the caller for this entire function.
+fn spawn_backend_until_ready<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) -> bool {
     let mut venv_heal_attempted = false;
     'bootstrap: loop {
-        let child = crate::backend::spawn_backend(app, Some(stage_handle));
-        track_backend_child(app, child);
+        if backend_stop_requested(app) {
+            return false;
+        }
+        spawn_and_track_backend(app, stage_handle);
         let start = std::time::Instant::now();
         // Early-bind narration: the backend answers /startup/progress within
         // ~1s of spawn, long before it is Ready — surface each step change
@@ -306,42 +592,35 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
         // None and the wait looks exactly as it did before.
         let mut last_step = String::new();
         while start.elapsed() < startup_budget() {
+            if backend_stop_requested(app) {
+                log::info!("App is quitting — backend startup poll cancelled");
+                return false;
+            }
             if crate::backend::backend_ready(backend_port()) {
                 set_stage(stage_handle, BootstrapStage::Ready);
-                // #567/#570/#571: once Ready, keep watching the backend child
-                // and respawn it if it dies mid-session, so a crash self-heals
-                // instead of leaving every later request to dead-end on
-                // "Can't reach the local backend". Only one supervisor runs at
-                // a time — Retry can re-enter this function concurrently.
-                if SUPERVISOR_ACTIVE
-                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                    .is_ok()
-                {
-                    supervise_backend(app, stage_handle);
-                    SUPERVISOR_ACTIVE.store(false, Ordering::SeqCst);
-                }
-                return;
+                return true;
             }
             let process_dead: Option<(String, Option<BackendExit>)> =
-                if let Ok(mut guard) = app.state::<BackendState>().process.lock() {
-                    match guard.as_mut() {
-                        Some(child) => match child.try_wait() {
-                            Ok(Some(status)) => {
-                                let exit = BackendExit::from_status(status);
-                                Some((exit.description.clone(), Some(exit)))
-                            }
-                            Ok(None) => None,
-                            // try_wait errored — the death is real but its
-                            // shape is unknown; no exit code for the marker.
-                            Err(_) => Some(("unknown".to_string(), None)),
-                        },
+                match backend_child_exit(app) {
+                    Ok(Some(exit)) => Some((exit.description.clone(), Some(exit))),
+                    Ok(None) if !tracked_backend_exists(app) => {
                         // Spawn itself failed — no process ever ran, so this
                         // is a spawn failure (spawn_failure_diagnostic owns
                         // it), NOT a crash: no marker.
-                        None => Some(("never started".to_string(), None)),
+                        Some(("never started".to_string(), None))
                     }
-                } else {
-                    None
+                    Ok(None) => None,
+                    Err(error) => {
+                        // The root was observed but its stable containment
+                        // could not be drained. Never start a second backend
+                        // alongside descendants whose teardown is uncertain.
+                        set_backend_kill_intended(true);
+                        let message = format!(
+                            "VoiceStudio could not safely clean up the failed backend: {error}"
+                        );
+                        set_stage(stage_handle, BootstrapStage::Failed { message });
+                        return false;
+                    }
                 };
             if let Some((exit_info, real_exit)) = process_dead {
                 let err_tail = crate::backend::read_error_log_tail_for_run(30);
@@ -349,7 +628,7 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
                 // startup crashes included — unless the app is shutting down
                 // or a retry flow deliberately killed the child.
                 if let Some(ref exit) = real_exit {
-                    if !app_is_quitting(app) && !backend_kill_intended() {
+                    if !backend_stop_requested(app) && !backend_kill_intended() {
                         crate::crash::record_crash(crate::crash::marker_now(
                             exit,
                             backend_uptime_s(app),
@@ -419,7 +698,7 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
                         "Backend never started ({}) — keeping the specific failure already diagnosed",
                         exit_info
                     );
-                    return;
+                    return false;
                 }
                 // #1223: the backend exits EXIT_PORT_IN_USE when it could not
                 // bind its port. That is a conflict, not a crash — say what to
@@ -445,7 +724,7 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
                 };
                 log::error!("Backend died early: {}", msg);
                 set_stage(stage_handle, BootstrapStage::Failed { message: msg });
-                return;
+                return false;
             }
             if let Some((status, step, label)) =
                 crate::backend::startup_progress(backend_port())
@@ -456,6 +735,9 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
                 }
             }
             std::thread::sleep(Duration::from_millis(500));
+        }
+        if backend_stop_requested(app) {
+            return false;
         }
         let err_tail = crate::backend::read_error_log_tail_for_run(20);
         let msg = if err_tail.is_empty() {
@@ -468,7 +750,7 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
             )
         };
         set_stage(stage_handle, BootstrapStage::Failed { message: msg });
-        return;
+        return false;
     }
 }
 
@@ -483,10 +765,11 @@ pub fn spawn_backend_and_wait<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stag
 // app. The supervisor closes that gap: after Ready, it watches the child and
 // respawns it (bounded) so a crash self-heals.
 
-/// Only one supervisor loop may run at a time. The launch-time bootstrap and
-/// the Retry button both call `spawn_backend_and_wait` (and can race), so the
-/// first to reach Ready claims this and the rest fall through.
-static SUPERVISOR_ACTIVE: AtomicBool = AtomicBool::new(false);
+/// Ownership token for the supervisor loop. Each lifecycle-owned spawn
+/// reserves a new token before creating its child, then starts monitoring only
+/// if that child reaches Ready. An older loop observes the mismatch before any
+/// later lifecycle mutation and exits, without a timing-based handoff.
+static SUPERVISOR_OWNER: AtomicU64 = AtomicU64::new(0);
 
 /// #941: set while a retry/clean-retry flow deliberately kills the backend to
 /// replace it, so the death watchers (startup poll + supervisor) never write a
@@ -511,6 +794,13 @@ fn backend_kill_intended() -> bool {
     BACKEND_KILL_INTENDED.load(Ordering::SeqCst)
 }
 
+/// Whether a failed stop completed enough teardown for an explicit recovery
+/// launch. Incomplete process trees keep the deliberate-kill fence raised so
+/// uninstall rollback cannot spawn alongside surviving engines/installers.
+pub fn backend_stop_recovery_safe() -> bool {
+    !backend_kill_intended()
+}
+
 /// How much of backend_err.log rides inside a crash marker (#941). ~40 lines
 /// is enough for a Python traceback or a native abort banner without bloating
 /// the marker file or the bug-report URL (the frontend truncates further).
@@ -526,25 +816,93 @@ const CRASH_STDERR_TAIL_LINES: usize = 40;
 const MAX_RESTARTS: usize = 3;
 const RESTART_WINDOW: Duration = Duration::from_secs(600);
 
-fn app_is_quitting<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+fn backend_stop_requested<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     app.try_state::<AppFlags>()
-        .map(|f| f.quitting.load(Ordering::SeqCst))
+        .map(|f| f.quitting.load(Ordering::SeqCst) || f.uninstalling.load(Ordering::SeqCst))
         .unwrap_or(false)
 }
 
 /// Store the freshly spawned backend child (and its spawn time, for the crash
 /// marker's `uptime_s`), and re-arm the death watchers: any deliberate-kill
 /// window ends the moment a new child is tracked.
-fn track_backend_child<R: tauri::Runtime>(app: &tauri::AppHandle<R>, child: Option<std::process::Child>) {
+fn track_backend_child<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    contained: Option<crate::tools::ContainedChild>,
+) {
     let state = app.state::<BackendState>();
-    if let Ok(mut guard) = state.process.lock() {
-        *guard = child;
-    }
-    if let Ok(mut spawned) = state.spawned_at.lock() {
-        *spawned = Some(Instant::now());
-    }
+    let (child, owned_tree, spawned_at) = match contained {
+        Some(crate::tools::ContainedChild { child, tree }) => {
+            (Some(child), Some(tree), Some(Instant::now()))
+        }
+        None => (None, None, None),
+    };
+    *state.process.lock().unwrap_or_else(|e| e.into_inner()) = child;
+    *state.owned_tree.lock().unwrap_or_else(|e| e.into_inner()) = owned_tree;
+    *state.spawned_at.lock().unwrap_or_else(|e| e.into_inner()) = spawned_at;
+    state.attached.store(false, Ordering::SeqCst);
+    reset_attached_health(&state);
     BACKEND_SPAWN_GENERATION.fetch_add(1, Ordering::SeqCst);
     set_backend_kill_intended(false);
+}
+
+/// Health-supervise a same-version listener which predates this launch. It is
+/// intentionally not adopted by PID: only a process spawned into our stable
+/// containment primitive is safe for this desktop instance to terminate.
+fn track_attached_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let state = app.state::<BackendState>();
+    *state.process.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *state.owned_tree.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *state
+        .spawned_at
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
+    state.attached.store(true, Ordering::SeqCst);
+    reset_attached_health(&state);
+    BACKEND_SPAWN_GENERATION.fetch_add(1, Ordering::SeqCst);
+    set_backend_kill_intended(false);
+}
+
+/// The one spawn→track chokepoint. Callers already hold lifecycle ownership,
+/// so no child can be created without becoming the uniquely tracked child.
+fn spawn_and_track_backend<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+) {
+    let child = crate::backend::spawn_backend(app, Some(stage_handle));
+    #[cfg(debug_assertions)]
+    wait_for_tracking_test_gate(
+        "OMNIVOICE_TEST_BEFORE_TRACK_ENTERED",
+        "OMNIVOICE_TEST_BEFORE_TRACK_RELEASE",
+    );
+    track_backend_child(app, child);
+    #[cfg(debug_assertions)]
+    wait_for_tracking_test_gate(
+        "OMNIVOICE_TEST_AFTER_TRACK_ENTERED",
+        "OMNIVOICE_TEST_AFTER_TRACK_RELEASE",
+    );
+}
+
+/// Deterministic fault-injection seam around child tracking. These are the
+/// precise pre-bind shutdown/uninstall races that process-only or port-only
+/// teardown used to lose. Compiled out of release builds.
+#[cfg(debug_assertions)]
+fn wait_for_tracking_test_gate(entered_var: &str, release_var: &str) {
+    let Some(entered) = std::env::var_os(entered_var) else {
+        return;
+    };
+    let Some(release) = std::env::var_os(release_var) else {
+        return;
+    };
+    let entered = std::path::PathBuf::from(entered);
+    let release = std::path::PathBuf::from(release);
+    if let Err(error) = std::fs::write(&entered, b"spawned") {
+        log::warn!("Could not arm lifecycle test seam {entered_var}: {error}");
+        return;
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !release.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 /// Seconds since the tracked backend child was spawned (0 when unknown).
@@ -555,20 +913,90 @@ fn backend_uptime_s<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> u64 {
         .unwrap_or(0)
 }
 
-/// Returns `Some(BackendExit)` if the tracked backend child has exited,
-/// `None` if it is still running (or none is tracked — which we never treat as
-/// a death to respawn, to avoid fighting a deliberate teardown).
-fn backend_child_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<BackendExit> {
-    let state = app.try_state::<BackendState>()?;
-    let mut guard = state.process.lock().ok()?;
-    match guard.as_mut() {
-        Some(child) => match child.try_wait() {
-            Ok(Some(status)) => Some(BackendExit::from_status(status)),
-            Ok(None) => None,
-            Err(e) => Some(BackendExit::unknown(&format!("try_wait error: {e}"))),
-        },
-        None => None,
+/// Observe a contained child through its stable root/containment handles, or
+/// health-monitor an external attachment without ever signalling it.
+fn backend_child_exit<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<Option<BackendExit>, String> {
+    let Some(state) = app.try_state::<BackendState>() else {
+        return Ok(None);
+    };
+    let mut process = state.process.lock().map_err(|e| e.to_string())?;
+    if let Some(child) = process.as_mut() {
+        let mut tree = state.owned_tree.lock().map_err(|e| e.to_string())?;
+        let owned = tree
+            .as_mut()
+            .ok_or_else(|| "tracked backend is missing its containment handle".to_string())?;
+        return match crate::tools::contained_child_exit(child, owned) {
+            Ok(Some(status)) => {
+                *process = None;
+                *tree = None;
+                Ok(Some(BackendExit::from_status(status)))
+            }
+            Ok(None) => Ok(None),
+            Err(error) => Err(format!(
+                "could not clean the contained backend after observing its root: {error}"
+            )),
+        };
     }
+    if state.attached.load(Ordering::SeqCst) {
+        if attached_backend_healthy() {
+            reset_attached_health(&state);
+            return Ok(None);
+        }
+        if !attached_outage_confirmed(&state) {
+            return Ok(None);
+        }
+        // The grace window elapsed; take one final independent sample before
+        // changing ownership state. A recovered external backend is still
+        // unowned and must remain attached, never signalled by PID.
+        if attached_backend_healthy() {
+            reset_attached_health(&state);
+            return Ok(None);
+        }
+        return Ok(Some(BackendExit::unknown(
+            "attached backend stopped responding after the health grace period",
+        )));
+    }
+    Ok(None)
+}
+
+const ATTACHED_FAILURE_THRESHOLD: u32 = 3;
+
+fn attached_backend_healthy() -> bool {
+    crate::backend::running_backend_version(backend_port())
+        .is_some_and(|version| crate::backend::same_app_version(&version))
+        && crate::backend::backend_deep_healthy(backend_port())
+}
+
+fn attached_health_grace() -> Duration {
+    std::env::var("OMNIVOICE_ATTACHED_FAILURE_GRACE_MS")
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|&millis| millis > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(Duration::from_secs(6))
+}
+
+fn reset_attached_health(state: &BackendState) {
+    let mut health = state
+        .attached_health
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    health.failures = 0;
+    health.unhealthy_since = None;
+}
+
+fn attached_outage_confirmed(state: &BackendState) -> bool {
+    let now = Instant::now();
+    let mut health = state
+        .attached_health
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    health.failures = health.failures.saturating_add(1);
+    let since = *health.unhealthy_since.get_or_insert(now);
+    health.failures >= ATTACHED_FAILURE_THRESHOLD
+        && now.duration_since(since) >= attached_health_grace()
 }
 
 /// How long the launch poll waits for the backend to become Ready before
@@ -620,14 +1048,17 @@ fn restart_backoff_delay(recent_restarts: usize) -> Duration {
 /// After the backend is Ready, watch its process and respawn it on an
 /// unexpected exit. Runs on the (otherwise-returning) bootstrap thread and
 /// stops the instant the app is quitting so it never resurrects the backend
-/// during shutdown. Death is detected only via a *confirmed process exit*
-/// (`try_wait`), never a slow health probe, so a busy-but-alive backend is
-/// never killed.
-fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle: &Arc<Mutex<BootstrapStage>>) {
+/// during shutdown. A desktop-spawned backend is observed through its stable
+/// child handle; a pre-existing attachment is health-probed but never killed.
+fn supervise_backend<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    stage_handle: &Arc<Mutex<BootstrapStage>>,
+    owner: u64,
+) {
     let mut restart_times: Vec<Instant> = Vec::new();
     loop {
         std::thread::sleep(supervisor_poll());
-        if app_is_quitting(app) {
+        if backend_stop_requested(app) || SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner {
             return;
         }
         // Snapshot the spawn generation BEFORE observing the exit: sampled
@@ -637,12 +1068,27 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
         // happens from here on — even one whose child we are about to see
         // exit — reads as a generation change and yields.
         let observed_generation = BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst);
+        let backend_state = app.state::<BackendState>();
+        let was_attached = backend_state.attached.load(Ordering::SeqCst);
+        let mut attachment_lifecycle = None;
         let exit = match backend_child_exit(app) {
-            Some(exit) => exit,
-            None => continue, // still running
+            Ok(Some(exit)) => exit,
+            Ok(None) => continue, // still running
+            Err(error) => {
+                set_backend_kill_intended(true);
+                let message = format!(
+                    "VoiceStudio could not safely clean up the crashed backend: {error}"
+                );
+                log::error!("{message}");
+                set_stage(stage_handle, BootstrapStage::Failed { message });
+                return;
+            }
         };
         // The exit may have raced with a shutdown that killed the child.
-        if app_is_quitting(app) {
+        if backend_stop_requested(app) {
+            return;
+        }
+        if SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner {
             return;
         }
         // A retry/clean-retry flow killed the child on purpose and owns the
@@ -652,36 +1098,74 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
             log::info!("Backend exit was a deliberate replace — supervisor yielding to the retry flow");
             return;
         }
+        if was_attached {
+            // An unhealthy response is not proof that this unowned process
+            // died. Serialize a final recovery/port sample with lifecycle
+            // owners. If it recovered, keep supervising it; if it still owns
+            // the port, re-arm observation and wait without signalling it or
+            // landing permanently in Failed. Only a released port permits a
+            // desktop-owned replacement.
+            let lifecycle = backend_state
+                .lifecycle
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if backend_stop_requested(app)
+                || SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner
+                || BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != observed_generation
+            {
+                return;
+            }
+            if attached_backend_healthy() {
+                track_attached_backend(app);
+                set_stage(stage_handle, BootstrapStage::Ready);
+                continue;
+            }
+            if crate::backend::port_in_use(backend_port()) {
+                backend_state.attached.store(true, Ordering::SeqCst);
+                continue;
+            }
+            backend_state.attached.store(false, Ordering::SeqCst);
+            // Keep ownership from the final free-port observation through the
+            // spawn-and-track handoff below; no internal lifecycle flow can
+            // interleave and no external listener is ever signalled.
+            attachment_lifecycle = Some(lifecycle);
+        }
         let exit_info = exit.description.clone();
         // #941: make the death self-documenting BEFORE any restart attempt —
         // the marker (exit code/signal + stderr tail + uptime) is what turns
         // the next "Can't reach the backend" report into a diagnosable one.
-        let uptime_s = backend_uptime_s(app);
-        crate::crash::record_crash(crate::crash::marker_now(
-            &exit,
-            uptime_s,
-            crate::backend::read_error_log_tail_for_run(CRASH_STDERR_TAIL_LINES),
-        ));
-        if restart_budget_exhausted(&mut restart_times, Instant::now()) {
-            let tail = crate::backend::read_error_log_tail_for_run(30);
-            let msg = format!(
-                "The backend kept crashing ({} times in {} min; last death: {}) and couldn't \
-                 be kept running. Use Clean & Retry, or check Settings → Logs → Backend.{}",
-                MAX_RESTARTS,
-                RESTART_WINDOW.as_secs() / 60,
-                exit.label(),
-                if tail.is_empty() { String::new() } else { format!("\n\nLast output:\n{tail}") },
-            );
-            log::error!("Backend supervisor giving up: {msg}");
-            let _ = app.emit("backend-restart-failed", msg.clone());
-            set_stage(stage_handle, BootstrapStage::Failed { message: msg });
-            return;
-        }
-        // Backoff BEFORE this restart is recorded: `restart_times` was just
-        // pruned to the window, so its length is the number of recent
-        // respawns already attempted.
-        let backoff = restart_backoff_delay(restart_times.len());
-        restart_times.push(Instant::now());
+        let backoff = if was_attached {
+            // A health-confirmed disconnect from an unowned listener is not a
+            // process crash: no fabricated crash marker/budget entry.
+            Duration::ZERO
+        } else {
+            let uptime_s = backend_uptime_s(app);
+            crate::crash::record_crash(crate::crash::marker_now(
+                &exit,
+                uptime_s,
+                crate::backend::read_error_log_tail_for_run(CRASH_STDERR_TAIL_LINES),
+            ));
+            if restart_budget_exhausted(&mut restart_times, Instant::now()) {
+                let tail = crate::backend::read_error_log_tail_for_run(30);
+                let msg = format!(
+                    "The backend kept crashing ({} times in {} min; last death: {}) and couldn't \
+                     be kept running. Use Clean & Retry, or check Settings → Logs → Backend.{}",
+                    MAX_RESTARTS,
+                    RESTART_WINDOW.as_secs() / 60,
+                    exit.label(),
+                    if tail.is_empty() { String::new() } else { format!("\n\nLast output:\n{tail}") },
+                );
+                log::error!("Backend supervisor giving up: {msg}");
+                let _ = app.emit("backend-restart-failed", msg.clone());
+                set_stage(stage_handle, BootstrapStage::Failed { message: msg });
+                return;
+            }
+            // Backoff BEFORE this restart is recorded: `restart_times` was
+            // just pruned, so its length is recent respawns already attempted.
+            let delay = restart_backoff_delay(restart_times.len());
+            restart_times.push(Instant::now());
+            delay
+        };
         log::warn!("Backend process exited unexpectedly ({exit_info}) — restarting it (#567)");
         emit_log(app, "starting_backend", "Backend stopped unexpectedly — restarting it automatically");
         // Frontend listens for this to show a "reconnecting" banner (the splash
@@ -700,7 +1184,10 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
             );
             let waited = Instant::now();
             while waited.elapsed() < backoff {
-                if app_is_quitting(app) {
+                if backend_stop_requested(app) {
+                    return;
+                }
+                if SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner {
                     return;
                 }
                 if backend_kill_intended() {
@@ -714,9 +1201,8 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
                 // when a replacement is tracked and never un-bumps, so it is
                 // observed even if the replacement has itself already exited
                 // by the time we sample. Yield promptly (not at backoff end)
-                // so the retry's own spawn_backend_and_wait can claim the
-                // supervisor slot at Ready — and so we never free_port() a
-                // replacement out from under the flow that owns it.
+                // so the replacement flow can claim the supervisor slot, and
+                // never free_port() its child out from under it.
                 if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != observed_generation {
                     log::info!(
                         "A replacement backend was tracked during restart backoff — supervisor yielding"
@@ -726,9 +1212,30 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
                 std::thread::sleep(Duration::from_millis(500));
             }
         }
+        // Claim the same lifecycle ownership used by bootstrap/Retry before
+        // the final probe. Another flow may have completed a whole replacement
+        // between our backoff samples; after this lock, probe/kill/spawn/track
+        // stay atomic with respect to every other owner (#1635).
+        let _lifecycle = match attachment_lifecycle {
+            Some(lifecycle) => lifecycle,
+            None => backend_state
+                .lifecycle
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
+        };
+        if backend_stop_requested(app) {
+            return;
+        }
+        if SUPERVISOR_OWNER.load(Ordering::SeqCst) != owner {
+            return;
+        }
+        if backend_kill_intended() {
+            log::info!("Deliberate replace owns the backend lifecycle — supervisor yielding");
+            return;
+        }
         // Last look before touching the port — covers the zero-backoff first
-        // respawn (which never enters the pause loop) and the tail of the
-        // pause itself. After this point we own the respawn.
+        // respawn and a replacement completed while this supervisor waited for
+        // lifecycle ownership.
         if BACKEND_SPAWN_GENERATION.load(Ordering::SeqCst) != observed_generation {
             log::info!("A replacement backend was tracked — supervisor yielding to its flow");
             return;
@@ -759,14 +1266,13 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
             );
             return;
         }
-        let child = crate::backend::spawn_backend(app, Some(stage_handle));
-        track_backend_child(app, child);
+        spawn_and_track_backend(app, stage_handle);
         // Wait (bounded) for the respawn to become healthy. If it dies again
         // immediately, bail early so the next loop counts it toward the cap.
         let start = Instant::now();
         let mut last_step = String::new();
         while start.elapsed() < Duration::from_secs(120) {
-            if app_is_quitting(app) {
+            if backend_stop_requested(app) {
                 return;
             }
             if crate::backend::backend_ready(backend_port()) {
@@ -775,8 +1281,17 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
                 log::info!("Backend restarted and healthy again");
                 break;
             }
-            if backend_child_exit(app).is_some() {
-                break;
+            match backend_child_exit(app) {
+                Ok(Some(_)) => break,
+                Ok(None) => {}
+                Err(error) => {
+                    set_backend_kill_intended(true);
+                    let message = format!(
+                        "VoiceStudio could not safely clean up the restarted backend: {error}"
+                    );
+                    set_stage(stage_handle, BootstrapStage::Failed { message });
+                    return;
+                }
             }
             // Same early-bind narration as the launch poll: name the startup
             // step in the reconnecting window instead of a silent wait.
@@ -794,23 +1309,39 @@ fn supervise_backend<R: tauri::Runtime>(app: &tauri::AppHandle<R>, stage_handle:
 }
 
 #[tauri::command]
-pub fn clean_and_retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapState>) {
-    // env_root honors the setup-screen choice (portable / custom env dir), so
-    // clean-retry removes the venv the bootstrap actually uses.
-    let project_dir = crate::setup::env_root(&app).join("project");
-    if project_dir.is_dir() {
-        log::info!("Clean retry: removing {}", project_dir.display());
-        let _ = fs::remove_dir_all(&project_dir);
+pub async fn clean_and_retry_bootstrap(app: tauri::AppHandle) {
+    let state = app.state::<BootstrapState>();
+    let failure_stage = state.stage.clone();
+    let worker_app = app.clone();
+    let worker_stage = state.stage.clone();
+    let worker_logs = state.logs.clone();
+    let joined = tauri::async_runtime::spawn_blocking(move || {
+        // env_root honors the setup-screen choice (portable / custom env dir),
+        // so clean-retry removes the venv the bootstrap actually uses. Stop,
+        // recursive deletion, and recovery all stay in this retained blocking
+        // task: the UI thread never waits on process teardown or filesystem I/O,
+        // and navigation cannot drop the respawn handoff.
+        let project_dir = crate::setup::env_root(&worker_app).join("project");
+        match with_backend_stopped(&worker_app, || {
+            if project_dir.is_dir() {
+                log::info!("Clean retry: removing {}", project_dir.display());
+                let _ = fs::remove_dir_all(&project_dir);
+            }
+        }) {
+            Ok(()) => respawn_backend(worker_app, worker_stage, worker_logs),
+            Err(message) => set_stage(&worker_stage, BootstrapStage::Failed { message }),
+        }
+    })
+    .await;
+    if let Err(error) = joined {
+        log::error!("Clean & Retry task failed to join: {error}");
+        set_stage(
+            &failure_stage,
+            BootstrapStage::Failed {
+                message: "Clean & Retry task failed unexpectedly".to_string(),
+            },
+        );
     }
-    // Kill any zombie backend still occupying the port from the deleted
-    // project dir, otherwise bootstrap will "attach" to the stale process.
-    if crate::backend::port_in_use(backend_port()) {
-        log::warn!("Clean retry: killing stale backend on port {}", backend_port());
-        set_backend_kill_intended(true); // deliberate kill, not a crash (#941)
-        crate::backend::kill_orphan_on_port(backend_port());
-        std::thread::sleep(Duration::from_millis(500));
-    }
-    retry_bootstrap(app, state);
 }
 
 // ── Venv bootstrap ────────────────────────────────────────────────────────

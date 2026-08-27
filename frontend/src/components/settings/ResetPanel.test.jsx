@@ -1,6 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import toast from 'react-hot-toast';
+
+const { clearLongformProjects, flushLongformPendingWrites } = vi.hoisted(() => ({
+  clearLongformProjects: vi.fn(async () => {}),
+  flushLongformPendingWrites: vi.fn(async () => {}),
+}));
+vi.mock('../../utils/longformPersistence', async (importOriginal) => ({
+  ...(await importOriginal()),
+  clearLongformProjects: (...args) => clearLongformProjects(...args),
+  flushLongformPendingWrites: (...args) => flushLongformPendingWrites(...args),
+}));
+vi.mock('react-hot-toast', () => ({
+  default: { error: vi.fn(), success: vi.fn() },
+}));
 
 import ResetPanel, {
   PRESETS,
@@ -97,6 +111,7 @@ describe('reset planning', () => {
     // pointless round-trip against records that are about to cease to exist.
     const steps = plan(['history', 'content']);
     expect(steps.history).toBe(false);
+    expect(steps.longformProjects).toBe(true);
     expect(steps.disk).toEqual(['content']);
   });
 
@@ -147,6 +162,8 @@ describe('reset planning', () => {
 describe('ResetPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLongformProjects.mockResolvedValue(undefined);
+    flushLongformPendingWrites.mockResolvedValue(undefined);
     localStorage.clear();
     window.__TAURI_INTERNALS__ = {};
     invoke.mockImplementation(async (cmd) => {
@@ -201,6 +218,56 @@ describe('ResetPanel', () => {
     expect(localStorage.getItem('omni_transcriptions')).toBe('[{"text":"note"}]');
   });
 
+  it('waits for a pending long-form fallback before clearing preferences', async () => {
+    const compactA = JSON.stringify({
+      version: 9,
+      state: { theme: 'dark', currentProjectId: 'p_a' },
+    });
+    localStorage.setItem('omnivoice.app', compactA);
+    let finishFlush = () => {};
+    flushLongformPendingWrites.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFlush = () => {
+            // The pending B write lost IndexedDB, so its only full copy lands
+            // in localStorage when the awaited flush completes.
+            localStorage.setItem(
+              'omnivoice.app',
+              JSON.stringify({
+                version: 9,
+                longformFallbackRevision: 2,
+                state: {
+                  theme: 'light',
+                  currentProjectId: 'p_b',
+                  script: 'pending manuscript B',
+                  storyProjects: [{ id: 'p_b', name: 'Book B' }],
+                },
+              }),
+            );
+            resolve();
+          };
+        }),
+    );
+
+    await openDialog();
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() => expect(flushLongformPendingWrites).toHaveBeenCalledOnce());
+    expect(localStorage.getItem('omnivoice.app')).toBe(compactA);
+    finishFlush();
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('omnivoice.app'))).toEqual({
+        version: 9,
+        longformFallbackRevision: 2,
+        state: {
+          script: 'pending manuscript B',
+          storyProjects: [{ id: 'p_b', name: 'Book B' }],
+        },
+      }),
+    );
+  });
+
   it('clears history through the API without bouncing the backend', async () => {
     await openDialog();
     fireEvent.click(screen.getByTestId('reset-advanced-toggle'));
@@ -221,6 +288,42 @@ describe('ResetPanel', () => {
     fireEvent.click(screen.getByTestId('reset-tier-assets'));
     fireEvent.click(screen.getByTestId('factory-reset-open'));
     expect(await screen.findByTestId('reset-shared-warning')).toBeInTheDocument();
+  });
+
+  it('maps a local fallback clear failure to dedicated localized recovery text', async () => {
+    clearLongformProjects.mockRejectedValueOnce(
+      new DOMException('', 'LongformLocalFallbackClearError'),
+    );
+    render(<ResetPanel />);
+    await waitFor(() => expect(screen.getByTestId('reset-tier-everything')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('reset-tier-everything'));
+    fireEvent.click(screen.getByTestId('factory-reset-open'));
+    fireEvent.change(await screen.findByTestId('reset-type-confirm'), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'VoiceStudio couldn’t safely clear saved projects. Your project data was left intact; free some storage or restart the app, then try again.',
+      ),
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('LongformLocalFallback'));
+  });
+
+  it('does not redundantly flush long-form writes after clearing projects', async () => {
+    render(<ResetPanel />);
+    await waitFor(() => expect(screen.getByTestId('reset-tier-everything')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('reset-tier-everything'));
+    fireEvent.click(screen.getByTestId('factory-reset-open'));
+    fireEvent.change(await screen.findByTestId('reset-type-confirm'), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByTestId('factory-reset-confirm'));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(clearLongformProjects).toHaveBeenCalledOnce();
+    expect(flushLongformPendingWrites).not.toHaveBeenCalled();
   });
 
   it('stays silent about sharing when the cache is app-private (Windows, portable)', async () => {

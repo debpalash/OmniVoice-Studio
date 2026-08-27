@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projekte konnten nicht geladen werden",
+    "storage_unavailable_body": "VoiceStudio konnte den lokalen Projektspeicher nicht lesen. Deine Daten wurden nicht verändert. Versuche es erneut, um sie sicher zu öffnen.",
+    "clear_projects": "Gespeicherte Projekte löschen",
+    "clear_confirm": "Dadurch werden alle gespeicherten Story- und Hörbuchprojekte sowie jeder nicht gespeicherte Entwurf dauerhaft gelöscht, damit VoiceStudio wieder geöffnet werden kann. Dies kann nicht rückgängig gemacht werden. Fortfahren?"
+  },
   "backendUnreachable": {
     "contact_recent": "Es hat vor {{ago}} noch geantwortet und dann aufgehört zu reagieren — höchstwahrscheinlich ist es mitten in einer Anfrage abgestürzt oder wurde beendet.",
     "contact_never": "Es hat in dieser Sitzung überhaupt nicht geantwortet — möglicherweise ist es nie gestartet.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Konnte nicht registriert werden: {{message}}",
     "shortcut_reset": "Auf Standard zurücksetzen",
     "shortcut_reset_failed": "Zurücksetzen fehlgeschlagen: {{message}}",
+    "reset_longform_failed": "VoiceStudio konnte die gespeicherten Projekte nicht sicher löschen. Deine Projektdaten wurden nicht verändert; gib Speicherplatz frei oder starte die App neu und versuche es erneut.",
     "cancel": "Abbrechen",
     "hf_token_also_clear": "Ebenfalls löschen",
     "hf_token_clear_btn": "Token löschen",
@@ -2191,6 +2198,7 @@
     "retry_load": "Versuchen Sie es noch einmal"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio konnte das vorherige Backend nicht sicher beenden. Schließe alle anderen VoiceStudio-Fenster oder -Prozesse und versuche es erneut.",
     "loading": "Einrichtung wird vorbereitet…",
     "title": "VoiceStudio einrichten",
     "subtitle": "Noch ist nichts installiert – prüfe, wo alles gespeichert wird, und starte dann. Später in den Einstellungen änderbar.",

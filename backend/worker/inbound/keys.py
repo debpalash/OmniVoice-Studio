@@ -15,6 +15,7 @@ settings store.
 
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import os
@@ -44,6 +45,20 @@ _KEY_BYTES = 32
 _MAX_FAILURES = 5
 _LOCKOUT_SECONDS = 60.0
 _FAILURE_WINDOW_SECONDS = 300.0
+
+# ``Attach`` is the only RPC that records presence.  Persisting on every
+# reconnect lets an authenticated peer turn harmless telemetry into an fsync
+# storm on the gRPC event loop, so coalesce it to a useful reporting cadence.
+_LAST_SEEN_PERSIST_INTERVAL_SECONDS = 60.0
+
+# Authentication deliberately scans every stored hash in constant time. Keep
+# that work and the JSON credential file bounded even if an administrator
+# repeatedly issues replacements.
+MAX_PANEL_KEYS = 256
+
+
+class KeyLimitExceeded(RuntimeError):
+    """No additional panel credential can be retained safely."""
 
 
 @dataclass
@@ -89,6 +104,31 @@ def _peer_host(peer: str) -> str:
     return peer
 
 
+def _fsync_parent_directory(directory: str) -> None:
+    """Make a preceding directory-entry replacement durable when supported."""
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if directory_flag is None:
+        return
+    unsupported = {
+        errno.EINVAL,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | directory_flag)
+    except OSError as exc:
+        if exc.errno in unsupported:
+            return
+        raise
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        if exc.errno not in unsupported:
+            raise
+    finally:
+        os.close(descriptor)
+
+
 @dataclass
 class IssuedKey:
     """The one and only time the plaintext exists outside the caller's hands."""
@@ -113,6 +153,10 @@ class KeyStore:
         self._connection_secrets: dict[str, str] = {}
         self._connection_fingerprints: dict[str, str] = {}
         self._failures: dict[str, _Failures] = {}
+        # A failed persistence attempt must remain denied in this process but
+        # still be retryable.  Keeping this separate from PanelKey.revoked lets
+        # the next DELETE attempt write the durable transition again.
+        self._pending_revocations: set[str] = set()
         self._load()
 
     # ── Persistence ───────────────────────────────────────────────────────
@@ -170,10 +214,31 @@ class KeyStore:
         # `identity.save_worker_key` uses for the Ed25519 private key.
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         try:
-            os.write(fd, payload)
-        finally:
+            remaining = memoryview(payload)
+            while remaining:
+                written = os.write(fd, remaining)
+                if written <= 0:
+                    raise OSError("could not finish writing the inbound key file")
+                remaining = remaining[written:]
+            os.fsync(fd)
+        except Exception:
             os.close(fd)
-        os.replace(tmp, self._path)
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
+            raise
+        else:
+            os.close(fd)
+        try:
+            os.replace(tmp, self._path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
+            raise
+        _fsync_parent_directory(directory)
         try:
             os.chmod(self._path, 0o600)
         except OSError:
@@ -196,8 +261,37 @@ class KeyStore:
             created_at=now,
         )
         with self._lock:
+            previous = self._keys.get(key.key_id)
+            pruned: dict[str, PanelKey] = {}
+            if previous is None and len(self._keys) >= MAX_PANEL_KEYS:
+                revoked = sorted(
+                    (
+                        stored
+                        for stored in self._keys.values()
+                        if stored.revoked
+                        and stored.key_id not in self._pending_revocations
+                    ),
+                    key=lambda stored: stored.created_at,
+                )
+                while len(self._keys) >= MAX_PANEL_KEYS and revoked:
+                    stale = revoked.pop(0)
+                    pruned[stale.key_id] = self._keys.pop(stale.key_id)
+                if len(self._keys) >= MAX_PANEL_KEYS:
+                    self._keys.update(pruned)
+                    raise KeyLimitExceeded(
+                        "This GPU machine already has as many panel keys as it accepts. "
+                        "Revoke an unused key, then try again."
+                    )
             self._keys[key.key_id] = key
-            self._save_locked()
+            try:
+                self._save_locked()
+            except Exception:
+                if previous is None:
+                    self._keys.pop(key.key_id, None)
+                else:
+                    self._keys[key.key_id] = previous
+                self._keys.update(pruned)
+                raise
         return IssuedKey(key=key, secret=secret)
 
     def revoke(self, key_id: str) -> bool:
@@ -206,8 +300,14 @@ class KeyStore:
             key = self._keys.get(key_id)
             if key is None or key.revoked:
                 return False
+            self._pending_revocations.add(key_id)
             key.revoked = True
-            self._save_locked()
+            try:
+                self._save_locked()
+            except Exception:
+                key.revoked = False
+                raise
+            self._pending_revocations.discard(key_id)
         return True
 
     def remember_worker_id(self, key_id: str, worker_id: str) -> None:
@@ -216,15 +316,46 @@ class KeyStore:
             return
         with self._lock:
             key = self._keys.get(key_id)
-            if key is None or key.worker_id == worker_id:
+            if (
+                key is None
+                or key.revoked
+                or key_id in self._pending_revocations
+            ):
+                raise PermissionError("the panel key was revoked during registration")
+            if key.worker_id == worker_id:
                 return
+            previous_worker_id = key.worker_id
             key.worker_id = worker_id
-            self._save_locked()
+            try:
+                self._save_locked()
+            except Exception:
+                # A callback retry must attempt the durable write again. If
+                # the failed value remains in memory, the equality fast path
+                # above accepts it as saved and the node reconnects with an id
+                # that disappears on process restart.
+                key.worker_id = previous_worker_id
+                raise
 
     def worker_id_for(self, key_id: str) -> str:
         with self._lock:
             key = self._keys.get(key_id)
-            return key.worker_id if key is not None else ""
+            return (
+                key.worker_id
+                if key is not None
+                and not key.revoked
+                and key_id not in self._pending_revocations
+                else ""
+            )
+
+    def is_active(self, key_id: str) -> bool:
+        """Whether this key still has authority to use an existing session."""
+        with self._lock:
+            key = self._keys.get(key_id)
+            return (
+                key is not None
+                and not key.revoked
+                and key_id not in self._pending_revocations
+            )
 
     def list_keys(self) -> list[dict]:
         with self._lock:
@@ -232,7 +363,10 @@ class KeyStore:
 
     def any_active(self) -> bool:
         with self._lock:
-            return any(not k.revoked for k in self._keys.values())
+            return any(
+                not key.revoked and key.key_id not in self._pending_revocations
+                for key in self._keys.values()
+            )
 
     # ── Panel-side connection credentials ───────────────────────────────
 
@@ -241,10 +375,23 @@ class KeyStore:
     ) -> None:
         """Persist a pasted node secret outside the UI-readable settings store."""
         with self._lock:
+            previous_secret = self._connection_secrets.get(endpoint)
+            previous_fingerprint = self._connection_fingerprints.get(endpoint)
             self._connection_secrets[endpoint] = secret
             if fingerprint:
                 self._connection_fingerprints[endpoint] = fingerprint
-            self._save_locked()
+            try:
+                self._save_locked()
+            except Exception:
+                if previous_secret is None:
+                    self._connection_secrets.pop(endpoint, None)
+                else:
+                    self._connection_secrets[endpoint] = previous_secret
+                if previous_fingerprint is None:
+                    self._connection_fingerprints.pop(endpoint, None)
+                else:
+                    self._connection_fingerprints[endpoint] = previous_fingerprint
+                raise
 
     def connection_secret(self, endpoint: str) -> str:
         with self._lock:
@@ -256,9 +403,19 @@ class KeyStore:
 
     def forget_connection_secret(self, endpoint: str) -> None:
         with self._lock:
-            if self._connection_secrets.pop(endpoint, None) is not None:
-                self._connection_fingerprints.pop(endpoint, None)
+            previous_secret = self._connection_secrets.get(endpoint)
+            if previous_secret is None:
+                return
+            previous_fingerprint = self._connection_fingerprints.get(endpoint)
+            self._connection_secrets.pop(endpoint, None)
+            self._connection_fingerprints.pop(endpoint, None)
+            try:
                 self._save_locked()
+            except Exception:
+                self._connection_secrets[endpoint] = previous_secret
+                if previous_fingerprint is not None:
+                    self._connection_fingerprints[endpoint] = previous_fingerprint
+                raise
 
     # ── Authentication ────────────────────────────────────────────────────
 
@@ -268,7 +425,9 @@ class KeyStore:
             record = self._failures.get(peer)
             return record is not None and record.locked_until > self._now()
 
-    def authenticate(self, secret: str, *, peer: str = "") -> Optional[PanelKey]:
+    def authenticate(
+        self, secret: str, *, peer: str = "", record_seen: bool = True
+    ) -> Optional[PanelKey]:
         """Return the matching live key, or None.
 
         Compares against every stored key in constant time and does not stop at
@@ -286,7 +445,11 @@ class KeyStore:
             candidate = hash_secret(secret) if secret else ""
             matched: Optional[PanelKey] = None
             for key in self._keys.values():
-                if key.revoked or not candidate:
+                if (
+                    key.revoked
+                    or key.key_id in self._pending_revocations
+                    or not candidate
+                ):
                     continue
                 if constant_time_equals(key.secret_hash, candidate):
                     matched = key
@@ -296,9 +459,21 @@ class KeyStore:
                 return None
 
             self._failures.pop(peer_host, None)
-            matched.last_seen_at = now
-            matched.last_seen_peer = peer
-            self._save_locked()
+            if record_seen and (
+                matched.last_seen_at <= 0.0
+                or now - matched.last_seen_at
+                >= _LAST_SEEN_PERSIST_INTERVAL_SECONDS
+            ):
+                previous_at = matched.last_seen_at
+                previous_peer = matched.last_seen_peer
+                matched.last_seen_at = now
+                matched.last_seen_peer = peer
+                try:
+                    self._save_locked()
+                except Exception:
+                    matched.last_seen_at = previous_at
+                    matched.last_seen_peer = previous_peer
+                    raise
             return matched
 
     def _record_failure_locked(self, peer: str, now: float) -> None:

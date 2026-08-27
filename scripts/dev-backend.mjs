@@ -98,8 +98,17 @@ export function buildExitBanner({ code, signal, logTail, logPath, platform = pro
   return lines.join("\n");
 }
 
+// `uv run` re-syncs the venv to uv.lock before launching — which would undo
+// the opt-in ROCm torch swap `scripts/setup.py` just performed (the lock pins
+// the CUDA build). `bun run setup:api` already did the sync, so skip it here
+// whenever the ROCm variant is requested (#1665).
+export function uvRunArgs(env = process.env) {
+  const rocm = (env.OMNIVOICE_TORCH_VARIANT || "").trim().toLowerCase() === "rocm";
+  return rocm ? [UVICORN_ARGS[0], "--no-sync", ...UVICORN_ARGS.slice(1)] : UVICORN_ARGS;
+}
+
 function main() {
-  const child = spawn("uv", UVICORN_ARGS, { stdio: "inherit" });
+  const child = spawn("uv", uvRunArgs(), { stdio: "inherit" });
 
   // A Ctrl+C / concurrently teardown is a DELIBERATE stop — no scary banner.
   let interrupted = false;

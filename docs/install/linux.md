@@ -378,9 +378,14 @@ dependency sync — matched to the app's pinned `torch==2.8.0` (the rocm6.2
 index only ever published up to torch 2.5.1, so it silently failed the
 reinstall and left the CPU-only CUDA build in place).
 
-**2. Environment variable (existing installs / headless).** Set
+**2. Environment variable (existing installs / headless / source).** Set
 `OMNIVOICE_TORCH_VARIANT=rocm` before launching — the next bootstrap performs
-the same ROCm reinstall. `OMNIVOICE_TORCH_INDEX=<url>` overrides the wheel
+the same ROCm reinstall. Source installs honour it too:
+`OMNIVOICE_TORCH_VARIANT=rocm bun run desktop` swaps torch right after
+`uv sync` and launches the backend without re-syncing, so the wheel is not
+reverted on the next start (#1665). Without the variable, `bun run desktop`
+restores the lockfile's CUDA build — a hand-swapped ROCm wheel does not
+survive it. `OMNIVOICE_TORCH_INDEX=<url>` overrides the wheel
 index when you need a different ROCm version — e.g. AMD publishes newer
 driver-matched builds (7.2.x) at `repo.radeon.com` as a `--find-links` page
 rather than a PyPI-style index:

@@ -23,8 +23,9 @@
  * Disk scopes are executed by the Rust shell (`reset.rs`), which stops the
  * backend, deletes, and starts it again — a running backend cannot delete the
  * weights it has mapped into memory, nor recreate the directories it lost. The
- * two scopes that own no files are handled here: UI preferences (localStorage)
- * and history (the DELETE endpoints, which take rows and audio together).
+ * Browser-owned state is handled here too: UI preferences (localStorage),
+ * long-form projects (IndexedDB), and history (the DELETE endpoints, which
+ * take rows and audio together).
  *
  * Outside the Tauri shell (browser / Docker) there is no local install to clear,
  * so only the preferences tier is offered.
@@ -51,6 +52,12 @@ import { SettingsSection } from './primitives';
 import { fmtBytes } from './bytes';
 import StorageTargetRow from './StorageTargetRow';
 import { clearLocalPreferences } from '../../utils/prefKeys';
+import {
+  clearLongformProjects,
+  flushLongformPendingWrites,
+  LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR,
+} from '../../utils/longformPersistence';
+import { reloadAfterApplicationPersistence } from '../../utils/persistenceLifecycle';
 import { clearHistory } from '../../api/generate';
 import { clearDubHistory } from '../../api/dub';
 
@@ -124,6 +131,7 @@ export function plan(selected) {
     disk,
     prefs: selected.includes('ui_prefs'),
     history: selected.includes('history') && !selected.includes('content'),
+    longformProjects: selected.includes('content'),
     restart: disk.length > 0,
   };
 }
@@ -198,9 +206,15 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
           );
         }
       }
-      // Preferences last: the reload below is what makes them take effect, and if
-      // anything above threw we would rather not have wiped them for nothing.
-      if (steps.prefs) clearLocalPreferences();
+      if (steps.longformProjects) await clearLongformProjects();
+      if (steps.prefs) {
+        // If projects are being retained, settle them first so an IndexedDB
+        // failure can materialize its full fallback before preference reset
+        // decides what to preserve. clearLongformProjects already performs the
+        // ordered flush when content is intentionally being deleted.
+        if (!steps.longformProjects) await flushLongformPendingWrites();
+        clearLocalPreferences();
+      }
 
       toast.success(
         steps.restart
@@ -213,15 +227,17 @@ export default function ResetPanel({ _forceAdvanced = false } = {}) {
       // The backend is coming back up behind us; the bootstrap splash and the
       // reconnecting banner (#1094) own that wait, so all this has to do is get
       // the UI back to a clean slate.
-      reloadTimerRef.current = setTimeout(() => window.location.reload(), 400);
+      reloadTimerRef.current = setTimeout(() => void reloadAfterApplicationPersistence(), 400);
     } catch (e) {
       setBusy(false);
-      toast.error(
-        t('settings.reset_failed', {
-          defaultValue: 'Reset failed: {{message}}',
-          message: e?.message || String(e),
-        }),
-      );
+      const message =
+        e?.name === LONGFORM_LOCAL_FALLBACK_CLEAR_ERROR
+          ? t('settings.reset_longform_failed')
+          : t('settings.reset_failed', {
+              defaultValue: 'Reset failed: {{message}}',
+              message: e?.message || String(e),
+            });
+      toast.error(message);
     }
   };
 

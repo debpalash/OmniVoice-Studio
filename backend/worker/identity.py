@@ -25,6 +25,7 @@ in the dialog that shows it once.
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import hmac
 import json
@@ -301,16 +302,61 @@ def save_worker_key(path: str, keypair: WorkerKeypair) -> None:
     tmp = f"{path}.tmp"
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        os.write(fd, keypair.private_bytes())
-    finally:
+        remaining = memoryview(keypair.private_bytes())
+        while remaining:
+            written = os.write(fd, remaining)
+            if written <= 0:
+                raise OSError("could not finish writing the worker identity key")
+            remaining = remaining[written:]
+        os.fsync(fd)
+    except Exception:
         os.close(fd)
-    os.replace(tmp, path)
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+    else:
+        os.close(fd)
+    try:
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+    _fsync_parent_directory(directory)
     try:
         os.chmod(path, 0o600)
     except OSError:
         # Windows and some network filesystems do not honour POSIX modes; the
         # key is still in a per-user directory there.
         pass
+
+
+def _fsync_parent_directory(directory: str) -> None:
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if directory_flag is None:
+        return
+    unsupported = {
+        errno.EINVAL,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | directory_flag)
+    except OSError as exc:
+        if exc.errno in unsupported:
+            return
+        raise
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        if exc.errno not in unsupported:
+            raise
+    finally:
+        os.close(descriptor)
 
 
 def load_worker_key(path: str) -> Optional[WorkerKeypair]:

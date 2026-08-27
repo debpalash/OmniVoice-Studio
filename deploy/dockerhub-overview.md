@@ -87,8 +87,9 @@ Podman users: same two `--device` flags (Quadlet: `AddDevice=/dev/kfd` +
 `-e HSA_OVERRIDE_GFX_VERSION=11.0.0` if the GPU isn't detected — details in
 the [Docker install guide](https://github.com/debpalash/VoiceStudio/blob/main/docs/install/docker.md).
 
-There's also a Compose file in the repo with `cpu` / `gpu` / `rocm` profiles
-— see the [Docker install guide](https://github.com/debpalash/VoiceStudio/blob/main/docs/install/docker.md).
+There's also a Compose file in the repo with `cpu` / `gpu` / `rocm` profiles,
+plus `worker-gpu` / `worker-rocm` profiles that lend a headless GPU without
+publishing the web UI — see the [Docker install guide](https://github.com/debpalash/VoiceStudio/blob/main/docs/install/docker.md).
 
 ---
 

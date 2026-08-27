@@ -23,6 +23,7 @@ import { join, delimiter } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
 import { DEV_APP_PROCESS_NAME } from "./desktop-common.mjs";
+import { launchTauriDev } from "./desktop-dev-launch.mjs";
 
 /** The env's PATH key — Windows uses "Path", others "PATH"; match case-insensitively. */
 function pathKeyOf(env) {
@@ -114,12 +115,10 @@ if (!cargoResolvable(childEnv)) {
   }
 }
 
-// Run the workspace-local Tauri CLI in dev mode (cwd is already frontend/),
-// handing it the healed env so its `cargo` spawns inherit the fixed PATH.
-const res = spawnSync("bun", ["run", "tauri", "dev", ...process.argv.slice(2)], {
-  stdio: "inherit",
-  env: childEnv,
-});
+// `frontend/dist` is a required bundle resource even under `tauri dev`.
+// The helper creates it before spawning Tauri and is behavior-tested with an
+// injected process runner (#1664). cwd is already frontend/.
+const res = launchTauriDev({ env: childEnv });
 if (res.error) {
   console.error(`❌ failed to launch tauri dev: ${res.error.message}`);
   process.exit(1);

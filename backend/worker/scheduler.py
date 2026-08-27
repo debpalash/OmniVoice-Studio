@@ -27,14 +27,20 @@ be minutes.
 from __future__ import annotations
 
 import asyncio
+import copy
 import enum
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+from functools import partial
 from typing import Callable, Optional
 
 from worker import deadlines as deadline_policy
-from worker import task_store
+from worker import registry, task_store
+from worker.async_utils import (
+    to_thread_and_defer_cancellation,
+    to_thread_and_drain_on_cancel,
+)
 from worker.breaker import Attribution
 from worker.capacity import WorkerCapacity
 from worker.clock import resolve
@@ -100,6 +106,29 @@ class SchedulerStopped(RuntimeError):
     """
 
 
+def _adopt_task_state(target: Task, source: Task) -> None:
+    """Commit a reconciled copy while preserving public task/attempt identities."""
+    current_attempts = {attempt.attempt_id: attempt for attempt in target.attempts}
+    adopted_attempts = []
+    for source_attempt in source.attempts:
+        target_attempt = current_attempts.get(source_attempt.attempt_id)
+        if target_attempt is None:
+            target_attempt = copy.deepcopy(source_attempt)
+        else:
+            for item in fields(Attempt):
+                setattr(
+                    target_attempt,
+                    item.name,
+                    copy.deepcopy(getattr(source_attempt, item.name)),
+                )
+        adopted_attempts.append(target_attempt)
+
+    for item in fields(Task):
+        if item.name != "attempts":
+            setattr(target, item.name, copy.deepcopy(getattr(source, item.name)))
+    target.attempts[:] = adopted_attempts
+
+
 @dataclass(frozen=True)
 class Assignment:
     """One task bound to one worker, ready to send."""
@@ -108,6 +137,18 @@ class Assignment:
     attempt: Attempt
     worker: ConnectedWorker
     deadlines: deadline_policy.Deadlines
+
+
+@dataclass(frozen=True)
+class _ReconciliationGeneration:
+    """Immutable task copies persisted before their live generation is adopted."""
+
+    worker_id: str
+    stamp: float
+    originals: tuple[Task, ...]
+    snapshots: tuple[Task, ...]
+    candidates: tuple[Task, ...]
+    zombies: tuple[str, ...] = ()
 
 
 class Scheduler:
@@ -137,6 +178,10 @@ class Scheduler:
         # task_id → when its progress was last written through. Cleared with
         # the task, so it cannot outlive what it describes.
         self._progress_saved_at: dict[str, float] = {}
+        # Async producers serialize admission while durable input staging is
+        # off-loop. This keeps queue/idempotency decisions atomic without
+        # holding the event loop hostage to a multi-gigabyte copy and hash.
+        self._submission_lock = asyncio.Lock()
 
     # ── Persistence seam ──────────────────────────────────────────────────
 
@@ -281,11 +326,98 @@ class Scheduler:
         )
         if deadline_seconds:
             task.deadline_at = stamp + deadline_seconds
-        self._tasks[task.task_id] = task
         if self._persist:
-            task_store.create(task, now=stamp)
+            persisted = task_store.create(task, now=stamp)
+            if persisted.task_id != task.task_id:
+                self._tasks.setdefault(persisted.task_id, persisted)
+                return persisted
+            task = persisted
+        # Publish to the dispatcher only after durable admission succeeds. A
+        # failed DB/input-stage write must not send work the API rejected.
+        self._tasks[task.task_id] = task
         self._emit("queued", task)
         return task
+
+    async def submit_async(
+        self,
+        *,
+        operation: str,
+        engine: str,
+        model_id: str,
+        params: Optional[dict] = None,
+        priority: PriorityClass = PriorityClass.INTERACTIVE,
+        idempotency_key: Optional[str] = None,
+        max_attempts: int = 3,
+        deadline_seconds: Optional[float] = None,
+        pinned_worker_id: Optional[str] = None,
+        now: Optional[float] = None,
+    ) -> Task:
+        """Admit durably without hashing/copying task inputs on the app loop."""
+        async with self._submission_lock:
+            stamp = resolve(now)
+            if idempotency_key:
+                for existing in self._tasks.values():
+                    if existing.idempotency_key == idempotency_key:
+                        return existing
+                if self._persist:
+                    stored, cancelled = await to_thread_and_defer_cancellation(
+                        task_store.get_by_idempotency_key, idempotency_key
+                    )
+                    if stored is not None:
+                        self._tasks.setdefault(stored.task_id, stored)
+                        if cancelled:
+                            raise asyncio.CancelledError
+                        return stored
+                    if cancelled:
+                        raise asyncio.CancelledError
+
+            if self.queue_depth >= self.max_queue_depth:
+                raise QueueFull(
+                    f"The remote task queue is full ({self.max_queue_depth} waiting). "
+                    "Wait for current work to finish, or add another worker."
+                )
+
+            task = Task(
+                task_id=uuid.uuid4().hex[:16],
+                operation=operation,
+                engine=engine,
+                model_id=model_id,
+                params=params or {},
+                priority=priority,
+                idempotency_key=idempotency_key,
+                max_attempts=max_attempts,
+                created_at=stamp,
+                pinned_worker_id=pinned_worker_id,
+            )
+            if deadline_seconds:
+                task.deadline_at = stamp + deadline_seconds
+            if self._persist:
+                persisted, cancelled = await to_thread_and_defer_cancellation(
+                    partial(task_store.create, task, now=stamp)
+                )
+                if persisted.task_id != task.task_id:
+                    self._tasks.setdefault(persisted.task_id, persisted)
+                    if cancelled:
+                        raise asyncio.CancelledError
+                    return persisted
+                task = persisted
+                if cancelled:
+                    # The durable copy cannot be interrupted midway. Settle it
+                    # before publication so cancellation can never dispatch a
+                    # task whose caller did not finish submitting it.
+                    task.cancel(reason="submission was cancelled", now=resolve())
+                    await to_thread_and_drain_on_cancel(
+                        partial(task_store.save, task, now=resolve())
+                    )
+                    self._tasks[task.task_id] = task
+                    self._emit("cancelled", task)
+                    raise asyncio.CancelledError
+
+            # The dispatcher only learns the task after input bytes and its DB
+            # row are durable. A failed stage cannot escape as runnable work.
+            self._tasks[task.task_id] = task
+            self._emit("queued", task)
+            return task
 
     def adopt(self, task: Task) -> None:
         """Take ownership of a task loaded from disk after a restart."""
@@ -378,7 +510,11 @@ class Scheduler:
         for worker in self.pool:
             if task.pinned_worker_id and worker.worker_id != task.pinned_worker_id:
                 continue
-            if not worker.record.schedulable or worker.draining:
+            if (
+                not worker.record.schedulable
+                or worker.draining
+                or worker.registration_pending
+            ):
                 continue
             if worker.stale(now=stamp):
                 continue
@@ -469,6 +605,13 @@ class Scheduler:
         empty or every waiting task is blocked on capacity. A task with no
         capable worker at all is failed here rather than left to age out.
         """
+        # Selection and binding are one authority read. A revoke/disable route
+        # holds the same lock until its durable row and live pool record agree,
+        # so another thread cannot bind work in that publication window.
+        with registry.authority_guard():
+            return self._next_assignment(now=now)
+
+    def _next_assignment(self, *, now: Optional[float] = None) -> Optional[Assignment]:
         stamp = resolve(now)
         for task in self._queued_order():
             try:
@@ -700,9 +843,25 @@ class Scheduler:
         if epoch is not None and attempt.session_epoch != epoch:
             return False, task
 
-        committed, attempt = task.commit_result(
-            attempt_id, result_ref=result_ref, session_epoch=epoch, now=stamp
-        )
+        if self._persist:
+            # Prepare and persist the terminal generation before publishing it
+            # to the live graph.  A failed database write must leave the
+            # redelivery path looking exactly as it did before this frame:
+            # still in flight, still consuming capacity, and not yet credited
+            # as a breaker success.
+            candidate = copy.deepcopy(task)
+            committed, _ = candidate.commit_result(
+                attempt_id, result_ref=result_ref, session_epoch=epoch, now=stamp
+            )
+            if committed:
+                task_store.commit_result(candidate, result_json=result, now=stamp)
+            else:
+                task_store.save(candidate, now=stamp)
+            _adopt_task_state(task, candidate)
+        else:
+            committed, attempt = task.commit_result(
+                attempt_id, result_ref=result_ref, session_epoch=epoch, now=stamp
+            )
         self._release_slot(task, attempt, now=stamp)
         worker = self.pool.get(attempt.worker_id)
         if worker is not None and committed:
@@ -711,10 +870,6 @@ class Scheduler:
                 WorkerCapacity.slot_key(task.engine, task.model_id),
                 now=stamp,
             )
-        if committed and self._persist:
-            task_store.commit_result(task, result_json=result, now=stamp)
-        elif self._persist:
-            self._save(task, now=stamp)
         self._emit("completed" if committed else "duplicate", task)
         return committed, task
 
@@ -779,28 +934,85 @@ class Scheduler:
         This is where the duplicate-execution bug would live if a disconnect
         were treated as a failure: the worker may be seconds from delivering.
         """
+        generation = self.prepare_disconnected(worker_id, now=now)
+        try:
+            # A disconnect is one generation, just like reconnect. If any
+            # write fails, neither the database nor the live task graph may
+            # contain a half-marked set of attempts.
+            self.persist_reconciliation(generation)
+            return self.apply_disconnected(generation)
+        finally:
+            # A failed persistence write must not leave a dead stream's pool
+            # entry schedulable.
+            self.pool.disconnect(worker_id)
+
+    def prepare_disconnected(
+        self,
+        worker_id: str,
+        *,
+        now: Optional[float] = None,
+        include_task_ids: Optional[set[str]] = None,
+    ) -> _ReconciliationGeneration:
+        """Build, but do not publish, one disconnected task generation."""
         stamp = resolve(now)
-        affected: list[Task] = []
-        for task in self._tasks.values():
+        included = include_task_ids or set()
+        originals = tuple(
+            task
+            for task in self._tasks.values()
+            if task.task_id in included
+            or (
+                task.active_attempt is not None
+                and task.active_attempt.worker_id == worker_id
+            )
+        )
+        snapshots = tuple(copy.deepcopy(task) for task in originals)
+        candidates = tuple(copy.deepcopy(task) for task in snapshots)
+        for task in candidates:
             attempt = task.active_attempt
             if attempt is None or attempt.worker_id != worker_id:
                 continue
             grace = deadline_policy.default_grace_seconds(task.operation)
-            task.mark_disconnected(attempt.attempt_id, grace_seconds=grace, now=stamp)
-            affected.append(task)
-            self._save(task, now=stamp)
-            self._emit("worker_lost", task)
-        self.pool.disconnect(worker_id)
-        return affected
+            task.mark_disconnected(
+                attempt.attempt_id, grace_seconds=grace, now=stamp
+            )
+        return _ReconciliationGeneration(
+            worker_id=worker_id,
+            stamp=stamp,
+            originals=originals,
+            snapshots=snapshots,
+            candidates=candidates,
+        )
 
     def on_reconnected(
-        self, worker_id: str, *, in_flight: set[str], now: Optional[float] = None
+        self,
+        worker_id: str,
+        *,
+        in_flight: set[str],
+        now: Optional[float] = None,
+        before_persist: Optional[Callable[[object], None]] = None,
     ) -> list[str]:
         """Reconcile against what the worker says it is running.
 
         Returns attempt ids the worker should cancel — work we have already
         written off, which it must stop burning a GPU on.
         """
+        generation = self.prepare_reconnected(
+            worker_id, in_flight=in_flight, now=now
+        )
+        self.persist_reconciliation(
+            generation, before_persist=before_persist
+        )
+        return self.apply_reconnected(generation)
+
+    def prepare_reconnected(
+        self,
+        worker_id: str,
+        *,
+        in_flight: set[str],
+        now: Optional[float] = None,
+        include_task_ids: Optional[set[str]] = None,
+    ) -> _ReconciliationGeneration:
+        """Build, but do not publish, one reconnect reconciliation."""
         stamp = resolve(now)
         known = {
             attempt.attempt_id: attempt
@@ -813,7 +1025,20 @@ class Scheduler:
             for attempt_id in in_flight
             if attempt_id not in known or known[attempt_id].state.terminal
         ]
-        for task in list(self._tasks.values()):
+        included = include_task_ids or set()
+        originals = tuple(
+            task
+            for task in self._tasks.values()
+            if task.task_id in included
+            or (
+                not task.state.terminal
+                and task.active_attempt is not None
+                and task.active_attempt.worker_id == worker_id
+            )
+        )
+        snapshots = tuple(copy.deepcopy(task) for task in originals)
+        candidates = tuple(copy.deepcopy(task) for task in snapshots)
+        for task in candidates:
             if task.state.terminal:
                 continue
             reconcile(
@@ -826,8 +1051,84 @@ class Scheduler:
                 resume_lease_seconds=self._budget_for(task).progress_lease_seconds,
                 now=stamp,
             )
-            self._save(task, now=stamp)
-        return zombies
+        return _ReconciliationGeneration(
+            worker_id=worker_id,
+            stamp=stamp,
+            originals=originals,
+            snapshots=snapshots,
+            candidates=candidates,
+            zombies=tuple(zombies),
+        )
+
+    def persist_reconciliation(
+        self,
+        generation: _ReconciliationGeneration,
+        *,
+        before_persist: Optional[Callable[[object], None]] = None,
+    ) -> None:
+        """Persist a prepared generation without touching the live task graph."""
+        # Nothing in the live graph changes until the complete generation is
+        # durable. A failed write therefore cannot queue duplicate execution
+        # while the old worker is still finishing the original attempt.
+        if self._persist or before_persist is not None:
+            task_store.save_many(
+                generation.candidates if self._persist else [],
+                now=generation.stamp,
+                before_save=before_persist,
+            )
+
+    def reconciliation_is_current(
+        self, generation: _ReconciliationGeneration
+    ) -> bool:
+        """Did the live graph remain unchanged while persistence was off-loop?"""
+        return all(
+            self._tasks.get(original.task_id) is original
+            and original == snapshot
+            for original, snapshot in zip(
+                generation.originals, generation.snapshots
+            )
+        )
+
+    def apply_reconnected(
+        self, generation: _ReconciliationGeneration
+    ) -> list[str]:
+        """Publish a durable reconnect generation on the scheduler's loop."""
+        if not self.reconciliation_is_current(generation):
+            raise RuntimeError("reconnect reconciliation generation changed")
+        changed: list[Task] = []
+        for original, candidate in zip(
+            generation.originals, generation.candidates
+        ):
+            if original != candidate:
+                changed.append(original)
+            _adopt_task_state(original, candidate)
+        for task in changed:
+            self._emit(
+                "failed"
+                if task.state.terminal
+                else "requeued"
+                if task.state is TaskState.QUEUED
+                else "resumed",
+                task,
+            )
+        return list(generation.zombies)
+
+    def apply_disconnected(
+        self, generation: _ReconciliationGeneration
+    ) -> list[Task]:
+        """Publish a durable disconnect generation on the scheduler's loop."""
+        if not self.reconciliation_is_current(generation):
+            raise RuntimeError("disconnect reconciliation generation changed")
+        changed: list[Task] = []
+        for original, candidate in zip(
+            generation.originals, generation.candidates
+        ):
+            if original != candidate:
+                changed.append(original)
+            _adopt_task_state(original, candidate)
+        for task in changed:
+            self._emit("worker_lost", task)
+        return list(generation.originals)
 
     def cancel(self, task_id: str, *, reason: str = "cancelled", now: Optional[float] = None) -> bool:
         task = self._tasks.get(task_id)

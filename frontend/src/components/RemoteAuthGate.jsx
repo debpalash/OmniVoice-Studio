@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../api/client';
 import { exchangeApiKey } from '../api/authSession';
+import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 // On a remote device the backend can demand EITHER a LAN-share PIN
 // (NetworkAccessMiddleware → "PIN required") OR an API key (BearerKeyMiddleware
@@ -10,12 +11,18 @@ import { exchangeApiKey } from '../api/authSession';
 // gate listens for it and swaps the app tree for the matching entry form.
 // `forceGate` / `forceMode` are test-only. PINs remain tab-scoped; an API master
 // is immediately exchanged for a short-lived session and never persisted.
-export default function RemoteAuthGate({ children, forceGate = false, forceMode = 'pin' }) {
+export default function RemoteAuthGate({
+  children,
+  forceGate = false,
+  forceMode = 'pin',
+  reload = reloadAfterApplicationPersistence,
+}) {
   const { t } = useTranslation();
   const [gated, setGated] = useState(forceGate);
   const [mode, setMode] = useState(forceMode);
   const [value, setValue] = useState('');
   const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -35,16 +42,21 @@ export default function RemoteAuthGate({ children, forceGate = false, forceMode 
 
   const submit = async (e) => {
     e.preventDefault();
-    if (pending) return;
+    if (pendingRef.current) return;
     const v = value.trim();
     if (!v) return;
     setError(null);
+    pendingRef.current = true;
+    setPending(true);
     if (mode === 'pin') {
       try {
         sessionStorage.setItem('ov_pin', v);
-        window.location.reload();
+        await reload();
       } catch {
         setError({ status: undefined });
+      } finally {
+        pendingRef.current = false;
+        setPending(false);
       }
       return;
     }
@@ -54,13 +66,13 @@ export default function RemoteAuthGate({ children, forceGate = false, forceMode 
     // older release; a failed exchange leaves it for the bootstrap migration
     // to retry on the next launch.
     setValue('');
-    setPending(true);
     try {
       await exchangeApiKey(v, { apiBase: API });
-      window.location.reload();
+      await reload();
     } catch (exchangeError) {
       setError({ status: exchangeError?.status });
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   };

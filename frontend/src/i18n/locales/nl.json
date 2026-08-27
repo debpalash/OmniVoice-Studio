@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Projecten konden niet worden geladen",
+    "storage_unavailable_body": "VoiceStudio kon de lokale projectopslag niet lezen. Je gegevens zijn niet gewijzigd. Probeer opnieuw om ze veilig te openen.",
+    "clear_projects": "Opgeslagen projecten wissen",
+    "clear_confirm": "Hiermee worden alle opgeslagen Verhalen- en Luisterboekprojecten en niet-opgeslagen concepten permanent verwijderd, zodat VoiceStudio opnieuw kan openen. Dit kan niet ongedaan worden gemaakt. Doorgaan?"
+  },
   "backendUnreachable": {
     "contact_recent": "Het reageerde {{ago}} geleden nog en stopte toen met reageren — waarschijnlijk is het midden in een verzoek gecrasht of beëindigd.",
     "contact_never": "Het heeft deze sessie helemaal niet gereageerd — mogelijk is het nooit gestart.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Kon niet registreren: {{message}}",
     "shortcut_reset": "Resetten naar standaard",
     "shortcut_reset_failed": "Reset mislukt: {{message}}",
+    "reset_longform_failed": "VoiceStudio kon de opgeslagen projecten niet veilig wissen. Je projectgegevens zijn niet gewijzigd; maak opslagruimte vrij of start de app opnieuw en probeer het nogmaals.",
     "cancel": "Annuleer",
     "hf_token_also_clear": "Ook wissen",
     "hf_token_clear_btn": "Token wissen",
@@ -2191,6 +2198,7 @@
     "retry_load": "Opnieuw proberen"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio kon de vorige backend niet veilig stoppen. Sluit alle andere VoiceStudio-vensters of -processen en probeer het opnieuw.",
     "loading": "Installatie voorbereiden…",
     "title": "VoiceStudio instellen",
     "subtitle": "Er is nog niets geïnstalleerd — controleer waar alles komt te staan en start daarna. Later te wijzigen in Instellingen.",

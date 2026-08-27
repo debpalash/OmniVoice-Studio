@@ -103,6 +103,20 @@ describe('RemoteBackendPanel', () => {
     expect(localStorage.getItem('ov_backend_url')).toBe('http://gpu-box:3900');
   });
 
+  it('reports a localized save failure when the requested reload rejects', async () => {
+    askConfirm.mockResolvedValue(true);
+    reload.mockRejectedValue(new Error('reload unavailable'));
+    render(<RemoteBackendPanel reload={reload} />);
+    setUrl('http://gpu-box:3900');
+
+    clickSave();
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/Save failed/i)),
+    );
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
   it('skips the confirmation when the exact URL passed a connection test', async () => {
     global.fetch = vi.fn().mockResolvedValue(healthResponse('0.3.15'));
     render(<RemoteBackendPanel reload={reload} />);

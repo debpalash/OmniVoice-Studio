@@ -91,6 +91,31 @@ def test_token_can_be_redeemed_exactly_once(db):
     assert registry.redeem_enrollment(token, worker_id="w2") is False
 
 
+def test_worker_insert_failure_does_not_spend_the_enrollment_token(
+    db, monkeypatch
+):
+    token = registry.create_enrollment(endpoint="e", cert_fingerprint="f")
+    keypair = WorkerKeypair.generate()
+    real_insert = registry._insert_worker
+
+    def fail_insert(_conn, _worker):
+        raise sqlite3.OperationalError("disk full")
+
+    monkeypatch.setattr(registry, "_insert_worker", fail_insert)
+    with pytest.raises(sqlite3.OperationalError, match="disk full"):
+        registry.enroll_with_token(
+            token, name="GPU", public_key=keypair.public_bytes()
+        )
+
+    assert registry.get_by_key_id(keypair.key_id) is None
+    monkeypatch.setattr(registry, "_insert_worker", real_insert)
+    enrolled = registry.enroll_with_token(
+        token, name="GPU", public_key=keypair.public_bytes()
+    )
+    assert enrolled is not None
+    assert enrolled.key_id == keypair.key_id
+
+
 def test_expired_token_is_refused(db):
     token = registry.create_enrollment(endpoint="e", cert_fingerprint="f", ttl_seconds=60, now=1000.0)
     assert registry.redeem_enrollment(token, worker_id="w1", now=1061.0) is False

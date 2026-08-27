@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "Proyek tidak dapat dimuat",
+    "storage_unavailable_body": "VoiceStudio tidak dapat membaca penyimpanan proyek lokal. Data Anda tidak diubah. Coba lagi untuk membukanya dengan aman.",
+    "clear_projects": "Hapus proyek tersimpan",
+    "clear_confirm": "Tindakan ini menghapus permanen semua proyek Cerita dan Buku Audio yang tersimpan serta draf yang belum disimpan agar VoiceStudio dapat dibuka kembali. Tindakan ini tidak dapat dibatalkan. Lanjutkan?"
+  },
   "backendUnreachable": {
     "contact_recent": "Backend masih merespons {{ago}} yang lalu lalu berhenti merespons — kemungkinan besar crash atau dihentikan di tengah permintaan.",
     "contact_never": "Backend sama sekali belum merespons pada sesi ini — mungkin tidak pernah berhasil dijalankan.",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "Tidak dapat mendaftar: {{message}}",
     "shortcut_reset": "Atur ulang ke default",
     "shortcut_reset_failed": "Penyetelan ulang gagal: {{message}}",
+    "reset_longform_failed": "VoiceStudio tidak dapat menghapus proyek tersimpan dengan aman. Data proyek Anda tidak diubah; kosongkan sebagian ruang penyimpanan atau mulai ulang aplikasi, lalu coba lagi.",
     "cancel": "Batalkan",
     "hf_token_also_clear": "Hapus juga",
     "hf_token_clear_btn": "Hapus token",
@@ -2191,6 +2198,7 @@
     "retry_load": "Coba lagi"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio tidak dapat menghentikan backend sebelumnya dengan aman. Tutup jendela atau proses VoiceStudio lain, lalu coba lagi.",
     "loading": "Menyiapkan penyiapan…",
     "title": "Siapkan VoiceStudio",
     "subtitle": "Belum ada yang terpasang — tinjau ke mana semuanya disimpan, lalu mulai. Bisa diubah nanti di Pengaturan.",

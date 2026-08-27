@@ -15,6 +15,7 @@ import asyncio
 import logging
 import os
 from typing import Optional
+from urllib.parse import urlsplit
 
 from worker.clock import resolve
 
@@ -24,8 +25,50 @@ logger = logging.getLogger("omnivoice.worker")
 _SWEEP_INTERVAL_SECONDS = 5.0
 # How often the dispatcher looks for queued work it can place.
 _DISPATCH_INTERVAL_SECONDS = 1.0
+# Finished rows and their artifacts remain inspectable for a week, then leave
+# in bounded batches. The loop keeps a long-lived control plane from growing
+# forever while the startup pass covers apps that are rarely left open.
+_ARTIFACT_GC_INTERVAL_SECONDS = 60 * 60.0
+_ARTIFACT_GC_BATCH_SIZE = 250
 
 DEFAULT_PORT = 7443
+
+
+class EndpointCertificateError(ValueError):
+    """An advertised endpoint is not usable with the live TLS certificate."""
+
+
+def _endpoint_host(endpoint: str) -> str:
+    """Extract the hostname from the gRPC ``host:port`` enrollment target."""
+    target = (endpoint or "").strip()
+    try:
+        parsed = urlsplit(f"//{target}")
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise EndpointCertificateError(
+            f"Worker endpoint must be host:port; got {endpoint!r}."
+        ) from exc
+    if (
+        not host
+        or port is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise EndpointCertificateError(
+            f"Worker endpoint must be host:port; got {endpoint!r}."
+        )
+    return host
+
+
+def _format_endpoint(host: str, port: int) -> str:
+    clean_host = (host or "").strip().strip("[]")
+    if ":" in clean_host:
+        clean_host = f"[{clean_host}]"
+    return f"{clean_host}:{port}"
 
 
 def remote_workers_enabled() -> bool:
@@ -93,6 +136,7 @@ class ControlPlane:
         self._server = None
         self._tasks: list[asyncio.Task] = []
         self._started = False
+        self._lifecycle_lock = asyncio.Lock()
         self.startup_error: Optional[str] = None
         # The port we actually bound, which is not necessarily the configured
         # one — an enrollment token carries this, so advertising the config
@@ -108,6 +152,10 @@ class ControlPlane:
         return self.credentials.fingerprint if self.credentials else ""
 
     async def start(self, *, port: Optional[int] = None) -> None:
+        async with self._lifecycle_lock:
+            await self._start(port=port)
+
+    async def _start(self, *, port: Optional[int] = None) -> None:
         if self._started:
             return
         # Imported here, not at module scope: a user who never enables remote
@@ -117,25 +165,39 @@ class ControlPlane:
         from worker.scheduler import Scheduler  # noqa: PLC0415
         from worker.transport.server import WorkerServicer, serve  # noqa: PLC0415
 
-        locations = paths()
-        os.makedirs(locations["root"], exist_ok=True)
-        self.credentials = tls.load_or_create(
-            locations["certificate"], locations["private_key"]
-        )
-        self.pool = WorkerPool()
-        self.scheduler = Scheduler(self.pool)
-        # Recover anything that was in flight when the app last quit. The
-        # workers holding those tasks may still be rendering.
-        self.scheduler.restore()
-
-        self.servicer = WorkerServicer(
-            self.scheduler,
-            self.pool,
-            artifact_dir=locations["artifacts"],
-            cert_fingerprint=self.credentials.fingerprint,
-        )
         self._port = port or control_port()
         try:
+            locations = paths()
+            os.makedirs(locations["root"], exist_ok=True)
+            wanted_hostnames = tls.default_hostnames()
+            advertised_host = _endpoint_host(self.default_endpoint())
+            if advertised_host not in wanted_hostnames:
+                wanted_hostnames.append(advertised_host)
+            self.credentials = tls.load_or_create(
+                locations["certificate"],
+                locations["private_key"],
+                hostnames=wanted_hostnames,
+            )
+            self.pool = WorkerPool()
+            self.scheduler = Scheduler(self.pool)
+            try:
+                await self._artifact_gc_once(
+                    locations["artifacts"], retry_upload_parts=False
+                )
+            except Exception:
+                # Retention is best-effort. A locked file or temporarily busy
+                # database must not make remote compute unavailable.
+                logger.exception("Remote worker startup artifact sweep failed")
+            # Recover anything that was in flight when the app last quit. The
+            # workers holding those tasks may still be rendering.
+            self.scheduler.restore()
+
+            self.servicer = WorkerServicer(
+                self.scheduler,
+                self.pool,
+                artifact_dir=locations["artifacts"],
+                cert_fingerprint=self.credentials.fingerprint,
+            )
             self._server = await serve(
                 self.servicer,
                 port=self._port,
@@ -148,12 +210,20 @@ class ControlPlane:
         self._tasks = [
             asyncio.create_task(self._sweep_loop(), name="worker-sweep"),
             asyncio.create_task(self._dispatch_loop(), name="worker-dispatch"),
+            asyncio.create_task(
+                self._artifact_gc_loop(locations["artifacts"]),
+                name="worker-artifact-gc",
+            ),
         ]
         self._started = True
         self.startup_error = None
         logger.info("Remote worker control plane started on port %d", self._port)
 
     async def stop(self) -> None:
+        async with self._lifecycle_lock:
+            await self._stop()
+
+    async def _stop(self) -> None:
         for task in self._tasks:
             task.cancel()
         if self._tasks:
@@ -199,6 +269,29 @@ class ControlPlane:
             except Exception:
                 logger.exception("Worker sweep failed")
 
+    async def _artifact_gc_once(
+        self, artifact_root: str, *, retry_upload_parts: bool = True
+    ) -> int:
+        """Purge one bounded retention batch without blocking the event loop."""
+        from worker import task_store  # noqa: PLC0415
+
+        removed = await asyncio.to_thread(
+            task_store.purge_finished,
+            root=artifact_root,
+            limit=_ARTIFACT_GC_BATCH_SIZE,
+        )
+        if retry_upload_parts and self.servicer is not None:
+            self.servicer.sweep_orphaned_upload_parts()
+        return removed
+
+    async def _artifact_gc_loop(self, artifact_root: str) -> None:
+        while True:
+            await asyncio.sleep(_ARTIFACT_GC_INTERVAL_SECONDS)
+            try:
+                await self._artifact_gc_once(artifact_root)
+            except Exception:
+                logger.exception("Remote worker artifact sweep failed")
+
     async def _dispatch_loop(self) -> None:
         """Place queued work on eligible workers.
 
@@ -233,10 +326,21 @@ class ControlPlane:
 
     def create_enrollment(self, *, endpoint: str = "", label: str = "", ttl_seconds: int = 900):
         """Mint a join token carrying this control plane's fingerprint."""
+        from worker import tls  # noqa: PLC0415
         from worker import registry  # noqa: PLC0415
 
+        advertised_endpoint = endpoint.strip() or self.default_endpoint()
+        advertised_host = _endpoint_host(advertised_endpoint)
+        if self.credentials is not None and not tls.covers(
+            self.credentials, advertised_host
+        ):
+            raise EndpointCertificateError(
+                f"The running certificate does not cover {advertised_host!r}. "
+                "Set OMNIVOICE_WORKER_ENDPOINT_HOST to that hostname and restart "
+                "VoiceStudio before creating this enrollment."
+            )
         return registry.create_enrollment(
-            endpoint=endpoint or self.default_endpoint(),
+            endpoint=advertised_endpoint,
             cert_fingerprint=self.fingerprint,
             label=label,
             ttl_seconds=ttl_seconds,
@@ -262,7 +366,7 @@ class ControlPlane:
             or tls.primary_ip()
             or "127.0.0.1"
         )
-        return f"{host}:{self._port or control_port()}"
+        return _format_endpoint(host, self._port or control_port())
 
     def snapshot(self, *, now: Optional[float] = None) -> dict:
         """Everything the workers UI needs in one call."""
@@ -380,6 +484,7 @@ async def stop() -> None:
 __all__ = [
     "ControlPlane",
     "DEFAULT_PORT",
+    "EndpointCertificateError",
     "control_plane",
     "control_port",
     "paths",

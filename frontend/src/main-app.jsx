@@ -20,12 +20,16 @@ import ErrorBoundary from './components/ErrorBoundary';
 import RemoteAuthGate from './components/RemoteAuthGate';
 import DesktopCaptureShortcutBridge from './components/DesktopCaptureShortcutBridge';
 import CaptureWidget from './components/CaptureWidget.jsx';
+import LongformPersistenceGate from './components/LongformPersistenceGate.jsx';
+import { useAppStore } from './store';
 import { installConsoleCapture } from './utils/consoleBuffer.js';
 import { installGlobalErrorHandlers } from './utils/globalErrorHandlers.js';
 import {
   configurePersistenceRole,
   installPersistenceLifecycleFlush,
 } from './utils/coalescedJsonStorage';
+import { installLongformPersistenceLifecycleFlush } from './utils/longformPersistence';
+import { installDesktopPersistenceExitHandshake } from './utils/persistenceLifecycle';
 
 installConsoleCapture();
 // After console capture so the underlying console.error of each uncaught
@@ -73,7 +77,15 @@ export async function detectIsWidget(locationSearch = window.location.search) {
 export async function bootstrapApp() {
   const isWidget = await detectIsWidget();
   configurePersistenceRole(isWidget ? 'readonly' : 'main');
-  if (!isWidget) installPersistenceLifecycleFlush();
+  await useAppStore.persist.rehydrate();
+  if (!isWidget) {
+    installPersistenceLifecycleFlush();
+    installLongformPersistenceLifecycleFlush();
+    // Listener registration is non-critical startup work. A damaged Tauri IPC
+    // bridge can leave `listen()` pending forever; native exit still has its
+    // bounded timeout, so never hold the first React render behind this promise.
+    void installDesktopPersistenceExitHandshake();
+  }
   const isDesktopShell = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   // The widget window is `transparent: true` (tauri.conf.json), but it loads
@@ -110,19 +122,21 @@ export async function bootstrapApp() {
             {isWidget ? (
               <CaptureWidget />
             ) : (
-              <>
-                <App />
-                {isDesktopShell && <DesktopCaptureShortcutBridge />}
-                {/* The desktop shell owns a separate global-hotkey widget
+              <LongformPersistenceGate>
+                <>
+                  <App />
+                  {isDesktopShell && <DesktopCaptureShortcutBridge />}
+                  {/* The desktop shell owns a separate global-hotkey widget
                     window. Browser/Docker builds do not, so mount the same
                     capture engine here to provide the documented focused-page
                     Ctrl+Shift+Space fallback. */}
-                {!isDesktopShell && (
-                  <div className="capture-pill-host">
-                    <CaptureWidget />
-                  </div>
-                )}
-              </>
+                  {!isDesktopShell && (
+                    <div className="capture-pill-host">
+                      <CaptureWidget />
+                    </div>
+                  )}
+                </>
+              </LongformPersistenceGate>
             )}
           </RemoteAuthGate>
         </QueryClientProvider>

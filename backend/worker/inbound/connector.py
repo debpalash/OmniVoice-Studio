@@ -22,20 +22,106 @@ import logging
 import os
 import socket
 import ssl
-from typing import Optional
+from typing import BinaryIO, Optional
 
 import grpc
 
 from worker import identity, registry, tls
+from worker.async_utils import to_thread_and_drain_on_cancel
 from worker.inbound.connection_string import Connection
 from worker.inbound.listener import KEY_METADATA_KEY
 from worker.protocol.gen import worker_v1_pb2 as pb
 from worker.protocol.gen import worker_v1_pb2_grpc as pb_grpc
-from worker.transport.client import MAX_MESSAGE_BYTES, backoff_delay
+from worker.transport.client import (
+    MAX_MESSAGE_BYTES,
+    TerminalRegistrationError,
+    backoff_delay,
+)
 
 logger = logging.getLogger(__name__)
 
 _PUSH_CHUNK_BYTES = 1024 * 1024
+# Register remains provisional until the node confirms that it durably saved
+# the panel-assigned identity.  Match the control plane's provisional-session
+# lifetime so a peer that stops after Register cannot strand this connector.
+_REGISTRATION_CONFIRMATION_TIMEOUT_SECONDS = 30.0
+_REMOTE_SHUTDOWN_TIMEOUT_SECONDS = 30.0
+
+_FileVersion = tuple[int, int, int, int, int]
+
+
+def _write_all(handle: BinaryIO, payload: bytes) -> None:
+    remaining = memoryview(payload)
+    while remaining:
+        written = handle.write(remaining)
+        if not written:
+            raise OSError("result write made no progress")
+        remaining = remaining[written:]
+
+
+def _remove_quietly(path: str) -> None:
+    with contextlib.suppress(OSError):
+        os.remove(path)
+
+
+class InboundConnectionError(RuntimeError):
+    """A pasted inbound connection could not be validated or activated."""
+
+
+class InboundConnectionRollbackError(InboundConnectionError):
+    """A failed connection change could not restore its prior generation."""
+
+
+class RemoteShutdownUnavailable(InboundConnectionError):
+    """The node may retain work, but no live stream can revoke it safely."""
+
+
+def _file_version(stat: os.stat_result) -> _FileVersion:
+    """Fields that identify both a staged path and the bytes hashed from it."""
+    return (
+        int(stat.st_dev),
+        int(stat.st_ino),
+        int(stat.st_size),
+        int(stat.st_mtime_ns),
+        int(stat.st_ctime_ns),
+    )
+
+
+def _hash_staged_input(path: str) -> tuple[int, str, _FileVersion]:
+    """Hash one stable generation without ever allocating the whole file."""
+    digest = hashlib.sha256()
+    received = 0
+    with open(path, "rb") as handle:
+        before = _file_version(os.fstat(handle.fileno()))
+        while True:
+            block = handle.read(_PUSH_CHUNK_BYTES)
+            if not block:
+                break
+            received += len(block)
+            digest.update(block)
+        after = _file_version(os.fstat(handle.fileno()))
+    if before != after or received != before[2]:
+        raise RuntimeError("the staged task input changed while it was being hashed")
+    return received, digest.hexdigest(), before
+
+
+def _validate_staged_input(path: str, expected: _FileVersion) -> None:
+    """Reject a replacement or in-place edit between hashing and streaming."""
+    try:
+        current = _file_version(os.stat(path))
+    except OSError as exc:
+        raise RuntimeError("the staged task input is no longer available") from exc
+    if current != expected:
+        raise RuntimeError("the staged task input changed before it could be sent")
+
+
+def _validate_open_staged_input(
+    handle: BinaryIO, path: str, expected: _FileVersion
+) -> None:
+    """The open generation and its path must still be the bytes we hashed."""
+    if _file_version(os.fstat(handle.fileno())) != expected:
+        raise RuntimeError("the staged task input changed before it could be sent")
+    _validate_staged_input(path, expected)
 
 
 def _fetch_pinned_certificate(
@@ -70,9 +156,15 @@ class NodeConnection:
         self._connection = connection
         self._label = label or connection.host
         self._outbox: asyncio.Queue[pb.ServerMessage] = asyncio.Queue()
+        self._active_session = None
         self._stub: Optional[pb_grpc.NodeServiceStub] = None
         self._worker_id = ""
         self._stop = asyncio.Event()
+        self._session_closed = asyncio.Event()
+        self._session_closed.set()
+        self._shutdown_confirmed = asyncio.Event()
+        self._registration_ready = asyncio.Event()
+        self._remote_protocol_retained = False
         self._last_error = ""
 
     @property
@@ -105,6 +197,10 @@ class NodeConnection:
                 attempt = 0
             except asyncio.CancelledError:
                 raise
+            except TerminalRegistrationError as exc:
+                self._remote_protocol_retained = False
+                self._last_error = str(exc)
+                raise
             except Exception:
                 attempt += 1
                 self._last_error = "Connection failed; check the backend log for details."
@@ -114,7 +210,142 @@ class NodeConnection:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)
 
     async def stop(self) -> None:
+        if self._stop.is_set():
+            return
+        if self._shutdown_confirmed.is_set() and not self._remote_protocol_retained:
+            self._stop.set()
+            return
+        if self._active_session is None:
+            if self._remote_protocol_retained:
+                raise RemoteShutdownUnavailable(
+                    "That GPU machine is offline and may still be running work. "
+                    "Reconnect it, then remove the connection again."
+                )
+            self._stop.set()
+            return
+        # EOF is indistinguishable from a network blip and deliberately keeps
+        # node execution alive for reconnect.  Send an explicit terminal frame
+        # and wait for the node to drain before removal reports success.
+        self._shutdown_confirmed.clear()
+        await self._outbox.put(
+            pb.ServerMessage(
+                shutdown=pb.Shutdown(reason="This GPU-machine connection was removed.")
+            )
+        )
+        confirmed = asyncio.create_task(self._shutdown_confirmed.wait())
+        disconnected = asyncio.create_task(self._session_closed.wait())
+        try:
+            done, _pending = await asyncio.wait(
+                {confirmed, disconnected},
+                timeout=_REMOTE_SHUTDOWN_TIMEOUT_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if confirmed not in done and not self._shutdown_confirmed.is_set():
+                raise RemoteShutdownUnavailable(
+                    "The GPU machine disconnected before it confirmed shutdown. "
+                    "Reconnect it, then remove the connection again."
+                )
+        finally:
+            confirmed.cancel()
+            disconnected.cancel()
+            await asyncio.gather(confirmed, disconnected, return_exceptions=True)
+        self._remote_protocol_retained = False
         self._stop.set()
+
+    async def close(self) -> None:
+        """End this process without revoking reconnectable remote work."""
+        self._stop.set()
+
+    def confirm_remote_shutdown(self, session) -> None:
+        if self._active_session is not session:
+            return
+        self._remote_protocol_retained = False
+        self._shutdown_confirmed.set()
+
+    def confirm_registration(self, session) -> None:
+        """Publish readiness only after the shared servicer activated the session."""
+        if self._active_session is session:
+            self._registration_ready.set()
+
+    async def wait_until_registered(
+        self, task: asyncio.Task, *, timeout: float = 30.0
+    ) -> None:
+        """Wait for activation or surface a terminal/background dial failure."""
+        ready = asyncio.create_task(self._registration_ready.wait())
+        try:
+            done, _pending = await asyncio.wait(
+                {ready, task}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+            )
+            if ready in done:
+                return
+            if task in done:
+                if task.cancelled():
+                    raise InboundConnectionError(
+                        "The GPU-machine connection stopped before it became ready."
+                    )
+                exc = task.exception()
+                if exc is not None:
+                    raise InboundConnectionError(str(exc)) from exc
+            raise InboundConnectionError(
+                "That GPU machine did not finish connecting in time."
+            )
+        finally:
+            ready.cancel()
+            await asyncio.gather(ready, return_exceptions=True)
+
+    async def probe(self) -> None:
+        """Authenticate a replacement paste without publishing a worker session."""
+        try:
+            certificate_pem = await asyncio.to_thread(
+                _fetch_pinned_certificate, self._connection
+            )
+            async with self._channel(certificate_pem) as channel:
+                stub = pb_grpc.NodeServiceStub(channel)
+                metadata = ((KEY_METADATA_KEY, self._connection.secret),)
+                stream = stub.Attach(self._outbound(), metadata=metadata)
+                try:
+                    first = await asyncio.wait_for(
+                        stream.read(),
+                        timeout=_REGISTRATION_CONFIRMATION_TIMEOUT_SECONDS,
+                    )
+                finally:
+                    stream.cancel()
+        except InboundConnectionError:
+            raise
+        except grpc.aio.AioRpcError as exc:
+            detail = exc.details() or "The GPU machine rejected this connection."
+            raise InboundConnectionError(detail) from exc
+        except asyncio.TimeoutError as exc:
+            raise InboundConnectionError(
+                "That GPU machine did not answer in time."
+            ) from exc
+        except Exception as exc:
+            raise InboundConnectionError(str(exc)) from exc
+
+        if first == grpc.aio.EOF or first.WhichOneof("payload") != "register":
+            raise InboundConnectionError(
+                "That machine answered, but not as a VoiceStudio GPU node."
+            )
+        request = first.register
+        validate = getattr(self._servicer, "validate_inbound_request", None)
+        refusal = validate(request) if callable(validate) else None
+        if refusal is not None and refusal.error.code:
+            raise InboundConnectionError(
+                f"{refusal.error.code}: {refusal.error.message}"
+            )
+        public_key = bytes(request.public_key)
+        if len(public_key) != 32:
+            raise InboundConnectionError("That machine sent no usable identity.")
+        key_id = identity.key_id_for(public_key)
+        if registry.is_revoked(key_id):
+            raise InboundConnectionError(
+                "This GPU machine was removed from this app. Add it again to use it."
+            )
+        known = registry.get_by_key_id(key_id)
+        if known is not None and not self._proves_key_possession(request, known):
+            raise InboundConnectionError(
+                "That machine could not prove its saved identity."
+            )
 
     async def _connect_once(self) -> None:
         # A fresh outbox per attempt. The queue used to be built once and
@@ -123,7 +354,10 @@ class NodeConnection:
         # registration it requires first, aborted the call, and the pair span
         # at full speed: on hardware this reached session epoch 2445 inside a
         # second, with the log reading "Locally aborted" over and over.
+        self._worker_id = ""
+        self._stub = None
         self._outbox = asyncio.Queue()
+        self._active_session = None
         certificate_pem = await asyncio.to_thread(
             _fetch_pinned_certificate, self._connection
         )
@@ -140,33 +374,98 @@ class NodeConnection:
                     "That machine answered, but not as a VoiceStudio GPU node."
                 )
 
-            response = self._register(first.register)
+            response = await self._register(first.register)
             if response.error.code:
                 # A refusal here is a decision, not a blip: the node is a
                 # different machine than the one this key was trusted for, or
                 # its version cannot work with ours. Reconnecting cannot fix
-                # either, so surface it rather than looping.
-                raise RuntimeError(f"{response.error.code}: {response.error.message}")
+                # either. Deliver the verdict before surfacing it locally so
+                # the node can retire work retained across the dead stream;
+                # closing first strands that executor with nobody left able to
+                # cancel it.
+                await self._outbox.put(pb.ServerMessage(registered=response))
+                try:
+                    await asyncio.wait_for(
+                        stream.read(),
+                        timeout=_REGISTRATION_CONFIRMATION_TIMEOUT_SECONDS,
+                    )
+                except (asyncio.TimeoutError, grpc.aio.AioRpcError):
+                    pass
+                raise TerminalRegistrationError(
+                    f"{response.error.code}: {response.error.message}"
+                )
 
-            self._worker_id = response.worker_id
-            self._stub = stub
-            self._last_error = ""
             await self._outbox.put(pb.ServerMessage(registered=response))
-
-            session = self._servicer.session_for(self._worker_id)
-            if session is None:
-                raise RuntimeError("the session went away before the stream opened")
-
-            pump = asyncio.create_task(self._pump_outbound(session))
             try:
-                await self._servicer.run_inbound_stream(session, _Frames(stream), self)
+                await self._complete_registration(stream, response, stub)
             finally:
-                pump.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await pump
-                self._stub = None
+                # Idempotent after activation; essential before it. A user can
+                # remove this connection while the node is still persisting
+                # identity, and cancellation must release the old worker's
+                # scheduling gate immediately rather than wait for expiry.
+                self._servicer.discard_unopened_session(
+                    response.worker_id, session_token=response.session_token
+                )
 
-    def _register(self, request: pb.RegisterRequest) -> pb.RegisterResponse:
+    async def _complete_registration(self, stream, response, stub) -> None:
+        """Validate durable acceptance, then run the exact issued session."""
+        try:
+            confirmation = await asyncio.wait_for(
+                stream.read(), timeout=_REGISTRATION_CONFIRMATION_TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError(
+                "That GPU machine did not confirm registration in time."
+            ) from exc
+        except grpc.aio.AioRpcError as exc:
+            detail = exc.details() or ""
+            error_code = detail.partition(":")[0].strip()
+            if exc.code() == grpc.StatusCode.FAILED_PRECONDITION and error_code in {
+                "AUTH_FAILED",
+                "LOCAL_STATE",
+                "UPGRADE_REQUIRED",
+            }:
+                raise TerminalRegistrationError(detail) from exc
+            raise
+        if confirmation == grpc.aio.EOF:
+            raise RuntimeError(
+                "That GPU machine disconnected before confirming registration."
+            )
+        if confirmation.WhichOneof("payload") != "heartbeat":
+            raise RuntimeError(
+                "That GPU machine sent an invalid registration confirmation."
+            )
+
+        session = self._servicer.session_for(
+            response.worker_id, session_token=response.session_token
+        )
+        if session is None:
+            raise RuntimeError("the session went away before the stream opened")
+
+        self._worker_id = response.worker_id
+        self._stub = stub
+        self._last_error = ""
+        self._active_session = session
+        self._remote_protocol_retained = True
+        self._shutdown_confirmed.clear()
+        self._session_closed.clear()
+
+        pump = asyncio.create_task(self._pump_outbound(session))
+        try:
+            await self._servicer.run_inbound_stream(
+                session, _Frames(stream, first=confirmation), self
+            )
+        finally:
+            pump.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await pump
+            self._stub = None
+            self._worker_id = ""
+            if self._active_session is session:
+                self._active_session = None
+            self._session_closed.set()
+
+    async def _register(self, request: pb.RegisterRequest) -> pb.RegisterResponse:
         """Trust on first sight, then require the same key forever after.
 
         Pasting the connection string is the consent — the user went to the
@@ -175,14 +474,28 @@ class NodeConnection:
         is a licence for a different machine to answer at that address later,
         which is why the key is bound on first contact.
         """
+        refusal = self._servicer.validate_inbound_request(request)
+        if refusal is not None:
+            return refusal
+        worker, refusal = await to_thread_and_drain_on_cancel(
+            self._authenticate_registration, request
+        )
+        if refusal is not None:
+            return refusal
+        return await self._servicer.establish_session(
+            worker, request, address=self._connection.endpoint
+        )
+
+    def _authenticate_registration(self, request: pb.RegisterRequest):
+        """Resolve inbound identity without running SQLite on the app loop."""
         public_key = bytes(request.public_key)
         if len(public_key) != 32:
-            return self._servicer._refuse(
+            return None, self._servicer._refuse(
                 "AUTH_FAILED", "That machine sent no usable identity."
             )
         key_id = identity.key_id_for(public_key)
         if registry.is_revoked(key_id):
-            return self._servicer._refuse(
+            return None, self._servicer._refuse(
                 "AUTH_FAILED",
                 "This GPU machine was removed from this app. Add it again to use it.",
             )
@@ -219,14 +532,12 @@ class NodeConnection:
                 )
                 worker = known
             if worker is None:
-                return self._servicer._refuse(
+                return None, self._servicer._refuse(
                     "AUTH_FAILED",
                     "That machine could not prove it is the one this key was added for.",
                 )
 
-        return self._servicer.register_inbound(
-            worker, request, address=self._connection.endpoint
-        )
+        return worker, None
 
     @staticmethod
     def _proves_key_possession(request: pb.RegisterRequest, known) -> bool:
@@ -249,9 +560,34 @@ class NodeConnection:
             public_key, message, bytes(request.challenge_signature)
         )
 
-    async def _outbound(self):
+    def _outbound(self):
+        # grpc closes request iterators itself when the peer ends a stream. An
+        # async generator can still be suspended in ``Queue.get`` at that
+        # point, making its concurrent ``aclose`` fail and leak teardown into
+        # the next channel. A plain async iterator has no generator-finalizer
+        # race and keeps the same one-frame-at-a-time backpressure.
+        return _OutboundFrames(self)
+
+    def fence_session_egress(self, session) -> None:
+        """Drop frames copied before a replacement generation activated."""
+        if self._active_session is not session:
+            return
         while True:
-            yield await self._outbox.get()
+            try:
+                self._outbox.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    def revoke_session(self, session) -> None:
+        """Synchronously fence frames already copied into the request queue."""
+        if self._active_session is not session:
+            return
+        while True:
+            try:
+                self._outbox.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+        self._outbox.put_nowait(None)
 
     async def _pump_outbound(self, session) -> None:
         """Move the servicer's per-session outbox onto the dialled stream.
@@ -260,8 +596,18 @@ class NodeConnection:
         to cross into the request generator instead, because this side is the
         caller.
         """
-        while True:
-            await self._outbox.put(await session.outbox.get())
+        task = asyncio.current_task()
+        if task is not None:
+            session.egress_tasks.add(task)
+        try:
+            while not session.revoked and not getattr(session, "egress_fenced", False):
+                message = await session.outbox.get()
+                if session.revoked or getattr(session, "egress_fenced", False):
+                    return
+                await self._outbox.put(message)
+        finally:
+            if task is not None:
+                session.egress_tasks.discard(task)
 
     # ── Artifacts ─────────────────────────────────────────────────────────
 
@@ -277,32 +623,52 @@ class NodeConnection:
         if stub is None:
             raise RuntimeError("that GPU machine is not connected")
 
-        size = os.path.getsize(path)
-        digest = hashlib.sha256()
-        with open(path, "rb") as handle:
-            digest.update(handle.read())
+        size, digest, version = await to_thread_and_drain_on_cancel(
+            _hash_staged_input, path
+        )
+        # Hashing and the gRPC request are separate operations. Re-resolve the
+        # path immediately before handing the iterator to gRPC so a replaced
+        # staging file is never described by the old generation's digest.
+        await to_thread_and_drain_on_cancel(_validate_staged_input, path, version)
 
         declared = pb.ArtifactRef()
         declared.CopyFrom(ref)
         declared.size_bytes = size
-        declared.sha256 = digest.hexdigest()
+        declared.sha256 = digest
         if not declared.filename:
             declared.filename = os.path.basename(path)
 
         async def chunks():
             offset = 0
-            with open(path, "rb") as handle:
-                while True:
-                    data = handle.read(_PUSH_CHUNK_BYTES)
+            handle = await to_thread_and_drain_on_cancel(open, path, "rb")
+            try:
+                await to_thread_and_drain_on_cancel(
+                    _validate_open_staged_input, handle, path, version
+                )
+                while offset < size:
+                    data = await to_thread_and_drain_on_cancel(
+                        handle.read, min(_PUSH_CHUNK_BYTES, size - offset)
+                    )
                     if not data:
-                        break
+                        raise RuntimeError(
+                            "the staged task input changed before it could be sent"
+                        )
                     offset += len(data)
+                    last = offset == size
+                    if last:
+                        # Do not publish the terminal frame until both the open
+                        # generation and its path still match what was hashed.
+                        await to_thread_and_drain_on_cancel(
+                            _validate_open_staged_input, handle, path, version
+                        )
                     yield pb.ArtifactChunk(
                         ref=declared,
                         offset=offset - len(data),
                         data=data,
-                        last=offset >= size,
+                        last=last,
                     )
+            finally:
+                await to_thread_and_drain_on_cancel(handle.close)
 
         ack = await stub.PushInput(
             chunks(), metadata=((KEY_METADATA_KEY, self._connection.secret),)
@@ -327,7 +693,11 @@ class NodeConnection:
         offset = 0
         complete = False
         try:
-            with open(destination, "wb") as handle:
+            handle = None
+            try:
+                handle = await to_thread_and_drain_on_cancel(
+                    open, destination, "wb"
+                )
                 async for chunk in stub.FetchResult(
                     request, metadata=((KEY_METADATA_KEY, self._connection.secret),)
                 ):
@@ -339,27 +709,31 @@ class NodeConnection:
                         raise RuntimeError(
                             "the result is larger than the control plane accepts"
                         )
-                    handle.write(chunk.data)
-                    digest.update(chunk.data)
-                    offset += len(chunk.data)
+                    data = bytes(chunk.data)
+                    await to_thread_and_drain_on_cancel(_write_all, handle, data)
+                    digest.update(data)
+                    offset += len(data)
                     if chunk.last:
                         complete = True
                         break
+            finally:
+                if handle is not None:
+                    await to_thread_and_drain_on_cancel(handle.close)
+        except asyncio.CancelledError:
+            await to_thread_and_drain_on_cancel(_remove_quietly, destination)
+            raise
         except Exception:
-            with contextlib.suppress(OSError):
-                os.remove(destination)
+            await to_thread_and_drain_on_cancel(_remove_quietly, destination)
             raise
 
         # A truncated file that is renamed into place and called done is the
         # exact failure the upload path was hardened against; the pull
         # direction gets the same treatment.
         if not complete:
-            with contextlib.suppress(OSError):
-                os.remove(destination)
+            await to_thread_and_drain_on_cancel(_remove_quietly, destination)
             raise RuntimeError("the result ended before its final chunk")
         if ref.sha256 and digest.hexdigest() != ref.sha256:
-            with contextlib.suppress(OSError):
-                os.remove(destination)
+            await to_thread_and_drain_on_cancel(_remove_quietly, destination)
             raise RuntimeError(
                 "the result did not match the checksum that machine declared"
             )
@@ -368,14 +742,46 @@ class NodeConnection:
 class _Frames:
     """Adapts a gRPC client stream to the ``async for`` the read loop expects."""
 
-    def __init__(self, stream) -> None:
+    def __init__(self, stream, *, first=None) -> None:
         self._stream = stream
+        self._first = first
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
+        if self._first is not None:
+            message = self._first
+            self._first = None
+            return message
         message = await self._stream.read()
         if message == grpc.aio.EOF:
             raise StopAsyncIteration
         return message
+
+
+class _OutboundFrames:
+    """Cancellation-safe request iterator for the inverted Attach stream."""
+
+    def __init__(self, connection: NodeConnection) -> None:
+        self._connection = connection
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        connection = self._connection
+        while True:
+            message = await connection._outbox.get()
+            if message is None:
+                raise StopAsyncIteration
+            session = connection._active_session
+            if session is not None:
+                if session.revoked:
+                    raise StopAsyncIteration
+                if (
+                    getattr(session, "egress_fenced", False)
+                    and message.WhichOneof("payload") != "shutdown"
+                ):
+                    continue
+            return message

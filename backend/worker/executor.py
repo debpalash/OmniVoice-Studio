@@ -17,15 +17,19 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import errno
 import hashlib
+import io
 import json
 import logging
 import os
-import io
-import zipfile
+import threading
+import time
 import uuid
+import zipfile
 from typing import Any, Awaitable, Callable, Optional
 
+from worker.async_utils import drain_task
 from worker.errors import ErrorClass, WorkerError
 
 logger = logging.getLogger("omnivoice.worker")
@@ -44,6 +48,18 @@ INPUT_ERRORS_PARAM = "input_errors"
 # leak on the worker that unpurged artifacts were on the control plane.
 INPUT_CACHE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
 _FALLBACK_INPUT_FETCH_SECONDS = 600.0
+_STALE_INPUT_PARTIAL_SECONDS = 60 * 60.0
+
+# Pruning runs in worker threads and every executor instance shares the same
+# on-disk cache, so active-path leases are process-wide and thread-safe.
+_INPUT_CACHE_LEASE_LOCK = threading.Lock()
+_INPUT_CACHE_LEASES: dict[str, int] = {}
+_INPUT_CACHE_FETCH_LEASES: dict[str, int] = {}
+_INPUT_CACHE_MUTATIONS: set[str] = set()
+# Concurrent fetches keep distinct partial files but serialize the instant a
+# verified generation is published at its content address.
+_INPUT_CACHE_FETCH_LOCKS: dict[str, asyncio.Lock] = {}
+_INPUT_CACHE_FETCH_USERS: dict[str, int] = {}
 
 #   on_progress(fraction: float, stage: str)
 #   on_model_loading(fraction: float, detail: str)
@@ -88,6 +104,7 @@ class TaskExecutor:
         self._on_model_loading = on_model_loading
         self._fetch_input = fetch_input
         self._input_dir = input_dir
+        self._blocking_tasks: set[asyncio.Task] = set()
 
     async def execute(
         self,
@@ -110,33 +127,35 @@ class TaskExecutor:
         """
         operation = (assignment.operation or "tts").lower()
         params = _parse_params(assignment.params_json)
-        params = await self._materialize_inputs(
+        params, leased_inputs = await self._materialize_inputs(
             assignment, params, fetch_input or self._fetch_input
         )
-
-        handler = {
-            "tts": self._run_tts,
-            "clone": self._run_tts,
-            "audiobook": self._run_audiobook,
-            "dub_segments": self._run_dub_segments,
-        }.get(operation)
-        if handler is None:
-            raise TaskFailure(
-                WorkerError(
-                    error_class=ErrorClass.CAPABILITY,
-                    code="OPERATION_UNSUPPORTED",
-                    message=f"This worker cannot run '{operation}' tasks.",
-                    hint="Run this task locally, or use a worker that supports it.",
+        try:
+            handler = {
+                "tts": self._run_tts,
+                "clone": self._run_tts,
+                "audiobook": self._run_audiobook,
+                "dub_segments": self._run_dub_segments,
+            }.get(operation)
+            if handler is None:
+                raise TaskFailure(
+                    WorkerError(
+                        error_class=ErrorClass.CAPABILITY,
+                        code="OPERATION_UNSUPPORTED",
+                        message=f"This worker cannot run '{operation}' tasks.",
+                        hint="Run this task locally, or use a worker that supports it.",
+                    )
                 )
+            return await handler(
+                assignment,
+                params,
+                _Reporters(
+                    on_progress or self._on_progress,
+                    on_model_loading or self._on_model_loading,
+                ),
             )
-        return await handler(
-            assignment,
-            params,
-            _Reporters(
-                on_progress or self._on_progress,
-                on_model_loading or self._on_model_loading,
-            ),
-        )
+        finally:
+            self._release_inputs_after_active_work(leased_inputs)
 
     async def _run_dub_segments(self, assignment, params: dict, report: "_Reporters") -> dict:
         """Render every requested dub line under one lease and return one bundle."""
@@ -150,8 +169,9 @@ class TaskExecutor:
             ))
         load_budget, run_budget = _budgets(assignment)
         await report.loading(0.0, f"preparing {assignment.engine}")
-        backend = await self._bounded(
-            asyncio.to_thread(self._load_backend, assignment.engine),
+        backend = await self._bounded_thread(
+            self._load_backend,
+            assignment.engine,
             timeout=load_budget, code="MODEL_LOAD_TIMEOUT", what=f"Loading '{assignment.engine}'",
         )
         await report.loading(1.0, "model ready")
@@ -159,11 +179,15 @@ class TaskExecutor:
         for index, row in enumerate(rows):
             row = dict(row)
             row["ref_audio"] = refs[index] if index < len(refs) else None
-            audio = await self._bounded(
-                asyncio.to_thread(self._synthesize_dub_segment, backend, row),
+            audio = await self._bounded_thread(
+                self._synthesize_dub_segment,
+                backend,
+                row,
                 timeout=run_budget, code="EXECUTION_TIMEOUT", what=f"Dubbing segment {index + 1}",
             )
-            payload, _meta = await asyncio.to_thread(self._encode, audio, row, backend)
+            payload, _meta = await self._thread_call(
+                self._encode, audio, row, backend
+            )
             rendered.append((int(row.get("index", index)), payload))
             await report.progress((index + 1) / len(rows), f"segment {index + 1} of {len(rows)}")
 
@@ -225,8 +249,9 @@ class TaskExecutor:
         load_budget, run_budget = _budgets(assignment)
 
         await report.loading(0.0, f"preparing {assignment.engine}")
-        backend = await self._bounded(
-            asyncio.to_thread(self._load_backend, assignment.engine),
+        backend = await self._bounded_thread(
+            self._load_backend,
+            assignment.engine,
             timeout=load_budget,
             code="MODEL_LOAD_TIMEOUT",
             what=f"Loading '{assignment.engine}'",
@@ -234,16 +259,22 @@ class TaskExecutor:
         await report.loading(1.0, "model ready")
 
         await report.progress(0.05, "synthesising")
-        audio = await self._bounded(
-            asyncio.to_thread(self._synthesize, backend, text, params),
+        audio = await self._bounded_thread(
+            self._synthesize,
+            backend,
+            text,
+            params,
             timeout=run_budget,
             code="EXECUTION_TIMEOUT",
             what="Synthesis",
         )
         await report.progress(0.9, "encoding")
 
-        payload, meta = await self._bounded(
-            asyncio.to_thread(self._encode, audio, params, backend),
+        payload, meta = await self._bounded_thread(
+            self._encode,
+            audio,
+            params,
+            backend,
             timeout=run_budget,
             code="EXECUTION_TIMEOUT",
             what="Encoding",
@@ -264,19 +295,26 @@ class TaskExecutor:
             ))
         load_budget, run_budget = _budgets(assignment)
         await report.loading(0.0, f"preparing {assignment.engine}")
-        backend = await self._bounded(
-            asyncio.to_thread(self._load_backend, assignment.engine),
+        backend = await self._bounded_thread(
+            self._load_backend,
+            assignment.engine,
             timeout=load_budget, code="MODEL_LOAD_TIMEOUT",
             what=f"Loading '{assignment.engine}'",
         )
         await report.loading(1.0, "model ready")
         await report.progress(0.05, "synthesising chapter")
-        audio = await self._bounded(
-            asyncio.to_thread(self._synthesize_audiobook, backend, spans, voices, params),
+        audio = await self._bounded_thread(
+            self._synthesize_audiobook,
+            backend,
+            spans,
+            voices,
+            params,
             timeout=run_budget, code="EXECUTION_TIMEOUT", what="Audiobook chapter",
         )
         await report.progress(0.9, "encoding")
-        payload, meta = await asyncio.to_thread(self._encode, audio, params, backend)
+        payload, meta = await self._thread_call(
+            self._encode, audio, params, backend
+        )
         await report.progress(1.0, "done")
         return {"meta": meta, "payload": payload}
 
@@ -329,7 +367,9 @@ class TaskExecutor:
 
     # ── Inputs ────────────────────────────────────────────────────────────
 
-    async def _materialize_inputs(self, assignment, params: dict, fetch) -> dict:
+    async def _materialize_inputs(
+        self, assignment, params: dict, fetch
+    ) -> tuple[dict, list[str]]:
         """Turn declared inputs into local files, then point the params at them.
 
         The control plane sends artifact ids, never paths — its own paths mean
@@ -352,7 +392,7 @@ class TaskExecutor:
 
         refs = [ref for ref in (getattr(assignment, "inputs", None) or []) if ref.artifact_id]
         if not refs:
-            return params
+            return params, []
         if fetch is None:
             raise TaskFailure(
                 WorkerError(
@@ -365,16 +405,24 @@ class TaskExecutor:
 
         _, run_budget = _budgets(assignment)
         local: dict[str, str] = {}
-        for ref in refs:
-            local[ref.artifact_id] = await self._bounded(
-                self._fetch_one(ref, fetch),
-                timeout=min(run_budget, _FALLBACK_INPUT_FETCH_SECONDS),
-                code="INPUT_FETCH_TIMEOUT",
-                what=f"Fetching '{ref.filename or ref.artifact_id}'",
-            )
-        return _rewrite_params(params, local)
+        leased: list[str] = []
+        try:
+            for ref in refs:
+                path = await self._bounded(
+                    self._fetch_one(ref, fetch, retain=True),
+                    timeout=min(run_budget, _FALLBACK_INPUT_FETCH_SECONDS),
+                    code="INPUT_FETCH_TIMEOUT",
+                    what=f"Fetching '{ref.filename or ref.artifact_id}'",
+                )
+                local[ref.artifact_id] = path
+                leased.append(path)
+            return _rewrite_params(params, local), leased
+        except BaseException:
+            for path in leased:
+                _release_input_cache_path(path)
+            raise
 
-    async def _fetch_one(self, ref, fetch) -> str:
+    async def _fetch_one(self, ref, fetch, *, retain: bool = False) -> str:
         """The local copy of one input, downloaded only if we lack it.
 
         Content-addressed: the name is the hash the control plane computed, so
@@ -382,37 +430,127 @@ class TaskExecutor:
         worker — costs no transfer at all.
         """
         directory = self._input_dir or default_input_dir()
-        os.makedirs(directory, exist_ok=True)
+        await self._thread_call(_durable_makedirs, directory)
         destination = os.path.join(directory, _cache_name(ref))
-        if _already_held(destination, ref):
-            _touch(destination)
-            return destination
+        return await self._fetch_one_owned(
+            ref,
+            fetch,
+            directory=directory,
+            destination=destination,
+            retain=retain,
+        )
 
-        partial = f"{destination}.{uuid.uuid4().hex}.part"
+    async def _fetch_one_owned(
+        self,
+        ref,
+        fetch,
+        *,
+        directory: str,
+        destination: str,
+        retain: bool,
+    ) -> str:
+        """Validate, fetch, and safely publish one content address."""
+        await _acquire_input_cache_path(destination, fetching=True)
+        leased_result = destination
+        succeeded = False
         try:
-            await fetch(ref, partial)
-        except TaskFailure:
-            raise
-        except Exception as exc:
-            _discard(partial)
-            raise TaskFailure(
-                WorkerError(
-                    # Transient on purpose: an id we cannot resolve now is far
-                    # more often a dropped stream than a permanently missing
-                    # file, and one wasted retry beats failing real work.
-                    error_class=ErrorClass.TRANSIENT,
-                    code="INPUT_FETCH_FAILED",
-                    message=f"Could not fetch '{ref.filename or ref.artifact_id}': {exc}",
-                    hint="The control plane may have restarted; the task will be retried.",
-                )
-            ) from exc
+            # Cache hits still hash the advertised content identity. Filename
+            # plus size is not proof after disk corruption or external edits.
+            if await self._thread_call(_already_held, destination, ref):
+                await self._thread_call(_touch, destination)
+                succeeded = True
+                return destination
 
-        # Off the loop: hashing a source video on the event loop thread would
-        # stall every heartbeat this worker owes the control plane.
-        await asyncio.to_thread(_verify, partial, ref)
-        os.replace(partial, destination)
-        await asyncio.to_thread(_prune_input_cache, directory)
-        return destination
+            partial = f"{destination}.{uuid.uuid4().hex}.part"
+            _lease_input_cache_path(partial)
+            finalized = False
+            try:
+                try:
+                    await fetch(ref, partial)
+                except TaskFailure:
+                    raise
+                except Exception as exc:
+                    raise _input_fetch_failure(ref, exc) from exc
+
+                # Hashing and durability barriers can both block on a large
+                # source or slow disk. Keep them off the loop and drain before
+                # cleanup so Windows never unlinks a file still in use.
+                await self._thread_call(_verify, partial, ref)
+                gate_key = _cache_path_key(destination)
+                gate = _INPUT_CACHE_FETCH_LOCKS.setdefault(
+                    gate_key, asyncio.Lock()
+                )
+                _INPUT_CACHE_FETCH_USERS[gate_key] = (
+                    _INPUT_CACHE_FETCH_USERS.get(gate_key, 0) + 1
+                )
+                try:
+                    async with gate:
+                        # A concurrent fetch may have published these exact
+                        # bytes while this one was downloading its own partial.
+                        if await self._thread_call(
+                            _already_held, destination, ref
+                        ):
+                            await self._thread_call(_discard, partial)
+                            finalized = True
+                        elif _claim_input_cache_mutation(destination):
+                            try:
+                                await self._thread_call(
+                                    _durable_replace, partial, destination
+                                )
+                            finally:
+                                _finish_input_cache_mutation(destination)
+                            finalized = True
+                        else:
+                            # Another execution is actively reading the
+                            # canonical generation. Never unlink or replace
+                            # bytes underneath it; publish this verified fetch
+                            # under a leased sibling path and let a later
+                            # unshared fetch repair canonical.
+                            stem, suffix = os.path.splitext(destination)
+                            alternate = (
+                                f"{stem}.{uuid.uuid4().hex}.generation{suffix}"
+                            )
+                            await _acquire_input_cache_path(
+                                alternate, fetching=True
+                            )
+                            try:
+                                await self._thread_call(
+                                    _durable_replace, partial, alternate
+                                )
+                            except BaseException:
+                                _release_input_cache_path(
+                                    alternate, fetching=True
+                                )
+                                await self._thread_call(_discard, alternate)
+                                raise
+                            finalized = True
+                            _release_input_cache_path(
+                                destination, fetching=True
+                            )
+                            leased_result = alternate
+                except OSError as exc:
+                    raise _input_fetch_failure(ref, exc) from exc
+                finally:
+                    remaining = _INPUT_CACHE_FETCH_USERS[gate_key] - 1
+                    if remaining:
+                        _INPUT_CACHE_FETCH_USERS[gate_key] = remaining
+                    else:
+                        _INPUT_CACHE_FETCH_USERS.pop(gate_key, None)
+                        if _INPUT_CACHE_FETCH_LOCKS.get(gate_key) is gate:
+                            _INPUT_CACHE_FETCH_LOCKS.pop(gate_key, None)
+            finally:
+                if not finalized:
+                    await self._thread_call(_discard, partial)
+                _release_input_cache_path(partial)
+
+            await self._thread_call(_prune_input_cache, directory)
+            succeeded = True
+            return leased_result
+        finally:
+            if retain and succeeded:
+                _promote_input_cache_lease(leased_result)
+            else:
+                _release_input_cache_path(leased_result, fetching=True)
 
     # ── Engine plumbing ───────────────────────────────────────────────────
 
@@ -551,6 +689,92 @@ class TaskExecutor:
 
     # ── Bounding ──────────────────────────────────────────────────────────
 
+    def _release_inputs_after_active_work(self, paths: list[str]) -> None:
+        """Keep files leased while a timed-out engine thread still owns them."""
+        pending = [task for task in self._blocking_tasks if not task.done()]
+        if not pending:
+            for path in paths:
+                _release_input_cache_path(path)
+            return
+        remaining = {"count": len(pending)}
+
+        def finished(_task: asyncio.Task) -> None:
+            remaining["count"] -= 1
+            if remaining["count"] == 0:
+                for path in paths:
+                    _release_input_cache_path(path)
+
+        for task in pending:
+            task.add_done_callback(finished)
+
+    def _start_thread(self, function, /, *args) -> asyncio.Task:
+        task = asyncio.create_task(asyncio.to_thread(function, *args))
+        self._blocking_tasks.add(task)
+
+        def finished(completed: asyncio.Task) -> None:
+            self._blocking_tasks.discard(completed)
+            if not completed.cancelled():
+                # Timed-out calls intentionally finish in the background. Read
+                # their exception so asyncio never reports an unowned task.
+                completed.exception()
+
+        task.add_done_callback(finished)
+        return task
+
+    async def _thread_call(self, function, /, *args):
+        task = self._start_thread(function, *args)
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await drain_task(task)
+            raise
+
+    async def drain_active_work(self) -> None:
+        """Wait until every blocking engine call has relinquished the process."""
+        cancelled = bool(
+            (current := asyncio.current_task()) is not None and current.cancelling()
+        )
+        while self._blocking_tasks:
+            for task in list(self._blocking_tasks):
+                try:
+                    await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    # Cancellation cannot make a Python GPU thread stop. Hold
+                    # authority until it really exits, then propagate the
+                    # cancellation so callers never publish a false free slot.
+                    cancelled = True
+                    await drain_task(task)
+                except BaseException:
+                    # The owner reports/classifies the engine exception. This
+                    # barrier only establishes that the thread has finished.
+                    pass
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _bounded_thread(
+        self, function, /, *args, timeout: float, code: str, what: str
+    ):
+        """Bound a blocking call without losing ownership of its live thread."""
+        task = self._start_thread(function, *args)
+        try:
+            done, _pending = await asyncio.wait({task}, timeout=timeout)
+        except asyncio.CancelledError:
+            await drain_task(task)
+            raise
+        if done:
+            return task.result()
+        # A GPU call cannot be killed. Return the timeout so the scheduler can
+        # park its slot, but retain the task above so terminal authority loss
+        # can drain it before claiming this worker has stopped.
+        raise TaskFailure(
+            WorkerError(
+                error_class=ErrorClass.TIMEOUT,
+                code=code,
+                message=f"{what} exceeded the {timeout:g}s budget for this task.",
+                hint="Try a shorter input, or a worker with more headroom.",
+            )
+        )
+
     @staticmethod
     async def _bounded(coro, *, timeout: float, code: str, what: str):
         """Run ``coro`` under the server's budget for this phase.
@@ -636,6 +860,158 @@ def default_input_dir() -> str:
         return os.path.join(tempfile.gettempdir(), "omnivoice-worker-inputs")
 
 
+def _cache_path_key(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _lease_input_cache_path(path: str, *, fetching: bool = False) -> bool:
+    key = _cache_path_key(path)
+    with _INPUT_CACHE_LEASE_LOCK:
+        if key in _INPUT_CACHE_MUTATIONS:
+            return False
+        _INPUT_CACHE_LEASES[key] = _INPUT_CACHE_LEASES.get(key, 0) + 1
+        if fetching:
+            _INPUT_CACHE_FETCH_LEASES[key] = (
+                _INPUT_CACHE_FETCH_LEASES.get(key, 0) + 1
+            )
+        return True
+
+
+async def _acquire_input_cache_path(
+    path: str, *, fetching: bool = False
+) -> None:
+    while not _lease_input_cache_path(path, fetching=fetching):
+        await asyncio.sleep(0.01)
+
+
+def _release_input_cache_path(path: str, *, fetching: bool = False) -> None:
+    key = _cache_path_key(path)
+    with _INPUT_CACHE_LEASE_LOCK:
+        if fetching:
+            fetch_remaining = _INPUT_CACHE_FETCH_LEASES.get(key, 0) - 1
+            if fetch_remaining > 0:
+                _INPUT_CACHE_FETCH_LEASES[key] = fetch_remaining
+            else:
+                _INPUT_CACHE_FETCH_LEASES.pop(key, None)
+        remaining = _INPUT_CACHE_LEASES.get(key, 0) - 1
+        if remaining > 0:
+            _INPUT_CACHE_LEASES[key] = remaining
+        else:
+            _INPUT_CACHE_LEASES.pop(key, None)
+
+
+def _promote_input_cache_lease(path: str) -> None:
+    """Turn a fetcher's lease into the active execution lease it returns."""
+    key = _cache_path_key(path)
+    with _INPUT_CACHE_LEASE_LOCK:
+        remaining = _INPUT_CACHE_FETCH_LEASES.get(key, 0) - 1
+        if remaining > 0:
+            _INPUT_CACHE_FETCH_LEASES[key] = remaining
+        else:
+            _INPUT_CACHE_FETCH_LEASES.pop(key, None)
+
+
+def _leased_input_cache_paths() -> set[str]:
+    with _INPUT_CACHE_LEASE_LOCK:
+        return set(_INPUT_CACHE_LEASES)
+
+
+def _claim_input_cache_mutation(path: str) -> bool:
+    key = _cache_path_key(path)
+    with _INPUT_CACHE_LEASE_LOCK:
+        if key in _INPUT_CACHE_MUTATIONS:
+            return False
+        active_leases = _INPUT_CACHE_LEASES.get(
+            key, 0
+        ) - _INPUT_CACHE_FETCH_LEASES.get(key, 0)
+        # Fetchers can safely converge under the publication gate. A lease
+        # already promoted to an execution may have this exact pathname open.
+        if active_leases > 0:
+            return False
+        _INPUT_CACHE_MUTATIONS.add(key)
+        return True
+
+
+def _finish_input_cache_mutation(path: str) -> None:
+    key = _cache_path_key(path)
+    with _INPUT_CACHE_LEASE_LOCK:
+        _INPUT_CACHE_MUTATIONS.discard(key)
+
+
+def _fsync_file(path: str) -> None:
+    with open(path, "r+b") as handle:
+        os.fsync(handle.fileno())
+
+
+def _fsync_parent_directory(directory: str) -> None:
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+    if directory_flag is None:
+        return
+    unsupported = {
+        errno.EINVAL,
+        getattr(errno, "ENOTSUP", errno.EINVAL),
+        getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+    }
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | directory_flag)
+    except OSError as exc:
+        if exc.errno in unsupported:
+            return
+        raise
+    try:
+        os.fsync(descriptor)
+    except OSError as exc:
+        if exc.errno not in unsupported:
+            raise
+    finally:
+        os.close(descriptor)
+
+
+def _durable_makedirs(directory: str) -> None:
+    target = os.path.abspath(directory)
+    missing: list[str] = []
+    current = target
+    while not os.path.isdir(current):
+        if os.path.exists(current):
+            if os.path.isdir(current):
+                break
+            raise NotADirectoryError(current)
+        missing.append(current)
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    for path in reversed(missing):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            if not os.path.isdir(path):
+                raise
+        _fsync_parent_directory(os.path.dirname(path) or ".")
+    if not missing:
+        _fsync_parent_directory(os.path.dirname(target) or ".")
+
+
+def _durable_replace(source: str, destination: str) -> None:
+    _fsync_file(source)
+    os.replace(source, destination)
+    _fsync_parent_directory(os.path.dirname(destination) or ".")
+
+
+def _input_fetch_failure(ref, error: BaseException) -> TaskFailure:
+    return TaskFailure(
+        WorkerError(
+            # Transient on purpose: an id we cannot resolve now is far more
+            # often a dropped stream/disk barrier than a permanently missing
+            # file, and one wasted retry beats failing real work.
+            error_class=ErrorClass.TRANSIENT,
+            code="INPUT_FETCH_FAILED",
+            message=f"Could not fetch '{ref.filename or ref.artifact_id}': {error}",
+            hint="The control plane may have restarted; the task will be retried.",
+        )
+    )
+
+
 def _cache_name(ref) -> str:
     """A safe, content-addressed local name for one input.
 
@@ -656,13 +1032,25 @@ def _cache_name(ref) -> str:
 def _already_held(path: str, ref) -> bool:
     """Do we already have this exact input?
 
-    Size alone: the name is the content hash and the only writer is an atomic
-    rename, so a file of the right size at this name cannot be different bytes.
+    The filename is content-addressed, but disks and external edits can still
+    change bytes at that name. Re-hash the advertised identity before reuse.
     """
     try:
         expected = int(getattr(ref, "size_bytes", 0) or 0)
-        return os.path.isfile(path) and (not expected or os.path.getsize(path) == expected)
-    except OSError:  # pragma: no cover
+        if not os.path.isfile(path):
+            return False
+        if expected and os.path.getsize(path) != expected:
+            return False
+        expected_hash = (getattr(ref, "sha256", "") or "").strip().lower()
+        if expected_hash:
+            digest = hashlib.sha256()
+            with open(path, "rb") as handle:
+                for block in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(block)
+            if digest.hexdigest() != expected_hash:
+                return False
+        return True
+    except OSError:
         return False
 
 
@@ -723,22 +1111,45 @@ def _verify(path: str, ref) -> None:
         )
 
 
-def _prune_input_cache(directory: str, limit_bytes: int = INPUT_CACHE_LIMIT_BYTES) -> None:
-    """Keep the input cache under its ceiling, oldest first."""
+def _prune_input_cache(
+    directory: str,
+    limit_bytes: int = INPUT_CACHE_LIMIT_BYTES,
+    now: Optional[float] = None,
+) -> None:
+    """Keep the cache bounded without deleting inputs a task is still using."""
     try:
         entries = []
         total = 0
+        stamp = time.time() if now is None else now
+        leased = _leased_input_cache_paths()
         for name in os.listdir(directory):
             path = os.path.join(directory, name)
-            if name.endswith(".part") or not os.path.isfile(path):
+            if not os.path.isfile(path):
                 continue
             stat = os.stat(path)
-            entries.append((stat.st_mtime, stat.st_size, path))
+            key = _cache_path_key(path)
+            is_partial = name.endswith(".part")
+            if (
+                is_partial
+                and key not in leased
+                and stamp - stat.st_mtime >= _STALE_INPUT_PARTIAL_SECONDS
+            ):
+                os.remove(path)
+                continue
             total += stat.st_size
+            # Active finals and partial transfers count toward the ceiling but
+            # cannot be evicted. Young unleased .part files may belong to a
+            # process that has not yet rebuilt its in-memory lease after fork;
+            # the age sweep will remove them if they are crash leftovers.
+            if key not in leased and not is_partial:
+                entries.append((stat.st_mtime, stat.st_size, path))
         for _mtime, size, path in sorted(entries):
             if total <= limit_bytes:
                 break
-            os.remove(path)
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                continue
             total -= size
     except OSError:  # pragma: no cover — a full cache is not a failed task
         logger.debug("Could not prune the worker input cache", exc_info=True)

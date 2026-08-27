@@ -15,6 +15,7 @@ pub mod config;
 pub mod crash;
 pub mod dictation_output;
 pub mod dictation_shortcut;
+pub mod persistence_exit;
 pub mod reset;
 pub mod setup;
 pub mod speech_sidecar;
@@ -28,7 +29,6 @@ use std::collections::VecDeque;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
@@ -52,14 +52,44 @@ pub fn backend_port() -> u16 {
 // ── Shared state types ────────────────────────────────────────────────────
 
 pub struct BackendState {
+    /// Serializes every desktop lifecycle owner from its first port/process
+    /// probe through child tracking and readiness. Bootstrap, Retry, reset,
+    /// setup/uninstall, shutdown, and the crash supervisor never overlap.
+    pub lifecycle: Mutex<()>,
     pub process: Mutex<Option<Child>>,
+    /// Stable OS containment for a desktop-spawned backend. Unix keeps the
+    /// root unreaped until its inherited process group is drained; Windows
+    /// owns a kill-on-close Job handle. Neither path signals a reusable PID.
+    pub owned_tree: Mutex<Option<tools::OwnedProcessTree>>,
+    /// A healthy same-version backend which predates this desktop launch.
+    /// It is health-supervised but deliberately never killed by PID: there is
+    /// no safe way to adopt ownership of an arbitrary external process tree.
+    pub attached: AtomicBool,
+    /// Consecutive deep-health failures for an unowned attachment. A single
+    /// busy/slow response is not process death; the supervisor confirms a
+    /// sustained outage before considering a safe replacement.
+    pub attached_health: Mutex<AttachedHealthState>,
     /// When the tracked child was spawned — feeds the crash marker's
     /// `uptime_s` (#941). Set alongside `process` in bootstrap.rs.
     pub spawned_at: Mutex<Option<std::time::Instant>>,
 }
 
+#[derive(Default)]
+pub struct AttachedHealthState {
+    pub failures: u32,
+    pub unhealthy_since: Option<std::time::Instant>,
+}
+
 pub struct AppFlags {
     pub quitting: AtomicBool,
+    /// A destructive uninstall is stopping the backend but is not itself a
+    /// terminal app exit until the purge succeeds. Keeping this separate from
+    /// `quitting` lets CloseRequested keep the main window alive and lets a
+    /// failed purge recover without overwriting a concurrent real exit.
+    pub uninstalling: AtomicBool,
+    /// Generation which owns `uninstalling`. A stale join/panic finalizer may
+    /// only release its own claim, never a newer uninstall attempt.
+    pub uninstall_owner: std::sync::atomic::AtomicU64,
     /// Whether dictation is currently recording. The tray's Start/Stop item
     /// used to infer this from `widget.is_visible()`, which stopped meaning
     /// anything once the widget became a permanently hidden host. The frontend
@@ -453,6 +483,22 @@ mod pill_noactivate_tests {
 
 // ── Tauri entry ───────────────────────────────────────────────────────────
 
+/// Production `ExitRequested` teardown, exposed so the real-child lifecycle
+/// harness exercises the exact shutdown path used by the desktop event loop.
+#[doc(hidden)]
+pub fn shutdown_backend_for_exit<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
+    // Raise the quitting flag FIRST: exits that don't pass through the tray
+    // Quit item (macOS ⌘Q, OS session end) would otherwise let a death watcher
+    // observe our own termination and record a false crash marker (#941).
+    app_handle
+        .state::<AppFlags>()
+        .quitting
+        .store(true, Ordering::SeqCst);
+    if let Err(error) = bootstrap::with_backend_stopped(app_handle, || {}) {
+        log::warn!("Could not fully stop the backend during app exit: {error}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // #879: if the previous run requested a WebView cache repair (splash
@@ -559,6 +605,7 @@ pub fn run() {
             commands::open_input_monitoring_settings,
             commands::set_tray_recording,
             commands::quit_app,
+            persistence_exit::confirm_persistence_flush,
             commands::save_text_file,
             commands::reveal_host_path,
             commands::get_dictation_shortcut,
@@ -676,6 +723,8 @@ pub fn run() {
 
             app.manage(AppFlags {
                 quitting: AtomicBool::new(false),
+                uninstalling: AtomicBool::new(false),
+                uninstall_owner: std::sync::atomic::AtomicU64::new(0),
                 dictating: AtomicBool::new(false),
                 capture: Mutex::new(CaptureDispatchState::default()),
                 output: dictation_output::DictationOutput::default(),
@@ -693,6 +742,7 @@ pub fn run() {
             if let Some(action) = speech_sidecar::cli_dictation_action(&initial_args) {
                 speech_sidecar::dispatch_action(app.handle(), action);
             }
+            app.manage(persistence_exit::PersistenceExitState::default());
             app.manage(TrayHandle {
                 tray: Mutex::new(None),
                 dictate: Mutex::new(None),
@@ -838,13 +888,10 @@ pub fn run() {
                             let mut cfg = crate::config::load_config(app);
                             cfg.launch_as_widget = false;
                             crate::config::save_config(app, &cfg);
-                            if let Ok(exe) = std::env::current_exe() {
-                                let _ = std::process::Command::new(exe).spawn();
+                            if let Err(error) = persistence_exit::request_spawned_relaunch(app, vec![])
+                            {
+                                log::error!("Could not switch to studio mode: {error}");
                             }
-                            app.state::<AppFlags>()
-                                .quitting
-                                .store(true, Ordering::SeqCst);
-                            app.exit(0);
                         }
                         "switch_to_pill" => {
                             // Mirror of "open_studio" but the other direction:
@@ -853,15 +900,12 @@ pub fn run() {
                             let mut cfg = crate::config::load_config(app);
                             cfg.launch_as_widget = true;
                             crate::config::save_config(app, &cfg);
-                            if let Ok(exe) = std::env::current_exe() {
-                                let _ = std::process::Command::new(exe)
-                                    .arg("--pill")
-                                    .spawn();
+                            if let Err(error) = persistence_exit::request_spawned_relaunch(
+                                app,
+                                vec!["--pill".into()],
+                            ) {
+                                log::error!("Could not switch to pill mode: {error}");
                             }
-                            app.state::<AppFlags>()
-                                .quitting
-                                .store(true, Ordering::SeqCst);
-                            app.exit(0);
                         }
                         "dictate" => {
                             // Toggle start/stop. This used to ask the widget
@@ -974,7 +1018,11 @@ pub fn run() {
             let stage_handle = bootstrap_state.stage.clone();
             app.manage(bootstrap_state);
             app.manage(BackendState {
+                lifecycle: Mutex::new(()),
                 process: Mutex::new(None),
+                owned_tree: Mutex::new(None),
+                attached: AtomicBool::new(false),
+                attached_health: Mutex::new(AttachedHealthState::default()),
                 spawned_at: Mutex::new(None),
             });
 
@@ -994,68 +1042,11 @@ pub fn run() {
                     set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
                     return;
                 }
-                match backend::running_backend_version(backend_port()) {
-                    Some(v) if backend::same_app_version(&v) => {
-                        if backend::backend_deep_healthy(backend_port()) {
-                            log::info!(
-                                "Port {} already serving VoiceStudio backend v{} — attaching",
-                                backend_port(), v
-                            );
-                            set_stage(&stage_handle, BootstrapStage::Ready);
-                            return;
-                        }
-                        // Same version but a DB-touching probe fails: a backend whose
-                        // install was wiped/corrupted while it kept running. Attaching
-                        // would look alive and 500 on everything — replace it.
-                        log::warn!(
-                            "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
-                            backend_port(), v
-                        );
-                        backend::kill_orphan_on_port(backend_port());
-                        std::thread::sleep(Duration::from_millis(500));
-                    }
-                    Some(v) => {
-                        // Healthy-but-stale backend from a previous version —
-                        // the post-update orphan that made new installs run
-                        // old backend code. Replace it (see backend.rs
-                        // same_app_version for the full story).
-                        log::warn!(
-                            "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
-                            backend_port(),
-                            if v.is_empty() { "<unknown>" } else { v.as_str() },
-                            env!("CARGO_PKG_VERSION"),
-                        );
-                        backend::kill_orphan_on_port(backend_port());
-                        std::thread::sleep(Duration::from_millis(500));
-                    }
-                    None => {}
-                }
-                if backend::port_in_use(backend_port()) {
-                    log::warn!(
-                        "Port {} in use — taking ownership (killing whatever's there)",
-                        backend_port()
-                    );
-                    backend::kill_orphan_on_port(backend_port());
-                    std::thread::sleep(Duration::from_millis(500));
-                }
-                // First-run gate: never auto-install. With nothing on disk to
-                // attach to, park on the setup screen and wait for the user to
-                // confirm an install plan — `complete_setup` restarts the
-                // bootstrap from there. Existing pre-setup-screen installs
-                // (venv present) are migrated here — the bootstrap thread is
-                // the only place that write happens — then pass straight
-                // through the read-only is_first_run check.
-                setup::migrate_existing_install_if_needed(&app_handle);
-                if setup::is_first_run(&app_handle) {
-                    log::info!("First run — awaiting setup screen confirmation before installing");
-                    set_stage(&stage_handle, BootstrapStage::AwaitingSetup);
-                    return;
-                }
-                // Spawn + health-poll loop shared with the Retry button —
-                // includes the #314 broken-venv self-heal (quarantine the
-                // venv and rebuild once when the backend exits with
-                // "No pyvenv.cfg file" / code 106).
-                bootstrap::spawn_backend_and_wait(&app_handle, &stage_handle);
+                // Probe/attach, the first-run gate, spawn, child tracking, and
+                // readiness are one serialized lifecycle operation. A Retry
+                // arriving during launch waits and attaches instead of
+                // creating a second backend on the same port (#1635).
+                bootstrap::spawn_initial_backend_and_wait(&app_handle, &stage_handle);
             });
             Ok(())
         })
@@ -1084,47 +1075,11 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| {
-        if let tauri::RunEvent::ExitRequested { .. } = event {
-            // Raise the quitting flag FIRST: exits that don't pass through the
-            // tray Quit item (macOS ⌘Q, OS session end) would otherwise let a
-            // death watcher observe our own SIGTERM below and record a false
-            // "backend crashed" marker (#941).
-            app_handle
-                .state::<AppFlags>()
-                .quitting
-                .store(true, Ordering::SeqCst);
-            if let Ok(mut lock) = app_handle.state::<BackendState>().process.lock() {
-                if let Some(ref mut child) = *lock {
-                    let pid = child.id();
-                    log::info!("Shutting down backend (pid {})", pid);
-
-                    #[cfg(unix)]
-                    {
-                        unsafe {
-                            libc::kill(pid as i32, libc::SIGTERM);
-                        }
-                        let start = std::time::Instant::now();
-                        loop {
-                            match child.try_wait() {
-                                Ok(Some(_)) => break,
-                                Ok(None) if start.elapsed() < Duration::from_secs(2) => {
-                                    std::thread::sleep(Duration::from_millis(100));
-                                }
-                                _ => {
-                                    log::warn!("Backend didn't exit in 2 s — SIGKILL");
-                                    let _ = child.kill();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        let _ = child.kill();
-                    }
-                    let _ = child.wait();
-                }
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
+            if !persistence_exit::handle_exit_requested(app_handle, code, &api) {
+                return;
             }
+            shutdown_backend_for_exit(app_handle);
         }
     });
 }

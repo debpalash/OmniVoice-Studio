@@ -17,10 +17,19 @@ import json
 import math
 import array
 import base64
+import io
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 import pytest
 
-from services.subprocess_backend import SubprocessBackend, RECV_TIMEOUT_S
+from services.subprocess_backend import (
+    RECV_TIMEOUT_S,
+    SubprocessBackend,
+)
 from services.tts_backend import get_backend_class
 from engines.omnivoice_subprocess import OmniVoiceSubprocessBackend
 
@@ -28,7 +37,7 @@ from engines.omnivoice_subprocess import OmniVoiceSubprocessBackend
 # ── stub sidecar (model-free) ──────────────────────────────────────────────
 
 STUB_SIDECAR = r'''
-import sys, json, struct, time, math, array, base64
+import sys, os, json, struct, time, math, array, base64, subprocess
 
 def _send(o):
     b = json.dumps(o, separators=(",", ":")).encode()
@@ -62,6 +71,15 @@ while True:
         t = m.get("text", "")
         if t == "HANG":
             while True:  # wedge forever; the parent must hard-kill us
+                time.sleep(1)
+        if t == "HANG_CHILD":
+            subprocess.Popen([
+                sys.executable,
+                "-c",
+                "import os,time; time.sleep(1); "
+                "open(os.environ['OMNIVOICE_TIMEOUT_MARKER'], 'w').write('bad')",
+            ])
+            while True:
                 time.sleep(1)
         # Emit progress frames before the audio when asked, to exercise the
         # parent's progress-consuming recv loop (the cold-load fix).
@@ -136,6 +154,40 @@ def test_base_default_recv_timeout_is_60s():
     assert _PlainBackend().recv_timeout_s == 60.0
 
 
+def test_sidecar_spawn_delegates_all_containment_to_nested_owner(monkeypatch, tmp_path):
+    from services import subprocess_backend as backend_module
+
+    captured = {}
+
+    class StubProcess:
+        stderr = io.BytesIO()
+
+        @staticmethod
+        def poll():
+            return None
+
+    def fake_spawn(argv, **kwargs):
+        captured.update(kwargs)
+        return StubProcess()
+
+    monkeypatch.setattr(_PlainBackend, "venv_python", classmethod(lambda cls: Path(sys.executable)))
+    monkeypatch.setattr(
+        _PlainBackend,
+        "sidecar_script",
+        classmethod(lambda cls: tmp_path / "stub.py"),
+    )
+    monkeypatch.setattr(backend_module, "spawn_owned", fake_spawn)
+    monkeypatch.setattr(backend_module, "_ensure_reaper_running", lambda: None)
+    backend = _PlainBackend()
+    monkeypatch.setattr(backend, "_recv_with_timeout", lambda _timeout: {"op": "ready"})
+
+    try:
+        backend._spawn()
+        assert not ({"start_new_session", "creationflags", "preexec_fn"} & captured.keys())
+    finally:
+        backend._proc = None
+
+
 def test_omnivoice_subprocess_recv_timeout_overrides_default():
     b = OmniVoiceSubprocessBackend()
     assert b.recv_timeout_s == 300.0  # aligns with the generate budget
@@ -203,6 +255,33 @@ def test_wedged_sidecar_is_hard_killed_and_recovers(stub_sidecar, monkeypatch):
         assert tensor.shape[1] == 24000
     finally:
         b.shutdown()
+
+
+def test_desktop_timeout_kills_engine_subtree_before_late_mutation(
+    stub_sidecar, monkeypatch, tmp_path
+):
+    marker = tmp_path / "late-engine-mutation"
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_CONTAINED", "1")
+    drain_read, drain_write = os.pipe()
+    monkeypatch.setenv("OMNIVOICE_DESKTOP_DRAIN_FD", str(drain_write))
+    monkeypatch.setenv("OMNIVOICE_TIMEOUT_MARKER", str(marker))
+    _use_stub(monkeypatch, stub_sidecar)
+    monkeypatch.setattr(
+        OmniVoiceSubprocessBackend,
+        "recv_timeout_s",
+        property(lambda self: 0.3),
+    )
+    b = OmniVoiceSubprocessBackend()
+    try:
+        with pytest.raises(RuntimeError):
+            b.generate("HANG_CHILD")
+        time.sleep(1.2)
+        assert not marker.exists()
+        assert b.generate("ok").shape[1] == 24000
+    finally:
+        b.shutdown()
+        os.close(drain_write)
+        os.close(drain_read)
 
 
 def test_generate_does_not_deadlock_when_called_on_gpu_pool_worker(stub_sidecar, monkeypatch):

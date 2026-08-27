@@ -28,6 +28,7 @@ import TitleTabs from './TitleTabs';
 import VoiceStudioMark from './brand/VoiceStudioMark';
 import { useAppStore } from '../store';
 import { useSysinfo } from '../api/hooks';
+import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 const VIEW_META = {
   launchpad: {
@@ -291,7 +292,7 @@ export default function Header({
               variant="ghost"
               size="sm"
               title={t('common.reload')}
-              onClick={() => window.location.reload()}
+              onClick={() => void reloadAfterApplicationPersistence()}
               leading={<RefreshCw size={9} />}
               className="shrink-0"
             >

@@ -18,7 +18,7 @@ CONTROL_PORT="${WORKER_CONTROL_PORT:-7443}"
 WORKER_ID="${WORKER_ID:-}"
 SSH_TARGET="${WORKER_SSH_TARGET:-}"
 SSH_IDENTITY="${WORKER_SSH_IDENTITY:-}"
-WORKER_START_COMMAND="${WORKER_START_COMMAND:-OMNIVOICE_WORKER_MODE=1 omnivoice}"
+WORKER_START_COMMAND="${WORKER_START_COMMAND:-OMNIVOICE_WORKER_MODE=1 uv run uvicorn backend.main:app --host 127.0.0.1 --port 3900}"
 SSH_OPTS=(-n -o BatchMode=yes -o ConnectTimeout=10)
 if [ -x .venv/bin/python ]; then
     PYTEST=(.venv/bin/python -m pytest)

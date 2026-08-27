@@ -102,10 +102,11 @@ export default function UninstallPanel() {
       await invoke('quit_app').catch(() => {});
     } catch (e) {
       setBusy(false);
+      const message = e instanceof Error ? e.message : String(e);
       toast.error(
         t('settings.uninstall_failed', {
           defaultValue: 'Could not remove the data: {{message}}',
-          message: e?.message || String(e),
+          message: message === 'uninstall_task_failed' ? t('bootstrap.unknown_error') : message,
         }),
       );
     }

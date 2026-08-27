@@ -1,4 +1,10 @@
 {
+  "longformPersistence": {
+    "storage_unavailable_title": "無法載入專案",
+    "storage_unavailable_body": "VoiceStudio 無法讀取本機專案儲存空間。你的資料未被變更。請重試以安全開啟專案。",
+    "clear_projects": "清除已儲存的專案",
+    "clear_confirm": "這將永久刪除所有已儲存的故事與有聲書專案以及所有未儲存的草稿，讓 VoiceStudio 能重新開啟。此操作無法復原。是否繼續？"
+  },
   "backendUnreachable": {
     "contact_recent": "它在 {{ago}}前還有回應，之後停止回應——很可能是在處理請求時當機或被強制終止。",
     "contact_never": "本次工作階段中它從未回應——可能根本沒有啟動。",
@@ -151,6 +157,7 @@
     "shortcut_register_failed": "無法註冊：{{message}}",
     "shortcut_reset": "重設為預設值",
     "shortcut_reset_failed": "重置失敗：{{message}}",
+    "reset_longform_failed": "VoiceStudio 無法安全清除已儲存的專案。您的專案資料未被變更；請釋放一些儲存空間或重新啟動應用程式後再試。",
     "cancel": "取消",
     "hf_token_also_clear": "一併清除",
     "hf_token_clear_btn": "清除代幣",
@@ -2191,6 +2198,7 @@
     "retry_load": "重試"
   },
   "firstrun": {
+    "backend_stop_failed": "VoiceStudio 無法安全停止先前的後端。請關閉其他 VoiceStudio 視窗或程序，然後重試。",
     "loading": "正在準備安裝精靈…",
     "title": "設定 VoiceStudio",
     "subtitle": "尚未安裝任何內容——先確認各項儲存位置，再開始安裝。之後可在設定中變更。",
