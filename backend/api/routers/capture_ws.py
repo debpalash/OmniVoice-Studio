@@ -240,6 +240,17 @@ async def ws_transcribe(websocket: WebSocket):
     is_platform_stream = websocket.url.path == PLATFORM_STREAM_PATH
     if is_platform_stream:
         websocket = _PlatformWebSocket(websocket)
+    # A browser can reach localhost regardless of the page's own origin.
+    # Reject ambient cross-site WebSocket handshakes before the loopback-host
+    # shortcut or accept(), while keeping native clients (no Origin header)
+    # and configured/same-origin browser UIs working (#1646 review).
+    origin = websocket.headers.get("origin")
+    if origin:
+        from core.csrf import origin_allowed
+
+        if not origin_allowed(websocket):
+            await websocket.close(code=1008, reason="browser origin not allowed")
+            return
     # Loopback origin guard — refuse anything not from 127.0.0.1, ::1, or
     # localhost. Privileged HTTP routers use Depends(require_admin) at router
     # level; WebSocket dependency injection differs across FastAPI versions, so we

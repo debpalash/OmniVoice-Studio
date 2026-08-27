@@ -98,3 +98,23 @@ def test_versioned_stream_has_session_envelope(monkeypatch):
     assert final["session_id"] == session_id
     assert final["protocol"] == "voicestudio.speech.v1"
     assert final["text"] == "Platform works."
+
+
+def test_versioned_stream_rejects_untrusted_browser_origin_before_accept():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+    from api.routers import capture_ws as capture
+
+    app = FastAPI()
+    app.include_router(capture.router)
+    client = TestClient(app, client=("127.0.0.1", 50000))
+
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(
+            "/v1/audio/transcriptions/stream",
+            headers={"Origin": "https://malicious.example"},
+        ):
+            pass
+
+    assert exc_info.value.code == 1008

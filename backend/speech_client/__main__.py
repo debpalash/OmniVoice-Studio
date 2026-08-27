@@ -6,6 +6,7 @@ transcription can also target a standalone or remote VoiceStudio backend.
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import mimetypes
 import os
@@ -24,6 +25,11 @@ class SpeechClientError(RuntimeError):
     pass
 
 
+class _RejectCredentialRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
+        raise SpeechClientError("VoiceStudio refused a credentialed redirect")
+
+
 def _join_url(base_url: str, path: str) -> str:
     return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
@@ -40,12 +46,32 @@ def _decode_error(exc: error.HTTPError) -> str:
     return f"HTTP {exc.code}: {detail or exc.reason}"
 
 
+def _is_loopback_host(host: str | None) -> bool:
+    if not host:
+        return False
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def _open(req: request.Request, timeout: float = 300.0) -> tuple[bytes, str]:
-    scheme = urlsplit(req.full_url).scheme.lower()
+    target = urlsplit(req.full_url)
+    scheme = target.scheme.lower()
     if scheme not in {"http", "https"}:
         raise SpeechClientError("VoiceStudio URLs must use http:// or https://")
+    credentialed = bool(req.get_header("Authorization"))
+    if credentialed and scheme != "https" and not _is_loopback_host(target.hostname):
+        raise SpeechClientError("Remote VoiceStudio credentials require https://")
     try:
-        with request.urlopen(req, timeout=timeout) as response:
+        opener = (
+            request.build_opener(_RejectCredentialRedirect())
+            if credentialed
+            else request.build_opener()
+        )
+        with opener.open(req, timeout=timeout) as response:  # noqa: S310
             return response.read(), response.headers.get("Content-Type", "")
     except error.HTTPError as exc:
         raise SpeechClientError(_decode_error(exc)) from exc
@@ -124,7 +150,9 @@ def _read_audio(path: str, stdin_filename: str) -> tuple[bytes, str]:
     try:
         return audio_path.read_bytes(), audio_path.name
     except OSError as exc:
-        raise SpeechClientError(f"could not read {audio_path}: {exc}") from exc
+        display_name = path.replace("\\", "/").rsplit("/", 1)[-1] or "audio input"
+        reason = exc.strerror or type(exc).__name__
+        raise SpeechClientError(f"could not read '{display_name}': {reason}") from exc
 
 
 def _response_text(body: bytes, content_type: str) -> str:
@@ -161,6 +189,7 @@ def _transcribe(args: argparse.Namespace) -> int:
         )
         output_session_id = session["session_id"]
 
+    session_needs_cleanup = output_session_id is not None
     try:
         response_body, response_type = _open(
             request.Request(
@@ -179,17 +208,18 @@ def _transcribe(args: argparse.Namespace) -> int:
                 ),
                 {"text": _response_text(response_body, response_type)},
             )
-    except Exception:
-        if output_session_id is not None:
+            session_needs_cleanup = False
+    finally:
+        if session_needs_cleanup:
             try:
                 _json_request(
                     "DELETE",
                     _join_url(args.control_url, f"/v1/output/sessions/{output_session_id}"),
                 )
-            except SpeechClientError:
-                # Best-effort cleanup must not replace the transcription error.
+            except Exception:  # noqa: BLE001
+                # Best-effort cleanup must not replace the original failure or
+                # KeyboardInterrupt that brought control into this finally.
                 pass
-        raise
 
     sys.stdout.buffer.write(response_body)
     if response_body and not response_body.endswith(b"\n"):

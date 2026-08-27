@@ -145,6 +145,10 @@ Loopback clients need no credential. Remote native WebSocket clients can send
 the configured bearer key. Browser clients should exchange that key for a
 short-lived session, mint a path-bound ticket at `/api/auth/ws-ticket`, and
 connect with `?ws_ticket=...`; see [API authentication](api-auth.md).
+Keep remote endpoints restricted to a trusted network; an API key authenticates
+a client but does not provide network isolation. Beyond a fully trusted LAN,
+use HTTPS/WSS and never send bearer credentials or ticket exchanges over
+plaintext HTTP/WebSocket.
 
 ## Security and privacy
 

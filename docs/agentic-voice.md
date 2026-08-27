@@ -20,8 +20,10 @@ its TTS/STT at VoiceStudio.
 
 ## The endpoints
 
-VoiceStudio serves these on `http://localhost:3900/v1` (or your
-[remote backend URL](remote-gpu.md)):
+VoiceStudio's service root is `http://localhost:3900` (or your
+[remote backend URL](remote-gpu.md)). OpenAI-compatible clients use
+`http://localhost:3900/v1` as their base URL, while discovery stays at the
+service root: `http://localhost:3900/.well-known/voicestudio-speech`.
 
 | OpenAI route | VoiceStudio support |
 |---|---|
