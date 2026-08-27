@@ -122,6 +122,38 @@ class OwnedPopen:
         info = os.waitid(os.P_PID, self.pid, flags)
         return info is not None and info.si_pid != 0
 
+    def _posix_exited_reaping(self) -> Optional[int]:
+        """macOS fallback for :meth:`_posix_exited_unreaped` (#1656).
+
+        CPython on macOS does not expose ``os.waitid`` (HAVE_WAITID is not set
+        in its build), so the WNOWAIT probe is unavailable there. This
+        fallback *reaps* the wrapper with ``waitpid(WNOHANG)``: it returns
+        the wrapper's exit code once it has exited, None while it is still
+        running, and raises ``ChildProcessError`` when another owner already
+        reaped it (the same refusal the waitid probe gives).
+
+        Reaping earlier than the WNOWAIT dance loses the pre-reap group kill
+        in :meth:`poll`; that is safe because the supervisor's control-pipe
+        EOF already terminates the whole nested group (#1635 design).
+        """
+        pid, status = os.waitpid(self.pid, os.WNOHANG)
+        if pid != self.pid:
+            return None
+        rc = os.waitstatus_to_exitcode(status)
+        # Publish on the underlying Popen so its own wait()/poll() no-op.
+        self._proc.returncode = rc
+        return rc
+
+    def _posix_exit_state_reaping(self) -> Optional[int]:
+        """:meth:`_posix_exited_reaping` plus one concession: if the leader
+        was already reaped through *this* Popen (``_proc.returncode`` known),
+        report that code rather than refusing — reaping by our own handle is
+        not the foreign reaper the ECHILD refusal exists for."""
+        try:
+            return self._posix_exited_reaping()
+        except ChildProcessError:
+            return self._proc.returncode
+
     def _signal_owned_group(self, sig: int) -> None:
         # The numeric group is safe only while its direct-child leader remains
         # ours and unreaped.  ECHILD therefore refuses rather than guessing.
@@ -129,6 +161,18 @@ class OwnedPopen:
             os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
         except ChildProcessError:
             return
+        except AttributeError:
+            # macOS CPython has no os.waitid (#1656). waitpid still proves
+            # that this exact numeric pid is our live child: ECHILD refuses a
+            # foreign-reaped/reused pid, while pid == self.pid records an exit
+            # without ever signalling the now-unowned process-group number.
+            try:
+                pid, status = os.waitpid(self.pid, os.WNOHANG)
+            except ChildProcessError:
+                return
+            if pid == self.pid:
+                self._proc.returncode = os.waitstatus_to_exitcode(status)
+                return
         try:
             os.killpg(self.pid, sig)
         except ProcessLookupError:
@@ -141,14 +185,22 @@ class OwnedPopen:
                 return self._returncode
             if os.name == "posix":
                 try:
-                    if not self._posix_exited_unreaped():
-                        return None
+                    if hasattr(os, "waitid"):
+                        if not self._posix_exited_unreaped():
+                            return None
+                        self._signal_owned_group(signal.SIGKILL)
+                        wrapper_rc = self._proc.wait()
+                    else:
+                        # macOS CPython: no os.waitid (#1656) — the reaping
+                        # probe already terminated/killed nothing; the group
+                        # is torn down by the control-pipe EOF in _close_control.
+                        wrapper_rc = self._posix_exit_state_reaping()
+                        if wrapper_rc is None:
+                            return None
                 except ChildProcessError:
                     # Never signal a potentially reused group after another
                     # owner reaped the stable leader.
                     return None
-                self._signal_owned_group(signal.SIGKILL)
-                wrapper_rc = self._proc.wait()
             else:
                 wrapper_rc = self._proc.poll()
                 if wrapper_rc is None:
