@@ -7,12 +7,13 @@ _ROOT = Path(__file__).resolve().parents[1]
 _LAUNCH = (_ROOT / "scripts" / "desktop-dev-launch.mjs").as_uri()
 
 
-def test_desktop_dev_creates_dist_before_tauri_dev():
+def test_desktop_dev_creates_dist_before_tauri_dev(tmp_path):
+    cwd = tmp_path / "workspace" / "frontend"
     script = f"""
       import {{ launchTauriDev }} from {json.dumps(_LAUNCH)};
       const calls = [];
       const result = launchTauriDev({{
-        cwd: "/workspace/frontend",
+        cwd: {json.dumps(str(cwd))},
         args: ["--features", "test-feature"],
         env: {{ PATH: "test-path" }},
         mkdir: (path, options) => calls.push(["mkdir", path, options]),
@@ -33,7 +34,7 @@ def test_desktop_dev_creates_dist_before_tauri_dev():
 
     assert observed == {
         "calls": [
-            ["mkdir", "/workspace/frontend/dist", {"recursive": True}],
+            ["mkdir", str(cwd / "dist"), {"recursive": True}],
             [
                 "spawn",
                 "bun",
