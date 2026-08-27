@@ -101,10 +101,10 @@ def test_foreign_reaped_leader_is_refused_without_waitid(no_waitid):
             os.close(h._result_fd)
 
 
-def test_kill_after_foreign_reap_does_not_signal_without_waitid(no_waitid):
-    """CodeRabbit #1657: without the waitid ECHILD probe, kill() must not
-    signal a group whose leader was reaped away — kill(0) ESRCH refuses."""
+def test_kill_after_pid_reuse_does_not_signal_without_waitid(no_waitid, monkeypatch):
+    """A foreign-reaped leader's reused numeric pid must not authorize killpg."""
     import signal as _signal
+
     h, proc = _make_owned([sys.executable, "-c", "pass"])
     try:
         while True:
@@ -112,8 +112,14 @@ def test_kill_after_foreign_reap_does_not_signal_without_waitid(no_waitid):
             if pid == proc.pid:
                 break
             time.sleep(0.05)
-        # Leader reaped: the guard must return before reaching killpg.
-        h._signal_owned_group(_signal.SIGKILL)  # must not raise / signal
+        # Model the numeric pid being reused: kill(pid, 0) would succeed even
+        # though waitpid still reports that the original child is no longer
+        # ours. The old guard therefore reached killpg and fails this test.
+        monkeypatch.setattr(os, "kill", lambda _pid, _sig: None)
+        signalled = []
+        monkeypatch.setattr(os, "killpg", lambda pid, sig: signalled.append((pid, sig)))
+        h._signal_owned_group(_signal.SIGKILL)
+        assert signalled == []
     finally:
         h._close_control()
         if h._result_fd is not None:

@@ -162,16 +162,16 @@ class OwnedPopen:
         except ChildProcessError:
             return
         except AttributeError:
-            # macOS CPython has no os.waitid (#1656): the ECHILD refusal is
-            # approximated by refusing once the leader is fully gone (kill(0)
-            # ESRCH means reaped, so the pid must not be signalled), and
-            # ProcessLookupError below covers a group that exited meanwhile.
-            # kill(0) on a *reused* pid still succeeds — that residual window
-            # is inherent to the platform (no WNOWAIT equivalent); callers
-            # bound it by checking _returncode before signalling.
+            # macOS CPython has no os.waitid (#1656). waitpid still proves
+            # that this exact numeric pid is our live child: ECHILD refuses a
+            # foreign-reaped/reused pid, while pid == self.pid records an exit
+            # without ever signalling the now-unowned process-group number.
             try:
-                os.kill(self.pid, 0)
-            except ProcessLookupError:
+                pid, status = os.waitpid(self.pid, os.WNOHANG)
+            except ChildProcessError:
+                return
+            if pid == self.pid:
+                self._proc.returncode = os.waitstatus_to_exitcode(status)
                 return
         try:
             os.killpg(self.pid, sig)
