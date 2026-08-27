@@ -186,7 +186,8 @@ def _transcribe(args: argparse.Namespace) -> int:
                     "DELETE",
                     _join_url(args.control_url, f"/v1/output/sessions/{output_session_id}"),
                 )
-            except Exception:
+            except SpeechClientError:
+                # Best-effort cleanup must not replace the transcription error.
                 pass
         raise
 
