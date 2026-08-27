@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 
 def test_url_join_does_not_duplicate_slashes():
     from speech_client.__main__ import _join_url
@@ -33,3 +35,12 @@ def test_json_transcription_response_extracts_insertable_text():
 
     assert _response_text(b'{"text":"hello"}', "application/json") == "hello"
     assert _response_text(b"hello", "text/plain") == "hello"
+
+
+def test_client_rejects_non_http_url_handlers():
+    from urllib import request
+
+    from speech_client.__main__ import SpeechClientError, _open
+
+    with pytest.raises(SpeechClientError, match="must use http"):
+        _open(request.Request("file:///etc/passwd"))

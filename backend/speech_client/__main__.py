@@ -14,6 +14,7 @@ import secrets
 import sys
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlsplit
 
 DEFAULT_CONTROL_URL = "http://127.0.0.1:3902"
 DEFAULT_ENGINE_URL = "http://127.0.0.1:3900"
@@ -40,6 +41,9 @@ def _decode_error(exc: error.HTTPError) -> str:
 
 
 def _open(req: request.Request, timeout: float = 300.0) -> tuple[bytes, str]:
+    scheme = urlsplit(req.full_url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise SpeechClientError("VoiceStudio URLs must use http:// or https://")
     try:
         with request.urlopen(req, timeout=timeout) as response:
             return response.read(), response.headers.get("Content-Type", "")
