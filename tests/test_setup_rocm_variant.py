@@ -9,9 +9,10 @@ wheel after the sync, and `scripts/dev-backend.mjs` launches with
 `uv run --no-sync` so it sticks.
 """
 import importlib.util
+import json
 import os
-import re
-import sys
+from pathlib import Path
+import subprocess
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SETUP = os.path.join(_ROOT, "scripts", "setup.py")
@@ -40,9 +41,17 @@ def test_rocm_opt_in_requires_explicit_variant():
 def test_rocm_reinstall_targets_this_venv_with_bootstrap_pins():
     setup = _load_setup()
     cmd = setup.rocm_torch_reinstall_cmd("https://idx/", python="/venv/bin/python")
-    assert cmd[:4] == ["uv", "pip", "install", "--reinstall"]
-    assert cmd[cmd.index("--python") + 1] == "/venv/bin/python"
-    assert cmd[-2:] == ["--index-url", "https://idx/"]
+    assert cmd == [
+        "uv",
+        "pip",
+        "install",
+        "--reinstall",
+        "--python",
+        "/venv/bin/python",
+        *setup.ROCM_TORCH_PINS,
+        "--index-url",
+        "https://idx/",
+    ]
     # Same pins + default index as the packaged app's bootstrap.
     rs = open(_BOOTSTRAP, encoding="utf-8").read()
     for pin in setup.ROCM_TORCH_PINS:
@@ -51,9 +60,24 @@ def test_rocm_reinstall_targets_this_venv_with_bootstrap_pins():
 
 
 def test_dev_backend_skips_resync_when_rocm_requested():
-    src = open(_DEV_BACKEND, encoding="utf-8").read()
-    fn = re.search(r"export function uvRunArgs[\s\S]*?\n}", src)
-    assert fn, "dev-backend.mjs must export uvRunArgs()"
-    assert "OMNIVOICE_TORCH_VARIANT" in fn.group(0)
-    assert '"--no-sync"' in fn.group(0)
-    assert "spawn(\"uv\", uvRunArgs()" in src
+    module_uri = Path(_DEV_BACKEND).as_uri()
+    script = f"""
+      const mod = await import({json.dumps(module_uri)});
+      console.log(JSON.stringify({{
+        base: mod.UVICORN_ARGS,
+        unset: mod.uvRunArgs({{}}),
+        auto: mod.uvRunArgs({{ OMNIVOICE_TORCH_VARIANT: "auto" }}),
+        rocm: mod.uvRunArgs({{ OMNIVOICE_TORCH_VARIANT: " ROCm " }}),
+      }}));
+    """
+    completed = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    observed = json.loads(completed.stdout)
+    base = observed["base"]
+    assert observed["unset"] == base
+    assert observed["auto"] == base
+    assert observed["rocm"] == [base[0], "--no-sync", *base[1:]]

@@ -18,11 +18,12 @@
 // @tauri-apps/cli. All extra args are forwarded untouched.
 // ──────────────────────────────────────────────────────────────────────────
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, delimiter } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
 import { DEV_APP_PROCESS_NAME } from "./desktop-common.mjs";
+import { launchTauriDev } from "./desktop-dev-launch.mjs";
 
 /** The env's PATH key — Windows uses "Path", others "PATH"; match case-insensitively. */
 function pathKeyOf(env) {
@@ -114,21 +115,10 @@ if (!cargoResolvable(childEnv)) {
   }
 }
 
-// `frontend/dist` is a `bundle.resources` entry in tauri.conf.json, and
-// Tauri's build script refuses to compile when a listed resource path is
-// missing — even under `tauri dev`, where the UI is served by Vite and no
-// `dist` is ever produced. A fresh clone therefore died with
-// "resource path `../../frontend/dist` doesn't exist". Create the (possibly
-// empty) directory so the first `bun run desktop` compiles; harmless when a
-// real `vite build` output is already there.
-mkdirSync(join(process.cwd(), "dist"), { recursive: true });
-
-// Run the workspace-local Tauri CLI in dev mode (cwd is already frontend/),
-// handing it the healed env so its `cargo` spawns inherit the fixed PATH.
-const res = spawnSync("bun", ["run", "tauri", "dev", ...process.argv.slice(2)], {
-  stdio: "inherit",
-  env: childEnv,
-});
+// `frontend/dist` is a required bundle resource even under `tauri dev`.
+// The helper creates it before spawning Tauri and is behavior-tested with an
+// injected process runner (#1664). cwd is already frontend/.
+const res = launchTauriDev({ env: childEnv });
 if (res.error) {
   console.error(`❌ failed to launch tauri dev: ${res.error.message}`);
   process.exit(1);
