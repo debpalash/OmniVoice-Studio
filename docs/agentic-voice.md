@@ -82,10 +82,11 @@ single local agent, pipecat is lighter.
 
 ## Remote backend
 
-Running VoiceStudio on a [remote GPU box](remote-gpu.md)? Use that backend's URL
-as `base_url` and pass its `OMNIVOICE_API_KEY` as the `api_key` — the same
-bearer the rest of the app uses. Keep it on your tailnet, not the open
-internet.
+Running VoiceStudio on a [remote GPU box](remote-gpu.md)? Append `/v1` to that
+backend's service-root URL for the OpenAI client's `base_url`, and pass its
+`OMNIVOICE_API_KEY` as the `api_key` — the same bearer the rest of the app uses.
+Keep the unmodified service root for `/.well-known/voicestudio-speech`
+discovery, and keep the backend on your tailnet, not the open internet.
 
 ## Use your own voice responsibly
 
