@@ -7,6 +7,7 @@ misleading "ran out of memory". Two guards: sanitize non-finite samples before
 any encode, and classify a decode/ffmpeg failure as unreadable-audio (not OOM).
 """
 import os
+import subprocess
 import sys
 
 import pytest
@@ -19,6 +20,16 @@ from api.routers.generation import (  # noqa: E402
     _safe_exc_text,
     _sanitize_audio,
 )
+
+
+def _missing_media_process_error() -> FileNotFoundError:
+    """Capture a real process-launch ENOENT so traceback origin is preserved."""
+    env = {**os.environ, "PATH": os.path.join(os.path.dirname(__file__), "missing-bin")}
+    try:
+        subprocess.run(["ffmpeg"], check=False, env=env)
+    except FileNotFoundError as exc:
+        return exc
+    raise AssertionError("missing ffmpeg unexpectedly launched")
 
 
 def test_sanitize_replaces_non_finite_with_silence():
@@ -111,7 +122,9 @@ def test_unknown_error_is_not_labelled_oom():
 
 def test_bare_windows_missing_process_error_is_actionable():
     """CreateProcess omits the executable name from WinError 2 on Windows."""
-    err = FileNotFoundError("[WinError 2] The system cannot find the file specified")
+    err = _missing_media_process_error()
+    err.filename = None
+    err.strerror = "[WinError 2] The system cannot find the file specified"
     with pytest.raises(RuntimeError) as ei:
         _oom_friendly_reraise(err)
     msg = str(ei.value)
@@ -122,12 +135,20 @@ def test_bare_windows_missing_process_error_is_actionable():
 
 def test_posix_missing_media_process_error_is_actionable():
     """Equivalent missing-tool failures receive the same guidance on POSIX."""
-    err = FileNotFoundError(2, "No such file or directory", "ffmpeg")
+    err = _missing_media_process_error()
     with pytest.raises(RuntimeError) as ei:
         _oom_friendly_reraise(err)
     msg = str(ei.value)
     assert "Audio tools" in msg
     assert "required media program" in msg
+
+
+def test_missing_file_named_like_media_tool_keeps_missing_file_diagnosis():
+    """A reference/model basename collision is not a process-launch failure."""
+    err = FileNotFoundError(2, "No such file or directory", "ffmpeg")
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    assert "Audio tools" not in str(ei.value)
 
 
 @pytest.mark.parametrize("reason", [

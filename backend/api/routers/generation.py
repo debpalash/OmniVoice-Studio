@@ -459,6 +459,31 @@ def _is_timeout_failure(e) -> bool:
     return False
 
 
+def _is_media_process_launch_failure(exc: BaseException) -> bool:
+    """Identify an ffmpeg/ffprobe launch ENOENT without guessing from a file name."""
+    if not isinstance(exc, FileNotFoundError):
+        return False
+
+    # A regular missing reference/model file may itself be named "ffmpeg".
+    # Require the innermost raise site to be Python's process launcher so that
+    # basename collisions keep the normal missing-file diagnosis (#1677).
+    traceback_cursor = exc.__traceback__
+    if traceback_cursor is None:
+        return False
+    while traceback_cursor.tb_next is not None:
+        traceback_cursor = traceback_cursor.tb_next
+    origin_module = traceback_cursor.tb_frame.f_globals.get("__name__", "")
+    if origin_module != "subprocess" and not origin_module.startswith("asyncio."):
+        return False
+
+    filename = getattr(exc, "filename", None)
+    if not filename:
+        return "[winerror 2]" in str(exc).lower()
+    return os.path.basename(str(filename)).lower() in {
+        "ffmpeg", "ffmpeg.exe", "ffprobe", "ffprobe.exe",
+    }
+
+
 def _oom_friendly_reraise(e):
     """Best-effort cache flush + the user-facing OOM hint shared by both
     inference paths."""
@@ -490,14 +515,7 @@ def _oom_friendly_reraise(e):
     # download still needs an actionable recovery rather than the unknown-
     # error dead end. Keep missing reference/model files on their own path.
     for _exc in _exception_chain(e):
-        if not isinstance(_exc, FileNotFoundError):
-            continue
-        _filename = getattr(_exc, "filename", None)
-        _missing_tool = os.path.basename(str(_filename)).lower() if _filename else ""
-        _bare_windows_enoent = not _filename and "[winerror 2]" in str(_exc).lower()
-        if _bare_windows_enoent or _missing_tool in {
-            "ffmpeg", "ffmpeg.exe", "ffprobe", "ffprobe.exe",
-        }:
+        if _is_media_process_launch_failure(_exc):
             raise RuntimeError(
                 "A required media program couldn't be launched. Open "
                 "Settings → Audio tools and use "
