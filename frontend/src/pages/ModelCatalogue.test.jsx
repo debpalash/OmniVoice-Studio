@@ -65,6 +65,20 @@ describe('ModelCatalogue', () => {
     expect(screen.queryByTestId('stub-engines')).toBeNull();
   });
 
+  it('associates each tab with its labelled panel', () => {
+    render(<ModelCatalogue />);
+    const enginesTab = screen.getByRole('tab', { name: 'Engines' });
+    const enginesPanel = screen.getByRole('tabpanel', { name: 'Engines' });
+    expect(enginesTab).toHaveAttribute('aria-controls', enginesPanel.id);
+    expect(enginesPanel).toHaveAttribute('aria-labelledby', enginesTab.id);
+
+    const modelsTab = screen.getByRole('tab', { name: 'Models' });
+    clickTab('Models');
+    const modelsPanel = screen.getByRole('tabpanel', { name: 'Models' });
+    expect(modelsTab).toHaveAttribute('aria-controls', modelsPanel.id);
+    expect(modelsPanel).toHaveAttribute('aria-labelledby', modelsTab.id);
+  });
+
   it('remembers the pane across visits', () => {
     const first = render(<ModelCatalogue />);
     clickTab('Models');

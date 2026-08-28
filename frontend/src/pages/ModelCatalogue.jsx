@@ -159,6 +159,7 @@ export default function ModelCatalogue() {
             value={pane}
             onChange={setPane}
             variant="underline"
+            idPrefix="catalogue-pane"
             aria-label={t('catalogue.title')}
             data-testid="catalogue-pane-switch"
           />
@@ -169,9 +170,10 @@ export default function ModelCatalogue() {
             scrolling inside them. */}
         <div
           key={pane}
+          id={`catalogue-pane-panel-${pane}`}
           data-testid={`catalogue-pane-${pane}`}
           role="tabpanel"
-          aria-label={t(pane === 'models' ? 'catalogue.tab_models' : 'catalogue.tab_engines')}
+          aria-labelledby={`catalogue-pane-tab-${pane}`}
           className="min-w-0 [&>*:first-child]:mt-0"
         >
           {pane === 'engines' ? (
