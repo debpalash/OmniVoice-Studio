@@ -1303,7 +1303,15 @@ async def dub_generate(job_id: str, req: DubRequest):
                         pass
                     _release_audio_tensors()
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'segment': i, 'error': str(e)})}\n\n"
+                # A task-stream error bypasses the global exception handler.
+                # Never publish engine exception text here: allocator errors
+                # carry process tables and arbitrary failures can carry paths,
+                # tokens, or source text. The shared helper enriches recognized
+                # classes using VoiceStudio-owned constants only.
+                from core.public_errors import stream_generation_failure
+
+                error_detail = stream_generation_failure(e)["detail"]
+                yield f"data: {json.dumps({'type': 'error', 'segment': i, 'error': error_detail})}\n\n"
                 sr = backend.sample_rate
                 all_segment_wavs.append(_store_mix_wav(seg.start, seg.end, torch.zeros(1, max(0, int(seg_duration * sr))), sr, f"mix_{seg_id}"))
                 sync_scores.append(1.0)

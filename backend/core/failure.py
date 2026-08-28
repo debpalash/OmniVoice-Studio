@@ -339,15 +339,21 @@ _GPU_OOM_SIGNATURES = (
 
 def is_gpu_oom(error: BaseException | str) -> bool:
     """Recognize device OOMs through wrappers without importing torch."""
-    current: BaseException | None = error if isinstance(error, BaseException) else None
+    pending: list[BaseException] = [error] if isinstance(error, BaseException) else []
     seen: set[int] = set()
-    while current is not None and id(current) not in seen:
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
         seen.add(id(current))
         if type(current).__name__ == "OutOfMemoryError":
             return True
         if any(signature in str(current).lower() for signature in _GPU_OOM_SIGNATURES):
             return True
-        current = current.__cause__ or current.__context__
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        if current.__context__ is not None:
+            pending.append(current.__context__)
     if isinstance(error, str):
         return any(signature in error.lower() for signature in _GPU_OOM_SIGNATURES)
     return False

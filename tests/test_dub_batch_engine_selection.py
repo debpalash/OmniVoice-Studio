@@ -228,6 +228,43 @@ def test_dub_generate_model_load_oom_is_a_sanitized_resource_error(
     assert "/home/alice" not in detail
 
 
+def test_dub_generate_retry_oom_stream_is_sanitized(
+    dub_job_env, fake_registry, monkeypatch,
+):
+    dg, _job = dub_job_env
+    fake = fake_registry("fake-oom", supports_cloning=True)
+    monkeypatch.setenv("OMNIVOICE_TTS_BACKEND", "fake-oom")
+    private = (
+        "CUDA out of memory. Process 1031664 has 22.02 GiB in use. "
+        "/home/alice/private/model.safetensors"
+    )
+    calls = []
+
+    def _oom(self, text, **kwargs):
+        calls.append((text, kwargs))
+        raise RuntimeError(private)
+
+    monkeypatch.setattr(fake, "generate", _oom)
+    events = []
+
+    class _CaptureTaskManager:
+        def is_cancelled(self, _task_id):
+            return False
+
+        async def add_task(self, _task_id, _task_type, func, *args, **_kwargs):
+            async for event in func(*args):
+                events.append(event)
+
+    monkeypatch.setattr(dg, "task_manager", _CaptureTaskManager())
+    asyncio.run(dg.dub_generate("jobX", _one_seg_request()))
+
+    body = "".join(events)
+    assert len(calls) == 2, "the initial generation and low-step retry must both run"
+    assert "Close other GPU-heavy apps" in body
+    assert "1031664" not in body
+    assert "/home/alice" not in body
+
+
 def test_dub_generate_uses_selected_cloning_engine_not_omnivoice(
     dub_job_env, fake_registry, no_omnivoice_model_manager, monkeypatch,
 ):

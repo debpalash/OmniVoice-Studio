@@ -104,6 +104,14 @@ def test_gpu_oom_classifier_covers_typed_and_wrapped_failures():
     assert not failure.is_gpu_oom(RuntimeError("model load failed"))
 
 
+def test_gpu_oom_classifier_visits_cause_and_context_branches():
+    outer = RuntimeError("model load failed")
+    outer.__cause__ = ValueError("cleanup failed")
+    outer.__context__ = RuntimeError("HIP out of memory")
+
+    assert failure.is_gpu_oom(outer)
+
+
 def test_docs_topic_and_hint_for_known_class():
     evt = failure.build_failure(
         ModuleNotFoundError("No module named 'pkg_resources'"), stage="task"
