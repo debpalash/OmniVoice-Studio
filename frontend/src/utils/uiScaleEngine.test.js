@@ -54,4 +54,31 @@ describe('applyUiScale', () => {
 
     expect(document.documentElement.dataset.uiScaleEngine).toBe('css');
   });
+
+  it('serializes overlapping native zoom changes so the latest scale wins', async () => {
+    window.__TAURI_INTERNALS__ = {};
+    /** @type {(() => void) | undefined} */
+    let finishFirst;
+    const setZoom = vi.fn((/** @type {number} */ scale) => {
+      if (scale === 0.85) {
+        return new Promise((resolve) => {
+          finishFirst = () => resolve(undefined);
+        });
+      }
+      return Promise.resolve();
+    });
+    const loadWebview = async () => ({ getCurrentWebview: () => ({ setZoom }) });
+
+    const first = applyUiScale(0.85, loadWebview);
+    const latest = applyUiScale(1.2, loadWebview);
+    await vi.waitFor(() => expect(setZoom).toHaveBeenCalledTimes(1));
+    expect(setZoom).toHaveBeenLastCalledWith(0.85);
+
+    expect(finishFirst).toBeTypeOf('function');
+    finishFirst?.();
+    await Promise.all([first, latest]);
+
+    expect(setZoom.mock.calls.map(([scale]) => scale)).toEqual([0.85, 1.2]);
+    expect(document.documentElement.dataset.uiScaleEngine).toBe('native');
+  });
 });
