@@ -77,8 +77,12 @@ export default function Tabs({
             <TabsTrigger
               key={item.id}
               value={item.id}
-              id={idPrefix ? `${idPrefix}-tab-${item.id}` : undefined}
-              aria-controls={idPrefix ? `${idPrefix}-panel-${item.id}` : undefined}
+              {...(idPrefix
+                ? {
+                    id: `${idPrefix}-tab-${item.id}`,
+                    'aria-controls': `${idPrefix}-panel-${item.id}`,
+                  }
+                : {})}
               className={`ui-tabs__tab ${active ? 'is-active' : ''} ${tabClass}`}
               title={item.title}
               style={active && item.accent ? { '--ui-tab-accent': item.accent } : undefined}
