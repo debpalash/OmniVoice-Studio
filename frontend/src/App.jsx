@@ -78,9 +78,10 @@ import { listenDictationNotice, showDictationNotice } from './utils/dictationNot
 import { addBreadcrumb } from './utils/breadcrumbs';
 import { appShellClasses } from './utils/appShellClasses';
 import { configuredRemoteBackend, probeRemoteBackend } from './utils/remoteBackendProbe';
-import { applyUiScale, responsiveShellWidth } from './utils/uiScaleEngine';
+import { applyUiScale } from './utils/uiScaleEngine';
 import { resolveUiScale, suggestUiScale } from './utils/uiScaleSuggestion';
 import { recordValueMoment } from './utils/donationMoments';
+import useResponsiveShellSize from './hooks/useResponsiveShellSize';
 import {
   POPULAR_LANGS,
   POPULAR_ISO,
@@ -168,30 +169,6 @@ function App() {
     typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window ? 'native' : 'css',
   );
 
-  // Responsive shell breakpoints driven off the app-container's OWN width, not
-  // the viewport. The shell is sized `width: calc(100vw / --ui-scale)` then
-  // `zoom: --ui-scale` (#504; the WebKitGTK no-op case is handled by the
-  // data-zoom-layout probe below), so the grid lays out against `100vw/scale` —
-  // which `el.clientWidth` reports. Viewport `@media` queries fire on raw
-  // `100vw` and so collapse at the wrong threshold whenever the UI scale ≠ 1,
-  // cramming the content into a sliver. ResizeObserver fires on both window
-  // resize and scale change (the calc width changes), so this stays correct.
-  const shellObserverRef = useRef(/** @type {ResizeObserver | null} */ (null));
-  const [shellWidth, setShellWidth] = useState(Infinity);
-  const observeShell = useCallback((node) => {
-    shellObserverRef.current?.disconnect();
-    shellObserverRef.current = null;
-    if (!node) return;
-
-    const measure = () => setShellWidth(node.clientWidth);
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    shellObserverRef.current = observer;
-  }, []);
-
   // Desktop UI scale belongs at the webview boundary. A CSS `zoom` probe can
   // report the expected bounding box on WebKitGTK even when the painted shell
   // still occupies only the upper-left of the window. Tauri's native zoom keeps
@@ -205,9 +182,7 @@ function App() {
       cancelled = true;
     };
   }, [effectiveUiScale]);
-  const visibleShellWidth = responsiveShellWidth(shellWidth, effectiveUiScale, uiScaleEngine);
-  const shellSizeClass =
-    visibleShellWidth <= 600 ? 'shell-mini' : visibleShellWidth <= 1100 ? 'shell-narrow' : '';
+  const { observeShell, shellSizeClass } = useResponsiveShellSize(effectiveUiScale, uiScaleEngine);
   const theme = useAppStore((s) => s.theme);
 
   const locale = useAppStore((s) => s.locale);
