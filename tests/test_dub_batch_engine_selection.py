@@ -204,6 +204,30 @@ def test_dub_generate_fails_fast_for_non_cloning_engine(
     assert "omnivoice" in detail  # names a real alternative
 
 
+def test_dub_generate_model_load_oom_is_a_sanitized_resource_error(
+    dub_job_env, monkeypatch,
+):
+    dg, _job = dub_job_env
+    private = (
+        "CUDA out of memory. Tried to allocate 1.14 GiB. "
+        "Process 1031664 has 22.02 GiB memory in use. "
+        "/home/alice/private/model.safetensors"
+    )
+
+    async def _oom(**_kwargs):
+        raise RuntimeError(private)
+
+    monkeypatch.setattr(dg, "resolve_generation_backend", _oom)
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(dg.dub_generate("jobX", _one_seg_request()))
+
+    assert exc_info.value.status_code == 503
+    detail = exc_info.value.detail
+    assert "Close other GPU-heavy apps" in detail
+    assert "1031664" not in detail
+    assert "/home/alice" not in detail
+
+
 def test_dub_generate_uses_selected_cloning_engine_not_omnivoice(
     dub_job_env, fake_registry, no_omnivoice_model_manager, monkeypatch,
 ):

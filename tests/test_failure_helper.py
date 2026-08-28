@@ -78,6 +78,32 @@ def test_diagnostic_has_context_and_no_secrets(monkeypatch):
 
 # ── Classification → docs topic + hint (US1, FR-005) ────────────────────────
 
+def test_gpu_oom_gets_a_stable_remedy_without_allocator_details():
+    private = (
+        "CUDA out of memory. Tried to allocate 1.14 GiB. "
+        "Process 1031664 has 22.02 GiB memory in use. "
+        "/home/alice/private/model.safetensors"
+    )
+    evt = failure.build_failure(RuntimeError(private), stage="model-preload")
+    assert evt["docs_topic"] == "GPU_OOM"
+    assert "Close other GPU-heavy apps" in evt["hint"]
+    assert "1031664" not in evt["hint"]
+    assert "/home/alice" not in evt["hint"]
+
+
+def test_gpu_oom_classifier_covers_typed_and_wrapped_failures():
+    typed_oom = type("OutOfMemoryError", (RuntimeError,), {})
+    try:
+        try:
+            raise typed_oom("allocator failed")
+        except RuntimeError as inner:
+            raise RuntimeError("model load failed") from inner
+    except RuntimeError as wrapped:
+        assert failure.is_gpu_oom(wrapped)
+    assert failure.is_gpu_oom(RuntimeError("MPS backend out of memory"))
+    assert not failure.is_gpu_oom(RuntimeError("model load failed"))
+
+
 def test_docs_topic_and_hint_for_known_class():
     evt = failure.build_failure(
         ModuleNotFoundError("No module named 'pkg_resources'"), stage="task"

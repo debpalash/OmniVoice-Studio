@@ -503,6 +503,18 @@ async def dub_generate(job_id: str, req: DubRequest):
         backend = await resolve_generation_backend(require_cloning=True)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        from core.failure import is_gpu_oom
+
+        if not is_gpu_oom(e):
+            raise
+        from core.public_errors import public_exception_response
+
+        payload = public_exception_response(
+            e,
+            fallback="The TTS model could not be loaded.",
+        )
+        raise HTTPException(status_code=503, detail=payload["detail"]) from e
 
     async def _stream(task_id):
         total = len(req.segments)

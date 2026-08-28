@@ -52,6 +52,7 @@ _REDACTED_VALUE = "***REDACTED***"
 # One-line "what to do" per docs-taxonomy key. Keys mirror error_docs_map's
 # taxonomy; the docs URL itself stays owned by error_docs_map.
 _HINTS: dict[str, str] = {
+    "GPU_OOM": "Close other GPU-heavy apps or unload models, then retry. You can also choose CPU in Settings → Performance & Device or select a smaller TTS engine.",
     "WORKER_AT_CAPACITY": "Wait for a running job on that worker to finish, or choose another available worker and retry.",
     "MODEL_NOT_INSTALLED": "Install or enable this engine on the worker machine, then refresh its capabilities and retry.",
     "MODEL_NOT_DOWNLOADED": "Open Models, install this model on the selected worker, then retry when the download completes.",
@@ -290,6 +291,9 @@ def append_hf_mirror_hint(text: str) -> str:
 # must NOT be added: its bare "timed out" trigger would stamp a "video server"
 # hint on a model-load timeout that leaks through the 500 handler.
 _CONTEXT_FREE_HINT_CLASSES = frozenset({
+    # Device allocator signatures are specific enough to attach the shared
+    # recovery without exposing CUDA's process table or filesystem paths.
+    "GPU_OOM",
     "SOCKS_PROXY_SUPPORT_MISSING",
     "SSL_HANDSHAKE_FAILURE",
     # Its trigger is an exact OpenSSL string, so it cannot be confused with
@@ -323,6 +327,32 @@ def append_hint(text: str) -> str:
     return f"{text} — {hint}" if hint else text
 
 
+_GPU_OOM_SIGNATURES = (
+    "cuda out of memory",
+    "cuda error: out of memory",
+    "cuda_error_out_of_memory",
+    "mps backend out of memory",
+    "hip out of memory",
+    "out of memory on device",
+)
+
+
+def is_gpu_oom(error: BaseException | str) -> bool:
+    """Recognize device OOMs through wrappers without importing torch."""
+    current: BaseException | None = error if isinstance(error, BaseException) else None
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if type(current).__name__ == "OutOfMemoryError":
+            return True
+        if any(signature in str(current).lower() for signature in _GPU_OOM_SIGNATURES):
+            return True
+        current = current.__cause__ or current.__context__
+    if isinstance(error, str):
+        return any(signature in error.lower() for signature in _GPU_OOM_SIGNATURES)
+    return False
+
+
 def classify(reason: str) -> str:
     """Map a failure reason to a docs-taxonomy key, or "" when unknown.
 
@@ -330,6 +360,8 @@ def classify(reason: str) -> str:
     backend log / diagnostic names the same class the UI deeplink will use.
     """
     low = (reason or "").lower()
+    if is_gpu_oom(low):
+        return "GPU_OOM"
     if "pkg_resources" in low:
         return "PKG_RESOURCES_MISSING"
     if "quarantine" in low or "is damaged" in low or "gatekeeper" in low:

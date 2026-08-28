@@ -206,6 +206,33 @@ def test_a_successful_preload_clears_a_previous_failure(mm, monkeypatch):
         mm._set_loading("", "")
 
 
+def test_preload_oom_status_is_actionable_and_does_not_publish_allocator_details(
+    mm, monkeypatch,
+):
+    import asyncio
+
+    monkeypatch.setattr(mm, "model", None, raising=False)
+    monkeypatch.setattr(mm, "resolve_omnivoice_checkpoint", lambda: "org/model")
+    monkeypatch.setattr(mm, "_checkpoint_in_local_cache", lambda *a, **kw: True)
+    private = (
+        "CUDA out of memory. Tried to allocate 1.14 GiB. "
+        "Process 1031664 has 22.02 GiB memory in use. "
+        "/home/alice/private/model.safetensors"
+    )
+
+    async def _boom():
+        raise RuntimeError(private)
+
+    monkeypatch.setattr(mm, "_load_model_with_timeout", _boom)
+    asyncio.run(mm.preload_model())
+
+    status = mm.get_model_status()
+    assert status["sub_stage"] == "error"
+    assert "Close other GPU-heavy apps" in status["error"]
+    assert "1031664" not in status["error"]
+    assert "/home/alice" not in status["error"]
+
+
 def test_the_fallback_detail_does_not_leak_a_path(mm, monkeypatch):
     """If building the classified failure itself fails, what lands on the
     status must not be the raw exception — those carry absolute paths, i.e.

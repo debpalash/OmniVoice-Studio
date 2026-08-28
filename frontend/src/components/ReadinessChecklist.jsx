@@ -37,6 +37,8 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
 
   const isLoading = preflightLoading || modelLoading;
   const modelStatus = modelData?.status ?? 'idle';
+  const modelFailed =
+    modelStatus === 'error' || ['error', 'failed'].includes(modelData?.sub_stage);
 
   // Build the checklist from preflight data + model status
   const checks = [];
@@ -45,14 +47,14 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
   const modelDetail = modelData?.detail || '';
   const modelErr = modelData?.error || null;
   const modelCheck = {
-    id: 'asr-model',
-    label: t('readiness.asr_model'),
+    id: 'tts-model',
+    label: t('readiness.tts_model'),
     status:
       modelStatus === 'ready'
         ? 'pass'
         : modelStatus === 'loading'
           ? 'loading'
-          : modelStatus === 'error' || modelData?.sub_stage === 'error'
+          : modelFailed
             ? 'fail'
             : 'warn',
     detail:
@@ -60,11 +62,11 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
         ? t('readiness.loaded_ready')
         : modelStatus === 'loading'
           ? modelDetail || t('readiness.loading_first_run')
-          : modelData?.sub_stage === 'error'
+          : modelFailed
             ? modelErr || t('readiness.failed_to_load')
-            : t('readiness.not_loaded_yet'),
+            : t('readiness.tts_not_loaded_yet'),
     fix:
-      modelStatus === 'error' || modelData?.sub_stage === 'error'
+      modelFailed
         ? modelErr
           ? t('readiness.error_check_logs', { error: modelErr })
           : t('readiness.check_logs_restart')

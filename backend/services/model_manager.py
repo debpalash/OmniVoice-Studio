@@ -2938,7 +2938,10 @@ async def preload_model():
                 "The TTS model could not be loaded. Settings → Logs → Backend "
                 "has the full error."
             )
-        _set_loading("failed", detail, error=detail)
+        # `sub_stage` is a public API enum and the frontend keys failure state
+        # off `error`. Keep the human-readable word "failed" in the detail,
+        # not in the state machine (#1695).
+        _set_loading("error", detail, error=detail)
 
 def get_model_status():
     is_loaded = model is not None
