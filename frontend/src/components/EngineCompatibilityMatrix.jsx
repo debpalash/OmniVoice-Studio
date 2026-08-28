@@ -172,7 +172,7 @@ const ROW_GRID =
 const CATALOGUE_ROW_GRID =
   'catalogue-row-grid grid items-center gap-x-[16px] px-[16px] ' +
   'grid-cols-[minmax(300px,1.45fr)_128px_minmax(230px,1fr)_112px_minmax(292px,auto)] ' +
-  'max-[1100px]:grid-cols-[max-content_max-content_minmax(0,1fr)_max-content]';
+  '@max-[1230px]/catalogue-shell:grid-cols-[max-content_max-content_minmax(0,1fr)_max-content]';
 // Per-cell placement for the collapsed (narrow) layout.
 const CELL_NARROW = {
   name: 'max-[880px]:col-[1/4] max-[880px]:row-start-1',
@@ -182,11 +182,13 @@ const CELL_NARROW = {
   actions: 'max-[880px]:col-start-4 max-[880px]:row-[1/3]',
 };
 const CATALOGUE_CELL_NARROW = {
-  name: 'max-[1100px]:col-[1/4] max-[1100px]:row-start-1',
-  status: 'max-[1100px]:col-start-1 max-[1100px]:row-start-2 max-[1100px]:justify-self-start',
-  gpu: 'max-[1100px]:col-start-2 max-[1100px]:row-start-2',
-  isolation: 'max-[1100px]:col-start-3 max-[1100px]:row-start-2 max-[1100px]:justify-self-start',
-  actions: 'max-[1100px]:col-start-4 max-[1100px]:row-[1/3]',
+  name: '@max-[1230px]/catalogue-shell:col-[1/4] @max-[1230px]/catalogue-shell:row-start-1',
+  status:
+    '@max-[1230px]/catalogue-shell:col-start-1 @max-[1230px]/catalogue-shell:row-start-2 @max-[1230px]/catalogue-shell:justify-self-start',
+  gpu: '@max-[1230px]/catalogue-shell:col-start-2 @max-[1230px]/catalogue-shell:row-start-2',
+  isolation:
+    '@max-[1230px]/catalogue-shell:col-start-3 @max-[1230px]/catalogue-shell:row-start-2 @max-[1230px]/catalogue-shell:justify-self-start',
+  actions: '@max-[1230px]/catalogue-shell:col-start-4 @max-[1230px]/catalogue-shell:row-[1/3]',
 };
 // Fixed two-line row height (desktop). Narrow rows grow to fit the collapsed
 // meta line instead. `is-two-line` is a literal marker class asserted by the
@@ -196,7 +198,7 @@ const ROW_SHELL =
   'max-[880px]:gap-y-[4px] max-[880px]:py-[6px]';
 const CATALOGUE_ROW_SHELL =
   'catalogue-row min-h-[92px] h-auto overflow-visible py-[12px] ' +
-  'max-[1100px]:min-h-[76px] max-[1100px]:gap-y-[8px] max-[1100px]:py-[10px]';
+  '@max-[1230px]/catalogue-shell:min-h-[76px] @max-[1230px]/catalogue-shell:gap-y-[8px] @max-[1230px]/catalogue-shell:py-[10px]';
 const MUTED = 'text-[color:var(--chrome-fg-muted,#888)]';
 
 /** Subset of the unified engine entry the matrix actually reads. */
@@ -669,7 +671,9 @@ export default function EngineCompatibilityMatrix({
   const rowGrid = catalogueLayout ? CATALOGUE_ROW_GRID : ROW_GRID;
   const rowShell = catalogueLayout ? CATALOGUE_ROW_SHELL : ROW_SHELL;
   const cellNarrow = catalogueLayout ? CATALOGUE_CELL_NARROW : CELL_NARROW;
-  const headerCollapse = catalogueLayout ? 'max-[1100px]:hidden' : 'max-[880px]:hidden';
+  const headerCollapse = catalogueLayout
+    ? '@max-[1230px]/catalogue-shell:hidden'
+    : 'max-[880px]:hidden';
 
   return (
     <section

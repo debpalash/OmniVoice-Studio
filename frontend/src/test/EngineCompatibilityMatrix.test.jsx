@@ -1267,10 +1267,12 @@ describe('EngineCompatibilityMatrix', () => {
 
     const headerRow = screen.getAllByRole('columnheader')[0].closest('[role="row"]');
     expect(headerRow).toHaveClass('catalogue-row-grid');
+    expect(headerRow.className).toContain('@max-[1230px]/catalogue-shell:hidden');
     const track = headerRow.className.match(/grid-cols-\[[^\]]+\]/)?.[0];
     expect(track).toBeTruthy();
     for (const row of document.querySelectorAll('[data-engine-id]')) {
       expect(row.className).toContain(track);
+      expect(row.className).toContain('@max-[1230px]/catalogue-shell:grid-cols-');
     }
   });
 
