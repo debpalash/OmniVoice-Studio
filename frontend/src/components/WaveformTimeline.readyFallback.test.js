@@ -76,6 +76,13 @@ describe('WaveformTimeline audible error recovery (#1692)', () => {
   });
 
   it('loads unequal-duration peaks from the selected dub and synchronizes its video', async () => {
+    let releaseFetch;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFetch = () => resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(16) });
+        }),
+    );
     const { container } = render(
       React.createElement(WaveformTimeline, {
         audioSrc: 'http://localhost/original.wav',
@@ -88,6 +95,10 @@ describe('WaveformTimeline audible error recovery (#1692)', () => {
 
     act(() => emitWave('error', new DOMException('video decode failed', 'NotSupportedError')));
 
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    act(() => emitWave('error', new Error('duplicate original-video error')));
+    expect(container.querySelector('.wfm-error')).not.toBeInTheDocument();
+    await act(async () => releaseFetch());
     await waitFor(() => expect(wave.instance.setMediaElement).toHaveBeenCalledOnce());
     const fallbackAudio = wave.instance.setMediaElement.mock.calls[0][0];
     expect(fallbackAudio).toBeInstanceOf(HTMLAudioElement);

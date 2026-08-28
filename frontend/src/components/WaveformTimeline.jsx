@@ -151,7 +151,7 @@ function WaveformTimeline(
     let videoRetryTimer = null;
     let fallbackAudioEl = null;
     let fallbackSyncCleanup = null;
-    let recoveryAttempted = false;
+    let recoveryState = 'idle';
     if (videoSrc && videoContainerRef.current) {
       // Remove prior children + detach listeners explicitly to avoid leaks.
       const c = videoContainerRef.current;
@@ -404,14 +404,20 @@ function WaveformTimeline(
           mediaElRef.current = fallbackAudioEl;
         }
       }
+      recoveryState = 'loading';
       return Promise.resolve(ws.load(fallbackSource, peaks, fallbackDuration));
     };
 
     const failRecovery = (error, { missing = false } = {}) => {
+      recoveryState = 'failed';
       console.warn('Audio fallback failed:', error);
       setReady(false);
       setSourceMissing(missing);
       setLoadError(true);
+    };
+    const finishRecovery = () => {
+      recoveryState = 'ready';
+      setReady(true);
     };
 
     // Handle errors (like Safari refusing to decode .mov in WebAudio)
@@ -422,13 +428,16 @@ function WaveformTimeline(
       if (errName === 'AbortError' || errStr.includes('abort')) {
         return; // Ignore React cleanup aborts
       }
-      // A failed companion must not recursively enter this handler forever.
-      // One recovery attempt is enough; a second media error is terminal.
-      if (recoveryAttempted) {
+      // Repeated errors from the original video can arrive while its companion
+      // is still being fetched/decoded. They do not say anything about that
+      // replacement, so let the in-flight attempt settle. Once WaveSurfer has
+      // switched to loading the companion, any further error is terminal.
+      if (recoveryState === 'decoding' || recoveryState === 'failed') return;
+      if (recoveryState === 'loading' || recoveryState === 'ready') {
         failRecovery(err);
         return;
       }
-      recoveryAttempted = true;
+      recoveryState = 'decoding';
 
       // Decode the exact source recovery will play. Using original-audio
       // peaks with a dubbed companion made its waveform and range controls
@@ -449,7 +458,7 @@ function WaveformTimeline(
             // above — don't depend on the 'ready' event re-firing for this
             // manually-decoded recovery load.
             loadRecoveredPeaks([channelData], audioBuffer.duration)
-              .then(() => setReady(true))
+              .then(finishRecovery)
               .catch((loadErr) => failRecovery(loadErr));
           })
           .catch((decodeErr) => {
@@ -476,7 +485,7 @@ function WaveformTimeline(
             try {
               const emptyPeaks = new Float32Array(1000).fill(0);
               loadRecoveredPeaks([emptyPeaks], mediaEl.duration || 60)
-                .then(() => setReady(true))
+                .then(finishRecovery)
                 .catch((loadErr) => failRecovery(loadErr));
             } catch (loadErr) {
               failRecovery(loadErr);
