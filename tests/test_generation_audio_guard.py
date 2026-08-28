@@ -109,6 +109,17 @@ def test_unknown_error_is_not_labelled_oom():
     assert "Try the Flush button" not in msg
 
 
+def test_bare_windows_missing_process_error_is_actionable():
+    """CreateProcess omits the executable name from WinError 2 on Windows."""
+    err = FileNotFoundError("[WinError 2] The system cannot find the file specified")
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "doesn't recognize" not in msg
+    assert "Audio tools" in msg
+    assert "required program" in msg
+
+
 @pytest.mark.parametrize("reason", [
     "CUDA out of memory. Tried to allocate 20.00 MiB",
     "MPS backend out of memory (MPS allocated: 8.00 GB)",

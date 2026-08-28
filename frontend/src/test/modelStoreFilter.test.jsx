@@ -65,6 +65,7 @@ vi.mock('../api/system', () => ({
 }));
 vi.mock('../api/external', () => ({ openExternal: vi.fn() }));
 vi.mock('../components/settings/models/RecoBanner', () => ({ default: () => null }));
+vi.mock('../components/settings/VoicePreviewsPanel', () => ({ default: () => null }));
 // Surface the FILTERED row set (and the empty-state action) without the
 // virtualizer, which yields no rows in jsdom. The filter itself — TanStack
 // global/column filter state driven by the real toolbar — stays real.

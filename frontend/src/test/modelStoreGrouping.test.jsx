@@ -212,6 +212,7 @@ vi.mock('../api/system', () => ({
 }));
 vi.mock('../api/external', () => ({ openExternal: vi.fn() }));
 vi.mock('../components/settings/models/RecoBanner', () => ({ default: () => null }));
+vi.mock('../components/settings/VoicePreviewsPanel', () => ({ default: () => null }));
 // Surface the per-section row set without the virtualizer (yields no rows in
 // jsdom). Section chrome (headers, incompatible toggle) stays real.
 vi.mock('../components/settings/models/ModelsTable', () => ({

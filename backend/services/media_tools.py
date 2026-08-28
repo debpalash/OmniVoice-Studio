@@ -231,12 +231,23 @@ def acquire_bundled(wait: bool = False) -> dict:
         _ops["acquire"].update(state="running", progress=0.0, error=None)
 
     if all(bundled_tool_path(t) and _binary_runs(bundled_tool_path(t)) for t in TOOLS):
+        # The bundle may have arrived after startup's one-time PATH publish
+        # (first-run acquisition is asynchronous). Make it visible to pydub
+        # and other dependencies that launch ffmpeg/ffprobe by bare name now,
+        # without requiring a backend restart (#1677).
+        from services import ffmpeg_utils
+        ffmpeg_utils.ensure_media_tools_on_path()
         _set_op("acquire", state="done", progress=1.0)
         return _op_snapshot()["acquire"]
 
     def _worker():
         try:
             _do_acquire()
+            # Startup cannot publish binaries which do not exist yet. The
+            # background worker must complete that second half atomically with
+            # installation so the very next synthesis can use the tools.
+            from services import ffmpeg_utils
+            ffmpeg_utils.ensure_media_tools_on_path()
             _set_op("acquire", state="done", progress=1.0, error=None)
             logger.info("media-tools: bundled ffmpeg/ffprobe installed at %s", bundled_dir())
         except Exception as e:

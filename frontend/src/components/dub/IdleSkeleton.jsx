@@ -272,6 +272,26 @@ export default function IdleSkeleton({
                     />
                   </label>
                 )}
+                <label className="inline-flex items-center gap-[5px] text-[12px] text-[var(--muted,#a89984)] whitespace-nowrap">
+                  <Globe size={13} /> {t('dub.source_language')}
+                  <select
+                    className="input-base text-[0.65rem]"
+                    value={dubSourceLangCode}
+                    disabled={
+                      dubStep === 'uploading' ||
+                      dubStep === 'transcribing' ||
+                      dubStep === 'installing-asr'
+                    }
+                    onChange={(event) => setDubSourceLangCode(event.target.value)}
+                  >
+                    <option value="auto">{t('bootstrap.auto_detect')}</option>
+                    {LANG_CODES.map((language) => (
+                      <option key={language.code} value={language.code}>
+                        {language.label} — {language.code}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label
                   className="inline-flex items-center gap-[5px] text-[12px] text-[var(--muted,#a89984)] whitespace-nowrap"
                   title={t('dub.num_speakers_help')}

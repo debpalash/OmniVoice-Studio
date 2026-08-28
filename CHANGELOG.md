@@ -56,6 +56,8 @@ the frozen-backend fallback mirror it for their toolchains.
 - The OmniVoice guide now covers combining style attributes with a reference clip (consistent instruct stabilizes cloning; the reference wins conflicts), inline pronunciation control (pinyin / CMU phonemes), and corrects the claim that the default engine can't do voice design — it can, from attributes (#1565)
 
 ### Fixed
+- Dubbing keeps the source-language selector visible after a local file is chosen, so ASR can be pinned before transcription starts (#1678) — thanks @Lonki-lomki-cloud!
+- First-run media-engine downloads become available to TTS immediately without a restart, and bare Windows missing-process failures now point to repair controls (#1677) — thanks @farhataligpt-dev!
 - Source installs on AMD GPUs honour `OMNIVOICE_TORCH_VARIANT=rocm`: `bun run desktop` now swaps in the ROCm torch wheel after `uv sync` and launches the backend without re-syncing, instead of silently reverting to the CPU-only CUDA build on every start (#1665) — thanks @uberclokr!
 - `bun run desktop` on a fresh clone no longer fails with "resource path `../../frontend/dist` doesn't exist" — the dev launcher creates the placeholder Tauri resource directory before compiling (#1664) — thanks @uberclokr!
 - macOS no longer loses TTS after the first request when Python lacks `os.waitid`; subprocess ownership now uses a safe `waitpid` fallback without risking reused process groups (#1656) — thanks @paoloantinori!

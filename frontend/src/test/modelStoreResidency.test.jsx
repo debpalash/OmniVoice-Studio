@@ -150,6 +150,7 @@ vi.mock('../api/setup', () => ({
 }));
 vi.mock('../api/external', () => ({ openExternal: vi.fn() }));
 vi.mock('../components/settings/models/RecoBanner', () => ({ default: () => null }));
+vi.mock('../components/settings/VoicePreviewsPanel', () => ({ default: () => null }));
 // Render every row's cells for real (the virtualizer yields nothing in jsdom).
 vi.mock('../components/settings/models/ModelsTable', () => ({
   default: ({ tableRows }) => (

@@ -26,6 +26,7 @@ def mt(monkeypatch, tmp_path):
     import core.prefs as prefs
     import services.media_tools as mt_mod
 
+    original_path = os.environ.get("PATH")
     monkeypatch.setattr(prefs, "_PREFS_PATH", str(tmp_path / "prefs.json"))
     monkeypatch.setattr(mt_mod, "media_tools_dir", lambda: str(tmp_path / "media_tools"))
     auth_dir = tmp_path / "path-authorizations"
@@ -47,6 +48,10 @@ def mt(monkeypatch, tmp_path):
     # (test_pitch_stretch_async was the victim). Explicitly drop them.
     for key in _OVERRIDE_KEYS:
         os.environ.pop(key, None)
+    if original_path is None:
+        os.environ.pop("PATH", None)
+    else:
+        os.environ["PATH"] = original_path
 
 
 def _client():
@@ -163,6 +168,23 @@ def test_acquire_installs_when_checksum_and_probe_pass(mt, monkeypatch):
         assert p and os.path.isfile(p)
         if os.name == "posix":
             assert os.access(p, os.X_OK)
+
+
+def test_acquire_publishes_new_binaries_to_the_live_process(mt, monkeypatch):
+    """A first-run background download must become usable without restart."""
+    payload = _make_zip([f"plat/{mt._exe('ffmpeg')}", f"plat/{mt._exe('ffprobe')}"])
+    _patched_bundle(mt, monkeypatch, payload)
+    monkeypatch.setattr(mt, "_binary_runs", lambda p: True)
+    published = []
+    monkeypatch.setattr(
+        "services.ffmpeg_utils.ensure_media_tools_on_path",
+        lambda: published.append(True),
+    )
+
+    with patch("urllib.request.urlopen", return_value=_FakeResponse(payload)):
+        assert mt.acquire_bundled(wait=True)["state"] == "done"
+
+    assert published == [True]
 
 
 def test_acquire_rejects_binary_that_fails_version_probe(mt, monkeypatch):
