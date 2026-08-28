@@ -38,13 +38,14 @@ Everything above, plus the toolchain:
     libwebkit2gtk-4.1-dev libgtk-3-dev libpango1.0-dev libcairo2-dev \
     libsoup-3.0-dev libgdk-pixbuf-2.0-dev \
     libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev \
+    gstreamer1.0-plugins-good \
     libasound2-dev build-essential curl wget file
 
   # Fedora
-  sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel
+  sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel gstreamer1-plugins-good
 
   # Arch
-  sudo pacman -S --needed base-devel webkit2gtk-4.1 libayatana-appindicator librsvg openssl xdotool
+  sudo pacman -S --needed base-devel webkit2gtk-4.1 libayatana-appindicator librsvg openssl xdotool gst-plugins-good
   ```
 
 - Optional: a **Hugging Face token** for diarization + the larger TTS engines
@@ -85,6 +86,13 @@ pkg-config --exists \
   gdk-3.0 pango cairo libsoup-3.0 javascriptcoregtk-4.1 gdk-pixbuf-2.0 \
   && echo "Tauri system libraries are ready"
 ```
+
+`bun desktop` also checks the native `libxdo` linker input and GStreamer's
+`autoaudiosink` before starting. The latter is required even if you do not plan
+to record: WebKitGTK 2.52 aborts its renderer when a page creates an audio
+element without that plugin, which otherwise turns a running app blank. The
+launcher prints one distro-specific install command when either dependency is
+missing.
 
 The first app launch downloads model weights on demand. Subsequent launches
 reuse the Rust build, Python environment, and installed models.

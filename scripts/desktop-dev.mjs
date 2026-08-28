@@ -24,6 +24,7 @@ import { homedir } from "node:os";
 import process from "node:process";
 import { DEV_APP_PROCESS_NAME } from "./desktop-common.mjs";
 import { launchTauriDev } from "./desktop-dev-launch.mjs";
+import { desktopRuntimeReady } from "./desktop-runtime-preflight.mjs";
 
 /** The env's PATH key — Windows uses "Path", others "PATH"; match case-insensitively. */
 function pathKeyOf(env) {
@@ -81,6 +82,7 @@ function killStaleDevApp() {
   }
 }
 
+if (!desktopRuntimeReady()) process.exit(1);
 killStaleDevApp();
 
 // Start from the real environment; heal a stale PATH into a *copy* (mutating

@@ -13,7 +13,7 @@
     "wait:frontend": "wait-on -t 120000 http://localhost:5173",
     "predev": "bun install && bun scripts/clear-dev-ports.mjs 3900 3901",
     "dev": "bun run setup:api && concurrently -n api,fe -c green,cyan --kill-others-on-fail \"bun run dev:api\" \"bun run dev:frontend\"",
-    "predesktop": "bun install && bun scripts/clear-dev-ports.mjs 3900 3901",
+    "predesktop": "bun install && bun scripts/desktop-runtime-preflight.mjs && bun scripts/clear-dev-ports.mjs 3900 3901",
     "desktop": "bun run setup:api && concurrently -n api,app -c green,magenta --kill-others-on-fail \"bun run dev:api\" \"bun run dev:desktop\"",
     "desktop-prod": "bun scripts/desktop-prod.mjs",
     "desktop-prod:run": "bun scripts/desktop-prod.mjs --skip-build --keep-data",

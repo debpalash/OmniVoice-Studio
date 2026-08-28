@@ -40,6 +40,7 @@ sudo apt-get install -y \
   libwebkit2gtk-4.1-dev libgtk-3-dev libpango1.0-dev libcairo2-dev \
   libsoup-3.0-dev libgdk-pixbuf-2.0-dev \
   libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev \
+  gstreamer1.0-plugins-good \
   libasound2-dev build-essential curl wget file
 ```
 
