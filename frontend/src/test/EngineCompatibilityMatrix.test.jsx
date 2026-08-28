@@ -1231,6 +1231,49 @@ describe('EngineCompatibilityMatrix', () => {
     }
   });
 
+  it('lets dedicated Catalogue rows grow and moves state badges into metadata', async () => {
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        catalogueLayout
+        apiListEngines={vi.fn().mockResolvedValue(makeEnginesResponse())}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    const name = await screen.findByText('OmniVoice (test)');
+    const row = name.closest('[data-engine-id]');
+
+    expect(row).toHaveClass('catalogue-row');
+    expect(row.className).toMatch(/min-h-\[92px\]/);
+    expect(row).toHaveClass('overflow-visible');
+    expect(row).not.toHaveClass('is-two-line');
+    expect(row).not.toHaveClass('h-16');
+
+    const identityMeta = row.querySelector('.engine-matrix__identity-meta');
+    expect(identityMeta).toHaveClass('flex-wrap');
+    expect(within(identityMeta).getByText(/active/i)).toBeInTheDocument();
+  });
+
+  it('uses the same wider grid tracks for Catalogue headers and rows', async () => {
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        catalogueLayout
+        apiListEngines={vi.fn().mockResolvedValue(makeEnginesResponse())}
+        apiGetEngineHealth={vi.fn()}
+      />,
+    );
+    await screen.findByText('OmniVoice (test)');
+
+    const headerRow = screen.getAllByRole('columnheader')[0].closest('[role="row"]');
+    expect(headerRow).toHaveClass('catalogue-row-grid');
+    const track = headerRow.className.match(/grid-cols-\[[^\]]+\]/)?.[0];
+    expect(track).toBeTruthy();
+    for (const row of document.querySelectorAll('[data-engine-id]')) {
+      expect(row.className).toContain(track);
+    }
+  });
+
   it('header and every row share identical grid column tracks', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     render(

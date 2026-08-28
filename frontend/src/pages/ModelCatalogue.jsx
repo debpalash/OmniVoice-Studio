@@ -139,7 +139,7 @@ export default function ModelCatalogue() {
       className="h-full min-h-0 w-full overflow-y-auto overscroll-contain bg-[var(--chrome-bg)] [container-type:inline-size] [container-name:catalogue-shell]"
       data-testid="model-catalogue"
     >
-      <div className="mx-auto box-border w-full max-w-[1320px] px-[44px] pb-[56px] pt-[34px] font-sans @max-[900px]/catalogue-shell:px-[24px] @max-[900px]/catalogue-shell:pb-[36px] @max-[900px]/catalogue-shell:pt-[26px] @max-[560px]/catalogue-shell:px-[14px]">
+      <div className="mx-auto box-border w-full max-w-[1500px] px-[34px] pb-[56px] pt-[34px] font-sans @max-[900px]/catalogue-shell:px-[24px] @max-[900px]/catalogue-shell:pb-[36px] @max-[900px]/catalogue-shell:pt-[26px] @max-[560px]/catalogue-shell:px-[14px]">
         {/* Treat this as a workspace, not a Settings card: one editorial title,
             one quiet navigation line, then the data surface. */}
         <header className="mb-[24px] flex flex-wrap items-end justify-between gap-x-[32px] gap-y-[18px] border-b border-[color-mix(in_srgb,var(--chrome-fg)_9%,transparent)] pb-[18px] @max-[560px]/catalogue-shell:flex-col @max-[560px]/catalogue-shell:items-start">

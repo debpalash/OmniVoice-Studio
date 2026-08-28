@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 `frontend/package.json` is the app-version source of truth; Cargo, Python, and
 the frozen-backend fallback mirror it for their toolchains.
 
+## [Unreleased]
+
+**Highlights**
+
+- Model Catalogue engine rows now use the available desktop width and keep identity, runtime state, and actions from crowding one another (#1689)
+
 ## [0.5.1] — 2026-08-28
 
 **Highlights**

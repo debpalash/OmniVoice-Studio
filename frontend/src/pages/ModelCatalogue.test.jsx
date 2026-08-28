@@ -65,6 +65,11 @@ describe('ModelCatalogue', () => {
     expect(screen.queryByTestId('stub-engines')).toBeNull();
   });
 
+  it('uses the wide workspace shell for data-heavy catalogue panes', () => {
+    render(<ModelCatalogue />);
+    expect(screen.getByTestId('model-catalogue').firstElementChild).toHaveClass('max-w-[1500px]');
+  });
+
   it('associates each tab with its labelled panel', () => {
     render(<ModelCatalogue />);
     const enginesTab = screen.getByRole('tab', { name: 'Engines' });

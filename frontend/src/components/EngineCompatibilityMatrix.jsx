@@ -164,6 +164,15 @@ const ROW_GRID =
   'grid items-center gap-x-[10px] px-[10px] ' +
   'grid-cols-[minmax(0,1fr)_108px_176px_92px_232px] ' +
   'max-[880px]:grid-cols-[max-content_max-content_minmax(0,1fr)_max-content]';
+// The dedicated Catalogue owns the page, so spend that width on readable
+// groups instead of carrying the Settings panel's compressed tracks across a
+// large canvas. The wider action track also lets its controls wrap naturally
+// without clipping. Collapse earlier than the compact matrix because these
+// tracks deliberately have larger minimums.
+const CATALOGUE_ROW_GRID =
+  'catalogue-row-grid grid items-center gap-x-[16px] px-[16px] ' +
+  'grid-cols-[minmax(300px,1.45fr)_128px_minmax(230px,1fr)_112px_minmax(292px,auto)] ' +
+  'max-[1100px]:grid-cols-[max-content_max-content_minmax(0,1fr)_max-content]';
 // Per-cell placement for the collapsed (narrow) layout.
 const CELL_NARROW = {
   name: 'max-[880px]:col-[1/4] max-[880px]:row-start-1',
@@ -172,12 +181,22 @@ const CELL_NARROW = {
   isolation: 'max-[880px]:col-start-3 max-[880px]:row-start-2 max-[880px]:justify-self-start',
   actions: 'max-[880px]:col-start-4 max-[880px]:row-[1/3]',
 };
+const CATALOGUE_CELL_NARROW = {
+  name: 'max-[1100px]:col-[1/4] max-[1100px]:row-start-1',
+  status: 'max-[1100px]:col-start-1 max-[1100px]:row-start-2 max-[1100px]:justify-self-start',
+  gpu: 'max-[1100px]:col-start-2 max-[1100px]:row-start-2',
+  isolation: 'max-[1100px]:col-start-3 max-[1100px]:row-start-2 max-[1100px]:justify-self-start',
+  actions: 'max-[1100px]:col-start-4 max-[1100px]:row-[1/3]',
+};
 // Fixed two-line row height (desktop). Narrow rows grow to fit the collapsed
 // meta line instead. `is-two-line` is a literal marker class asserted by the
 // layout regression tests.
 const ROW_SHELL =
   'is-two-line h-16 overflow-hidden max-[880px]:h-auto max-[880px]:min-h-16 ' +
   'max-[880px]:gap-y-[4px] max-[880px]:py-[6px]';
+const CATALOGUE_ROW_SHELL =
+  'catalogue-row min-h-[92px] h-auto overflow-visible py-[12px] ' +
+  'max-[1100px]:min-h-[76px] max-[1100px]:gap-y-[8px] max-[1100px]:py-[10px]';
 const MUTED = 'text-[color:var(--chrome-fg-muted,#888)]';
 
 /** Subset of the unified engine entry the matrix actually reads. */
@@ -647,6 +666,10 @@ export default function EngineCompatibilityMatrix({
   const familyMeta = FAMILY_META[activeFamily] || FAMILY_META.tts;
   const TitleIcon = showFamilyTabs ? Layers : familyMeta.icon;
   const TitleHeading = catalogueLayout ? 'h2' : 'h3';
+  const rowGrid = catalogueLayout ? CATALOGUE_ROW_GRID : ROW_GRID;
+  const rowShell = catalogueLayout ? CATALOGUE_ROW_SHELL : ROW_SHELL;
+  const cellNarrow = catalogueLayout ? CATALOGUE_CELL_NARROW : CELL_NARROW;
+  const headerCollapse = catalogueLayout ? 'max-[1100px]:hidden' : 'max-[880px]:hidden';
 
   return (
     <section
@@ -756,8 +779,9 @@ export default function EngineCompatibilityMatrix({
         <div
           role="row"
           className={cn(
-            ROW_GRID,
-            'max-[880px]:hidden py-[4px]',
+            rowGrid,
+            headerCollapse,
+            catalogueLayout ? 'py-[8px]' : 'py-[4px]',
             '[border-bottom:1px_solid_var(--chrome-border,rgba(255,255,255,0.08))]',
             'font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size,10px)] font-semibold uppercase tracking-[var(--chrome-label-track,0.06em)]',
             MUTED,
@@ -860,8 +884,8 @@ export default function EngineCompatibilityMatrix({
                   data-engine-id={b.id}
                   className={cn(
                     'engine-matrix__row',
-                    ROW_GRID,
-                    ROW_SHELL,
+                    rowGrid,
+                    rowShell,
                     catalogueLayout
                       ? 'mx-[var(--space-2)] border-b border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]'
                       : 'mx-[var(--space-2)] rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]',
@@ -880,8 +904,9 @@ export default function EngineCompatibilityMatrix({
                   <div
                     role="cell"
                     className={cn(
-                      'engine-matrix__cell engine-matrix__cell--name flex min-w-0 flex-col justify-center gap-0',
-                      CELL_NARROW.name,
+                      'engine-matrix__cell engine-matrix__cell--name flex min-w-0 flex-col justify-center',
+                      catalogueLayout ? 'gap-[5px]' : 'gap-0',
+                      cellNarrow.name,
                     )}
                   >
                     <span className="flex min-w-0 items-center gap-[6px]">
@@ -904,7 +929,7 @@ export default function EngineCompatibilityMatrix({
                       >
                         {b.display_name}
                       </span>
-                      {isActive && (
+                      {isActive && !catalogueLayout && (
                         <Badge tone="brand" size="xs" className="shrink-0">
                           {t('engines.active')}
                         </Badge>
@@ -912,7 +937,7 @@ export default function EngineCompatibilityMatrix({
                       {/* Memory residency — this engine's model/sidecar is
                         loaded right now. Data-driven: only rows with a
                         matching /model/loaded entry get the chip. */}
-                      {resident && (
+                      {resident && !catalogueLayout && (
                         <Badge
                           tone="info"
                           size="xs"
@@ -924,7 +949,14 @@ export default function EngineCompatibilityMatrix({
                         </Badge>
                       )}
                     </span>
-                    <span className="flex min-w-0 items-center gap-[5px] overflow-hidden whitespace-nowrap leading-[1.2]">
+                    <span
+                      className={cn(
+                        'engine-matrix__identity-meta flex min-w-0 items-center gap-[5px] leading-[1.2]',
+                        catalogueLayout
+                          ? 'flex-wrap overflow-visible whitespace-normal'
+                          : 'overflow-hidden whitespace-nowrap',
+                      )}
+                    >
                       <code
                         className={cn(
                           'engine-matrix__id shrink-0 font-mono text-[length:var(--text-2xs)]',
@@ -941,6 +973,22 @@ export default function EngineCompatibilityMatrix({
                       >
                         {FAMILY_META[activeFamily]?.label || activeFamily.toUpperCase()}
                       </Badge>
+                      {isActive && catalogueLayout && (
+                        <Badge tone="brand" size="xs" className="shrink-0">
+                          {t('engines.active')}
+                        </Badge>
+                      )}
+                      {resident && catalogueLayout && (
+                        <Badge
+                          tone="info"
+                          size="xs"
+                          className="shrink-0"
+                          title={t('engines.inMemoryTitle')}
+                          data-testid={`resident-${b.id}`}
+                        >
+                          {t('engines.inMemory')}
+                        </Badge>
+                      )}
                       {/* Capability: voice cloning from reference audio. Only an
                         explicit supports_cloning=true earns it (TTS family). */}
                       {activeFamily === 'tts' && b.supports_cloning && (
@@ -1044,7 +1092,7 @@ export default function EngineCompatibilityMatrix({
                     role="cell"
                     className={cn(
                       'engine-matrix__cell engine-matrix__cell--status justify-self-center',
-                      CELL_NARROW.status,
+                      cellNarrow.status,
                     )}
                     title={
                       b.available
@@ -1069,8 +1117,9 @@ export default function EngineCompatibilityMatrix({
                   <div
                     role="cell"
                     className={cn(
-                      'engine-matrix__cell engine-matrix__cell--gpu flex min-w-0 flex-col justify-center gap-[2px] overflow-hidden',
-                      CELL_NARROW.gpu,
+                      'engine-matrix__cell engine-matrix__cell--gpu flex min-w-0 flex-col justify-center gap-[4px]',
+                      catalogueLayout ? 'overflow-visible' : 'overflow-hidden',
+                      cellNarrow.gpu,
                     )}
                   >
                     <div className="engine-matrix__chips flex flex-wrap items-center gap-[3px]">
@@ -1152,7 +1201,7 @@ export default function EngineCompatibilityMatrix({
                     role="cell"
                     className={cn(
                       'engine-matrix__cell engine-matrix__cell--isolation justify-self-center',
-                      CELL_NARROW.isolation,
+                      cellNarrow.isolation,
                     )}
                     title={
                       b.isolation_mode === 'subprocess'
@@ -1173,8 +1222,11 @@ export default function EngineCompatibilityMatrix({
                   <div
                     role="cell"
                     className={cn(
-                      'engine-matrix__cell engine-matrix__cell--actions flex h-full max-h-full flex-wrap content-center items-center justify-end justify-self-end gap-[4px] overflow-hidden py-[4px]',
-                      CELL_NARROW.actions,
+                      'engine-matrix__cell engine-matrix__cell--actions flex h-full max-h-full flex-wrap content-center items-center justify-end justify-self-end',
+                      catalogueLayout
+                        ? 'gap-[8px] overflow-visible py-[8px]'
+                        : 'gap-[4px] overflow-hidden py-[4px]',
+                      cellNarrow.actions,
                     )}
                   >
                     {b.available && (
