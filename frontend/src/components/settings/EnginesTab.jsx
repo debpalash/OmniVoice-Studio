@@ -26,7 +26,11 @@ import { SETTINGS_SECTION_SURFACE } from './primitives';
  *  connection, then activate with the engine's own "Use" button. Saving in
  *  the panel bumps `configVersion`, which refetches the matrix so the
  *  engine's row flips unavailable → available without a manual Refresh. */
-export default function EnginesTab({ initialFamily = 'tts', onFamilyChange }) {
+export default function EnginesTab({
+  initialFamily = 'tts',
+  onFamilyChange = null,
+  catalogueLayout = false,
+}) {
   const { t } = useTranslation();
   const [family, setFamily] = useState(initialFamily);
   const [configVersion, setConfigVersion] = useState(0);
@@ -59,9 +63,17 @@ export default function EnginesTab({ initialFamily = 'tts', onFamilyChange }) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={
+        catalogueLayout ? 'flex min-h-0 flex-col gap-[32px]' : 'flex h-full min-h-0 flex-col'
+      }
+    >
       <section
-        className={`${SETTINGS_SECTION_SURFACE} flex min-h-[500px] flex-1 flex-col`}
+        className={
+          catalogueLayout
+            ? 'flex min-h-0 flex-col'
+            : `${SETTINGS_SECTION_SURFACE} flex min-h-[500px] flex-1 flex-col`
+        }
         data-slot="settings-section"
         aria-label={t('settings.engines')}
       >
@@ -74,6 +86,7 @@ export default function EnginesTab({ initialFamily = 'tts', onFamilyChange }) {
             onFamilyChange?.(next);
           }}
           reloadToken={configVersion}
+          catalogueLayout={catalogueLayout}
         />
       </section>
       {family === 'asr' && <AsrOpenAICompatPanel onSaved={onAsrConfigSaved} />}

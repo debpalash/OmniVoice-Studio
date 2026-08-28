@@ -29,6 +29,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Dub subtitles can be retimed, inserted, and merged in either direction from the segment table (#1612) — thanks @invio-a11y!
 
 ### Changed
+- Model Catalogue now uses one breathable workspace canvas with simpler pane and engine-family navigation instead of nested cards and scroll regions (#1685)
 - Linux source launchers now catch missing libxdo and GStreamer audio plugins before they can cause a linker error or an aborted, blank WebKit renderer (#1680, #1682)
 - Dictation now carries one native output session from shortcut-down through final delivery, restores text, HTML, image, or file-list clipboards only when untouched, keeps Wayland copy-safe unless current-focus insertion is explicitly enabled, and retries silent Sherpa speech only through an already-installed local ASR model (#1175)
 - The backend binds its port immediately and reports startup progress live — `/health` answers 503-with-step and a new `/startup/progress` endpoint lists every step while PyTorch, API routes, and database migrations load in the background, so "starting at step X" is never mistakable for "dead"; the desktop splash narrates each step (#1550)

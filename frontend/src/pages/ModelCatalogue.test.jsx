@@ -8,10 +8,18 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
 vi.mock('../components/settings/EnginesTab', () => ({
-  default: ({ initialFamily }) => <div data-testid="stub-engines">{initialFamily}</div>,
+  default: ({ initialFamily, catalogueLayout }) => (
+    <div data-testid="stub-engines" data-catalogue-layout={catalogueLayout || undefined}>
+      {initialFamily}
+    </div>
+  ),
 }));
 vi.mock('../components/settings/ModelStoreTab', () => ({
-  default: ({ modelBadge }) => <div data-testid="stub-models">{modelBadge}</div>,
+  default: ({ modelBadge, catalogueLayout }) => (
+    <div data-testid="stub-models" data-catalogue-layout={catalogueLayout || undefined}>
+      {modelBadge}
+    </div>
+  ),
 }));
 vi.mock('../api/hooks', () => ({
   useSystemInfo: () => ({ data: { has_hf_token: false } }),
@@ -46,10 +54,14 @@ describe('ModelCatalogue', () => {
   it('opens on the Engines pane and switches to Models', () => {
     render(<ModelCatalogue />);
     expect(screen.getByTestId('stub-engines')).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Engines' })).toBeInTheDocument();
+    expect(screen.getByTestId('stub-engines')).toHaveAttribute('data-catalogue-layout', 'true');
     expect(screen.queryByTestId('stub-models')).toBeNull();
 
     clickTab('Models');
     expect(screen.getByTestId('stub-models')).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: 'Models' })).toBeInTheDocument();
+    expect(screen.getByTestId('stub-models')).toHaveAttribute('data-catalogue-layout', 'true');
     expect(screen.queryByTestId('stub-engines')).toBeNull();
   });
 

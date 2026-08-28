@@ -21,7 +21,7 @@
  * consumes it once and clears it so a later plain visit reopens the last pane.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Boxes, CheckCircle, RefreshCw } from 'lucide-react';
+import { Boxes, CheckCircle, Cpu, HardDriveDownload, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { useModelStatus, useSystemInfo } from '../api/hooks';
@@ -126,8 +126,8 @@ export default function ModelCatalogue() {
   // primitive, which the switch had to describe with an aria-label.
   const paneItems = useMemo(
     () => [
-      { id: 'engines', label: t('catalogue.tab_engines') },
-      { id: 'models', label: t('catalogue.tab_models') },
+      { id: 'engines', label: t('catalogue.tab_engines'), icon: Cpu },
+      { id: 'models', label: t('catalogue.tab_models'), icon: HardDriveDownload },
     ],
     [t],
   );
@@ -136,29 +136,29 @@ export default function ModelCatalogue() {
     // Same container-query shell as Settings: the app is zoom-scaled, so
     // viewport media queries fire at the wrong logical width under Tauri.
     <div
-      className="h-full min-h-0 w-full [container-type:inline-size] [container-name:catalogue-shell]"
+      className="h-full min-h-0 w-full overflow-y-auto overscroll-contain bg-[var(--chrome-bg)] [container-type:inline-size] [container-name:catalogue-shell]"
       data-testid="model-catalogue"
     >
-      <div className="flex h-full min-h-0 w-full box-border flex-col overflow-y-auto bg-[var(--chrome-bg)] p-[var(--space-4)_var(--space-5)_var(--space-5)] font-sans @min-[760px]/catalogue-shell:overflow-hidden">
-        {/* One line of chrome: what this is, and which half of it you're on.
-            Both panes already headline themselves (the matrix names the active
-            engine, the model store carries disk/cache status), so a subtitle
-            here would only repeat what the content says better. */}
-        <header className="z-10 mb-[var(--space-4)] flex shrink-0 flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-2)] border-b border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] bg-[var(--chrome-bg)] pb-[var(--space-3)]">
-          <span
-            className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[var(--chrome-radius-pill)] bg-[color-mix(in_srgb,var(--chrome-accent)_12%,var(--chrome-bg))] text-[color:var(--chrome-accent)]"
-            aria-hidden="true"
-          >
-            <Boxes size={14} />
-          </span>
-          <h1 className="m-0 min-w-0 flex-auto truncate [font-family:var(--font-sans)] text-[length:var(--text-lg)] font-semibold tracking-[-0.015em] text-[color:var(--chrome-fg)]">
-            {t('catalogue.title')}
-          </h1>
+      <div className="mx-auto box-border w-full max-w-[1320px] px-[44px] pb-[56px] pt-[34px] font-sans @max-[900px]/catalogue-shell:px-[24px] @max-[900px]/catalogue-shell:pb-[36px] @max-[900px]/catalogue-shell:pt-[26px] @max-[560px]/catalogue-shell:px-[14px]">
+        {/* Treat this as a workspace, not a Settings card: one editorial title,
+            one quiet navigation line, then the data surface. */}
+        <header className="mb-[24px] flex flex-wrap items-end justify-between gap-x-[32px] gap-y-[18px] border-b border-[color-mix(in_srgb,var(--chrome-fg)_9%,transparent)] pb-[18px] @max-[560px]/catalogue-shell:flex-col @max-[560px]/catalogue-shell:items-start">
+          <div className="flex items-center gap-[12px]">
+            <span
+              className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[12px] bg-[color-mix(in_srgb,var(--chrome-accent)_11%,transparent)] text-[color:var(--chrome-accent)]"
+              aria-hidden="true"
+            >
+              <Boxes size={17} strokeWidth={1.6} />
+            </span>
+            <h1 className="m-0 min-w-0 [font-family:var(--font-serif)] text-[2rem] font-normal leading-none tracking-[-0.025em] text-[color:var(--chrome-fg)] @max-[560px]/catalogue-shell:text-[1.55rem]">
+              {t('catalogue.title')}
+            </h1>
+          </div>
           <Tabs
             items={paneItems}
             value={pane}
             onChange={setPane}
-            size="sm"
+            variant="underline"
             aria-label={t('catalogue.title')}
             data-testid="catalogue-pane-switch"
           />
@@ -170,13 +170,14 @@ export default function ModelCatalogue() {
         <div
           key={pane}
           data-testid={`catalogue-pane-${pane}`}
+          role="tabpanel"
           aria-label={t(pane === 'models' ? 'catalogue.tab_models' : 'catalogue.tab_engines')}
-          className="min-w-0 [&>*:first-child]:mt-0 @min-[760px]/catalogue-shell:min-h-0 @min-[760px]/catalogue-shell:flex-1 @min-[760px]/catalogue-shell:overflow-y-auto @min-[760px]/catalogue-shell:overscroll-contain"
+          className="min-w-0 [&>*:first-child]:mt-0"
         >
           {pane === 'engines' ? (
-            <EnginesTab initialFamily={family} onFamilyChange={setFamily} />
+            <EnginesTab initialFamily={family} onFamilyChange={setFamily} catalogueLayout />
           ) : (
-            <ModelStoreTab info={info} modelBadge={modelBadge} />
+            <ModelStoreTab info={info} modelBadge={modelBadge} catalogueLayout />
           )}
         </div>
       </div>

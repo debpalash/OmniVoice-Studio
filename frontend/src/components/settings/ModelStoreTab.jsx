@@ -30,7 +30,7 @@ import VoicePreviewsPanel from './VoicePreviewsPanel';
  * platform-incompatible rows collapse behind a per-section toggle. Per-model
  * download progress is pulled from the shared /setup/download-stream SSE.
  */
-export default function ModelStoreTab({ info, modelBadge }) {
+export default function ModelStoreTab({ info, modelBadge, catalogueLayout = false }) {
   const { t } = useTranslation();
   // Role labels — localized (diarization is an on-disk spelling alias for
   // diarisation; both map to the same label).
@@ -367,6 +367,13 @@ export default function ModelStoreTab({ info, modelBadge }) {
   );
 
   if (loading && !data) {
+    if (catalogueLayout) {
+      return (
+        <div className="px-[2px] py-[24px] font-sans text-[var(--text-md)] text-[var(--chrome-fg-dim)]">
+          {t('common.loading')}
+        </div>
+      );
+    }
     return (
       <SettingsSection icon={Cpu} title={t('settings.models')}>
         <div className="settings-muted font-sans text-[var(--text-md)] text-[var(--chrome-fg-dim)]">
@@ -380,11 +387,21 @@ export default function ModelStoreTab({ info, modelBadge }) {
   return (
     <>
       <section
-        className={`${SETTINGS_SECTION_SURFACE} flex min-h-[95%] flex-col`}
+        className={
+          catalogueLayout
+            ? 'flex min-h-0 flex-col'
+            : `${SETTINGS_SECTION_SURFACE} flex min-h-[95%] flex-col`
+        }
         data-slot="settings-section"
         data-testid="model-list-panel"
       >
-        <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] px-[2px] pb-[6px] pt-[2px] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] max-[580px]:flex-col max-[580px]:items-start">
+        <div
+          className={`flex flex-wrap items-center justify-between gap-[var(--space-3)] font-[family-name:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] max-[580px]:flex-col max-[580px]:items-start ${
+            catalogueLayout
+              ? 'mb-[24px] border-b border-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)] px-[2px] pb-[18px]'
+              : 'px-[2px] pb-[6px] pt-[2px]'
+          }`}
+        >
           <div className="inline-flex flex-wrap items-center gap-[var(--space-2)]">
             <span>
               <strong className="font-semibold text-[var(--chrome-fg)]">
@@ -500,7 +517,9 @@ export default function ModelStoreTab({ info, modelBadge }) {
           diskFreeGb={data.disk_free_gb}
         />
 
-        <div className="my-[var(--space-2)] flex items-center gap-[var(--space-2)] max-[580px]:flex-col max-[580px]:items-stretch">
+        <div
+          className={`${catalogueLayout ? 'my-[24px]' : 'my-[var(--space-2)]'} flex items-center gap-[var(--space-2)] max-[580px]:flex-col max-[580px]:items-stretch`}
+        >
           <SettingsInput
             type="search"
             className="max-w-none flex-1 text-[length:var(--text-xs)] min-w-[120px]"

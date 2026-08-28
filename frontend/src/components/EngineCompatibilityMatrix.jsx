@@ -93,6 +93,8 @@ function reasonMentionsLicense(reason) {
  *   - reloadToken?: any  bump to force a data refetch without remounting —
  *     lets a companion config panel flip a row from unavailable → available
  *     (and refresh the "Use" button) right after a save.
+ *   - catalogueLayout?: boolean  opens the matrix into the page's single
+ *     scroll plane and removes the compact Settings-within-Settings chrome.
  */
 const FAMILY_META = {
   tts: { label: 'TTS', icon: Cpu },
@@ -227,6 +229,7 @@ export default function EngineCompatibilityMatrix({
   showFamilyTabs = true,
   onFamilyChange = null,
   reloadToken = 0,
+  catalogueLayout = false,
   // The catalogue passes its app-wide query here. Keeping the standalone
   // fallback preserves the matrix's injectable API seam for isolated hosts
   // and its extensive focused test suite.
@@ -643,20 +646,31 @@ export default function EngineCompatibilityMatrix({
   // no switcher to say which family this table is.
   const familyMeta = FAMILY_META[activeFamily] || FAMILY_META.tts;
   const TitleIcon = showFamilyTabs ? Layers : familyMeta.icon;
+  const TitleHeading = catalogueLayout ? 'h2' : 'h3';
 
   return (
-    <section className="engine-matrix flex min-h-0 flex-1 flex-col gap-[8px]">
-      <header className="engine-matrix__head flex flex-wrap items-center justify-between gap-[8px] rounded-[10px] bg-[var(--chrome-bg)] px-[10px] py-[7px]">
-        <h3 className="engine-matrix__title m-0 inline-flex min-w-0 items-center gap-[8px] text-[length:var(--text-sm)] font-semibold text-[color:var(--chrome-fg,currentColor)]">
-          <span className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[7px] bg-[color-mix(in_srgb,var(--chrome-accent)_11%,transparent)] text-[var(--chrome-accent)]">
-            <TitleIcon size={13} aria-hidden="true" />
+    <section
+      className={`engine-matrix flex min-h-0 flex-col ${catalogueLayout ? 'gap-[18px]' : 'flex-1 gap-[8px]'}`}
+    >
+      <header
+        className={`engine-matrix__head flex flex-wrap items-center justify-between gap-[12px] ${
+          catalogueLayout ? 'px-[2px]' : 'rounded-[10px] bg-[var(--chrome-bg)] px-[10px] py-[7px]'
+        }`}
+      >
+        <TitleHeading
+          className={`engine-matrix__title m-0 inline-flex min-w-0 items-center gap-[10px] font-semibold text-[color:var(--chrome-fg,currentColor)] ${catalogueLayout ? 'text-[length:var(--text-lg)]' : 'text-[length:var(--text-sm)]'}`}
+        >
+          <span
+            className={`inline-flex shrink-0 items-center justify-center bg-[color-mix(in_srgb,var(--chrome-accent)_11%,transparent)] text-[var(--chrome-accent)] ${catalogueLayout ? 'h-[30px] w-[30px] rounded-[10px]' : 'h-[24px] w-[24px] rounded-[7px]'}`}
+          >
+            <TitleIcon size={catalogueLayout ? 15 : 13} aria-hidden="true" />
           </span>
           <span>
             {showFamilyTabs
               ? t('engines.matrixTitle')
               : t('engines.familyMatrixTitle', { family: familyMeta.label })}
           </span>
-        </h3>
+        </TitleHeading>
         <Button
           size="sm"
           variant="ghost"
@@ -671,7 +685,12 @@ export default function EngineCompatibilityMatrix({
       {showFamilyTabs && families.length > 1 && (
         <Tabs
           size="sm"
-          className="engine-matrix__tabs w-full [&>*]:flex-1"
+          variant={catalogueLayout ? 'underline' : 'pill'}
+          className={
+            catalogueLayout
+              ? 'engine-matrix__tabs w-fit gap-[28px]'
+              : 'engine-matrix__tabs w-full [&>*]:flex-1'
+          }
           value={activeFamily}
           onChange={(f) => {
             setActiveFamily(f);
@@ -691,12 +710,14 @@ export default function EngineCompatibilityMatrix({
                   <span className="engine-matrix__tab-family text-[11px] font-bold tracking-[0.03em]">
                     {FAMILY_META[f].label}
                   </span>
-                  <span
-                    className="engine-matrix__tab-active max-w-[120px] truncate rounded-[5px] bg-black/[0.09] px-[5px] py-[3px] font-mono text-[9px] lowercase tracking-[0] opacity-70"
-                    translate="no"
-                  >
-                    {data[f].active}
-                  </span>
+                  {!catalogueLayout && (
+                    <span
+                      className="engine-matrix__tab-active max-w-[120px] truncate rounded-[5px] bg-black/[0.09] px-[5px] py-[3px] font-mono text-[9px] lowercase tracking-[0] opacity-70"
+                      translate="no"
+                    >
+                      {data[f].active}
+                    </span>
+                  )}
                 </span>
               ),
             };
@@ -709,7 +730,10 @@ export default function EngineCompatibilityMatrix({
           tabbed and pinned modes, always for the family on screen. */}
       <p
         className={cn(
-          'engine-matrix__family-desc m-0 rounded-[8px] bg-[color-mix(in_srgb,var(--chrome-accent)_5%,transparent)] px-[10px] py-[6px] text-[11px] leading-[1.4]',
+          'engine-matrix__family-desc m-0 text-[11px] leading-[1.55]',
+          catalogueLayout
+            ? 'max-w-[720px] px-[2px]'
+            : 'rounded-[8px] bg-[color-mix(in_srgb,var(--chrome-accent)_5%,transparent)] px-[10px] py-[6px]',
           MUTED,
         )}
         data-testid={`family-desc-${activeFamily}`}
@@ -718,7 +742,11 @@ export default function EngineCompatibilityMatrix({
       </p>
 
       <Table
-        className="engine-matrix__table flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] bg-[var(--chrome-bg)] shadow-[0_5px_18px_color-mix(in_srgb,black_10%,transparent)]"
+        className={`engine-matrix__table flex min-h-0 flex-col overflow-hidden ${
+          catalogueLayout
+            ? 'rounded-[14px] bg-[color-mix(in_srgb,var(--chrome-fg)_2.5%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)]'
+            : 'flex-1 rounded-[10px] bg-[var(--chrome-bg)] shadow-[0_5px_18px_color-mix(in_srgb,black_10%,transparent)]'
+        }`}
         role="table"
         aria-label={t('engines.engineCompatLabel', { family: activeFamily })}
       >
@@ -748,7 +776,11 @@ export default function EngineCompatibilityMatrix({
           </span>
         </div>
         <div
-          className="settings-list-scroll flex min-h-0 flex-1 flex-col gap-[var(--space-2)] overflow-y-auto overscroll-contain py-[var(--space-2)] [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--chrome-accent)]"
+          className={`settings-list-scroll flex min-h-0 flex-col focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--chrome-accent)] ${
+            catalogueLayout
+              ? 'py-[var(--space-2)]'
+              : 'flex-1 gap-[var(--space-2)] overflow-y-auto overscroll-contain py-[var(--space-2)] [scrollbar-gutter:stable]'
+          }`}
           role="rowgroup"
           tabIndex={0}
           data-testid="engine-list-scroll"
@@ -830,7 +862,9 @@ export default function EngineCompatibilityMatrix({
                     'engine-matrix__row',
                     ROW_GRID,
                     ROW_SHELL,
-                    'mx-[var(--space-2)] rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]',
+                    catalogueLayout
+                      ? 'mx-[var(--space-2)] border-b border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]'
+                      : 'mx-[var(--space-2)] rounded-[var(--chrome-radius-pill)] border border-[color-mix(in_srgb,var(--chrome-fg)_7%,transparent)] transition-colors duration-[120ms] hover:bg-[var(--chrome-hover-bg)]',
                     isActive &&
                       'bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)] shadow-[inset_2px_0_0_var(--chrome-accent)]',
                     // Dim the TEXT of an unavailable row, not the row: fading
