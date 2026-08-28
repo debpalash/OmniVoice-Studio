@@ -652,8 +652,8 @@ or files (#1635).
 stack (`bun run dev`), a Docker deployment, or a shared/remote backend — and
 requests fail with a "can't reach the backend" error.
 
-These deployments have no desktop shell to supervise the backend, so newer
-builds make the backend **self-forensicate** instead:
+These deployments have no desktop shell to supervise the backend. Newer builds
+make the backend **self-forensicate**, and the dev runner adds bounded recovery:
 
 - **The error tells you what it knows.** It now says whether the backend *was
   answering and stopped* ("it was answering 12 s ago … likely crashed or was
@@ -663,11 +663,15 @@ builds make the backend **self-forensicate** instead:
   dev, `docker logs <container>` / `journalctl` on a server. (If Docker
   serves the page itself, the page can go down together with the backend —
   check the container first.)
-- **Dev exit banner.** `bun run dev`'s backend runs through
-  `scripts/dev-backend.mjs`: when uvicorn dies with a non-zero exit, a boxed
+- **Dev crash recovery and exit banner.** `bun run dev`'s backend runs through
+  `scripts/dev-backend.mjs`, which owns Python-file reloads directly so a dead
+  server cannot hide behind a still-running uvicorn reload parent. When the
+  backend dies with a non-zero exit, a boxed
   banner prints the exit code/signal, the last 20 lines of `omnivoice.log`,
-  and an OOM-check hint (`journalctl -k | grep -i oom` on Linux) before
-  `concurrently` tears the stack down.
+  and an OOM-check hint (`journalctl -k | grep -i oom` on Linux), then restarts
+  it after one second. Three restarts are allowed in a rolling 60-second
+  window; a fourth crash exits and lets `concurrently` tear down the broken
+  stack. Ctrl+C and other deliberate shutdowns never restart it.
 - **Crash notice on the next start.** The backend keeps a **run sentinel**
   (`run_sentinel.json` in its data folder) while running and clears it on a
   clean shutdown. If a start finds a stale sentinel whose process is gone,

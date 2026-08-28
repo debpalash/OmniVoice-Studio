@@ -2,33 +2,34 @@
 // dev-backend.mjs — `bun run dev:api` wrapper that makes a backend death
 // LOUD instead of silent (#1164).
 //
-// In dev, the backend has no supervisor: concurrently's --kill-others-on-fail
-// tears the whole dev stack down the moment uvicorn exits, and the only
-// trace of WHY was whatever scrolled past in the terminal — the browser tab
-// just showed "Can't reach the local VoiceStudio backend". This wrapper spawns
-// the exact same uvicorn command (args identical to the old dev:api script)
-// with inherited stdio, and when the child dies with a non-zero exit — and
-// the developer didn't Ctrl+C — it prints a boxed banner with:
+// In dev, concurrently's --kill-others-on-fail used to tear the whole stack
+// down the moment uvicorn exited, and the only trace of WHY was whatever
+// scrolled past in the terminal — the browser tab just showed "Can't reach
+// the local VoiceStudio backend". This wrapper launches uvicorn directly,
+// owns Python source reloads, restarts isolated crashes with a bounded backoff,
+// and prints a boxed banner with:
 //   - the exit code / signal,
 //   - the last 20 lines of omnivoice.log (resolved like
 //     backend/core/config.py::get_app_data_dir),
 //   - an OOM-check hint on Linux (journalctl -k), and
 //   - a pointer to the crash notice the run sentinel will raise on the next
 //     backend start.
-// It exits with the child's own code so --kill-others-on-fail still works.
+// Repeated crashes still exit non-zero so --kill-others-on-fail can tear down
+// the broken stack instead of hiding an infinite crash loop.
 //
 // Runs under bun and node alike; cross-platform (uv resolves to uv.exe via
 // the Windows CreateProcess PATH search — no shell needed).
 // ──────────────────────────────────────────────────────────────────────────
 
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, watch } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-// Keep these args byte-identical to the previous root package.json dev:api.
+// The wrapper owns Python source reloads so uvicorn's reload parent cannot stay
+// alive after its server worker dies (#1690).
 export const UVICORN_ARGS = [
   "run",
   "uvicorn",
@@ -39,10 +40,16 @@ export const UVICORN_ARGS = [
   "0.0.0.0",
   "--port",
   "3900",
-  "--reload",
-  "--reload-dir",
-  "backend",
 ];
+
+export const CRASH_RESTART_DELAY_MS = 1_000;
+export const CRASH_RESTART_LIMIT = 3;
+export const CRASH_RESTART_WINDOW_MS = 60_000;
+export const SOURCE_RELOAD_DEBOUNCE_MS = 250;
+
+export function isBackendSourceChange(filename) {
+  return typeof filename === "string" && filename.toLowerCase().endsWith(".py");
+}
 
 /** Mirror backend/core/config.py::get_app_data_dir() so the banner reads the
  *  same omnivoice.log the backend writes. Pure — testable with fake inputs. */
@@ -80,12 +87,13 @@ export function buildExitBanner({ code, signal, logTail, logPath, platform = pro
   if (logTail) {
     lines.push(`Last 20 lines of ${logPath}:`, "─".repeat(76), logTail, "─".repeat(76), "");
   } else {
-    lines.push(`(no omnivoice.log found at ${logPath} — the backend may have died before logging)`, "");
+    lines.push(
+      `(no omnivoice.log found at ${logPath} — the backend may have died before logging)`,
+      "",
+    );
   }
   if (signal === "SIGKILL" || code === 137) {
-    lines.push(
-      "SIGKILL usually means the operating system's out-of-memory killer stopped it.",
-    );
+    lines.push("SIGKILL usually means the operating system's out-of-memory killer stopped it.");
   }
   if (platform === "linux") {
     lines.push("If you suspect an OOM kill, check:  journalctl -k | grep -i oom", "");
@@ -107,44 +115,183 @@ export function uvRunArgs(env = process.env) {
   return rocm ? [UVICORN_ARGS[0], "--no-sync", ...UVICORN_ARGS.slice(1)] : UVICORN_ARGS;
 }
 
-function main() {
-  const child = spawn("uv", uvRunArgs(), { stdio: "inherit" });
-
-  // A Ctrl+C / concurrently teardown is a DELIBERATE stop — no scary banner.
+/**
+ * Supervise the dev backend without hiding a persistent crash loop. Dependencies
+ * are injectable so crash/restart/signal behavior is deterministic in tests.
+ */
+export function createBackendSupervisor({
+  spawnBackend = () => spawn("uv", uvRunArgs(), { stdio: "inherit" }),
+  watchBackend = (onChange) =>
+    watch("backend", { recursive: true }, (_event, filename) => onChange(filename?.toString())),
+  schedule = setTimeout,
+  cancelSchedule = clearTimeout,
+  now = Date.now,
+  exit = (code) => process.exit(code),
+  report = (message) => console.error(message),
+  dataDir = () => resolveDataDir(),
+} = {}) {
   let interrupted = false;
+  let child = null;
+  let restartTimer = null;
+  let reloadTimer = null;
+  let reloadRequested = false;
+  let watcher = null;
+  let crashTimes = [];
+  let requestedExitCode = null;
+
+  function closeWatcher() {
+    if (!watcher) return;
+    watcher.close();
+    watcher = null;
+  }
+
+  function stop(sig, exitCode = null) {
+    if (interrupted) return;
+    interrupted = true;
+    requestedExitCode = exitCode;
+    closeWatcher();
+    if (reloadTimer !== null) {
+      cancelSchedule(reloadTimer);
+      reloadTimer = null;
+    }
+    if (restartTimer !== null) {
+      cancelSchedule(restartTimer);
+      restartTimer = null;
+      exit(requestedExitCode ?? 0);
+      return;
+    }
+    if (!child) {
+      exit(requestedExitCode ?? 0);
+      return;
+    }
+    try {
+      child.kill(sig);
+    } catch {
+      exit(requestedExitCode ?? 0);
+    }
+  }
+
+  function requestReload(filename) {
+    if (interrupted || reloadRequested || !isBackendSourceChange(filename)) return;
+    if (reloadTimer !== null) cancelSchedule(reloadTimer);
+    reloadTimer = schedule(() => {
+      reloadTimer = null;
+      if (!child || restartTimer !== null) return;
+      reloadRequested = true;
+      report(`[dev-backend] ${filename} changed; reloading backend…`);
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        reloadRequested = false;
+      }
+    }, SOURCE_RELOAD_DEBOUNCE_MS);
+  }
+
+  function start() {
+    if (interrupted) return;
+
+    if (!watcher) {
+      try {
+        watcher = watchBackend(requestReload);
+      } catch (err) {
+        report(`[dev-backend] could not watch backend sources: ${err.message}`);
+        exit(1);
+        return;
+      }
+      watcher.on?.("error", (err) => {
+        if (interrupted) return;
+        report(`[dev-backend] backend source watcher failed: ${err.message}`);
+        stop("SIGTERM", 1);
+      });
+    }
+
+    let current;
+    try {
+      current = spawnBackend();
+    } catch (err) {
+      report(`[dev-backend] could not start uv: ${err.message}`);
+      exit(1);
+      return;
+    }
+    child = current;
+    let settled = false;
+
+    current.once("error", (err) => {
+      if (settled) return;
+      settled = true;
+      if (child === current) child = null;
+      report(`[dev-backend] could not start uv: ${err.message}`);
+      exit(1);
+    });
+
+    current.once("exit", (code, signal) => {
+      if (settled) return;
+      settled = true;
+      if (child === current) child = null;
+
+      if (interrupted) {
+        exit(requestedExitCode ?? (signal ? 1 : (code ?? 0)));
+        return;
+      }
+
+      if (reloadRequested) {
+        reloadRequested = false;
+        start();
+        return;
+      }
+
+      const crashed = Boolean(signal) || (code !== 0 && code != null);
+      if (!crashed) {
+        exit(code ?? 0);
+        return;
+      }
+
+      const dir = dataDir();
+      const logPath = path.join(dir, "omnivoice.log");
+      report(buildExitBanner({ code, signal, logTail: tailFile(logPath, 20), logPath }));
+
+      const timestamp = now();
+      crashTimes = crashTimes.filter(
+        (crashTime) => timestamp - crashTime < CRASH_RESTART_WINDOW_MS,
+      );
+      if (crashTimes.length >= CRASH_RESTART_LIMIT) {
+        report(
+          `[dev-backend] stopped after ${CRASH_RESTART_LIMIT} restarts in ` +
+            `${CRASH_RESTART_WINDOW_MS / 1_000}s; fix the crash above, then run bun run dev again.`,
+        );
+        exit(signal ? 1 : (code ?? 1));
+        return;
+      }
+
+      crashTimes.push(timestamp);
+      report(
+        `[dev-backend] restarting in ${CRASH_RESTART_DELAY_MS / 1_000}s ` +
+          `(${crashTimes.length}/${CRASH_RESTART_LIMIT})…`,
+      );
+      restartTimer = schedule(() => {
+        restartTimer = null;
+        start();
+      }, CRASH_RESTART_DELAY_MS);
+    });
+  }
+
+  return { start, stop };
+}
+
+function main() {
+  const supervisor = createBackendSupervisor();
+
+  // A Ctrl+C / concurrently teardown is a DELIBERATE stop — no scary banner
+  // and no restart.
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     try {
-      process.on(sig, () => {
-        interrupted = true;
-        try {
-          child.kill(sig);
-        } catch {
-          /* already gone */
-        }
-      });
+      process.on(sig, () => supervisor.stop(sig));
     } catch {
       /* signal unsupported on this platform (e.g. SIGHUP on Windows) */
     }
   }
 
-  child.on("error", (err) => {
-    console.error(`[dev-backend] could not start uv: ${err.message}`);
-    process.exit(1);
-  });
-
-  child.on("exit", (code, signal) => {
-    if (!interrupted && (signal || (code !== 0 && code != null))) {
-      const dataDir = resolveDataDir();
-      const logPath = path.join(dataDir, "omnivoice.log");
-      console.error(
-        buildExitBanner({ code, signal, logTail: tailFile(logPath, 20), logPath }),
-      );
-    }
-    // Preserve concurrently's --kill-others-on-fail semantics: propagate the
-    // child's outcome exactly (128+n is the conventional signal-death code).
-    if (signal) process.exit(1);
-    process.exit(code ?? 0);
-  });
+  supervisor.start();
 }
 
 // Import-safe: tests import the pure helpers without spawning anything.
