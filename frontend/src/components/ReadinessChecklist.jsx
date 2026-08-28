@@ -37,8 +37,7 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
 
   const isLoading = preflightLoading || modelLoading;
   const modelStatus = modelData?.status ?? 'idle';
-  const modelFailed =
-    modelStatus === 'error' || ['error', 'failed'].includes(modelData?.sub_stage);
+  const modelFailed = modelStatus === 'error' || ['error', 'failed'].includes(modelData?.sub_stage);
 
   // Build the checklist from preflight data + model status
   const checks = [];
@@ -65,12 +64,11 @@ export default function ReadinessChecklist({ compact = false, showWhenAllPass = 
           : modelFailed
             ? modelErr || t('readiness.failed_to_load')
             : t('readiness.tts_not_loaded_yet'),
-    fix:
-      modelFailed
-        ? modelErr
-          ? t('readiness.error_check_logs', { error: modelErr })
-          : t('readiness.check_logs_restart')
-        : null,
+    fix: modelFailed
+      ? modelErr
+        ? t('readiness.error_check_logs', { error: modelErr })
+        : t('readiness.check_logs_restart')
+      : null,
   };
   checks.push(modelCheck);
 
