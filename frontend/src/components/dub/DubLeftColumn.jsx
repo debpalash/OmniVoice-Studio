@@ -57,6 +57,7 @@ export default function DubLeftColumn({
   setPreviewMode,
   dubTracks,
   videoSrc,
+  playbackAudioSrc,
   waveformRef,
   dubJobId,
   dubSegments,
@@ -296,6 +297,7 @@ export default function DubLeftColumn({
         ref={waveformRef}
         audioSrc={`${API}/dub/audio/${dubJobId}`}
         videoSrc={videoSrc}
+        playbackFallbackSrc={playbackAudioSrc}
         segments={dubSegments}
         onsets={timelineOnsets}
         selectedSegId={timelineSelSegId}

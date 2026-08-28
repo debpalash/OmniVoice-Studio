@@ -551,6 +551,13 @@ export default function DubTab(props) {
   const videoSrc = previewIsDub
     ? `${API}/dub/preview-video/${dubJobId}?lang=${encodeURIComponent(previewMode)}&preserve_bg=${preserveBg ? 1 : 0}&v=${dubGenNonce}`
     : `${API}/dub/media/${dubJobId}`;
+  // The video is the normal transport, but WaveSurfer can fall back to a
+  // companion audio element when a WebView decodes the picture without its
+  // audio. Keep that fallback language-aware so a dubbed preview never
+  // silently swaps back to the original track (#1692).
+  const playbackAudioSrc = previewIsDub
+    ? `${API}/dub/download-audio/${dubJobId}?lang=${encodeURIComponent(previewMode)}&preserve_bg=${preserveBg ? 1 : 0}`
+    : `${API}/dub/audio/${dubJobId}`;
   // When a dub finishes, jump the preview to the freshly-dubbed language so the
   // result plays immediately — the user can tap back to Original any time.
   // Membership guard: only jump to a language that actually has a track,
@@ -733,6 +740,7 @@ export default function DubTab(props) {
               setPreviewMode={setPreviewMode}
               dubTracks={dubTracks}
               videoSrc={videoSrc}
+              playbackAudioSrc={playbackAudioSrc}
               waveformRef={waveformRef}
               dubJobId={dubJobId}
               dubSegments={dubSegments}

@@ -10,6 +10,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- Dubbing playback now keeps an audible companion source when a WebView can render the preview picture but cannot decode its audio (#1692)
 - Model Catalogue engine rows now use the available desktop width and keep identity, runtime state, and actions from crowding one another (#1689)
 
 ## [0.5.1] — 2026-08-28

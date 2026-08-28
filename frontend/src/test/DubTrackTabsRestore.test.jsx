@@ -167,6 +167,7 @@ describe('DubTab — completed tracks always show their tabs (restore P0)', () =
     expect(left.hasDubbedTrack).toBe(true);
     // Auto-jump falls back to the only real track — never a lang without one.
     expect(left.previewMode).toBe('bn');
+    expect(left.playbackAudioSrc).toContain('/dub/download-audio/job1?lang=bn');
   });
 
   it("membership guard: dubLangCode 'en' with tracks ['bn'] previews tracks[0], not the 404 lang", () => {
@@ -188,6 +189,7 @@ describe('DubTab — completed tracks always show their tabs (restore P0)', () =
     // switcher appeared trackless and the auto-jump 404'd the preview.
     expect(left.hasDubbedTrack).toBe(false);
     expect(left.previewMode).toBe('original');
+    expect(left.playbackAudioSrc).toContain('/dub/audio/job1');
   });
 
   it('clears a selected cookie export when a completed dub is reset', () => {

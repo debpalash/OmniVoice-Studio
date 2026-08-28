@@ -4,12 +4,11 @@ import path from 'node:path';
 
 // Regression guard: the dub editor's play button stayed permanently disabled
 // (disabled={!ready}) whenever the initial WaveSurfer decode failed and the
-// component fell back to a peaks-only ws.load(undefined, [peaks], duration)
-// call — the waveform still rendered from those peaks (so nothing looked
-// visibly broken), but `ready` was only ever set from the 'ready' event
-// re-firing on that recovery load, which this component's own error-handling
-// code never actually confirmed. Each fallback load must now explicitly
-// confirm readiness once it settles, instead of assuming the event fires.
+// component fell back to a peaks-only ws.load(undefined, peaks, duration)
+// call. WaveSurfer 7 clears the attached media element's src for that call,
+// so the waveform rendered while the transport became silent (#1692).
+// Recovery must retain a concrete source, switch a failed video transport to
+// companion audio, and explicitly confirm readiness once loading settles.
 //
 // Driving WaveSurfer + a real decode-failure/recovery sequence through jsdom
 // is brittle (see WaveformTimeline.unlock.test.js), so this is a
@@ -22,17 +21,25 @@ const src = readFileSync(
   'utf8',
 );
 
-describe('WaveformTimeline error-recovery ready confirmation', () => {
+describe('WaveformTimeline audible error recovery', () => {
+  it('never clears the media src while loading recovered peaks', () => {
+    expect(src).not.toContain('ws.load(undefined');
+    expect(src).toMatch(/ws\.load\(fallbackSource, peaks, fallbackDuration\)/);
+  });
+
+  it('moves playback to companion audio and synchronizes the visual video', () => {
+    expect(src).toContain('ws.setMediaElement(fallbackAudioEl)');
+    expect(src).toContain('mediaElRef.current = fallbackAudioEl');
+    expect(src).toContain("fallbackAudioEl.addEventListener('play', playVideo)");
+    expect(src).toContain("fallbackAudioEl.addEventListener('seeking', seekVideo)");
+    expect(src).toContain("fallbackAudioEl.addEventListener('timeupdate', trackVideo)");
+  });
+
   it("confirms readiness explicitly after every fallback ws.load() call, not just via the 'ready' event", () => {
     const errorHandler = /ws\.on\('error', \(err\) => \{([\s\S]*?)\n    \}\);/.exec(src)?.[1];
     expect(errorHandler, "ws.on('error', ...) handler not found").toBeTruthy();
 
-    // Every recovery load in this handler passes peaks explicitly
-    // (`ws.load(undefined, [...], ...)`) — each occurrence must be
-    // immediately confirmed ready via a .then()/.catch() pair (or an
-    // unconditional setReady in a synchronous catch), not left to hope the
-    // 'ready' event re-fires on its own.
-    const loadCalls = [...errorHandler.matchAll(/ws\.load\(undefined, \[[^\]]*\][^)]*\)/g)];
+    const loadCalls = [...errorHandler.matchAll(/loadRecoveredPeaks\([^;]+/g)];
     expect(loadCalls.length).toBeGreaterThanOrEqual(3);
 
     for (const match of loadCalls) {
