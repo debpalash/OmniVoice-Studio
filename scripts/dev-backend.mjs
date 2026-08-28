@@ -236,8 +236,11 @@ export function createBackendSupervisor({
 
       if (reloadRequested) {
         reloadRequested = false;
-        start();
-        return;
+        const expectedReloadExit = code === 0 || signal === "SIGTERM";
+        if (expectedReloadExit) {
+          start();
+          return;
+        }
       }
 
       const crashed = Boolean(signal) || (code !== 0 && code != null);

@@ -189,6 +189,26 @@ test('Python edits reload the direct worker without counting as crashes', () => 
   assert.doesNotMatch(harness.reports.join('\n'), /BACKEND DIED|restarting in/);
 });
 
+test('a crash racing a requested reload still uses crash recovery', () => {
+  for (const [code, signal] of [
+    [1, null],
+    [null, 'SIGKILL'],
+  ]) {
+    const harness = supervisorHarness();
+    harness.supervisor.start();
+    harness.watchers[0].onChange('api/router.py');
+    harness.runNextTimer();
+
+    harness.children[0].emit('exit', code, signal);
+
+    assert.deepEqual(harness.exits, []);
+    assert.match(harness.reports.join('\n'), /BACKEND DIED/);
+    assert.match(harness.reports.at(-1), /restarting in 1s \(1\/3\)/);
+    harness.runNextTimer();
+    assert.equal(harness.children.length, 2);
+  }
+});
+
 test('the supervisor stops after three restarts inside the crash window', () => {
   const harness = supervisorHarness();
   harness.supervisor.start();
