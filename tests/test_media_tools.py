@@ -176,15 +176,24 @@ def test_acquire_publishes_new_binaries_to_the_live_process(mt, monkeypatch):
     _patched_bundle(mt, monkeypatch, payload)
     monkeypatch.setattr(mt, "_binary_runs", lambda p: True)
     published = []
-    monkeypatch.setattr(
-        "services.ffmpeg_utils.ensure_media_tools_on_path",
-        lambda: published.append(True),
-    )
+    monkeypatch.setattr(mt, "_publish_bundled_on_path", lambda: published.append(True))
 
     with patch("urllib.request.urlopen", return_value=_FakeResponse(payload)):
         assert mt.acquire_bundled(wait=True)["state"] == "done"
 
     assert published == [True]
+
+
+def test_publish_bundled_on_path_prepends_once(mt, monkeypatch):
+    monkeypatch.setenv("PATH", os.pathsep.join(["system-a", "system-b"]))
+
+    mt._publish_bundled_on_path()
+    mt._publish_bundled_on_path()
+
+    entries = os.environ["PATH"].split(os.pathsep)
+    assert entries[0] == os.path.abspath(mt.bundled_dir())
+    assert entries.count(entries[0]) == 1
+    assert entries[1:] == ["system-a", "system-b"]
 
 
 def test_acquire_rejects_binary_that_fails_version_probe(mt, monkeypatch):

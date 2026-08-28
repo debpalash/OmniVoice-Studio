@@ -154,6 +154,17 @@ def bundled_dir() -> str:
     return os.path.join(media_tools_dir(), f"ffbin-{_FFBIN_COMMIT[:12]}", _platform_key())
 
 
+def _publish_bundled_on_path() -> None:
+    """Make a newly validated bundle visible to bare-name subprocess calls."""
+    directory = os.path.abspath(bundled_dir())
+    current = os.environ.get("PATH", "")
+    entries = current.split(os.pathsep) if current else []
+    if os.path.normcase(directory) in {os.path.normcase(entry) for entry in entries if entry}:
+        return
+    os.environ["PATH"] = os.pathsep.join([directory, *entries])
+    logger.info("Published the acquired media-tool directory on PATH")
+
+
 def _exe(name: str) -> str:
     return f"{name}.exe" if sys.platform == "win32" else name
 
@@ -235,8 +246,7 @@ def acquire_bundled(wait: bool = False) -> dict:
         # (first-run acquisition is asynchronous). Make it visible to pydub
         # and other dependencies that launch ffmpeg/ffprobe by bare name now,
         # without requiring a backend restart (#1677).
-        from services import ffmpeg_utils
-        ffmpeg_utils.ensure_media_tools_on_path()
+        _publish_bundled_on_path()
         _set_op("acquire", state="done", progress=1.0)
         return _op_snapshot()["acquire"]
 
@@ -246,8 +256,7 @@ def acquire_bundled(wait: bool = False) -> dict:
             # Startup cannot publish binaries which do not exist yet. The
             # background worker must complete that second half atomically with
             # installation so the very next synthesis can use the tools.
-            from services import ffmpeg_utils
-            ffmpeg_utils.ensure_media_tools_on_path()
+            _publish_bundled_on_path()
             _set_op("acquire", state="done", progress=1.0, error=None)
             logger.info("media-tools: bundled ffmpeg/ffprobe installed at %s", bundled_dir())
         except Exception as e:
