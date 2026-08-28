@@ -29,6 +29,7 @@ function baseProps(overrides = {}) {
   const noop = vi.fn();
   return {
     t: i18n.t,
+    uiLocale: 'en',
     dubVideoFile: null, // URL-ingest / restored job: no local File
     activeProjectName: '',
     dubFilename: '',
@@ -121,6 +122,16 @@ describe('IdleSkeleton — pipeline-stage vs idle dropzone', () => {
       target: { value: 'th' },
     });
     expect(setDubSourceLangCode).toHaveBeenCalledWith('th');
+  });
+
+  it('localizes source-language option names for the active UI locale', () => {
+    renderIdle({
+      dubVideoFile: new File(['video'], 'thai.mp4', { type: 'video/mp4' }),
+      uiLocale: 'fr',
+    });
+
+    const thai = new Intl.DisplayNames(['fr', 'en'], { type: 'language' }).of('th');
+    expect(screen.getByRole('option', { name: `${thai} — th` })).toBeInTheDocument();
   });
 
   it('clears the native cookie picker when the selection is removed', () => {

@@ -651,6 +651,7 @@ export default function DubTab(props) {
       {showIdleSkeleton && (
         <IdleSkeleton
           t={t}
+          uiLocale={i18n.language}
           dubVideoFile={dubVideoFile}
           activeProjectName={activeProjectName}
           dubFilename={dubFilename}

@@ -92,3 +92,13 @@ export const LANG_CODES = [
   { code: 'yo', label: 'Yoruba' },
   { code: 'zu', label: 'Zulu' },
 ];
+
+/** Localized language name, with the static English label as a WebView fallback. */
+export function languageLabel(code, uiLocale = 'en', fallback = code) {
+  try {
+    const names = new Intl.DisplayNames([uiLocale, 'en'], { type: 'language' });
+    return names.of(code) || fallback;
+  } catch {
+    return fallback;
+  }
+}

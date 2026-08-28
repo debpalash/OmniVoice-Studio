@@ -117,7 +117,17 @@ def test_bare_windows_missing_process_error_is_actionable():
     msg = str(ei.value)
     assert "doesn't recognize" not in msg
     assert "Audio tools" in msg
-    assert "required program" in msg
+    assert "required media program" in msg
+
+
+def test_posix_missing_media_process_error_is_actionable():
+    """Equivalent missing-tool failures receive the same guidance on POSIX."""
+    err = FileNotFoundError(2, "No such file or directory", "ffmpeg")
+    with pytest.raises(RuntimeError) as ei:
+        _oom_friendly_reraise(err)
+    msg = str(ei.value)
+    assert "Audio tools" in msg
+    assert "required media program" in msg
 
 
 @pytest.mark.parametrize("reason", [

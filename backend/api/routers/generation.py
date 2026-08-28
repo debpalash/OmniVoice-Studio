@@ -484,21 +484,23 @@ def _oom_friendly_reraise(e):
     # button; tell them what's actually wrong.
     es = str(e)
     # #1677: Windows CreateProcess reports a missing executable as a bare
-    # ``FileNotFoundError: [WinError 2] ...`` with no filename. This is most
-    # often pydub launching ffmpeg while decoding a clone reference. The
-    # bundled-media downloader now republishes PATH as soon as it finishes,
-    # but a failed/blocked download still needs an actionable recovery rather
-    # than the unknown-error dead end. Restrict this to a filename-less
-    # FileNotFoundError so a missing reference/model file keeps its own path.
+    # ``FileNotFoundError: [WinError 2] ...`` with no filename, while POSIX
+    # includes the missing ffmpeg/ffprobe name. The bundled-media downloader
+    # now republishes PATH as soon as it finishes, but a failed/blocked
+    # download still needs an actionable recovery rather than the unknown-
+    # error dead end. Keep missing reference/model files on their own path.
     for _exc in _exception_chain(e):
-        if (
-            isinstance(_exc, FileNotFoundError)
-            and not getattr(_exc, "filename", None)
-            and "[winerror 2]" in str(_exc).lower()
-        ):
+        if not isinstance(_exc, FileNotFoundError):
+            continue
+        _filename = getattr(_exc, "filename", None)
+        _missing_tool = os.path.basename(str(_filename)).lower() if _filename else ""
+        _bare_windows_enoent = not _filename and "[winerror 2]" in str(_exc).lower()
+        if _bare_windows_enoent or _missing_tool in {
+            "ffmpeg", "ffmpeg.exe", "ffprobe", "ffprobe.exe",
+        }:
             raise RuntimeError(
-                "A required program couldn't be launched on Windows "
-                "([WinError 2]). Open Settings → Audio tools and use "
+                "A required media program couldn't be launched. Open "
+                "Settings → Audio tools and use "
                 "Download/Repair for the media engine, then retry. If Audio "
                 "tools is already ready, repair the selected TTS engine and "
                 f"restart VoiceStudio. Underlying error: {_safe_exc_text(_exc)}"
