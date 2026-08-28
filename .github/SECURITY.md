@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.3.x (latest release + `main` previews) | ✅ Current — all fixes land here |
+| 0.5.x (latest release + `main` previews) | ✅ Current — all fixes land here |
 | 0.2.7 | ⚠️ Legacy stable — security fixes only, upgrade recommended |
 | < 0.2.7 | ❌ No longer supported |
 

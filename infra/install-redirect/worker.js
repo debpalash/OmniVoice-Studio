@@ -34,7 +34,7 @@ const HTML = `<!doctype html>
   <p>macOS / Linux / WSL (prebuilt app):</p>
   <code>curl -fsSL https://voicestudio.sh/install | sh</code>
   <p>Pick a version, or build from source:</p>
-  <code>curl -fsSL https://voicestudio.sh/install | sh -s -- --version 0.5.0<br>curl -fsSL https://voicestudio.sh/install | sh -s -- --source</code>
+  <code>curl -fsSL https://voicestudio.sh/install | sh -s -- --version 0.5.1<br>curl -fsSL https://voicestudio.sh/install | sh -s -- --source</code>
   <p>Windows PowerShell:</p>
   <code>irm https://voicestudio.sh/install | iex</code>
   <p class="dim">PowerShell source mode: set $env:VOICESTUDIO_INSTALL_MODE = "source" first.</p>
