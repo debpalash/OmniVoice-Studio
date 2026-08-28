@@ -1599,7 +1599,10 @@ async def dub_download_audio(
         return _native_save(wav_path, save_path, dl_name, media_type="audio/wav")
     return FileResponse(
         wav_path, media_type="audio/wav",
-        headers={"Content-Disposition": content_disposition(dl_name)},
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": content_disposition(dl_name),
+        },
     )
 
 

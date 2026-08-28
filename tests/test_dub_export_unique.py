@@ -220,6 +220,18 @@ class TestDubExportUniqueness:
         assert len(mp3s) == 3, f"expected 3 mp3 exports, got {[f.name for f in mp3s]}"
         assert len({f.name for f in mp3s}) == 3
 
+    def test_wav_export_is_not_cached_across_regeneration(self, app_client):
+        client, dc, _dx, tmp = app_client
+        job_id, _job_dir = _seed_job_with_tracks(dc, tmp)
+
+        response = client.get(
+            f"/dub/download-audio/{job_id}",
+            params={"lang": "es", "preserve_bg": False},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.headers["cache-control"] == "no-store"
+
     def test_mp4_export_refuses_when_ffmpeg_writes_nothing(self, app_client):
         client, dc, dx, tmp = app_client
         job_id, _ = _seed_job_with_tracks(dc, tmp)

@@ -35,12 +35,19 @@ describe('WaveformTimeline audible error recovery', () => {
     expect(src).toContain("fallbackAudioEl.addEventListener('timeupdate', trackVideo)");
   });
 
+  it('decodes the same source it recovers and prevents recursive fallback loads', () => {
+    expect(src).toContain('fetch(fallbackSource)');
+    expect(src).not.toContain('fetch(audioSrc)');
+    expect(src).toMatch(/if \(recoveryAttempted\) \{\s+failRecovery\(err\)/);
+    expect(src).toContain('recoveryAttempted = true');
+  });
+
   it("confirms readiness explicitly after every fallback ws.load() call, not just via the 'ready' event", () => {
     const errorHandler = /ws\.on\('error', \(err\) => \{([\s\S]*?)\n    \}\);/.exec(src)?.[1];
     expect(errorHandler, "ws.on('error', ...) handler not found").toBeTruthy();
 
     const loadCalls = [...errorHandler.matchAll(/loadRecoveredPeaks\([^;]+/g)];
-    expect(loadCalls.length).toBeGreaterThanOrEqual(3);
+    expect(loadCalls.length).toBeGreaterThanOrEqual(2);
 
     for (const match of loadCalls) {
       const tail = errorHandler.slice(match.index, match.index + 220);
