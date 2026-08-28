@@ -78,7 +78,7 @@ import { listenDictationNotice, showDictationNotice } from './utils/dictationNot
 import { addBreadcrumb } from './utils/breadcrumbs';
 import { appShellClasses } from './utils/appShellClasses';
 import { configuredRemoteBackend, probeRemoteBackend } from './utils/remoteBackendProbe';
-import { applyUiScale } from './utils/uiScaleEngine';
+import { applyUiScale, responsiveShellWidth } from './utils/uiScaleEngine';
 import { resolveUiScale, suggestUiScale } from './utils/uiScaleSuggestion';
 import { recordValueMoment } from './utils/donationMoments';
 import {
@@ -164,6 +164,9 @@ function App() {
     selected: uiScale,
     suggested: startupSuggestedScale,
   });
+  const [uiScaleEngine, setUiScaleEngine] = useState(() =>
+    typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window ? 'native' : 'css',
+  );
 
   // Responsive shell breakpoints driven off the app-container's OWN width, not
   // the viewport. The shell is sized `width: calc(100vw / --ui-scale)` then
@@ -173,15 +176,20 @@ function App() {
   // `100vw` and so collapse at the wrong threshold whenever the UI scale ≠ 1,
   // cramming the content into a sliver. ResizeObserver fires on both window
   // resize and scale change (the calc width changes), so this stays correct.
-  const shellRef = useRef(null);
+  const shellObserverRef = useRef(/** @type {ResizeObserver | null} */ (null));
   const [shellWidth, setShellWidth] = useState(Infinity);
-  useEffect(() => {
-    const el = shellRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(() => setShellWidth(el.clientWidth));
-    ro.observe(el);
-    setShellWidth(el.clientWidth);
-    return () => ro.disconnect();
+  const observeShell = useCallback((node) => {
+    shellObserverRef.current?.disconnect();
+    shellObserverRef.current = null;
+    if (!node) return;
+
+    const measure = () => setShellWidth(node.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    shellObserverRef.current = observer;
   }, []);
 
   // Desktop UI scale belongs at the webview boundary. A CSS `zoom` probe can
@@ -189,10 +197,17 @@ function App() {
   // still occupies only the upper-left of the window. Tauri's native zoom keeps
   // layout and paint in agreement; browser/dev sessions retain the CSS path.
   useLayoutEffect(() => {
-    void applyUiScale(effectiveUiScale);
+    let cancelled = false;
+    void applyUiScale(effectiveUiScale).then((engine) => {
+      if (!cancelled) setUiScaleEngine(engine);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveUiScale]);
+  const visibleShellWidth = responsiveShellWidth(shellWidth, effectiveUiScale, uiScaleEngine);
   const shellSizeClass =
-    shellWidth <= 600 ? 'shell-mini' : shellWidth <= 1100 ? 'shell-narrow' : '';
+    visibleShellWidth <= 600 ? 'shell-mini' : visibleShellWidth <= 1100 ? 'shell-narrow' : '';
   const theme = useAppStore((s) => s.theme);
 
   const locale = useAppStore((s) => s.locale);
@@ -1363,7 +1378,7 @@ function App() {
 
   return (
     <div
-      ref={shellRef}
+      ref={observeShell}
       className={appShellClasses({
         navStyle,
         navRailSide,

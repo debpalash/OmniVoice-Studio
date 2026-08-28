@@ -1,6 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { applyUiScale } from './uiScaleEngine';
+import { applyUiScale, responsiveShellWidth } from './uiScaleEngine';
+
+describe('responsiveShellWidth', () => {
+  it('uses visible CSS pixels for native Tauri zoom', () => {
+    expect(responsiveShellWidth(1412, 1.75, 'native')).toBeCloseTo(806.86, 2);
+  });
+
+  it('does not normalize the already-shrunk CSS zoom layout twice', () => {
+    expect(responsiveShellWidth(807, 1.75, 'css')).toBe(807);
+  });
+
+  it('treats an invalid scale as 1', () => {
+    expect(responsiveShellWidth(900, 0, 'native')).toBe(900);
+  });
+});
 
 describe('applyUiScale', () => {
   beforeEach(() => {

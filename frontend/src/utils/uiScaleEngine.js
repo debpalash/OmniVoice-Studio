@@ -1,6 +1,17 @@
 const loadTauriWebview = () => import('@tauri-apps/api/webview');
 
 /**
+ * Native Tauri zoom scales the painted webview without shrinking the DOM's
+ * reported container width. Responsive breakpoints need the width in visible
+ * CSS pixels, while the browser fallback has already shrunk its layout box via
+ * CSS and must not be divided a second time.
+ */
+export function responsiveShellWidth(shellWidth, scale, engine) {
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return engine === 'native' ? shellWidth / safeScale : shellWidth;
+}
+
+/**
  * Apply the user's UI scale at the webview boundary when Tauri is available.
  * Native zoom keeps the CSS viewport equal to the visible window on every
  * platform; CSS zoom remains the browser/dev fallback.

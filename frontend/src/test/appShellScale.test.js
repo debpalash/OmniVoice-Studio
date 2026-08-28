@@ -20,6 +20,7 @@ import { resolve } from 'node:path';
 // patterns.
 const raw = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+const app = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8');
 
 describe('app shell scale (black-band + clipping regression guard)', () => {
   it('does NOT scale the shell via transform: scale(--ui-scale)', () => {
@@ -51,5 +52,18 @@ describe('app shell scale (black-band + clipping regression guard)', () => {
     expect(css).toMatch(
       /\[data-ui-scale-engine=['"]?native['"]?\][^{]*\.app-container\s*\{[^}]*width:\s*100vw[^}]*height:\s*100vh[^}]*zoom:\s*1/,
     );
+  });
+
+  it('drives responsive shell classes from the visible native-zoom width', () => {
+    expect(app).toMatch(
+      /responsiveShellWidth\(\s*shellWidth,\s*effectiveUiScale,\s*uiScaleEngine,?\s*\)/,
+    );
+    expect(app).toMatch(/visibleShellWidth <= 600[\s\S]*visibleShellWidth <= 1100/);
+  });
+
+  it('starts observing when the studio shell mounts after bootstrap', () => {
+    expect(app).toMatch(/const observeShell = useCallback\(\(node\) =>/);
+    expect(app).toMatch(/ref=\{observeShell\}/);
+    expect(app).toMatch(/const measure = \(\) => setShellWidth\(node\.clientWidth\)/);
   });
 });
