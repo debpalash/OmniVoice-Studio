@@ -14,6 +14,7 @@ import { Tabs as ShadcnTabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
  * @param size      'sm' | 'md'
  * @param variant   'pill' (default) | 'underline'
  * @param idPrefix  optional prefix used to associate triggers with external panels
+ * @param children  optional Radix TabsContent elements associated by value
  */
 export default function Tabs({
   items = [],
@@ -22,6 +23,7 @@ export default function Tabs({
   size = 'md',
   variant = 'pill',
   idPrefix,
+  children,
   className = '',
   ...rest
 }) {
@@ -93,6 +95,7 @@ export default function Tabs({
           );
         })}
       </TabsList>
+      {children}
     </ShadcnTabs>
   );
 }
