@@ -1,5 +1,8 @@
 # Authenticating the local API
 
+For an application backend consuming a pinned, private VoiceStudio deployment,
+start with the [production private API pattern](production-private-api.md).
+
 VoiceStudio's backend is **loopback-only and unauthenticated by default** — a
 script running on the same machine as `http://localhost:3900` needs no key, no
 PIN, no header. Everything on this page only matters once you reach the backend

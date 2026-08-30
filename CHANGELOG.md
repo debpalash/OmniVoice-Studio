@@ -19,6 +19,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Docs
 
 - The CosyVoice guide now states that packaged builds have no one-click runtime installer and records the exact readiness checks exposed by [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631).
+- A production private-API guide now covers pinned containers, root credentials, network isolation, streaming proxies, health checks, upgrades, and benchmark evidence (#1720)
 
 ### Fixed
 
