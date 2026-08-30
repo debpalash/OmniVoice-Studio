@@ -48,11 +48,14 @@ matching `:0.5.1-rocm` image and the device mapping documented in
 
 Prefer a private container network with no published VoiceStudio port when the
 calling backend runs in the same Compose or Kubernetes deployment. Otherwise,
-bind to `127.0.0.1` and put a TLS reverse proxy or an encrypted private overlay
-network in front of it. Plain HTTP is appropriate only across loopback or an
-isolated container network; a Bearer key must not cross a host or network in
-plaintext. The six-digit share PIN is intended for casual LAN access; use the
-API key for an application service.
+keep the published port on `127.0.0.1` when a reverse proxy runs on the same
+host. For cross-host access through Tailscale or another encrypted overlay,
+publish port 3900 only on the host's private-overlay address, or attach both
+services to a private container network, and restrict it with the host firewall.
+Plain HTTP is appropriate only across loopback or an isolated container
+network; a Bearer key must not cross a host or network in plaintext. The
+six-digit share PIN is intended for casual LAN access; use the API key for an
+application service.
 
 If a reverse proxy is used:
 
@@ -96,13 +99,13 @@ paths through the same authenticated network route InterviewAce will use:
 curl https://voicestudio.internal/v1/audio/speech \
   -H "Authorization: Bearer $OMNIVOICE_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"tts-1","voice":"alloy","input":"Production check.","response_format":"wav"}' \
+  -d '{"model":"<resolved-tts-engine-id>","voice":"alloy","input":"Production check.","response_format":"wav"}' \
   --output check.wav
 
 curl https://voicestudio.internal/v1/audio/transcriptions \
   -H "Authorization: Bearer $OMNIVOICE_API_KEY" \
   -F "file=@check.wav" \
-  -F "model=whisper-1"
+  -F "model=<resolved-asr-engine-id>"
 ```
 
 Use the actual selected engine id instead of an alias when validating routing.
@@ -135,11 +138,13 @@ secret, validate an authenticated request through InterviewAce, then restore
 traffic. The service accepts one configured root key, so changing only one side
 temporarily produces `401 Unauthorized`.
 
-The API key also authorizes server-mode administration. Use a separate
-VoiceStudio instance or network policy if the calling application should have
-consumption access without administrative access; the current API key is a
-root credential, not a per-route service token. Full credential, session,
-WebSocket, trusted-network, admin-route, and CORS behavior is in
+The API key also authorizes server-mode administration. If the calling
+application should have consumption access only, use a separate VoiceStudio
+instance or a route-aware reverse proxy with a default-deny allowlist limited
+to the required speech routes. L3/L4 network policy alone cannot distinguish
+generation from administration. The current API key is a root credential, not
+a per-route service token. Full credential, session, WebSocket,
+trusted-network, admin-route, and CORS behavior is in
 [API authentication](api-auth.md).
 
 ## Engine and model obligations
