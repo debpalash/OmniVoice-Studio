@@ -16,6 +16,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Added
 
+- Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
+
 ### Docs
 
 - The CosyVoice guide now states that packaged builds have no one-click runtime installer and records the exact readiness checks exposed by [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631).

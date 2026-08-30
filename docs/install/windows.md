@@ -80,9 +80,23 @@ model weights. The splash screen shows progress.
 ## Install (pre-built MSI)
 
 Download the latest MSI from the
-[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
-run it, follow the wizard. The shortcut lands in the Start menu as
-**VoiceStudio**.
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest).
+
+| Artifact name | Scope | Administrator required | Default location |
+|---|---|---|---|
+| `VoiceStudio_<version>_x64_en-US.msi` | All users (per-machine) | Yes | `%ProgramFiles%\VoiceStudio` |
+| `VoiceStudio_Current_User_<version>_x64_en-US.msi` | Current user only | No | `%LOCALAPPDATA%\VoiceStudio (Current User)` |
+
+Run the artifact matching the required scope and follow the wizard. The
+per-user artifact can be installed, updated, and removed by a standard Windows
+account. It has a separate Windows Installer upgrade identity, shortcut name,
+and signed updater manifest, so it cannot upgrade or uninstall the per-machine
+copy (or vice versa). Both copies use the same VoiceStudio data directory; do
+not run them simultaneously against the same projects.
+
+Automatic updates preserve the installed scope. Managed deployments should
+continue to use the per-machine MSI. Users without elevation should choose the
+artifact containing `Current_User`.
 
 ### Installing to a different drive
 
@@ -130,6 +144,13 @@ Managed or offline deployments can prohibit that network action:
 
 ```powershell
 msiexec /i VoiceStudio_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-install.log"
+```
+
+The same properties work on the per-user artifact and do not require an
+elevated terminal:
+
+```powershell
+msiexec /i VoiceStudio_Current_User_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-user-install.log"
 ```
 
 With `DISABLEWEBVIEW2BOOTSTRAP=1`, detection still runs but no WebView2
