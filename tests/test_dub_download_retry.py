@@ -41,6 +41,14 @@ def test_broken_pipe_is_transient():
     assert dp._is_transient_download_error(ConnectionResetError()) is True
 
 
+def test_youtube_reload_request_is_transient():
+    reported = RuntimeError(
+        "ERROR: [youtube] qQjZNdURxzg: The page needs to be reloaded."
+    )
+    assert failure.classify(str(reported)) == "VIDEO_DOWNLOAD_NETWORK"
+    assert dp._is_transient_download_error(reported) is True
+
+
 def test_unsupported_url_is_not_transient():
     # Must classify as UNSUPPORTED (more specific) and therefore NOT retry —
     # otherwise we'd waste 3 attempts on a link that can never download.
@@ -132,6 +140,20 @@ def test_gives_up_after_bounded_retries(_patched_ytdlp):
     # Bounded: exactly 1 + _YT_DOWNLOAD_RETRIES attempts, not infinite.
     assert len(_FakeYDL.calls) == dp._YT_DOWNLOAD_RETRIES + 1
     # The classified failure still carries the actionable network hint.
+    evt = failure.build_failure(ei.value, stage="download", include_diagnostic=False)
+    assert evt["docs_topic"] == "VIDEO_DOWNLOAD_NETWORK"
+    assert evt["hint"]
+
+
+def test_reload_request_exhaustion_keeps_network_guidance(_patched_ytdlp):
+    job_dir = str(_patched_ytdlp)
+    message = "ERROR: [youtube] qQjZNdURxzg: The page needs to be reloaded."
+    _FakeYDL.behaviors = [RuntimeError(message)] * 10
+
+    with pytest.raises(RuntimeError) as ei:
+        dp.yt_download_sync("https://youtube.com/watch?v=qQjZNdURxzg", job_dir)
+
+    assert len(_FakeYDL.calls) == dp._YT_DOWNLOAD_RETRIES + 1
     evt = failure.build_failure(ei.value, stage="download", include_diagnostic=False)
     assert evt["docs_topic"] == "VIDEO_DOWNLOAD_NETWORK"
     assert evt["hint"]

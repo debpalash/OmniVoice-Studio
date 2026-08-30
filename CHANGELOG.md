@@ -23,6 +23,10 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Repair-sync failures now retain uv's final dependency error instead of reporting only an opaque exit status (#1705)
+- YouTube ingest now retries yt-dlp's transient “page needs to be reloaded” response (#1706)
+- Dictation model readiness now follows the live Hugging Face cache selected in Settings (#1707)
+
 ## [0.5.1] — 2026-08-28
 
 **Highlights**

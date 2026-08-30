@@ -281,41 +281,66 @@ def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
     Restricts the fetch to the exact int8 assets we pin via ``allow_patterns``
     so we never pull the bundled fp32 weights or test wavs.
     """
-    from huggingface_hub import constants as hf_constants
     from huggingface_hub import snapshot_download
-    from services.hf_revisions import installed_revision, revision_for
+    from services.hf_revisions import revision_for
 
     wanted = list(spec.files.values())
     # Probe the revision an existing installation actually resolved.  Older
     # releases followed ``main`` and may therefore have a different snapshot;
     # retaining it preserves offline upgrades.  Any network fetch still uses
     # the reviewed immutable pin.
-    installed = installed_revision(spec.repo_id, hf_constants.HF_HUB_CACHE)
-    try:
-        return snapshot_download(
-            repo_id=spec.repo_id,
-            revision=installed,
-            local_files_only=True,
-            allow_patterns=wanted,
-        )
-    except Exception:
-        if not download:
-            raise
+    installed = _installed_snapshot(spec)
+    if installed:
+        return installed
+    if not download:
+        raise FileNotFoundError(f"No complete cached snapshot for {spec.repo_id}")
     logger.info("sherpa dictation: downloading %s on first use", spec.repo_id)
     return snapshot_download(
         repo_id=spec.repo_id,
         revision=revision_for(spec.repo_id),
         allow_patterns=wanted,
+        cache_dir=_live_hub_cache_dir(),
     )
 
 
+def _live_hub_cache_dir() -> str:
+    """The effective hub root, evaluated after Settings restores the env."""
+    direct = os.environ.get("HF_HUB_CACHE") or os.environ.get("HUGGINGFACE_HUB_CACHE")
+    if direct:
+        return os.path.expanduser(direct)
+    home = os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface")
+    return os.path.join(os.path.expanduser(home), "hub")
+
+
+def _installed_snapshot(spec: SherpaModelSpec) -> str | None:
+    """Complete snapshot for the recorded revision in the live cache."""
+    from services.hf_revisions import installed_revision
+
+    cache_dir = _live_hub_cache_dir()
+    revision = installed_revision(spec.repo_id, cache_dir)
+    snapshot = os.path.join(
+        cache_dir,
+        "models--" + spec.repo_id.replace("/", "--"),
+        "snapshots",
+        revision,
+    )
+    if all(os.path.isfile(os.path.join(snapshot, filename))
+           for filename in spec.files.values()):
+        return snapshot
+    return None
+
+
 def is_installed(spec: SherpaModelSpec) -> bool:
-    """True if every pinned asset is already present in the HF cache."""
-    try:
-        d = _resolve_model_dir(spec, download=False)
-    except Exception:
-        return False
-    return all(os.path.isfile(os.path.join(d, f)) for f in spec.files.values())
+    """True if the recorded cached snapshot contains every pinned asset.
+
+    Do not use ``snapshot_download(local_files_only=True)`` for this probe.
+    ``huggingface_hub.constants.HF_HUB_CACHE`` is fixed when that module is
+    first imported, while VoiceStudio can restore its cache directory later
+    from the durable user settings. Resolve the live root and the recorded
+    revision ourselves so readiness and loading cannot disagree after a cache
+    move, desktop relaunch, or stale snapshot (#1707).
+    """
+    return _installed_snapshot(spec) is not None
 
 
 # ── Recognizers ──────────────────────────────────────────────────────────────

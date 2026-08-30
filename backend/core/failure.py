@@ -557,6 +557,7 @@ def classify(reason: str) -> str:
         or "unable to download video" in low
         or "remote end closed" in low
         or "timed out" in low
+        or "the page needs to be reloaded" in low
     ):
         return "VIDEO_DOWNLOAD_NETWORK"
     # #1227: Windows Smart App Control / WDAC / AppLocker refused to load a
