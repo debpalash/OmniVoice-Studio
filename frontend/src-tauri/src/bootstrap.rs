@@ -241,7 +241,7 @@ fn command_failure_message(
             .code()
             .map(|code| format!("exit code {code}"))
             .unwrap_or_else(|| status.to_string()),
-        Err(error) => format!("could not run: {error}"),
+        Err(error) => format!("command error: {error}"),
     };
     if output_tail.is_empty() {
         format!("{prefix}: {outcome} — no command output was captured")
@@ -3364,7 +3364,7 @@ mod tests {
             &tail,
         );
 
-        assert!(failure.contains("could not run: access denied"));
+        assert!(failure.contains("command error: access denied"));
         assert!(failure.contains("Last output:\nactual dependency conflict"));
         assert!(!failure.contains("resolver context"));
         assert!(!failure.contains("unrelated"));
