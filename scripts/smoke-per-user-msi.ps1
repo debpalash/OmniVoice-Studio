@@ -9,9 +9,12 @@ $password = "VsMsi-Test-42!"
 $secure = ConvertTo-SecureString $password -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential("$env:COMPUTERNAME\$user", $secure)
 $resolved = (Resolve-Path $MsiPath).Path
+$createdUser = $false
 
 try {
     net user $user $password /add | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "test-user creation exited $LASTEXITCODE" }
+    $createdUser = $true
     $install = Start-Process msiexec.exe -Credential $credential -LoadUserProfile -Wait -PassThru -ArgumentList @(
         "/i", "`"$resolved`"", "/qn", "/norestart", "DISABLEWEBVIEW2BOOTSTRAP=1", "AUTOLAUNCHAPP=0"
     )
@@ -28,5 +31,7 @@ try {
     if (Test-Path "$root\omnivoice-studio.exe") { throw "per-user shell remains after uninstall" }
 }
 finally {
-    net user $user /delete 2>$null | Out-Null
+    if ($createdUser) {
+        net user $user /delete 2>$null | Out-Null
+    }
 }

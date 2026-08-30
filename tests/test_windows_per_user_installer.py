@@ -27,8 +27,12 @@ def test_machine_and_per_user_templates_have_distinct_scopes_and_roots():
     assert 'Directory Id="LocalAppDataFolder"' in user
     assert 'Name="InstallScope" Type="string" Value="perMachine"' in machine
     assert 'Name="InstallScope" Type="string" Value="perUser"' in user
+    assert 'Id="PrevInstallDirNoName" Root="HKLM"' in machine
+    assert 'Id="PrevInstallDirNoName" Root="HKCU"' in user
     assert 'Id="PrevInstallDirWithName" Root="HKLM"' in machine
     assert 'Id="PrevInstallDirWithName" Root="HKCU"' in user
+    assert '<RegistryKey Root="HKCU" Key="Software\\\\{{manufacturer}}\\\\{{product_name}}">' in user
+    assert '<RegistryKey Root="HKCU" Key="Software\\Classes\\\\{{protocol}}">' in user
     assert 'Guid="{{path_component_guid}}"' in machine
     assert 'Guid="41f6d598-8908-4004-9332-291b64fd38be"' in user
 
@@ -53,6 +57,8 @@ def test_release_builds_publishes_and_smokes_as_a_standard_user():
     assert "latest-user.json" in workflow
     assert "smoke-per-user-msi.ps1" in workflow
     assert "Start-Process msiexec.exe -Credential" in smoke
+    assert 'if ($LASTEXITCODE -ne 0)' in smoke
+    assert 'if ($createdUser)' in smoke
     assert "standard-user uninstall" in smoke
     assert "latest/download/latest-user.json" in updater
     assert "releases/download/preview/latest-user.json" in updater

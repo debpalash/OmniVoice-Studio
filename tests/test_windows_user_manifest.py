@@ -14,13 +14,13 @@ def test_per_user_manifest_points_only_to_scoped_signed_msi():
         repo="debpalash/VoiceStudio",
         tag="v1.2.3",
         version="1.2.3",
-        asset="VoiceStudio (Current User)_1.2.3_x64_en-US.msi",
+        asset="VoiceStudio_Current_User_1.2.3_x64_en-US.msi",
         signature="signed\n",
     )
     entry = manifest["platforms"]["windows-x86_64"]
     assert manifest["version"] == "1.2.3"
     assert entry["signature"] == "signed"
-    assert "%28Current%20User%29" in entry["url"]
+    assert entry["url"].endswith("/VoiceStudio_Current_User_1.2.3_x64_en-US.msi")
     assert set(manifest["platforms"]) == {
         "windows-x86_64",
         "windows-x86_64-msi",

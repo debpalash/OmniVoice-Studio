@@ -10,6 +10,10 @@ from pathlib import Path
 TRANSFORMS = (
     ('InstallScope="perMachine"', 'InstallScope="perUser"'),
     (
+        'Id="PrevInstallDirNoName" Root="HKLM"',
+        'Id="PrevInstallDirNoName" Root="HKCU"',
+    ),
+    (
         'Id="PrevInstallDirWithName" Root="HKLM"',
         'Id="PrevInstallDirWithName" Root="HKCU"',
     ),
