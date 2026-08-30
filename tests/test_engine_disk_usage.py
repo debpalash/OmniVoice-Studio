@@ -1,4 +1,6 @@
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 import pytest
 
@@ -73,3 +75,21 @@ def test_disk_measurement_route_rejects_unknown_engine(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         engines.engine_disk_usage("unknown")
     assert caught.value.status_code == 404
+
+
+def test_concurrent_disk_measurements_are_coalesced(monkeypatch):
+    calls = 0
+
+    def measure(_engine_id):
+        nonlocal calls
+        calls += 1
+        time.sleep(0.05)
+        return {"total_owned_bytes": 7, "confidence": "measured"}
+
+    engine_disk_usage._measurement_cache.clear()
+    monkeypatch.setattr(engine_disk_usage, "_measure_sidecar", measure)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(engine_disk_usage.actual_for, ["coalesce", "coalesce"]))
+
+    assert calls == 1
+    assert [result["total_owned_bytes"] for result in results] == [7, 7]

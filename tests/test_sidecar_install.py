@@ -201,11 +201,11 @@ def test_disk_preflight_subtracts_partial_install(monkeypatch, tmp_path):
     assert si.disk_space_error(spec) is None
 
 
-def test_disk_preflight_uses_peak_temporary_requirement(monkeypatch):
+def test_disk_preflight_subtracts_partial_install_from_peak_requirement(monkeypatch):
     spec = _mk_spec(required_bytes=1 * _GIB, temporary_free_bytes=4 * _GIB)
     monkeypatch.setattr(si, "_dir_size_bytes", lambda _path: int(0.9 * _GIB))
     monkeypatch.setattr(si, "disk_free_bytes", lambda _path: (si.MIN_FREE_GB + 2) * _GIB)
-    assert "4.0 GB" in si.disk_space_error(spec)
+    assert "3.1 GB" in si.disk_space_error(spec)
 
 
 def test_missing_uv_is_actionable(monkeypatch):

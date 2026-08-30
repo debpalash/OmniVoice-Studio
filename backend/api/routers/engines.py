@@ -75,7 +75,10 @@ def list_tts_backends():
     return _family_payload("tts", tts_backend)
 
 
-@router.get("/engines/{engine_id}/disk-usage")
+@router.get(
+    "/engines/{engine_id}/disk-usage",
+    dependencies=[Depends(require_admin)],
+)
 def engine_disk_usage(engine_id: str):
     """Measure owned engine bytes only when a catalogue row is opened."""
     try:

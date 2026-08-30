@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 _GIB = 1024**3
 _CACHE_TTL_SECONDS = 10.0
 _measurement_cache: dict[str, tuple[float, dict]] = {}
+_measurement_lock = threading.Lock()
 
 # Catalogue/build estimates. ``None`` is deliberate: unknown costs must stay
 # visible instead of being silently treated as zero.
@@ -191,15 +193,22 @@ def actual_for(engine_id: str) -> dict:
     cached = _measurement_cache.get(engine_id)
     if cached and now - cached[0] < _CACHE_TTL_SECONDS:
         return dict(cached[1])
-    actual = _measure_sidecar(engine_id) or _measure_model_cache(engine_id) or {
-        "model_bytes": None,
-        "environment_bytes": None,
-        "cache_bytes": None,
-        "total_owned_bytes": None,
-        "confidence": "unknown",
-    }
-    _measurement_cache[engine_id] = (now, actual)
-    return dict(actual)
+    # A cache miss can recursively walk a sidecar and the shared uv cache.
+    # Coalesce concurrent requests so callers cannot multiply that work.
+    with _measurement_lock:
+        now = time.monotonic()
+        cached = _measurement_cache.get(engine_id)
+        if cached and now - cached[0] < _CACHE_TTL_SECONDS:
+            return dict(cached[1])
+        actual = _measure_sidecar(engine_id) or _measure_model_cache(engine_id) or {
+            "model_bytes": None,
+            "environment_bytes": None,
+            "cache_bytes": None,
+            "total_owned_bytes": None,
+            "confidence": "unknown",
+        }
+        _measurement_cache[engine_id] = (now, actual)
+        return dict(actual)
 
 
 def disk_usage_for(engine_id: str) -> dict:

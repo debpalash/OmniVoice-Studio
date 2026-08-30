@@ -347,8 +347,9 @@ def disk_space_error(spec: SidecarSpec) -> Optional[str]:
     already = _dir_size_bytes(managed_checkout(spec))
     remaining = max(0, spec.required_bytes - already)
     if spec.temporary_free_bytes is not None:
-        # Peak staging/unpack space may exceed the remaining final footprint.
-        remaining = max(remaining, spec.temporary_free_bytes)
+        # ``temporary_free_bytes`` is the peak from an empty destination, not
+        # additional space on top of bytes already preserved by a resume.
+        remaining = max(remaining, max(0, spec.temporary_free_bytes - already))
     free = disk_free_bytes(root)
     if free <= 0:
         return None  # can't probe → never block on missing information
