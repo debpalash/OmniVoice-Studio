@@ -1,14 +1,20 @@
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-import time
+from threading import Event
 
 import pytest
 
-from services import engine_disk_usage
-from services.sidecar_install import SPECS
+
+@pytest.fixture
+def disk_modules():
+    from services import engine_disk_usage
+    from services.sidecar_install import SPECS
+
+    return engine_disk_usage, SPECS
 
 
-def test_in_process_model_exposes_unknown_dependency_cost_explicitly(monkeypatch):
+def test_in_process_model_exposes_unknown_dependency_cost_explicitly(monkeypatch, disk_modules):
+    engine_disk_usage, _ = disk_modules
     monkeypatch.setattr(engine_disk_usage, "_measure_model_cache", lambda _engine_id: None)
     usage = engine_disk_usage.disk_usage_for("omnivoice")
     assert usage["estimate"]["model_download_bytes"] > 0
@@ -17,14 +23,16 @@ def test_in_process_model_exposes_unknown_dependency_cost_explicitly(monkeypatch
     assert usage["estimate"]["destination_volume"]
 
 
-def test_lightweight_optional_engine_has_weight_estimate_not_fake_package_zero(monkeypatch):
+def test_lightweight_optional_engine_has_weight_estimate_not_fake_package_zero(monkeypatch, disk_modules):
+    engine_disk_usage, _ = disk_modules
     monkeypatch.setattr(engine_disk_usage, "_measure_model_cache", lambda _engine_id: None)
     usage = engine_disk_usage.disk_usage_for("kittentts")
     assert usage["estimate"]["model_download_bytes"] == round(0.08 * 1024**3)
     assert usage["estimate"]["package_download_bytes"] is None
 
 
-def test_separate_torch_sidecar_uses_installer_build_metadata(monkeypatch, tmp_path):
+def test_separate_torch_sidecar_uses_installer_build_metadata(monkeypatch, tmp_path, disk_modules):
+    engine_disk_usage, SPECS = disk_modules
     spec = SPECS["indextts2"]
     monkeypatch.setattr("services.sidecar_install.DATA_DIR", tmp_path)
     usage = engine_disk_usage.disk_usage_for(spec.engine_id)
@@ -35,7 +43,8 @@ def test_separate_torch_sidecar_uses_installer_build_metadata(monkeypatch, tmp_p
     assert usage["estimate"]["deduplication"] == "uv_same_volume"
 
 
-def test_installed_sidecar_reports_separate_measured_categories(monkeypatch, tmp_path):
+def test_installed_sidecar_reports_separate_measured_categories(monkeypatch, tmp_path, disk_modules):
+    engine_disk_usage, SPECS = disk_modules
     spec = SPECS["indextts2"]
     monkeypatch.setattr("services.sidecar_install.DATA_DIR", tmp_path)
     checkout = tmp_path / "engines" / spec.engine_id / spec.checkout_dirname
@@ -77,19 +86,28 @@ def test_disk_measurement_route_rejects_unknown_engine(monkeypatch):
     assert caught.value.status_code == 404
 
 
-def test_concurrent_disk_measurements_are_coalesced(monkeypatch):
+def test_concurrent_disk_measurements_are_coalesced(monkeypatch, disk_modules):
+    engine_disk_usage, _ = disk_modules
     calls = 0
+    entered = Event()
+    release = Event()
 
     def measure(_engine_id):
         nonlocal calls
         calls += 1
-        time.sleep(0.05)
+        entered.set()
+        assert release.wait(timeout=1)
         return {"total_owned_bytes": 7, "confidence": "measured"}
 
     engine_disk_usage._measurement_cache.clear()
     monkeypatch.setattr(engine_disk_usage, "_measure_sidecar", measure)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(engine_disk_usage.actual_for, ["coalesce", "coalesce"]))
+        first = pool.submit(engine_disk_usage.actual_for, "coalesce")
+        assert entered.wait(timeout=1)
+        second = pool.submit(engine_disk_usage.actual_for, "coalesce")
+        assert not second.done()
+        release.set()
+        results = [first.result(), second.result()]
 
     assert calls == 1
     assert [result["total_owned_bytes"] for result in results] == [7, 7]
