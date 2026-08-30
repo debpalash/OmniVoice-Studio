@@ -75,6 +75,18 @@ def list_tts_backends():
     return _family_payload("tts", tts_backend)
 
 
+@router.get("/engines/{engine_id}/disk-usage")
+def engine_disk_usage(engine_id: str):
+    """Measure owned engine bytes only when a catalogue row is opened."""
+    try:
+        tts_backend.get_backend_class(engine_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unknown TTS engine")
+    from services.engine_disk_usage import disk_usage_for
+
+    return disk_usage_for(engine_id)
+
+
 @router.get("/engines/asr")
 def list_asr_backends():
     return _family_payload("asr", asr_backend)

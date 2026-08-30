@@ -66,6 +66,32 @@ export interface EngineBackend {
   // Settings can render a model picker. Absent on every other backend.
   curated_models?: CuratedModel[];
   active_model_id?: string;
+  disk_usage?: EngineDiskUsage;
+}
+
+export interface EngineDiskEstimate {
+  model_download_bytes: number | null;
+  package_download_bytes: number | null;
+  unique_installed_bytes: number | null;
+  potentially_shared_bytes: number | null;
+  temporary_free_bytes: number | null;
+  confidence: 'exact' | 'measured' | 'estimated' | 'unknown';
+  destination: string;
+  destination_volume: string;
+  deduplication: string | null;
+}
+
+export interface EngineDiskActual {
+  model_bytes: number | null;
+  environment_bytes: number | null;
+  cache_bytes: number | null;
+  total_owned_bytes: number | null;
+  confidence: 'measured' | 'unknown';
+}
+
+export interface EngineDiskUsage {
+  estimate: EngineDiskEstimate;
+  actual: EngineDiskActual;
 }
 
 // #981 — one of mlx-audio's curated models (see backend

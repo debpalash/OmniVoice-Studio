@@ -139,6 +139,51 @@ describe('EngineCompatibilityMatrix', () => {
     ]);
   });
 
+  it('shows separate estimates and measured disk categories on demand', async () => {
+    const response = makeEnginesResponse();
+    response.tts.backends[0].disk_usage = {
+      estimate: {
+        model_download_bytes: 2 * 1024 ** 3,
+        package_download_bytes: null,
+        unique_installed_bytes: 3 * 1024 ** 3,
+        potentially_shared_bytes: null,
+        temporary_free_bytes: 4 * 1024 ** 3,
+        destination: 'hf_model_cache',
+        confidence: 'estimated',
+        deduplication: null,
+      },
+      actual: {},
+    };
+    const apiGetDiskUsage = vi.fn().mockResolvedValue({
+      estimate: response.tts.backends[0].disk_usage.estimate,
+      actual: {
+        model_bytes: 1024 ** 3,
+        environment_bytes: null,
+        cache_bytes: 0,
+        total_owned_bytes: 1024 ** 3,
+        confidence: 'measured',
+      },
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={vi.fn().mockResolvedValue(response)}
+        apiGetEngineHealth={vi.fn()}
+        apiGetDiskUsage={apiGetDiskUsage}
+      />,
+    );
+
+    await screen.findByText('OmniVoice (test)');
+    fireEvent.click(screen.getByRole('button', { name: 'Disk details' }));
+    await waitFor(() => expect(apiGetDiskUsage).toHaveBeenCalledWith('omnivoice'));
+    const details = await screen.findByTestId('disk-usage-omnivoice');
+    expect(within(details).getByText('Model download')).toBeInTheDocument();
+    expect(within(details).getByText('Package download')).toBeInTheDocument();
+    expect(within(details).getByText('Actual environment')).toBeInTheDocument();
+    expect(within(details).getAllByText('1.00 GB')).toHaveLength(2);
+    expect(within(details).getAllByText('unknown').length).toBeGreaterThan(0);
+  });
+
   it('shows isolation_mode badge per row (subprocess for IndexTTS, in-process for the others)', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
     render(

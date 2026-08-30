@@ -1,5 +1,14 @@
 # Engine venvs & disk usage
 
+The Model Catalogue now exposes a structured disk breakdown before install:
+model-weight download, package download, unique installed bytes, potentially
+shared bytes, temporary free-space requirement, destination volume, and the
+estimate confidence. Missing package or deduplication measurements are shown as
+unknown rather than zero. Opening an installed engine's disk details measures
+its model, environment, shared cache, and app-owned total separately. These
+values come from `config/models.yaml` and the sidecar installer specification;
+the UI does not maintain its own size table.
+
 Most engines run in-process in VoiceStudio's main environment. A few
 (**IndexTTS2**, **MOSS-TTS-v1.5**, **dots.tts**, and any engine whose
 dependencies conflict with the parent's `torch`/`transformers` pins) run in a

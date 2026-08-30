@@ -116,6 +116,11 @@ class SidecarSpec:
     weights_config_names: tuple[str, ...] = ("config.yaml",)
     docs_path: str = "docs/engines"         # where the manual-install fallback lives
     required_bytes: int = 12 * _GIB    # conservative source+venv+weights estimate for preflight
+    weights_bytes: Optional[int] = None
+    dependency_bytes: Optional[int] = None
+    potentially_shared_bytes: Optional[int] = None
+    temporary_free_bytes: Optional[int] = None
+    disk_confidence: str = "unknown"
     # Called after a successful install/uninstall so the engine's memoised
     # venv resolution re-probes (import inside the lambda — never at module load).
     invalidate: Callable[[], None] = field(default=lambda: None)
@@ -157,6 +162,11 @@ SPECS: dict[str, SidecarSpec] = {
         # ~6 GB weights. Deliberately conservative; the preflight subtracts
         # whatever a partial install already put on disk.
         required_bytes=12 * _GIB,
+        weights_bytes=6 * _GIB,
+        dependency_bytes=6 * _GIB,
+        potentially_shared_bytes=None,
+        temporary_free_bytes=12 * _GIB,
+        disk_confidence="estimated",
         invalidate=_indextts_invalidate,
         installed_probe=_indextts_installed,
     ),
@@ -336,6 +346,9 @@ def disk_space_error(spec: SidecarSpec) -> Optional[str]:
     # upgrade needs its full space until the new sidecar is verified.
     already = _dir_size_bytes(managed_checkout(spec))
     remaining = max(0, spec.required_bytes - already)
+    if spec.temporary_free_bytes is not None:
+        # Peak staging/unpack space may exceed the remaining final footprint.
+        remaining = max(remaining, spec.temporary_free_bytes)
     free = disk_free_bytes(root)
     if free <= 0:
         return None  # can't probe → never block on missing information

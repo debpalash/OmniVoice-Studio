@@ -2392,6 +2392,7 @@ def list_backends() -> list[dict]:
     # Routing is host-aware but the host caps are constant per process, so probe
     # ONCE here and resolve each engine's effective device against the same caps.
     from core.device_caps import detect_host_caps
+    from services.engine_disk_usage import disk_summary_for
     from services.engine_routing import routing_fields
     caps = detect_host_caps()
     installable = _sidecar_installable_ids()
@@ -2444,6 +2445,7 @@ def list_backends() -> list[dict]:
             # in-app (Settings renders an Install button instead of leading
             # with the manual setup snippet).
             "one_click_install": bid in installable,
+            "disk_usage": disk_summary_for(bid),
             "last_error": _LAST_ERRORS.get(bid),
             "isolation_mode": isolation,
             "gpu_compat": list(gpu_compat),

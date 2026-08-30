@@ -21,6 +21,7 @@ import {
   selfTestEngine,
   installSidecarEngine,
   getSidecarInstallStatus,
+  getEngineDiskUsage,
 } from '../api/engines';
 import { listLoadedModels, unloadLoadedModel } from '../api/system';
 import { useAppStore } from '../store';
@@ -47,6 +48,13 @@ const LICENSE_DIALOGS = {
 function reasonMentionsLicense(reason) {
   if (!reason || typeof reason !== 'string') return false;
   return /license not accepted/i.test(reason);
+}
+
+function fmtDiskBytes(value, unknownLabel) {
+  if (value == null) return unknownLabel;
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(2)} GB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.round(value / 1024)} KB`;
 }
 
 /**
@@ -233,6 +241,7 @@ function normalizeEntry(entry) {
     // null/absent on every other backend, which never renders a picker.
     curated_models: Array.isArray(entry.curated_models) ? entry.curated_models : null,
     active_model_id: entry.active_model_id || null,
+    disk_usage: entry.disk_usage || null,
   };
 }
 
@@ -269,6 +278,7 @@ export default function EngineCompatibilityMatrix({
   // One-click sidecar install layer — same injection story as the rest.
   apiInstallEngine = installSidecarEngine,
   apiInstallStatus = getSidecarInstallStatus,
+  apiGetDiskUsage = getEngineDiskUsage,
 }) {
   const { t } = useTranslation();
   const [localData, setLocalData] = useState(null);
@@ -298,6 +308,7 @@ export default function EngineCompatibilityMatrix({
   // (one at a time). The panel renders BELOW the row as its own block, so
   // sibling rows keep their fixed two-line height and stay aligned.
   const [expandedId, setExpandedId] = useState(null);
+  const [diskByEngine, setDiskByEngine] = useState({});
   // Memory residency: engine id → its /model/loaded entry (TTS entries and
   // sidecars carry engine_id). Advisory — load failures leave it empty and
   // the matrix renders exactly as before (no residency chips).
@@ -827,15 +838,17 @@ export default function EngineCompatibilityMatrix({
             // Unavailable-row detail material for the expansion panel.
             // One-click-installable rows always have a panel — it hosts the
             // install progress and the demoted manual-install fallback.
+            const hasDiskDetails = activeFamily === 'tts' && !!b.disk_usage;
             const hasDetails =
-              !b.available &&
-              !!(
-                b.reason ||
-                b.install_hint ||
-                b.last_error ||
-                b.setup_snippet ||
-                b.one_click_install
-              );
+              hasDiskDetails ||
+              (!b.available &&
+                !!(
+                  b.reason ||
+                  b.install_hint ||
+                  b.last_error ||
+                  b.setup_snippet ||
+                  b.one_click_install
+                ));
             const install = installByEngine[b.id] || null;
             const installJob = install?.job || null;
             const installRunning = installJob?.state === 'running';
@@ -1076,7 +1089,21 @@ export default function EngineCompatibilityMatrix({
                           aria-expanded={expanded}
                           aria-controls={panelId}
                           data-testid={`why-toggle-${b.id}`}
-                          onClick={() => setExpandedId(expanded ? null : b.id)}
+                          onClick={async () => {
+                            if (expanded) {
+                              setExpandedId(null);
+                              return;
+                            }
+                            setExpandedId(b.id);
+                            if (hasDiskDetails && !diskByEngine[b.id]) {
+                              try {
+                                const usage = await apiGetDiskUsage(b.id);
+                                setDiskByEngine((current) => ({ ...current, [b.id]: usage }));
+                              } catch {
+                                // Estimates remain useful when measurement is unavailable.
+                              }
+                            }
+                          }}
                         >
                           <ChevronRight
                             size={10}
@@ -1085,7 +1112,7 @@ export default function EngineCompatibilityMatrix({
                               expanded && 'rotate-90',
                             )}
                           />
-                          {t('engines.whyUnavailable')}
+                          {b.available ? t('engines.diskDetails') : t('engines.whyUnavailable')}
                         </button>
                       )}
                     </span>
@@ -1432,6 +1459,53 @@ export default function EngineCompatibilityMatrix({
                           {t('engines.lastError', { error: b.last_error })}
                         </span>
                       )}
+                      {hasDiskDetails &&
+                        (() => {
+                          const usage = diskByEngine[b.id] || b.disk_usage;
+                          const estimate = usage?.estimate || {};
+                          const actual = usage?.actual || {};
+                          const value = (bytes) => fmtDiskBytes(bytes, t('common.unknown'));
+                          return (
+                            <div
+                              className="engine-matrix__disk mt-[4px] grid grid-cols-[max-content_1fr] gap-x-[12px] gap-y-[2px]"
+                              data-testid={`disk-usage-${b.id}`}
+                            >
+                              <span>{t('engines.diskModelDownload')}</span>
+                              <strong>{value(estimate.model_download_bytes)}</strong>
+                              <span>{t('engines.diskPackageDownload')}</span>
+                              <strong>{value(estimate.package_download_bytes)}</strong>
+                              <span>{t('engines.diskUniqueInstalled')}</span>
+                              <strong>{value(estimate.unique_installed_bytes)}</strong>
+                              <span>{t('engines.diskPotentiallyShared')}</span>
+                              <strong>{value(estimate.potentially_shared_bytes)}</strong>
+                              <span>{t('engines.diskTemporary')}</span>
+                              <strong>{value(estimate.temporary_free_bytes)}</strong>
+                              <span>{t('engines.diskDestination')}</span>
+                              <strong>
+                                {estimate.destination && estimate.destination !== 'unknown'
+                                  ? t(`engines.diskDestination_${estimate.destination}`)
+                                  : t('common.unknown')}
+                                {estimate.destination_volume &&
+                                  estimate.destination_volume !== 'unknown' && (
+                                    <code className="ml-[6px]">{estimate.destination_volume}</code>
+                                  )}
+                              </strong>
+                              <span>{t('engines.diskActualModel')}</span>
+                              <strong>{value(actual.model_bytes)}</strong>
+                              <span>{t('engines.diskActualEnvironment')}</span>
+                              <strong>{value(actual.environment_bytes)}</strong>
+                              <span>{t('engines.diskActualCache')}</span>
+                              <strong>{value(actual.cache_bytes)}</strong>
+                              <span>{t('engines.diskActualTotal')}</span>
+                              <strong>{value(actual.total_owned_bytes)}</strong>
+                              {estimate.deduplication && (
+                                <span className="col-span-2 mt-[2px] text-[color:var(--chrome-fg-muted,#888)]">
+                                  {t(`engines.diskDedup_${estimate.deduplication}`)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       {/* One-click install progress: per-step states + the
                           live log tail while the provisioner job runs, error
                           + remediation on failure. Poll-driven (1.5 s). */}
