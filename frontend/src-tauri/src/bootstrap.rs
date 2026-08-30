@@ -219,6 +219,37 @@ pub fn get_bootstrap_logs(state: tauri::State<'_, BootstrapState>) -> Vec<LogPay
         .unwrap_or_default()
 }
 
+fn buffered_log_tail(logs: &[LogPayload], stage: &str, max_lines: usize) -> String {
+    let mut lines = logs
+        .iter()
+        .rev()
+        .filter(|entry| entry.stage == stage && !entry.line.trim().is_empty())
+        .take(max_lines)
+        .map(|entry| entry.line.trim().to_string())
+        .collect::<Vec<_>>();
+    lines.reverse();
+    lines.join("\n")
+}
+
+fn command_failure_message(
+    prefix: &str,
+    result: &io::Result<std::process::ExitStatus>,
+    output_tail: &str,
+) -> String {
+    let outcome = match result {
+        Ok(status) => status
+            .code()
+            .map(|code| format!("exit code {code}"))
+            .unwrap_or_else(|| status.to_string()),
+        Err(error) => format!("could not run: {error}"),
+    };
+    if output_tail.is_empty() {
+        format!("{prefix}: {outcome} — no command output was captured")
+    } else {
+        format!("{prefix}: {outcome}\n\nLast output:\n{output_tail}")
+    }
+}
+
 #[tauri::command]
 pub fn retry_bootstrap(app: tauri::AppHandle, state: tauri::State<'_, BootstrapState>) {
     respawn_backend(app, state.stage.clone(), state.logs.clone());
@@ -2359,7 +2390,18 @@ the existing venv; newly added dependencies may be missing (#307)",
             ensure_cudnn8_compat(app, &uv_path, &venv_py, &venv_dir, &project_dir);
             return Some((venv_py, backend_dir));
         }
-        fail(progress, &format!("Repair uv sync failed: {:?}", repair_status));
+        let output_tail = app
+            .try_state::<BootstrapState>()
+            .and_then(|state| {
+                state.logs.lock().ok().map(|logs| {
+                    buffered_log_tail(&logs, "installing_deps", 12)
+                })
+            })
+            .unwrap_or_default();
+        fail(
+            progress,
+            &command_failure_message("Repair uv sync failed", &repair_status, &output_tail),
+        );
         return None;
     }
 
@@ -3294,6 +3336,38 @@ mod tests {
         invalidate_cudnn8_probe_cache(&venv_dir);
         assert!(!marker.is_file());
         let _ = fs::remove_dir_all(&venv_dir);
+    }
+
+    #[test]
+    fn failed_command_message_carries_the_newest_relevant_output() {
+        let logs = vec![
+            LogPayload {
+                stage: "downloading_uv".into(),
+                line: "unrelated".into(),
+            },
+            LogPayload {
+                stage: "installing_deps".into(),
+                line: "resolver context".into(),
+            },
+            LogPayload {
+                stage: "installing_deps".into(),
+                line: "actual dependency conflict".into(),
+            },
+        ];
+        let tail = buffered_log_tail(&logs, "installing_deps", 1);
+        let failure = command_failure_message(
+            "Repair uv sync failed",
+            &Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "access denied",
+            )),
+            &tail,
+        );
+
+        assert!(failure.contains("could not run: access denied"));
+        assert!(failure.contains("Last output:\nactual dependency conflict"));
+        assert!(!failure.contains("resolver context"));
+        assert!(!failure.contains("unrelated"));
     }
 }
 

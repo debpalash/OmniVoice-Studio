@@ -41,6 +41,13 @@ def test_broken_pipe_is_transient():
     assert dp._is_transient_download_error(ConnectionResetError()) is True
 
 
+def test_youtube_reload_request_is_transient():
+    reported = RuntimeError(
+        "ERROR: [youtube] qQjZNdURxzg: The page needs to be reloaded."
+    )
+    assert dp._is_transient_download_error(reported) is True
+
+
 def test_unsupported_url_is_not_transient():
     # Must classify as UNSUPPORTED (more specific) and therefore NOT retry —
     # otherwise we'd waste 3 attempts on a link that can never download.

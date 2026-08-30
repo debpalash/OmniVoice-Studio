@@ -310,12 +310,27 @@ def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
 
 
 def is_installed(spec: SherpaModelSpec) -> bool:
-    """True if every pinned asset is already present in the HF cache."""
+    """True if one cached snapshot contains every pinned asset.
+
+    Do not use ``snapshot_download(local_files_only=True)`` for this probe.
+    ``huggingface_hub.constants.HF_HUB_CACHE`` is fixed when that module is
+    first imported, while VoiceStudio can restore its cache directory later
+    from the durable user settings.  The catalogue already resolves the live
+    environment on every check; sharing its snapshot lookup keeps dictation's
+    preflight consistent with the catalogue and avoids a false "no ASR model"
+    result after a cache move or desktop relaunch (#1707).
+    """
     try:
-        d = _resolve_model_dir(spec, download=False)
+        from api.routers.setup.models import _snapshot_dirs
+
+        snapshots = _snapshot_dirs(spec.repo_id)
     except Exception:
         return False
-    return all(os.path.isfile(os.path.join(d, f)) for f in spec.files.values())
+    return any(
+        all(os.path.isfile(os.path.join(snapshot, filename))
+            for filename in spec.files.values())
+        for snapshot in snapshots
+    )
 
 
 # ── Recognizers ──────────────────────────────────────────────────────────────

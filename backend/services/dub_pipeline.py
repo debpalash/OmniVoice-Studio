@@ -864,6 +864,12 @@ def _is_transient_download_error(exc: BaseException) -> bool:
     """
     if isinstance(exc, (BrokenPipeError, ConnectionError)):
         return True
+    # YouTube occasionally rejects an otherwise valid player response with
+    # this extractor-level instruction. It is session/transient state, not an
+    # unsupported URL; a fresh extraction is the programmatic equivalent of
+    # the reload yt-dlp asks for (#1706).
+    if "the page needs to be reloaded" in str(exc).lower():
+        return True
     return failure.classify(str(exc)) == "VIDEO_DOWNLOAD_NETWORK"
 
 
