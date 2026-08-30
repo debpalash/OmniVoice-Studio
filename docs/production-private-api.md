@@ -13,11 +13,12 @@ services:
     restart: unless-stopped
     environment:
       OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:?set a long random key}
+      OMNIVOICE_BIND_HOST: 0.0.0.0
     ports:
       - "127.0.0.1:3900:3900"
     volumes:
       - voicestudio-data:/app/omnivoice_data
-      - voicestudio-models:/root/.cache/huggingface
+      - voicestudio-models:/app/omnivoice_data/huggingface
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3900/health"]
       interval: 30s
@@ -35,6 +36,9 @@ Generate `OMNIVOICE_API_KEY` with a password manager or
 deployment platform's secret store, not in the Compose file or source control.
 Send it from InterviewAce as `Authorization: Bearer <key>`.
 
+`OMNIVOICE_BIND_HOST=0.0.0.0` is required inside the container; the host-side
+`127.0.0.1` port binding still prevents LAN or public access.
+
 Pin an exact release tag. `:latest` and `:main` are rolling previews;
 `:stable` moves whenever a stable release is published. AMD hosts use the
 matching `:0.5.1-rocm` image and the device mapping documented in
@@ -44,8 +48,10 @@ matching `:0.5.1-rocm` image and the device mapping documented in
 
 Prefer a private container network with no published VoiceStudio port when the
 calling backend runs in the same Compose or Kubernetes deployment. Otherwise,
-bind to `127.0.0.1` and put a TLS reverse proxy or private overlay network in
-front of it. The six-digit share PIN is intended for casual LAN access; use the
+bind to `127.0.0.1` and put a TLS reverse proxy or an encrypted private overlay
+network in front of it. Plain HTTP is appropriate only across loopback or an
+isolated container network; a Bearer key must not cross a host or network in
+plaintext. The six-digit share PIN is intended for casual LAN access; use the
 API key for an application service.
 
 If a reverse proxy is used:
@@ -53,7 +59,12 @@ If a reverse proxy is used:
 - forward the `Authorization` header;
 - disable response buffering for streaming generation;
 - set its read timeout above VoiceStudio's generation timeout;
-- preserve the client address only through a trusted proxy configuration;
+- discard client-supplied `Forwarded` and `X-Forwarded-*` headers, then set
+  forwarding headers from the proxy's observed connection;
+- configure VoiceStudio/Uvicorn to trust forwarding headers only from that
+  proxy's exact address. Never make authorization decisions from an untrusted
+  forwarded address: a same-host proxy otherwise lets a remote caller appear
+  loopback-local and bypass the key gate;
 - set `OMNIVOICE_ALLOWED_ORIGINS` only when a browser on another origin must
   call VoiceStudio directly.
 
@@ -61,14 +72,39 @@ InterviewAce's browser should normally call the InterviewAce backend, which
 then calls VoiceStudio. This keeps the VoiceStudio credential and API surface
 out of the customer browser.
 
+## Validate the integration
+
+After selecting and installing an engine, exercise both OpenAI-compatible
+paths through the same authenticated network route InterviewAce will use:
+
+```bash
+curl https://voicestudio.internal/v1/audio/speech \
+  -H "Authorization: Bearer $OMNIVOICE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"tts-1","voice":"alloy","input":"Production check.","response_format":"wav"}' \
+  --output check.wav
+
+curl https://voicestudio.internal/v1/audio/transcriptions \
+  -H "Authorization: Bearer $OMNIVOICE_API_KEY" \
+  -F "file=@check.wav" \
+  -F "model=whisper-1"
+```
+
+Use the actual selected engine id instead of an alias when validating routing.
+More SDK and authentication examples are in [API authentication](api-auth.md).
+
 ## Operations
 
 - Persist both `/app/omnivoice_data` and the Hugging Face cache. Back up the
   data volume; treat the model cache as replaceable unless download time is
   operationally significant.
-- Warm and validate the selected engines after deployment before admitting
-  traffic. `/engines` reports availability and the resolved execution device;
-  `/health` proves service readiness.
+- Before admitting traffic, list the selected engine's checkpoint with
+  `GET /models`, pre-fetch its `repo_id` with authenticated
+  `POST /models/install`, and wait for `/setup/download-stream` to finish.
+  Lazy first-request downloads can exceed an otherwise healthy request
+  timeout. Then warm the engine with a representative request. `/engines`
+  reports availability and the resolved execution device; `/health` proves
+  service readiness.
 - Keep request concurrency bounded. A capacity response is a backpressure
   signal; honor `Retry-After` instead of starting parallel retries.
 - Drain callers, recreate the container with a newly pinned tag, run the engine
@@ -77,6 +113,12 @@ out of the customer browser.
 - For a failed benchmark or production request, capture `/system/info`, the
   selected `/engines` entry, response routing headers, container logs, and a
   diagnostic bundle before restarting.
+
+Rotate the root key as a coordinated deployment: drain requests, update the
+secret store, recreate VoiceStudio with the new key, update InterviewAce's
+secret, validate an authenticated request through InterviewAce, then restore
+traffic. The service accepts one configured root key, so changing only one side
+temporarily produces `401 Unauthorized`.
 
 The API key also authorizes server-mode administration. Use a separate
 VoiceStudio instance or network policy if the calling application should have
