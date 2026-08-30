@@ -68,6 +68,21 @@ If a reverse proxy is used:
 - set `OMNIVOICE_ALLOWED_ORIGINS` only when a browser on another origin must
   call VoiceStudio directly.
 
+For example, if the proxy has the fixed container address `172.30.0.2`, add
+this to VoiceStudio's environment:
+
+```yaml
+FORWARDED_ALLOW_IPS: 172.30.0.2
+```
+
+Assign that address with a Compose network `ipam` block or the equivalent
+orchestrator network policy. `FORWARDED_ALLOW_IPS=*`, a subnet, and a mutable
+service-name lookup are not equivalent to trusting the proxy's exact address.
+Configure the proxy itself to clear inbound `Forwarded`, `X-Forwarded-For`,
+`X-Forwarded-Host`, and `X-Forwarded-Proto` before setting fresh values. Without
+both halves, keep proxy-header trust disabled; a spoofed forwarded loopback
+address can otherwise receive loopback privileges.
+
 InterviewAce's browser should normally call the InterviewAce backend, which
 then calls VoiceStudio. This keeps the VoiceStudio credential and API surface
 out of the customer browser.
