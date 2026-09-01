@@ -1,4 +1,6 @@
 <div align="center">
+  <a href="https://trendshift.io/repositories/28176?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/28176" alt="debpalash%2FVoiceStudio | Trendshift" width="250" height="55" /></a>
+
   <img src="docs/logo.png" alt="VoiceStudio logo" width="120" height="120" />
   <h1>VoiceStudio</h1>
   <p><sub>Previously OmniVoice-Studio</sub></p>
