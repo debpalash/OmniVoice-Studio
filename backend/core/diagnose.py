@@ -21,6 +21,7 @@ Check shape:
 """
 from __future__ import annotations
 
+import importlib
 import os
 import platform
 import shutil
@@ -367,10 +368,44 @@ def run_diagnostics(include_network: bool = True, deep: bool = False) -> dict:
     counts = {OK: 0, WARN: 0, FAIL: 0}
     for c in checks:
         counts[c["status"]] += 1
+    engine_execution = []
+    for family in ("tts", "asr"):
+        active = "unknown"
+        try:
+            module = importlib.import_module(f"services.{family}_backend")
+            active = module.active_backend_id()
+            row = next((item for item in module.list_backends() if item.get("id") == active), None)
+            if row is not None:
+                engine_execution.append({
+                    "family": family,
+                    "engine_id": active,
+                    **row["execution_evidence"],
+                })
+        except Exception:  # noqa: BLE001 - evidence must not break diagnostics
+            # Preserve the other family's successful evidence and make this
+            # collection failure explicit without exposing exception text.
+            engine_execution.append({
+                "family": family,
+                "engine_id": active,
+                "implementation_variant": None,
+                "declared_device_families": [],
+                "evidence_state": "collection_failed",
+                "actual_execution_provider": None,
+                "actual_execution_device": None,
+                "gpu_name": None,
+                "gpu_architecture": None,
+                "precision_or_quantization": None,
+                "cpu_fallback_reason": None,
+                "cpu_fallback_stage": None,
+                "parent_memory_observable": None,
+                "runtime_versions": {},
+            })
+
     return {
         "app_version": APP_VERSION,
         "platform": scrub_text(platform.platform()),
         "checks": checks,
+        "engine_execution": engine_execution,
         "summary": {
             "ok": counts[FAIL] == 0,
             "passed": counts[OK],
@@ -395,6 +430,35 @@ def format_text(report: dict) -> str:
         lines.append(f"{tag[c['status']]} {c['label']}: {c['detail']}")
         if c.get("hint"):
             lines.append(f"       hint: {c['hint']}")
+    if report.get("engine_execution"):
+        lines.append("")
+        lines.append("Engine execution evidence:")
+        for item in report["engine_execution"]:
+            if item.get("actual_execution_provider"):
+                provider = item["actual_execution_provider"]
+            elif item.get("evidence_state") == "subprocess_loaded_provider_unreported":
+                provider = "loaded child; provider not reported"
+            else:
+                provider = "not loaded"
+            precision = item.get("precision_or_quantization") or "unknown"
+            device = item.get("actual_execution_device") or "unknown"
+            gpu = item.get("gpu_name") or "none"
+            architecture = item.get("gpu_architecture") or "unknown"
+            fallback_stage = item.get("cpu_fallback_stage") or "none"
+            fallback_reason = item.get("cpu_fallback_reason") or "none"
+            versions = ",".join(
+                f"{name}={version}"
+                for name, version in sorted(item.get("runtime_versions", {}).items())
+            ) or "none"
+            visible = "yes" if item.get("parent_memory_observable") else "no"
+            lines.append(
+                f"  {item['family']}:{item['engine_id']} provider={provider}; "
+                f"device={device}; gpu={gpu}; architecture={architecture}; "
+                f"precision={precision}; fallback-stage={fallback_stage}; "
+                f"fallback-reason={fallback_reason}; runtimes={versions}; "
+                f"evidence-state={item.get('evidence_state', 'unknown')}; "
+                f"parent-memory-visible={visible}"
+            )
     s = report["summary"]
     lines.append("")
     lines.append(

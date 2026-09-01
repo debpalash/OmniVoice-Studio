@@ -17,6 +17,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Added
 
 - Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
+- Engine status and diagnostic bundles now record loaded execution provider, device, precision, fallback stage, accelerator identity, runtime versions, and parent-process memory visibility (#1717)
 
 ### Docs
 
@@ -26,6 +27,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Fixed
 
 - Windows MSI deployments can now prohibit WebView2 bootstrap with `DISABLEWEBVIEW2BOOTSTRAP=1`, and `AUTOLAUNCHAPP=0` reliably suppresses first launch (#1714)
+- Subtitle rows now provide 100 ms timing steppers and flag adjacent overlaps without requiring precise timeline dragging (#1710)
 - Repair-sync failures now retain uv's final dependency error instead of reporting only an opaque exit status (#1705)
 - YouTube ingest now retries yt-dlp's transient “page needs to be reloaded” response (#1706)
 - Dictation model readiness now follows the live Hugging Face cache selected in Settings (#1707)

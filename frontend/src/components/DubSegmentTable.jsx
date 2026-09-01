@@ -6,8 +6,8 @@ import { Table, Select } from '../ui';
 import { useAppStore } from '../store';
 import { visibleMergeAvailability } from '../utils/segmentParts';
 
-const BASE_ROW_HEIGHT = 26;
-const ROW_HEIGHT_WITH_ORIG = 40;
+const BASE_ROW_HEIGHT = 48;
+const ROW_HEIGHT_WITH_ORIG = 62;
 
 const COLUMNS = [
   { key: 'time', width: 50 },
@@ -228,6 +228,11 @@ export default function DubSegmentTable({
       // Merge operates on source neighbors. Hide the action when a filter
       // hides that neighbor so the user cannot mutate an unseen subtitle.
       const { canMerge, canMergePrev } = visibleMergeAvailability(segs, fl, seg);
+      const previous = segs[absoluteIndex - 1];
+      const next = segs[absoluteIndex + 1];
+      const hasOverlap =
+        (previous && Number(previous.end) > Number(seg.start) + 0.001) ||
+        (next && Number(seg.end) > Number(next.start) + 0.001);
       return (
         <DubSegmentRow
           seg={seg}
@@ -238,6 +243,7 @@ export default function DubSegmentTable({
           isDone={isDone}
           isPlaying={isPlaying}
           timelineSelected={timelineSelected}
+          hasOverlap={hasOverlap}
           previewLoading={previewId === seg.id}
           selected={sel && sel.has(seg.id)}
           canMerge={canMerge}

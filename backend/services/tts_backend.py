@@ -407,6 +407,13 @@ class TTSBackend(ABC):
     # entirely (it drives the shared model_manager singleton).
     _MODEL_ATTRS: tuple[str, ...] = ("_model", "_tts")
 
+    def execution_evidence_loaded(self) -> bool:
+        """Whether this instance has live model state worth reporting."""
+        if self.runs_out_of_process:
+            proc = getattr(self, "_proc", None)
+            return proc is not None and proc.poll() is None
+        return any(getattr(self, attr, None) is not None for attr in self._MODEL_ATTRS)
+
     def unload(self) -> None:
         """Release the heavy model this backend holds, and free device caches.
 
@@ -2392,6 +2399,7 @@ def list_backends() -> list[dict]:
     # Routing is host-aware but the host caps are constant per process, so probe
     # ONCE here and resolve each engine's effective device against the same caps.
     from core.device_caps import detect_host_caps
+    from services.engine_evidence import snapshot as execution_snapshot
     from services.engine_routing import routing_fields
     caps = detect_host_caps()
     installable = _sidecar_installable_ids()
@@ -2425,6 +2433,12 @@ def list_backends() -> list[dict]:
         # descriptor, not a bool, so report None (= model-dependent) there
         # instead of an always-truthy false positive.
         _clone = getattr(cls, "supports_cloning", True)
+        routing = routing_fields(gpu_compat, caps, getattr(cls, "min_vram_gb", 0.0))
+        loaded_instance = None
+        if _active_instance_id == bid:
+            loaded_instance = _active_instance
+        if loaded_instance is None:
+            loaded_instance = _ENGINE_INSTANCES.get(cls)
         out.append({
             "id": bid,
             "display_name": cls.display_name,
@@ -2451,7 +2465,14 @@ def list_backends() -> list[dict]:
             "min_vram_gb": getattr(cls, "min_vram_gb", 0.0) or None,
             # effective_device / routing_status / routing_reason (scrubbed);
             # the reason now also carries the under-provisioned-GPU caveat.
-            **routing_fields(gpu_compat, caps, getattr(cls, "min_vram_gb", 0.0)),
+            **routing,
+            "execution_evidence": execution_snapshot(
+                engine_id=bid,
+                engine_cls=cls,
+                instance=loaded_instance,
+                routing=routing,
+                caps=caps,
+            ),
         })
         # #981: mlx-audio multiplexes 7+ curated models behind one backend id
         # — surface the roster + the currently-active pick so Settings can

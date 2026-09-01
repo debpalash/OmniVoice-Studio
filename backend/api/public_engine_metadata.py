@@ -49,6 +49,13 @@ def public_backends(entries: list[dict]) -> list[dict]:
             item["routing_reason"] = _public_routing_reason(
                 item.get("routing_status"), item["routing_reason"]
             )
+        evidence = item.get("execution_evidence")
+        if isinstance(evidence, dict) and evidence.get("cpu_fallback_reason") is not None:
+            evidence = dict(evidence)
+            evidence["cpu_fallback_reason"] = _public_routing_reason(
+                "cpu_fallback", evidence["cpu_fallback_reason"]
+            )
+            item["execution_evidence"] = evidence
         safe.append(item)
     return safe
 
