@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 // Mock the toast import the component depends on — keeps the test free
 // of side-effect side-channels (toast() schedules timers we don't want).
@@ -19,6 +19,7 @@ vi.mock('../api/system', () => ({
 
 import EngineCompatibilityMatrix, {
   FORCE_WAIT_TIMEOUT_MS,
+  fmtDiskBytes,
 } from '../components/EngineCompatibilityMatrix';
 
 /** Build a minimal AllEnginesResponse with the three rows the plan calls for. */
@@ -67,6 +68,10 @@ function makeEnginesResponse({ inProcessAvailable = true, inProcessHasLastError 
 describe('EngineCompatibilityMatrix', () => {
   beforeEach(() => {
     vi.useRealTimers();
+  });
+
+  it('formats disk sizes with the active locale', () => {
+    expect(fmtDiskBytes(1.5 * 1024 ** 3, 'unknown', 'de-DE')).toMatch(/^1,50\sGB$/u);
   });
 
   it('lists available engines first, keeping registration order inside each group', async () => {
@@ -137,6 +142,100 @@ describe('EngineCompatibilityMatrix', () => {
       'Isolation',
       'Actions',
     ]);
+  });
+
+  it('shows separate estimates and measured disk categories on demand', async () => {
+    const response = makeEnginesResponse();
+    response.tts.backends[0].disk_usage = {
+      estimate: {
+        model_download_bytes: 2 * 1024 ** 3,
+        package_download_bytes: null,
+        unique_installed_bytes: 3 * 1024 ** 3,
+        potentially_shared_bytes: null,
+        temporary_free_bytes: 4 * 1024 ** 3,
+        destination: 'hf_model_cache',
+        confidence: 'estimated',
+        deduplication: null,
+      },
+      actual: {},
+    };
+    const apiGetDiskUsage = vi.fn().mockResolvedValue({
+      estimate: response.tts.backends[0].disk_usage.estimate,
+      actual: {
+        model_bytes: 1024 ** 3,
+        environment_bytes: null,
+        cache_bytes: 0,
+        total_owned_bytes: 1024 ** 3,
+        confidence: 'measured',
+      },
+    });
+    render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        apiListEngines={vi.fn().mockResolvedValue(response)}
+        apiGetEngineHealth={vi.fn()}
+        apiGetDiskUsage={apiGetDiskUsage}
+      />,
+    );
+
+    await screen.findByText('OmniVoice (test)');
+    fireEvent.click(screen.getByRole('button', { name: 'Disk details' }));
+    await waitFor(() => expect(apiGetDiskUsage).toHaveBeenCalledWith('omnivoice'));
+    const details = await screen.findByTestId('disk-usage-omnivoice');
+    expect(within(details).getByText('Model download')).toBeInTheDocument();
+    expect(within(details).getByText('Package download')).toBeInTheDocument();
+    expect(within(details).getByText('Actual environment')).toBeInTheDocument();
+    expect(within(details).getByText('Estimate confidence')).toBeInTheDocument();
+    expect(within(details).getByText('Estimated')).toBeInTheDocument();
+    expect(within(details).getByText('Measurement confidence')).toBeInTheDocument();
+    expect(within(details).getByText('Measured')).toBeInTheDocument();
+    expect(within(details).getAllByText('1.00 GB')).toHaveLength(2);
+    expect(within(details).getAllByText('unknown').length).toBeGreaterThan(0);
+  });
+
+  it('ignores a disk measurement that finishes after engine data reloads', async () => {
+    const response = makeEnginesResponse();
+    response.tts.backends[0].disk_usage = {
+      estimate: {
+        model_download_bytes: 2 * 1024 ** 3,
+        confidence: 'estimated',
+      },
+      actual: {},
+    };
+    let resolveMeasurement;
+    const apiGetDiskUsage = vi.fn(() => new Promise((resolve) => (resolveMeasurement = resolve)));
+    const apiListEngines = vi.fn().mockResolvedValue(response);
+    const view = render(
+      <EngineCompatibilityMatrix
+        family="tts"
+        reloadToken={0}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiGetDiskUsage={apiGetDiskUsage}
+      />,
+    );
+
+    await screen.findByText('OmniVoice (test)');
+    fireEvent.click(screen.getByRole('button', { name: 'Disk details' }));
+    await waitFor(() => expect(apiGetDiskUsage).toHaveBeenCalledOnce());
+    view.rerender(
+      <EngineCompatibilityMatrix
+        family="tts"
+        reloadToken={1}
+        apiListEngines={apiListEngines}
+        apiGetEngineHealth={vi.fn()}
+        apiGetDiskUsage={apiGetDiskUsage}
+      />,
+    );
+    await waitFor(() => expect(apiListEngines).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      resolveMeasurement({
+        estimate: response.tts.backends[0].disk_usage.estimate,
+        actual: { model_bytes: 9 * 1024 ** 3, confidence: 'measured' },
+      });
+    });
+
+    expect(screen.queryByText('9.00 GB')).not.toBeInTheDocument();
   });
 
   it('shows isolation_mode badge per row (subprocess for IndexTTS, in-process for the others)', async () => {
@@ -247,7 +346,9 @@ describe('EngineCompatibilityMatrix', () => {
 
     await waitFor(() => screen.getByText('IndexTTS2 (test)'));
     const indexRow = screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
-    const testBtn = within(indexRow).getByRole('button', { name: /test indextts2/i });
+    const testBtn = within(indexRow).getByRole('button', {
+      name: /test indextts2/i,
+    });
     fireEvent.click(testBtn);
 
     await waitFor(() => {
@@ -279,7 +380,9 @@ describe('EngineCompatibilityMatrix', () => {
 
     await waitFor(() => screen.getByText('IndexTTS2 (test)'));
     const indexRow = screen.getByText('IndexTTS2 (test)').closest('[role="row"]');
-    const testBtn = within(indexRow).getByRole('button', { name: /test indextts2/i });
+    const testBtn = within(indexRow).getByRole('button', {
+      name: /test indextts2/i,
+    });
     fireEvent.click(testBtn);
 
     await waitFor(() => {
@@ -291,7 +394,12 @@ describe('EngineCompatibilityMatrix', () => {
     expect(apiGetEngineHealth).toHaveBeenCalledTimes(1);
 
     // Release the promise so the test doesn't leak a pending microtask.
-    resolveHealth({ id: 'indextts2', ok: true, message: 'pong', latency_ms: 50 });
+    resolveHealth({
+      id: 'indextts2',
+      ok: true,
+      message: 'pong',
+      latency_ms: 50,
+    });
   });
 
   // ── #21 routing display ────────────────────────────────────────────────
@@ -336,7 +444,11 @@ describe('EngineCompatibilityMatrix', () => {
             routing_reason: 'requires cuda; this host has cpu',
           }),
           // Legacy payload: no routing_* keys → render exactly as before.
-          base({ id: 'legacy', display_name: 'Legacy TTS', gpu_compat: ['cpu'] }),
+          base({
+            id: 'legacy',
+            display_name: 'Legacy TTS',
+            gpu_compat: ['cpu'],
+          }),
         ],
       },
       asr: { active: '', backends: [] },
@@ -482,9 +594,12 @@ describe('EngineCompatibilityMatrix', () => {
   // ── P3-B: in-process health check reads as a liveness/deps check ────────
   it('labels an in-process health check "deps OK" while subprocess shows real ms', async () => {
     const apiListEngines = vi.fn().mockResolvedValue(makeEnginesResponse());
-    const apiGetEngineHealth = vi
-      .fn()
-      .mockResolvedValue({ id: 'omnivoice', ok: true, message: 'import ok', latency_ms: 0 });
+    const apiGetEngineHealth = vi.fn().mockResolvedValue({
+      id: 'omnivoice',
+      ok: true,
+      message: 'import ok',
+      latency_ms: 0,
+    });
     render(
       <EngineCompatibilityMatrix
         family="tts"
@@ -598,7 +713,9 @@ describe('EngineCompatibilityMatrix', () => {
     expect(screen.queryByText('Supertonic-3 — License Acceptance')).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole('button', { name: /review and accept supertonic-3 license/i }),
+      screen.getByRole('button', {
+        name: /review and accept supertonic-3 license/i,
+      }),
     );
     await waitFor(() => {
       expect(screen.getByText('Supertonic-3 — License Acceptance')).toBeInTheDocument();
@@ -634,7 +751,11 @@ describe('EngineCompatibilityMatrix', () => {
     );
 
     await waitFor(() => screen.getByText('PocketTTS'));
-    fireEvent.click(screen.getByRole('button', { name: /review and accept pockettts license/i }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /review and accept pockettts license/i,
+      }),
+    );
     await waitFor(() => {
       expect(screen.getByText('PocketTTS License Acceptance')).toBeInTheDocument();
       expect(screen.getByText('Review the access conditions')).toBeInTheDocument();
@@ -829,7 +950,11 @@ describe('EngineCompatibilityMatrix', () => {
                 label: 'Kokoro (default, fast)',
                 repo_id: 'mlx-community/Kokoro-82M-bf16',
               },
-              { key: 'csm', label: 'CSM (voice cloning)', repo_id: 'mlx-community/csm-1b-8bit' },
+              {
+                key: 'csm',
+                label: 'CSM (voice cloning)',
+                repo_id: 'mlx-community/csm-1b-8bit',
+              },
               {
                 key: 'outetts',
                 label: 'OuteTTS',

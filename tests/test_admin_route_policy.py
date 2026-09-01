@@ -125,6 +125,7 @@ def test_managed_sidecar_install_stays_desktop_only():
 @pytest.mark.parametrize(
     ("filename", "function_name"),
     [
+        ("engines.py", "engine_disk_usage"),
         ("engines.py", "engine_health"),
         ("settings.py", "list_llm_provider_models"),
         ("system.py", "system_diagnose"),

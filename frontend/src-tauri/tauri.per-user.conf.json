@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "VoiceStudio (Current User)",
+  "bundle": {
+    "targets": ["msi"],
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "wix": {
+        "upgradeCode": "f27de3a8-a9dc-4a3d-84bb-e98f1bf82393",
+        "template": "target/wix-per-user/main.wxs",
+        "enableElevatedUpdateTask": false
+      }
+    }
+  }
+}
