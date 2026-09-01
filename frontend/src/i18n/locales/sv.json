@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Försök igen avbröts",
     "transcription_failed": "Transkription misslyckades: {{message}}",
     "import_srt_no_job": "Ladda upp eller mata in en video först – det finns inget jobb att bifoga undertexter till.",
+    "import_srt_after_speakers": "SRT har köats. Talaranalysen slutförs först så att klonade röster bevaras.",
     "imported_cues": "Importerade {{count}} signal(er) från {{file}}",
     "skipped_malformed": "{{count}} hoppade över (felformat)",
     "dropped_overlap": "{{count}} tappade (överlappning)",

@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Reintento cancelado",
     "transcription_failed": "Error de transcripción: {{message}}",
     "import_srt_no_job": "Primero cargue o ingiera un video: no hay ningún trabajo al que adjuntar subtítulos.",
+    "import_srt_after_speakers": "SRT en cola. Primero finalizará el análisis de hablantes para conservar las voces clonadas.",
     "imported_cues": "{{count}} cue(s) importadas de {{file}}",
     "skipped_malformed": "{{count}} omitido (mal formado)",
     "dropped_overlap": "{{count}} caído (superposición)",

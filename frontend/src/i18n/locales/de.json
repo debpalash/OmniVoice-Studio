@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Wiederholungsversuch abgebrochen",
     "transcription_failed": "Transkription fehlgeschlagen: {{message}}",
     "import_srt_no_job": "Laden Sie zuerst ein Video hoch oder nehmen Sie es auf – es gibt keinen Job, dem Sie Untertitel hinzufügen müssen.",
+    "import_srt_after_speakers": "SRT vorgemerkt. Zuerst wird die Sprecheranalyse abgeschlossen, damit geklonte Stimmen erhalten bleiben.",
     "imported_cues": "{{count}} Cue(s) von {{file}} importiert",
     "skipped_malformed": "{{count}} übersprungen (fehlerhaft)",
     "dropped_overlap": "{{count}} gelöscht (Überlappung)",

@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Ponowna próba anulowana",
     "transcription_failed": "Transkrypcja nie powiodła się: {{message}}",
     "import_srt_no_job": "Najpierw prześlij lub pobierz film — nie ma zadania, do którego można by dołączyć napisy.",
+    "import_srt_after_speakers": "Plik SRT dodano do kolejki. Najpierw zakończy się analiza mówców, aby zachować sklonowane głosy.",
     "imported_cues": "Zaimportowano {{count}} pamięci z {{file}}",
     "skipped_malformed": "{{count}} pominięty (zniekształcony)",
     "dropped_overlap": "{{count}} upuszczony (nakładanie się)",

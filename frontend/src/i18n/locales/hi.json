@@ -2036,6 +2036,7 @@
     "retry_cancelled": "पुनः प्रयास रद्द कर दिया गया",
     "transcription_failed": "प्रतिलेखन विफल: {{message}}",
     "import_srt_no_job": "पहले एक वीडियो अपलोड या इंजेस्ट करें - इसमें उपशीर्षक संलग्न करना कोई काम नहीं है।",
+    "import_srt_after_speakers": "SRT कतार में है। क्लोन की गई आवाज़ों को सुरक्षित रखने के लिए पहले वक्ता विश्लेषण पूरा होगा।",
     "imported_cues": "{{file}} से आयातित {{count}} संकेत",
     "skipped_malformed": "{{count}} छोड़ दिया गया (विकृत)",
     "dropped_overlap": "{{count}} गिरा दिया गया (ओवरलैप)",

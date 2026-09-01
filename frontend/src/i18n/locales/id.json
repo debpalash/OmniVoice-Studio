@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Coba lagi dibatalkan",
     "transcription_failed": "Transkripsi gagal: {{message}}",
     "import_srt_no_job": "Unggah atau serap video terlebih dahulu — tidak ada tugas untuk melampirkan subtitle.",
+    "import_srt_after_speakers": "SRT masuk antrean. Analisis pembicara akan diselesaikan lebih dahulu agar suara kloning tetap dipertahankan.",
     "imported_cues": "{{count}} isyarat yang diimpor dari {{file}}",
     "skipped_malformed": "{{count}} dilewati (format salah)",
     "dropped_overlap": "{{count}} terjatuh (tumpang tindih)",

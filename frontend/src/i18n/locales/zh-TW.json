@@ -2036,6 +2036,7 @@
     "retry_cancelled": "重試已取消",
     "transcription_failed": "轉錄失敗：{{message}}",
     "import_srt_no_job": "首先上传或摄取视频 - 没有附加字幕的作业。",
+    "import_srt_after_speakers": "SRT 已加入佇列。系統會先完成說話者分析，以保留複製語音。",
     "imported_cues": "從 {{file}} 導入了 {{count}} 提示",
     "skipped_malformed": "{{count}} 已跳過（格式錯誤）",
     "dropped_overlap": "{{count}} 掉落（重疊）",

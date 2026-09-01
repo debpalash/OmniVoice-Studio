@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Nuovo tentativo annullato",
     "transcription_failed": "Trascrizione non riuscita: {{message}}",
     "import_srt_no_job": "Carica o importa prima un video: non esiste un lavoro a cui allegare i sottotitoli.",
+    "import_srt_after_speakers": "SRT in coda. Prima verrà completata l’analisi dei parlanti per conservare le voci clonate.",
     "imported_cues": "Cue {{count}} importati da {{file}}",
     "skipped_malformed": "{{count}} saltato (formato non valido)",
     "dropped_overlap": "{{count}} eliminato (sovrapposizione)",

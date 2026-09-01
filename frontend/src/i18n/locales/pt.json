@@ -2036,6 +2036,7 @@
     "retry_cancelled": "Retry cancelled",
     "transcription_failed": "Falha na transcrição: {{message}}",
     "import_srt_no_job": "Carregue ou ingira um vídeo primeiro – não há trabalho para anexar legendas.",
+    "import_srt_after_speakers": "SRT na fila. A análise dos falantes será concluída primeiro para preservar as vozes clonadas.",
     "imported_cues": "Sugestão(s) {{count}} importada(s) de {{file}}",
     "skipped_malformed": "{{count}} ignorado (malformado)",
     "dropped_overlap": "{{count}} caiu (sobreposição)",

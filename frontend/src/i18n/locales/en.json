@@ -2707,6 +2707,7 @@
     "session_expired": "This dub session expired or was cleaned up — re-upload your video to start a new one.",
     "transcription_failed": "Transcription failed: {{message}}",
     "import_srt_no_job": "Upload or ingest a video first — there is no job to attach subtitles to.",
+    "import_srt_after_speakers": "SRT queued. Speaker analysis will finish first so cloned voices are preserved.",
     "imported_cues": "Imported {{count}} cue(s) from {{file}}",
     "skipped_malformed": "{{count}} skipped (malformed)",
     "dropped_overlap": "{{count}} dropped (overlap)",
