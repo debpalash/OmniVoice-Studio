@@ -311,7 +311,6 @@ export default function useDubWorkflow({
         if (replacement === queuedSrt) return false;
         queuedSrt = replacement;
       }
-      return false;
     },
     [setDubStep, _performSrtImport],
   );
