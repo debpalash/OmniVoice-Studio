@@ -2,6 +2,7 @@ import { apiJson, apiPost } from './client';
 import type {
   AllEnginesResponse,
   EngineFamily,
+  EngineDiskUsage,
   EngineHealthResponse,
   EngineSelfTestResponse,
   SelectEngineResponse,
@@ -70,6 +71,10 @@ export async function selectEngine(
  */
 export async function getEngineHealth(engineId: string): Promise<EngineHealthResponse> {
   return apiJson<EngineHealthResponse>(`/engines/${encodeURIComponent(engineId)}/health`);
+}
+
+export async function getEngineDiskUsage(engineId: string): Promise<EngineDiskUsage> {
+  return apiJson<EngineDiskUsage>(`/engines/${encodeURIComponent(engineId)}/disk-usage`);
 }
 
 /**

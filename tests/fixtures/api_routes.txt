@@ -89,6 +89,7 @@ GET /engines/sidecar/{engine_id}/install/status
 GET /engines/sonitranslate/status
 GET /engines/translation
 GET /engines/tts
+GET /engines/{engine_id}/disk-usage
 GET /engines/{engine_id}/health
 GET /export/history
 GET /gallery/categories

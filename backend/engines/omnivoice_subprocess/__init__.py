@@ -52,6 +52,11 @@ class OmniVoiceSubprocessBackend(SubprocessBackend):
     # Match OmniVoiceBackend: the measured floor below which a render that
     # should take seconds runs for minutes (the #1226/#1222 4 GB reports).
     min_vram_gb = 6.0
+    # Packaged Windows hosts can spend more than the base 30 seconds starting
+    # the shared Python runtime before this stdlib-only sidecar emits ready.
+    # Keep the bound below the 300-second generation budget while avoiding the
+    # repeated false kill captured in #1711.
+    spawn_ready_timeout_s = 120.0
 
     @classmethod
     def is_available(cls) -> tuple[bool, str]:

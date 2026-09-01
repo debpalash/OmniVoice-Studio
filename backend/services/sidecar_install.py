@@ -116,6 +116,11 @@ class SidecarSpec:
     weights_config_names: tuple[str, ...] = ("config.yaml",)
     docs_path: str = "docs/engines"         # where the manual-install fallback lives
     required_bytes: int = 12 * _GIB    # conservative source+venv+weights estimate for preflight
+    weights_bytes: Optional[int] = None
+    dependency_bytes: Optional[int] = None
+    potentially_shared_bytes: Optional[int] = None
+    temporary_free_bytes: Optional[int] = None
+    disk_confidence: str = "unknown"
     # Called after a successful install/uninstall so the engine's memoised
     # venv resolution re-probes (import inside the lambda — never at module load).
     invalidate: Callable[[], None] = field(default=lambda: None)
@@ -157,6 +162,11 @@ SPECS: dict[str, SidecarSpec] = {
         # ~6 GB weights. Deliberately conservative; the preflight subtracts
         # whatever a partial install already put on disk.
         required_bytes=12 * _GIB,
+        weights_bytes=6 * _GIB,
+        dependency_bytes=6 * _GIB,
+        potentially_shared_bytes=None,
+        temporary_free_bytes=12 * _GIB,
+        disk_confidence="estimated",
         invalidate=_indextts_invalidate,
         installed_probe=_indextts_installed,
     ),
@@ -312,6 +322,25 @@ def _dir_size_bytes(path: Path) -> int:
     return total
 
 
+def _preserved_install_bytes(spec: SidecarSpec, checkout: Path) -> tuple[int, int]:
+    """Return bytes preserved for the final install and dependency peak.
+
+    Resumable weights reduce the final download requirement, but they do not
+    reduce uv's separate environment-build peak. Only source and a usable
+    existing venv count against that peak.
+    """
+    if not _source_present(spec, checkout):
+        return 0, 0
+
+    weights_dir = checkout / spec.weights_subdir
+    weights = _dir_size_bytes(weights_dir) if spec.weights_repo_id else 0
+    venv_dir = checkout / ".venv"
+    venv = _dir_size_bytes(venv_dir)
+    source = max(0, _dir_size_bytes(checkout) - weights - venv)
+    usable_venv = venv if _venv_python(venv_dir).is_file() else 0
+    return source + usable_venv + weights, source + usable_venv
+
+
 def disk_free_bytes(path: Path) -> int:
     """Free bytes on the volume backing *path* (nearest existing ancestor).
     Never raises; 0 when the volume can't be probed."""
@@ -334,8 +363,17 @@ def disk_space_error(spec: SidecarSpec) -> Optional[str]:
     root = managed_root(spec)
     # A preserved predecessor is not a partial copy of the new install: the
     # upgrade needs its full space until the new sidecar is verified.
-    already = _dir_size_bytes(managed_checkout(spec))
-    remaining = max(0, spec.required_bytes - already)
+    checkout = managed_checkout(spec)
+    # Credit only bytes the later steps preserve. An invalid layout or revision
+    # marker makes _step_fetch_source delete the whole checkout.
+    preserved, dependency_peak_credit = _preserved_install_bytes(spec, checkout)
+    remaining = max(0, spec.required_bytes - preserved)
+    if spec.temporary_free_bytes is not None:
+        # Resumable model weights are unrelated to uv's dependency-build peak.
+        remaining = max(
+            remaining,
+            max(0, spec.temporary_free_bytes - dependency_peak_credit),
+        )
     free = disk_free_bytes(root)
     if free <= 0:
         return None  # can't probe → never block on missing information

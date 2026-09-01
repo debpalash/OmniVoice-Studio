@@ -273,6 +273,42 @@ def test_omnivoice_subprocess_recv_timeout_overrides_default():
     assert b.recv_timeout_s == 300.0  # aligns with the generate budget
 
 
+def test_omnivoice_subprocess_has_longer_spawn_budget_than_other_sidecars():
+    assert _PlainBackend.spawn_ready_timeout_s == 30.0
+    assert OmniVoiceSubprocessBackend.spawn_ready_timeout_s == 120.0
+
+
+def test_spawn_uses_backend_specific_ready_timeout(monkeypatch, tmp_path):
+    _use_stub(monkeypatch, tmp_path / "unused.py")
+    backend = OmniVoiceSubprocessBackend()
+    observed = []
+
+    class StubProcess:
+        stderr = io.BytesIO()
+
+        @staticmethod
+        def poll():
+            return None
+
+    monkeypatch.setattr(
+        "services.subprocess_backend.spawn_owned",
+        lambda *_args, **_kwargs: StubProcess(),
+    )
+    monkeypatch.setattr(
+        backend,
+        "_recv_with_timeout",
+        lambda timeout: observed.append(timeout) or {"op": "ready"},
+    )
+    monkeypatch.setattr("services.subprocess_backend._ensure_reaper_running", lambda: None)
+
+    try:
+        backend._spawn()
+    finally:
+        backend._proc = None
+
+    assert observed == [120.0]
+
+
 def test_omnivoice_subprocess_recv_timeout_env_override(monkeypatch):
     monkeypatch.setenv("OMNIVOICE_SIDECAR_RECV_TIMEOUT_S", "120")
     assert OmniVoiceSubprocessBackend().recv_timeout_s == 120.0

@@ -10,12 +10,14 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- Show estimated and measured model, dependency, cache, and temporary disk costs in the engine catalogue (#1718)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
 
 ### Changed
 
 ### Added
 
+- Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
 - Engine status and diagnostic bundles now record loaded execution provider, device, precision, fallback stage, accelerator identity, runtime versions, and parent-process memory visibility (#1717)
 
 ### Docs
@@ -25,6 +27,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- OmniVoice subprocess startup now allows slow packaged Windows Python runtimes to signal readiness before termination (#1711)
+- SRT files selected during source analysis now wait for speaker cloning, then replace transcript text without losing voices (#1709)
 - Windows MSI deployments can now prohibit WebView2 bootstrap with `DISABLEWEBVIEW2BOOTSTRAP=1`, and `AUTOLAUNCHAPP=0` reliably suppresses first launch (#1714)
 - Subtitle rows now provide 100 ms timing steppers and flag adjacent overlaps without requiring precise timeline dragging (#1710)
 - Repair-sync failures now retain uv's final dependency error instead of reporting only an opaque exit status (#1705)
