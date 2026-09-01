@@ -16,6 +16,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Added
 
+- Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
 - Engine status and diagnostic bundles now record loaded execution provider, device, precision, fallback stage, accelerator identity, runtime versions, and parent-process memory visibility (#1717)
 
 ### Docs

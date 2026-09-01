@@ -80,9 +80,23 @@ model weights. The splash screen shows progress.
 ## Install (pre-built MSI)
 
 Download the latest MSI from the
-[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest),
-run it, follow the wizard. The shortcut lands in the Start menu as
-**VoiceStudio**.
+[Releases page](https://github.com/debpalash/VoiceStudio/releases/latest).
+
+| Artifact name | Scope | Administrator required | Default location |
+|---|---|---|---|
+| `VoiceStudio_<version>_x64_en-US.msi` | All users (per-machine) | Yes | `%ProgramFiles%\VoiceStudio` |
+| `VoiceStudio_Current_User_<version>_x64_en-US.msi` | Current user only | No | `%LOCALAPPDATA%\VoiceStudio (Current User)` |
+
+Run the artifact matching the required scope and follow the wizard. The
+per-user artifact can be installed, updated, and removed by a standard Windows
+account. It has a separate Windows Installer upgrade identity, shortcut name,
+and signed updater manifest, so it cannot upgrade or uninstall the per-machine
+copy (or vice versa). Both copies use the same VoiceStudio data directory; do
+not run them simultaneously against the same projects.
+
+Automatic updates preserve the installed scope. Managed deployments should
+continue to use the per-machine MSI. Users without elevation should choose the
+artifact containing `Current_User`.
 
 ### Installing to a different drive
 
@@ -132,22 +146,34 @@ Managed or offline deployments can prohibit that network action:
 msiexec /i VoiceStudio_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-install.log"
 ```
 
-With `DISABLEWEBVIEW2BOOTSTRAP=1`, detection still runs but no WebView2
-PowerShell, download, or installer action can start. If the runtime is absent,
-the MSI fails before copying VoiceStudio and tells the operator to deploy the
-[Microsoft Evergreen Standalone Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
-first. This fail-closed behavior prevents a detection miss from becoming an
-unexpected elevated download. `/L*V` records detection and action selection in
-the named Windows Installer log.
+The per-user artifact never contains a WebView2 download or installer action.
+It does not require an elevated terminal, and fails closed when the runtime is
+absent:
+
+```powershell
+msiexec /i VoiceStudio_Current_User_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-user-install.log"
+```
+
+For the per-machine artifact, `DISABLEWEBVIEW2BOOTSTRAP=1` leaves detection
+enabled but prevents every WebView2 PowerShell, download, and installer action.
+For the per-user artifact that property is redundant because those actions are
+omitted from the MSI. If the runtime is absent, either MSI fails before copying
+VoiceStudio and tells the operator to deploy the
+[Microsoft Evergreen Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
+first. `/L*V` records detection and action selection in the named Windows
+Installer log.
 
 An interactive administrator may explicitly permit Microsoft's network
-bootstrapper by setting `ALLOWWEBVIEW2BOOTSTRAP=1`. Only then does the MSI
-download `https://go.microsoft.com/fwlink/p/?LinkId=2124703` with PowerShell
-and invoke it silently with `/install`; `DISABLEWEBVIEW2BOOTSTRAP=1` always
-wins if both properties are supplied.
+bootstrapper for the per-machine artifact by setting
+`ALLOWWEBVIEW2BOOTSTRAP=1`. Only then does that MSI download
+`https://go.microsoft.com/fwlink/p/?LinkId=2124703` with PowerShell and invoke
+it silently with `/install`; `DISABLEWEBVIEW2BOOTSTRAP=1` always wins if both
+properties are supplied. `ALLOWWEBVIEW2BOOTSTRAP` has no effect on the
+per-user artifact.
 
 `AUTOLAUNCHAPP=0` is independent: it prevents VoiceStudio from launching after
-a successful silent install. It does not disable WebView2 detection or setup.
+a successful silent install. It does not change WebView2 detection; on the
+per-machine artifact it also does not disable an otherwise permitted setup.
 
 ## Portable install (Windows)
 

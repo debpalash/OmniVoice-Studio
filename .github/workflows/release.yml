@@ -649,6 +649,46 @@ jobs:
           updaterJsonPreferNsis: false
           includeUpdaterJson: true
 
+      - name: Build per-user Windows MSI
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python ../scripts/render-per-user-wix.py \
+            --source src-tauri/wix/main.wxs \
+            --output src-tauri/target/wix-per-user/main.wxs
+          bunx tauri build --target ${{ matrix.rust_target }} --bundles msi \
+            --config src-tauri/tauri.per-user.conf.json
+          DIR="src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi"
+          while IFS= read -r artifact; do
+            safe=${artifact// (Current User)/_Current_User}
+            [ "$safe" = "$artifact" ] || mv "$artifact" "$safe"
+          done < <(find "$DIR" -maxdepth 1 -type f -name '*Current*User*.msi*')
+
+      - name: Publish per-user Windows updater channel
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ (needs.preview-gate.outputs.is_preview == 'true') && 'preview' || github.ref_name }}
+        run: |
+          set -euo pipefail
+          DIR="frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi"
+          MSI=$(find "$DIR" -name '*Current*User*.msi' -type f | head -1)
+          [ -n "$MSI" ] || { echo "per-user MSI missing"; find "$DIR" -type f; exit 1; }
+          [ -f "$MSI.sig" ] || { echo "per-user MSI signature missing"; exit 1; }
+          VERSION=$(jq -r .version frontend/package.json)
+          python scripts/build_windows_user_manifest.py \
+            --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --version "$VERSION" \
+            --asset "$(basename "$MSI")" --signature-file "$MSI.sig" \
+            --output latest-user.json
+          gh release upload "$RELEASE_TAG" "$MSI" "$MSI.sig" latest-user.json \
+            --clobber --repo "$GITHUB_REPOSITORY"
+
       # ── Installer smoke (Phase 0 GATE-03) ─────────────────────────────
       # Structural verification of the installed/extracted bundle. The thin
       # uv-venv installer ships NO frozen backend binary (the venv is built on
@@ -717,7 +757,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MSI=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi -name "*.msi" | head -1)
+          MSI=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi -name "*.msi" ! -name '*Current*User*' | head -1)
           echo "Smoke-testing MSI: $MSI"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-msi.ps1 -MsiPath "$(cygpath -w "$MSI")"
           # /quiet = no UI, /norestart = don't reboot the runner if a dep asks
@@ -731,6 +771,16 @@ jobs:
           find "$INSTALL" -type f -name 'pyproject.toml' | grep -q . || fail "backend resource pyproject.toml missing"
           find "$INSTALL" -type f -path '*backend*main.py' | grep -q . || fail "backend source main.py missing"
           echo "OK — MSI installed shell + uv + backend resources"
+
+      - name: Per-user installer smoke (Windows, non-admin account)
+        if: runner.os == 'Windows'
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          MSI=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi -name '*Current*User*.msi' | head -1)
+          powershell.exe -NoProfile -ExecutionPolicy Bypass \
+            -File scripts/smoke-per-user-msi.ps1 -MsiPath "$(cygpath -w "$MSI")"
 
       # linuxdeploy re-links .DirIcon as an ABSOLUTE symlink into the build
       # machine AFTER tauri's files-map has placed the real icon bytes — the
