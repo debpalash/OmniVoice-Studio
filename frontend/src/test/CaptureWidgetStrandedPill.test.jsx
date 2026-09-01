@@ -62,6 +62,7 @@ vi.mock('../utils/copyText', () => ({ copyText: vi.fn(async () => {}) }));
 vi.mock('react-hot-toast', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: async (cmd) => {
+    if (cmd === 'begin_dictation_capture_registration') return 1;
     if (cmd === 'check_accessibility') return mocks.holder.a11y;
     return undefined;
   },
