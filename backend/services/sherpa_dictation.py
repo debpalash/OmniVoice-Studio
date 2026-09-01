@@ -273,6 +273,13 @@ def sherpa_available() -> tuple[bool, str]:
         return False, f"sherpa-onnx unavailable ({type(e).__name__}): {e}"
 
 
+def _usable_model_file(path: str) -> bool:
+    try:
+        return os.path.isfile(path) and os.path.getsize(path) > 0
+    except OSError:
+        return False
+
+
 def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
     """Return the local directory containing this model's ONNX assets.
 
@@ -285,6 +292,7 @@ def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
     from services.hf_revisions import revision_for
 
     wanted = list(spec.files.values())
+    cache_dir = _live_hub_cache_dir()
     # Probe the revision an existing installation actually resolved.  Older
     # releases followed ``main`` and may therefore have a different snapshot;
     # retaining it preserves offline upgrades.  Any network fetch still uses
@@ -294,12 +302,57 @@ def _resolve_model_dir(spec: SherpaModelSpec, *, download: bool = True) -> str:
         return installed
     if not download:
         raise FileNotFoundError(f"No complete cached snapshot for {spec.repo_id}")
+
+    # A Windows cache can retain a snapshot entry whose target blob vanished,
+    # or a zero-byte ONNX placeholder left by an interrupted download.  Hub may
+    # then treat that entry as already materialized and return the same broken
+    # snapshot.  Repair those entries before asking for another download so the
+    # recognizer never receives a path to a file that does not resolve (#1733).
+    from services.hf_cache_repair import (
+        find_dangling_entries,
+        repair_repo_cache,
+        repo_cache_dir,
+    )
+
+    if find_dangling_entries(repo_cache_dir(spec.repo_id, cache_dir)):
+        repair = repair_repo_cache(spec.repo_id, cache_dir)
+        installed = _installed_snapshot(spec)
+        if installed:
+            return installed
+        if not repair.get("ok"):
+            logger.warning(
+                "sherpa dictation: cache repair for %s failed: %s",
+                spec.repo_id,
+                repair.get("error") or repair.get("outcome") or "unknown error",
+            )
+
     logger.info("sherpa dictation: downloading %s on first use", spec.repo_id)
-    return snapshot_download(
+    snapshot = snapshot_download(
         repo_id=spec.repo_id,
         revision=revision_for(spec.repo_id),
         allow_patterns=wanted,
-        cache_dir=_live_hub_cache_dir(),
+        cache_dir=cache_dir,
+    )
+    missing = [
+        name for name in wanted
+        if not _usable_model_file(os.path.join(snapshot, name))
+    ]
+    if not missing:
+        return snapshot
+
+    # Verify after the Hub reports success.  This catches hosts where a broken
+    # snapshot entry short-circuits snapshot_download.  The generic repair
+    # removes only broken entries, preserves blobs, and retries the immutable
+    # installed revision.
+    repair = repair_repo_cache(spec.repo_id, cache_dir)
+    installed = _installed_snapshot(spec)
+    if installed:
+        return installed
+    detail = repair.get("error") or repair.get("outcome") or "repair did not restore them"
+    raise FileNotFoundError(
+        f"Sherpa model cache is incomplete for {spec.repo_id}; missing "
+        f"{', '.join(missing)}. Cache repair failed: {detail}. Reinstall this "
+        "model from Model Catalogue."
     )
 
 
@@ -324,8 +377,10 @@ def _installed_snapshot(spec: SherpaModelSpec) -> str | None:
         "snapshots",
         revision,
     )
-    if all(os.path.isfile(os.path.join(snapshot, filename))
-           for filename in spec.files.values()):
+    if all(
+        _usable_model_file(os.path.join(snapshot, filename))
+        for filename in spec.files.values()
+    ):
         return snapshot
     return None
 
