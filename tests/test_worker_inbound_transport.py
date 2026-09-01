@@ -1415,7 +1415,7 @@ async def test_blocked_input_write_does_not_stall_key_revocation(
 
     def blocked_write(handle, payload):
         write_started.set()
-        if not release_write.wait(timeout=2):
+        if not release_write.wait(timeout=10):
             raise TimeoutError("test did not release the artifact write")
         real_write_all(handle, payload)
 
@@ -1440,9 +1440,11 @@ async def test_blocked_input_write_does_not_stall_key_revocation(
             raise RuntimeError(message)
 
     monkeypatch.setattr(listener_module, "_write_all", blocked_write)
-    watchdog = Timer(0.5, release_write.set)
+    # Deadlock escape for the regression path. The assertion below checks
+    # ordering, not runner speed: revocation must finish before this releases
+    # the blocked write.
+    watchdog = Timer(5, release_write.set)
     watchdog.start()
-    started_at = asyncio.get_running_loop().time()
     uploading = asyncio.create_task(servicer.PushInput(chunks(), Context()))
 
     async def wait_for_write():
@@ -1453,7 +1455,7 @@ async def test_blocked_input_write_does_not_stall_key_revocation(
         await asyncio.wait_for(wait_for_write(), timeout=1)
         assert servicer.revoke_key(issued.key.key_id) is True
         cleanup = servicer._key_retirements[issued.key.key_id]
-        assert asyncio.get_running_loop().time() - started_at < 0.2
+        assert not release_write.is_set()
     finally:
         release_write.set()
         watchdog.cancel()
