@@ -296,6 +296,7 @@
 
         <Condition Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen Standalone Runtime first, or explicitly set ALLOWWEBVIEW2BOOTSTRAP=1."><![CDATA[Installed OR REMOVE OR INSTALLED_WEBVIEW2_VERSION OR (ALLOWWEBVIEW2BOOTSTRAP = "1" AND DISABLEWEBVIEW2BOOTSTRAP <> "1")]]></Condition>
 
+        <!-- BEGIN WEBVIEW_INSTALL_ACTIONS -->
         {{#if download_bootstrapper}}
         <!-- Download webview bootstrapper mode -->
         <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{webview_installer_args}} &apos;/install&apos;) -Wait' Return='check'/>
@@ -351,6 +352,7 @@
             </Custom>
         </InstallExecuteSequence>
         {{/if}}
+        <!-- END WEBVIEW_INSTALL_ACTIONS -->
 
         {{/if}}
 

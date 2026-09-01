@@ -7,6 +7,9 @@ import argparse
 from pathlib import Path
 
 
+WEBVIEW_ACTIONS_START = "        <!-- BEGIN WEBVIEW_INSTALL_ACTIONS -->"
+WEBVIEW_ACTIONS_END = "        <!-- END WEBVIEW_INSTALL_ACTIONS -->"
+
 TRANSFORMS = (
     ('InstallScope="perMachine"', 'InstallScope="perUser"'),
     (
@@ -34,6 +37,16 @@ TRANSFORMS = (
         r'<RegistryKey Root="HKLM" Key="Software\Classes\\{{protocol}}">',
         r'<RegistryKey Root="HKCU" Key="Software\Classes\\{{protocol}}">',
     ),
+    (
+        '        <!-- Managed-deployment switches. Explicit allow is required for network bootstrap. -->\n'
+        '        <Property Id="ALLOWWEBVIEW2BOOTSTRAP" Secure="yes" />\n'
+        '        <Property Id="DISABLEWEBVIEW2BOOTSTRAP" Secure="yes" />',
+        '        <!-- The current-user bundle never installs or updates WebView2. -->',
+    ),
+    (
+        '        <Condition Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen Standalone Runtime first, or explicitly set ALLOWWEBVIEW2BOOTSTRAP=1."><![CDATA[Installed OR REMOVE OR INSTALLED_WEBVIEW2_VERSION OR (ALLOWWEBVIEW2BOOTSTRAP = "1" AND DISABLEWEBVIEW2BOOTSTRAP <> "1")]]></Condition>',
+        '        <Condition Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen Runtime for the current user first."><![CDATA[Installed OR REMOVE OR INSTALLED_WEBVIEW2_VERSION]]></Condition>',
+    ),
 )
 
 
@@ -44,6 +57,21 @@ def render(source: str) -> str:
         if count != 1:
             raise ValueError(f"expected exactly one WiX token, found {count}: {old}")
         rendered = rendered.replace(old, new)
+
+    start_count = rendered.count(WEBVIEW_ACTIONS_START)
+    end_count = rendered.count(WEBVIEW_ACTIONS_END)
+    if (start_count, end_count) != (1, 1):
+        raise ValueError(
+            "expected exactly one marked WebView2 action block, "
+            f"found start={start_count}, end={end_count}"
+        )
+    start = rendered.index(WEBVIEW_ACTIONS_START)
+    end = rendered.index(WEBVIEW_ACTIONS_END, start) + len(WEBVIEW_ACTIONS_END)
+    rendered = (
+        rendered[:start]
+        + "        <!-- WebView2 is a prerequisite for current-user installs. -->"
+        + rendered[end:]
+    )
     return rendered
 
 

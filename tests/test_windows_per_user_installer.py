@@ -46,6 +46,24 @@ def test_per_user_bundle_has_separate_identity_and_no_elevated_update_task():
     assert wix["template"] == "target/wix-per-user/main.wxs"
 
 
+def test_per_user_template_never_contains_webview_install_actions():
+    machine = SOURCE.read_text(encoding="utf-8")
+    user = _renderer().render(machine)
+
+    assert "https://go.microsoft.com/fwlink/p/?LinkId=2124703" in machine
+    assert "ALLOWWEBVIEW2BOOTSTRAP" in machine
+    for forbidden in (
+        "https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+        "ALLOWWEBVIEW2BOOTSTRAP",
+        "DownloadAndInvokeBootstrapper",
+        "InvokeBootstrapper",
+        "InvokeStandalone",
+        "UpdateWebView2ViaEdgeUpdate",
+    ):
+        assert forbidden not in user
+    assert "Installed OR REMOVE OR INSTALLED_WEBVIEW2_VERSION" in user
+
+
 def test_release_builds_publishes_and_smokes_as_a_standard_user():
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
     smoke = (ROOT / "scripts/smoke-per-user-msi.ps1").read_text(encoding="utf-8")
