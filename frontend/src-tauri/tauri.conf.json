@@ -99,6 +99,15 @@
       "minimumSystemVersion": "13.3",
       "signingIdentity": "-",
       "entitlements": "entitlements.plist"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "wix": {
+        "template": "wix/main.wxs"
+      }
     }
   },
   "plugins": {

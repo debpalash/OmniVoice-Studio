@@ -26,10 +26,12 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Fixed
 
 - OmniVoice subprocess startup now allows slow packaged Windows Python runtimes to signal readiness before termination (#1711)
+- Windows MSI deployments can now prohibit WebView2 bootstrap with `DISABLEWEBVIEW2BOOTSTRAP=1`, and `AUTOLAUNCHAPP=0` reliably suppresses first launch (#1714)
 - Subtitle rows now provide 100 ms timing steppers and flag adjacent overlaps without requiring precise timeline dragging (#1710)
 - Repair-sync failures now retain uv's final dependency error instead of reporting only an opaque exit status (#1705)
 - YouTube ingest now retries yt-dlp's transient “page needs to be reloaded” response (#1706)
 - Dictation model readiness now follows the live Hugging Face cache selected in Settings (#1707)
+- Dictation capture now queues native events whenever its webview listener unmounts or reloads instead of emitting them to nobody (#1707)
 - Desktop-contained backends now exit when their owning app disappears instead of surviving as stale port-3900 processes (#1707)
 
 ## [0.5.1] — 2026-08-28

@@ -10,7 +10,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
-const { toastMock, eventHandlers, eventState } = vi.hoisted(() => ({
+const { toastMock, eventHandlers, eventState, eventUnlisteners } = vi.hoisted(() => ({
   toastMock: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
@@ -19,6 +19,7 @@ const { toastMock, eventHandlers, eventState } = vi.hoisted(() => ({
   }),
   eventHandlers: {},
   eventState: { pendingStart: false },
+  eventUnlisteners: [],
 }));
 vi.mock('react-hot-toast', () => ({ default: toastMock, toast: toastMock }));
 
@@ -29,7 +30,9 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(async (name, handler) => {
     eventHandlers[name] = handler;
-    return () => delete eventHandlers[name];
+    const unlisten = vi.fn(() => delete eventHandlers[name]);
+    eventUnlisteners.push(unlisten);
+    return unlisten;
   }),
 }));
 vi.mock('@tauri-apps/api/window', () => ({
@@ -119,6 +122,7 @@ beforeEach(() => {
   window.__TAURI_INTERNALS__ = {};
   invokeMock.mockReset();
   invokeMock.mockImplementation(async (cmd) => {
+    if (cmd === 'begin_dictation_capture_registration') return 1;
     if (cmd === 'check_microphone') return 'granted';
     if (cmd === 'check_accessibility') return true;
     if (cmd === 'mark_dictation_capture_ready' && eventState.pendingStart) {
@@ -130,6 +134,7 @@ beforeEach(() => {
     return undefined;
   });
   eventState.pendingStart = false;
+  eventUnlisteners.length = 0;
   FakeWS.instances = [];
   storeState.dictationModelId = 'sherpa-parakeet-v3';
   realWebSocket = globalThis.WebSocket;
@@ -155,6 +160,38 @@ afterEach(() => {
 });
 
 describe('CaptureWidget — connect-time asr_model_missing during mic setup', () => {
+  it('removes both native listeners when registration readiness fails', async () => {
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'begin_dictation_capture_registration') return 1;
+      if (cmd === 'mark_dictation_capture_ready') throw new Error('registration failed');
+      return undefined;
+    });
+
+    render(<CaptureWidget />);
+
+    await waitFor(() => expect(eventUnlisteners).toHaveLength(2));
+    await waitFor(() =>
+      expect(eventUnlisteners.every((unlisten) => unlisten.mock.calls.length)).toBe(true),
+    );
+    expect(invokeMock).toHaveBeenCalledWith('end_dictation_capture_registration', {
+      registrationId: 1,
+    });
+  });
+
+  it('acknowledges a queued native event after the listener receives it', async () => {
+    render(<CaptureWidget />);
+    await waitFor(() => expect(eventHandlers['tray-dictate-stop']).toBeTypeOf('function'));
+
+    await eventHandlers['tray-dictate-stop']({
+      payload: { sessionId: 7, deliveryId: 9, registrationId: 1 },
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('acknowledge_dictation_capture_delivery', {
+      registrationId: 1,
+      deliveryId: 9,
+    });
+  });
+
   it('turns a PCM-fallback socket failure into a terminal error', async () => {
     storeState.dictationModelId = 'whisperx';
     render(<CaptureWidget />);

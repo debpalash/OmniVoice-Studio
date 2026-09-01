@@ -1049,14 +1049,23 @@ mod pill_placement_tests {
 }
 
 #[tauri::command]
-pub fn mark_dictation_capture_ready(app: tauri::AppHandle) {
+pub fn begin_dictation_capture_registration(app: tauri::AppHandle) -> Result<u64, String> {
+    let flags = app.state::<AppFlags>();
+    let mut capture = flags
+        .capture
+        .lock()
+        .map_err(|_| "Dictation capture state lock poisoned".to_string())?;
+    Ok(capture.begin_registration())
+}
+
+#[tauri::command]
+pub fn mark_dictation_capture_ready(app: tauri::AppHandle, registration_id: u64) {
     let flags = app.state::<AppFlags>();
     let Ok(mut capture) = flags.capture.lock() else {
         log::warn!("Dictation capture state lock poisoned");
         return;
     };
-    capture.ready = true;
-    let pending = std::mem::take(&mut capture.pending);
+    let pending = capture.mark_registration_ready(registration_id);
     drop(capture);
     for event in pending {
         if let Err(error) = app.emit(event.name, event.payload) {
@@ -1066,6 +1075,30 @@ pub fn mark_dictation_capture_ready(app: tauri::AppHandle) {
             );
         }
     }
+}
+
+#[tauri::command]
+pub fn acknowledge_dictation_capture_delivery(
+    app: tauri::AppHandle,
+    registration_id: u64,
+    delivery_id: u64,
+) {
+    let flags = app.state::<AppFlags>();
+    let Ok(mut capture) = flags.capture.lock() else {
+        log::warn!("Dictation capture state lock poisoned");
+        return;
+    };
+    capture.acknowledge(registration_id, delivery_id);
+}
+
+#[tauri::command]
+pub fn end_dictation_capture_registration(app: tauri::AppHandle, registration_id: u64) {
+    let flags = app.state::<AppFlags>();
+    let Ok(mut capture) = flags.capture.lock() else {
+        log::warn!("Dictation capture state lock poisoned");
+        return;
+    };
+    capture.end_registration(registration_id);
 }
 
 #[tauri::command]
