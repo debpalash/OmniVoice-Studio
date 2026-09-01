@@ -25,6 +25,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- OmniVoice subprocess startup now allows slow packaged Windows Python runtimes to signal readiness before termination (#1711)
 - Subtitle rows now provide 100 ms timing steppers and flag adjacent overlaps without requiring precise timeline dragging (#1710)
 - Repair-sync failures now retain uv's final dependency error instead of reporting only an opaque exit status (#1705)
 - YouTube ingest now retries yt-dlp's transient “page needs to be reloaded” response (#1706)

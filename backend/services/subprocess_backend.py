@@ -363,6 +363,7 @@ class SubprocessBackend(TTSBackend):
     # be a different class object from the one the subclass closed over.
     # A duck-typed marker survives that.
     _is_subprocess_isolated: bool = True
+    spawn_ready_timeout_s: float = SPAWN_READY_TIMEOUT_S
 
     # Generation happens in the sidecar: parent-side accelerator counters
     # can't see its allocations (see TTSBackend.runs_out_of_process).
@@ -524,7 +525,7 @@ class SubprocessBackend(TTSBackend):
         # Block on the ready handshake. A sidecar that fails to emit ready
         # within SPAWN_READY_TIMEOUT_S is killed and the failure is raised.
         try:
-            frame = self._recv_with_timeout(SPAWN_READY_TIMEOUT_S)
+            frame = self._recv_with_timeout(self.spawn_ready_timeout_s)
         except Exception:
             self._force_kill()
             raise
