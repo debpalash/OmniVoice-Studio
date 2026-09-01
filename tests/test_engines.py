@@ -20,6 +20,13 @@ def test_tts_registry_lists_all_backends():
     assert {"omnivoice", "voxcpm2", "moss-tts-nano"}.issubset(ids)
     for r in rows:
         assert set(r) >= {"id", "display_name", "available", "reason"}
+        evidence = r["execution_evidence"]
+        assert evidence["implementation_variant"]
+        assert evidence["declared_device_families"] == r["gpu_compat"]
+        assert evidence["evidence_state"] in {
+            "loaded", "not_loaded", "subprocess_loaded_provider_unreported"
+        }
+        assert evidence["runtime_versions"]["python"]
 
 
 def test_tts_voxcpm2_unavailable_message_is_actionable():
@@ -195,6 +202,14 @@ def test_asr_registry_lists_backends():
     rows = asr_backend.list_backends()
     ids = {r["id"] for r in rows}
     assert {"mlx-whisper", "pytorch-whisper"}.issubset(ids)
+    required = {
+        "actual_execution_provider",
+        "actual_execution_device",
+        "cpu_fallback_reason",
+        "cpu_fallback_stage",
+        "runtime_versions",
+    }
+    assert all(required.issubset(row["execution_evidence"]) for row in rows)
 
 
 def test_asr_auto_detects():

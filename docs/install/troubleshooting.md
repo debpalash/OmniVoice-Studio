@@ -30,6 +30,15 @@ Before digging through the entries below, let the app diagnose itself:
   tails) you can drag straight onto the GitHub issue. Home paths and
   anything token-shaped are redacted before they leave your machine.
 
+  The report's `engine_execution` rows distinguish declared compatibility
+  from observed runtime state. `evidence_state: not_loaded` means no actual
+  provider can yet be claimed. Run the deep self-check for TTS, or issue a
+  representative ASR request for ASR evidence. Loaded rows include the execution provider/device, precision
+  or quantization when the engine exposes it, GPU identity, CPU-fallback stage,
+  relevant library versions, and whether parent-process memory counters cover
+  the engine. Subprocess engines report memory visibility as false because
+  their accelerator allocations belong to the child process.
+
 ## 1. `pkg_resources` missing (ModuleNotFoundError)
 
 <a id="pkg_resources-missing"></a>

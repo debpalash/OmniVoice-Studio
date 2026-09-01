@@ -13,7 +13,7 @@ def report():
 
 
 def test_report_shape(report):
-    assert set(report) == {"app_version", "platform", "checks", "summary"}
+    assert set(report) == {"app_version", "platform", "checks", "engine_execution", "summary"}
     ids = [c["id"] for c in report["checks"]]
     assert len(ids) == len(set(ids)), "check ids must be unique"
     for c in report["checks"]:
@@ -70,6 +70,39 @@ def test_format_text_ascii_and_exit_signal(report):
     text.encode("ascii")
     assert "VoiceStudio self-check" in text
     assert ("looks healthy" in text) == report["summary"]["ok"]
+
+
+def test_asr_evidence_failure_does_not_drop_tts_evidence(monkeypatch):
+    from services import asr_backend, tts_backend
+
+    evidence = {
+        "evidence_state": "loaded",
+        "actual_execution_provider": "cpu",
+        "actual_execution_device": "cpu",
+        "precision_or_quantization": "float32",
+        "cpu_fallback_reason": None,
+        "cpu_fallback_stage": None,
+        "runtime_versions": {"python": "3.11"},
+        "parent_memory_observable": True,
+    }
+    monkeypatch.setattr(tts_backend, "active_backend_id", lambda: "tts-ok")
+    monkeypatch.setattr(
+        tts_backend,
+        "list_backends",
+        lambda: [{"id": "tts-ok", "available": True, "execution_evidence": evidence}],
+    )
+    monkeypatch.setattr(asr_backend, "active_backend_id", lambda: "asr-broken")
+    def fail_asr_registry():
+        raise RuntimeError("registry failed")
+
+    monkeypatch.setattr(asr_backend, "list_backends", fail_asr_registry)
+
+    result = run_diagnostics(include_network=False)
+    rows = {row["family"]: row for row in result["engine_execution"]}
+    assert rows["tts"]["engine_id"] == "tts-ok"
+    assert rows["tts"]["evidence_state"] == "loaded"
+    assert rows["asr"]["engine_id"] == "asr-broken"
+    assert rows["asr"]["evidence_state"] == "collection_failed"
 
 
 # ── Deep synthesis check (mocked — no real model load in CI) ─────────────
