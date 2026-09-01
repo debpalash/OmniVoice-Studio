@@ -93,3 +93,6 @@ def test_wsl_rocm_matrix_marks_rx_6700_xt_unverified():
     assert "**Unverified**" in rx_row
     assert "`gfx1030`" in rx_row
     assert "`/dev/dxg` alone is not proof of acceleration" in section
+    assert "CPU fallback stage and reason" in section
+    assert "CPU-only completion" in section
+    assert "successful GPU validation" in section

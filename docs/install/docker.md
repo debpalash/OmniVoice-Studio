@@ -146,7 +146,9 @@ driver, WSL kernel/distribution, image and ROCDXG/ROCm versions,
 `torch.version.hip`, device name/count and compiled architecture list, effective
 HSA override, `rocminfo`, VoiceStudio self-check and engine-routing output, and
 one successful PyTorch TTS and ASR workload with utilization plus cold/warm
-latency. A silent CPU completion does not qualify.
+latency. Record whether either workload fell back to CPU and, when it did, the
+CPU fallback stage and reason reported by VoiceStudio. A CPU-only completion
+does not qualify as successful GPU validation.
 
 The same flags work with **Podman** (`podman run --device /dev/kfd
 --device /dev/dri …`); in a **Quadlet** unit that's two `AddDevice=` lines:
