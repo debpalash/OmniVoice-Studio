@@ -938,7 +938,12 @@ export function useBootstrapStage(pollMs = 1000) {
     // person can leave.
     const stallBudgetMs = (stage) => {
       if (stage === 'awaiting_setup') return Infinity;
-      return stage === 'installing_deps' ? 20 * 60 * 1000 : 120 * 1000;
+      if (stage === 'installing_deps') return 20 * 60 * 1000;
+      // Rust owns the backend launch and waits up to five minutes so slow
+      // torch/CUDA imports can finish. Keep the splash alive beyond that
+      // window; otherwise it reports a false failure at two minutes while
+      // the supervised backend is still healthy and making progress (#1749).
+      return stage === 'starting_backend' ? 6 * 60 * 1000 : 120 * 1000;
     };
     const invoke = async () => {
       try {

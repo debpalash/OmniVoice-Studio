@@ -102,7 +102,7 @@ describe('useBootstrapStage — awaiting_setup is human-gated (#1376)', () => {
     expect(result.current.stage).toBe('installing_deps');
   });
 
-  it('a machine-owned stage that genuinely wedges still fails', async () => {
+  it('lets Rust finish its backend startup budget before declaring a wedge', async () => {
     // The other half of the contract. Exempting awaiting_setup must not
     // disarm the stall detector for stages nothing but the app can advance —
     // that would trade this bug for the info-less infinite spinner (#879).
@@ -114,8 +114,26 @@ describe('useBootstrapStage — awaiting_setup is human-gated (#1376)', () => {
     await act(async () => {});
     expect(result.current.stage).toBe('starting_backend');
 
+    // The shell waits five minutes for slow torch/CUDA imports. The splash
+    // must not replace that live launch with its old two-minute false failure.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    });
+
+    expect(result.current.stage).toBe('starting_backend');
+    expect(result.current.message ?? '').not.toMatch(/stuck/i);
+
+    // Pin both sides of the six-minute fallback boundary.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3 * 60 * 1000 - 1_000);
+    });
+
+    expect(result.current.stage).toBe('starting_backend');
+    expect(result.current.message ?? '').not.toMatch(/stuck/i);
+
+    // A frontend-only deadlock remains bounded if the shell never advances.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
     });
 
     expect(result.current.stage).toBe('failed');

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import re
 import sys
-from time import perf_counter
 
 import pytest
 
@@ -549,15 +548,28 @@ def test_select_mlx_audio_repo_id_accepts_underscore_prefixes(fresh_app, monkeyp
 )
 def test_select_mlx_audio_rejects_malformed_repo_ids(fresh_app, monkeypatch, model_id):
     _make_mlx_audio_available(monkeypatch)
-    started = perf_counter()
     r = _client(fresh_app).post(
         "/engines/select",
         json={"family": "tts", "backend_id": "mlx-audio", "model_id": model_id},
     )
     assert r.status_code == 400
-    assert perf_counter() - started < 0.5
     assert len(r.content) < 256
     assert model_id[:100] not in r.text
+
+
+def test_hf_repo_id_size_bound_precedes_library_validation(fresh_app, monkeypatch):
+    from api.routers import engines as engines_router
+
+    def unexpected_validation(_value):
+        raise AssertionError("oversized repo id reached the library validator")
+
+    monkeypatch.setattr(
+        engines_router.hf_utils,
+        "validate_repo_id",
+        unexpected_validation,
+    )
+
+    assert not engines_router._is_hf_repo_id("-" * 100_000)
 
 
 def test_select_mlx_audio_without_model_id_does_not_touch_pref(fresh_app, monkeypatch):

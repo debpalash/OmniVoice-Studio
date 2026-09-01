@@ -518,9 +518,12 @@ _ingest_gen       = dub_pipeline.ingest_pipeline
 #: container so a mislabelled video can't slip past the video-skipping branch.
 _AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma"}
 
-# Source-language choices exposed by the first-party dub UI. Keeping this an
-# allow-list rejects language names and private-use BCP-47 tags before they are
-# persisted as ASR overrides. Values are normalized to lowercase below.
+# Source-language choices exposed by the first-party dub UI, plus every
+# language code Whisper can write back after auto-detection. A restored job
+# may reuse that detected value as the next upload's override, so rejecting our
+# own persisted codes strands otherwise valid dubbing sessions (#1737).
+# Keeping this an allow-list still rejects language names and private-use
+# BCP-47 tags. Values are normalized to lowercase below.
 _DUB_SOURCE_LANG_CODES = frozenset({
     "af", "sq", "am", "ar", "hy", "az", "eu", "be", "bn", "bs", "bg",
     "my", "ca", "cmn-hans", "cmn-hant", "hr", "cs", "da", "nl", "en",
@@ -531,6 +534,8 @@ _DUB_SOURCE_LANG_CODES = frozenset({
     "ru", "sm", "gd", "sr", "sn", "sd", "si", "sk", "sl", "so", "es",
     "su", "sw", "sv", "tg", "ta", "te", "th", "tr", "uk", "ur", "uz",
     "vi", "cy", "xh", "yi", "yo", "zu",
+    "as", "ba", "bo", "br", "fo", "lb", "ln", "mg", "nn", "oc", "sa",
+    "tk", "tl", "tt", "yue", "zh",
 })
 
 
@@ -542,6 +547,15 @@ def _source_lang_override(value: str | None) -> str | None:
     if code not in _DUB_SOURCE_LANG_CODES:
         raise HTTPException(status_code=400, detail="Invalid source language code")
     return code
+
+
+def _detected_source_lang(value: str | None) -> str:
+    """Normalize an ASR language without truncating valid three-letter codes."""
+    code = (value or "en").split("_", 1)[0].strip().lower()
+    if code in _DUB_SOURCE_LANG_CODES:
+        return code
+    short = code[:2]
+    return short if short in _DUB_SOURCE_LANG_CODES else "en"
 
 
 @router.post("/dub/upload")
@@ -1809,9 +1823,9 @@ async def dub_transcribe_stream(
         except Exception as e:
             logger.warning("speaker_clone extraction skipped: %s", e)
 
-        job["source_lang"] = job.get("source_lang_override") or (
-            (detected_lang or "en").split("_")[0][:2] or "en"
-        ).lower()
+        job["source_lang"] = job.get("source_lang_override") or _detected_source_lang(
+            detected_lang
+        )
         job["full_transcript"] = " ".join(s.get("text", "") for s in final_segs)
         _save_job(job_id, job)
 
@@ -2008,9 +2022,9 @@ async def dub_transcribe(job_id: str, num_speakers: Optional[int] = None):
             except Exception as e:
                 logger.warning("Failed to unload ASR backend: %s", e)
 
-        job["source_lang"] = job.get("source_lang_override") or (
-            (detected_lang or "en").split("_")[0][:2] or "en"
-        ).lower()
+        job["source_lang"] = job.get("source_lang_override") or _detected_source_lang(
+            detected_lang
+        )
 
         scene_cuts = job.get("scene_cuts") or []
         segments = segment_transcript(result, duration=job.get("duration", 0.0), scene_cuts=scene_cuts)
