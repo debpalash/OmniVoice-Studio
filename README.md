@@ -1,12 +1,12 @@
 <div align="center">
-  <a href="https://trendshift.io/repositories/28176?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/28176" alt="debpalash%2FVoiceStudio | Trendshift" width="250" height="55" /></a>
+  <a href="https://trendshift.io/repositories/28176?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/28176" alt="VoiceStudio ranking on Trendshift" width="250" height="55" /></a>
 
   <img src="docs/logo.png" alt="VoiceStudio logo" width="120" height="120" />
   <h1>VoiceStudio</h1>
   <p><sub>Previously OmniVoice-Studio</sub></p>
-  <h3>Local voice cloning, dubbing, dictation, and long-form audio.</h3>
-  <p>16 TTS engines · 11 ASR engines · 646-language catalogue · macOS, Windows, and Linux</p>
-  <p><strong>Local-first.</strong> No account, API key, subscription, or usage meter for the core workflow.</p>
+  <h3>Clone voices, dub video, dictate, and produce long-form audio on your own hardware.</h3>
+  <p>16 TTS engines · 11 ASR engines · 646-language catalogue · macOS, Windows, Linux, and Docker</p>
+  <p>No account, API key, subscription, or usage meter for the local workflow.</p>
 
   <p>
     <a href="#install">Install</a> ·
@@ -38,7 +38,7 @@
 </div>
 
 > [!WARNING]
-> **Active beta.** Use the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest) for stable work or `main` for current fixes. Report problems through [GitHub Issues](https://github.com/debpalash/VoiceStudio/issues).
+> **Active beta.** Use the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest) for stable work. `main` contains the newest fixes and may change between releases. Report problems through [GitHub Issues](https://github.com/debpalash/VoiceStudio/issues).
 
 ## At a glance
 
@@ -57,22 +57,24 @@
 
 ## Install
 
+Download a package from the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest), then follow the platform guide.
+
 | Platform | Package | Guide |
 |---|---|---|
-| macOS 13.3+ | DMG, Apple Silicon | [Install on macOS](docs/install/macos.md) |
-| Windows 10/11 | MSI, x64 | [Install on Windows](docs/install/windows.md) |
+| macOS 13.3+ | Apple Silicon DMG | [Install on macOS](docs/install/macos.md) |
+| Windows 10/11 | x64 MSI; choose the current-user build when listed to install without admin access | [Install on Windows](docs/install/windows.md#install-pre-built-msi) |
 | Linux | AppImage, x86_64 with glibc 2.39+ | [Install on Linux](docs/install/linux.md) |
-| Docker | CUDA, ROCm, or CPU; worker-only GPU profiles | [Run with Docker](docs/install/docker.md) |
+| Docker | CUDA, ROCm, CPU, and worker-only GPU profiles | [Run with Docker](docs/install/docker.md) |
 
-Download packages from the [latest release](https://github.com/debpalash/VoiceStudio/releases/latest). First launch creates a managed Python environment and downloads the default model. Later launches reuse both.
+First launch creates a managed Python environment and downloads the default model. Later launches reuse both.
 
 > [!NOTE]
-> On macOS, first launch needs a one-time right-click → **Open** approval. Intel Macs cannot run the local Python backend; use a [remote backend](docs/install/macos.md) instead.
+> On macOS, first launch needs a one-time right-click, then **Open** approval. Intel Macs cannot run the local Python backend; use a [remote backend](docs/install/macos.md) instead.
 
 ### First voice
 
 1. Launch VoiceStudio and open **Voice Cloning**.
-2. Add a clean voice sample. Three seconds works; 5–15 seconds usually gives a better prompt.
+2. Add a clean voice sample. Three seconds works; 5 to 15 seconds usually gives a better prompt.
 3. Enter text, choose a language, then select **Generate**.
 
 ### Run from source
@@ -159,7 +161,7 @@ Requirements vary by engine. These values cover the default local workflow.
 | **Disk** | 10 GB free | 20 GB+ SSD |
 | **GPU** | Optional; CPU mode is supported | NVIDIA CUDA or Apple Silicon |
 | **VRAM** | 4 GB when using a GPU | 8 GB+; large optional engines need more |
-| **Python from source** | 3.11+ | 3.11–3.12 |
+| **Python from source** | 3.11+ | 3.11 or 3.12 |
 
 ROCm is Linux-only and opt-in. Windows AMD/Ryzen AI uses CPU. Systems with limited VRAM offload work to CPU when required. See [performance](docs/performance.md), [benchmarks](docs/benchmarks.md), and [engine disk usage](docs/engines/disk-usage.md).
 
@@ -177,20 +179,20 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | **VoiceStudio** (default, powered by k2-fsa/OmniVoice) | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
 | **CosyVoice 3** | 9 + 18 dialects | Yes | Yes | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
-| **GPT-SoVITS** | 5 | Yes | — | CUDA/CPU | — | CUDA/CPU | MIT |
+| **GPT-SoVITS** | 5 | Yes | No | CUDA/CPU | No | CUDA/CPU | MIT |
 | **VoxCPM2** | 30 | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | Apache-2.0 |
-| **MOSS-TTS-Nano** | 20 | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
-| **KittenTTS** | English | — | — | CPU | CPU | CPU | MIT |
-| **MLX-Audio** | Model-dependent | Varies | Varies | — | MLX | — | Varies |
-| **Sherpa-ONNX** | 20+ | — | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
-| **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Bilibili model license¹ |
+| **MOSS-TTS-Nano** | 20 | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
+| **KittenTTS** | English | No | No | CPU | CPU | CPU | MIT |
+| **MLX-Audio** | Model-dependent | Varies | Varies | No | MLX | No | Varies |
+| **Sherpa-ONNX** | 20+ | No | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
+| **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Bilibili model license¹ |
 | **OmniVoice GGUF** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS/CPU | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
 | **OmniVoice (subprocess)** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
-| **PocketTTS** ⚡ | EN · FR · DE · PT · IT · ES | Yes | — | CPU | CPU | CPU | CC-BY-4.0, gated² |
-| **Supertonic 3** ⚡ | 31 | — | — | CPU | CPU | CPU | OpenRAIL-M |
-| **MOSS-TTS-v1.5** ⚡ | 31 | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
-| **dots.tts** ⚡ | 24 | Yes | — | CUDA/CPU | CPU | — | Apache-2.0 |
-| **Confucius4-TTS** ⚡ | 14 | Yes | — | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
+| **PocketTTS** ⚡ | EN · FR · DE · PT · IT · ES | Yes | No | CPU | CPU | CPU | CC-BY-4.0, gated² |
+| **Supertonic 3** ⚡ | 31 | No | No | CPU | CPU | CPU | OpenRAIL-M |
+| **MOSS-TTS-v1.5** ⚡ | 31 | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
+| **dots.tts** ⚡ | 24 | Yes | No | CUDA/CPU | CPU | No | Apache-2.0 |
+| **Confucius4-TTS** ⚡ | 14 | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
 
 ⚡ Installed or registered on demand.
 
@@ -252,7 +254,7 @@ FastAPI backend
 - The desktop talks to a loopback-only backend on `localhost:3900`.
 - Loopback API calls need no server key. Remote access requires a share PIN or API key.
 - Remote workers and OpenAI-compatible ASR are opt-in. The UI identifies when audio leaves the machine.
-- Analytics is off until consent. If enabled, it sends allowlisted, content-free usage metadata—not text, audio, file names, or projects.
+- Analytics is off until consent. If enabled, it sends allowlisted, content-free usage metadata. It never sends text, audio, file names, or projects.
 
 <a id="api"></a>
 
@@ -287,12 +289,11 @@ with client.audio.speech.with_streaming_response.create(
     response.stream_to_file("speech.wav")
 ```
 
-The bundled Rust control sidecar also lets Herdr, coding agents, VS Code,
-desktop apps, and TUIs trigger the existing system-wide dictation flow or reuse
-its safe native insertion. See the [speech platform guide](docs/speech-platform.md).
-The full API reference is in **Settings → OpenAPI Reference**. For LAN,
-Tailscale, or proxy access, read [API authentication](docs/api-auth.md) before
-exposing the backend.
+The bundled Rust control sidecar lets Herdr, coding agents, VS Code, desktop apps,
+and TUIs trigger the system-wide dictation flow or reuse its native text
+insertion. See the [speech platform guide](docs/speech-platform.md). The full API
+reference is in **Settings → OpenAPI Reference**. For LAN, Tailscale, or proxy
+access, read [API authentication](docs/api-auth.md) before exposing the backend.
 
 ### Agent skills
 
@@ -337,19 +338,19 @@ Apple Silicon is supported with MPS and MLX options. Intel Macs cannot run the l
 <details>
 <summary><strong>How much VRAM do I need?</strong></summary>
 
-A GPU is optional. Use 4 GB VRAM as the minimum for accelerated work and 8 GB+ for the default multi-stage workflow. Large optional engines can require 12–16 GB or more. Check the [benchmarks](docs/benchmarks.md) and engine guide.
+A GPU is optional. Use 4 GB VRAM as the minimum for accelerated work and 8 GB+ for the default multi-stage workflow. Large optional engines can require 12 to 16 GB or more. Check the [benchmarks](docs/benchmarks.md) and engine guide.
 </details>
 
 <details>
 <summary><strong>Why does a longer reference clip not always improve the clone?</strong></summary>
 
-Cloning is zero-shot: the clip is a prompt, not training data. Use 5–15 seconds of one speaker, close to the microphone, without music, noise, or reverb. Match the tone and pace you want in the output. For training, see [data preparation](docs/data_preparation.md) and [training](docs/training.md).
+Cloning is zero-shot: the clip is a prompt, not training data. Use 5 to 15 seconds of one speaker, close to the microphone, without music, noise, or reverb. Match the tone and pace you want in the output. For training, see [data preparation](docs/data_preparation.md) and [training](docs/training.md).
 </details>
 
 <details>
 <summary><strong>Can I use generated audio commercially?</strong></summary>
 
-Yes under VoiceStudio's AGPL-3.0 terms. Optional engines and model weights may use different licenses; review the selected engine's license before commercial use.
+VoiceStudio's license does not restrict generated audio. Optional engines and model weights may use different licenses, so review the selected engine's license before commercial use.
 </details>
 
 <details>
