@@ -199,6 +199,71 @@ describe('SRT import during source-speaker analysis', () => {
     expect(useAppStore.getState().dubSegments[0].text).toBe('selected subtitle');
   });
 
+  it('replaces a queued file when the user imports a newer SRT after transcription fails', async () => {
+    useAppStore.setState({ dubJobId: 'job-replace', dubStep: 'transcribing' });
+    const oldFile = new File(['old'], 'old.srt');
+    const newFile = new File(['new'], 'new.srt');
+    const { result } = renderWorkflow();
+    await act(async () => result.current.handleDubImportSrt(oldFile));
+
+    let failedAttempt;
+    act(() => {
+      failedAttempt = result.current.handleDubRetryTranscribe();
+    });
+    await waitFor(() => expect(streams).toHaveLength(1));
+    act(() => streams[0].emit('error', { detail: 'transcription failed' }));
+    await act(async () => failedAttempt);
+    await waitFor(() => expect(useAppStore.getState().dubStep).toBe('idle'));
+
+    await act(async () => result.current.handleDubImportSrt(newFile));
+    expect(dubApi.dubImportSrt).toHaveBeenCalledOnce();
+    expect(dubApi.dubImportSrt.mock.calls[0][1]).toBe(newFile);
+
+    let retry;
+    act(() => {
+      retry = result.current.handleDubRetryTranscribe();
+    });
+    await waitFor(() => expect(streams).toHaveLength(2));
+    act(() => {
+      streams[1].emit('final', { segments: [{ id: 'asr', text: 'generated' }] });
+      streams[1].emit('done');
+    });
+    await act(async () => retry);
+
+    expect(dubApi.dubImportSrt).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().dubSegments[0].text).toBe('generated');
+  });
+
+  it('ignores an older manual import that finishes after a newer one', async () => {
+    useAppStore.setState({ dubJobId: 'job-current', dubStep: 'editing', dubSegments: [] });
+    const oldFile = new File(['old'], 'old.srt');
+    const newFile = new File(['new'], 'new.srt');
+    const resolvers = new Map();
+    dubApi.dubImportSrt.mockImplementation(
+      (_jobId, file) =>
+        new Promise((resolve) => {
+          resolvers.set(file.name, resolve);
+        }),
+    );
+    const { result } = renderWorkflow();
+    let oldImport;
+    let newImport;
+    act(() => {
+      oldImport = result.current.handleDubImportSrt(oldFile);
+      newImport = result.current.handleDubImportSrt(newFile);
+    });
+    await waitFor(() => expect(dubApi.dubImportSrt).toHaveBeenCalledTimes(2));
+
+    resolvers.get('new.srt')({ segments: [{ id: 'new', text: 'new subtitle' }] });
+    await act(async () => newImport);
+    resolvers.get('old.srt')({ segments: [{ id: 'old', text: 'old subtitle' }] });
+    await act(async () => oldImport);
+
+    expect(useAppStore.getState().dubSegments).toEqual([
+      expect.objectContaining({ id: 'new', text: 'new subtitle' }),
+    ]);
+  });
+
   it('aborts a deferred import without applying its result', async () => {
     const file = new File(['subtitle'], 'abort.srt');
     dubApi.dubUpload.mockResolvedValue({ job_id: 'job-abort', task_id: 'prep-abort' });

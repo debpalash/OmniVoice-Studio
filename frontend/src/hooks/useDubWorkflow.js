@@ -57,7 +57,7 @@ export async function applyQueuedSrtImport(pendingRef, jobId, signal, performImp
   const file = pendingRef.current;
   if (!file) return false;
   const imported = await performImport(jobId, file, signal);
-  if (imported) pendingRef.current = null;
+  if (imported && pendingRef.current === file) pendingRef.current = null;
   return imported;
 }
 
@@ -228,11 +228,21 @@ export default function useDubWorkflow({
 
   const _performSrtImport = useCallback(
     async (jobId, file, signal) => {
-      if (signal?.aborted || useAppStore.getState().dubJobId !== jobId) return false;
+      if (
+        signal?.aborted ||
+        useAppStore.getState().dubJobId !== jobId ||
+        pendingSrtRef.current !== file
+      )
+        return false;
       try {
         setDubError('');
         const res = await dubImportSrt(jobId, file, { signal });
-        if (signal?.aborted || useAppStore.getState().dubJobId !== jobId) return false;
+        if (
+          signal?.aborted ||
+          useAppStore.getState().dubJobId !== jobId ||
+          pendingSrtRef.current !== file
+        )
+          return false;
         const segs = (res && res.segments) || [];
         setDubSegments(
           segs.map((s) => ({
@@ -877,7 +887,8 @@ export default function useDubWorkflow({
         toast(t('dub_workflow.import_srt_after_speakers'));
         return false;
       }
-      return _performSrtImport(jobId, file, signal);
+      pendingSrtRef.current = file;
+      return applyQueuedSrtImport(pendingSrtRef, jobId, signal, _performSrtImport);
     },
     [dubJobId, dubStep, _performSrtImport],
   );
