@@ -72,3 +72,24 @@ def test_wsl_rocm_command_carries_the_complete_dxg_bridge():
         "--security-opt seccomp=unconfined",
     ):
         assert required in section
+
+
+def test_wsl_rocm_matrix_marks_rx_6700_xt_unverified():
+    text = (ROOT / "docs/install/docker.md").read_text(encoding="utf-8")
+    section = text.split("#### WSL2 architecture compatibility matrix", 1)[1].split(
+        "###", 1
+    )[0]
+
+    for classification in (
+        "Supported",
+        "Best-effort override",
+        "Unverified",
+        "Unsupported",
+    ):
+        assert f"| **{classification}** |" in section
+
+    rx_row = next(line for line in section.splitlines() if "RX 6700 XT" in line)
+    assert "`gfx1031`" in rx_row
+    assert "**Unverified**" in rx_row
+    assert "`gfx1030`" in rx_row
+    assert "`/dev/dxg` alone is not proof of acceleration" in section
