@@ -43,7 +43,7 @@ picks local engines, and the app works fully with this engine unconfigured.
 | LM Studio (local) | `http://localhost:1234/v1` | the model name shown in LM Studio | none |
 | llama.cpp / whisper.cpp server (local) | `http://localhost:8080/v1` | whatever the server loads (often ignored) | none |
 | speaches / faster-whisper-server (local) | `http://localhost:8000/v1` | e.g. `Systran/faster-whisper-large-v3` | none |
-| Self-hosted Qwen3-ASR / FunASR (LAN box) | `http://<host>:8000/v1` | your deployment's model id | if you enabled auth |
+| Self-hosted Qwen3-ASR / FunASR (LAN box) | `https://<host>:8000/v1` | your deployment's model id | if you enabled auth |
 | Groq | `https://api.groq.com/openai/v1` | `whisper-large-v3` | required |
 | OpenAI | `https://api.openai.com/v1` | `whisper-1` | required |
 
