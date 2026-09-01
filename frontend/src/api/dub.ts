@@ -117,10 +117,11 @@ export interface DubImportSrtResponse {
 export async function dubImportSrt(
   jobId: string,
   file: File | Blob,
+  { signal }: { signal?: AbortSignal } = {},
 ): Promise<DubImportSrtResponse> {
   const fd = new FormData();
   fd.append('file', file);
-  return apiPost<DubImportSrtResponse>(`/dub/import-srt/${jobId}`, fd);
+  return apiPost<DubImportSrtResponse>(`/dub/import-srt/${jobId}`, fd, { signal });
 }
 
 export interface ParsedSubtitleCue {
