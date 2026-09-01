@@ -298,7 +298,7 @@ export default function useDubWorkflow({
         setDubStep('editing');
         return true;
       }
-      while (queuedSrt) {
+      while (true) {
         const imported = await applyQueuedSrtImport(
           pendingSrtRef,
           jobId,
