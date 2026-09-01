@@ -373,6 +373,30 @@ def test_desktop_windows_timeout_never_taskkills_a_reusable_pid(monkeypatch):
     assert calls == {"handle_kill": True}
 
 
+def test_windows_job_timeout_waits_for_terminated_tree():
+    events = []
+
+    def timed_out_wait(timeout=None):
+        events.append(("wait", timeout))
+        raise subprocess.TimeoutExpired("operation.exe", timeout)
+
+    child = SimpleNamespace(
+        stdin=None,
+        stdout=None,
+        stderr=None,
+        wait=timed_out_wait,
+    )
+    kernel = SimpleNamespace(
+        TerminateJobObject=lambda job, code: events.append(("terminate", job, code)),
+        CloseHandle=lambda job: events.append(("close", job)),
+    )
+    proc = si.WindowsJobPopen(child, 99, kernel)
+
+    si._kill_tree(proc)
+
+    assert events == [("terminate", 99, 1), ("close", 99), ("wait", 5)]
+
+
 def test_desktop_installer_timeout_kills_nested_helper_before_it_can_mutate(
     monkeypatch, tmp_path
 ):
