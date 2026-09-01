@@ -57,6 +57,9 @@ const mocks = vi.hoisted(() => {
     copyText: vi.fn(async () => {}),
     invoke: async (cmd, args) => {
       holder.calls.push([cmd, args]);
+      if (cmd === 'begin_dictation_capture_registration') {
+        return holder.calls.filter(([command]) => command === cmd).length;
+      }
       if (cmd === 'check_accessibility') return holder.a11y;
       if (cmd === 'simulate_paste') return holder.paste(cmd, args);
       if (cmd === 'copy_dictation_output_session') return holder.copy(cmd, args);
@@ -292,6 +295,24 @@ describe('CaptureWidget', () => {
     );
     const ws = await startNativeSession('seed-session');
     expect(ws.url).toContain('model=sherpa-parakeet-tdt-v3');
+  });
+
+  it('releases the exact native listener registration on unmount', async () => {
+    const view = render(withI18n(<CaptureWidget />));
+    await waitFor(() =>
+      expect(
+        mocks.holder.calls.some(([command]) => command === 'mark_dictation_capture_ready'),
+      ).toBe(true),
+    );
+    const ready = mocks.holder.calls.findLast(
+      ([command]) => command === 'mark_dictation_capture_ready',
+    );
+
+    view.unmount();
+
+    await waitFor(() =>
+      expect(mocks.holder.calls).toContainEqual(['end_dictation_capture_registration', ready[1]]),
+    );
   });
 
   it('honors a hold-mode release while microphone startup is pending', async () => {
