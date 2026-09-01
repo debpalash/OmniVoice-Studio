@@ -51,7 +51,7 @@
 | **Compute** | CUDA · Apple Silicon MPS/MLX · ROCm on Linux · CPU · optional remote workers |
 | **Interfaces** | Desktop app · local REST/SSE/WebSocket API · OpenAI-compatible audio API · MCP Server |
 | **Storage** | Voices, projects, settings, and outputs stay on the machine by default |
-| **License** | AGPL-3.0; optional engines keep their own model licenses |
+| **License** | AGPL-3.0 application; downloaded models keep their upstream terms |
 
 <a id="install"></a>
 
@@ -177,7 +177,7 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 
 | Engine | Languages | Clone | Instruct | Linux | macOS ARM | Windows | License |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **VoiceStudio** (default, powered by k2-fsa/OmniVoice) | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
+| **VoiceStudio** (default, powered by k2-fsa/OmniVoice) | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0 code, CC-BY-NC weights](https://huggingface.co/k2-fsa/OmniVoice#license)³ |
 | **CosyVoice 3** | 9 + 18 dialects | Yes | Yes | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
 | **GPT-SoVITS** | 5 | Yes | No | CUDA/CPU | No | CUDA/CPU | MIT |
 | **VoxCPM2** | 30 | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | Apache-2.0 |
@@ -186,8 +186,8 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 | **MLX-Audio** | Model-dependent | Varies | Varies | No | MLX | No | Varies |
 | **Sherpa-ONNX** | 20+ | No | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
 | **IndexTTS 2.5** ⚡ | ZH · EN · JA · ES · AR | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Bilibili model license¹ |
-| **OmniVoice GGUF** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS/CPU | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
-| **OmniVoice (subprocess)** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0](LICENSE-NOTICE.md) model |
+| **OmniVoice GGUF** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS/CPU | CUDA/CPU | [AGPL-3.0](LICENSE) app · [review the derivative model terms](https://huggingface.co/Serveurperso/OmniVoice-GGUF#license)³ |
+| **OmniVoice (subprocess)** ⚡ | 600+ | Yes | Yes | CUDA/CPU | MPS | CUDA/CPU | [AGPL-3.0](LICENSE) app · [Apache-2.0 code, CC-BY-NC weights](https://huggingface.co/k2-fsa/OmniVoice#license)³ |
 | **PocketTTS** ⚡ | EN · FR · DE · PT · IT · ES | Yes | No | CPU | CPU | CPU | CC-BY-4.0, gated² |
 | **Supertonic 3** ⚡ | 31 | No | No | CPU | CPU | CPU | OpenRAIL-M |
 | **MOSS-TTS-v1.5** ⚡ | 31 | Yes | No | CUDA/CPU | CPU | CUDA/CPU | Apache-2.0 |
@@ -199,6 +199,8 @@ Engine support is capability-specific. Check cloning, language, platform, memory
 ¹ IndexTTS 2.5 requires a separate written Bilibili license above 100 million monthly active users or RMB 1 billion annual revenue. Review the [model license](https://huggingface.co/IndexTeam/IndexTTS-2.5/blob/main/LICENSE).
 
 ² PocketTTS shows its gated-access and CC-BY-4.0 terms before first use.
+
+³ The OmniVoice snapshot also includes an audio tokenizer under separate [Boson Higgs Audio 2 and Meta Llama community terms](https://huggingface.co/k2-fsa/OmniVoice/blob/main/audio_tokenizer/LICENSE). VoiceStudio's application license does not replace model or tokenizer terms.
 
 Clone-less engines cannot preserve a reference speaker in dubbing or pinned-voice batch jobs. VoiceStudio rejects those jobs instead of silently changing engines. Heavy engines have separate memory and platform limits; check their engine guide first.
 
@@ -350,7 +352,7 @@ Cloning is zero-shot: the clip is a prompt, not training data. Use 5 to 15 secon
 <details>
 <summary><strong>Can I use generated audio commercially?</strong></summary>
 
-VoiceStudio's license does not restrict generated audio. Optional engines and model weights may use different licenses, so review the selected engine's license before commercial use.
+VoiceStudio's application license does not restrict generated audio, but it does not grant rights under a model's separate terms. The default OmniVoice repository labels its pretrained weights CC-BY-NC and includes a tokenizer under separate community terms. Review the selected model terms before commercial use.
 </details>
 
 <details>
@@ -380,9 +382,9 @@ VoiceStudio is free and has no paid tier. Donations fund development and infrast
 
 ## License
 
-VoiceStudio is licensed under [AGPL-3.0](LICENSE). You may run it, modify it, use it internally, and sell generated audio. If you modify VoiceStudio and provide that modified version as a network service, AGPL requires you to offer the corresponding source under the same license. A commercial license is available for proprietary embedding; contact **VoiceStudio@palash.dev**. See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) for the plain-language scope.
+VoiceStudio is licensed under [AGPL-3.0](LICENSE). You may run it, modify it, and use it internally. The application license itself does not restrict selling generated audio, but downloaded model and tokenizer terms may. If you modify VoiceStudio and provide that modified version as a network service, AGPL requires you to offer the corresponding source under the same license. A commercial license for VoiceStudio-owned code is available for proprietary embedding; it does not relicense third-party models. Contact **VoiceStudio@palash.dev**. See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) for the plain-language scope.
 
-Optional engines and downloaded models retain their own licenses. The bundled `omnivoice/` model remains Apache-2.0 upstream.
+Optional engines and downloaded models retain their own licenses. The bundled `omnivoice/` Python code is Apache-2.0 upstream; the default downloaded weights and audio tokenizer use separate terms.
 
 ## Acknowledgments
 
