@@ -196,6 +196,7 @@ def test_disk_preflight_subtracts_partial_install(monkeypatch, tmp_path):
     spec = _mk_spec(required_bytes=1 * _GIB)
     root = si.managed_root(spec)
     root.mkdir(parents=True)
+    monkeypatch.setattr(si, "_source_present", lambda _spec, _checkout: True)
     monkeypatch.setattr(si, "_dir_size_bytes", lambda p: int(0.9 * _GIB))
     monkeypatch.setattr(si, "disk_free_bytes", lambda p: (si.MIN_FREE_GB + 1) * _GIB)
     assert si.disk_space_error(spec) is None
@@ -203,9 +204,22 @@ def test_disk_preflight_subtracts_partial_install(monkeypatch, tmp_path):
 
 def test_disk_preflight_subtracts_partial_install_from_peak_requirement(monkeypatch):
     spec = _mk_spec(required_bytes=1 * _GIB, temporary_free_bytes=4 * _GIB)
+    monkeypatch.setattr(si, "_source_present", lambda _spec, _checkout: True)
     monkeypatch.setattr(si, "_dir_size_bytes", lambda _path: int(0.9 * _GIB))
     monkeypatch.setattr(si, "disk_free_bytes", lambda _path: (si.MIN_FREE_GB + 2) * _GIB)
     assert "3.1 GB" in si.disk_space_error(spec)
+
+
+def test_disk_preflight_does_not_credit_checkout_that_fetch_will_delete(monkeypatch):
+    spec = _mk_spec(required_bytes=4 * _GIB, source_revision="new-revision")
+    checkout = si.managed_checkout(spec)
+    checkout.mkdir(parents=True)
+    (checkout / "pyproject.toml").write_text("[project]\nname='fake'\n")
+    (checkout / si._SOURCE_REVISION_MARKER).write_text("stale-revision\n")
+    monkeypatch.setattr(si, "_dir_size_bytes", lambda _path: 3 * _GIB)
+    monkeypatch.setattr(si, "disk_free_bytes", lambda _path: (si.MIN_FREE_GB + 2) * _GIB)
+
+    assert "4.0 GB" in si.disk_space_error(spec)
 
 
 def test_missing_uv_is_actionable(monkeypatch):

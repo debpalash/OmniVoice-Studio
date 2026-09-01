@@ -344,7 +344,11 @@ def disk_space_error(spec: SidecarSpec) -> Optional[str]:
     root = managed_root(spec)
     # A preserved predecessor is not a partial copy of the new install: the
     # upgrade needs its full space until the new sidecar is verified.
-    already = _dir_size_bytes(managed_checkout(spec))
+    checkout = managed_checkout(spec)
+    # Credit only bytes the fetch step will preserve. An invalid layout or
+    # revision marker makes _step_fetch_source delete the whole checkout, so
+    # subtracting it here understates peak space and can admit a doomed install.
+    already = _dir_size_bytes(checkout) if _source_present(spec, checkout) else 0
     remaining = max(0, spec.required_bytes - already)
     if spec.temporary_free_bytes is not None:
         # ``temporary_free_bytes`` is the peak from an empty destination, not
