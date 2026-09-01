@@ -83,6 +83,52 @@ describe('DubSegmentRow timing fields', () => {
     expect(props.onEditField).not.toHaveBeenCalled();
   });
 
+  it('nudges either edge by 100 ms with accessible controls', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+
+    const decrement = screen.getAllByRole('button', { name: /0\.1 seconds earlier/ });
+    const increment = screen.getAllByRole('button', { name: /0\.1 seconds later/ });
+    fireEvent.click(decrement[0]);
+    fireEvent.click(increment[1]);
+
+    expect(props.onMoveResize).toHaveBeenNthCalledWith(1, 's1', { start: 0.9, end: 3 });
+    expect(props.onMoveResize).toHaveBeenNthCalledWith(2, 's1', { start: 1, end: 3.1 });
+  });
+
+  it('preserves the timeline minimum duration for typed and stepped edits', () => {
+    const props = makeProps();
+    render(<DubSegmentRow {...props} />);
+    const start = timeFields()[0];
+
+    fireEvent.change(start, { target: { value: '2.8' } });
+    fireEvent.blur(start);
+    expect(props.onMoveResize).not.toHaveBeenCalled();
+
+    const nearLimit = makeProps({ seg: { id: 's1', start: 2.7, end: 3, text: 'x' } });
+    render(<DubSegmentRow {...nearLimit} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /start time 0\.1 seconds later/ })[1]);
+    expect(nearLimit.onMoveResize).not.toHaveBeenCalled();
+  });
+
+  it('accepts an exact 300 ms boundary despite decimal rounding', () => {
+    const props = makeProps({ seg: { id: 's1', start: 1, end: 3.3, text: 'x' } });
+    render(<DubSegmentRow {...props} />);
+    const start = timeFields()[0];
+
+    fireEvent.change(start, { target: { value: '3.0' } });
+    fireEvent.blur(start);
+
+    expect(props.onMoveResize).toHaveBeenCalledWith('s1', { start: 3, end: 3.3 });
+  });
+
+  it('surfaces an adjacent overlap beside the timing controls', () => {
+    render(<DubSegmentRow {...makeProps({ hasOverlap: true })} />);
+    expect(
+      screen.getByText('Overlaps an adjacent segment — both lines will play together'),
+    ).toBeInTheDocument();
+  });
+
   it('accepts raw seconds as well as m:ss.s', () => {
     const props = makeProps();
     render(<DubSegmentRow {...props} />);

@@ -77,6 +77,7 @@ os.environ.setdefault("FOR_DISABLE_CONSOLE_CTRL_HANDLER", "1")
 # (utils.hf_progress.SafeFileWrapper — same wrapper the patched hub tqdm
 # already uses for its own fp.)
 from utils.hf_progress import SafeFileWrapper as _SafeStdio  # noqa: E402
+from core.parent_liveness import arm_desktop_parent_watchdog  # noqa: E402
 
 # Force UTF-8 stdio before wrapping (#1155): on Windows the spawned backend's
 # stdout defaults to cp1252, and any library that prints user text (kittentts
@@ -88,6 +89,11 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     except Exception:  # noqa: BLE001 — pythonw/frozen builds may lack reconfigure
         pass
+
+# The desktop keeps the backend's stdin pipe open for its own lifetime. EOF is
+# therefore a stable ownership signal that survives PID reuse and lets a child
+# terminate even when the shell crashes before its normal process-tree teardown.
+arm_desktop_parent_watchdog()
 
 if not getattr(sys.stdout, "_is_safe_wrapper", False):
     sys.stdout = _SafeStdio(sys.stdout)

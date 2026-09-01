@@ -652,7 +652,12 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(
             ]);
         }
     }
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    // Keep stdin piped but unwritten. The backend's parent-liveness watchdog
+    // blocks on it; desktop exit closes the handle and the child terminates,
+    // including on macOS where parent death alone does not reap descendants.
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     let mut contained = match crate::tools::spawn_process_tree(&mut cmd) {
         Ok(c) => {
             log::info!(

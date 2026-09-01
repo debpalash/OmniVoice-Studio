@@ -3990,6 +3990,39 @@ html[data-window='widget'] body:has(.capture-pill) {
   outline-offset: 1px;
   background: var(--chrome-hover-bg);
 }
+.seg-time-stepper {
+  display: grid;
+  grid-template-columns: 18px 42px 18px;
+  align-items: center;
+  gap: 2px;
+}
+.seg-time-stepper button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--chrome-border);
+  border-radius: 3px;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.seg-time-stepper button:hover:not(:disabled) {
+  color: var(--chrome-fg);
+  border-color: var(--chrome-accent);
+}
+.seg-overlap-warning {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-danger, #fb4934);
+  font-size: 0.5rem;
+  line-height: 1.1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .seg-speaker-input {
   width: 100%;
   min-width: 0;
@@ -4061,7 +4094,7 @@ html[data-window='widget'] body:has(.capture-pill) {
    default flex layout to use this template — eliminates the column-
    drift bug where the time pill bled into the text column. */
 .segment-table {
-  --seg-grid-cols: 18px 64px 70px minmax(0, 1fr) 44px 60px 40px 44px;
+  --seg-grid-cols: 18px 82px 70px minmax(0, 1fr) 44px 60px 40px 44px;
 }
 
 /* Narrow windows: shrink the fixed rails so the text column keeps real
@@ -4069,13 +4102,13 @@ html[data-window='widget'] body:has(.capture-pill) {
    window instead of overflowing it. */
 @media (max-width: 1100px) {
   .segment-table {
-    --seg-grid-cols: 16px 54px 56px minmax(0, 1fr) 38px 52px 34px 38px;
+    --seg-grid-cols: 16px 82px 56px minmax(0, 1fr) 38px 52px 34px 38px;
   }
 }
 
 @media (max-width: 760px) {
   .segment-table {
-    --seg-grid-cols: 14px 48px minmax(0, 1fr) 34px 48px 34px;
+    --seg-grid-cols: 14px 82px minmax(0, 1fr) 34px 48px 34px;
   }
   /* Speaker + gain rails collapse entirely below tablet width. */
   .dub-segment-table__header > :nth-child(3),
