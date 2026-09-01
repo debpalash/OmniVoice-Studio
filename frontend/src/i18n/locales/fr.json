@@ -2056,6 +2056,7 @@
     "retry_cancelled": "Nouvelle tentative annulée",
     "transcription_failed": "Échec de la transcription : {{message}}",
     "import_srt_no_job": "Téléchargez ou ingérez d’abord une vidéo – il n’y a aucune tâche à laquelle attacher des sous-titres.",
+    "import_srt_after_speakers": "SRT mis en attente. L’analyse des locuteurs se terminera d’abord afin de préserver les voix clonées.",
     "imported_cues": "Cues {{count}} importées de {{file}}",
     "skipped_malformed": "{{count}} ignoré (mal formé)",
     "dropped_overlap": "{{count}} supprimé (chevauchement)",

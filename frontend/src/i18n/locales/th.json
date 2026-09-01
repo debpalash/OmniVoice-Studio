@@ -2056,6 +2056,7 @@
     "retry_cancelled": "ลองอีกครั้ง ยกเลิก",
     "transcription_failed": "การถอดเสียงล้มเหลว: {{message}}",
     "import_srt_no_job": "อัปโหลดหรือนำเข้าวิดีโอก่อน ไม่มีงานให้แนบคำบรรยาย",
+    "import_srt_after_speakers": "เพิ่ม SRT ลงในคิวแล้ว ระบบจะวิเคราะห์ผู้พูดให้เสร็จก่อนเพื่อรักษาเสียงที่โคลนไว้",
     "imported_cues": "นำเข้า {{count}} คิวจาก {{file}}",
     "skipped_malformed": "{{count}} ข้ามไป (มีรูปแบบไม่ถูกต้อง)",
     "dropped_overlap": "{{count}} ลดลง (ทับซ้อนกัน)",

@@ -2056,6 +2056,7 @@
     "retry_cancelled": "Nieuwe poging geannuleerd",
     "transcription_failed": "Transcriptie mislukt: {{message}}",
     "import_srt_no_job": "Upload of neem eerst een video op - er is geen taak om ondertitels aan toe te voegen.",
+    "import_srt_after_speakers": "SRT staat in de wachtrij. De sprekeranalyse wordt eerst voltooid zodat gekloonde stemmen behouden blijven.",
     "imported_cues": "{{count}} cue(s) geïmporteerd uit {{file}}",
     "skipped_malformed": "{{count}} overgeslagen (misvormd)",
     "dropped_overlap": "{{count}} weggevallen (overlap)",

@@ -2056,6 +2056,7 @@
     "retry_cancelled": "تم إلغاء إعادة المحاولة",
     "transcription_failed": "فشل النسخ: {{message}}",
     "import_srt_no_job": "قم بتحميل مقطع فيديو أو استيعابه أولاً - لا توجد مهمة لإرفاق الترجمة بها.",
+    "import_srt_after_speakers": "تم وضع ملف SRT في قائمة الانتظار. سيكتمل تحليل المتحدثين أولاً للحفاظ على الأصوات المستنسخة.",
     "imported_cues": "تم استيراد {{count}} إشارة (إشارات) من {{file}}",
     "skipped_malformed": "تم تخطي {{count}} (مشوه)",
     "dropped_overlap": "تم إسقاط {{count}} (تداخل)",

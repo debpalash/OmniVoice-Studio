@@ -2056,6 +2056,7 @@
     "retry_cancelled": "Đã hủy thử lại",
     "transcription_failed": "Phiên âm không thành công: {{message}}",
     "import_srt_no_job": "Trước tiên hãy tải lên hoặc nhập video — không cần phải đính kèm phụ đề.",
+    "import_srt_after_speakers": "Đã xếp SRT vào hàng đợi. Phân tích người nói sẽ hoàn tất trước để giữ nguyên giọng nói nhân bản.",
     "imported_cues": "Đã nhập {{count}} tín hiệu từ {{file}}",
     "skipped_malformed": "{{count}} bị bỏ qua (không đúng định dạng)",
     "dropped_overlap": "{{count}} bị rơi (chồng chéo)",

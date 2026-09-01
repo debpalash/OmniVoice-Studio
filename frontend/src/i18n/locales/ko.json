@@ -2056,6 +2056,7 @@
     "retry_cancelled": "재시도가 취소되었습니다.",
     "transcription_failed": "스크립트 작성 실패: {{message}}",
     "import_srt_no_job": "먼저 비디오를 업로드하거나 처리하십시오. 자막을 첨부할 작업이 없습니다.",
+    "import_srt_after_speakers": "SRT가 대기열에 추가되었습니다. 복제된 음성을 유지하기 위해 화자 분석을 먼저 완료합니다.",
     "imported_cues": "{{file}}에서 {{count}} 큐를 가져왔습니다.",
     "skipped_malformed": "{{count}} 건너뛰기(잘못된 형식)",
     "dropped_overlap": "{{count}} 삭제됨(겹침)",

@@ -2063,6 +2063,7 @@
     "retry_cancelled": "重试已取消",
     "transcription_failed": "转录失败：{{message}}",
     "import_srt_no_job": "请先上传或导入视频——尚无作业可附加字幕。",
+    "import_srt_after_speakers": "SRT 已加入队列。系统会先完成说话人分析，以保留克隆声音。",
     "imported_cues": "从 {{file}} 导入了 {{count}} 条字幕提示",
     "skipped_malformed": "{{count}} 条已跳过（格式错误）",
     "dropped_overlap": "{{count}} 条因重叠被丢弃",

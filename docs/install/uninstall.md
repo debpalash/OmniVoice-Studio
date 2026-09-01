@@ -164,7 +164,9 @@ normal per-platform step:
 
 - **macOS:** drag **VoiceStudio.app** from `/Applications` to the Trash.
 - **Windows:** **Settings → Apps → Installed apps → VoiceStudio →
-  Uninstall** (or via "Add or remove programs").
+  Uninstall** (or via "Add or remove programs"). The non-elevated artifact
+  appears as **VoiceStudio (Current User)** and can be removed by that user
+  without administrator approval.
 - **Linux (AppImage):** delete the `.AppImage` file. If you integrated it into
   your menu (e.g. with AppImageLauncher or a hand-written `.desktop` file),
   also remove `~/.local/share/applications/*omnivoice*.desktop` and any icon

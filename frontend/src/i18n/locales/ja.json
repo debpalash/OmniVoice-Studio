@@ -2056,6 +2056,7 @@
     "retry_cancelled": "再試行がキャンセルされました",
     "transcription_failed": "転写に失敗しました: {{message}}",
     "import_srt_no_job": "まずビデオをアップロードまたは取り込みます。字幕を付ける作業はありません。",
+    "import_srt_after_speakers": "SRTをキューに追加しました。クローン音声を保持するため、先に話者分析を完了します。",
     "imported_cues": "{{file}} から {{count}} キューをインポートしました",
     "skipped_malformed": "{{count}} がスキップされました (不正な形式)",
     "dropped_overlap": "{{count}} が削除されました (重複)",

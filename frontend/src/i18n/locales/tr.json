@@ -2056,6 +2056,7 @@
     "retry_cancelled": "Yeniden deneme iptal edildi",
     "transcription_failed": "Transkripsiyon başarısız oldu: {{message}}",
     "import_srt_no_job": "Önce bir video yükleyin veya alın; altyazı eklenecek bir iş yoktur.",
+    "import_srt_after_speakers": "SRT sıraya alındı. Klonlanmış sesleri korumak için önce konuşmacı analizi tamamlanacak.",
     "imported_cues": "{{file}}'den {{count}} işaret(ler) içe aktarıldı",
     "skipped_malformed": "{{count}} atlandı (hatalı biçimlendirilmiş)",
     "dropped_overlap": "{{count}} düştü (örtüşme)",

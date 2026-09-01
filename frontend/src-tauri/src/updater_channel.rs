@@ -22,6 +22,22 @@ const STABLE_MANIFEST: &str =
     "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest.json";
 const PREVIEW_MANIFEST: &str =
     "https://github.com/debpalash/VoiceStudio/releases/download/preview/latest.json";
+const STABLE_PER_USER_MANIFEST: &str =
+    "https://github.com/debpalash/VoiceStudio/releases/latest/download/latest-user.json";
+const PREVIEW_PER_USER_MANIFEST: &str =
+    "https://github.com/debpalash/VoiceStudio/releases/download/preview/latest-user.json";
+
+fn is_per_user_bundle(app: &AppHandle) -> bool {
+    app.package_info().name.ends_with("(Current User)")
+}
+
+fn scoped_manifests(per_user: bool) -> (&'static str, &'static str) {
+    if per_user {
+        (STABLE_PER_USER_MANIFEST, PREVIEW_PER_USER_MANIFEST)
+    } else {
+        (STABLE_MANIFEST, PREVIEW_MANIFEST)
+    }
+}
 
 /// Cross-channel ordering of VoiceStudio build versions (#326).
 ///
@@ -101,8 +117,9 @@ fn newest_of(a: Update, b: Update) -> Update {
 /// A manifest fetch error is non-fatal as long as the other manifest answers;
 /// an error is returned only when every manifest fails.
 async fn best_update(app: &AppHandle, channel: &str) -> Result<Option<Update>, String> {
+    let (stable_manifest, preview_manifest) = scoped_manifests(is_per_user_bundle(app));
     if channel != "preview" {
-        return build_updater(app, STABLE_MANIFEST, false)?
+        return build_updater(app, stable_manifest, false)?
             .check()
             .await
             .map_err(|e| e.to_string());
@@ -111,7 +128,7 @@ async fn best_update(app: &AppHandle, channel: &str) -> Result<Option<Update>, S
     let mut best: Option<Update> = None;
     let mut any_ok = false;
     let mut first_err: Option<String> = None;
-    for manifest in [PREVIEW_MANIFEST, STABLE_MANIFEST] {
+    for manifest in [preview_manifest, stable_manifest] {
         match build_updater(app, manifest, true)?.check().await {
             Ok(candidate) => {
                 any_ok = true;
@@ -133,6 +150,18 @@ async fn best_update(app: &AppHandle, channel: &str) -> Result<Option<Update>, S
     Ok(best)
 }
 
+#[cfg(test)]
+mod installer_scope_tests {
+    use super::{scoped_manifests, STABLE_MANIFEST, STABLE_PER_USER_MANIFEST};
+
+    #[test]
+    fn installer_scopes_never_share_an_update_manifest() {
+        assert_eq!(scoped_manifests(false).0, STABLE_MANIFEST);
+        assert_eq!(scoped_manifests(true).0, STABLE_PER_USER_MANIFEST);
+        assert_ne!(scoped_manifests(false), scoped_manifests(true));
+    }
+}
+
 #[derive(Serialize, Clone)]
 pub struct UpdateMeta {
     pub version: String,
@@ -149,10 +178,7 @@ struct ProgressPayload {
 /// Non-blocking availability check for the given channel. Returns the update
 /// metadata when a newer build exists, or `None` when already up to date.
 #[tauri::command]
-pub async fn check_update(
-    app: AppHandle,
-    channel: String,
-) -> Result<Option<UpdateMeta>, String> {
+pub async fn check_update(app: AppHandle, channel: String) -> Result<Option<UpdateMeta>, String> {
     Ok(best_update(&app, &channel).await?.map(|u| UpdateMeta {
         version: u.version.clone(),
         current_version: u.current_version.clone(),
@@ -176,8 +202,8 @@ pub async fn install_update(app: AppHandle, channel: String) -> Result<(), Strin
         .download_and_install(
             move |chunk, total| {
                 downloaded += chunk;
-                let _ = app_for_chunk
-                    .emit("update://progress", ProgressPayload { downloaded, total });
+                let _ =
+                    app_for_chunk.emit("update://progress", ProgressPayload { downloaded, total });
             },
             || {},
         )
@@ -242,8 +268,15 @@ pub async fn list_releases(_channel: String) -> Result<Vec<ReleaseInfo>, String>
                     .chars()
                     .take(10)
                     .collect(),
-                prerelease: it.get("prerelease").and_then(|v| v.as_bool()).unwrap_or(false),
-                notes: it.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                prerelease: it
+                    .get("prerelease")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                notes: it
+                    .get("body")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
             });
         }
     }
@@ -295,8 +328,14 @@ mod tests {
     fn newer_preview_builds_are_offered_numerically() {
         assert!(remote_is_newer(&v("0.3.5-42"), &v("0.3.5-41")));
         assert!(!remote_is_newer(&v("0.3.5-9"), &v("0.3.5-41")));
-        assert!(remote_is_newer(&v("0.3.0-preview.5"), &v("0.3.0-preview.4")));
-        assert!(!remote_is_newer(&v("0.3.0-preview.4"), &v("0.3.0-preview.5")));
+        assert!(remote_is_newer(
+            &v("0.3.0-preview.5"),
+            &v("0.3.0-preview.4")
+        ));
+        assert!(!remote_is_newer(
+            &v("0.3.0-preview.4"),
+            &v("0.3.0-preview.5")
+        ));
     }
 
     /// Strict ordering: the exact same build (either channel) is never
@@ -305,7 +344,10 @@ mod tests {
     fn equal_versions_are_not_offered() {
         assert!(!remote_is_newer(&v("0.3.5"), &v("0.3.5")));
         assert!(!remote_is_newer(&v("0.3.5-41"), &v("0.3.5-41")));
-        assert_eq!(cross_channel_cmp(&v("0.3.5-41"), &v("0.3.5-41")), Ordering::Equal);
+        assert_eq!(
+            cross_channel_cmp(&v("0.3.5-41"), &v("0.3.5-41")),
+            Ordering::Equal
+        );
     }
 
     /// The base version always dominates the suffix.

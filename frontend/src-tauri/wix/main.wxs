@@ -79,10 +79,10 @@
              search second so that the MSI-specific path takes priority when both keys exist. -->
         <Property Id="INSTALLDIR">
           <!-- First attempt: Search for the default key value (this is how the nsis installer stores the path) -->
-          <RegistrySearch Id="PrevInstallDirNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />
+          <RegistrySearch Id="PrevInstallDirNoName" Root="HKLM" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />
 
           <!-- Second attempt: Search for "InstallDir" which takes priority if found (this is how the msi installer stores the path) -->
-          <RegistrySearch Id="PrevInstallDirWithName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="InstallDir" Type="raw" />
+          <RegistrySearch Id="PrevInstallDirWithName" Root="HKLM" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="InstallDir" Type="raw" />
         </Property>
 
         <!-- launch app checkbox -->
@@ -131,8 +131,9 @@
 
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">
-                <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
+                <RegistryKey Root="HKLM" Key="Software\\{{manufacturer}}\\{{product_name}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+                    <RegistryValue Name="InstallScope" Type="string" Value="perMachine" />
                 </RegistryKey>
                 <!-- Change the Root to HKCU for perUser installations -->
                 {{#each deep_link_protocols as |protocol| ~}}
@@ -295,6 +296,7 @@
 
         <Condition Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen Standalone Runtime first, or explicitly set ALLOWWEBVIEW2BOOTSTRAP=1."><![CDATA[Installed OR REMOVE OR INSTALLED_WEBVIEW2_VERSION OR (ALLOWWEBVIEW2BOOTSTRAP = "1" AND DISABLEWEBVIEW2BOOTSTRAP <> "1")]]></Condition>
 
+        <!-- BEGIN WEBVIEW_INSTALL_ACTIONS -->
         {{#if download_bootstrapper}}
         <!-- Download webview bootstrapper mode -->
         <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; Start-Process -FilePath "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" -ArgumentList ({{webview_installer_args}} &apos;/install&apos;) -Wait' Return='check'/>
@@ -350,6 +352,7 @@
             </Custom>
         </InstallExecuteSequence>
         {{/if}}
+        <!-- END WEBVIEW_INSTALL_ACTIONS -->
 
         {{/if}}
 
