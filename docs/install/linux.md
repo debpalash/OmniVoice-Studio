@@ -7,8 +7,8 @@ working VoiceStudio install on a Debian / Ubuntu / Fedora / Arch host.
 
 ### Using the AppImage
 
-- **Linux x86_64** with a desktop session (X11 or Wayland) capable of running
-  a Tauri / WebKitGTK app.
+- **Linux x86_64 with glibc 2.39+** and a desktop session (X11 or Wayland)
+  capable of running a Tauri / WebKitGTK app.
 - **~10 GB free disk** for the app, its Python environment, and model weights.
 - Optional: an **NVIDIA driver** for CUDA GPU acceleration — the app runs
   CPU-only without one. For AMD GPUs see [AMD GPU (ROCm)](#amd-gpu-rocm).
