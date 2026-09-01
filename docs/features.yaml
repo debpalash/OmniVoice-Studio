@@ -82,7 +82,7 @@ asr_engines:
   - id: sherpa-onnx-asr
     readme: "**sherpa-onnx** (live dictation)"
   - id: openai-compat-asr
-    readme: "**OpenAI-compatible** ⚠️ remote"
+    readme: "**OpenAI-compatible** ⚠️ configured server"
 
 # Doc files that must exist (the install path users are sent to).
 docs:

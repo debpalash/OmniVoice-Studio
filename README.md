@@ -220,7 +220,7 @@ Clone-less engines cannot preserve a reference speaker in dubbing or pinned-voic
 | **Moonshine** | `moonshine` | English | Low-power, low-latency ONNX |
 | **FunASR** | `funasr` | 50+ | VAD and inline diarization |
 | **sherpa-onnx** (live dictation) | `sherpa-onnx-asr` | Model-dependent | Streaming CPU dictation |
-| **OpenAI-compatible** ⚠️ remote | `openai-compat-asr` | Server-dependent | Qwen3-ASR or another compatible endpoint; audio leaves the machine |
+| **OpenAI-compatible** ⚠️ configured server | `openai-compat-asr` | Server-dependent | Local gigastt/Qwen3-ASR or a remote endpoint; audio goes only to that server |
 
 WhisperX and Faster-Whisper retry with `int8` when efficient `float16` is unavailable. Pin `ASR_COMPUTE_TYPE=int8` or `float32` only if automatic selection still fails.
 
@@ -255,7 +255,7 @@ FastAPI backend
 
 - The desktop talks to a loopback-only backend on `localhost:3900`.
 - Loopback API calls need no server key. Remote access requires a share PIN or API key.
-- Remote workers and OpenAI-compatible ASR are opt-in. The UI identifies when audio leaves the machine.
+- Remote workers and OpenAI-compatible ASR are opt-in. A loopback ASR endpoint keeps audio on the machine; any non-loopback endpoint sends it to that configured server.
 - Analytics is off until consent. If enabled, it sends allowlisted, content-free usage metadata. It never sends text, audio, file names, or projects.
 
 <a id="api"></a>

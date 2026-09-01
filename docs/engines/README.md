@@ -54,7 +54,7 @@ approval), [Windows](../install/windows.md), [Linux](../install/linux.md),
 | Moonshine | [moonshine](moonshine.md) | CPU | edge/low-power, no timestamps | `pip install` (see guide) |
 | FunASR (SenseVoice) | [funasr](funasr.md) | CUDA · CPU | 50+ languages, inline diarization | `pip install funasr` |
 | Sherpa-ONNX dictation | [sherpa-onnx-asr](sherpa-onnx-asr.md) | CPU | live streaming dictation | curated model download |
-| OpenAI-compatible (remote) | [openai-compatible-asr](openai-compatible-asr.md) | network | offloading to a server (audio leaves the machine) | Model Catalogue |
+| OpenAI-compatible (local or remote) | [openai-compatible-asr](openai-compatible-asr.md) | network | a configured endpoint; loopback stays local | Model Catalogue |
 
 Speaker diarization is not an engine registry of its own — the dub pipeline
 uses pyannote (HF-gated; see [diarization](../features/diarization.md)) and
