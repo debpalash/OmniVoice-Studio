@@ -2,6 +2,7 @@
 import json
 import os
 import zipfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -47,6 +48,53 @@ def test_bundle_members_and_meta(bundle_env):
         assert meta["app_version"]
         report = json.loads(zf.read("self_check.json"))
         assert report["summary"]["passed"] >= 1
+        assert "engine_execution" in report
+        text_report = zf.read("self_check.txt").decode()
+        if report["engine_execution"]:
+            assert "Engine execution evidence:" in text_report
+            row = report["engine_execution"][0]
+            assert f"{row['family']}:{row['engine_id']}" in text_report
+            assert f"evidence-state={row['evidence_state']}" in text_report
+            assert "device=" in text_report
+            assert "precision=" in text_report
+            assert "fallback-stage=" in text_report
+
+
+def test_asr_import_failure_preserves_tts_execution_evidence(monkeypatch):
+    from core import diagnose
+
+    evidence = {
+        "implementation_variant": "fake",
+        "declared_device_families": ["cpu"],
+        "evidence_state": "loaded",
+        "actual_execution_provider": "cpu",
+        "actual_execution_device": "cpu",
+        "gpu_name": None,
+        "gpu_architecture": None,
+        "precision_or_quantization": "fp32",
+        "cpu_fallback_reason": None,
+        "cpu_fallback_stage": None,
+        "parent_memory_observable": True,
+        "runtime_versions": {},
+    }
+    tts = SimpleNamespace(
+        active_backend_id=lambda: "fake-tts",
+        list_backends=lambda: [{"id": "fake-tts", "execution_evidence": evidence}],
+    )
+    real_import = diagnose.importlib.import_module
+
+    def import_family(name):
+        if name == "services.tts_backend":
+            return tts
+        if name == "services.asr_backend":
+            raise ImportError("unavailable")
+        return real_import(name)
+
+    monkeypatch.setattr(diagnose.importlib, "import_module", import_family)
+    rows = diagnose.run_diagnostics(include_network=False)["engine_execution"]
+
+    assert next(row for row in rows if row["family"] == "tts")["engine_id"] == "fake-tts"
+    assert next(row for row in rows if row["family"] == "asr")["evidence_state"] == "collection_failed"
 
 
 def test_bundle_log_tails_are_scrubbed(bundle_env):

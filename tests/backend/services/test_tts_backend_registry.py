@@ -173,6 +173,8 @@ def test_list_backends_shape(registry_sandbox):
         # below the floor gets a caveat in `routing_reason` BEFORE it spends
         # the full compute budget finding out its card is too small.
         "min_vram_gb",
+        # Sanitized actual-vs-declared provider/device evidence (#1717).
+        "execution_evidence",
     }
     mlx_audio_extra = {"curated_models", "active_model_id"}
     for entry in out:
