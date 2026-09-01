@@ -257,3 +257,90 @@ def test_windows_assignment_failure_kills_suspended_unowned_child(monkeypatch):
     names = [event[0] for event in events]
     assert names.index("assign") < names.index("terminate") < names.index("kill")
     assert names.index("kill") < names.index("wait") < names.index("write")
+
+
+def test_windows_direct_job_owner_assigns_before_resume(monkeypatch):
+    """Windows skips the extra Python wrapper but retains pre-start Job ownership."""
+    events = []
+    job = 99
+
+    kernel = type("Kernel", (), {})()
+    kernel.AssignProcessToJobObject = _Call(
+        lambda assigned_job, process: events.append(("assign", assigned_job, process)) or True
+    )
+    kernel.TerminateJobObject = _Call(
+        lambda assigned_job, code: events.append(("terminate", assigned_job, code)) or True
+    )
+    kernel.CloseHandle = _Call(
+        lambda handle: events.append(("close", getattr(handle, "value", handle))) or True
+    )
+    monkeypatch.setattr(owned, "_windows_job", lambda: (job, kernel, wintypes))
+    monkeypatch.setattr(
+        owned,
+        "_resume_windows_process",
+        lambda _kernel, _types, pid: events.append(("resume", pid)),
+    )
+
+    class Child:
+        _handle = 77
+        pid = 123
+        args = ["operation.exe"]
+        stdin = None
+        stdout = object()
+        stderr = object()
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, timeout=None):
+            events.append(("wait", timeout))
+            return self.returncode
+
+        def kill(self):
+            events.append(("kill",))
+
+    child = Child()
+
+    def fake_popen(argv, **kwargs):
+        events.append(("spawn", argv, kwargs))
+        return child
+
+    monkeypatch.setattr(owned.subprocess, "Popen", fake_popen)
+    proc = owned._spawn_windows_owned(
+        ["operation.exe"],
+        {
+            "env": {
+                "KEEP": "yes",
+                "OMNIVOICE_DESKTOP_CONTAINED": "1",
+                "OMNIVOICE_DESKTOP_DRAIN_FD": "42",
+            },
+            "creationflags": 0x00000200,
+        },
+    )
+
+    names = [event[0] for event in events]
+    assert names[:3] == ["spawn", "assign", "resume"]
+    spawn_argv, spawn_kwargs = events[0][1:]
+    assert spawn_argv == ["operation.exe"]
+    assert spawn_kwargs["creationflags"] == 0x08000204
+    assert spawn_kwargs["env"] == {"KEEP": "yes"}
+    assert proc.stdout is child.stdout
+
+    child.returncode = 0
+    assert proc.poll() == 0
+    assert [event[0] for event in events][-2:] == ["terminate", "close"]
+
+
+def test_spawn_owned_selects_direct_windows_job_path(monkeypatch):
+    sentinel = object()
+    calls = []
+    monkeypatch.setattr(owned.os, "name", "nt")
+    monkeypatch.setattr(
+        owned,
+        "_spawn_windows_owned",
+        lambda argv, kwargs: calls.append((argv, kwargs)) or sentinel,
+    )
+
+    assert owned.spawn_owned(["sidecar.exe"], text=True) is sentinel
+    assert calls == [(["sidecar.exe"], {"text": True})]

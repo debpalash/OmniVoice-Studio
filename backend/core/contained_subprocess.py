@@ -3,13 +3,14 @@
 The desktop owns the backend with an OS process group/Job.  Engine and
 installer operations also need an independently terminable subtree: killing
 only their direct child on a timeout leaves uv/git/model workers holding pipes
-and mutating files.  A small direct-child supervisor bridges both lifetimes.
+and mutating files.
 
-On POSIX the supervisor is the unreaped leader of a nested process group.  A
-control-pipe EOF (including kernel EOF when the backend dies) kills that group;
-the parent also drains the group before reaping its stable leader.  On Windows
-the supervisor assigns the operation, while suspended, to a nested
-kill-on-close Job.  The outer desktop Job still contains both levels.
+On POSIX a small supervisor is the unreaped leader of a nested process group.
+A control-pipe EOF (including kernel EOF when the backend dies) kills that
+group; the parent also drains the group before reaping its stable leader. On
+Windows the backend retains a nested kill-on-close Job directly and assigns
+the suspended operation before resuming it. The outer desktop Job remains the
+terminal fallback.
 
 Standalone/server launches use the same nested owner, preserving their
 independently terminable subtree without relying on ``taskkill`` or discovery.
@@ -263,42 +264,148 @@ class OwnedPopen:
                 pass
 
 
-def spawn_owned(argv: list[str], **kwargs: Any) -> "subprocess.Popen | OwnedPopen":
+class WindowsJobPopen:
+    """Popen-compatible handle whose child tree lives in a retained Job.
+
+    Windows Job handles already provide the stable ownership that POSIX needs
+    a supervisor process group for. Keeping the handle in the backend means an
+    abrupt backend exit closes it in the kernel and kills the whole operation
+    tree, without inserting a second Python process in the sidecar loader path
+    (#1734).
+    """
+
+    def __init__(self, proc: subprocess.Popen, job: Any, kernel32: Any) -> None:
+        self._proc = proc
+        self._job = job
+        self._kernel32 = kernel32
+        self._lock = threading.RLock()
+        self.stdin = proc.stdin
+        self.stdout = proc.stdout
+        self.stderr = proc.stderr
+
+    @property
+    def pid(self) -> int:
+        return self._proc.pid
+
+    @property
+    def args(self) -> Any:
+        return self._proc.args
+
+    @property
+    def returncode(self) -> Optional[int]:
+        return self._proc.returncode
+
+    def _close_job(self, *, terminate: bool) -> None:
+        job, self._job = self._job, None
+        if job is None:
+            return
+        try:
+            if terminate:
+                self._kernel32.TerminateJobObject(job, 1)
+        finally:
+            self._kernel32.CloseHandle(job)
+
+    def poll(self) -> Optional[int]:
+        with self._lock:
+            rc = self._proc.poll()
+            if rc is None:
+                return None
+            # A successful direct child may leave helpers behind. Match the
+            # supervisor contract by draining the retained Job before return.
+            self._close_job(terminate=True)
+            return rc
+
+    def wait(self, timeout: Optional[float] = None) -> int:
+        try:
+            rc = self._proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise
+        with self._lock:
+            self._close_job(terminate=True)
+        return rc
+
+    def terminate(self) -> None:
+        with self._lock:
+            self._close_job(terminate=True)
+
+    def kill(self) -> None:
+        self.terminate()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._proc, name)
+
+    def __del__(self) -> None:
+        try:
+            self._close_job(terminate=True)
+        except Exception:
+            pass  # interpreter shutdown; closing the OS handle is best-effort
+
+
+def _spawn_windows_owned(argv: list[str], kwargs: dict[str, Any]) -> WindowsJobPopen:
+    """Start *argv* suspended, assign its tree to a Job, then resume it."""
+    import ctypes
+
+    job, kernel32, wintypes = _windows_job()
+    child: Optional[subprocess.Popen] = None
+    popen_kwargs = dict(kwargs)
+    supplied_env = popen_kwargs.get("env")
+    operation_env = dict(os.environ if supplied_env is None else supplied_env)
+    operation_env.pop(_DRAIN_FD_ENV, None)
+    operation_env.pop(_DESKTOP_MARKER, None)
+    popen_kwargs["env"] = operation_env
+    supplied_flags = int(popen_kwargs.pop("creationflags", 0))
+    popen_kwargs["creationflags"] = supplied_flags | 0x08000000 | 0x00000004
+    try:
+        child = subprocess.Popen(argv, **popen_kwargs)
+        assign = kernel32.AssignProcessToJobObject
+        assign.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+        assign.restype = wintypes.BOOL
+        if not assign(job, wintypes.HANDLE(child._handle)):
+            raise OSError(ctypes.get_last_error(), "AssignProcessToJobObject")
+        _resume_windows_process(kernel32, wintypes, child.pid)
+        return WindowsJobPopen(child, job, kernel32)
+    except BaseException:
+        kernel32.TerminateJobObject(job, 1)
+        if child is not None:
+            try:
+                child.kill()
+            except OSError:
+                pass  # the suspended child may already have exited
+            try:
+                child.wait(timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                pass  # Job termination remains the authoritative cleanup
+        kernel32.CloseHandle(job)
+        raise
+
+
+def spawn_owned(
+    argv: list[str], **kwargs: Any
+) -> "subprocess.Popen | OwnedPopen | WindowsJobPopen":
     """Spawn an operation with a stable, independently terminable owner."""
 
-    drain_fd = backend_drain_fd(required=True) if os.name == "posix" else None
+    if os.name == "nt":
+        return _spawn_windows_owned(argv, kwargs)
+
+    drain_fd = backend_drain_fd(required=True)
     control_read, control_write = os.pipe()
     result_read, result_write = os.pipe()
-    control_token = control_read
-    result_token = result_write
-    if os.name == "nt":
-        import msvcrt
-
-        control_token = msvcrt.get_osfhandle(control_read)
-        result_token = msvcrt.get_osfhandle(result_write)
     wrapper_argv = _supervisor_argv(
-        control_token,
-        result_token,
+        control_read,
+        result_write,
         argv,
     )
     wrapper_kwargs = dict(kwargs)
-    if os.name == "posix":
-        wrapper_kwargs["start_new_session"] = True
-        pass_fds = [control_read, result_write]
-        if drain_fd is not None:
-            pass_fds.append(drain_fd)
-            if wrapper_kwargs.get("env") is not None:
-                wrapper_env = dict(wrapper_kwargs["env"])
-                wrapper_env[_DESKTOP_MARKER] = "1"
-                wrapper_env[_DRAIN_FD_ENV] = str(drain_fd)
-                wrapper_kwargs["env"] = wrapper_env
-        wrapper_kwargs["pass_fds"] = tuple(pass_fds)
-    else:
-        # Python's Windows fd inheritance requires inheritable CRT handles.
-        # All unrelated descriptors are non-inheritable by default (PEP 446).
-        os.set_handle_inheritable(control_token, True)
-        os.set_handle_inheritable(result_token, True)
-        wrapper_kwargs["close_fds"] = False
+    wrapper_kwargs["start_new_session"] = True
+    pass_fds = [control_read, result_write]
+    if drain_fd is not None:
+        pass_fds.append(drain_fd)
+        if wrapper_kwargs.get("env") is not None:
+            wrapper_env = dict(wrapper_kwargs["env"])
+            wrapper_env[_DESKTOP_MARKER] = "1"
+            wrapper_env[_DRAIN_FD_ENV] = str(drain_fd)
+            wrapper_kwargs["env"] = wrapper_env
+    wrapper_kwargs["pass_fds"] = tuple(pass_fds)
     try:
         proc = subprocess.Popen(wrapper_argv, **wrapper_kwargs)
     except BaseException:
