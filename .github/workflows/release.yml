@@ -719,6 +719,7 @@ jobs:
           set -euo pipefail
           MSI=$(find frontend/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi -name "*.msi" | head -1)
           echo "Smoke-testing MSI: $MSI"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows-msi.ps1 -MsiPath "$(cygpath -w "$MSI")"
           # /quiet = no UI, /norestart = don't reboot the runner if a dep asks
           msiexec.exe //i "$(cygpath -w "$MSI")" //quiet //norestart
           INSTALL="/c/Program Files/VoiceStudio"

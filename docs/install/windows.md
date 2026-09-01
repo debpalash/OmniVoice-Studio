@@ -116,6 +116,39 @@ If an install to a local non-C: drive fails anyway, capture a log with
 [open an issue](https://github.com/debpalash/VoiceStudio/issues) with it
 — that log shows exactly which step rolled back.
 
+## Managed WebView2 installation
+
+The MSI checks the `pv` version value in both the machine-wide and current-user
+Edge Update registry keys for the WebView2 Runtime product
+`{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`. When no `pv` version is detected and
+the bootstrapper was not explicitly allowed (or was explicitly disabled), the
+install fails without making a network request and directs the operator to the
+offline runtime. `ALLOWWEBVIEW2BOOTSTRAP=1` instead selects the opt-in path
+documented below.
+
+Managed or offline deployments can prohibit that network action:
+
+```powershell
+msiexec /i VoiceStudio_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-install.log"
+```
+
+With `DISABLEWEBVIEW2BOOTSTRAP=1`, detection still runs but no WebView2
+PowerShell, download, or installer action can start. If the runtime is absent,
+the MSI fails before copying VoiceStudio and tells the operator to deploy the
+[Microsoft Evergreen Standalone Runtime](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
+first. This fail-closed behavior prevents a detection miss from becoming an
+unexpected elevated download. `/L*V` records detection and action selection in
+the named Windows Installer log.
+
+An interactive administrator may explicitly permit Microsoft's network
+bootstrapper by setting `ALLOWWEBVIEW2BOOTSTRAP=1`. Only then does the MSI
+download `https://go.microsoft.com/fwlink/p/?LinkId=2124703` with PowerShell
+and invoke it silently with `/install`; `DISABLEWEBVIEW2BOOTSTRAP=1` always
+wins if both properties are supplied.
+
+`AUTOLAUNCHAPP=0` is independent: it prevents VoiceStudio from launching after
+a successful silent install. It does not disable WebView2 detection or setup.
+
 ## Portable install (Windows)
 
 <a id="portable-install"></a>

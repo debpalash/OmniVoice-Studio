@@ -103,6 +103,9 @@ pub struct AppFlags {
 pub struct CaptureDispatchState {
     pub(crate) ready: bool,
     pub(crate) pending: VecDeque<CaptureEvent>,
+    registration_counter: u64,
+    delivery_counter: u64,
+    active_registration: Option<u64>,
 }
 
 impl Default for CaptureDispatchState {
@@ -110,6 +113,65 @@ impl Default for CaptureDispatchState {
         Self {
             ready: false,
             pending: VecDeque::new(),
+            registration_counter: 0,
+            delivery_counter: 0,
+            active_registration: None,
+        }
+    }
+}
+
+impl CaptureDispatchState {
+    pub(crate) fn begin_registration(&mut self) -> u64 {
+        self.registration_counter = self.registration_counter.wrapping_add(1).max(1);
+        self.active_registration = Some(self.registration_counter);
+        self.ready = false;
+        self.registration_counter
+    }
+
+    pub(crate) fn mark_registration_ready(
+        &mut self,
+        registration_id: u64,
+    ) -> VecDeque<CaptureEvent> {
+        if self.active_registration != Some(registration_id) {
+            return VecDeque::new();
+        }
+        self.ready = true;
+        self.pending
+            .iter()
+            .cloned()
+            .map(|mut event| {
+                event.payload.registration_id = registration_id;
+                event
+            })
+            .collect()
+    }
+
+    pub(crate) fn enqueue(&mut self, mut event: CaptureEvent) -> Option<CaptureEvent> {
+        self.delivery_counter = self.delivery_counter.wrapping_add(1).max(1);
+        event.payload.delivery_id = self.delivery_counter;
+        self.pending.push_back(event.clone());
+        let registration_id = self.active_registration.filter(|_| self.ready)?;
+        event.payload.registration_id = registration_id;
+        Some(event)
+    }
+
+    pub(crate) fn acknowledge(&mut self, registration_id: u64, delivery_id: u64) {
+        if self.active_registration != Some(registration_id) {
+            return;
+        }
+        if let Some(index) = self
+            .pending
+            .iter()
+            .position(|event| event.payload.delivery_id == delivery_id)
+        {
+            self.pending.remove(index);
+        }
+    }
+
+    pub(crate) fn end_registration(&mut self, registration_id: u64) {
+        if self.active_registration == Some(registration_id) {
+            self.active_registration = None;
+            self.ready = false;
         }
     }
 }
@@ -118,8 +180,11 @@ impl Default for CaptureDispatchState {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DictationCapturePayload {
     pub(crate) session_id: u64,
+    pub(crate) delivery_id: u64,
+    pub(crate) registration_id: u64,
 }
 
+#[derive(Clone)]
 pub(crate) struct CaptureEvent {
     pub(crate) name: &'static str,
     pub(crate) payload: DictationCapturePayload,
@@ -155,13 +220,18 @@ fn dispatch_dictation_capture_from(app: &tauri::AppHandle, action: &str, origin:
     };
     let capture_event = CaptureEvent {
         name: event,
-        payload: DictationCapturePayload { session_id },
+        payload: DictationCapturePayload {
+            session_id,
+            delivery_id: 0,
+            registration_id: 0,
+        },
     };
     let Ok(mut capture) = flags.capture.lock() else {
         log::warn!("Dictation capture state lock poisoned");
         return;
     };
-    if capture.ready {
+    if let Some(capture_event) = capture.enqueue(capture_event) {
+        drop(capture);
         // A press that reaches Rust but produces no recording is otherwise
         // indistinguishable from one the compositor never delivered, so say
         // which side of the handshake the press left on.
@@ -174,7 +244,6 @@ fn dispatch_dictation_capture_from(app: &tauri::AppHandle, action: &str, origin:
         log::warn!(
             "Dictation capture '{action}' queued — the capture window has not registered yet"
         );
-        capture.pending.push_back(capture_event);
     }
 }
 
@@ -183,6 +252,17 @@ mod dictation_capture_tests {
     use super::{
         dictation_capture_event, CaptureDispatchState, CaptureEvent, DictationCapturePayload,
     };
+
+    fn capture_event(name: &'static str) -> CaptureEvent {
+        CaptureEvent {
+            name,
+            payload: DictationCapturePayload {
+                session_id: 7,
+                delivery_id: 0,
+                registration_id: 0,
+            },
+        }
+    }
 
     #[test]
     fn toggle_starts_when_idle_and_stops_when_recording() {
@@ -193,16 +273,47 @@ mod dictation_capture_tests {
     #[test]
     fn readiness_queue_preserves_press_then_release() {
         let mut state = CaptureDispatchState::default();
-        state.pending.push_back(CaptureEvent {
-            name: "tray-dictate",
-            payload: DictationCapturePayload { session_id: 7 },
-        });
-        state.pending.push_back(CaptureEvent {
-            name: "tray-dictate-stop",
-            payload: DictationCapturePayload { session_id: 7 },
-        });
+        state.enqueue(capture_event("tray-dictate"));
+        state.enqueue(capture_event("tray-dictate-stop"));
         let names: Vec<_> = state.pending.into_iter().map(|event| event.name).collect();
         assert_eq!(names, ["tray-dictate", "tray-dictate-stop"]);
+    }
+
+    #[test]
+    fn unacknowledged_delivery_survives_listener_replacement() {
+        let mut state = CaptureDispatchState::default();
+        state.enqueue(capture_event("tray-dictate"));
+        let stale = state.begin_registration();
+        let first_delivery = state.mark_registration_ready(stale);
+        let delivery_id = first_delivery[0].payload.delivery_id;
+
+        state.end_registration(stale);
+        let current = state.begin_registration();
+        let retried = state.mark_registration_ready(current);
+        assert_eq!(retried.len(), 1);
+        assert_eq!(retried[0].payload.delivery_id, delivery_id);
+        assert_eq!(retried[0].payload.registration_id, current);
+
+        state.acknowledge(stale, delivery_id);
+        assert_eq!(state.pending.len(), 1);
+        state.acknowledge(current, delivery_id);
+        assert!(state.pending.is_empty());
+    }
+
+    #[test]
+    fn stale_listener_cannot_claim_or_clear_a_newer_registration() {
+        let mut state = CaptureDispatchState::default();
+        let stale = state.begin_registration();
+        let current = state.begin_registration();
+
+        assert!(state.mark_registration_ready(stale).is_empty());
+        assert!(!state.ready);
+        state.mark_registration_ready(current);
+        assert!(state.ready);
+        state.end_registration(stale);
+        assert!(state.ready);
+        state.end_registration(current);
+        assert!(!state.ready);
     }
 }
 
@@ -612,7 +723,10 @@ pub fn run() {
             commands::get_effective_dictation_shortcut,
             commands::set_dictation_shortcut,
             commands::request_dictation_capture,
+            commands::begin_dictation_capture_registration,
             commands::mark_dictation_capture_ready,
+            commands::acknowledge_dictation_capture_delivery,
+            commands::end_dictation_capture_registration,
             commands::show_dictation_pill,
             commands::get_launch_as_widget,
             commands::set_launch_as_widget,
