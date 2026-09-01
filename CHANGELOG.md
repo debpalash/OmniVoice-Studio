@@ -25,9 +25,12 @@ the frozen-backend fallback mirror it for their toolchains.
 - Local gigastt is now documented as a supported OpenAI-compatible ASR endpoint, with loopback privacy distinguished from remote servers (#1736) — thanks @ekhodzitsky!
 - The CosyVoice guide now states that packaged builds have no one-click runtime installer and records the exact readiness checks exposed by [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631).
 - A production private-API guide now covers pinned containers, root credentials, network isolation, streaming proxies, health checks, upgrades, and benchmark evidence (#1720)
+- RX 6700 XT/gfx1031 over WSL2 ROCDXG is now explicitly unverified until a published end-to-end GPU workload proves the mapped path (#1716)
 
 ### Fixed
 
+- Dubbing jobs can now reuse every source-language code produced by automatic ASR detection without a 400 error on the next upload (#1737)
+- Incomplete Sherpa-ONNX model snapshots now self-repair before recognizer startup instead of failing on a missing ONNX file (#1733)
 - OmniVoice subprocess startup now allows slow packaged Windows Python runtimes to signal readiness before termination (#1711)
 - SRT files selected during source analysis now wait for speaker cloning, then replace transcript text without losing voices (#1709)
 - Windows MSI deployments can now prohibit WebView2 bootstrap with `DISABLEWEBVIEW2BOOTSTRAP=1`, and `AUTOLAUNCHAPP=0` reliably suppresses first launch (#1714)

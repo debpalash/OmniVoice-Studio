@@ -339,3 +339,20 @@ class TestAudioOnlyDubbing:
 
         assert response.status_code == 202
         assert queued[0][5]["source_lang"] == "fr"
+
+    def test_asr_detected_source_languages_can_be_reused_as_overrides(self, app_client):
+        _client, dc, _dx, _tmp = app_client
+        detected_codes = {
+            "as", "ba", "bo", "br", "fo", "lb", "ln", "mg", "nn", "oc",
+            "sa", "tk", "tl", "tt", "yue", "zh",
+        }
+
+        for code in detected_codes:
+            assert dc._source_lang_override(code) == code
+
+    def test_asr_detected_cantonese_code_is_not_truncated(self, app_client):
+        _client, dc, _dx, _tmp = app_client
+
+        assert dc._detected_source_lang("yue") == "yue"
+        assert dc._detected_source_lang("es_ES") == "es"
+        assert dc._detected_source_lang("unknown-language") == "en"

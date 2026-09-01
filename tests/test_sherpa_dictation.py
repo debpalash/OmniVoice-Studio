@@ -208,18 +208,61 @@ def test_model_resolution_pins_offline_probe_and_download(monkeypatch, tmp_path)
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path))
     calls = []
 
+    downloaded = tmp_path / "downloaded"
+
     def fake_snapshot(**kwargs):
         calls.append(kwargs)
-        return "/cache/pinned"
+        downloaded.mkdir()
+        for filename in spec.files.values():
+            (downloaded / filename).write_bytes(b"model")
+        return str(downloaded)
 
     monkeypatch.setattr(huggingface_hub, "snapshot_download", fake_snapshot)
-    assert sd._resolve_model_dir(spec) == "/cache/pinned"
+    assert sd._resolve_model_dir(spec) == str(downloaded)
     assert calls == [{
         "repo_id": spec.repo_id,
         "revision": hf_revisions.revision_for(spec.repo_id),
         "allow_patterns": list(spec.files.values()),
         "cache_dir": str(tmp_path),
     }]
+
+
+def test_model_resolution_repairs_broken_snapshot_before_loading(monkeypatch, tmp_path):
+    """A zero-byte ONNX entry must be repaired before sherpa receives it (#1733)."""
+    from services import hf_cache_repair, sherpa_dictation as sd
+    import huggingface_hub
+
+    spec = sd.get_spec("sherpa-whisper-tiny")
+    revision = "6" * 40
+    repo = tmp_path / "models--csukuangfj--sherpa-onnx-whisper-tiny"
+    ref = repo / "refs" / "main"
+    ref.parent.mkdir(parents=True)
+    ref.write_text(revision + "\n", encoding="ascii")
+    snapshot = repo / "snapshots" / revision
+    snapshot.mkdir(parents=True)
+    broken = snapshot / spec.files["encoder"]
+    broken.write_bytes(b"")
+    for role in ("decoder", "tokens"):
+        (snapshot / spec.files[role]).write_bytes(b"model")
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path))
+
+    repairs = []
+
+    def fake_repair(repo_id, cache_dir):
+        repairs.append((repo_id, cache_dir))
+        broken.write_bytes(b"restored model")
+        return {"ok": True, "outcome": "healed_with_copies", "error": ""}
+
+    monkeypatch.setattr(hf_cache_repair, "repair_repo_cache", fake_repair)
+    monkeypatch.setattr(
+        huggingface_hub,
+        "snapshot_download",
+        lambda **_kwargs: pytest.fail("a repaired snapshot must be reused"),
+    )
+
+    assert sd._resolve_model_dir(spec) == str(snapshot)
+    assert repairs == [(spec.repo_id, str(tmp_path))]
+    assert broken.read_bytes() == b"restored model"
 
 
 def test_model_resolution_probes_preserved_legacy_snapshot(monkeypatch, tmp_path):
