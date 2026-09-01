@@ -29,6 +29,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The setup splash now waits through the backend's full startup budget instead of reporting slow Windows CUDA initialization as stuck after two minutes (#1749)
 - Dubbing jobs can now reuse every source-language code produced by automatic ASR detection without a 400 error on the next upload (#1737)
 - Incomplete Sherpa-ONNX model snapshots now self-repair before recognizer startup instead of failing on a missing ONNX file (#1733)
 - OmniVoice subprocess startup now allows slow packaged Windows Python runtimes to signal readiness before termination (#1711)
