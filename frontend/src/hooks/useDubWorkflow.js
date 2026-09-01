@@ -271,7 +271,12 @@ export default function useDubWorkflow({
         return true;
       } catch (err) {
         if (err?.name === 'AbortError') throw err;
-        if (signal?.aborted || useAppStore.getState().dubJobId !== jobId) return false;
+        if (
+          signal?.aborted ||
+          useAppStore.getState().dubJobId !== jobId ||
+          pendingSrtRef.current !== file
+        )
+          return false;
         if (isExpiredDubJobError(err)) {
           _resetStaleDubSession();
           return false;
@@ -288,12 +293,25 @@ export default function useDubWorkflow({
 
   const _applyQueuedSrt = useCallback(
     async (jobId, ctrl) => {
-      const queuedSrt = pendingSrtRef.current;
+      let queuedSrt = pendingSrtRef.current;
       if (!queuedSrt) {
         setDubStep('editing');
         return true;
       }
-      return applyQueuedSrtImport(pendingSrtRef, jobId, ctrl?.signal, _performSrtImport);
+      while (queuedSrt) {
+        const imported = await applyQueuedSrtImport(
+          pendingSrtRef,
+          jobId,
+          ctrl?.signal,
+          _performSrtImport,
+        );
+        if (ctrl?.signal.aborted || useAppStore.getState().dubJobId !== jobId) return false;
+        const replacement = pendingSrtRef.current;
+        if (!replacement) return imported;
+        if (replacement === queuedSrt) return false;
+        queuedSrt = replacement;
+      }
+      return false;
     },
     [setDubStep, _performSrtImport],
   );
