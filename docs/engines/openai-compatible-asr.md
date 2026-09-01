@@ -47,6 +47,10 @@ picks local engines, and the app works fully with this engine unconfigured.
 | Groq | `https://api.groq.com/openai/v1` | `whisper-large-v3` | required |
 | OpenAI | `https://api.openai.com/v1` | `whisper-1` | required |
 
+Plain HTTP is accepted only for exact loopback hosts such as `localhost`,
+`127.0.0.1`, and `::1`. Every non-loopback endpoint must use HTTPS. VoiceStudio
+does not follow redirects from transcription or connection-probe requests.
+
 Local servers vary in which endpoints they implement — if **Test
 connection** reports the server is reachable but doesn't list models,
 transcription may still work; run a small dictation or dub-transcribe to
@@ -62,6 +66,6 @@ path returns word-level timestamps — that's not part of this API.
 ## Privacy note
 
 Audio goes only to the server **you** configure. A loopback URL such as the
-gigastt example keeps it on the same machine. A LAN URL sends it to that host,
-and a public API sends it to that provider. Review the configured server's data
-handling before sending anything sensitive.
+gigastt example keeps it on the same machine and may use HTTP. LAN and public
+endpoints require HTTPS, and redirects are not followed. Review the configured
+server's data handling before sending anything sensitive.

@@ -117,6 +117,17 @@ def test_available_once_base_url_configured(asr_mod, ss):
     assert ok is True
 
 
+def test_insecure_stored_url_cannot_bypass_settings_validation(asr_mod, ss):
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://asr.example/v1")
+
+    ok, reason = asr_mod.OpenAICompatASRBackend.is_available()
+
+    assert ok is False
+    assert "require HTTPS" in reason
+    with pytest.raises(ValueError, match="require HTTPS"):
+        asr_mod.OpenAICompatASRBackend()
+
+
 # ── response adaptation ─────────────────────────────────────────────────────
 
 
@@ -180,6 +191,9 @@ def test_client_disables_sdk_retries(asr_mod, ss, monkeypatch, tmp_path):
     audio.write_bytes(b"RIFF....WAVEfmt ")
     asr_mod.OpenAICompatASRBackend().transcribe(str(audio))
     assert captured_kwargs[0]["max_retries"] == 0
+    transport = captured_kwargs[0]["http_client"]
+    assert transport.follow_redirects is False
+    transport.close()
 
 
 # ── settings endpoints ───────────────────────────────────────────────────────
@@ -235,6 +249,22 @@ def test_rejects_a_base_url_without_scheme(settings_mod):
         )
 
 
+def test_rejects_plain_http_for_non_loopback_server(settings_mod):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException, match="require HTTPS"):
+        settings_mod.set_asr_openai_compat(
+            settings_mod._ASROpenAICompatBody(base_url="http://asr.example/v1")
+        )
+
+
+def test_accepts_https_for_non_loopback_server(settings_mod):
+    state = settings_mod.set_asr_openai_compat(
+        settings_mod._ASROpenAICompatBody(base_url="https://asr.example/v1/")
+    )
+    assert state["base_url"] == "https://asr.example/v1"
+
+
 def test_registered_in_backend_list(asr_mod):
     assert "openai-compat-asr" in asr_mod._REGISTRY
     assert asr_mod._REGISTRY["openai-compat-asr"] is asr_mod.OpenAICompatASRBackend
@@ -249,16 +279,16 @@ def test_engine_reads_fresh_config_per_call(asr_mod, ss):
     next transcribe — the backend is instantiated fresh per call
     (get_active_asr_backend) and reads settings_store in __init__, so no
     backend restart is ever required after a config change."""
-    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://old:1/v1")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "https://old.example/v1")
     ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "old-model")
     first = asr_mod.OpenAICompatASRBackend()
-    assert first._base_url == "http://old:1/v1"
+    assert first._base_url == "https://old.example/v1"
     assert first._model == "old-model"
 
-    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://new:2/v1")
+    ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "https://new.example/v1")
     ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "new-model")
     second = asr_mod.OpenAICompatASRBackend()
-    assert second._base_url == "http://new:2/v1"
+    assert second._base_url == "https://new.example/v1"
     assert second._model == "new-model"
 
 
@@ -320,6 +350,17 @@ def test_probe_rejects_schemeless_url_before_any_network(asr_mod, monkeypatch):
     assert out == {**out, "ok": False, "status": "invalid_url"}
 
 
+def test_probe_rejects_non_loopback_http_before_any_network(asr_mod, monkeypatch):
+    import httpx
+
+    def _boom(**kw):  # pragma: no cover — must never be constructed
+        raise AssertionError("network client constructed for an insecure URL")
+
+    monkeypatch.setattr(httpx, "Client", _boom)
+    out = asr_mod.probe_openai_compat_server(base_url="http://asr.example/v1")
+    assert out == {**out, "ok": False, "status": "invalid_url"}
+
+
 def test_probe_ok_reports_latency_and_model_found(asr_mod, ss, monkeypatch):
     ss.set_text(asr_mod._ASR_OPENAI_COMPAT_BASE_URL_KEY, "http://localhost:8080/v1/")
     ss.set_text(asr_mod._ASR_OPENAI_COMPAT_MODEL_KEY, "qwen3-asr")
@@ -335,6 +376,7 @@ def test_probe_ok_reports_latency_and_model_found(asr_mod, ss, monkeypatch):
     assert out["model_found"] is True
     assert isinstance(out["latency_ms"], float)
     assert captured["url"] == "http://localhost:8080/v1/models"  # trailing / trimmed
+    assert captured["client_kwargs"]["follow_redirects"] is False
     # No key configured → the probe must not invent an Authorization header.
     assert "Authorization" not in captured["headers"]
 

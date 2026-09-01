@@ -255,7 +255,7 @@ FastAPI backend
 
 - The desktop talks to a loopback-only backend on `localhost:3900`.
 - Loopback API calls need no server key. Remote access requires a share PIN or API key.
-- Remote workers and OpenAI-compatible ASR are opt-in. A loopback ASR endpoint keeps audio on the machine; any non-loopback endpoint sends it to that configured server.
+- Remote workers and OpenAI-compatible ASR are opt-in. Loopback ASR may use HTTP and keeps audio on the machine; non-loopback endpoints require HTTPS, and redirects are not followed.
 - Analytics is off until consent. If enabled, it sends allowlisted, content-free usage metadata. It never sends text, audio, file names, or projects.
 
 <a id="api"></a>

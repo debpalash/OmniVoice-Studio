@@ -1035,9 +1035,10 @@ def set_asr_openai_compat(body: _ASROpenAICompatBody):
     from services import asr_backend, settings_store
 
     if body.base_url is not None:
-        url = body.base_url.strip().rstrip("/")
-        if url and not url.startswith(("http://", "https://")):
-            raise HTTPException(status_code=400, detail="Base URL must start with http(s)://")
+        try:
+            url = asr_backend.normalize_openai_compat_asr_base_url(body.base_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         settings_store.set_text(asr_backend._ASR_OPENAI_COMPAT_BASE_URL_KEY, url)
     if body.model is not None:
         settings_store.set_text(
