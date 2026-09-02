@@ -143,7 +143,7 @@ documented below.
 Managed or offline deployments can prohibit that network action:
 
 ```powershell
-msiexec /i VoiceStudio_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-install.log"
+msiexec /i VoiceStudio_0.5.2_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-install.log"
 ```
 
 The per-user artifact never contains a WebView2 download or installer action.
@@ -151,7 +151,7 @@ It does not require an elevated terminal, and fails closed when the runtime is
 absent:
 
 ```powershell
-msiexec /i VoiceStudio_Current_User_0.5.1_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-user-install.log"
+msiexec /i VoiceStudio_Current_User_0.5.2_x64_en-US.msi DISABLEWEBVIEW2BOOTSTRAP=1 AUTOLAUNCHAPP=0 /qn /L*V "%TEMP%\VoiceStudio-user-install.log"
 ```
 
 For the per-machine artifact, `DISABLEWEBVIEW2BOOTSTRAP=1` leaves detection

@@ -135,6 +135,7 @@ export default function BatchQueue({ onBack }) {
       lastSettingsRef.current = settings;
       const langCodes = settings.langs.map((l) => l.code);
       let success = 0;
+      const successfulFiles = new Set();
       for (const file of files) {
         try {
           await enqueueBatchJob(
@@ -144,6 +145,7 @@ export default function BatchQueue({ onBack }) {
             settings.preserveBg,
           );
           success++;
+          successfulFiles.add(file);
         } catch (e) {
           const missing = asrMissingPayload(e);
           if (missing) {
@@ -163,6 +165,7 @@ export default function BatchQueue({ onBack }) {
         setTab('active');
         reload();
       }
+      return successfulFiles;
     },
     [t, reload],
   );

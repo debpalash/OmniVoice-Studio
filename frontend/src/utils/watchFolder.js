@@ -101,13 +101,21 @@ export function createIngestTracker() {
       }
       return ready;
     },
-    /** Hand a released entry back (e.g. the watcher was paused mid-poll
-     *  before it could enqueue): it re-releases on the next scan instead of
-     *  being remembered as already ingested. */
+    /** Hand a released entry back untouched (the watcher was paused or torn
+     *  down mid-poll before it could enqueue): the file is known-stable, so
+     *  it re-releases on the very next unpaused scan. */
     unsee(entry) {
       const key = entryKey(entry);
       seen.delete(key);
       pending.set(entry.name, key);
+    },
+    retry(entry) {
+      // `next` reserves a stable entry before the asynchronous read/upload.
+      // Release that reservation after a transient failure so a later poll
+      // can settle and try the same file again (from scratch — unlike
+      // `unsee`, the failure may mean the file is changing again).
+      seen.delete(entryKey(entry));
+      pending.delete(entry.name);
     },
   };
 }

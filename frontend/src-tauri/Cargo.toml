@@ -4,7 +4,7 @@
 # launcher's pkill matches `omnivoice-studio` and must never match a user's
 # installed app. Renaming it would collapse that distinction.
 name = "omnivoice-studio"
-version = "0.5.1"
+version = "0.5.2"
 description = "VoiceStudio – AI voice cloning & dubbing desktop app"
 authors = ["Debpalash"]
 license = "AGPL-3.0-only"
