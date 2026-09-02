@@ -11,6 +11,7 @@ the frozen-backend fallback mirror it for their toolchains.
 **Highlights**
 
 - Show estimated and measured model, dependency, cache, and temporary disk costs in the engine catalogue (#1718)
+- Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
 - Hardsub video export gains an opt-in karaoke word-highlight caption style — thanks @mvanhorn!
