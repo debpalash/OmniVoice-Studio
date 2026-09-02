@@ -9,7 +9,7 @@
 #   curl -fsSL https://voicestudio.sh/install | sh
 #       Install the latest prebuilt app (macOS dmg / Linux AppImage).
 #
-#   curl -fsSL https://voicestudio.sh/install | sh -s -- --version 0.5.1
+#   curl -fsSL https://voicestudio.sh/install | sh -s -- --version 0.5.2
 #       Install a specific release.
 #
 #   curl -fsSL https://voicestudio.sh/install | sh -s -- --source
