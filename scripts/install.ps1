@@ -9,7 +9,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Source
 #
 # Overrides (set before running):
-#   $env:VOICESTUDIO_VERSION = "0.5.1"  # release version in binary mode
+#   $env:VOICESTUDIO_VERSION = "0.5.2"  # release version in binary mode
 #   $env:VOICESTUDIO_INSTALL_MODE = "source"  # same as -Source when piped
 #   $env:OMNIVOICE_PYTHON = "3.12"      # Python version (source mode)
 #   $env:OMNIVOICE_REGION = "china"     # route Python downloads through a mirror
