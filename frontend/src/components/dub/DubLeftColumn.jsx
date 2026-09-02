@@ -21,13 +21,13 @@ import { API } from '../../api/client';
 import { dubListTracks } from '../../api/dub';
 import { LANG_CODES } from '../../utils/languages';
 import ALL_LANGUAGES from '../../languages.json';
-import { POPULAR_LANGS, PRESETS } from '../../utils/constants';
+import { POPULAR_LANGS } from '../../utils/constants';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../../api/dialects';
 import { dubSegmentsText } from '../../api/dub';
 import { copyText } from '../../utils/copyText';
 import { openExternal } from '../../api/external';
 import { TRANSLATION_ENGINES_DOCS } from '../../utils/errorDocsMap';
-import { autoProfileId } from '../../utils/segments';
+import CastingBoard from './CastingBoard';
 import toast from 'react-hot-toast';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
@@ -355,108 +355,19 @@ export default function DubLeftColumn({
         }
       />
 
-      {/* Cast — per-speaker voice assignment. When the auto-clone
-                  extractor found a usable passage per speaker (≥5s from the
-                  isolated vocals), that option becomes first-class in the
-                  dropdown. It's also pre-selected on the segments so "new
-                  language = same speaker's voice" works by default. */}
-      {dubSegments.some((s) => s.speaker_id || s.merge_parts?.some((part) => part.speaker_id)) && (
-        <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-transparent">
-          <div className="flex gap-[var(--space-2)] items-center flex-wrap">
-            <span
-              className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] text-[var(--chrome-fg-muted)] tracking-[var(--chrome-label-track)] uppercase font-semibold"
-              title={t('dub.cast_title')}
-            >
-              {t('dub.cast')}
-            </span>
-            {[
-              ...new Set(
-                dubSegments
-                  .flatMap((s) => [
-                    s.speaker_id,
-                    ...(s.merge_parts || []).map((part) => part.speaker_id),
-                  ])
-                  .filter(Boolean),
-              ),
-            ].map((spk) => {
-              const autoId = autoProfileId(spk);
-              const clone = speakerClones[spk];
-              return (
-                <div key={spk} className="dub-cast__pair">
-                  <span className="font-[family-name:var(--chrome-font-mono)] text-[0.62rem] text-[var(--chrome-fg)]">
-                    {spk}:
-                  </span>
-                  <select
-                    className="input-base dub-cast__select"
-                    value={
-                      dubSegments.find((s) => s.speaker_id === spk)?.profile_id ||
-                      dubSegments
-                        .flatMap((s) => s.merge_parts || [])
-                        .find((part) => part.speaker_id === spk)?.profile_id ||
-                      ''
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setDubSegments(
-                        dubSegments.map((s) => {
-                          const directMatch = s.speaker_id === spk;
-                          const nestedMatch = s.merge_parts?.some(
-                            (part) => part.speaker_id === spk,
-                          );
-                          if (!directMatch && !nestedMatch) return s;
-                          return {
-                            ...s,
-                            ...(directMatch ? { profile_id: val } : {}),
-                            ...(s.merge_parts
-                              ? {
-                                  merge_parts: s.merge_parts.map((part) =>
-                                    part.speaker_id === spk ? { ...part, profile_id: val } : part,
-                                  ),
-                                }
-                              : {}),
-                            ...(s.merge_parts_original
-                              ? {
-                                  merge_parts_original: s.merge_parts_original.map((part) =>
-                                    part.speaker_id === spk ? { ...part, profile_id: val } : part,
-                                  ),
-                                }
-                              : {}),
-                          };
-                        }),
-                      );
-                    }}
-                  >
-                    {clone && (
-                      <option value={autoId}>
-                        {t('dub.from_video', { duration: clone.duration.toFixed(1) })}
-                      </option>
-                    )}
-                    <option value="">{t('dub.default')}</option>
-                    {profiles.length > 0 && (
-                      <optgroup label={t('dub.clone_profiles')}>
-                        {profiles.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {PRESETS.length > 0 && (
-                      <optgroup label={t('dub.design_presets')}>
-                        {PRESETS.map((p) => (
-                          <option key={p.id} value={`preset:${p.id}`}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Cast — per-speaker voice assignment: the compact dropdown strip plus
+          the drag-and-drop casting board. Renders nothing when no segment
+          carries a speaker. When the auto-clone extractor found a usable
+          passage per speaker (≥5s from the isolated vocals), that option is
+          first-class in both views and pre-selected on the segments so "new
+          language = same speaker's voice" works by default. */}
+      <CastingBoard
+        t={t}
+        dubSegments={dubSegments}
+        setDubSegments={setDubSegments}
+        speakerClones={speakerClones}
+        profiles={profiles}
+      />
 
       {/* Translation settings — collapsed or expanded */}
       {!settingsOpen && (
