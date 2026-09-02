@@ -4085,9 +4085,9 @@ html[data-window='widget'] body:has(.capture-pill) {
 }
 .dub-live-toggle:hover { color: var(--chrome-fg); }
 .seg-live-btn {
-  width: 16px; height: 16px; flex-shrink: 0;
+  width: 18px; height: 18px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; border: 1px solid transparent;
+  background: transparent; border: 1px solid var(--chrome-border);
   color: var(--chrome-fg-muted); border-radius: var(--chrome-radius-pill);
   cursor: pointer; padding: 0;
   transition: color var(--dur-fast), border-color var(--dur-fast);
@@ -4095,6 +4095,7 @@ html[data-window='widget'] body:has(.capture-pill) {
 .seg-live-btn:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
 .seg-live-btn--on {
   color: var(--color-brand);
+  border-color: var(--color-brand);
   animation: seg-live-pulse 1.1s ease-in-out infinite;
 }
 @keyframes seg-live-pulse {
