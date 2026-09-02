@@ -259,13 +259,41 @@ describe('WatchFolderBar', () => {
 
     source.listEntries.mockRejectedValue(new Error('EACCES: permission denied /watched/Drop'));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
-    // The toast is a stable actionable string; the raw error goes to the
-    // console only (never technical text in the user's face).
+    // The toast is a stable actionable string, and the console warning is a
+    // sanitized code — neither may carry technical detail or filesystem paths.
     expect(toastError.mock.calls[0][0]).toMatch(/Pick it again to resume/);
     expect(toastError.mock.calls[0][0]).not.toContain('EACCES');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('/watched/Drop');
     expect(source.closed).toBe(true);
     expect(screen.getByText('Watch folder')).toBeInTheDocument();
     warn.mockRestore();
+  });
+
+  it('a poll that straddles unmount neither enqueues nor toasts', async () => {
+    const source = makeSource();
+    const realList = source.listEntries.getMockImplementation();
+    openWatchSource.mockResolvedValue(source);
+    const onIngest = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = render(<WatchFolderBar onIngest={onIngest} />);
+    fireEvent.click(screen.getByText('Watch folder'));
+    await screen.findByTestId('watch-folder-active');
+
+    // A file settles across two normal scans' worth of state, then the scan
+    // that would enqueue it hangs across the unmount.
+    const gates = [];
+    source.listEntries.mockImplementation(
+      () => new Promise((resolve) => gates.push(() => resolve(realList()))),
+    );
+    source.files.set('late.mp4', { size: 5, mtime: 3, bytes: 'late' });
+    await waitFor(() => expect(gates.length).toBe(1));
+    gates[0](); // pending
+    await waitFor(() => expect(gates.length).toBe(2));
+    unmount(); // …and the in-flight releasing scan resolves afterwards
+    gates[1]();
+    await settle();
+    expect(onIngest).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
+    expect(source.closed).toBe(true);
   });
 
   it('a file arriving during a poll that straddles Pause is NOT enqueued until Resume', async () => {

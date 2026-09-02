@@ -71,8 +71,9 @@ export default function WatchFolderBar({ onIngest }) {
         if (e?.code === 'watch-unsupported') {
           toast.error(t('batch.watch_unsupported'));
         } else {
-          // Actionable message for the user; raw detail to the console only.
-          console.warn('watch folder start failed', e);
+          // Actionable message for the user; a sanitized code (never the raw
+          // error — fs messages can carry filesystem paths) to the console.
+          console.warn('watch folder start failed:', e?.code || e?.name || 'unknown error');
           toast.error(t('batch.watch_start_failed'));
         }
       }
@@ -87,57 +88,64 @@ export default function WatchFolderBar({ onIngest }) {
     const tracker = trackerRef.current;
     if (!src || !tracker || pausedRef.current || tickingRef.current) return;
     tickingRef.current = true;
+    // Still the poll that started this pass, in a component that is still
+    // mounted? Checked after every await — pause, Stop, and unmount can all
+    // land while a scan/read/upload is in flight, and no work may continue
+    // (and nothing may enter the queue) once they have.
+    const live = () => mountedRef.current && sourceRef.current === src;
     try {
       const fresh = tracker.next(await src.listEntries());
-      const candidates = [];
+      // Strictly one file at a time — read → enqueue → release — so at most
+      // one video's bytes are ever resident in the webview. Uploads stream
+      // from the File parts; holding N settled videos before the first
+      // enqueue is how a big drop would exhaust renderer memory.
       for (const entry of fresh) {
+        if (!live() || pausedRef.current) {
+          // Deferred, not failed: hand the known-stable entry back so it
+          // ingests on the next unpaused poll.
+          tracker.unsee(entry);
+          continue;
+        }
+        let file;
         try {
-          const file = await src.readFile(entry);
-          candidates.push({ entry, file });
+          file = await src.readFile(entry);
         } catch {
           // A transient read failure (vanished, changed after settling,
           // locked) must not permanently consume the entry. If it vanished,
           // later scans simply clear it from pending.
           tracker.retry(entry);
+          continue;
         }
-      }
-      // The user may have paused (or stopped) while the awaits above were in
-      // flight — nothing may enter the queue after the UI says paused. Hand
-      // the released candidates back untouched: they are known-stable and
-      // ingest on the next unpaused poll.
-      if (pausedRef.current || sourceRef.current !== src) {
-        for (const { entry } of candidates) tracker.unsee(entry);
-        return;
-      }
-      if (!candidates.length) return;
-
-      let accepted;
-      try {
-        accepted = await onIngest(candidates.map(({ file }) => file));
-      } catch {
-        for (const { entry } of candidates) tracker.retry(entry);
-        return;
-      }
-      // (A pause landing while the enqueue itself was in flight is fine: the
-      // backend already accepted those jobs, and pausing only stops future
-      // ingests — so the accepted files stay counted below.)
-      if (sourceRef.current !== src) return;
-
-      let addedNow = 0;
-      for (const { entry, file } of candidates) {
+        if (!live() || pausedRef.current) {
+          tracker.unsee(entry);
+          continue;
+        }
+        let accepted;
+        try {
+          accepted = await onIngest([file]);
+        } catch {
+          tracker.retry(entry);
+          continue;
+        }
         // BatchQueue returns the exact File objects it accepted. Keep
         // undefined/true/positive-count compatible with simpler consumers.
         const wasAccepted =
           accepted instanceof Set ? accepted.has(file) : accepted !== false && accepted !== 0;
-        if (wasAccepted) addedNow += 1;
-        else tracker.retry(entry);
+        // (A pause landing while the enqueue itself was in flight is fine:
+        // the backend already accepted the job — pausing only stops future
+        // ingests, so the file stays counted.)
+        if (wasAccepted) {
+          if (live()) setAdded((n) => n + 1);
+        } else {
+          tracker.retry(entry);
+        }
       }
-      if (addedNow) setAdded((n) => n + addedNow);
     } catch (e) {
       // The folder itself became unreadable (unmounted, deleted, permission
-      // revoked) — stop loudly rather than failing silently every 5s.
-      if (sourceRef.current === src) {
-        console.warn('watch folder scan failed', e);
+      // revoked) — stop loudly rather than failing silently every 5s. Log a
+      // sanitized code only: fs errors can carry filesystem paths.
+      if (live()) {
+        console.warn('watch folder scan failed:', e?.code || e?.name || 'unknown error');
         stop();
         toast.error(t('batch.watch_failed'));
       }
@@ -152,12 +160,16 @@ export default function WatchFolderBar({ onIngest }) {
     return () => clearInterval(iv);
   }, [source, tick]);
 
-  // Stop on unmount: release the native authorization and the poll timer.
+  // Stop on unmount: release the native authorization and the poll timer,
+  // and clear the refs so an in-flight tick can never treat its stale source
+  // as current and enqueue (or toast) after the component is gone.
   useEffect(
     () => () => {
       mountedRef.current = false;
       startSequenceRef.current += 1;
       sourceRef.current?.close();
+      sourceRef.current = null;
+      trackerRef.current = null;
     },
     [],
   );
