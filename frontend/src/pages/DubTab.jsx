@@ -128,6 +128,8 @@ export default function DubTab(props) {
   const setDualSubs = useAppStore((s) => s.setDualSubs);
   const burnSubs = useAppStore((s) => s.burnSubs);
   const setBurnSubs = useAppStore((s) => s.setBurnSubs);
+  const karaokeSubs = useAppStore((s) => s.karaokeSubs);
+  const setKaraokeSubs = useAppStore((s) => s.setKaraokeSubs);
   const timingStrategy = useAppStore((s) => s.timingStrategy);
   const setTimingStrategy = useAppStore((s) => s.setTimingStrategy);
   const voiceMatch = useAppStore((s) => s.voiceMatch);
@@ -887,6 +889,8 @@ export default function DubTab(props) {
         setDualSubs={setDualSubs}
         burnSubs={burnSubs}
         setBurnSubs={setBurnSubs}
+        karaokeSubs={karaokeSubs}
+        setKaraokeSubs={setKaraokeSubs}
         API={API}
         triggerDownload={triggerDownload}
         handleDubDownload={handleDubDownload}

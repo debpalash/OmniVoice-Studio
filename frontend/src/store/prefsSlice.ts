@@ -93,6 +93,14 @@ export interface PrefsSlice {
   condenseSuggest: boolean;
   dualSubs: boolean;
   burnSubs: boolean;
+  /**
+   * Hardsub caption style: when burn-in is on, burn a word-timed karaoke
+   * highlight (ASS) instead of static line subtitles. Default OFF — the line
+   * burn stays the out-of-the-box behaviour. Ignored while dualSubs is on
+   * (dual-layout karaoke is unsupported; the Export drawer disables the
+   * control and the backend renders the line burn).
+   */
+  karaokeSubs: boolean;
   glossaryVisible: boolean;
   /**
    * Phase 4.3 — staged checkpoints. When 'on', between-stage banners nudge
@@ -173,6 +181,7 @@ export interface PrefsSlice {
   setCondenseSuggest: (on: boolean) => void;
   setDualSubs: (on: boolean) => void;
   setBurnSubs: (on: boolean) => void;
+  setKaraokeSubs: (on: boolean) => void;
   setGlossaryVisible: (on: boolean) => void;
   setReviewMode: (mode: 'on' | 'off') => void;
   setShowHeaderLiveStats: (on: boolean) => void;
@@ -277,6 +286,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   condenseSuggest: false,
   dualSubs: false,
   burnSubs: false,
+  karaokeSubs: false,
   glossaryVisible: true,
   reviewMode: 'on',
   showHeaderLiveStats: false,
@@ -301,6 +311,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setCondenseSuggest: (on) => set({ condenseSuggest: on }),
   setDualSubs: (on) => set({ dualSubs: on }),
   setBurnSubs: (on) => set({ burnSubs: on }),
+  setKaraokeSubs: (on) => set({ karaokeSubs: on }),
   setGlossaryVisible: (on) => set({ glossaryVisible: on }),
   setReviewMode: (mode) => set({ reviewMode: mode }),
   setShowHeaderLiveStats: (on) => set({ showHeaderLiveStats: on }),

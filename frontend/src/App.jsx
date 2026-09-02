@@ -107,7 +107,7 @@ import {
   setHistoryStarred as apiSetHistoryStarred,
   audioUrlWithCacheBust,
 } from './api/generate';
-import { clearDubHistory as apiClearDubHistory } from './api/dub';
+import { clearDubHistory as apiClearDubHistory, dubBurnQuery } from './api/dub';
 
 import { isTauri, doubleClickMaximize, fileToMediaUrl, playBlobAudio } from './utils/media';
 import { browserDownload } from './utils/download';
@@ -510,6 +510,7 @@ function App() {
   const setGlossaryTerms = useAppStore((s) => s.setGlossaryTerms);
   const dualSubs = useAppStore((s) => s.dualSubs);
   const burnSubs = useAppStore((s) => s.burnSubs);
+  const karaokeSubs = useAppStore((s) => s.karaokeSubs);
 
   // ── UNDO / REDO + SEGMENT EDITING ──
   // Must come before useDubWorkflow because the dub generate handler needs
@@ -943,7 +944,7 @@ function App() {
       if (exportTracks[t] !== false) selected.push(t);
     });
     const tracksParam = selected.join(',');
-    const burnParam = burnSubs ? `&burn_subs=1&dual=${dualSubs ? 1 : 0}` : '';
+    const burnParam = dubBurnQuery(burnSubs, dualSubs, karaokeSubs);
     const resolvedDefaultTrack = resolveDubDefaultTrack(defaultTrack, dubLangCode, dubTracks);
     triggerDownload(
       `${API}/dub/download/${dubJobId}/dubbed_video.mp4?preserve_bg=${preserveBg}&default_track=${resolvedDefaultTrack}&include_tracks=${encodeURIComponent(tracksParam)}${burnParam}`,

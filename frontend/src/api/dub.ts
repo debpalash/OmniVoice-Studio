@@ -155,6 +155,19 @@ export async function dubGenerate(jobId: string, body: Record<string, unknown>):
   return apiPost(`/dub/generate/${jobId}`, body);
 }
 
+/**
+ * Query fragment for the hardsub options on /dub/download.
+ *
+ * Karaoke (word-highlight ASS burn) only applies to the single-line layout —
+ * dual-layout karaoke is unsupported, so the flag is dropped when dual is on
+ * (mirrors the backend guard and the disabled Export drawer control).
+ */
+export function dubBurnQuery(burnSubs: boolean, dualSubs: boolean, karaokeSubs: boolean): string {
+  if (!burnSubs) return '';
+  const karaoke = karaokeSubs && !dualSubs ? 1 : 0;
+  return `&burn_subs=1&dual=${dualSubs ? 1 : 0}&karaoke=${karaoke}`;
+}
+
 export function tasksStreamUrl(taskId: string): string {
   return apiUrl(`/tasks/stream/${taskId}`);
 }
