@@ -1136,7 +1136,10 @@
     "multi_lang_skipped": "De vertaling voor {{langs}} is mislukt. Deze nasynchronisaties zijn overgeslagen om een track in de verkeerde taal te voorkomen.",
     "manage_languages": "Talen beheren",
     "languages_done": "Gereed",
-    "languages_pending": "In behandeling"
+    "languages_pending": "In behandeling",
+    "live_preview": "Livevoorbeeld",
+    "live_preview_title": "Hoor een regel terwijl je die bewerkt — het bewerkte segment streamt na een korte pauze TTS met zijn CAST-stem. Alleen afspelen: er wordt niets opgeslagen en exporteren rendert nog steeds op volledige kwaliteit.",
+    "live_preview_pick_voice": "Wijs een CAST-stem toe aan deze regel of de spreker om het livevoorbeeld te horen."
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -1233,7 +1236,9 @@
     "fit_audio_title": "Audio past in de sleuf.",
     "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf.",
     "qc_verify": "Verifieer",
-    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of kopieer deze regel opnieuw."
+    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of kopieer deze regel opnieuw.",
+    "live_play_title": "Deze regel nu streamen (livevoorbeeld)",
+    "live_stop_title": "Livevoorbeeld stoppen"
   },
   "timeline": {
     "track_label": "Segmenttijdlijn",

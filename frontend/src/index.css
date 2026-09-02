@@ -4077,6 +4077,31 @@ html[data-window='widget'] body:has(.capture-pill) {
   display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* Live dub preview (opt-in, /ws/tts as-you-edit streaming) */
+.dub-live-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.62rem; color: var(--chrome-fg-muted);
+  cursor: pointer; white-space: nowrap; user-select: none;
+}
+.dub-live-toggle:hover { color: var(--chrome-fg); }
+.seg-live-btn {
+  width: 16px; height: 16px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  color: var(--chrome-fg-muted); border-radius: var(--chrome-radius-pill);
+  cursor: pointer; padding: 0;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+.seg-live-btn:hover { color: var(--chrome-fg); border-color: var(--chrome-border-strong); }
+.seg-live-btn--on {
+  color: var(--color-brand);
+  animation: seg-live-pulse 1.1s ease-in-out infinite;
+}
+@keyframes seg-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 
 /* Row selected from the waveform timeline (#280, item 3) — distinct from
    multi-select (checkbox) and from the playhead row. */

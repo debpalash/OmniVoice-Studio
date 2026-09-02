@@ -17,6 +17,7 @@ const {
   supportsStreamingPreview,
   resolveRemoteTtsTarget,
   decodePcm16Base64,
+  pcm16BytesToFloat32,
   peaksFromChunkList,
   StreamingPreviewError,
   shouldFallbackToClassic,
@@ -159,6 +160,39 @@ describe('decodePcm16Base64', () => {
     expect(out[2]).toBeCloseTo(-0.5, 3);
     expect(out[3]).toBeCloseTo(1, 2);
     expect(out[4]).toBe(-1);
+  });
+});
+
+describe('pcm16BytesToFloat32', () => {
+  it('decodes a raw binary frame (the /ws/tts shape) identically to base64', () => {
+    const samples = [0, 16384, -16384, 32767, -32768];
+    const raw = pcm16BytesToFloat32(new Int16Array(samples).buffer);
+    const viaB64 = decodePcm16Base64(b64Pcm(samples));
+    expect(Array.from(raw)).toEqual(Array.from(viaB64));
+  });
+
+  it('respects a Uint8Array view with a nonzero byteOffset', () => {
+    const backing = new Uint8Array(8);
+    backing.set(new Uint8Array(new Int16Array([12345]).buffer), 2);
+    const out = pcm16BytesToFloat32(backing.subarray(2, 4));
+    expect(out.length).toBe(1);
+    expect(out[0]).toBeCloseTo(12345 / 32768, 5);
+  });
+});
+
+describe('createStreamingChunkPlayer.appendPcm16Bytes', () => {
+  it('schedules raw /ws/tts frames on the same gapless timeline as base64 chunks', () => {
+    const player = createStreamingChunkPlayer({ label: 'live', sampleRate: 24000 });
+    const ctx = FakeAudioContext.instances.at(-1);
+
+    const frame = new Int16Array(Array.from({ length: 2400 }, (_, i) => (i % 100) * 50));
+    player.appendPcm16Bytes(frame.buffer);
+    player.appendPcm16Bytes(frame.buffer);
+
+    expect(ctx.started.length).toBe(2);
+    // Second chunk starts exactly one chunk-duration later — gapless.
+    expect(ctx.started[1].startedAt.when).toBeCloseTo(2400 / 24000, 5);
+    player.fail();
   });
 });
 

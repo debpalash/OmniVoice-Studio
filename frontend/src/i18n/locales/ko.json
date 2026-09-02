@@ -1136,7 +1136,10 @@
     "multi_lang_skipped": "{{langs}} 번역에 실패하여 잘못된 언어의 트랙이 생성되지 않도록 해당 더빙을 건너뛰었습니다.",
     "manage_languages": "언어 관리",
     "languages_done": "완료",
-    "languages_pending": "대기 중"
+    "languages_pending": "대기 중",
+    "live_preview": "실시간 미리듣기",
+    "live_preview_title": "편집 중인 문장을 바로 들어보세요 — 편집한 세그먼트는 잠시 후 CAST 보이스로 TTS를 스트리밍합니다. 재생 전용: 아무것도 저장되지 않으며 내보내기는 여전히 최고 품질로 렌더링됩니다.",
+    "live_preview_pick_voice": "실시간 미리듣기를 들으려면 이 줄이나 화자에게 CAST 보이스를 지정하세요."
   },
   "glossary": {
     "title": "용어집",
@@ -1233,7 +1236,9 @@
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
     "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다.",
     "qc_verify": "확인",
-    "qc_verify_title": "두 번째 패스 ASR 수신: \"{{heard}}\" — 이 라인을 다시 듣거나 다시 더빙합니다."
+    "qc_verify_title": "두 번째 패스 ASR 수신: \"{{heard}}\" — 이 라인을 다시 듣거나 다시 더빙합니다.",
+    "live_play_title": "이 줄 지금 스트리밍(실시간 미리듣기)",
+    "live_stop_title": "실시간 미리듣기 중지"
   },
   "timeline": {
     "track_label": "세그먼트 타임라인",

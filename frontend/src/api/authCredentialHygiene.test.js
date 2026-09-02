@@ -81,13 +81,14 @@ describe('administrator credential hygiene static guard', () => {
     expect(violations, 'WebSocket URLs may contain ws_ticket, never a master key').toEqual([]);
   });
 
-  it('keeps both WebSocket consumers behind the authenticated URL boundary', () => {
+  it('keeps every WebSocket consumer behind the authenticated URL boundary', () => {
     const constructors = sources()
       .filter(({ source }) => source.includes('new WebSocket('))
       .map(({ file, source }) => ({ file, authenticated: source.includes('authenticatedWsUrl') }));
 
     expect(constructors).toEqual([
       { file: 'components/CaptureWidget.jsx', authenticated: true },
+      { file: 'hooks/useDubLivePreview.js', authenticated: true },
       { file: 'hooks/useRealtimeEvents.js', authenticated: true },
     ]);
   });

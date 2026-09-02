@@ -13,6 +13,7 @@ import {
   Minus,
   Plus,
   Sparkles,
+  Volume2,
 } from 'lucide-react';
 import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
@@ -89,6 +90,10 @@ function DubSegmentRow({
   onSeek,
   timelineSelected,
   hasOverlap,
+  liveEnabled,
+  liveActive,
+  onLiveEdit,
+  onLiveToggle,
 }) {
   const { t } = useTranslation();
   const textInputRef = useRef(null);
@@ -412,38 +417,60 @@ function DubSegmentRow({
       )}
 
       <span className="seg-text-col">
-        <input
-          ref={textInputRef}
-          className="input-base segment-input"
-          value={seg.text}
-          onChange={(e) => onEditField(seg.id, 'text', e.target.value)}
-          onKeyDown={handleTextKeyDown}
-          onKeyUp={captureCursor}
-          onSelect={captureCursor}
-          onClick={(e) => {
-            e.stopPropagation();
-            captureCursor(e);
-          }}
-          disabled={disabled}
-          title={
-            seg.translate_error
-              ? t('segment.translate_error_title', { error: seg.translate_error })
-              : seg.translate_degraded
-                ? t('segment.translate_degraded_title', { reason: seg.translate_degraded })
-                : overBudget
-                  ? t('segment.budget_title', {
-                      pct: Math.round((seg.text.length / seg.text_original.length) * 100),
-                    })
-                  : t('segment.text_title')
-          }
-          style={
-            overBudget
-              ? { background: 'rgba(250,189,47,0.10)' }
-              : seg.translate_error
-                ? { background: 'rgba(251,73,52,0.10)' }
-                : undefined
-          }
-        />
+        <span className="flex items-center gap-[2px] min-w-0">
+          <input
+            ref={textInputRef}
+            className="input-base segment-input"
+            value={seg.text}
+            onChange={(e) => {
+              onEditField(seg.id, 'text', e.target.value);
+              // Live dub preview (opt-in): debounce-stream the edited line.
+              if (liveEnabled) onLiveEdit?.(seg, e.target.value);
+            }}
+            onKeyDown={handleTextKeyDown}
+            onKeyUp={captureCursor}
+            onSelect={captureCursor}
+            onClick={(e) => {
+              e.stopPropagation();
+              captureCursor(e);
+            }}
+            disabled={disabled}
+            title={
+              seg.translate_error
+                ? t('segment.translate_error_title', { error: seg.translate_error })
+                : seg.translate_degraded
+                  ? t('segment.translate_degraded_title', { reason: seg.translate_degraded })
+                  : overBudget
+                    ? t('segment.budget_title', {
+                        pct: Math.round((seg.text.length / seg.text_original.length) * 100),
+                      })
+                    : t('segment.text_title')
+            }
+            style={
+              overBudget
+                ? { background: 'rgba(250,189,47,0.10)' }
+                : seg.translate_error
+                  ? { background: 'rgba(251,73,52,0.10)' }
+                  : undefined
+            }
+          />
+          {liveEnabled && (
+            // Tiny live-preview speaker: pulses while this line streams;
+            // click streams the current text now / stops the active stream.
+            <button
+              type="button"
+              className={`seg-live-btn${liveActive ? ' seg-live-btn--on' : ''}`}
+              disabled={disabled}
+              title={t(liveActive ? 'segment.live_stop_title' : 'segment.live_play_title')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLiveToggle?.(seg);
+              }}
+            >
+              <Volume2 size={9} />
+            </button>
+          )}
+        </span>
         {seg.text_original && seg.text_original !== seg.text && (
           <span className="text-[0.52rem] text-[#6b6657] flex items-center gap-[3px] px-[2px] overflow-hidden">
             <span className="opacity-80 uppercase font-semibold text-[0.48rem] text-[#7c6f64]">
@@ -627,5 +654,9 @@ export default memo(
     prev.canMergePrev === next.canMergePrev &&
     prev.profiles === next.profiles &&
     prev.speakerClones === next.speakerClones &&
+    prev.liveEnabled === next.liveEnabled &&
+    prev.liveActive === next.liveActive &&
+    prev.onLiveEdit === next.onLiveEdit &&
+    prev.onLiveToggle === next.onLiveToggle &&
     prev.idx === next.idx,
 );

@@ -1388,7 +1388,10 @@
     "languages_selected_other": "{{count}} languages selected",
     "manage_languages": "Manage languages",
     "languages_done": "Done",
-    "languages_pending": "Pending"
+    "languages_pending": "Pending",
+    "live_preview": "Live preview",
+    "live_preview_title": "Hear a line as you edit it — the edited segment streams TTS with its CAST voice after a short pause. Playback only: nothing is saved, and export still renders at full quality.",
+    "live_preview_pick_voice": "Assign a CAST voice to this line or its speaker to hear the live preview."
   },
   "glossary": {
     "title": "Glossary",
@@ -1491,7 +1494,9 @@
     "plan_impossible": "Won't fit +{{seconds}}s",
     "plan_impossible_title": "Predicted speech ≈{{est}}s vs {{avail}}s available — about {{seconds}}s more than any fitting can absorb, so the audio would be trimmed. Shorten the text before generating.",
     "plan_apply": "Use shorter rewrite",
-    "plan_apply_title": "Replace this line with the suggested shorter rewrite: \"{{text}}\""
+    "plan_apply_title": "Replace this line with the suggested shorter rewrite: \"{{text}}\"",
+    "live_play_title": "Stream this line now (live preview)",
+    "live_stop_title": "Stop the live preview"
   },
   "timeline": {
     "track_label": "Segment timeline",

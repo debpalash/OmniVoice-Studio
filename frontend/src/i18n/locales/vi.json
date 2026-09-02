@@ -1136,7 +1136,10 @@
     "multi_lang_skipped": "Không thể dịch {{langs}}; các bản lồng tiếng đó đã được bỏ qua để tránh tạo bản nhạc sai ngôn ngữ.",
     "manage_languages": "Quản lý ngôn ngữ",
     "languages_done": "Hoàn tất",
-    "languages_pending": "Đang chờ"
+    "languages_pending": "Đang chờ",
+    "live_preview": "Nghe thử trực tiếp",
+    "live_preview_title": "Nghe từng dòng ngay khi chỉnh sửa — phân đoạn vừa sửa sẽ stream TTS bằng giọng CAST của nó sau một khoảng dừng ngắn. Chỉ phát lại: không lưu gì cả, và xuất video vẫn kết xuất ở chất lượng đầy đủ.",
+    "live_preview_pick_voice": "Gán giọng CAST cho dòng này hoặc người nói của nó để nghe thử trực tiếp."
   },
   "glossary": {
     "title": "Thuật ngữ",
@@ -1233,7 +1236,9 @@
     "fit_audio_title": "Âm thanh vừa vặn bên trong khe cắm.",
     "fit_ratio_title": "Âm thanh TTS chiếm {{pct}}% dung lượng khe.",
     "qc_verify": "Xác minh",
-    "qc_verify_title": "Đã nghe thấy ASR vượt qua lần thứ hai: \"{{heard}}\" — nghe lại hoặc lồng tiếng lại dòng này."
+    "qc_verify_title": "Đã nghe thấy ASR vượt qua lần thứ hai: \"{{heard}}\" — nghe lại hoặc lồng tiếng lại dòng này.",
+    "live_play_title": "Stream dòng này ngay (nghe thử trực tiếp)",
+    "live_stop_title": "Dừng nghe thử trực tiếp"
   },
   "timeline": {
     "track_label": "Dòng thời gian phân đoạn",

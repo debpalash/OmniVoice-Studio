@@ -164,6 +164,7 @@ export const useAppStore = create<AppStore>()(
         timingStrategy: s.timingStrategy,
         fitOptions: s.fitOptions,
         voiceMatch: s.voiceMatch,
+        dubLivePreview: s.dubLivePreview,
         // "What's new" affordance (feat/safe-updates) — remembering which
         // version's notes were seen only works if it survives restarts.
         whatsNewSeenVersion: s.whatsNewSeenVersion,

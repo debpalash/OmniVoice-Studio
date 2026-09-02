@@ -379,7 +379,7 @@ export async function revokeAdminSession(
   }
 }
 
-const ALLOWED_WS_PATHS = new Set(['/ws/events', '/ws/transcribe']);
+const ALLOWED_WS_PATHS = new Set(['/ws/events', '/ws/transcribe', '/ws/tts']);
 const LOGICAL_WS_ORIGIN = 'http://omnivoice.invalid';
 
 function websocketTarget(path: string, apiBase: string): { url: URL; logicalPath: string } {

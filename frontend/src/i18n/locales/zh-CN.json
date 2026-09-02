@@ -1095,7 +1095,10 @@
     "multi_lang_skipped": "{{langs}} 翻译失败——已跳过这些配音，以免生成语言错误的音轨。",
     "manage_languages": "管理语言",
     "languages_done": "已完成",
-    "languages_pending": "待处理"
+    "languages_pending": "待处理",
+    "live_preview": "实时预览",
+    "live_preview_title": "边编辑边试听 — 停顿片刻后,所编辑的片段会用其 CAST 音色流式合成语音。仅播放:不会保存任何内容,导出仍按完整质量渲染。",
+    "live_preview_pick_voice": "为该行或其说话人指定一个 CAST 音色,即可收听实时预览。"
   },
   "glossary": {
     "title": "术语表",
@@ -1192,7 +1195,9 @@
     "fit_audio_title": "音频适合插槽内。",
     "fit_ratio_title": "TTS 音频占插槽的 {{pct}}%。",
     "qc_verify": "验证",
-    "qc_verify_title": "第二遍 ASR 听到：“{{heard}}” — 重新聆听或重新配音此台词。"
+    "qc_verify_title": "第二遍 ASR 听到：“{{heard}}” — 重新聆听或重新配音此台词。",
+    "live_play_title": "立即流式播放该行(实时预览)",
+    "live_stop_title": "停止实时预览"
   },
   "timeline": {
     "track_label": "片段时间轴",
