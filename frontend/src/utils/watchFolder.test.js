@@ -84,6 +84,16 @@ describe('createIngestTracker', () => {
     expect(tracker.next([entry('gone.mp4', 10, 1)])).toEqual([]);
     expect(tracker.next([entry('gone.mp4', 10, 1)])).toEqual([entry('gone.mp4', 10, 1)]);
   });
+
+  it('retries a stable file after its asynchronous ingest fails', () => {
+    const tracker = createIngestTracker();
+    const clip = entry('retry.mp4', 10, 1);
+    expect(tracker.next([clip])).toEqual([]);
+    expect(tracker.next([clip])).toEqual([clip]);
+    tracker.retry(clip);
+    expect(tracker.next([clip])).toEqual([]);
+    expect(tracker.next([clip])).toEqual([clip]);
+  });
 });
 
 describe('openWatchSource — Tauri backend', () => {

@@ -20,11 +20,15 @@ export default function WatchFolderBar({ onIngest }) {
   const [source, setSource] = useState(null);
   const [paused, setPaused] = useState(false);
   const [added, setAdded] = useState(0);
+  const [starting, setStarting] = useState(false);
 
   const sourceRef = useRef(null);
   const trackerRef = useRef(null);
   const pausedRef = useRef(false);
   const tickingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const startingRef = useRef(false);
+  const startSequenceRef = useRef(0);
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
@@ -39,13 +43,22 @@ export default function WatchFolderBar({ onIngest }) {
   }, []);
 
   const start = useCallback(async () => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    const sequence = ++startSequenceRef.current;
+    let next = null;
     try {
-      const next = await openWatchSource();
+      next = await openWatchSource();
       if (!next) return; // picker cancelled
       const tracker = createIngestTracker();
       // Files already sitting in the folder are not "new" — only arrivals
       // after this point get enqueued.
       tracker.prime(await next.listEntries());
+      if (!mountedRef.current || startSequenceRef.current !== sequence) {
+        next.close();
+        return;
+      }
       sourceRef.current = next;
       trackerRef.current = tracker;
       setAdded(0);
@@ -53,11 +66,17 @@ export default function WatchFolderBar({ onIngest }) {
       setSource(next);
       toast.success(t('batch.watch_started', { folder: next.label }));
     } catch (e) {
-      if (e?.code === 'watch-unsupported') {
-        toast.error(t('batch.watch_unsupported'));
-      } else {
-        toast.error(t('batch.watch_failed', { message: e?.message || String(e) }));
+      next?.close();
+      if (mountedRef.current && startSequenceRef.current === sequence) {
+        if (e?.code === 'watch-unsupported') {
+          toast.error(t('batch.watch_unsupported'));
+        } else {
+          toast.error(t('batch.watch_failed', { message: e?.message || String(e) }));
+        }
       }
+    } finally {
+      if (startSequenceRef.current === sequence) startingRef.current = false;
+      if (mountedRef.current && startSequenceRef.current === sequence) setStarting(false);
     }
   }, [t]);
 
@@ -68,18 +87,38 @@ export default function WatchFolderBar({ onIngest }) {
     tickingRef.current = true;
     try {
       const fresh = tracker.next(await src.listEntries());
-      const files = [];
+      const candidates = [];
       for (const entry of fresh) {
         try {
-          files.push(await src.readFile(entry));
+          const file = await src.readFile(entry);
+          candidates.push({ entry, file });
         } catch {
-          // Vanished between scan and read (moved/deleted) — skip it.
+          // A transient read/upload failure must not permanently consume the
+          // entry. If it vanished, later scans simply clear it from pending.
+          tracker.retry(entry);
         }
       }
-      if (files.length && sourceRef.current === src) {
-        await onIngest(files);
-        setAdded((n) => n + files.length);
+      if (!candidates.length || sourceRef.current !== src) return;
+
+      let accepted;
+      try {
+        accepted = await onIngest(candidates.map(({ file }) => file));
+      } catch {
+        for (const { entry } of candidates) tracker.retry(entry);
+        return;
       }
+      if (sourceRef.current !== src) return;
+
+      let addedNow = 0;
+      for (const { entry, file } of candidates) {
+        // BatchQueue returns the exact File objects it accepted. Keep
+        // undefined/true/positive-count compatible with simpler consumers.
+        const wasAccepted =
+          accepted instanceof Set ? accepted.has(file) : accepted !== false && accepted !== 0;
+        if (wasAccepted) addedNow += 1;
+        else tracker.retry(entry);
+      }
+      if (addedNow) setAdded((n) => n + addedNow);
     } catch (e) {
       // The folder itself became unreadable (unmounted, deleted, permission
       // revoked) — stop loudly rather than failing silently every 5s.
@@ -99,11 +138,25 @@ export default function WatchFolderBar({ onIngest }) {
   }, [source, tick]);
 
   // Stop on unmount: release the native authorization and the poll timer.
-  useEffect(() => () => sourceRef.current?.close(), []);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+      startSequenceRef.current += 1;
+      sourceRef.current?.close();
+    },
+    [],
+  );
 
   if (!source) {
     return (
-      <Button variant="subtle" size="sm" onClick={start} leading={<FolderOpen size={11} />}>
+      <Button
+        variant="subtle"
+        size="sm"
+        onClick={start}
+        disabled={starting}
+        loading={starting}
+        leading={!starting && <FolderOpen size={11} />}
+      >
         {t('batch.watch_folder')}
       </Button>
     );

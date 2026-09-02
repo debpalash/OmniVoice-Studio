@@ -101,6 +101,13 @@ export function createIngestTracker() {
       }
       return ready;
     },
+    retry(entry) {
+      // `next` reserves a stable entry before the asynchronous read/upload.
+      // Release that reservation after a transient failure so a later poll
+      // can settle and try the same file again.
+      seen.delete(entryKey(entry));
+      pending.delete(entry.name);
+    },
   };
 }
 

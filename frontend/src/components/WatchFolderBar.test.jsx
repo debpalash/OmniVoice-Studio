@@ -43,6 +43,16 @@ function makeSource(label = 'Drop') {
 
 const settle = () => new Promise((r) => setTimeout(r, 70)); // > 2 polls at 20ms
 
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('WatchFolderBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -167,6 +177,72 @@ describe('WatchFolderBar', () => {
     await settle();
     expect(screen.queryByTestId('watch-folder-active')).not.toBeInTheDocument();
     expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('closes a native source when its initial directory scan fails', async () => {
+    const source = makeSource();
+    source.listEntries.mockRejectedValue(new Error('cannot scan'));
+    openWatchSource.mockResolvedValue(source);
+    render(<WatchFolderBar onIngest={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Watch folder'));
+    await waitFor(() => expect(source.closed).toBe(true));
+    expect(toastError.mock.calls[0][0]).toContain('cannot scan');
+    expect(screen.queryByTestId('watch-folder-active')).not.toBeInTheDocument();
+  });
+
+  it('closes a source returned after the component unmounts', async () => {
+    const pending = deferred();
+    const source = makeSource();
+    openWatchSource.mockReturnValue(pending.promise);
+    const { unmount } = render(<WatchFolderBar onIngest={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Watch folder'));
+    unmount();
+    pending.resolve(source);
+    await waitFor(() => expect(source.closed).toBe(true));
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('allows only one folder picker while startup is pending', async () => {
+    const pending = deferred();
+    openWatchSource.mockReturnValue(pending.promise);
+    render(<WatchFolderBar onIngest={vi.fn()} />);
+
+    const button = screen.getByText('Watch folder').closest('button');
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(openWatchSource).toHaveBeenCalledTimes(1);
+    pending.resolve(null);
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
+
+  it('retries a stable entry after a transient read failure', async () => {
+    const source = makeSource();
+    openWatchSource.mockResolvedValue(source);
+    const onIngest = vi.fn().mockResolvedValue(1);
+    render(<WatchFolderBar onIngest={onIngest} />);
+    fireEvent.click(screen.getByText('Watch folder'));
+    await screen.findByTestId('watch-folder-active');
+
+    source.files.set('retry.mp4', { size: 5, mtime: 7, bytes: 'video' });
+    source.readFile.mockRejectedValueOnce(new Error('temporarily locked'));
+    await waitFor(() => expect(source.readFile).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('1 auto-added')).toBeInTheDocument();
+  });
+
+  it('retries when the queue rejects an otherwise readable entry', async () => {
+    const source = makeSource();
+    openWatchSource.mockResolvedValue(source);
+    const onIngest = vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    render(<WatchFolderBar onIngest={onIngest} />);
+    fireEvent.click(screen.getByText('Watch folder'));
+    await screen.findByTestId('watch-folder-active');
+
+    source.files.set('retry.mp4', { size: 5, mtime: 7, bytes: 'video' });
+    await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('1 auto-added')).toBeInTheDocument();
   });
 
   it('stops loudly when the watched folder becomes unreadable', async () => {
