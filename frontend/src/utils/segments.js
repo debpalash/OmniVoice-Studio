@@ -46,6 +46,52 @@ export function autoProfileId(speakerId) {
   return `auto:${cleaned.join('') || 'speaker'}`;
 }
 
+/**
+ * The one per-speaker cast mutation: give every segment (and merged part)
+ * spoken by `speakerId` the voice `profileId`. Shared by the CAST dropdowns
+ * and the casting board so a drag-and-drop writes exactly the fields the
+ * <select> always has — `profile_id` on directly-matching segments, plus
+ * `merge_parts` / `merge_parts_original` attribution on merged rows (a merged
+ * row keeps its own top-level voice when only a nested part's speaker moves).
+ */
+export function assignSpeakerProfile(segments, speakerId, profileId) {
+  return (segments || []).map((s) => {
+    const directMatch = s.speaker_id === speakerId;
+    const nestedMatch = s.merge_parts?.some((part) => part.speaker_id === speakerId);
+    if (!directMatch && !nestedMatch) return s;
+    return {
+      ...s,
+      ...(directMatch ? { profile_id: profileId } : {}),
+      ...(s.merge_parts
+        ? {
+            merge_parts: s.merge_parts.map((part) =>
+              part.speaker_id === speakerId ? { ...part, profile_id: profileId } : part,
+            ),
+          }
+        : {}),
+      ...(s.merge_parts_original
+        ? {
+            merge_parts_original: s.merge_parts_original.map((part) =>
+              part.speaker_id === speakerId ? { ...part, profile_id: profileId } : part,
+            ),
+          }
+        : {}),
+    };
+  });
+}
+
+/** Every distinct diarized speaker in cast order — top-level ids first-seen,
+ *  including speakers that only survive inside merged rows' `merge_parts`. */
+export function castSpeakers(segments) {
+  return [
+    ...new Set(
+      (segments || [])
+        .flatMap((s) => [s.speaker_id, ...(s.merge_parts || []).map((part) => part.speaker_id)])
+        .filter(Boolean),
+    ),
+  ];
+}
+
 /** Recover path-free cast metadata from current or legacy job payloads. */
 export function castSourcesFromJob(job) {
   if (!job || typeof job !== 'object') return {};
