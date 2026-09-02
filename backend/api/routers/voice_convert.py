@@ -110,7 +110,7 @@ async def _match_source_duration(audio_tensor, sample_rate: int, source_duration
         return audio_tensor
 
 
-async def _transcribe_source(tmp_path: str) -> dict:
+async def _transcribe_source(tmp_path: str, *, source_lease=None) -> dict:
     """Active-ASR transcription of the uploaded clip (no word timestamps).
 
     Mirrors POST /transcribe: typed 409 + download CTA before any backend
@@ -141,9 +141,21 @@ async def _transcribe_source(tmp_path: str) -> dict:
         return backend.transcribe(tmp_path, word_timestamps=False)
 
     from services.model_manager import _gpu_pool
+    release = source_lease.acquire() if source_lease is not None else None
+    abandoned = False
     try:
-        return await run_transcribe_guarded(_gpu_pool, _run, what="Voice convert")
+        return await run_transcribe_guarded(
+            _gpu_pool,
+            _run,
+            what="Voice convert",
+            on_abandon=release,
+        )
+    except asyncio.CancelledError:
+        # The guard now owns the lease token until the native worker drains.
+        abandoned = True
+        raise
     except ASRTimeoutError as e:
+        abandoned = True
         logger.warning("Convert transcription timed out: %s", e)
         raise HTTPException(status_code=504, detail=str(e))
     except ASRModelMissingError as e:
@@ -151,6 +163,9 @@ async def _transcribe_source(tmp_path: str) -> dict:
             status_code=409,
             detail={**e.payload, "message": asr_model_missing_detail(e.payload)},
         )
+    finally:
+        if release is not None and not abandoned:
+            release()
 
 
 @router.post("/convert")
@@ -169,7 +184,7 @@ async def convert_speech(
     OUTPUTS_DIR and served from the ``/audio`` mount like every other take.
     """
     from core.db import db_conn
-    from api.routers.generation import _resolve_profile_conditioning
+    from api.routers.generation import _resolve_profile_conditioning, _TempReferenceLease
 
     # ── Profile first: strict 404, unlike /generate's silent skip — Convert
     # has no meaning without a target voice.
@@ -190,11 +205,13 @@ async def convert_speech(
     # starting heavyweight model work.
     ext = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    source_lease = None
     try:
         try:
             await _copy_source_upload(audio, tmp)
         finally:
             tmp.close()
+        source_lease = _TempReferenceLease(tmp.name)
 
         # ── Engine gate before ASR/TTS work: the shared resolver refuses a
         # clone-less engine with the actionable switch-engine message (→ 400),
@@ -208,7 +225,7 @@ async def convert_speech(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        result = await _transcribe_source(tmp.name)
+        result = await _transcribe_source(tmp.name, source_lease=source_lease)
 
         segments = result.get("segments", [])
         text = result.get("text", "")
@@ -352,7 +369,10 @@ async def convert_speech(
             "gen_time_s": meta["gen_time"],
         }
     finally:
-        try:
-            os.unlink(tmp.name)
-        except OSError:
-            pass
+        if source_lease is not None:
+            source_lease.finish_request()
+        else:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass

@@ -149,25 +149,78 @@ def _isolated_engine_hint(streak: int) -> str:
 async def run_transcribe_guarded(executor, fn, *, what: str = "ASR",
                                  timeout: float = ASR_TRANSCRIBE_TIMEOUT_S,
                                  timeout_env: str = "OMNIVOICE_ASR_TRANSCRIBE_TIMEOUT_S",
-                                 reset_on_timeout: bool = False):
+                                 reset_on_timeout: bool = False,
+                                 on_abandon=None):
     """Run a blocking transcribe ``fn`` in ``executor`` with a hard wall-clock
     bound. On timeout, raise :class:`ASRTimeoutError` with guidance instead of
     letting the request hang forever.
 
-    ``run_in_executor`` cannot cancel the underlying thread, so a timed-out
+    A future cannot cancel the underlying thread, so a timed-out
     in-process CTranslate2/whisperx call still owns its model and device. The
     default deliberately leaves that worker accounted for: swapping in a fresh
     pool and immediately retrying the same backend overlaps two native calls,
     which produced the Windows access violation in #1669. A caller backed by a
     genuinely killable process may opt into ``reset_on_timeout``.
+
+    ``on_abandon`` is called once after a timed-out or cancelled worker can no
+    longer access its inputs. Queued work cancelled before it starts calls it
+    immediately; running work calls it from the worker finalizer. Normal
+    completion leaves cleanup with the caller.
     """
     loop = asyncio.get_running_loop()
     # Same SystemExit containment as the TTS pool (#1133 class): an ASR
     # dependency written as a CLI must not be able to shut the backend down.
-    fut = loop.run_in_executor(executor, contain_system_exit(fn, what))
+    inner = contain_system_exit(fn, what)
+    abandon_lock = threading.Lock()
+    abandon_state = {
+        "requested": False,
+        "finished": False,
+        "callback_called": False,
+    }
+
+    def _fire_abandon_callback() -> None:
+        if on_abandon is None:
+            return
+        with abandon_lock:
+            if abandon_state["callback_called"]:
+                return
+            abandon_state["callback_called"] = True
+        try:
+            on_abandon()
+        except Exception:  # noqa: BLE001 — cleanup cannot hide the ASR result
+            logger.exception("%s abandon cleanup failed", what)
+
+    def _job():
+        try:
+            return inner()
+        finally:
+            with abandon_lock:
+                abandon_state["finished"] = True
+                abandoned = abandon_state["requested"]
+            if abandoned:
+                _fire_abandon_callback()
+
+    concurrent_fut = executor.submit(_job)
+    fut = asyncio.wrap_future(concurrent_fut, loop=loop)
+
+    def _abandon() -> None:
+        cancelled_before_start = concurrent_fut.cancel()
+        with abandon_lock:
+            abandon_state["requested"] = True
+            finished = abandon_state["finished"]
+        fut.cancel()
+        if cancelled_before_start or finished:
+            _fire_abandon_callback()
+
     try:
-        result = await asyncio.wait_for(fut, timeout=timeout)
+        # Shield the wrapper so timeout does not discard our ability to tell a
+        # queued cancellation from a native thread that is still running.
+        result = await asyncio.wait_for(asyncio.shield(fut), timeout=timeout)
+    except asyncio.CancelledError:
+        _abandon()
+        raise
     except asyncio.TimeoutError:
+        _abandon()
         if reset_on_timeout:
             reset_pool_after_wedge(executor, what=what)
         streak = _note_transcribe_timeout()

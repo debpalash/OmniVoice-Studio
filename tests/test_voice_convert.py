@@ -20,6 +20,7 @@ import io
 import importlib
 import os
 import re
+import tempfile
 import uuid
 
 import pytest
@@ -368,6 +369,40 @@ def test_source_upload_is_read_in_bounded_chunks(monkeypatch):
     assert exc.value.status_code == 413
     assert upload.read_sizes == [4, 4, 4]
     assert destination.getvalue() == b"12345678"
+
+
+def test_convert_timeout_defers_source_cleanup_until_asr_worker_drains(monkeypatch):
+    """The request may finish while native ASR still reads its source file."""
+    import services.asr_backend as ab
+    from api.routers.generation import _TempReferenceLease
+
+    vc = _vc_mod()
+    monkeypatch.setattr(ab, "asr_model_missing_error", lambda **kw: None)
+    release_worker = None
+
+    async def _timeout(_pool, _fn, **kwargs):
+        nonlocal release_worker
+        release_worker = kwargs["on_abandon"]
+        raise ab.ASRTimeoutError("timed out")
+
+    monkeypatch.setattr(ab, "run_transcribe_guarded", _timeout)
+    source = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    source.close()
+    lease = _TempReferenceLease(source.name)
+
+    try:
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(vc._transcribe_source(source.name, source_lease=lease))
+        assert exc.value.status_code == 504
+        lease.finish_request()
+        assert os.path.exists(source.name)
+
+        assert release_worker is not None
+        release_worker()
+        assert not os.path.exists(source.name)
+    finally:
+        with contextlib.suppress(OSError):
+            os.remove(source.name)
 
 
 def test_convert_match_duration_toggle(client, monkeypatch, clone_profile):
