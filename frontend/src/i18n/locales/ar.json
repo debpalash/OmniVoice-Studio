@@ -956,6 +956,7 @@
     "paste_url": "... أو الصق عنوان URL للفيديو/YouTube",
     "ingest": "استيعاب",
     "pull_captions": "سحب التسميات التوضيحية على YouTube + الترجمات التلقائية",
+    "batch_queue_link": "هل تدبلج مقاطع فيديو كثيرة؟ افتح قائمة انتظار الدُفعات",
     "youtube_auth": "تسجيل الدخول إلى YouTube (اختياري)",
     "youtube_cookie_file": "اختيار ملف cookies.txt مُصدَّر",
     "remove_cookie_file": "إزالة ملف تعريف الارتباط",

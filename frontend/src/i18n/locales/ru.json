@@ -956,6 +956,7 @@
     "paste_url": "…или вставьте URL-адрес YouTube/видео",
     "ingest": "Заглотить",
     "pull_captions": "Получение титров YouTube + автопереводы",
+    "batch_queue_link": "Дублируете много видео? Откройте пакетную очередь",
     "youtube_auth": "Вход в YouTube (необязательно)",
     "youtube_cookie_file": "Выбрать экспорт cookies.txt",
     "remove_cookie_file": "Удалить файл cookie",

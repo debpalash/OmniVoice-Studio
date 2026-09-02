@@ -956,6 +956,7 @@
     "paste_url": "…або вставте URL-адресу YouTube/відео",
     "ingest": "Проковтнути",
     "pull_captions": "Витягніть субтитри YouTube + автоматичний переклад",
+    "batch_queue_link": "Дублюєте багато відео? Відкрийте пакетну чергу",
     "youtube_auth": "Вхід у YouTube (необов’язково)",
     "youtube_cookie_file": "Вибрати експорт cookies.txt",
     "remove_cookie_file": "Видалити файл cookie",

@@ -956,6 +956,7 @@
     "paste_url": "…ou cole o URL do YouTube/vídeo",
     "ingest": "Ingerir",
     "pull_captions": "Obtenha legendas + traduções automáticas do YouTube",
+    "batch_queue_link": "Dublando muitos vídeos? Abra a fila em lote",
     "youtube_auth": "Login no YouTube (opcional)",
     "youtube_cookie_file": "Escolher uma exportação cookies.txt",
     "remove_cookie_file": "Remover arquivo de cookies",

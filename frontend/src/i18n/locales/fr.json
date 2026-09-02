@@ -956,6 +956,7 @@
     "paste_url": "…ou collez l’URL YouTube/vidéo",
     "ingest": "Ingérer",
     "pull_captions": "Extrayez les sous-titres YouTube + les traductions automatiques",
+    "batch_queue_link": "Beaucoup de vidéos à doubler ? Ouvrir la file par lots",
     "youtube_auth": "Connexion YouTube (facultative)",
     "youtube_cookie_file": "Choisir un export cookies.txt",
     "remove_cookie_file": "Supprimer le fichier de cookies",

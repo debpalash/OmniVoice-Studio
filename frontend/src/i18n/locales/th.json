@@ -956,6 +956,7 @@
     "paste_url": "…หรือวาง URL ของ YouTube / วิดีโอ",
     "ingest": "นำเข้า",
     "pull_captions": "ดึงคำบรรยาย YouTube + การแปลอัตโนมัติ",
+    "batch_queue_link": "พากย์วิดีโอหลายรายการ? เปิดคิวแบบกลุ่ม",
     "youtube_auth": "ลงชื่อเข้าใช้ YouTube (ไม่บังคับ)",
     "youtube_cookie_file": "เลือกไฟล์ส่งออก cookies.txt",
     "remove_cookie_file": "ลบไฟล์คุกกี้",
