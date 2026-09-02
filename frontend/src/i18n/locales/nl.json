@@ -1366,7 +1366,17 @@
     "preserve_bg": "Achtergrondaudio behouden (muziek/FX)",
     "estimate": "{{videos}} video(s) × {{langs}} taal(s) = {{jobs}} vacature(s)",
     "select_files_langs": "Selecteer bestanden en talen",
-    "add_to_queue": "Toevoegen aan wachtrij"
+    "add_to_queue": "Toevoegen aan wachtrij",
+    "watch_folder": "Map volgen",
+    "watching": "{{folder}} wordt gevolgd",
+    "watch_paused": "Gepauzeerd — {{folder}}",
+    "watch_added": "{{count}} automatisch toegevoegd",
+    "watch_pause": "Pauzeren",
+    "watch_resume": "Hervatten",
+    "watch_stop": "Stoppen",
+    "watch_started": "{{folder}} wordt gevolgd — nieuwe video's komen automatisch in de wachtrij",
+    "watch_unsupported": "Mappen volgen vereist de desktop-app of een op Chromium gebaseerde browser — gebruik anders Video's toevoegen.",
+    "watch_failed": "Fout bij het volgen van de map: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galerij",

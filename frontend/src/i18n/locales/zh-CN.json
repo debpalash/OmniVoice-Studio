@@ -1325,7 +1325,17 @@
     "preserve_bg": "保留背景音频（音乐/FX）",
     "estimate": "{{videos}} 视频 × {{langs}} 语言 = {{jobs}} 作业",
     "select_files_langs": "选择文件和语言",
-    "add_to_queue": "添加到队列"
+    "add_to_queue": "添加到队列",
+    "watch_folder": "监视文件夹",
+    "watching": "正在监视 {{folder}}",
+    "watch_paused": "已暂停 — {{folder}}",
+    "watch_added": "已自动添加 {{count}} 个",
+    "watch_pause": "暂停",
+    "watch_resume": "继续",
+    "watch_stop": "停止",
+    "watch_started": "正在监视 {{folder}} — 新视频会自动加入队列",
+    "watch_unsupported": "文件夹监视需要桌面应用或基于 Chromium 的浏览器 — 请改用“添加视频”。",
+    "watch_failed": "文件夹监视出错：{{message}}"
   },
   "gallery": {
     "title": "VoiceStudio 音色库",

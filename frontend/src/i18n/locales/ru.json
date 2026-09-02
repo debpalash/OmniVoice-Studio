@@ -1366,7 +1366,17 @@
     "preserve_bg": "Сохранять фоновый звук (музыка/эффекты)",
     "estimate": "{{videos}} видео × {{langs}} языков = {{jobs}} заданий",
     "select_files_langs": "Выбор файлов и языков",
-    "add_to_queue": "Добавить в очередь"
+    "add_to_queue": "Добавить в очередь",
+    "watch_folder": "Следить за папкой",
+    "watching": "Слежение за {{folder}}",
+    "watch_paused": "Пауза — {{folder}}",
+    "watch_added": "Автоматически добавлено: {{count}}",
+    "watch_pause": "Пауза",
+    "watch_resume": "Возобновить",
+    "watch_stop": "Остановить",
+    "watch_started": "Слежение за {{folder}} — новые видео добавляются в очередь автоматически",
+    "watch_unsupported": "Для слежения за папкой нужны настольное приложение или браузер на базе Chromium — используйте «Добавить видео».",
+    "watch_failed": "Ошибка слежения за папкой: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Галерея",

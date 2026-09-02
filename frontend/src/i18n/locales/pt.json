@@ -1366,7 +1366,17 @@
     "preserve_bg": "Preservar o áudio de fundo (música/FX)",
     "estimate": "{{videos}} vídeo(s) × {{langs}} idioma(s) = {{jobs}} trabalho(s)",
     "select_files_langs": "Selecione arquivos e idiomas",
-    "add_to_queue": "Adicionar à fila"
+    "add_to_queue": "Adicionar à fila",
+    "watch_folder": "Monitorar pasta",
+    "watching": "Monitorando {{folder}}",
+    "watch_paused": "Pausado — {{folder}}",
+    "watch_added": "{{count}} adicionados automaticamente",
+    "watch_pause": "Pausar",
+    "watch_resume": "Retomar",
+    "watch_stop": "Parar",
+    "watch_started": "Monitorando {{folder}} — vídeos novos entram na fila automaticamente",
+    "watch_unsupported": "O monitoramento de pastas requer o app para desktop ou um navegador baseado em Chromium — use Adicionar vídeos.",
+    "watch_failed": "Erro ao monitorar a pasta: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galeria",

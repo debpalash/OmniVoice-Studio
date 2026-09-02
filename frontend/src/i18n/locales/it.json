@@ -1366,7 +1366,17 @@
     "preserve_bg": "Conserva l'audio di sottofondo (musica/effetti)",
     "estimate": "{{videos}} video/i × {{langs}} lingua/e = {{jobs}} lavoro/i",
     "select_files_langs": "Seleziona file e lingue",
-    "add_to_queue": "Aggiungi alla coda"
+    "add_to_queue": "Aggiungi alla coda",
+    "watch_folder": "Sorveglia cartella",
+    "watching": "Sorveglianza di {{folder}}",
+    "watch_paused": "In pausa — {{folder}}",
+    "watch_added": "{{count}} aggiunti automaticamente",
+    "watch_pause": "Pausa",
+    "watch_resume": "Riprendi",
+    "watch_stop": "Interrompi",
+    "watch_started": "Sorveglianza di {{folder}} — i nuovi video vengono aggiunti automaticamente alla coda",
+    "watch_unsupported": "La sorveglianza delle cartelle richiede l'app desktop o un browser basato su Chromium — usa invece Aggiungi video.",
+    "watch_failed": "Errore nella sorveglianza della cartella: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galleria",

@@ -1366,7 +1366,17 @@
     "preserve_bg": "Pertahankan audio latar belakang (musik/FX)",
     "estimate": "{{videos}} video × {{langs}} bahasa = {{jobs}} pekerjaan",
     "select_files_langs": "Pilih file dan bahasa",
-    "add_to_queue": "Tambahkan ke Antrean"
+    "add_to_queue": "Tambahkan ke Antrean",
+    "watch_folder": "Pantau folder",
+    "watching": "Memantau {{folder}}",
+    "watch_paused": "Dijeda — {{folder}}",
+    "watch_added": "{{count}} ditambahkan otomatis",
+    "watch_pause": "Jeda",
+    "watch_resume": "Lanjutkan",
+    "watch_stop": "Hentikan",
+    "watch_started": "Memantau {{folder}} — video baru otomatis masuk ke antrean",
+    "watch_unsupported": "Pemantauan folder memerlukan aplikasi desktop atau peramban berbasis Chromium — gunakan Tambah Video sebagai gantinya.",
+    "watch_failed": "Kesalahan pemantauan folder: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galeri",

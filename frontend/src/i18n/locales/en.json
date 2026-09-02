@@ -1624,7 +1624,17 @@
     "preserve_bg": "Preserve background audio (music/FX)",
     "estimate": "{{videos}} video(s) × {{langs}} lang(s) = {{jobs}} job(s)",
     "select_files_langs": "Select files and languages",
-    "add_to_queue": "Add to Queue"
+    "add_to_queue": "Add to Queue",
+    "watch_folder": "Watch folder",
+    "watching": "Watching {{folder}}",
+    "watch_paused": "Paused — {{folder}}",
+    "watch_added": "{{count}} auto-added",
+    "watch_pause": "Pause",
+    "watch_resume": "Resume",
+    "watch_stop": "Stop",
+    "watch_started": "Watching {{folder}} — new videos are added to the queue automatically",
+    "watch_unsupported": "Folder watching needs the desktop app or a Chromium-based browser — use Add Videos here instead.",
+    "watch_failed": "Watch folder error: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Gallery",

@@ -1366,7 +1366,17 @@
     "preserve_bg": "Збереження фонового звуку (музика/FX)",
     "estimate": "{{videos}} відео × {{langs}} мов = {{jobs}} вакансій",
     "select_files_langs": "Виберіть файли та мови",
-    "add_to_queue": "Додати в чергу"
+    "add_to_queue": "Додати в чергу",
+    "watch_folder": "Стежити за текою",
+    "watching": "Стеження за {{folder}}",
+    "watch_paused": "Призупинено — {{folder}}",
+    "watch_added": "Автоматично додано: {{count}}",
+    "watch_pause": "Призупинити",
+    "watch_resume": "Відновити",
+    "watch_stop": "Зупинити",
+    "watch_started": "Стеження за {{folder}} — нові відео автоматично додаються до черги",
+    "watch_unsupported": "Для стеження за текою потрібні настільний застосунок або браузер на основі Chromium — скористайтеся «Додати відео».",
+    "watch_failed": "Помилка стеження за текою: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Галерея",

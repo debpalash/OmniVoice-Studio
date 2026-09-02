@@ -1366,7 +1366,17 @@
     "preserve_bg": "Bevara bakgrundsljud (musik/FX)",
     "estimate": "{{videos}} video(ar) × {{langs}} lång(ar) = {{jobs}} jobb(ar)",
     "select_files_langs": "Välj filer och språk",
-    "add_to_queue": "Lägg till i kö"
+    "add_to_queue": "Lägg till i kö",
+    "watch_folder": "Bevaka mapp",
+    "watching": "Bevakar {{folder}}",
+    "watch_paused": "Pausad — {{folder}}",
+    "watch_added": "{{count}} automatiskt tillagda",
+    "watch_pause": "Pausa",
+    "watch_resume": "Återuppta",
+    "watch_stop": "Stoppa",
+    "watch_started": "Bevakar {{folder}} — nya videor läggs automatiskt i kön",
+    "watch_unsupported": "Mappbevakning kräver skrivbordsappen eller en Chromium-baserad webbläsare — använd Lägg till videor i stället.",
+    "watch_failed": "Fel vid mappbevakning: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galleri",

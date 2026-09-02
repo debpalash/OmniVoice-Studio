@@ -1366,7 +1366,17 @@
     "preserve_bg": "Hintergrundaudio (Musik/FX) beibehalten",
     "estimate": "{{videos}} Video(s) × {{langs}} Sprache(n) = {{jobs}} Job(s)",
     "select_files_langs": "Wählen Sie Dateien und Sprachen aus",
-    "add_to_queue": "Zur Warteschlange hinzufügen"
+    "add_to_queue": "Zur Warteschlange hinzufügen",
+    "watch_folder": "Ordner überwachen",
+    "watching": "Überwache {{folder}}",
+    "watch_paused": "Pausiert — {{folder}}",
+    "watch_added": "{{count}} automatisch hinzugefügt",
+    "watch_pause": "Pausieren",
+    "watch_resume": "Fortsetzen",
+    "watch_stop": "Stoppen",
+    "watch_started": "{{folder}} wird überwacht — neue Videos landen automatisch in der Warteschlange",
+    "watch_unsupported": "Ordnerüberwachung erfordert die Desktop-App oder einen Chromium-basierten Browser — nutze stattdessen „Videos hinzufügen“.",
+    "watch_failed": "Fehler bei der Ordnerüberwachung: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galerie",

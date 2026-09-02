@@ -1366,7 +1366,17 @@
     "preserve_bg": "Arka plan sesini koru (müzik/FX)",
     "estimate": "{{videos}} video(lar) × {{langs}} dil(ler) = {{jobs}} iş(ler)",
     "select_files_langs": "Dosyaları ve dilleri seçin",
-    "add_to_queue": "Kuyruğa Ekle"
+    "add_to_queue": "Kuyruğa Ekle",
+    "watch_folder": "Klasörü izle",
+    "watching": "{{folder}} izleniyor",
+    "watch_paused": "Duraklatıldı — {{folder}}",
+    "watch_added": "{{count}} otomatik eklendi",
+    "watch_pause": "Duraklat",
+    "watch_resume": "Devam et",
+    "watch_stop": "Durdur",
+    "watch_started": "{{folder}} izleniyor — yeni videolar kuyruğa otomatik olarak eklenir",
+    "watch_unsupported": "Klasör izleme, masaüstü uygulaması veya Chromium tabanlı bir tarayıcı gerektirir — bunun yerine Video Ekle'yi kullanın.",
+    "watch_failed": "Klasör izleme hatası: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Galeri",

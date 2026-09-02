@@ -1366,7 +1366,17 @@
     "preserve_bg": "배경 오디오 보존(음악/FX)",
     "estimate": "{{videos}} 동영상 × {{langs}} 언어 = {{jobs}} 작업",
     "select_files_langs": "파일 및 언어 선택",
-    "add_to_queue": "대기열에 추가"
+    "add_to_queue": "대기열에 추가",
+    "watch_folder": "폴더 감시",
+    "watching": "{{folder}} 감시 중",
+    "watch_paused": "일시정지됨 — {{folder}}",
+    "watch_added": "{{count}}개 자동 추가됨",
+    "watch_pause": "일시정지",
+    "watch_resume": "재개",
+    "watch_stop": "중지",
+    "watch_started": "{{folder}} 감시 중 — 새 동영상이 자동으로 대기열에 추가됩니다",
+    "watch_unsupported": "폴더 감시에는 데스크톱 앱 또는 Chromium 기반 브라우저가 필요합니다. 대신 동영상 추가를 사용하세요.",
+    "watch_failed": "폴더 감시 오류: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio 갤러리",

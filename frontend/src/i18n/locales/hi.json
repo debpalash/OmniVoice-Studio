@@ -1366,7 +1366,17 @@
     "preserve_bg": "पृष्ठभूमि ऑडियो सुरक्षित रखें (संगीत/एफएक्स)",
     "estimate": "{{videos}} वीडियो × {{langs}} लैंग्वेज = {{jobs}} कार्य",
     "select_files_langs": "फ़ाइलें और भाषाएँ चुनें",
-    "add_to_queue": "कतार में जोड़ें"
+    "add_to_queue": "कतार में जोड़ें",
+    "watch_folder": "फ़ोल्डर पर नज़र रखें",
+    "watching": "{{folder}} पर नज़र रखी जा रही है",
+    "watch_paused": "रोका गया — {{folder}}",
+    "watch_added": "{{count}} अपने आप जोड़े गए",
+    "watch_pause": "रोकें",
+    "watch_resume": "फिर शुरू करें",
+    "watch_stop": "बंद करें",
+    "watch_started": "{{folder}} पर नज़र रखी जा रही है — नए वीडियो अपने आप कतार में जुड़ जाते हैं",
+    "watch_unsupported": "फ़ोल्डर पर नज़र रखने के लिए डेस्कटॉप ऐप या Chromium-आधारित ब्राउज़र चाहिए — इसके बजाय वीडियो जोड़ें का उपयोग करें।",
+    "watch_failed": "फ़ोल्डर निगरानी में त्रुटि: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio गैलरी",

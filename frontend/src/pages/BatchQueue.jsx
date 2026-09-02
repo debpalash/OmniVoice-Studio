@@ -23,6 +23,7 @@ import {
 } from '../api/batch';
 import { API } from '../api/client';
 import BatchAddDialog from '../components/BatchAddDialog';
+import WatchFolderBar from '../components/WatchFolderBar';
 import toast from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { asrMissingPayload, toastAsrModelMissing } from '../utils/asrModelMissing';
@@ -74,6 +75,14 @@ export default function BatchQueue({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
+  // Settings the watch-folder ingest reuses: the last Add-to-queue submission,
+  // or the dialog's own defaults before any manual enqueue this session.
+  const lastSettingsRef = useRef({
+    langs: [{ lang: 'Spanish', code: 'es' }],
+    voiceId: '',
+    preserveBg: true,
+  });
+
   // Ids last seen queued/running. The 'active' filter excludes finished jobs
   // server-side, so a job VANISHING from the active list is the completion
   // signal — resolve its final status to tell done apart from failed/cancelled.
@@ -123,6 +132,7 @@ export default function BatchQueue({ onBack }) {
 
   const handleEnqueue = useCallback(
     async (files, settings) => {
+      lastSettingsRef.current = settings;
       const langCodes = settings.langs.map((l) => l.code);
       let success = 0;
       for (const file of files) {
@@ -155,6 +165,13 @@ export default function BatchQueue({ onBack }) {
       }
     },
     [t, reload],
+  );
+
+  // Watch-folder arrivals go through the exact same enqueue path (File
+  // uploads to POST /batch/enqueue) with the last-used / default settings.
+  const handleWatchIngest = useCallback(
+    (files) => handleEnqueue(files, lastSettingsRef.current),
+    [handleEnqueue],
   );
 
   const handleCancel = useCallback(
@@ -199,6 +216,7 @@ export default function BatchQueue({ onBack }) {
           <Activity size={15} /> {t('batch.title')}
         </div>
         <div className="batch-queue__bar-spacer flex-1" />
+        <WatchFolderBar onIngest={handleWatchIngest} />
         <Button
           variant="subtle"
           size="sm"

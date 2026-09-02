@@ -1366,7 +1366,17 @@
     "preserve_bg": "Giữ nguyên âm thanh nền (âm nhạc/FX)",
     "estimate": "{{videos}} video × {{langs}} lang = {{jobs}} công việc",
     "select_files_langs": "Chọn tập tin và ngôn ngữ",
-    "add_to_queue": "Thêm vào hàng đợi"
+    "add_to_queue": "Thêm vào hàng đợi",
+    "watch_folder": "Theo dõi thư mục",
+    "watching": "Đang theo dõi {{folder}}",
+    "watch_paused": "Đã tạm dừng — {{folder}}",
+    "watch_added": "Đã tự động thêm {{count}}",
+    "watch_pause": "Tạm dừng",
+    "watch_resume": "Tiếp tục",
+    "watch_stop": "Dừng",
+    "watch_started": "Đang theo dõi {{folder}} — video mới sẽ tự động được thêm vào hàng đợi",
+    "watch_unsupported": "Theo dõi thư mục cần ứng dụng máy tính hoặc trình duyệt dựa trên Chromium — hãy dùng Thêm video thay thế.",
+    "watch_failed": "Lỗi theo dõi thư mục: {{message}}"
   },
   "gallery": {
     "title": "VoiceStudio Thư viện ảnh",
