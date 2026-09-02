@@ -12,11 +12,7 @@ vi.mock('../WaveformPlayer', () => ({
 // plain <select> so the panel's own wiring is what's under test.
 vi.mock('../VoiceSelector', () => ({
   default: ({ value, onChange, profiles }) => (
-    <select
-      aria-label="voice-selector"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
+    <select aria-label="voice-selector" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">—</option>
       {profiles.map((p) => (
         <option key={p.id} value={p.id}>
@@ -45,8 +41,7 @@ vi.mock('../../api/convert', () => ({
 
 const toastAsrModelMissing = vi.fn();
 vi.mock('../../utils/asrModelMissing', () => ({
-  asrMissingPayload: (err) =>
-    err?.detail?.error === 'asr_model_missing' ? err.detail : null,
+  asrMissingPayload: (err) => (err?.detail?.error === 'asr_model_missing' ? err.detail : null),
   toastAsrModelMissing: (...args) => toastAsrModelMissing(...args),
 }));
 
@@ -211,9 +206,7 @@ describe('ConvertMethodPanel', () => {
 
   it('ignores a response that lands after the source clip changed', async () => {
     let resolveConvert;
-    convertSpeech.mockImplementation(
-      () => new Promise((resolve) => (resolveConvert = resolve)),
-    );
+    convertSpeech.mockImplementation(() => new Promise((resolve) => (resolveConvert = resolve)));
     render(<ConvertMethodPanel t={t} profiles={profiles} />);
     addSourceClip();
     fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
@@ -252,9 +245,7 @@ describe('ConvertMethodPanel', () => {
 
   it('ignores an error that lands after the target voice changed', async () => {
     let rejectConvert;
-    convertSpeech.mockImplementation(
-      () => new Promise((_, reject) => (rejectConvert = reject)),
-    );
+    convertSpeech.mockImplementation(() => new Promise((_, reject) => (rejectConvert = reject)));
     render(<ConvertMethodPanel t={t} profiles={profiles} />);
     addSourceClip();
     fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });

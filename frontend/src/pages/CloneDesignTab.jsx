@@ -304,23 +304,23 @@ export default function CloneDesignTab(props) {
             Hidden for Convert: the source clip IS the script (the backend
             transcribes it), so a text panel would only mislead. */}
         {defineMethod !== 'convert' && (
-        <ScriptPanel
-          t={t}
-          defineMethod={defineMethod}
-          text={text}
-          setText={setText}
-          activePersonality={activePersonality}
-          demoPresets={demoPresets}
-          applyDemoPreset={applyDemoPreset}
-          showDemoCoachmark={showDemoCoachmark}
-          setShowDemoCoachmark={setShowDemoCoachmark}
-          selectedProfile={selectedProfile}
-          DEMO_PROFILE_ID={DEMO_PROFILE_ID}
-          textAreaRef={textAreaRef}
-          insertOpen={insertOpen}
-          setInsertOpen={setInsertOpen}
-          insertTag={insertTag}
-        />
+          <ScriptPanel
+            t={t}
+            defineMethod={defineMethod}
+            text={text}
+            setText={setText}
+            activePersonality={activePersonality}
+            demoPresets={demoPresets}
+            applyDemoPreset={applyDemoPreset}
+            showDemoCoachmark={showDemoCoachmark}
+            setShowDemoCoachmark={setShowDemoCoachmark}
+            selectedProfile={selectedProfile}
+            DEMO_PROFILE_ID={DEMO_PROFILE_ID}
+            textAreaRef={textAreaRef}
+            insertOpen={insertOpen}
+            setInsertOpen={setInsertOpen}
+            insertTag={insertTag}
+          />
         )}
 
         {/* ═══ VOICE — who says it ═══ */}
@@ -425,44 +425,44 @@ export default function CloneDesignTab(props) {
           Hidden for Convert: it drives text synthesis (script + overrides),
           and Convert owns its action button inside its panel. */}
       {defineMethod !== 'convert' && (
-      <ActionBar
-        t={t}
-        showOverrides={showOverrides}
-        setShowOverrides={setShowOverrides}
-        cfg={cfg}
-        setCfg={setCfg}
-        speed={speed}
-        setSpeed={setSpeed}
-        tShift={tShift}
-        setTShift={setTShift}
-        posTemp={posTemp}
-        setPosTemp={setPosTemp}
-        classTemp={classTemp}
-        setClassTemp={setClassTemp}
-        layerPenalty={layerPenalty}
-        setLayerPenalty={setLayerPenalty}
-        duration={duration}
-        setDuration={setDuration}
-        denoise={denoise}
-        setDenoise={setDenoise}
-        postprocess={postprocess}
-        setPostprocess={setPostprocess}
-        language={language}
-        setLanguage={setLanguage}
-        steps={steps}
-        setSteps={setSteps}
-        showHearDemo={showHearDemo}
-        playDemoOutput={playDemoOutput}
-        demoAudioPlaying={demoAudioPlaying}
-        demoAudioRef={demoAudioRef}
-        demoReleaseRef={demoReleaseRef}
-        setDemoAudioPlaying={setDemoAudioPlaying}
-        outputPlaying={outputPlaying}
-        isGenerating={isGenerating}
-        handleGenerate={handleGenerate}
-        generationTime={generationTime}
-        wasGeneratingRef={wasGeneratingRef}
-      />
+        <ActionBar
+          t={t}
+          showOverrides={showOverrides}
+          setShowOverrides={setShowOverrides}
+          cfg={cfg}
+          setCfg={setCfg}
+          speed={speed}
+          setSpeed={setSpeed}
+          tShift={tShift}
+          setTShift={setTShift}
+          posTemp={posTemp}
+          setPosTemp={setPosTemp}
+          classTemp={classTemp}
+          setClassTemp={setClassTemp}
+          layerPenalty={layerPenalty}
+          setLayerPenalty={setLayerPenalty}
+          duration={duration}
+          setDuration={setDuration}
+          denoise={denoise}
+          setDenoise={setDenoise}
+          postprocess={postprocess}
+          setPostprocess={setPostprocess}
+          language={language}
+          setLanguage={setLanguage}
+          steps={steps}
+          setSteps={setSteps}
+          showHearDemo={showHearDemo}
+          playDemoOutput={playDemoOutput}
+          demoAudioPlaying={demoAudioPlaying}
+          demoAudioRef={demoAudioRef}
+          demoReleaseRef={demoReleaseRef}
+          setDemoAudioPlaying={setDemoAudioPlaying}
+          outputPlaying={outputPlaying}
+          isGenerating={isGenerating}
+          handleGenerate={handleGenerate}
+          generationTime={generationTime}
+          wasGeneratingRef={wasGeneratingRef}
+        />
       )}
     </div>
   );

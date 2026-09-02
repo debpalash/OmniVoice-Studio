@@ -6,10 +6,7 @@ import { API } from '../../api/client';
 import { convertSpeech } from '../../api/convert';
 import { TtsGenerationBusyError } from '../../api/generate';
 import { asrMissingPayload, toastAsrModelMissing } from '../../utils/asrModelMissing';
-import {
-  modelNotDownloadedPayload,
-  toastModelNotDownloaded,
-} from '../../utils/modelNotDownloaded';
+import { modelNotDownloadedPayload, toastModelNotDownloaded } from '../../utils/modelNotDownloaded';
 import { toastErrorWithReport } from '../../utils/errorToast';
 import useRecording from '../../hooks/useRecording';
 import MicButton from './MicButton';
@@ -63,13 +60,9 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
 
   // Own mic instance: a convert source is not the clone reference, so it
   // must never overwrite the audio method's refAudio.
-  const {
-    isRecording,
-    isCleaning,
-    recordingTime,
-    startRecording,
-    stopRecording,
-  } = useRecording(async (file) => ingestSource(file));
+  const { isRecording, isCleaning, recordingTime, startRecording, stopRecording } = useRecording(
+    async (file) => ingestSource(file),
+  );
 
   const canConvert = !!sourceFile && !!voiceId && !isConverting;
 
@@ -231,9 +224,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
           {isConverting ? t('convert.converting') : t('convert.convert')}
         </Button>
         {!sourceFile || !voiceId ? (
-          <span className="text-[0.72rem] text-fg-muted">
-            {t('convert.need_source_and_voice')}
-          </span>
+          <span className="text-[0.72rem] text-fg-muted">{t('convert.need_source_and_voice')}</span>
         ) : null}
       </div>
 

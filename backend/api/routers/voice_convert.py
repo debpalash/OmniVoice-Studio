@@ -53,6 +53,28 @@ ATEMPO_MAX = 2.0
 #: would resample the whole take for an inaudible gain.
 _MATCH_TOLERANCE = 0.02
 
+#: Convert clips are short conversational inputs, not long-form media. Stream
+#: them to disk in bounded chunks so a network-share client cannot make the
+#: backend materialize an arbitrarily large multipart upload in memory.
+_MAX_SOURCE_AUDIO_BYTES = 64 * 1024 * 1024
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+async def _copy_source_upload(audio: UploadFile, destination) -> int:
+    """Stream ``audio`` into ``destination`` with the Convert upload cap."""
+    total = 0
+    while True:
+        chunk = await audio.read(_UPLOAD_CHUNK_BYTES)
+        if not chunk:
+            return total
+        total += len(chunk)
+        if total > _MAX_SOURCE_AUDIO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="Source audio is too large (maximum 64 MB).",
+            )
+        destination.write(chunk)
+
 
 def _clamped_tempo_ratio(tts_duration_s: float, source_duration_s: float) -> "float | None":
     """The atempo ratio that fits the take into the source duration, or None.
@@ -88,7 +110,7 @@ async def _match_source_duration(audio_tensor, sample_rate: int, source_duration
         return audio_tensor
 
 
-async def _transcribe_source(tmp_path: str) -> dict:
+async def _transcribe_source(tmp_path: str, *, source_lease=None) -> dict:
     """Active-ASR transcription of the uploaded clip (no word timestamps).
 
     Mirrors POST /transcribe: typed 409 + download CTA before any backend
@@ -119,9 +141,21 @@ async def _transcribe_source(tmp_path: str) -> dict:
         return backend.transcribe(tmp_path, word_timestamps=False)
 
     from services.model_manager import _gpu_pool
+    release = source_lease.acquire() if source_lease is not None else None
+    abandoned = False
     try:
-        return await run_transcribe_guarded(_gpu_pool, _run, what="Voice convert")
+        return await run_transcribe_guarded(
+            _gpu_pool,
+            _run,
+            what="Voice convert",
+            on_abandon=release,
+        )
+    except asyncio.CancelledError:
+        # The guard now owns the lease token until the native worker drains.
+        abandoned = True
+        raise
     except ASRTimeoutError as e:
+        abandoned = True
         logger.warning("Convert transcription timed out: %s", e)
         raise HTTPException(status_code=504, detail=str(e))
     except ASRModelMissingError as e:
@@ -129,6 +163,9 @@ async def _transcribe_source(tmp_path: str) -> dict:
             status_code=409,
             detail={**e.payload, "message": asr_model_missing_detail(e.payload)},
         )
+    finally:
+        if release is not None and not abandoned:
+            release()
 
 
 @router.post("/convert")
@@ -147,7 +184,7 @@ async def convert_speech(
     OUTPUTS_DIR and served from the ``/audio`` mount like every other take.
     """
     from core.db import db_conn
-    from api.routers.generation import _resolve_profile_conditioning
+    from api.routers.generation import _resolve_profile_conditioning, _TempReferenceLease
 
     # ── Profile first: strict 404, unlike /generate's silent skip — Convert
     # has no meaning without a target voice.
@@ -162,26 +199,33 @@ async def convert_speech(
         )
     cond = _resolve_profile_conditioning(row)
 
-    # ── Engine gate before any heavy work: the shared resolver refuses a
-    # clone-less engine with the actionable switch-engine message (→ 400),
-    # and a backend mid-shutdown raises ModelLoadInterruptedByShutdown out
-    # of the model load → the global 503 [shutting_down] handler.
-    from services.tts_backend import resolve_generation_backend
-    try:
-        backend = await resolve_generation_backend(
-            require_cloning=True, cloning_purpose="voice conversion",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # ── Save the upload; every ASR backend (and ffprobe) needs a file path.
+    # ── Save the upload before loading an engine. Every ASR backend (and
+    # ffprobe) needs a file path; the bounded streaming copy rejects oversized
+    # network-share requests without materializing them in process memory or
+    # starting heavyweight model work.
     ext = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    source_lease = None
     try:
-        tmp.write(await audio.read())
-        tmp.close()
+        try:
+            await _copy_source_upload(audio, tmp)
+        finally:
+            tmp.close()
+        source_lease = _TempReferenceLease(tmp.name)
 
-        result = await _transcribe_source(tmp.name)
+        # ── Engine gate before ASR/TTS work: the shared resolver refuses a
+        # clone-less engine with the actionable switch-engine message (→ 400),
+        # and a backend mid-shutdown raises ModelLoadInterruptedByShutdown out
+        # of the model load → the global 503 [shutting_down] handler.
+        from services.tts_backend import resolve_generation_backend
+        try:
+            backend = await resolve_generation_backend(
+                require_cloning=True, cloning_purpose="voice conversion",
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        result = await _transcribe_source(tmp.name, source_lease=source_lease)
 
         segments = result.get("segments", [])
         text = result.get("text", "")
@@ -325,7 +369,10 @@ async def convert_speech(
             "gen_time_s": meta["gen_time"],
         }
     finally:
-        try:
-            os.unlink(tmp.name)
-        except OSError:
-            pass
+        if source_lease is not None:
+            source_lease.finish_request()
+        else:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
