@@ -45,12 +45,35 @@ vi.mock('../../utils/asrModelMissing', () => ({
   toastAsrModelMissing: (...args) => toastAsrModelMissing(...args),
 }));
 
-const toastError = vi.fn();
-vi.mock('react-hot-toast', () => ({
-  toast: { error: (...args) => toastError(...args) },
+const toastModelNotDownloaded = vi.fn();
+vi.mock('../../utils/modelNotDownloaded', () => ({
+  modelNotDownloadedPayload: (err) =>
+    err?.detail?.error === 'model_not_downloaded' ? err.detail : null,
+  toastModelNotDownloaded: (...args) => toastModelNotDownloaded(...args),
 }));
 
+const toastErrorWithReport = vi.fn();
+vi.mock('../../utils/errorToast', () => ({
+  toastErrorWithReport: (...args) => toastErrorWithReport(...args),
+}));
+
+// The panel only needs the busy-error class from the generate API surface —
+// mock the module so the test doesn't drag the real client/store chain in.
+vi.mock('../../api/generate', () => ({
+  TtsGenerationBusyError: class TtsGenerationBusyError extends Error {},
+}));
+
+const toastError = vi.fn();
+const toastPlain = vi.fn();
+vi.mock('react-hot-toast', () => {
+  const toast = Object.assign((...args) => toastPlain(...args), {
+    error: (...args) => toastError(...args),
+  });
+  return { toast };
+});
+
 import ConvertMethodPanel from './ConvertMethodPanel';
+import { TtsGenerationBusyError } from '../../api/generate';
 
 const t = (key) => key;
 const profiles = [{ id: 'vp-1', name: 'Morgan' }];
@@ -67,7 +90,10 @@ function addSourceClip() {
 beforeEach(() => {
   convertSpeech.mockReset();
   toastAsrModelMissing.mockReset();
+  toastModelNotDownloaded.mockReset();
+  toastErrorWithReport.mockReset();
   toastError.mockReset();
+  toastPlain.mockReset();
 });
 
 describe('ConvertMethodPanel', () => {
@@ -141,22 +167,79 @@ describe('ConvertMethodPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
 
     await waitFor(() => expect(toastAsrModelMissing).toHaveBeenCalledWith(err.detail));
-    expect(toastError).not.toHaveBeenCalled();
+    expect(toastErrorWithReport).not.toHaveBeenCalled();
     expect(screen.queryByTestId('convert-result')).toBeNull();
   });
 
-  it('surfaces other backend errors as a plain error toast', async () => {
-    convertSpeech.mockRejectedValue(new Error('503 Service Unavailable: [shutting_down]'));
+  it('routes other backend errors through the shared actionable toast', async () => {
+    // toastErrorWithReport owns the mapping: [shutting_down]/[clone_ref_*]
+    // markers become localized guidance, everything else gets the "Report"
+    // action — never a raw technical string via a bare toast.error.
+    const err = new Error('503 Service Unavailable: [shutting_down]');
+    convertSpeech.mockRejectedValue(err);
     render(<ConvertMethodPanel t={t} profiles={profiles} />);
     addSourceClip();
     fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(
-        '503 Service Unavailable: [shutting_down]',
+      expect(toastErrorWithReport).toHaveBeenCalledWith('tts_errors.error_prefix', err),
+    );
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('shows the localized busy notice when another generation holds admission', async () => {
+    convertSpeech.mockRejectedValue(new TtsGenerationBusyError('busy'));
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+
+    await waitFor(() =>
+      expect(toastPlain).toHaveBeenCalledWith(
+        'tts_errors.generation_in_progress',
         expect.anything(),
       ),
     );
+    expect(toastErrorWithReport).not.toHaveBeenCalled();
+  });
+
+  it('ignores a response that lands after the source clip changed', async () => {
+    let resolveConvert;
+    convertSpeech.mockImplementation(() => new Promise((resolve) => (resolveConvert = resolve)));
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(convertSpeech).toHaveBeenCalled());
+
+    // The user swaps the source clip while the request is still in flight…
+    addSourceClip();
+    resolveConvert({ id: 'stale', audio_url: '/audio/stale.wav', text: 'old', duration_s: 1 });
+
+    // …so the obsolete take must never render against the new inputs.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'convert.convert' })).toBeEnabled(),
+    );
+    expect(screen.queryByTestId('convert-result')).toBeNull();
+  });
+
+  it('ignores an error that lands after the target voice changed', async () => {
+    let rejectConvert;
+    convertSpeech.mockImplementation(() => new Promise((_, reject) => (rejectConvert = reject)));
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(convertSpeech).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: '' } });
+    rejectConvert(new Error('too late'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'convert.convert' })).toBeDisabled(),
+    );
+    expect(toastErrorWithReport).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
   });
 });

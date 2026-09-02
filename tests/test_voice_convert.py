@@ -15,6 +15,7 @@ Contract under test (all engine/ASR layers stubbed — no GPU, no weights):
     committed route snapshot carries POST /convert).
 """
 import asyncio
+import contextlib
 import io
 import importlib
 import os
@@ -92,6 +93,27 @@ def _init_db():
     init_db()
 
 
+def _delete_profile_and_takes(pid):
+    """Fixture teardown: remove the profile, its history rows AND their WAVs —
+    a leaked take in OUTPUTS_DIR would bleed into later tests."""
+    from core.config import OUTPUTS_DIR
+    from core.db import db_conn
+
+    with db_conn() as conn:
+        takes = [
+            row["audio_path"]
+            for row in conn.execute(
+                "SELECT audio_path FROM generation_history WHERE profile_id=?", (pid,)
+            ).fetchall()
+        ]
+        conn.execute("DELETE FROM generation_history WHERE profile_id=?", (pid,))
+        conn.execute("DELETE FROM voice_profiles WHERE id=?", (pid,))
+    for name in takes:
+        if name:
+            with contextlib.suppress(OSError):
+                os.remove(os.path.join(OUTPUTS_DIR, os.path.basename(name)))
+
+
 @pytest.fixture()
 def clone_profile(_init_db):
     from core.db import db_conn
@@ -104,9 +126,24 @@ def clone_profile(_init_db):
             (pid, "Convert Target", "clone", "convert-ref.wav", "reference words", 0.0),
         )
     yield pid
+    _delete_profile_and_takes(pid)
+
+
+@pytest.fixture()
+def transcriptless_profile(_init_db):
+    """Clone profile with a reference clip but NO stored transcript — the shape
+    POST /profiles produces when the user doesn't type one (#1032)."""
+    from core.db import db_conn
+
+    pid = f"vp-convt-{uuid.uuid4().hex[:8]}"
     with db_conn() as conn:
-        conn.execute("DELETE FROM generation_history WHERE profile_id=?", (pid,))
-        conn.execute("DELETE FROM voice_profiles WHERE id=?", (pid,))
+        conn.execute(
+            "INSERT INTO voice_profiles (id, name, kind, ref_audio_path, ref_text, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            (pid, "Blank Transcript", "clone", "convert-ref.wav", "", 0.0),
+        )
+    yield pid
+    _delete_profile_and_takes(pid)
 
 
 def _wire_stubs(monkeypatch, *, engine_cls, asr):
@@ -173,6 +210,62 @@ def test_convert_happy_path(client, monkeypatch, clone_profile):
         ).fetchone()
     assert row["mode"] == "convert"
     assert row["profile_id"] == clone_profile
+
+
+def test_convert_transcribes_blank_profile_reference_and_persists(
+    client, monkeypatch, transcriptless_profile,
+):
+    """/generate parity (#308/#1032): a clone profile with a blank stored
+    transcript gets its reference clip transcribed (best-effort) before TTS,
+    the engine sees that transcript instead of None, and it's cached onto the
+    profile row so it runs once, not per convert."""
+    import services.asr_backend as ab
+    from core.db import db_conn
+
+    fake = _make_fake_engine(f"fake-conv-{uuid.uuid4().hex[:6]}")
+    asr = _FakeASR({"text": "hello there"})
+    _wire_stubs(monkeypatch, engine_cls=fake, asr=asr)
+
+    ref_calls = []
+
+    def _counting_ref_transcribe(audio_path):
+        ref_calls.append(audio_path)
+        return "auto transcript words"
+
+    monkeypatch.setattr(ab, "transcribe_reference", _counting_ref_transcribe)
+
+    res = _post_convert(client, transcriptless_profile, match_duration="0")
+    assert res.status_code == 200, res.text
+
+    from core.config import VOICES_DIR
+    assert ref_calls == [os.path.join(VOICES_DIR, "convert-ref.wav")]
+    _, gen_kwargs = fake.calls[0]
+    assert gen_kwargs["ref_text"] == "auto transcript words"
+    with db_conn() as conn:
+        row = conn.execute(
+            "SELECT ref_text FROM voice_profiles WHERE id=?", (transcriptless_profile,)
+        ).fetchone()
+    assert row["ref_text"] == "auto transcript words"
+
+
+def test_convert_stored_transcript_skips_reference_transcribe(
+    client, monkeypatch, clone_profile,
+):
+    """A profile that already carries a transcript never re-runs reference ASR
+    (the #1032 perf-regression class)."""
+    import services.asr_backend as ab
+
+    fake = _make_fake_engine(f"fake-conv-{uuid.uuid4().hex[:6]}")
+    _wire_stubs(monkeypatch, engine_cls=fake, asr=_FakeASR({"text": "hello"}))
+
+    def _boom(audio_path):
+        raise AssertionError("stored transcript must short-circuit reference ASR")
+
+    monkeypatch.setattr(ab, "transcribe_reference", _boom)
+
+    res = _post_convert(client, clone_profile, match_duration="0")
+    assert res.status_code == 200, res.text
+    assert fake.calls[0][1]["ref_text"] == "reference words"
 
 
 def test_convert_missing_profile_is_404(client, monkeypatch):

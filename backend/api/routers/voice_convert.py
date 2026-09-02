@@ -230,6 +230,33 @@ async def convert_speech(
                 ),
             )
 
+        # #308/#1032 parity with /generate: a clone profile saved without a
+        # transcript conditions better when its reference clip is transcribed,
+        # and that transcript is cached onto the row so it happens ONCE, not
+        # per convert. Best-effort exactly like /generate — a timeout/failure
+        # degrades to ref_text=None and the engine's own fallback. The ASR
+        # model is already warm here (the source transcribe above just used it).
+        if cond["ref_audio_path"] and not cond["ref_text"]:
+            from api.routers.generation import (
+                _generate_timeout_s,
+                _persist_profile_ref_text,
+            )
+            from services.asr_backend import transcribe_reference
+            from services.model_manager import run_on_gpu_pool_guarded
+            try:
+                cond["ref_text"] = await run_on_gpu_pool_guarded(
+                    functools.partial(transcribe_reference, cond["ref_audio_path"]),
+                    what="Reference transcribe",
+                    timeout=_generate_timeout_s(""),
+                )
+            except TimeoutError as e:
+                logger.warning(
+                    "reference transcribe hung (%s); using engine ASR fallback", e,
+                )
+                cond["ref_text"] = None
+            if cond["ref_text"] and cond["persist_ref_text"]:
+                _persist_profile_ref_text(profile_id, cond["ref_text"])
+
         # Source duration for the optional match: the container's own length
         # (ffprobe), falling back to the last ASR segment end. Best-effort —
         # None just skips the stretch.

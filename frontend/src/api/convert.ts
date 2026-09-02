@@ -15,6 +15,11 @@ export interface ConvertResult {
 /**
  * Convert a spoken clip into an existing voice profile's voice.
  * Multipart: `audio` (source clip), `profile_id`, `match_duration` ('1'|'0').
+ *
+ * Runs under the same process-wide TTS admission guard as /generate
+ * (`withTtsInflight`): a convert IS a native synthesis, and overlapping it
+ * with another render is the exact capacity/crash class the guard exists
+ * for. A concurrent request rejects with `TtsGenerationBusyError`.
  */
 export async function convertSpeech(formData: FormData): Promise<ConvertResult> {
   return withTtsInflight(() => apiPost<ConvertResult>('/convert', formData));
