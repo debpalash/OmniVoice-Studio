@@ -224,6 +224,8 @@ export const useAppStore = create<AppStore>()(
         // plain /audio path (never a blob: URL), so rehydrating it is safe
         // and keeps the finished book's Download affordance reachable.
         lastOutput: s.lastOutput,
+        lastOutputScript: s.lastOutputScript,
+        lastOutputChapters: s.lastOutputChapters,
         projectMode: s.projectMode,
         // Donation prompt state (#007) — persist everything EXCEPT
         // `shownThisSession` so the ≤1/session cap resets on every launch.
