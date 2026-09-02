@@ -10,8 +10,8 @@ import { createIngestTracker, openWatchSource, WATCH_POLL_MS } from '../utils/wa
  * (extracted from BatchQueue so the page stays focused on the job list).
  *
  * Pick a directory once; every ~5s the source is rescanned and new, settled
- * video files are handed to `onIngest(files)` as File objects — the exact
- * same shape the Add-to-queue dialog produces. Dedup (name+size+mtime),
+ * video files are handed to `onIngest(files)` as browser Files or native
+ * capability descriptors. Dedup (name+size+mtime),
  * pause/resume, and stop-on-unmount live here; the actual enqueue (and its
  * language/voice settings) stays with the parent.
  */
@@ -127,7 +127,7 @@ export default function WatchFolderBar({ onIngest }) {
           tracker.retry(entry);
           continue;
         }
-        // BatchQueue returns the exact File objects it accepted. Keep
+        // BatchQueue returns the exact upload candidates it accepted. Keep
         // undefined/true/positive-count compatible with simpler consumers.
         const wasAccepted =
           accepted instanceof Set ? accepted.has(file) : accepted !== false && accepted !== 0;

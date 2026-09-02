@@ -122,14 +122,11 @@ describe('openWatchSource — Tauri backend', () => {
     expect(invoke).toHaveBeenCalledWith('watch_folder_pick');
   });
 
-  it('reads watched entries back as File objects and only ever sends the session token + bare name over IPC', async () => {
+  it('returns a capability descriptor without sending file bytes through IPC', async () => {
     const token = 'f'.repeat(64);
-    invoke.mockImplementation(async (cmd, args) => {
+    invoke.mockImplementation(async (cmd) => {
       if (cmd === 'watch_folder_pick') return { token, path: '/Users/me/Watched Drop' };
       if (cmd === 'watch_folder_scan') return [{ name: 'clip.mp4', size: 4, mtime: 1234 }];
-      if (cmd === 'watch_folder_read') {
-        return new TextEncoder().encode('vid!').buffer.slice(args.offset);
-      }
       return undefined;
     });
 
@@ -140,50 +137,45 @@ describe('openWatchSource — Tauri backend', () => {
     expect(entries).toEqual([{ name: 'clip.mp4', size: 4, mtime: 1234 }]);
 
     const file = await source.readFile(entries[0]);
-    expect(file).toBeInstanceOf(File);
+    expect(file.__voiceStudioNativeWatchUpload).toBe(true);
+    expect(file.token).toBe(token);
     expect(file.name).toBe('clip.mp4');
     expect(file.size).toBe(4);
     expect(file.type).toBe('video/mp4');
-    expect(await file.text()).toBe('vid!');
+    expect(file.mtime).toBe(1234);
 
     source.close();
     expect(invoke).toHaveBeenCalledWith('watch_folder_forget', { token });
 
-    // The scan/read/forget IPC calls carry the opaque token and a bare file
-    // name — never a directory path (paths must not leave the pick reply).
+    // Scan/forget IPC calls carry only the opaque token. File bytes are never
+    // copied into the renderer; enqueueBatchJob gives the descriptor to the
+    // native streaming command later.
     for (const [cmd, args] of invoke.mock.calls) {
       if (cmd === 'watch_folder_pick') continue;
       expect(JSON.stringify(args)).not.toContain('/Users/me');
       expect(JSON.stringify(args)).not.toContain('Watched Drop');
     }
-    // Reads carry the settled snapshot so the Rust side can refuse a file
-    // that changed (or was symlink-swapped) after it stabilized.
-    expect(invoke).toHaveBeenCalledWith('watch_folder_read', {
-      token,
-      name: 'clip.mp4',
-      offset: 0,
-      expectedSize: 4,
-      expectedMtime: 1234,
-    });
+    expect(invoke.mock.calls.some(([cmd]) => cmd === 'watch_folder_read')).toBe(false);
   });
 
-  it('assembles multi-chunk reads back into the exact file bytes', async () => {
+  it('keeps descriptor memory constant for multi-gigabyte watched files', async () => {
     const token = 'a'.repeat(64);
-    const payload = new TextEncoder().encode('0123456789');
-    invoke.mockImplementation(async (cmd, args) => {
+    invoke.mockImplementation(async (cmd) => {
       if (cmd === 'watch_folder_pick') return { token, path: '/w/Drop' };
-      if (cmd === 'watch_folder_read') {
-        // Serve at most 4 bytes per call, like the Rust chunk cap does.
-        return payload.slice(args.offset, args.offset + 4).buffer;
-      }
       return undefined;
     });
 
     const source = await openWatchSource();
-    const file = await source.readFile({ name: 'big.mp4', size: 10, mtime: 7 });
-    expect(await file.text()).toBe('0123456789');
-    const readCalls = invoke.mock.calls.filter(([cmd]) => cmd === 'watch_folder_read');
-    expect(readCalls.map(([, a]) => a.offset)).toEqual([0, 4, 8]);
+    const size = 8 * 1024 * 1024 * 1024;
+    const file = await source.readFile({ name: 'big.mp4', size, mtime: 7 });
+    expect(file).toMatchObject({
+      __voiceStudioNativeWatchUpload: true,
+      token,
+      name: 'big.mp4',
+      size,
+      mtime: 7,
+    });
+    expect(invoke.mock.calls.some(([cmd]) => cmd === 'watch_folder_read')).toBe(false);
   });
 });
 

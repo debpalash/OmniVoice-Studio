@@ -742,7 +742,7 @@ pub fn run() {
             blank_guard::recover_main_window,
             watch_folder::watch_folder_pick,
             watch_folder::watch_folder_scan,
-            watch_folder::watch_folder_read,
+            watch_folder::watch_folder_enqueue,
             watch_folder::watch_folder_forget,
         ])
         .setup(move |app| {

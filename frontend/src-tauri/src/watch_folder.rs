@@ -1,11 +1,10 @@
-//! Batch watch-folder IPC: native folder pick + polling scan + byte reads.
+//! Batch watch-folder IPC: native folder pick, polling scan, and upload.
 //!
 //! The watcher lives entirely on the client side of the app: the webview asks
-//! this module (over Tauri IPC, never HTTP) for directory listings and file
-//! bytes, wraps the bytes in a `File`, and uploads them through the existing
-//! `POST /batch/enqueue` multipart route. The Python backend only ever sees
-//! uploaded bytes — filesystem paths never ride an HTTP request (same posture
-//! as `commands::authorize_host_path`).
+//! this module (over Tauri IPC) for directory listings and asks Rust to stream
+//! a settled file through the existing `POST /batch/enqueue` multipart route.
+//! The Python backend only ever sees uploaded bytes — filesystem paths never
+//! ride an HTTP request (same posture as `commands::authorize_host_path`).
 //!
 //! Access model: the folder is picked in a native dialog inside this process
 //! and registered under a random session token, together with a `cap_std`
@@ -19,7 +18,7 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
@@ -28,11 +27,6 @@ use cap_std::ambient_authority;
 use cap_std::fs::Dir;
 use serde::Serialize;
 use tauri_plugin_dialog::DialogExt;
-
-/// Upper bound for one `watch_folder_read` IPC transfer. The webview
-/// assembles the chunks into a `File` (Blob parts), so a multi-gigabyte video
-/// never has to exist as a single contiguous buffer on the Rust side.
-const READ_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
 /// An authorized watch folder: the directory handle everything resolves
 /// against, plus the identity the folder had when the user picked it. The
@@ -46,6 +40,9 @@ struct WatchedDir {
     /// Filesystem identity (device, inode) captured at pick time.
     #[cfg(unix)]
     identity: (u64, u64),
+    /// Filesystem identity (volume serial, file index) captured at pick time.
+    #[cfg(windows)]
+    identity: (u32, u64),
     /// Directory handle captured at pick time — all scans/reads go through it.
     handle: Dir,
 }
@@ -54,6 +51,25 @@ struct WatchedDir {
 fn dir_identity(meta: &fs::Metadata) -> (u64, u64) {
     use std::os::unix::fs::MetadataExt;
     (meta.dev(), meta.ino())
+}
+
+#[cfg(windows)]
+fn dir_identity(dir: &Dir) -> Result<(u32, u64), String> {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+    };
+
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    // SAFETY: `dir` owns a live directory handle for the duration of this
+    // call, and `info` is a valid writable output buffer.
+    unsafe { GetFileInformationByHandle(HANDLE(dir.as_raw_handle()), &mut info) }
+        .map_err(|_| "Selected watch folder identity could not be read".to_string())?;
+    Ok((
+        info.dwVolumeSerialNumber,
+        ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64,
+    ))
 }
 
 fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
@@ -69,9 +85,13 @@ fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
         &fs::metadata(&canonical)
             .map_err(|e| format!("Selected watch folder could not be inspected: {e}"))?,
     );
+    #[cfg(windows)]
+    let identity = dir_identity(&handle)?;
     Ok(WatchedDir {
         canonical,
         #[cfg(unix)]
+        identity,
+        #[cfg(windows)]
         identity,
         handle,
     })
@@ -93,6 +113,14 @@ fn verify_watched_dir(watched: &WatchedDir) -> Result<(), String> {
         let meta = fs::metadata(&canonical_now)
             .map_err(|_| "Watched folder is no longer accessible".to_string())?;
         if dir_identity(&meta) != watched.identity {
+            return Err("Watched folder changed identity".into());
+        }
+    }
+    #[cfg(windows)]
+    {
+        let current = Dir::open_ambient_dir(&canonical_now, ambient_authority())
+            .map_err(|_| "Watched folder is no longer accessible".to_string())?;
+        if dir_identity(&current)? != watched.identity {
             return Err("Watched folder changed identity".into());
         }
     }
@@ -168,11 +196,7 @@ fn mtime_ms(meta: &fs::Metadata) -> u64 {
 fn cap_mtime_ms(meta: &cap_std::fs::Metadata) -> u64 {
     meta.modified()
         .ok()
-        .and_then(|t| {
-            t.into_std()
-                .duration_since(UNIX_EPOCH)
-                .ok()
-        })
+        .and_then(|t| t.into_std().duration_since(UNIX_EPOCH).ok())
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
 }
@@ -206,21 +230,17 @@ fn scan_dir(dir: &Dir) -> Result<Vec<WatchEntry>, String> {
     Ok(entries)
 }
 
-/// Read one bounded chunk of a watched file through the pinned directory
-/// handle, bound to the settled scan snapshot: the opened file's size and
-/// mtime must still match what the stability tracker released, otherwise the
-/// file changed (or was replaced) after settling and the read is refused. A
-/// symlink pointing outside the watched folder cannot be opened at all —
-/// `cap_std` confines resolution to the handle.
-fn read_watched_chunk(
+/// Open a settled watched file through the pinned directory handle. A symlink
+/// outside the folder cannot be opened, and the returned reader revalidates
+/// size+mtime around every network read so a mutation aborts the upload.
+fn open_watched_reader(
     dir: &Dir,
     name: &str,
-    offset: u64,
     expected_size: u64,
     expected_mtime: u64,
-) -> Result<Vec<u8>, String> {
+) -> Result<SnapshotReader, String> {
     validate_entry_name(name)?;
-    let mut file = dir
+    let file = dir
         .open(name)
         .map_err(|e| format!("Watched file could not be opened: {e}"))?
         .into_std();
@@ -233,16 +253,40 @@ fn read_watched_chunk(
     if meta.len() != expected_size || mtime_ms(&meta) != expected_mtime {
         return Err("Watched file changed after it was scanned".into());
     }
-    if offset >= expected_size {
-        return Ok(Vec::new());
+    Ok(SnapshotReader {
+        file,
+        expected_size,
+        expected_mtime,
+    })
+}
+
+#[derive(Debug)]
+struct SnapshotReader {
+    file: fs::File,
+    expected_size: u64,
+    expected_mtime: u64,
+}
+
+impl SnapshotReader {
+    fn validate(&self) -> io::Result<()> {
+        let meta = self.file.metadata()?;
+        if !meta.is_file()
+            || meta.len() != self.expected_size
+            || mtime_ms(&meta) != self.expected_mtime
+        {
+            return Err(io::Error::other("watched file changed during upload"));
+        }
+        Ok(())
     }
-    file.seek(SeekFrom::Start(offset))
-        .map_err(|e| format!("Watched file could not be read: {e}"))?;
-    let len = (expected_size - offset).min(READ_CHUNK_BYTES) as usize;
-    let mut buf = vec![0_u8; len];
-    file.read_exact(&mut buf)
-        .map_err(|e| format!("Watched file could not be read: {e}"))?;
-    Ok(buf)
+}
+
+impl Read for SnapshotReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.validate()?;
+        let read = self.file.read(buf)?;
+        self.validate()?;
+        Ok(read)
+    }
 }
 
 /// Open the native folder picker and register the chosen directory for this
@@ -281,23 +325,78 @@ pub fn watch_folder_scan(token: String) -> Result<Vec<WatchEntry>, String> {
     scan_dir(&registered_dir(&token)?)
 }
 
-/// Read one chunk (≤ `READ_CHUNK_BYTES`) of a watched file as raw bytes; the
-/// webview loops over offsets and assembles the chunks into a `File` for the
-/// multipart upload, so neither side ever buffers the whole video at once.
-/// `expected_size`/`expected_mtime` are the settled scan snapshot — the read
-/// refuses files that changed after settling, and resolution is confined to
-/// the directory handle captured when the user picked the folder.
+#[derive(Serialize)]
+pub struct WatchFolderUploadReply {
+    status: u16,
+    body: serde_json::Value,
+}
+
+fn video_mime(name: &str) -> &'static str {
+    match Path::new(name)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "mp4" | "m4v" => "video/mp4",
+        "mov" => "video/quicktime",
+        "mkv" => "video/x-matroska",
+        "webm" => "video/webm",
+        "avi" => "video/x-msvideo",
+        "mpg" | "mpeg" => "video/mpeg",
+        "wmv" => "video/x-ms-wmv",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Stream one settled watched file directly from its pinned OS handle to the
+/// loopback backend. Keeping bytes out of WebView IPC avoids an O(file size)
+/// renderer allocation for multi-gigabyte videos.
 #[tauri::command]
-pub fn watch_folder_read(
+pub async fn watch_folder_enqueue(
     token: String,
     name: String,
-    offset: u64,
     expected_size: u64,
     expected_mtime: u64,
-) -> Result<tauri::ipc::Response, String> {
+    langs: Vec<String>,
+    voice_id: Option<String>,
+    preserve_bg: bool,
+) -> Result<WatchFolderUploadReply, String> {
     let dir = registered_dir(&token)?;
-    let bytes = read_watched_chunk(&dir, &name, offset, expected_size, expected_mtime)?;
-    Ok(tauri::ipc::Response::new(bytes))
+    let reader = open_watched_reader(&dir, &name, expected_size, expected_mtime)?;
+    let mime = video_mime(&name);
+    let url = format!("http://127.0.0.1:{}/batch/enqueue", crate::backend_port());
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let part = reqwest::blocking::multipart::Part::reader_with_length(reader, expected_size)
+            .file_name(name)
+            .mime_str(mime)
+            .map_err(|_| "Watched file type could not be prepared".to_string())?;
+        let mut form = reqwest::blocking::multipart::Form::new()
+            .part("video", part)
+            .text("langs", langs.join(","))
+            .text("preserve_bg", preserve_bg.to_string());
+        if let Some(voice_id) = voice_id.filter(|value| !value.is_empty()) {
+            form = form.text("voice_id", voice_id);
+        }
+        let response = reqwest::blocking::Client::builder()
+            .no_proxy()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .map_err(|_| "Watch-folder upload client could not start".to_string())?
+            .post(url)
+            .multipart(form)
+            .send()
+            .map_err(|_| "Watch-folder upload failed".to_string())?;
+        let status = response.status().as_u16();
+        let body = response
+            .json::<serde_json::Value>()
+            .map_err(|_| "Watch-folder backend returned an invalid response".to_string())?;
+        Ok(WatchFolderUploadReply { status, body })
+    })
+    .await
+    .map_err(|_| "Watch-folder upload task failed".to_string())?
 }
 
 /// Drop a watch-folder authorization (watcher stopped or component unmounted).
@@ -311,11 +410,12 @@ pub fn watch_folder_forget(token: String) {
 #[cfg(test)]
 mod tests {
     use super::{
-        authorize_watched_dir, mtime_ms, read_watched_chunk, scan_dir, validate_entry_name,
+        authorize_watched_dir, mtime_ms, open_watched_reader, scan_dir, validate_entry_name,
         verify_watched_dir, Dir,
     };
     use cap_std::ambient_authority;
     use std::fs;
+    use std::io::Read;
     use std::path::PathBuf;
 
     fn temp_watch_dir(tag: &str) -> PathBuf {
@@ -338,7 +438,15 @@ mod tests {
     fn entry_names_must_be_single_components() {
         assert!(validate_entry_name("clip.mp4").is_ok());
         assert!(validate_entry_name("weird name (1).MOV").is_ok());
-        for bad in ["", ".", "..", "a/b.mp4", "a\\b.mp4", "..\\up.mp4", "x\n.mp4"] {
+        for bad in [
+            "",
+            ".",
+            "..",
+            "a/b.mp4",
+            "a\\b.mp4",
+            "..\\up.mp4",
+            "x\n.mp4",
+        ] {
             assert!(validate_entry_name(bad).is_err(), "accepted {bad:?}");
         }
     }
@@ -362,20 +470,16 @@ mod tests {
     }
 
     #[test]
-    fn chunked_reads_reassemble_the_exact_bytes() {
-        let dir = temp_watch_dir("chunks");
+    fn snapshot_reader_streams_the_exact_bytes() {
+        let dir = temp_watch_dir("stream");
         fs::write(dir.join("clip.mp4"), b"0123456789").unwrap();
         let (size, mtime) = snapshot(&dir.join("clip.mp4"));
         let handle = open_handle(&dir);
 
-        // READ_CHUNK_BYTES is far larger than this file, so exercise the
-        // offset walk directly: partial reads must line up back to back.
-        let whole = read_watched_chunk(&handle, "clip.mp4", 0, size, mtime).unwrap();
+        let mut reader = open_watched_reader(&handle, "clip.mp4", size, mtime).unwrap();
+        let mut whole = Vec::new();
+        reader.read_to_end(&mut whole).unwrap();
         assert_eq!(whole, b"0123456789");
-        let tail = read_watched_chunk(&handle, "clip.mp4", 7, size, mtime).unwrap();
-        assert_eq!(tail, b"789");
-        let past_end = read_watched_chunk(&handle, "clip.mp4", size, size, mtime).unwrap();
-        assert!(past_end.is_empty());
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -390,8 +494,23 @@ mod tests {
         // The file is replaced after the scan settled → the read must refuse
         // rather than upload bytes the tracker never saw stabilize.
         fs::write(dir.join("clip.mp4"), b"replaced with something longer").unwrap();
-        let err = read_watched_chunk(&handle, "clip.mp4", 0, size, mtime).unwrap_err();
+        let err = open_watched_reader(&handle, "clip.mp4", size, mtime).unwrap_err();
         assert!(err.contains("changed"), "unexpected error: {err}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn snapshot_reader_aborts_when_file_changes_during_stream() {
+        let dir = temp_watch_dir("mid-stream-change");
+        fs::write(dir.join("clip.mp4"), b"settled bytes").unwrap();
+        let (size, mtime) = snapshot(&dir.join("clip.mp4"));
+        let handle = open_handle(&dir);
+        let mut reader = open_watched_reader(&handle, "clip.mp4", size, mtime).unwrap();
+
+        fs::write(dir.join("clip.mp4"), b"different-length bytes").unwrap();
+        let mut byte = [0_u8; 1];
+        assert!(reader.read(&mut byte).is_err());
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -427,7 +546,7 @@ mod tests {
         // …and even the pinned handle cannot reach the swap target: it still
         // points at the ORIGINAL (now unlinked) directory, which is empty.
         assert!(scan_dir(&watched.handle).unwrap().is_empty());
-        assert!(read_watched_chunk(&watched.handle, "clip.mp4", 0, size, mtime).is_err());
+        assert!(open_watched_reader(&watched.handle, "clip.mp4", size, mtime).is_err());
 
         let _ = fs::remove_file(&dir);
         let _ = fs::remove_dir_all(&elsewhere);
@@ -444,6 +563,20 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn a_replaced_directory_at_the_same_windows_path_is_refused() {
+        let dir = temp_watch_dir("windows-dir-replace");
+        let moved = dir.with_extension("moved");
+        let _ = fs::remove_dir_all(&moved);
+        let watched = authorize_watched_dir(&dir).unwrap();
+        fs::rename(&dir, &moved).unwrap();
+        fs::create_dir_all(&dir).unwrap();
+        assert!(verify_watched_dir(&watched).is_err());
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&moved);
+    }
+
     #[cfg(unix)]
     #[test]
     fn symlinks_are_never_followed_out_of_the_folder() {
@@ -457,9 +590,12 @@ mod tests {
         // Even with a "correct" snapshot of the symlink target, opening it
         // through the capability handle refuses: resolution may not escape
         // the watched folder.
-        let err = read_watched_chunk(&handle, "evil.mp4", 0, meta.len(), mtime_ms(&meta))
-            .unwrap_err();
-        assert!(err.contains("could not be opened"), "unexpected error: {err}");
+        let err =
+            open_watched_reader(&handle, "evil.mp4", meta.len(), mtime_ms(&meta)).unwrap_err();
+        assert!(
+            err.contains("could not be opened"),
+            "unexpected error: {err}"
+        );
         // And the scanner never lists it in the first place.
         assert!(scan_dir(&handle).unwrap().is_empty());
 

@@ -1,14 +1,14 @@
 /**
  * Watch-folder ingest for the batch dubbing queue (opt-in, local-only).
  *
- * A watch source hands back directory listings and `File` objects; the UI
+ * A watch source hands back directory listings and upload candidates; the UI
  * (WatchFolderBar) polls it every ~5s and pushes NEW videos through the same
- * `enqueueBatchJob` File upload as the Add-to-queue dialog. Two backends:
+ * `enqueueBatchJob` API as the Add-to-queue dialog. Two backends:
  *
  *   - Tauri (desktop, all three OSes): a native folder pick registers the
  *     directory under a session token in the Rust process
- *     (`src-tauri/src/watch_folder.rs`); scans and byte reads resolve the
- *     token over IPC. Filesystem paths NEVER ride an HTTP request — the
+ *     (`src-tauri/src/watch_folder.rs`); scans and native streamed uploads
+ *     resolve the token. Filesystem paths NEVER ride an HTTP request — the
  *     backend only receives multipart bytes.
  *   - Browsers with the File System Access API (Chromium): a directory
  *     handle from `showDirectoryPicker()` is polled directly.
@@ -17,6 +17,7 @@
  * which the UI turns into an actionable message.
  */
 import { isTauriContext } from './apiBase';
+import { API } from '../api/client';
 
 /** Poll cadence — no native fs-watch plugin ships in this repo, so both
  *  backends rescan on a timer. 5s keeps ingest snappy without disk churn. */
@@ -131,32 +132,19 @@ async function openTauriSource() {
     label,
     path,
     listEntries: () => invoke('watch_folder_scan', { token }),
-    // Chunked read: the Rust side serves bounded slices (validating on every
-    // chunk that the file still matches the settled size+mtime snapshot and
-    // refusing symlinks), and the chunks become Blob parts — a multi-gigabyte
-    // video never has to fit in one contiguous buffer on either side.
+    // A lightweight capability descriptor, not file bytes. The batch API
+    // client hands this back to Rust, which streams the pinned file handle
+    // directly to the loopback backend without retaining it in renderer RAM.
     async readFile(entry) {
-      const chunks = [];
-      let offset = 0;
-      while (offset < entry.size) {
-        const chunk = await invoke('watch_folder_read', {
-          token,
-          name: entry.name,
-          offset,
-          expectedSize: entry.size,
-          expectedMtime: entry.mtime,
-        });
-        const bytes = chunk instanceof ArrayBuffer ? chunk : new Uint8Array(chunk).buffer;
-        if (!bytes.byteLength) {
-          throw new Error(`Watched file ${entry.name} returned an empty read`);
-        }
-        chunks.push(bytes);
-        offset += bytes.byteLength;
-      }
-      return new File(chunks, entry.name, {
+      return {
+        __voiceStudioNativeWatchUpload: true,
+        token,
+        name: entry.name,
+        size: entry.size,
+        mtime: entry.mtime,
         type: videoMimeFor(entry.name),
         lastModified: entry.mtime,
-      });
+      };
     },
     close() {
       invoke('watch_folder_forget', { token }).catch(() => {});
@@ -205,7 +193,24 @@ async function openBrowserSource() {
  * access exists (web build outside Chromium).
  */
 export async function openWatchSource() {
-  if (isTauriContext()) return openTauriSource();
+  if (isTauriContext()) {
+    let localApi = false;
+    try {
+      const endpoint = new URL(API);
+      localApi =
+        endpoint.protocol === 'http:' &&
+        ['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname) &&
+        (endpoint.pathname === '/' || endpoint.pathname === '');
+    } catch {
+      /* invalid configured endpoint is not a safe native upload target */
+    }
+    if (!localApi) {
+      const err = new Error('Native folder watching requires the local backend');
+      err.code = 'watch-unsupported';
+      throw err;
+    }
+    return openTauriSource();
+  }
   if (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function') {
     return openBrowserSource();
   }

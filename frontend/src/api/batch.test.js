@@ -3,12 +3,21 @@
  * File BYTES only. Filesystem paths must never appear in the request — the
  * watch-folder feature (and everything else) rides the same guarantee.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const invoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args) => invoke(...args) }));
+
 vi.mock('./client', () => ({
+  ApiError: class ApiError extends Error {
+    constructor(message, init = {}) {
+      super(message);
+      Object.assign(this, init);
+    }
+  },
   apiJson: vi.fn(),
   apiPost: vi.fn(async () => ({ job_id: 'j1', status: 'queued', queue_position: 0 })),
   apiDelete: vi.fn(),
@@ -19,6 +28,8 @@ import { apiPost } from './client';
 import { enqueueBatchJob } from './batch';
 
 describe('enqueueBatchJob', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('uploads the File itself — no filesystem path in any form field', async () => {
     const file = new File(['bytes'], 'clip.mp4', { type: 'video/mp4' });
     // Desktop-flavored File objects sometimes carry a path property; even if
@@ -44,6 +55,48 @@ describe('enqueueBatchJob', () => {
         expect(value).not.toContain('/Users/me');
       }
     }
+  });
+
+  it('streams native watch entries without constructing FormData in the renderer', async () => {
+    const watched = {
+      __voiceStudioNativeWatchUpload: /** @type {const} */ (true),
+      token: 'a'.repeat(64),
+      name: 'large.mkv',
+      size: 8 * 1024 * 1024 * 1024,
+      mtime: 1234,
+    };
+    invoke.mockResolvedValueOnce({
+      status: 200,
+      body: { job_id: 'native-1', status: 'queued', queue_position: 1 },
+    });
+
+    await expect(enqueueBatchJob(watched, ['es'], '', true)).resolves.toMatchObject({
+      job_id: 'native-1',
+    });
+    expect(invoke).toHaveBeenCalledWith('watch_folder_enqueue', {
+      token: watched.token,
+      name: 'large.mkv',
+      expectedSize: watched.size,
+      expectedMtime: watched.mtime,
+      langs: ['es'],
+      voiceId: '',
+      preserveBg: true,
+    });
+    expect(apiPost).not.toHaveBeenCalled();
+  });
+
+  it('preserves structured backend errors from native watch uploads', async () => {
+    const detail = { error: 'asr_model_missing', recommended: { repo_id: 'model/repo' } };
+    invoke.mockResolvedValueOnce({ status: 409, body: { detail } });
+    const watched = {
+      __voiceStudioNativeWatchUpload: /** @type {const} */ (true),
+      token: 'b'.repeat(64),
+      name: 'clip.mp4',
+      size: 4,
+      mtime: 1,
+    };
+
+    await expect(enqueueBatchJob(watched, ['es'])).rejects.toMatchObject({ status: 409, detail });
   });
 
   it('the batch client source never touches a path at all', () => {

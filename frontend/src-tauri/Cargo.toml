@@ -24,8 +24,8 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 getrandom = "0.3"
 # Capability-scoped fs access for the batch watch folder: scans/reads resolve
-# against a directory HANDLE captured at pick time, so no pathname is ever
-# re-resolved after authorization (no symlink/junction swap window, #1768).
+# against a directory HANDLE captured at pick time. The selected pathname is
+# re-resolved only for liveness/identity checks (#1768).
 cap-std = "3"
 log = "0.4"
 tauri = { version = "2.11.0", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
@@ -51,8 +51,9 @@ enigo = { version = "0.3", features = ["serde"] }
 # bundled pyproject.toml — which installs torch, whisperx, etc.
 # ureq is used for HTTP health checks and ffmpeg downloads.
 ureq = "2"
-# reqwest is used for GitHub Releases API calls (list_releases command).
-reqwest = { version = "0.13", features = ["json"] }
+# reqwest is used for GitHub Releases API calls and bounded-memory native
+# watch-folder uploads to the loopback backend.
+reqwest = { version = "0.13", features = ["json", "blocking", "multipart"] }
 # semver is used by the channel-aware updater (updater_channel.rs) to rank
 # builds across the stable/preview channels (#326); same major as the
 # `Version` type tauri-plugin-updater re-exports (already in the lockfile).
@@ -94,7 +95,7 @@ windows-core = "0.61"
 # `HWND` type — no second copy of the crate enters the dependency graph.
 # Win32_System_Registry: check_microphone reads the CapabilityAccessManager
 # ConsentStore mic toggle (RegGetValueW) for the permissions UX.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Diagnostics_ToolHelp", "Win32_Security"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Diagnostics_ToolHelp", "Win32_Security"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

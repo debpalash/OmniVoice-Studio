@@ -110,7 +110,7 @@ Use `bun run dev` for the browser UI. See [Contributing](.github/CONTRIBUTING.md
 | **[Dictation Widget](docs/features/dictation.md)** | System-wide shortcut, live transcription, optional local-LLM cleanup |
 | **Vocal Isolation** | Demucs speech/background separation |
 | **Speaker Diarization** | Pyannote and WhisperX speaker assignment |
-| **Batch Queue** | Queue large sets of audio and video jobs with per-job progress |
+| **Batch Queue** | Queue large sets of audio and video jobs with per-job progress, or watch a local folder for new videos |
 | **Model Catalogue** | Install, remove, select, and route TTS, ASR, and LLM models |
 | **Remote Model Downloads** | Install models on enrolled remote workers with live progress |
 | **GPU Auto-Detect** | CUDA, MPS, ROCm, and CPU routing with per-engine checks |
