@@ -23,7 +23,7 @@ the frozen-backend fallback mirror it for their toolchains.
 **Highlights**
 
 - Show estimated and measured model, dependency, cache, and temporary disk costs in the engine catalogue (#1718)
-- CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
+- CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available (#1761)
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
 
 ### Changed
@@ -36,7 +36,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Docs
 
 - Local gigastt is now documented as a supported OpenAI-compatible ASR endpoint, with loopback privacy distinguished from remote servers (#1736) — thanks @ekhodzitsky!
-- The CosyVoice guide now states that packaged builds have no one-click runtime installer and records the exact readiness checks exposed by [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631).
+- The CosyVoice guide now states that packaged builds have no one-click runtime installer and records the exact readiness checks exposed by [Discussion 1631](https://github.com/debpalash/VoiceStudio/discussions/1631) (#1761)
 - A production private-API guide now covers pinned containers, root credentials, network isolation, streaming proxies, health checks, upgrades, and benchmark evidence (#1720)
 - RX 6700 XT/gfx1031 over WSL2 ROCDXG is now explicitly unverified until a published end-to-end GPU workload proves the mapped path (#1716)
 
