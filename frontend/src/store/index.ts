@@ -157,6 +157,7 @@ export const useAppStore = create<AppStore>()(
         condenseSuggest: s.condenseSuggest,
         dualSubs: s.dualSubs,
         burnSubs: s.burnSubs,
+        karaokeSubs: s.karaokeSubs,
         glossaryVisible: s.glossaryVisible,
         reviewMode: s.reviewMode,
         showHeaderLiveStats: s.showHeaderLiveStats,

@@ -523,7 +523,9 @@
     "view_all_files": "すべてのファイルを表示する",
     "file": "ファイル",
     "audiobook_title": "オーディオブック",
-    "audiobook_desc": "長いスクリプトや EPUB を、表紙、メタデータ、1 人のナレーターを含む章付きのオーディオブックに変換します。"
+    "audiobook_desc": "長いスクリプトや EPUB を、表紙、メタデータ、1 人のナレーターを含む章付きのオーディオブックに変換します。",
+    "convert_title": "ボイスチェンジャー",
+    "convert_desc": "一度話すだけで、別の声に。音声から音声へ、すべてローカルで。"
   },
   "clone": {
     "prompt": "プロンプト",
@@ -616,7 +618,8 @@
     "seed_placeholder": "毎回ランダム",
     "seed_keep": "この種を保管しておいてください",
     "seed_reroll": "新しい種",
-    "seed_reroll_hint": "新しいランダムシードをロールして保持します"
+    "seed_reroll_hint": "新しいランダムシードをロールして保持します",
+    "define_convert": "変換"
   },
   "about": {
     "app": "アプリ",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "ビデオの字幕",
     "hardsub": "字幕を画像に焼き込む (ハードサブ)",
     "dual_subs_video": "デュアル (斜体の原文の上に翻訳)",
+    "subs_style_line": "行",
+    "subs_style_karaoke": "カラオケ（単語ハイライト）",
+    "karaoke_dual_note": "デュアル字幕ではカラオケは利用できません",
     "format": "フォーマット",
     "wav_lossless": "WAV（ロスレス）",
     "mp3_compressed": "MP3（圧縮）",
@@ -2667,5 +2673,18 @@
     "cta_design": "「声」← で説明してデザイン",
     "new": "新しい声",
     "none_selected": "声が選択されていません — 説明するか、音声をドロップするか、下から選んでください。"
+  },
+  "convert": {
+    "source_kicker": "ソースクリップ",
+    "drop_audio": "変換するクリップをドロップ — またはクリック。WAV、MP3、M4A…",
+    "target_voice": "変換先の声",
+    "pick_voice": "ボイスプロファイルを選択…",
+    "match_duration": "元の長さに合わせる",
+    "match_duration_hint": "結果をタイムストレッチ(ピッチ維持)して、ソースクリップの長さに近づけます。",
+    "convert": "変換",
+    "converting": "変換中…",
+    "transcript": "聞き取った内容",
+    "result_kicker": "変換されたテイク",
+    "need_source_and_voice": "先にソースクリップを追加し、変換先の声を選んでください。"
   }
 }

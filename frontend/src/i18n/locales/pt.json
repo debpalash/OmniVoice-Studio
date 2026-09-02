@@ -523,7 +523,9 @@
     "view_all_files": "Ver todos os arquivos",
     "file": "Arquivo",
     "audiobook_title": "Audiolivro",
-    "audiobook_desc": "Transforme um roteiro longo ou EPUB em um audiolivro com capítulos – capas, metadados, um narrador."
+    "audiobook_desc": "Transforme um roteiro longo ou EPUB em um audiolivro com capítulos – capas, metadados, um narrador.",
+    "convert_title": "Trocador de voz",
+    "convert_desc": "Diga uma vez — ouça em outra voz. Fala para fala, totalmente local."
   },
   "clone": {
     "prompt": "Alerta",
@@ -616,7 +618,8 @@
     "seed_placeholder": "aleatório de cada vez",
     "seed_keep": "Guarde esta semente",
     "seed_reroll": "Nova semente",
-    "seed_reroll_hint": "Role uma nova semente aleatória e guarde-a"
+    "seed_reroll_hint": "Role uma nova semente aleatória e guarde-a",
+    "define_convert": "Converter"
   },
   "about": {
     "app": "Aplicativo",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "Legendas em vídeo",
     "hardsub": "Gravar legendas na imagem (hardsub)",
     "dual_subs_video": "Dual (traduzido sobre o original em itálico)",
+    "subs_style_line": "Linha",
+    "subs_style_karaoke": "Karaokê (destaque por palavra)",
+    "karaoke_dual_note": "O karaokê não está disponível com legendas duplas",
     "format": "Formato",
     "wav_lossless": "WAV (sem perdas)",
     "mp3_compressed": "MP3 (compactado)",
@@ -2667,5 +2673,18 @@
     "cta_design": "Descreva uma em Voz ← para desenhá-la",
     "new": "Nova voz",
     "none_selected": "Nenhuma voz selecionada — descreva uma, solte um áudio ou escolha abaixo."
+  },
+  "convert": {
+    "source_kicker": "Clipe de origem",
+    "drop_audio": "Solte o clipe a converter — ou clique. WAV, MP3, M4A…",
+    "target_voice": "Voz de destino",
+    "pick_voice": "Escolha um perfil de voz…",
+    "match_duration": "Igualar duração de origem",
+    "match_duration_hint": "Estica o resultado no tempo (tom preservado) para se aproximar da duração do clipe de origem.",
+    "convert": "Converter",
+    "converting": "Convertendo…",
+    "transcript": "O que foi ouvido",
+    "result_kicker": "Take convertido",
+    "need_source_and_voice": "Adicione primeiro um clipe de origem e escolha uma voz de destino."
   }
 }

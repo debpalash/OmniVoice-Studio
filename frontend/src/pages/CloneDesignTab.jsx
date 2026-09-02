@@ -12,6 +12,7 @@ import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/p
 import ScriptPanel from '../components/clone/ScriptPanel';
 import AudioMethodPanel from '../components/clone/AudioMethodPanel';
 import DesignMethodPanel from '../components/clone/DesignMethodPanel';
+import ConvertMethodPanel from '../components/clone/ConvertMethodPanel';
 import ActionBar from '../components/clone/ActionBar';
 import EngineQuickSwitch from '../components/EngineQuickSwitch';
 
@@ -211,7 +212,9 @@ export default function CloneDesignTab(props) {
     defineMethod === 'audio' && selectedProfile === DEMO_PROFILE_ID && !anyTtsReady;
 
   // Cmd/Ctrl+Enter synthesizes from anywhere in the workspace (10x spec 1.1).
+  // Not on Convert: there is no script to synthesize there.
   useEffect(() => {
+    if (defineMethod === 'convert') return undefined;
     const onKey = (e) => {
       if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
       e.preventDefault();
@@ -220,7 +223,7 @@ export default function CloneDesignTab(props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isGenerating, showHearDemo, handleGenerate]);
+  }, [isGenerating, showHearDemo, handleGenerate, defineMethod]);
   const demoAudioRef = useRef(null);
   const demoReleaseRef = useRef(null);
   const [demoAudioPlaying, setDemoAudioPlaying] = useState(false);
@@ -297,24 +300,28 @@ export default function CloneDesignTab(props) {
   return (
     <div className="flex-1 flex flex-col min-h-0 min-w-0">
       <div className="flex-1 flex flex-col gap-[6px] min-h-0 overflow-y-auto">
-        {/* ═══ SCRIPT — what should it say ═══ */}
-        <ScriptPanel
-          t={t}
-          defineMethod={defineMethod}
-          text={text}
-          setText={setText}
-          activePersonality={activePersonality}
-          demoPresets={demoPresets}
-          applyDemoPreset={applyDemoPreset}
-          showDemoCoachmark={showDemoCoachmark}
-          setShowDemoCoachmark={setShowDemoCoachmark}
-          selectedProfile={selectedProfile}
-          DEMO_PROFILE_ID={DEMO_PROFILE_ID}
-          textAreaRef={textAreaRef}
-          insertOpen={insertOpen}
-          setInsertOpen={setInsertOpen}
-          insertTag={insertTag}
-        />
+        {/* ═══ SCRIPT — what should it say ═══
+            Hidden for Convert: the source clip IS the script (the backend
+            transcribes it), so a text panel would only mislead. */}
+        {defineMethod !== 'convert' && (
+          <ScriptPanel
+            t={t}
+            defineMethod={defineMethod}
+            text={text}
+            setText={setText}
+            activePersonality={activePersonality}
+            demoPresets={demoPresets}
+            applyDemoPreset={applyDemoPreset}
+            showDemoCoachmark={showDemoCoachmark}
+            setShowDemoCoachmark={setShowDemoCoachmark}
+            selectedProfile={selectedProfile}
+            DEMO_PROFILE_ID={DEMO_PROFILE_ID}
+            textAreaRef={textAreaRef}
+            insertOpen={insertOpen}
+            setInsertOpen={setInsertOpen}
+            insertTag={insertTag}
+          />
+        )}
 
         {/* ═══ VOICE — who says it ═══ */}
         <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[1]">
@@ -338,6 +345,10 @@ export default function CloneDesignTab(props) {
                     {
                       value: 'design',
                       label: t('clone.define_by_design', { defaultValue: 'By design' }),
+                    },
+                    {
+                      value: 'convert',
+                      label: t('clone.define_convert', { defaultValue: 'Convert' }),
                     },
                   ]}
                 />
@@ -378,6 +389,8 @@ export default function CloneDesignTab(props) {
                 setProfileName={setProfileName}
                 handleSaveProfile={handleSaveProfile}
               />
+            ) : defineMethod === 'convert' ? (
+              <ConvertMethodPanel t={t} profiles={profiles} />
             ) : (
               <DesignMethodPanel
                 t={t}
@@ -408,45 +421,49 @@ export default function CloneDesignTab(props) {
         </div>
       </div>
 
-      {/* ═══ ACTION BAR — pinned to the column bottom ═══ */}
-      <ActionBar
-        t={t}
-        showOverrides={showOverrides}
-        setShowOverrides={setShowOverrides}
-        cfg={cfg}
-        setCfg={setCfg}
-        speed={speed}
-        setSpeed={setSpeed}
-        tShift={tShift}
-        setTShift={setTShift}
-        posTemp={posTemp}
-        setPosTemp={setPosTemp}
-        classTemp={classTemp}
-        setClassTemp={setClassTemp}
-        layerPenalty={layerPenalty}
-        setLayerPenalty={setLayerPenalty}
-        duration={duration}
-        setDuration={setDuration}
-        denoise={denoise}
-        setDenoise={setDenoise}
-        postprocess={postprocess}
-        setPostprocess={setPostprocess}
-        language={language}
-        setLanguage={setLanguage}
-        steps={steps}
-        setSteps={setSteps}
-        showHearDemo={showHearDemo}
-        playDemoOutput={playDemoOutput}
-        demoAudioPlaying={demoAudioPlaying}
-        demoAudioRef={demoAudioRef}
-        demoReleaseRef={demoReleaseRef}
-        setDemoAudioPlaying={setDemoAudioPlaying}
-        outputPlaying={outputPlaying}
-        isGenerating={isGenerating}
-        handleGenerate={handleGenerate}
-        generationTime={generationTime}
-        wasGeneratingRef={wasGeneratingRef}
-      />
+      {/* ═══ ACTION BAR — pinned to the column bottom ═══
+          Hidden for Convert: it drives text synthesis (script + overrides),
+          and Convert owns its action button inside its panel. */}
+      {defineMethod !== 'convert' && (
+        <ActionBar
+          t={t}
+          showOverrides={showOverrides}
+          setShowOverrides={setShowOverrides}
+          cfg={cfg}
+          setCfg={setCfg}
+          speed={speed}
+          setSpeed={setSpeed}
+          tShift={tShift}
+          setTShift={setTShift}
+          posTemp={posTemp}
+          setPosTemp={setPosTemp}
+          classTemp={classTemp}
+          setClassTemp={setClassTemp}
+          layerPenalty={layerPenalty}
+          setLayerPenalty={setLayerPenalty}
+          duration={duration}
+          setDuration={setDuration}
+          denoise={denoise}
+          setDenoise={setDenoise}
+          postprocess={postprocess}
+          setPostprocess={setPostprocess}
+          language={language}
+          setLanguage={setLanguage}
+          steps={steps}
+          setSteps={setSteps}
+          showHearDemo={showHearDemo}
+          playDemoOutput={playDemoOutput}
+          demoAudioPlaying={demoAudioPlaying}
+          demoAudioRef={demoAudioRef}
+          demoReleaseRef={demoReleaseRef}
+          setDemoAudioPlaying={setDemoAudioPlaying}
+          outputPlaying={outputPlaying}
+          isGenerating={isGenerating}
+          handleGenerate={handleGenerate}
+          generationTime={generationTime}
+          wasGeneratingRef={wasGeneratingRef}
+        />
+      )}
     </div>
   );
 }

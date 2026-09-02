@@ -54,7 +54,7 @@ export default function WorkspaceVoices({
 
   const items = useMemo(() => {
     const byMethod = profiles.filter((p) =>
-      defineMethod === 'audio' ? !p.instruct : !!p.instruct,
+      defineMethod === 'design' ? !!p.instruct : !p.instruct,
     );
     if (!qLower) return byMethod;
     return byMethod.filter(
@@ -64,7 +64,8 @@ export default function WorkspaceVoices({
     );
   }, [profiles, defineMethod, qLower]);
 
-  const title = defineMethod === 'audio' ? t('sidebar.voice_clones') : t('sidebar.designed_voices');
+  const title =
+    defineMethod === 'design' ? t('sidebar.designed_voices') : t('sidebar.voice_clones');
 
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
@@ -138,28 +139,32 @@ export default function WorkspaceVoices({
       <div className="wv__scroll">
         {items.length === 0 ? (
           <div className="wv__empty">
-            {defineMethod === 'audio'
-              ? t('sidebar.no_clones', { defaultValue: 'No voice clones yet' })
-              : t('sidebar.no_designs', { defaultValue: 'No designed voices yet' })}
+            {defineMethod === 'design'
+              ? t('sidebar.no_designs', { defaultValue: 'No designed voices yet' })
+              : t('sidebar.no_clones', { defaultValue: 'No voice clones yet' })}
             {/* Empty states carry verbs (10x §2). */}
             <button
               type="button"
               className="block mt-[8px] mx-auto py-[4px] px-[10px] text-[0.66rem] text-[color:var(--chrome-fg-muted)] bg-transparent border border-dashed border-transparent rounded-[var(--chrome-radius-pill,999px)] cursor-default"
-              onClick={() => setDefineMethod(defineMethod === 'audio' ? 'audio' : 'design')}
+              onClick={() => setDefineMethod(defineMethod === 'design' ? 'design' : 'audio')}
             >
-              {defineMethod === 'audio'
-                ? t('voices.cta_clone', { defaultValue: 'Drop a 3s clip in Voice ← to clone one' })
-                : t('voices.cta_design', { defaultValue: 'Describe one in Voice ← to design it' })}
+              {defineMethod === 'design'
+                ? t('voices.cta_design', { defaultValue: 'Describe one in Voice ← to design it' })
+                : t('voices.cta_clone', { defaultValue: 'Drop a 3s clip in Voice ← to clone one' })}
             </button>
           </div>
         ) : (
           items.map((proj) => {
             const accent = proj.is_locked
               ? '#b8bb26'
-              : defineMethod === 'audio'
-                ? '#d3869b'
-                : '#8ec07c';
-            const KindIcon = proj.is_locked ? Lock : defineMethod === 'audio' ? Fingerprint : Wand2;
+              : defineMethod === 'design'
+                ? '#8ec07c'
+                : '#d3869b';
+            const KindIcon = proj.is_locked
+              ? Lock
+              : defineMethod === 'design'
+                ? Wand2
+                : Fingerprint;
             return (
               <div
                 key={proj.id}
@@ -175,9 +180,9 @@ export default function WorkspaceVoices({
                     <KindIcon size={9} />{' '}
                     {proj.is_locked
                       ? t('sidebar.locked')
-                      : defineMethod === 'audio'
-                        ? t('sidebar.clone_label')
-                        : t('sidebar.design_label')}
+                      : defineMethod === 'design'
+                        ? t('sidebar.design_label')
+                        : t('sidebar.clone_label')}
                   </span>
                   {proj.is_locked ? (
                     <span className="history-meta history-meta--locked">

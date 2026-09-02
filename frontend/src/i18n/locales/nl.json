@@ -523,7 +523,9 @@
     "view_all_files": "Bekijk alle bestanden",
     "file": "Bestand",
     "audiobook_title": "Audioboek",
-    "audiobook_desc": "Verander een lang script of EPUB in een audioboek met hoofdstukken: covers, metadata, één verteller."
+    "audiobook_desc": "Verander een lang script of EPUB in een audioboek met hoofdstukken: covers, metadata, één verteller.",
+    "convert_title": "Stemwisselaar",
+    "convert_desc": "Zeg het één keer — hoor het in een andere stem. Spraak naar spraak, volledig lokaal."
   },
   "clone": {
     "prompt": "Prompt",
@@ -616,7 +618,8 @@
     "insert_token": "Expressietoken invoegen",
     "script": "Script",
     "starting_points": "Startpunten",
-    "voice_kicker": "Stem"
+    "voice_kicker": "Stem",
+    "define_convert": "Converteren"
   },
   "about": {
     "app": "App",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "Ondertiteling in video",
     "hardsub": "Ondertitels in beeld branden (hardsub)",
     "dual_subs_video": "Dubbel (vertaald bovenop het cursief origineel)",
+    "subs_style_line": "Regel",
+    "subs_style_karaoke": "Karaoke (woordmarkering)",
+    "karaoke_dual_note": "Karaoke is niet beschikbaar met dubbele ondertitels",
     "format": "Formaat",
     "wav_lossless": "WAV (verliesvrij)",
     "mp3_compressed": "MP3 (gecomprimeerd)",
@@ -2667,5 +2673,18 @@
     "cta_design": "Beschrijf een stem in Stem ← om die te ontwerpen",
     "new": "Nieuwe stem",
     "none_selected": "Geen stem geselecteerd — beschrijf er een, zet audio neer of kies hieronder."
+  },
+  "convert": {
+    "source_kicker": "Bronclip",
+    "drop_audio": "Sleep de te converteren clip hierheen — of klik. WAV, MP3, M4A…",
+    "target_voice": "Doelstem",
+    "pick_voice": "Kies een stemprofiel…",
+    "match_duration": "Bronduur aanhouden",
+    "match_duration_hint": "Rekt het resultaat in de tijd (toonhoogte blijft behouden) tot ongeveer de lengte van de bronclip.",
+    "convert": "Converteren",
+    "converting": "Converteren…",
+    "transcript": "Wat er is gehoord",
+    "result_kicker": "Geconverteerde take",
+    "need_source_and_voice": "Voeg eerst een bronclip toe en kies een doelstem."
   }
 }

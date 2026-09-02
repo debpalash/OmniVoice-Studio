@@ -523,7 +523,9 @@
     "view_all_files": "Lihat semua file",
     "file": "Mengajukan",
     "audiobook_title": "Buku Audio",
-    "audiobook_desc": "Ubah skrip panjang atau EPUB menjadi buku audio berbab — sampul, metadata, satu narator."
+    "audiobook_desc": "Ubah skrip panjang atau EPUB menjadi buku audio berbab — sampul, metadata, satu narator.",
+    "convert_title": "Pengubah Suara",
+    "convert_desc": "Ucapkan sekali — dengar dengan suara lain. Ucapan ke ucapan, sepenuhnya lokal."
   },
   "clone": {
     "prompt": "Cepat",
@@ -616,7 +618,8 @@
     "seed_placeholder": "acak setiap saat",
     "seed_keep": "Simpan benih ini",
     "seed_reroll": "Benih baru",
-    "seed_reroll_hint": "Gulung benih acak baru dan simpan"
+    "seed_reroll_hint": "Gulung benih acak baru dan simpan",
+    "define_convert": "Konversi"
   },
   "about": {
     "app": "Aplikasi",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "Subtitle dalam video",
     "hardsub": "Bakar subtitle ke dalam gambar (hardsub)",
     "dual_subs_video": "Ganda (diterjemahkan di atas dokumen asli yang dicetak miring)",
+    "subs_style_line": "Baris",
+    "subs_style_karaoke": "Karaoke (sorotan kata)",
+    "karaoke_dual_note": "Karaoke tidak tersedia dengan subtitel ganda",
     "format": "Format",
     "wav_lossless": "WAV (tanpa kerugian)",
     "mp3_compressed": "MP3 (terkompresi)",
@@ -2667,5 +2673,18 @@
     "cta_design": "Deskripsikan suara di Suara ← untuk mendesainnya",
     "new": "Suara baru",
     "none_selected": "Belum ada suara yang dipilih — deskripsikan satu, letakkan audio, atau pilih di bawah."
+  },
+  "convert": {
+    "source_kicker": "Klip sumber",
+    "drop_audio": "Letakkan klip yang akan dikonversi — atau klik. WAV, MP3, M4A…",
+    "target_voice": "Suara target",
+    "pick_voice": "Pilih profil suara…",
+    "match_duration": "Samakan durasi sumber",
+    "match_duration_hint": "Regangkan hasil secara waktu (nada tetap) agar mendekati panjang klip sumber.",
+    "convert": "Konversi",
+    "converting": "Mengonversi…",
+    "transcript": "Yang terdengar",
+    "result_kicker": "Hasil konversi",
+    "need_source_and_voice": "Tambahkan klip sumber dan pilih suara target terlebih dahulu."
   }
 }

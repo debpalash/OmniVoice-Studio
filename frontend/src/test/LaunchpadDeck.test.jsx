@@ -32,6 +32,7 @@ const FEATURE_NAMES = [
   'Audiobook',
   'Voice Gallery',
   'Transcripts',
+  'Voice Changer',
 ];
 
 function makeProps(overrides = {}) {
@@ -66,10 +67,10 @@ const cardMin = (container) =>
   container.querySelector('.lp-cards').style.getPropertyValue('--lp-card-min').trim();
 
 describe('Launchpad feature cards (full-width grid)', () => {
-  it('renders all 7 features as grid cards, in the canonical order', () => {
+  it('renders all 8 features as grid cards, in the canonical order', () => {
     const { container } = renderShell(makeProps());
     const cards = cardEls(container);
-    expect(cards).toHaveLength(7);
+    expect(cards).toHaveLength(8);
     expect(cardTitles(container)).toEqual(FEATURE_NAMES);
   });
 
@@ -79,13 +80,13 @@ describe('Launchpad feature cards (full-width grid)', () => {
     expect(grid).not.toBeNull();
     // Every card is a direct child of the one grid — no leftover deck fan.
     expect(container.querySelectorAll('.lp-deck, .lp-deck-card')).toHaveLength(0);
-    expect(grid.querySelectorAll(':scope > .lp-action-card')).toHaveLength(7);
+    expect(grid.querySelectorAll(':scope > .lp-action-card')).toHaveLength(8);
     // The grid's responsive column floor is wired (auto-fit minmax reads it).
     expect(cardMin(container)).toBe('200px');
     expect(container.querySelector('.launchpad').className).toContain('[container-name:launchpad]');
   });
 
-  it('uses a wider card floor on narrow shells — responsive columns, same 7 cards', () => {
+  it('uses a wider card floor on narrow shells — responsive columns, same 8 cards', () => {
     const wide = renderShell(makeProps());
     const narrow = renderShell(makeProps(), 'app-container shell-narrow');
     const mini = renderShell(makeProps(), 'app-container shell-mini');
@@ -94,7 +95,7 @@ describe('Launchpad feature cards (full-width grid)', () => {
     expect(cardMin(wide.container)).toBe('200px');
     expect(cardMin(narrow.container)).toBe('240px');
     expect(cardMin(mini.container)).toBe('240px');
-    // …but every shell renders the same seven cards (nothing is dropped).
+    // …but every shell renders the same eight cards (nothing is dropped).
     for (const r of [wide, narrow, mini]) {
       expect(cardTitles(r.container)).toEqual(FEATURE_NAMES);
     }
@@ -130,6 +131,10 @@ describe('Launchpad feature cards (full-width grid)', () => {
     fireEvent.click(cards[1]); // Voice Design
     expect(setMode).toHaveBeenLastCalledWith('studio');
     expect(useAppStore.getState().defineMethod).toBe('design');
+
+    fireEvent.click(cards[7]); // Voice Changer (speech-to-speech convert)
+    expect(setMode).toHaveBeenLastCalledWith('studio');
+    expect(useAppStore.getState().defineMethod).toBe('convert');
   });
 
   it('hovering a card raises it forward; the others stay put', () => {
@@ -140,7 +145,7 @@ describe('Launchpad feature cards (full-width grid)', () => {
     fireEvent.mouseOver(cards[3]);
     expect(cards[3].className).toContain('lp-action-card--raised');
     // No overlap/tuck — every other card is unaffected.
-    for (const i of [0, 1, 2, 4, 5, 6]) {
+    for (const i of [0, 1, 2, 4, 5, 6, 7]) {
       expect(cards[i].className).not.toContain('lp-action-card--raised');
     }
 
@@ -160,7 +165,7 @@ describe('Launchpad feature cards (full-width grid)', () => {
 
     act(() => cards[5].focus());
     expect(cards[5].className).toContain('lp-action-card--raised');
-    for (const i of [0, 1, 2, 3, 4, 6]) {
+    for (const i of [0, 1, 2, 3, 4, 6, 7]) {
       expect(cards[i].className).not.toContain('lp-action-card--raised');
     }
 
@@ -180,7 +185,7 @@ describe('Launchpad feature cards (full-width grid)', () => {
 
   it('reacts to the shell class flipping at runtime (resize past breakpoint)', async () => {
     const { container } = renderShell(makeProps());
-    expect(cardEls(container)).toHaveLength(7);
+    expect(cardEls(container)).toHaveLength(8);
     expect(cardMin(container)).toBe('200px');
 
     const shell = container.querySelector('.app-container');
@@ -188,8 +193,8 @@ describe('Launchpad feature cards (full-width grid)', () => {
       shell.classList.add('shell-narrow');
       await Promise.resolve(); // flush the MutationObserver microtask
     });
-    // Same seven cards, just a wider column floor — no card dropped on resize.
-    expect(cardEls(container)).toHaveLength(7);
+    // Same eight cards, just a wider column floor — no card dropped on resize.
+    expect(cardEls(container)).toHaveLength(8);
     expect(cardMin(container)).toBe('240px');
 
     await act(async () => {

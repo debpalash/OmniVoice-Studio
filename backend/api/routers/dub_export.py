@@ -23,6 +23,7 @@ from services.ffmpeg_utils import (
     find_ffmpeg,
     run_ffmpeg,
 )
+from services.karaoke_ass import build_ass, scale_words
 from services.video_retime import (
     DRIFT_TOLERANCE_S,
     RetimeError,
@@ -403,6 +404,27 @@ def _write_burn_srt(job: dict, exports_dir: str, stamp: str, dual: bool,
     return sub_path
 
 
+def _write_burn_ass(job: dict, exports_dir: str, stamp: str,
+                    fitted_segments: "list[dict] | None" = None,
+                    lang: "str | None" = None) -> str | None:
+    """Karaoke variant of ``_write_burn_srt``: word-timed ASS via ``build_ass``.
+
+    Same text/timing resolution (``_segments_for_lang`` + fitted-cue overlay,
+    which also scales per-word times onto the fitted timeline); the basename
+    is plain ASCII under exports_dir so it is ffmpeg-filter-safe. Returns
+    None if there are no segments to render.
+    """
+    segments = _segments_for_lang(job, lang)
+    if not segments:
+        return None
+    if fitted_segments:
+        segments = _apply_fitted_times(segments, fitted_segments)
+    sub_path = os.path.join(exports_dir, f"burn_subs_{stamp}.ass")
+    with open(sub_path, "w", encoding="utf-8") as f:
+        f.write(build_ass(segments))
+    return sub_path
+
+
 def _ffmpeg_filter_escape(path: str) -> str:
     """Escape a path for use inside an ffmpeg filter value (subtitles=...).
 
@@ -515,6 +537,20 @@ def _apply_fitted_times(segments: list[dict], fitted: list[dict]) -> list[dict]:
         patched = dict(seg)
         patched["start"] = float(cue["start"])
         patched["end"] = float(cue["end"])
+        # Karaoke burn-in: persisted word times live on the original timeline;
+        # scale them linearly onto the fitted cue span so the highlight sweep
+        # follows the retimed audio. Degenerate spans drop the words — export
+        # then falls back to an even split over the fitted span. Inert for
+        # SRT/VTT, which never read ``words``.
+        if isinstance(seg.get("words"), list) and seg.get("words"):
+            scaled = scale_words(
+                seg["words"], seg.get("start", 0.0), seg.get("end", 0.0),
+                patched["start"], patched["end"],
+            )
+            if scaled is not None:
+                patched["words"] = scaled
+            else:
+                patched.pop("words", None)
         out.append(patched)
     return out
 
@@ -577,6 +613,7 @@ async def dub_download(
     save_authorization: str = Header("", alias="X-VoiceStudio-Path-Authorization"),
     burn_subs: bool = Query(False, description="Burn subtitles into the video stream (forces re-encode). Uses dual-subtitle layout when dual=1."),
     dual: bool = Query(False, description="When burn_subs=1, render translated on top of italicised original."),
+    karaoke: bool = Query(False, description="When burn_subs=1, burn a word-timed karaoke highlight (ASS) instead of line subtitles. Ignored when dual=1 (dual karaoke is unsupported — the line burn renders instead)."),
     out_format: str = Query("m4a", description="Audio-only jobs (#119): output container — wav, m4a, mp3, or flac. Ignored for video jobs."),
 ):
     # Strict allowlist on the path param BEFORE it reaches any filesystem
@@ -729,7 +766,18 @@ async def dub_download(
     fitted_segments = _fitted_segments_for(job, default_track) if default_track and default_track != "original" else None
     # Burn the DEFAULT track's text (P1.2) — it's the audio the viewer hears.
     _burn_lang = default_track if default_track and default_track != "original" else None
-    sub_path = _write_burn_srt(job, exports_dir, stamp, dual, fitted_segments=fitted_segments, lang=_burn_lang) if burn_subs else None
+    # Karaoke (word-highlight) burn writes an ASS instead of the line SRT.
+    # Dual layout keeps the line burn — dual karaoke is out of scope, matching
+    # the disabled control in the Export drawer. The default (karaoke off)
+    # takes exactly the legacy SRT path.
+    sub_path = None
+    sub_is_ass = False
+    if burn_subs:
+        if karaoke and not dual:
+            sub_path = _write_burn_ass(job, exports_dir, stamp, fitted_segments=fitted_segments, lang=_burn_lang)
+            sub_is_ass = sub_path is not None
+        if sub_path is None:
+            sub_path = _write_burn_srt(job, exports_dir, stamp, dual, fitted_segments=fitted_segments, lang=_burn_lang)
 
     # ── Smart Fit video retime (two-tier) ─────────────────────────────────
     # Tier 1 (≤48 chunks): single filter_complex graph inlined into the mux
@@ -829,14 +877,16 @@ async def dub_download(
         esc = _ffmpeg_filter_escape(sub_path)
         # Burn AFTER any retime so cues (already on the fitted timeline for
         # Smart Fit) land on the retimed video. Without retime this reduces
-        # to the legacy `[0:v]subtitles=…[vsub]` graph.
+        # to the legacy `[0:v]subtitles=…[vsub]` graph. Karaoke burns the
+        # word-timed ASS through the ass filter at the same graph position.
         if video_map.startswith("["):
             sub_src = video_map
         elif retimed_idx is not None:
             sub_src = f"[{retimed_idx}:v]"
         else:
             sub_src = "[0:v]"
-        filter_parts.append(f"{sub_src}subtitles='{esc}'[vsub]")
+        _sub_filter = "ass" if sub_is_ass else "subtitles"
+        filter_parts.append(f"{sub_src}{_sub_filter}='{esc}'[vsub]")
         video_map = "[vsub]"
     if stretch_entry:
         orig_dur = float(stretch_entry.get("orig_duration") or job.get("duration") or 0.0)
@@ -1740,6 +1790,50 @@ async def dub_export_vtt(
     return Response(
         content=vtt_content,
         media_type="text/vtt",
+        headers={"Content-Disposition": content_disposition(dl_name)},
+    )
+
+
+@router.get("/dub/ass/{job_id}")
+@router.get("/dub/ass/{job_id}/{filename}")
+async def dub_export_ass(
+    job_id: str,
+    lang: str = Query(None, description="Track language code. Same text/timing resolution as /dub/srt, rendered as a karaoke (word-highlight) ASS sidecar."),
+):
+    """Karaoke ASS sidecar — the same script the karaoke burn-in renders.
+
+    Raw text body like /dub/srt and /dub/vtt (the Tauri side writes the file
+    itself; no ?save_path= variant — see the comment above /dub/srt).
+    """
+    _job_dir_or_400(job_id)
+    lang = _safe_lang_or_400(lang)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    segments = _segments_for_lang(job, lang)
+    if not segments:
+        raise HTTPException(status_code=400, detail="No transcript segments available")
+
+    # Same strategy-aware cue timing as /dub/srt. The fitted overlay also
+    # scales word times; the stretch_video cue path has no per-word record,
+    # so words are dropped and build_ass even-splits over the new spans.
+    fitted = _fitted_segments_for(job, lang)
+    if fitted:
+        segments = _apply_fitted_times(segments, fitted)
+    else:
+        cues = _fitted_cue_times(job, lang)
+        if cues:
+            segments = [
+                {**{k: v for k, v in seg.items() if k != "words"}, "start": s, "end": e}
+                for seg, (s, e) in zip(segments, cues)
+            ]
+
+    base_name = os.path.splitext(job.get('filename', 'video'))[0]
+    dl_name = f"subtitles_{base_name}_karaoke.ass"
+    return Response(
+        content=build_ass(segments),
+        media_type="text/plain",
         headers={"Content-Disposition": content_disposition(dl_name)},
     )
 

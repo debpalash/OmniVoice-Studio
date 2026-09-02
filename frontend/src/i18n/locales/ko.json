@@ -523,7 +523,9 @@
     "view_all_files": "모든 파일 보기",
     "file": "파일",
     "audiobook_title": "오디오북",
-    "audiobook_desc": "긴 스크립트나 EPUB를 표지, 메타데이터, 내레이터 1명으로 구성된 오디오북으로 바꿔보세요."
+    "audiobook_desc": "긴 스크립트나 EPUB를 표지, 메타데이터, 내레이터 1명으로 구성된 오디오북으로 바꿔보세요.",
+    "convert_title": "보이스 체인저",
+    "convert_desc": "한 번 말하면 다른 목소리로 들립니다. 음성에서 음성으로, 완전히 로컬."
   },
   "clone": {
     "prompt": "프롬프트",
@@ -616,7 +618,8 @@
     "seed_placeholder": "매번 무작위로",
     "seed_keep": "이 씨앗을 보관하세요",
     "seed_reroll": "새로운 씨앗",
-    "seed_reroll_hint": "새로운 무작위 시드를 굴려 유지하세요."
+    "seed_reroll_hint": "새로운 무작위 시드를 굴려 유지하세요.",
+    "define_convert": "변환"
   },
   "about": {
     "app": "앱",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "영상 속 자막",
     "hardsub": "자막을 사진에 굽기(hardsub)",
     "dual_subs_video": "이중(이탤릭체 원본 위에 번역됨)",
+    "subs_style_line": "줄",
+    "subs_style_karaoke": "가라오케 (단어 강조)",
+    "karaoke_dual_note": "이중 자막에서는 가라오케를 사용할 수 없습니다",
     "format": "형식",
     "wav_lossless": "WAV(무손실)",
     "mp3_compressed": "MP3(압축)",
@@ -2667,5 +2673,18 @@
     "cta_design": "음성 ← 에서 설명해 디자인하세요",
     "new": "새 음성",
     "none_selected": "선택된 음성이 없습니다 — 설명하거나, 오디오를 놓거나, 아래에서 선택하세요."
+  },
+  "convert": {
+    "source_kicker": "소스 클립",
+    "drop_audio": "변환할 클립을 끌어다 놓거나 클릭하세요. WAV, MP3, M4A…",
+    "target_voice": "대상 목소리",
+    "pick_voice": "보이스 프로필 선택…",
+    "match_duration": "원본 길이에 맞추기",
+    "match_duration_hint": "결과를 타임 스트레치(음높이 유지)하여 소스 클립 길이에 가깝게 만듭니다.",
+    "convert": "변환",
+    "converting": "변환 중…",
+    "transcript": "인식된 내용",
+    "result_kicker": "변환된 테이크",
+    "need_source_and_voice": "먼저 소스 클립을 추가하고 대상 목소리를 선택하세요."
   }
 }

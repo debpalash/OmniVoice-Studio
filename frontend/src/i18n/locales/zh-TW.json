@@ -523,7 +523,9 @@
     "view_all_files": "查看所有文件",
     "file": "文件",
     "audiobook_title": "有聲書",
-    "audiobook_desc": "將長腳本或 EPUB 轉換為分章有聲書 — 封面、元資料、一位旁白。"
+    "audiobook_desc": "將長腳本或 EPUB 轉換為分章有聲書 — 封面、元資料、一位旁白。",
+    "convert_title": "變聲器",
+    "convert_desc": "說一次,用另一種聲音聽到。語音到語音,完全在本機執行。"
   },
   "clone": {
     "prompt": "提示",
@@ -616,7 +618,8 @@
     "seed_placeholder": "每次都是隨機的",
     "seed_keep": "保留這個種子",
     "seed_reroll": "新種子",
-    "seed_reroll_hint": "滾動一個新的隨機種子並保留它"
+    "seed_reroll_hint": "滾動一個新的隨機種子並保留它",
+    "define_convert": "轉換"
   },
   "about": {
     "app": "應用程式",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "影片中的字幕",
     "hardsub": "將字幕刻錄到圖片中（hardsub）",
     "dual_subs_video": "雙（譯在斜體原文之上）",
+    "subs_style_line": "整行",
+    "subs_style_karaoke": "卡拉OK（逐字高亮）",
+    "karaoke_dual_note": "雙語字幕下無法使用卡拉OK樣式",
     "format": "格式",
     "wav_lossless": "WAV（無損）",
     "mp3_compressed": "MP3（壓縮）",
@@ -2667,5 +2673,18 @@
     "cta_design": "在 語音 ← 中描述即可設計",
     "new": "新增聲音",
     "none_selected": "尚未選擇聲音——描述一個、放入音訊，或從下方挑選。"
+  },
+  "convert": {
+    "source_kicker": "來源音訊",
+    "drop_audio": "拖入要轉換的音訊 — 或點擊。WAV、MP3、M4A…",
+    "target_voice": "目標聲音",
+    "pick_voice": "選擇一個聲音設定檔…",
+    "match_duration": "符合來源長度",
+    "match_duration_hint": "對結果做時間伸縮(保持音高),使其接近來源音訊的長度。",
+    "convert": "轉換",
+    "converting": "轉換中…",
+    "transcript": "辨識到的內容",
+    "result_kicker": "轉換後的音訊",
+    "need_source_and_voice": "請先加入來源音訊並選擇目標聲音。"
   }
 }

@@ -523,7 +523,9 @@
     "view_all_files": "Xem tất cả các tập tin",
     "file": "tập tin",
     "audiobook_title": "Sách nói",
-    "audiobook_desc": "Biến một tập lệnh dài hoặc EPUB thành sách nói có nhiều chương — bìa, siêu dữ liệu, một người kể chuyện."
+    "audiobook_desc": "Biến một tập lệnh dài hoặc EPUB thành sách nói có nhiều chương — bìa, siêu dữ liệu, một người kể chuyện.",
+    "convert_title": "Đổi giọng nói",
+    "convert_desc": "Nói một lần — nghe bằng giọng khác. Giọng nói sang giọng nói, hoàn toàn cục bộ."
   },
   "clone": {
     "prompt": "Lời nhắc",
@@ -616,7 +618,8 @@
     "seed_placeholder": "ngẫu nhiên mỗi lần",
     "seed_keep": "Giữ hạt giống này",
     "seed_reroll": "Hạt giống mới",
-    "seed_reroll_hint": "Cuộn một hạt giống ngẫu nhiên mới và giữ nó"
+    "seed_reroll_hint": "Cuộn một hạt giống ngẫu nhiên mới và giữ nó",
+    "define_convert": "Chuyển đổi"
   },
   "about": {
     "app": "ứng dụng",
@@ -1589,6 +1592,9 @@
     "subs_in_video": "Phụ đề trong video",
     "hardsub": "Ghi phụ đề thành hình ảnh (hardsub)",
     "dual_subs_video": "Dual (dịch trên đầu bản gốc in nghiêng)",
+    "subs_style_line": "Dòng",
+    "subs_style_karaoke": "Karaoke (tô sáng từ)",
+    "karaoke_dual_note": "Karaoke không khả dụng với phụ đề kép",
     "format": "định dạng",
     "wav_lossless": "WAV (không mất dữ liệu)",
     "mp3_compressed": "MP3 (đã nén)",
@@ -2667,5 +2673,18 @@
     "cta_design": "Mô tả một giọng trong Giọng nói ← để thiết kế nó",
     "new": "Giọng mới",
     "none_selected": "Chưa chọn giọng nào — hãy mô tả một giọng, thả tệp âm thanh, hoặc chọn bên dưới."
+  },
+  "convert": {
+    "source_kicker": "Clip nguồn",
+    "drop_audio": "Thả clip cần chuyển đổi vào đây — hoặc nhấp. WAV, MP3, M4A…",
+    "target_voice": "Giọng đích",
+    "pick_voice": "Chọn hồ sơ giọng nói…",
+    "match_duration": "Khớp thời lượng nguồn",
+    "match_duration_hint": "Kéo giãn kết quả theo thời gian (giữ nguyên cao độ) để gần bằng độ dài clip nguồn.",
+    "convert": "Chuyển đổi",
+    "converting": "Đang chuyển đổi…",
+    "transcript": "Nội dung nghe được",
+    "result_kicker": "Bản thu đã chuyển đổi",
+    "need_source_and_voice": "Hãy thêm clip nguồn và chọn giọng đích trước."
   }
 }

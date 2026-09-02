@@ -125,6 +125,96 @@ def _profile_instruct(row):
     return heal_design_instruct(row["instruct"], vd)
 
 
+def _resolve_profile_conditioning(row, *, ref_text=None, instruct=None,
+                                  seed=None, language=None):
+    """Resolve a ``voice_profiles`` row into generation conditioning.
+
+    Extracted verbatim from /generate's inline profile-resolution block so
+    other synthesis routes (POST /convert) share the exact same semantics —
+    lock wins, ``kind`` is authoritative (0005), legacy pre-0004 rows fall
+    back to the is_locked/instruct inference, and #533's language fill.
+
+    Request-supplied values (``ref_text``/``instruct``/``seed``/``language``)
+    always win over the stored row; only gaps are filled. Returns a dict with
+    ``ref_audio_path`` / ``ref_text`` / ``instruct`` / ``seed`` / ``language``
+    / ``kind`` plus ``persist_ref_text`` — True when the caller should cache
+    an auto-transcribed reference transcript back onto the row (#1032).
+    """
+    out = {
+        "ref_audio_path": None, "ref_text": ref_text, "instruct": instruct,
+        "seed": seed, "language": language, "kind": None,
+        "persist_ref_text": False,
+    }
+    # `kind` is authoritative (0005): 'design' profiles condition on their
+    # deterministic rendered sample + instruct; 'clone' on the user's
+    # reference. Lock always wins (it pins a specific take). Rows from
+    # pre-0004 DBs mid-upgrade may lack the column → fall back to the legacy
+    # is_locked/instruct inference.
+    try:
+        profile_kind = row["kind"] or "clone"
+    except (KeyError, IndexError):
+        profile_kind = "design" if (
+            row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]
+        ) else "clone"
+    out["kind"] = profile_kind
+    if row["is_locked"] and row["locked_audio_path"]:
+        out["ref_audio_path"] = os.path.join(VOICES_DIR, row["locked_audio_path"])
+        if not out["ref_text"]:
+            out["ref_text"] = row["ref_text"]
+        if not out["instruct"]:
+            out["instruct"] = _profile_instruct(row)
+        if out["seed"] is None and row["seed"] is not None:
+            out["seed"] = row["seed"]
+    elif profile_kind == "design":
+        # Rendered sample (if present) carries the voice identity; instruct
+        # alone is the fallback for legacy archetype rows.
+        out["ref_audio_path"] = (
+            os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
+        )
+        if out["ref_audio_path"] and not out["ref_text"] and row["ref_text"]:
+            out["ref_text"] = row["ref_text"]
+        if not out["instruct"]:
+            out["instruct"] = _profile_instruct(row)
+        if out["seed"] is None and row["seed"] is not None:
+            out["seed"] = row["seed"]
+    elif row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]:
+        # Legacy design-shaped row (pre-0004 archetype materialization failure
+        # path): instruct-only conditioning.
+        if not out["instruct"]:
+            out["instruct"] = _profile_instruct(row)
+        if out["seed"] is None and row["seed"] is not None:
+            out["seed"] = row["seed"]
+    else:
+        out["ref_audio_path"] = (
+            os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
+        )
+        if not out["ref_text"] and row["ref_text"]:
+            out["ref_text"] = row["ref_text"]
+        elif out["ref_audio_path"] and not out["ref_text"]:
+            # Empty stored transcript → the caller's auto-transcribe will run;
+            # cache its result onto the profile so it runs ONCE, not on every
+            # generate (#1032 perf regression).
+            out["persist_ref_text"] = True
+        if not out["instruct"] and row["instruct"]:
+            out["instruct"] = row["instruct"]
+        if out["seed"] is None and row["seed"] is not None:
+            out["seed"] = row["seed"]
+    if out["language"] == "Auto":
+        out["language"] = None
+    # #533: a profile's stored language must drive generation when the request
+    # didn't pin one. An EXPLICIT non-Auto request language still wins; we
+    # only fill the gap. `row` is a sqlite3.Row, so guard the column lookup
+    # for pre-language DBs mid-upgrade.
+    if out["language"] is None:
+        try:
+            prof_lang = row["language"]
+        except (KeyError, IndexError):
+            prof_lang = None
+        if prof_lang and prof_lang != "Auto":
+            out["language"] = prof_lang
+    return out
+
+
 def _note_generate_progress() -> None:
     """Tell the pool guard this render just finished a unit of work (#1391).
 
@@ -1461,70 +1551,21 @@ async def generate_speech(
             row = conn.execute("SELECT * FROM voice_profiles WHERE id=?", (profile_id,)).fetchone()
         if row:
             resolved_profile_id = profile_id
-            # `kind` is authoritative (0005): 'design' profiles condition on
-            # their deterministic rendered sample + instruct; 'clone' on the
-            # user's reference. Lock always wins (it pins a specific take).
-            # Rows from pre-0004 DBs mid-upgrade may lack the column → fall
-            # back to the legacy is_locked/instruct inference.
-            try:
-                profile_kind = row["kind"] or "clone"
-            except (KeyError, IndexError):
-                profile_kind = "design" if (row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]) else "clone"
-            history_mode = profile_kind
-            if row["is_locked"] and row["locked_audio_path"]:
-                ref_audio_path = os.path.join(VOICES_DIR, row["locked_audio_path"])
-                if not ref_text:
-                    ref_text = row["ref_text"]
-                if not instruct:
-                    instruct = _profile_instruct(row)
-                if used_seed is None and row["seed"] is not None:
-                    used_seed = row["seed"]
-            elif profile_kind == "design":
-                # Rendered sample (if present) carries the voice identity;
-                # instruct alone is the fallback for legacy archetype rows.
-                ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
-                if ref_audio_path and not ref_text and row["ref_text"]:
-                    ref_text = row["ref_text"]
-                if not instruct:
-                    instruct = _profile_instruct(row)
-                if used_seed is None and row["seed"] is not None:
-                    used_seed = row["seed"]
-            elif row["instruct"] and not row["is_locked"] and not row["ref_audio_path"]:
-                # Legacy design-shaped row (pre-0004 archetype materialization
-                # failure path): instruct-only conditioning.
-                if not instruct:
-                    instruct = _profile_instruct(row)
-                if used_seed is None and row["seed"] is not None:
-                    used_seed = row["seed"]
-            else:
-                ref_audio_path = os.path.join(VOICES_DIR, row["ref_audio_path"]) if row["ref_audio_path"] else None
-                if not ref_text and row["ref_text"]:
-                    ref_text = row["ref_text"]
-                elif ref_audio_path and not ref_text:
-                    # Empty stored transcript → the auto-transcribe below will
-                    # run; cache its result onto the profile so it runs ONCE,
-                    # not on every generate (#1032 perf regression).
-                    persist_ref_text_profile_id = profile_id
-                if not instruct and row["instruct"]:
-                    instruct = row["instruct"]
-                if used_seed is None and row["seed"] is not None:
-                    used_seed = row["seed"]
-            if language == "Auto":
-                language = None
-            # #533: a profile's stored language must drive generation when the
-            # request didn't pin one. Without this the German (etc.) archetype
-            # generates with language=None and the model drifts to English —
-            # even though the archetype PREVIEW renders correctly (archetypes.py
-            # passes the language). An EXPLICIT non-Auto request language still
-            # wins; we only fill the gap. `row` is a sqlite3.Row, so guard the
-            # column lookup for pre-language DBs mid-upgrade.
-            if language is None:
-                try:
-                    prof_lang = row["language"]
-                except (KeyError, IndexError):
-                    prof_lang = None
-                if prof_lang and prof_lang != "Auto":
-                    language = prof_lang
+            # Shared with POST /convert — see _resolve_profile_conditioning
+            # for the resolution rules (kind-authoritative, lock wins, #533
+            # language fill, #1032 transcript-cache signal).
+            _cond = _resolve_profile_conditioning(
+                row, ref_text=ref_text, instruct=instruct, seed=used_seed,
+                language=language,
+            )
+            history_mode = _cond["kind"]
+            ref_audio_path = _cond["ref_audio_path"]
+            ref_text = _cond["ref_text"]
+            instruct = _cond["instruct"]
+            used_seed = _cond["seed"]
+            language = _cond["language"]
+            if _cond["persist_ref_text"]:
+                persist_ref_text_profile_id = profile_id
     elif ref_audio is not None:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:

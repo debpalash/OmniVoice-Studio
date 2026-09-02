@@ -295,7 +295,9 @@
     "transcripts_desc": "Turn audio or video into editable, searchable text — across 646 languages.",
     "recent_files": "Recent files",
     "view_all_files": "View all files",
-    "file": "File"
+    "file": "File",
+    "convert_title": "Voice Changer",
+    "convert_desc": "Say it once — hear it in another voice. Speech to speech, fully local."
   },
   "clone": {
     "prompt": "Prompt",
@@ -388,7 +390,8 @@
     "insert_token": "Insert expression token",
     "script": "Script",
     "starting_points": "Starting points",
-    "voice_kicker": "Voice"
+    "voice_kicker": "Voice",
+    "define_convert": "Convert"
   },
   "settings": {
     "title": "Settings",
@@ -1883,6 +1886,9 @@
     "subs_in_video": "Subtitles in video",
     "hardsub": "Burn subtitles into picture (hardsub)",
     "dual_subs_video": "Dual (translated on top of italicised original)",
+    "subs_style_line": "Line",
+    "subs_style_karaoke": "Karaoke (word highlight)",
+    "karaoke_dual_note": "Karaoke is unavailable with dual-layout subtitles",
     "format": "Format",
     "wav_lossless": "WAV (lossless)",
     "mp3_compressed": "MP3 (compressed)",
@@ -3168,5 +3174,18 @@
     "cta_design": "Describe one in Voice ← to design it",
     "new": "New voice",
     "none_selected": "No voice selected — describe one, drop audio, or pick below."
+  },
+  "convert": {
+    "source_kicker": "Source clip",
+    "drop_audio": "Drop the clip to convert — or click. WAV, MP3, M4A…",
+    "target_voice": "Target voice",
+    "pick_voice": "Pick a voice profile…",
+    "match_duration": "Match source duration",
+    "match_duration_hint": "Time-stretch the converted take (pitch preserved) to land near the source clip's length.",
+    "convert": "Convert",
+    "converting": "Converting…",
+    "transcript": "What it heard",
+    "result_kicker": "Converted take",
+    "need_source_and_voice": "Add a source clip and pick a target voice first."
   }
 }

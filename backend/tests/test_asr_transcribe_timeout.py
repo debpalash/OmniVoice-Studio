@@ -11,6 +11,7 @@ that the error message tells the user what to do.
 import asyncio
 import os
 import sys
+import threading
 import time
 
 import pytest
@@ -73,6 +74,62 @@ def test_fast_transcribe_passes_through():
 
     asyncio.run(_go())
     pool.shutdown(wait=True)
+
+
+def test_timeout_defers_abandon_cleanup_until_running_worker_finishes():
+    """A timed-out native worker may still be reading request-owned inputs."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    started = threading.Event()
+    finish = threading.Event()
+    cleaned = threading.Event()
+
+    def _slow():
+        started.set()
+        finish.wait(timeout=5)
+        assert not cleaned.is_set()
+        return "done"
+
+    async def _go():
+        with pytest.raises(ASRTimeoutError):
+            await run_transcribe_guarded(
+                pool,
+                _slow,
+                what="Convert",
+                timeout=0.05,
+                on_abandon=cleaned.set,
+            )
+        assert started.is_set()
+        assert not cleaned.is_set()
+        finish.set()
+        await asyncio.to_thread(cleaned.wait, 2)
+        assert cleaned.is_set()
+
+    try:
+        asyncio.run(_go())
+    finally:
+        finish.set()
+        pool.shutdown(wait=True)
+
+
+def test_normal_completion_keeps_abandon_cleanup_with_caller():
+    pool = ThreadPoolExecutor(max_workers=1)
+    cleaned = threading.Event()
+
+    async def _go():
+        result = await run_transcribe_guarded(
+            pool,
+            lambda: "done",
+            what="Convert",
+            timeout=5,
+            on_abandon=cleaned.set,
+        )
+        assert result == "done"
+        assert not cleaned.is_set()
+
+    try:
+        asyncio.run(_go())
+    finally:
+        pool.shutdown(wait=True)
 
 
 def test_timeout_error_is_a_timeouterror_subclass():

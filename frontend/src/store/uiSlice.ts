@@ -39,9 +39,10 @@ export type CatalogueTarget = CatalogueTab | { pane?: CatalogueTab; family?: Eng
 /**
  * The Voice workspace's "Define voice" method (was the Clone/Design tab
  * split): 'audio' = define from reference audio (old Clone tab), 'design' =
- * define by described attributes (old Design tab).
+ * define by described attributes (old Design tab), 'convert' = speech-to-
+ * speech voice changer (re-say a source clip in an existing profile's voice).
  */
-type DefineMethod = 'audio' | 'design';
+type DefineMethod = 'audio' | 'design' | 'convert';
 
 type SidebarTab = 'projects' | 'history' | 'downloads';
 
