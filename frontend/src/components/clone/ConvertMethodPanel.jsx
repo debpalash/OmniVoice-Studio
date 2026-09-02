@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { UploadCloud, X, ArrowRightLeft, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../../ui';
 import { API } from '../../api/client';
 import { convertSpeech } from '../../api/convert';
+import { TtsGenerationBusyError } from '../../api/generate';
 import { asrMissingPayload, toastAsrModelMissing } from '../../utils/asrModelMissing';
+import {
+  modelNotDownloadedPayload,
+  toastModelNotDownloaded,
+} from '../../utils/modelNotDownloaded';
+import { toastErrorWithReport } from '../../utils/errorToast';
 import useRecording from '../../hooks/useRecording';
 import MicButton from './MicButton';
 import VoiceSelector from '../VoiceSelector';
@@ -29,6 +35,23 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   const [matchDuration, setMatchDuration] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
   const [result, setResult] = useState(null);
+  // Stale-response guard: every source/voice change bumps this, and an
+  // in-flight convert only lands (result OR error toast) when its captured
+  // sequence still matches — an obsolete take must never render against the
+  // newly-chosen inputs.
+  const convertSeqRef = useRef(0);
+
+  const ingestSource = (file) => {
+    if (!file) return;
+    convertSeqRef.current += 1;
+    setSourceFile(file);
+    setResult(null);
+  };
+
+  const selectVoice = (id) => {
+    convertSeqRef.current += 1;
+    setVoiceId(id);
+  };
 
   // Own mic instance: a convert source is not the clone reference, so it
   // must never overwrite the audio method's refAudio.
@@ -38,21 +61,13 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
     recordingTime,
     startRecording,
     stopRecording,
-  } = useRecording(async (file) => {
-    setSourceFile(file);
-    setResult(null);
-  });
-
-  const ingestSource = (file) => {
-    if (!file) return;
-    setSourceFile(file);
-    setResult(null);
-  };
+  } = useRecording(async (file) => ingestSource(file));
 
   const canConvert = !!sourceFile && !!voiceId && !isConverting;
 
   const handleConvert = async () => {
     if (!canConvert) return;
+    const seq = convertSeqRef.current;
     setIsConverting(true);
     setResult(null);
     try {
@@ -67,14 +82,25 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
       );
       fd.append('profile_id', voiceId);
       fd.append('match_duration', matchDuration ? '1' : '0');
-      setResult(await convertSpeech(fd));
+      const res = await convertSpeech(fd);
+      if (seq === convertSeqRef.current) setResult(res);
     } catch (e) {
+      if (seq !== convertSeqRef.current) return; // inputs changed — obsolete
+      // Same error ladder as useTTS's generate catch: structured payloads get
+      // their one-click CTA, the busy guard gets its localized notice, and
+      // everything else goes through toastErrorWithReport — which maps the
+      // backend's [shutting_down]/[clone_ref_*] markers to localized guidance
+      // and gives real failures the "Report" action instead of a raw string.
       const missing = asrMissingPayload(e);
+      const notDownloaded = modelNotDownloadedPayload(e);
       if (missing) {
-        // Same one-click "Download {model}" CTA every other ASR consumer shows.
         toastAsrModelMissing(missing);
+      } else if (notDownloaded) {
+        toastModelNotDownloaded(notDownloaded);
+      } else if (e instanceof TtsGenerationBusyError) {
+        toast(t('tts_errors.generation_in_progress'), { icon: '⏳' });
       } else {
-        toast.error(e?.message || String(e), { duration: 8000 });
+        toastErrorWithReport(t('tts_errors.error_prefix', { message: e?.message || String(e) }), e);
       }
     } finally {
       setIsConverting(false);
@@ -144,6 +170,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
             variant="ghost"
             size="sm"
             onClick={() => {
+              convertSeqRef.current += 1;
               setSourceFile(null);
               setResult(null);
             }}
@@ -158,7 +185,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
       <div className="label-row mt-[var(--space-4)]">{t('convert.target_voice')}</div>
       <VoiceSelector
         value={voiceId}
-        onChange={setVoiceId}
+        onChange={selectVoice}
         profiles={profiles}
         engineDefault={false}
         gallery={false}
