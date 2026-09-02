@@ -100,10 +100,33 @@ class Segment:
         }
 
 
+def _serialize_words(words: Sequence[Word]) -> list[dict]:
+    """Word objects → the ``{text, start, end}`` dicts persisted on segments.
+
+    Per-word timing is kept on each segment (``Segment.extra["words"]``, so
+    ``to_dict`` carries it onto the job) to drive the karaoke hardsub export.
+    """
+    return [
+        {"text": w.text, "start": round(w.start, 3), "end": round(w.end, 3)}
+        for w in words
+    ]
+
+
 def _merge_segment_extra(target: Segment, incoming: Segment, *, prepend: bool) -> None:
     """Preserve editor metadata when cleanup folds ``incoming`` into ``target``."""
+    # Word lists must CONCATENATE in text order (the setdefault below would
+    # otherwise adopt the incoming list wholesale when the target has none,
+    # then double it). Capture both sides before setdefault runs.
+    raw_target_words = target.extra.get("words")
+    raw_incoming_words = incoming.extra.get("words")
     for key, value in incoming.extra.items():
         target.extra.setdefault(key, value)
+    target_words = raw_target_words if isinstance(raw_target_words, list) else []
+    incoming_words = raw_incoming_words if isinstance(raw_incoming_words, list) else []
+    if target_words or incoming_words:
+        target.extra["words"] = (
+            incoming_words + target_words if prepend else target_words + incoming_words
+        )
 
     def joined(left: object, right: object) -> str:
         return _clean(f"{left or ''} {right or ''}")
@@ -233,7 +256,10 @@ def _build_segments_from_words(words: Sequence[Word]) -> List[Segment]:
         if not text:
             buf = []
             return
-        segments.append(Segment(start=buf_start, end=buf[-1].end, text=text))
+        segments.append(Segment(
+            start=buf_start, end=buf[-1].end, text=text,
+            extra={"words": _serialize_words(buf)},
+        ))
         buf = []
         if not force:
             buf_start = 0.0
@@ -291,6 +317,7 @@ def _build_segments_from_words(words: Sequence[Word]) -> List[Segment]:
                     start=buf_start,
                     end=left_buf[-1].end,
                     text=_clean(" ".join(x.text for x in left_buf)),
+                    extra={"words": _serialize_words(left_buf)},
                 ))
                 buf = list(right_buf)
                 buf_start = right_buf[0].start
@@ -479,11 +506,23 @@ def _apply_scene_cuts(segments: List[Segment], scene_cuts: Iterable[float]) -> L
                 or (remaining.end - cut) < MIN_DUR
             ):
                 continue
+            # Segment text is the joined word texts, so a whitespace-boundary
+            # text split maps exactly onto a word-count split of the list.
+            words = remaining.extra.get("words")
+            left_extra: dict = {}
+            right_extra: dict = {}
+            if isinstance(words, list) and words:
+                n_left = len(left_text.split())
+                if n_left and len(words) > n_left:
+                    left_extra = {"words": words[:n_left]}
+                    right_extra = {"words": words[n_left:]}
             out.append(Segment(
                 start=remaining.start, end=cut, text=left_text, speaker_id=remaining.speaker_id,
+                extra=left_extra,
             ))
             remaining = Segment(
                 start=cut, end=remaining.end, text=right_text, speaker_id=remaining.speaker_id,
+                extra=right_extra,
             )
         out.append(remaining)
     return out
@@ -715,6 +754,10 @@ def _resplit_core(
             piece["text"] = text
             piece["start"] = s0 if k == 0 else ws[0].start
             piece["end"] = s1 if k == n_runs - 1 else ws[-1].end
+            # dict(seg) copied the WHOLE segment's word list into every piece;
+            # each piece keeps only its own run's words (karaoke burn-in).
+            if "words" in piece:
+                piece["words"] = _serialize_words(ws)
             if label:
                 piece["speaker_id"] = label
             if piece_no > 0:

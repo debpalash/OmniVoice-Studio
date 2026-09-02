@@ -94,6 +94,8 @@ export default function ExportModal({
   setDualSubs,
   burnSubs,
   setBurnSubs,
+  karaokeSubs,
+  setKaraokeSubs,
   API,
   triggerDownload,
   handleDubDownload,
@@ -405,6 +407,23 @@ export default function ExportModal({
                     />
                     {t('exportModal.hardsub')}
                   </label>
+                  {burnSubs && (
+                    <Segmented
+                      size="sm"
+                      className="ml-[var(--space-4)] self-start"
+                      value={karaokeSubs && !dualSubs ? 'karaoke' : 'line'}
+                      onChange={(v) => setKaraokeSubs?.(v === 'karaoke')}
+                      disabled={!!dualSubs}
+                      items={[
+                        { value: 'line', label: t('exportModal.subs_style_line') },
+                        {
+                          value: 'karaoke',
+                          label: t('exportModal.subs_style_karaoke'),
+                          title: dualSubs ? t('exportModal.karaoke_dual_note') : undefined,
+                        },
+                      ]}
+                    />
+                  )}
                   {burnSubs && (
                     <label className={TOGGLE_INDENT_CLS}>
                       <input

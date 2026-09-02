@@ -59,6 +59,8 @@ GET /community/submit-url
 GET /dictation/models
 GET /dictation/prefs
 GET /docs
+GET /dub/ass/{job_id}
+GET /dub/ass/{job_id}/{filename}
 GET /dub/audio/{job_id}
 GET /dub/download-audio/{job_id}
 GET /dub/download-audio/{job_id}/{filename}
