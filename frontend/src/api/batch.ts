@@ -4,7 +4,7 @@
  * Used by BatchQueue and BatchAddDialog to enqueue, monitor, and
  * manage batch dub jobs.
  */
-import { apiJson, apiPost, apiDelete, ApiError, API } from './client';
+import { apiJson, apiPost, apiDelete, ApiError } from './client';
 
 export interface BatchJob {
   id: string;
