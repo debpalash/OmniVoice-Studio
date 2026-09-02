@@ -523,7 +523,9 @@
     "view_all_files": "Afficher tous les fichiers",
     "file": "Fichier",
     "audiobook_title": "Livre audio",
-    "audiobook_desc": "Transformez un long script ou un EPUB en un livre audio chapitrené : couvertures, métadonnées, un narrateur."
+    "audiobook_desc": "Transformez un long script ou un EPUB en un livre audio chapitrené : couvertures, métadonnées, un narrateur.",
+    "convert_title": "Changeur de voix",
+    "convert_desc": "Dites-le une fois — écoutez-le avec une autre voix. De la parole à la parole, entièrement en local."
   },
   "clone": {
     "prompt": "Invite",
@@ -616,7 +618,8 @@
     "seed_placeholder": "aléatoire à chaque fois",
     "seed_keep": "Gardez cette graine",
     "seed_reroll": "Nouvelle graine",
-    "seed_reroll_hint": "Lancez une nouvelle graine aléatoire et conservez-la"
+    "seed_reroll_hint": "Lancez une nouvelle graine aléatoire et conservez-la",
+    "define_convert": "Convertir"
   },
   "about": {
     "app": "Application",
@@ -2667,5 +2670,18 @@
     "cta_design": "Décrivez-en une dans Voix ← pour la concevoir",
     "new": "Nouvelle voix",
     "none_selected": "Aucune voix sélectionnée — décrivez-en une, déposez un audio ou choisissez ci-dessous."
+  },
+  "convert": {
+    "source_kicker": "Clip source",
+    "drop_audio": "Déposez le clip à convertir — ou cliquez. WAV, MP3, M4A…",
+    "target_voice": "Voix cible",
+    "pick_voice": "Choisir un profil de voix…",
+    "match_duration": "Aligner sur la durée source",
+    "match_duration_hint": "Étire le résultat dans le temps (hauteur préservée) pour approcher la durée du clip source.",
+    "convert": "Convertir",
+    "converting": "Conversion…",
+    "transcript": "Ce qui a été entendu",
+    "result_kicker": "Prise convertie",
+    "need_source_and_voice": "Ajoutez d'abord un clip source et choisissez une voix cible."
   }
 }

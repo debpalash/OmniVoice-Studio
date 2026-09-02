@@ -13,6 +13,7 @@ import {
   HardDrive,
   Download,
   ArrowRight,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { API } from '../api/client';
 import { useAppStore } from '../store';
@@ -93,7 +94,7 @@ export default function Launchpad({
   // off" strip. exportHistory arrives newest-first from /export/history.
   const recentFiles = exportHistory.slice(0, 4);
 
-  // The seven feature cards — single source of truth for the full-width
+  // The eight feature cards — single source of truth for the full-width
   // responsive grid (LaunchpadDeck) so hues, i18n keys, counts and navigation
   // targets stay in one place.
   const features = [
@@ -155,6 +156,14 @@ export default function Launchpad({
       title: t('launchpad.transcripts_title'),
       desc: t('launchpad.transcripts_desc'),
       go: () => setMode('transcriptions'),
+    },
+    {
+      key: 'convert',
+      hue: '#689d6a',
+      Icon: ArrowRightLeft,
+      title: t('launchpad.convert_title'),
+      desc: t('launchpad.convert_desc'),
+      go: () => openStudio('convert'),
     },
   ];
 

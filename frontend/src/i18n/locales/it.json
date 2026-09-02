@@ -523,7 +523,9 @@
     "view_all_files": "Visualizza tutti i file",
     "file": "Archivio",
     "audiobook_title": "Audiolibro",
-    "audiobook_desc": "Trasforma una lunga sceneggiatura o un EPUB in un audiolibro suddiviso in capitoli: copertine, metadati, un narratore."
+    "audiobook_desc": "Trasforma una lunga sceneggiatura o un EPUB in un audiolibro suddiviso in capitoli: copertine, metadati, un narratore.",
+    "convert_title": "Cambia voce",
+    "convert_desc": "Dillo una volta — ascoltalo con un'altra voce. Da voce a voce, tutto in locale."
   },
   "clone": {
     "prompt": "Richiedi",
@@ -616,7 +618,8 @@
     "seed_placeholder": "casuale ogni volta",
     "seed_keep": "Conserva questo seme",
     "seed_reroll": "Nuovo seme",
-    "seed_reroll_hint": "Lancia un nuovo seme casuale e conservalo"
+    "seed_reroll_hint": "Lancia un nuovo seme casuale e conservalo",
+    "define_convert": "Converti"
   },
   "about": {
     "app": "App",
@@ -2667,5 +2670,18 @@
     "cta_design": "Descrivine una in Voce ← per progettarla",
     "new": "Nuova voce",
     "none_selected": "Nessuna voce selezionata — descrivine una, trascina un audio o scegli qui sotto."
+  },
+  "convert": {
+    "source_kicker": "Clip sorgente",
+    "drop_audio": "Trascina qui il clip da convertire — o fai clic. WAV, MP3, M4A…",
+    "target_voice": "Voce di destinazione",
+    "pick_voice": "Scegli un profilo vocale…",
+    "match_duration": "Adatta alla durata sorgente",
+    "match_duration_hint": "Allunga il risultato nel tempo (tono preservato) per avvicinarlo alla durata del clip sorgente.",
+    "convert": "Converti",
+    "converting": "Conversione…",
+    "transcript": "Cosa è stato sentito",
+    "result_kicker": "Take convertito",
+    "need_source_and_voice": "Aggiungi prima un clip sorgente e scegli una voce di destinazione."
   }
 }

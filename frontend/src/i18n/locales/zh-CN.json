@@ -182,7 +182,9 @@
     "view_all_files": "查看所有文件",
     "file": "文件",
     "audiobook_title": "有声读物",
-    "audiobook_desc": "将长脚本或 EPUB 转换为分章有声读物 — 封面、元数据、一位旁白。"
+    "audiobook_desc": "将长脚本或 EPUB 转换为分章有声读物 — 封面、元数据、一位旁白。",
+    "convert_title": "变声器",
+    "convert_desc": "说一遍,用另一种声音听到。语音到语音,完全本地运行。"
   },
   "clone": {
     "prompt": "提示词",
@@ -275,7 +277,8 @@
     "seed_placeholder": "每次都是随机的",
     "seed_keep": "保留这个种子",
     "seed_reroll": "新种子",
-    "seed_reroll_hint": "滚动一个新的随机种子并保留它"
+    "seed_reroll_hint": "滚动一个新的随机种子并保留它",
+    "define_convert": "转换"
   },
   "settings": {
     "remote_backend_test": "测试连接",
@@ -2674,5 +2677,18 @@
     "cta_design": "在 语音 ← 中描述即可设计",
     "new": "新建声音",
     "none_selected": "未选择声音——描述一个、拖入音频，或从下方选择。"
+  },
+  "convert": {
+    "source_kicker": "源音频",
+    "drop_audio": "拖入要转换的音频 — 或点击。WAV、MP3、M4A…",
+    "target_voice": "目标声音",
+    "pick_voice": "选择一个声音档案…",
+    "match_duration": "匹配源时长",
+    "match_duration_hint": "对结果做时间伸缩(保持音高),使其接近源音频的时长。",
+    "convert": "转换",
+    "converting": "转换中…",
+    "transcript": "识别到的内容",
+    "result_kicker": "转换后的音频",
+    "need_source_and_voice": "请先添加源音频并选择目标声音。"
   }
 }

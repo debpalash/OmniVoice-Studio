@@ -523,7 +523,9 @@
     "view_all_files": "Wyświetl wszystkie pliki",
     "file": "Plik",
     "audiobook_title": "Książka audio",
-    "audiobook_desc": "Zamień długi scenariusz lub EPUB w audiobook podzielony na rozdziały — okładki, metadane, jeden narrator."
+    "audiobook_desc": "Zamień długi scenariusz lub EPUB w audiobook podzielony na rozdziały — okładki, metadane, jeden narrator.",
+    "convert_title": "Zmieniacz głosu",
+    "convert_desc": "Powiedz raz — usłysz innym głosem. Mowa na mowę, w pełni lokalnie."
   },
   "clone": {
     "prompt": "Podpowiedź",
@@ -616,7 +618,8 @@
     "insert_token": "Wstaw token ekspresji",
     "script": "Skrypt",
     "starting_points": "Punkty wyjścia",
-    "voice_kicker": "Głos"
+    "voice_kicker": "Głos",
+    "define_convert": "Konwertuj"
   },
   "about": {
     "app": "Aplikacja",
@@ -2667,5 +2670,18 @@
     "cta_design": "Opisz głos w „Głos” ←, aby go zaprojektować",
     "new": "Nowy głos",
     "none_selected": "Nie wybrano głosu — opisz go, upuść audio albo wybierz poniżej."
+  },
+  "convert": {
+    "source_kicker": "Klip źródłowy",
+    "drop_audio": "Upuść klip do konwersji — lub kliknij. WAV, MP3, M4A…",
+    "target_voice": "Głos docelowy",
+    "pick_voice": "Wybierz profil głosu…",
+    "match_duration": "Dopasuj do długości źródła",
+    "match_duration_hint": "Rozciąga wynik w czasie (z zachowaniem wysokości dźwięku), aby zbliżyć go do długości klipu źródłowego.",
+    "convert": "Konwertuj",
+    "converting": "Konwertowanie…",
+    "transcript": "Co usłyszano",
+    "result_kicker": "Skonwertowane nagranie",
+    "need_source_and_voice": "Najpierw dodaj klip źródłowy i wybierz głos docelowy."
   }
 }

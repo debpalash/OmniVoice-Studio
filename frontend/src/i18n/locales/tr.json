@@ -523,7 +523,9 @@
     "view_all_files": "Tüm dosyaları görüntüle",
     "file": "Dosya",
     "audiobook_title": "Sesli kitap",
-    "audiobook_desc": "Uzun bir metni veya EPUB'u bölümlü bir sesli kitaba dönüştürün; kapaklar, meta veriler ve tek bir anlatıcı."
+    "audiobook_desc": "Uzun bir metni veya EPUB'u bölümlü bir sesli kitaba dönüştürün; kapaklar, meta veriler ve tek bir anlatıcı.",
+    "convert_title": "Ses Değiştirici",
+    "convert_desc": "Bir kez söyleyin — başka bir sesle duyun. Konuşmadan konuşmaya, tamamen yerel."
   },
   "clone": {
     "prompt": "İstemi",
@@ -616,7 +618,8 @@
     "seed_placeholder": "her seferinde rastgele",
     "seed_keep": "Bu tohumu sakla",
     "seed_reroll": "Yeni tohum",
-    "seed_reroll_hint": "Yeni bir rastgele tohum yuvarlayın ve saklayın"
+    "seed_reroll_hint": "Yeni bir rastgele tohum yuvarlayın ve saklayın",
+    "define_convert": "Dönüştür"
   },
   "about": {
     "app": "Uygulama",
@@ -2667,5 +2670,18 @@
     "cta_design": "Tasarlamak için Ses ← panelinde tarif edin",
     "new": "Yeni ses",
     "none_selected": "Ses seçilmedi — birini tarif edin, ses dosyası bırakın veya aşağıdan seçin."
+  },
+  "convert": {
+    "source_kicker": "Kaynak klip",
+    "drop_audio": "Dönüştürülecek klibi bırakın — veya tıklayın. WAV, MP3, M4A…",
+    "target_voice": "Hedef ses",
+    "pick_voice": "Bir ses profili seçin…",
+    "match_duration": "Kaynak süresine eşitle",
+    "match_duration_hint": "Sonucu zamanda esnetir (perde korunur) ve kaynak klibin uzunluğuna yaklaştırır.",
+    "convert": "Dönüştür",
+    "converting": "Dönüştürülüyor…",
+    "transcript": "Duyulan metin",
+    "result_kicker": "Dönüştürülen kayıt",
+    "need_source_and_voice": "Önce bir kaynak klip ekleyin ve hedef ses seçin."
   }
 }

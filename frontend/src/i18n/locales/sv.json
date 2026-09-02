@@ -523,7 +523,9 @@
     "view_all_files": "Visa alla filer",
     "file": "Arkiv",
     "audiobook_title": "Ljudbok",
-    "audiobook_desc": "Förvandla ett långt manus eller EPUB till en ljudbok med kapitel – omslag, metadata, en berättare."
+    "audiobook_desc": "Förvandla ett långt manus eller EPUB till en ljudbok med kapitel – omslag, metadata, en berättare.",
+    "convert_title": "Röstväxlare",
+    "convert_desc": "Säg det en gång — hör det med en annan röst. Tal till tal, helt lokalt."
   },
   "clone": {
     "prompt": "Fråga",
@@ -616,7 +618,8 @@
     "insert_token": "Infoga uttryckstoken",
     "script": "Manus",
     "starting_points": "Utgångspunkter",
-    "voice_kicker": "Röst"
+    "voice_kicker": "Röst",
+    "define_convert": "Konvertera"
   },
   "about": {
     "app": "App",
@@ -2667,5 +2670,18 @@
     "cta_design": "Beskriv en röst i Röst ← för att designa den",
     "new": "Ny röst",
     "none_selected": "Ingen röst vald — beskriv en, släpp ljud eller välj nedan."
+  },
+  "convert": {
+    "source_kicker": "Källklipp",
+    "drop_audio": "Släpp klippet som ska konverteras — eller klicka. WAV, MP3, M4A…",
+    "target_voice": "Målröst",
+    "pick_voice": "Välj en röstprofil…",
+    "match_duration": "Matcha källans längd",
+    "match_duration_hint": "Sträcker resultatet i tid (tonhöjden bevaras) så att det hamnar nära källklippets längd.",
+    "convert": "Konvertera",
+    "converting": "Konverterar…",
+    "transcript": "Vad som hördes",
+    "result_kicker": "Konverterad tagning",
+    "need_source_and_voice": "Lägg först till ett källklipp och välj en målröst."
   }
 }
