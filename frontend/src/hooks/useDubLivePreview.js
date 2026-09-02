@@ -47,6 +47,7 @@ export default function useDubLivePreview({ enabled }) {
   const enabledRef = useRef(enabled);
   const timerRef = useRef(null);
   const sessionRef = useRef(null); // { segId, ws, player, abort, admission }
+  const intentRef = useRef(0);
   const lastToastRef = useRef({ key: '', at: 0 });
 
   const throttledToast = useCallback((key, show) => {
@@ -81,24 +82,36 @@ export default function useDubLivePreview({ enabled }) {
           resolve();
           return;
         }
-        const settle = () => {
-          if (session.settled) return;
-          session.settled = true;
+        const stopPlayer = () => {
+          const player = session.player;
+          session.player = null;
           try {
-            session.player?.fail();
+            player?.fail();
           } catch {
             /* teardown must never throw into the admission chain */
           }
+        };
+        const settle = ({ keepPlayer = false } = {}) => {
+          if (session.settled) return;
+          session.settled = true;
+          if (!keepPlayer) stopPlayer();
           try {
             session.ws?.close();
           } catch {
             /* already closed */
           }
-          if (sessionRef.current === session) sessionRef.current = null;
+          if (!keepPlayer && sessionRef.current === session) sessionRef.current = null;
           setLiveSegId((cur) => (cur === session.segId ? null : cur));
           resolve();
         };
-        session.abort = settle;
+        session.abort = () => {
+          if (!session.settled) {
+            settle();
+            return;
+          }
+          stopPlayer();
+          if (sessionRef.current === session) sessionRef.current = null;
+        };
 
         (async () => {
           let endpoint;
@@ -110,7 +123,13 @@ export default function useDubLivePreview({ enabled }) {
             return;
           }
           if (session.settled) return;
-          const ws = new WebSocket(endpoint);
+          let ws;
+          try {
+            ws = new WebSocket(endpoint);
+          } catch {
+            settle();
+            return;
+          }
           ws.binaryType = 'arraybuffer';
           session.ws = ws;
           ws.onopen = () => ws.send(JSON.stringify(payload));
@@ -130,14 +149,22 @@ export default function useDubLivePreview({ enabled }) {
               session.player = createStreamingChunkPlayer({
                 label: payload.text,
                 sampleRate: msg.sample_rate,
+                onDone: () => {
+                  session.player = null;
+                  if (!session.settled) {
+                    session.abort();
+                  } else if (sessionRef.current === session) {
+                    sessionRef.current = null;
+                  }
+                },
               });
             } else if (msg.type === 'done') {
-              // Let buffered audio play out on its own timer; the socket has
-              // done its job. Detach the player first so settle() can't
-              // silence the tail.
+              // Release network/admission state now, but retain the player in
+              // sessionRef until its buffered tail ends. A later edit, toggle,
+              // or unmount can therefore still silence obsolete audio.
+              const keepPlayer = Boolean(session.player);
               session.player?.finalize();
-              session.player = null;
-              settle();
+              settle({ keepPlayer });
             } else if (msg.type === 'error') {
               throttledToast('live-error', () =>
                 toast.error(t('tts_errors.error_prefix', { message: msg.detail || '' })),
@@ -154,7 +181,8 @@ export default function useDubLivePreview({ enabled }) {
   );
 
   const startStream = useCallback(
-    async (seg, text) => {
+    async (seg, text, intent) => {
+      if (intent !== intentRef.current) return;
       if (!enabledRef.current || !supportsStreamingPreview()) return;
       if (!text || !text.trim()) {
         void abortSession();
@@ -177,7 +205,7 @@ export default function useDubLivePreview({ enabled }) {
       if (lang && lang !== 'Auto') payload.language = lang;
 
       await abortSession();
-      if (!enabledRef.current) return;
+      if (!enabledRef.current || intent !== intentRef.current) return;
 
       const session = { segId: seg.id, ws: null, player: null, settled: false };
       // Pre-stream abort: admission can refuse (busy) before streamOnce ever
@@ -207,10 +235,11 @@ export default function useDubLivePreview({ enabled }) {
   const onLiveEdit = useCallback(
     (seg, text) => {
       if (!enabledRef.current) return;
+      const intent = ++intentRef.current;
       void abortSession();
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        void startStream(seg, text);
+        void startStream(seg, text, intent);
       }, LIVE_PREVIEW_DEBOUNCE_MS);
     },
     [abortSession, startStream],
@@ -219,11 +248,12 @@ export default function useDubLivePreview({ enabled }) {
   /** Row speaker button: stream this line's current text now, or stop it. */
   const onLiveToggle = useCallback(
     (seg) => {
+      const intent = ++intentRef.current;
       if (sessionRef.current?.segId === seg.id) {
         void abortSession();
         return;
       }
-      void startStream(seg, seg.text);
+      void startStream(seg, seg.text, intent);
     },
     [abortSession, startStream],
   );
@@ -232,9 +262,18 @@ export default function useDubLivePreview({ enabled }) {
   // debounce/stream callbacks stable across toggles (row memo identity).
   useEffect(() => {
     enabledRef.current = enabled;
-    if (!enabled) void abortSession();
+    if (!enabled) {
+      intentRef.current += 1;
+      void abortSession();
+    }
   }, [enabled, abortSession]);
-  useEffect(() => () => void abortSession(), [abortSession]);
+  useEffect(
+    () => () => {
+      intentRef.current += 1;
+      void abortSession();
+    },
+    [abortSession],
+  );
 
   return { liveSegId, onLiveEdit, onLiveToggle, stop: abortSession };
 }

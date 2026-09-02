@@ -23,12 +23,13 @@ const { mocks } = vi.hoisted(() => {
       state: { ttsInflight: 0, dubLang: 'Auto' },
       authenticatedWsUrl: vi.fn(async () => 'ws://test/ws/tts?ws_ticket=one-use'),
       players,
-      createStreamingChunkPlayer: vi.fn(() => {
+      createStreamingChunkPlayer: vi.fn((options = {}) => {
         const player = {
           appendPcm16Base64: vi.fn(),
           appendPcm16Bytes: vi.fn(),
           finalize: vi.fn(),
           fail: vi.fn(),
+          onDone: options.onDone,
         };
         players.push(player);
         return player;
@@ -176,6 +177,23 @@ describe('useDubLivePreview', () => {
     expect(result.current.liveSegId).toBe(null);
   });
 
+  it('can still silence a finalized buffered tail when a newer edit arrives', async () => {
+    const { result } = renderPreview();
+    await editAndSettle(result, SEG, 'Old line');
+    const ws = FakeWebSocket.instances[0];
+    act(() => ws.open());
+    act(() => ws.onmessage({ data: JSON.stringify({ type: 'start', sample_rate: 24000 }) }));
+    await act(async () => {
+      ws.onmessage({ data: JSON.stringify({ type: 'done' }) });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.players[0].finalize).toHaveBeenCalled();
+    expect(mocks.players[0].fail).not.toHaveBeenCalled();
+
+    act(() => result.current.onLiveEdit(SEG, 'New line'));
+    expect(mocks.players[0].fail).toHaveBeenCalledOnce();
+  });
+
   it('closes the previous socket on the next keystroke', async () => {
     const { result } = renderPreview();
     await editAndSettle(result, SEG, 'Hola mun');
@@ -204,6 +222,37 @@ describe('useDubLivePreview', () => {
     act(() => second.open());
     expect(JSON.parse(second.sent[0]).voice).toBe('prof-2');
     expect(result.current.liveSegId).toBe('seg-2');
+  });
+
+  it('does not start an older intent when teardown synchronously queues a newer edit', async () => {
+    const { result } = renderPreview();
+    await editAndSettle(result, SEG, 'First line');
+    const first = FakeWebSocket.instances[0];
+    act(() => first.open());
+    act(() => first.onmessage({ data: JSON.stringify({ type: 'start', sample_rate: 24000 }) }));
+
+    const older = { id: 'seg-2', text: 'Older', profile_id: 'prof-2' };
+    const latest = { id: 'seg-3', text: 'Latest', profile_id: 'prof-3' };
+    mocks.players[0].fail.mockImplementationOnce(() => {
+      result.current.onLiveEdit(latest, latest.text);
+    });
+    await act(async () => {
+      result.current.onLiveToggle(older);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // The older toggle was superseded while it awaited admission teardown.
+    // It must not open a socket during the latest edit's debounce window.
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LIVE_PREVIEW_DEBOUNCE_MS);
+    });
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const latestSocket = FakeWebSocket.instances[1];
+    act(() => latestSocket.open());
+    expect(JSON.parse(latestSocket.sent[0])).toEqual(
+      expect.objectContaining({ text: 'Latest', voice: 'prof-3' }),
+    );
   });
 
   it('skips segments with no CAST voice and says how to fix it', async () => {
@@ -270,6 +319,24 @@ describe('useDubLivePreview', () => {
     expect(mocks.toast.error).toHaveBeenCalledWith('tts_errors.error_prefix');
     expect(ws.closed).toBe(true);
     expect(mocks.state.ttsInflight).toBe(0);
+  });
+
+  it('releases admission when WebSocket construction throws synchronously', async () => {
+    vi.stubGlobal(
+      'WebSocket',
+      class ThrowingWebSocket {
+        constructor() {
+          throw new Error('constructor failed');
+        }
+      },
+    );
+    const { result } = renderPreview();
+    await editAndSettle(result, SEG, 'Hola mundo');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.state.ttsInflight).toBe(0);
+    expect(result.current.liveSegId).toBe(null);
   });
 
   it('row speaker toggle streams the current text immediately and stops on second press', async () => {

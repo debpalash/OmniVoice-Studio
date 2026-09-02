@@ -1236,7 +1236,7 @@
     "fit_audio_title": "Audio past in de sleuf.",
     "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf.",
     "qc_verify": "Verifieer",
-    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of kopieer deze regel opnieuw.",
+    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of dub deze regel opnieuw.",
     "live_play_title": "Deze regel nu streamen (livevoorbeeld)",
     "live_stop_title": "Livevoorbeeld stoppen"
   },
