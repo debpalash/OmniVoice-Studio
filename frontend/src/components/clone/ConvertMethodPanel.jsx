@@ -225,7 +225,11 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
           <input
             type="checkbox"
             checked={matchDuration}
-            onChange={(e) => setMatchDuration(e.target.checked)}
+            onChange={(e) => {
+              invalidateInFlight();
+              setMatchDuration(e.target.checked);
+              setResult(null);
+            }}
           />
           <span>{t('convert.match_duration')}</span>
         </label>

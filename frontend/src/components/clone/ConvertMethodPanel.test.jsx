@@ -157,6 +157,47 @@ describe('ConvertMethodPanel', () => {
     expect(convertSpeech.mock.calls[0][0].get('match_duration')).toBe('0');
   });
 
+  it('invalidates a pending conversion when duration matching changes', async () => {
+    convertSpeech.mockImplementation(
+      (_fd, { signal } = {}) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+          );
+        }),
+    );
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(convertSpeech).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'convert.convert' })).toBeEnabled(),
+    );
+    expect(convertSpeech.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(screen.queryByTestId('convert-result')).toBeNull();
+    expect(toastErrorWithReport).not.toHaveBeenCalled();
+  });
+
+  it('clears a completed take when duration matching changes', async () => {
+    convertSpeech.mockResolvedValue({
+      id: 'duration-take',
+      audio_url: '/audio/duration-take.wav',
+      text: 'done',
+      duration_s: 1,
+    });
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(screen.getByTestId('convert-result')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.queryByTestId('convert-result')).toBeNull();
+  });
+
   it('routes the typed asr_model_missing 409 to the download CTA toast', async () => {
     const err = new Error('409');
     err.detail = { error: 'asr_model_missing', recommended: { repo_id: 'org/whisper' } };
