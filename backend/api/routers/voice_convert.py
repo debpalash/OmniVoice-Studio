@@ -53,6 +53,28 @@ ATEMPO_MAX = 2.0
 #: would resample the whole take for an inaudible gain.
 _MATCH_TOLERANCE = 0.02
 
+#: Convert clips are short conversational inputs, not long-form media. Stream
+#: them to disk in bounded chunks so a network-share client cannot make the
+#: backend materialize an arbitrarily large multipart upload in memory.
+_MAX_SOURCE_AUDIO_BYTES = 64 * 1024 * 1024
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+async def _copy_source_upload(audio: UploadFile, destination) -> int:
+    """Stream ``audio`` into ``destination`` with the Convert upload cap."""
+    total = 0
+    while True:
+        chunk = await audio.read(_UPLOAD_CHUNK_BYTES)
+        if not chunk:
+            return total
+        total += len(chunk)
+        if total > _MAX_SOURCE_AUDIO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="Source audio is too large (maximum 64 MB).",
+            )
+        destination.write(chunk)
+
 
 def _clamped_tempo_ratio(tts_duration_s: float, source_duration_s: float) -> "float | None":
     """The atempo ratio that fits the take into the source duration, or None.
@@ -162,24 +184,29 @@ async def convert_speech(
         )
     cond = _resolve_profile_conditioning(row)
 
-    # ── Engine gate before any heavy work: the shared resolver refuses a
-    # clone-less engine with the actionable switch-engine message (→ 400),
-    # and a backend mid-shutdown raises ModelLoadInterruptedByShutdown out
-    # of the model load → the global 503 [shutting_down] handler.
-    from services.tts_backend import resolve_generation_backend
-    try:
-        backend = await resolve_generation_backend(
-            require_cloning=True, cloning_purpose="voice conversion",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # ── Save the upload; every ASR backend (and ffprobe) needs a file path.
+    # ── Save the upload before loading an engine. Every ASR backend (and
+    # ffprobe) needs a file path; the bounded streaming copy rejects oversized
+    # network-share requests without materializing them in process memory or
+    # starting heavyweight model work.
     ext = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
-        tmp.write(await audio.read())
-        tmp.close()
+        try:
+            await _copy_source_upload(audio, tmp)
+        finally:
+            tmp.close()
+
+        # ── Engine gate before ASR/TTS work: the shared resolver refuses a
+        # clone-less engine with the actionable switch-engine message (→ 400),
+        # and a backend mid-shutdown raises ModelLoadInterruptedByShutdown out
+        # of the model load → the global 503 [shutting_down] handler.
+        from services.tts_backend import resolve_generation_backend
+        try:
+            backend = await resolve_generation_backend(
+                require_cloning=True, cloning_purpose="voice conversion",
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         result = await _transcribe_source(tmp.name)
 

@@ -15,6 +15,7 @@ Contract under test (all engine/ASR layers stubbed — no GPU, no weights):
     committed route snapshot carries POST /convert).
 """
 import asyncio
+import io
 import importlib
 import os
 import re
@@ -22,6 +23,7 @@ import uuid
 
 import pytest
 import torch
+from fastapi import HTTPException
 
 os.environ.setdefault("OMNIVOICE_MODEL", "test")
 os.environ.setdefault("OMNIVOICE_DISABLE_FILE_LOG", "1")
@@ -230,6 +232,49 @@ def test_convert_asr_missing_is_typed_409(client, monkeypatch, clone_profile):
     assert detail["error"] == "asr_model_missing"
     assert detail["recommended"]["repo_id"] == "org/some-whisper"
     assert fake.calls == []
+
+
+def test_convert_rejects_oversized_upload_before_engine_work(
+    client, monkeypatch, clone_profile,
+):
+    """The bounded copy returns 413 before loading ASR or TTS."""
+    vc = _vc_mod()
+    monkeypatch.setattr(vc, "_MAX_SOURCE_AUDIO_BYTES", 8)
+
+    fake = _make_fake_engine(f"fake-conv-{uuid.uuid4().hex[:6]}")
+    asr = _FakeASR({"text": "should not run"})
+    _wire_stubs(monkeypatch, engine_cls=fake, asr=asr)
+
+    res = _post_convert(client, clone_profile)
+    assert res.status_code == 413
+    assert "maximum 64 MB" in res.json()["detail"]
+    assert asr.calls == []
+    assert fake.calls == []
+
+
+def test_source_upload_is_read_in_bounded_chunks(monkeypatch):
+    """The upload reader never requests or retains the complete body."""
+    vc = _vc_mod()
+    monkeypatch.setattr(vc, "_MAX_SOURCE_AUDIO_BYTES", 8)
+    monkeypatch.setattr(vc, "_UPLOAD_CHUNK_BYTES", 4)
+
+    class _Upload:
+        def __init__(self):
+            self.source = io.BytesIO(b"123456789")
+            self.read_sizes = []
+
+        async def read(self, size):
+            self.read_sizes.append(size)
+            return self.source.read(size)
+
+    upload = _Upload()
+    destination = io.BytesIO()
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(vc._copy_source_upload(upload, destination))
+
+    assert exc.value.status_code == 413
+    assert upload.read_sizes == [4, 4, 4]
+    assert destination.getvalue() == b"12345678"
 
 
 def test_convert_match_duration_toggle(client, monkeypatch, clone_profile):

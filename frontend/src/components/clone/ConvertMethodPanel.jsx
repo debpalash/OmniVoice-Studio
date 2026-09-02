@@ -32,16 +32,12 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
 
   // Own mic instance: a convert source is not the clone reference, so it
   // must never overwrite the audio method's refAudio.
-  const {
-    isRecording,
-    isCleaning,
-    recordingTime,
-    startRecording,
-    stopRecording,
-  } = useRecording(async (file) => {
-    setSourceFile(file);
-    setResult(null);
-  });
+  const { isRecording, isCleaning, recordingTime, startRecording, stopRecording } = useRecording(
+    async (file) => {
+      setSourceFile(file);
+      setResult(null);
+    },
+  );
 
   const ingestSource = (file) => {
     if (!file) return;
@@ -196,9 +192,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
           {isConverting ? t('convert.converting') : t('convert.convert')}
         </Button>
         {!sourceFile || !voiceId ? (
-          <span className="text-[0.72rem] text-fg-muted">
-            {t('convert.need_source_and_voice')}
-          </span>
+          <span className="text-[0.72rem] text-fg-muted">{t('convert.need_source_and_voice')}</span>
         ) : null}
       </div>
 

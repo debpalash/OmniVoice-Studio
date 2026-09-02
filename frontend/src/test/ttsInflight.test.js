@@ -24,6 +24,7 @@ vi.mock('../api/client', () => ({
   API: '',
   apiUrl: (p) => p,
   apiFetch: (...a) => apiFetch(...a),
+  apiPost: (...a) => apiFetch(...a),
   apiJson: vi.fn(),
 }));
 
@@ -39,6 +40,7 @@ vi.mock('../store', () => ({
 }));
 
 import { generateSpeech, TtsGenerationBusyError } from '../api/generate';
+import { convertSpeech } from '../api/convert';
 import { isAppBusy } from '../utils/appBusy';
 import { createGenerateSlice } from '../store/generateSlice';
 
@@ -77,6 +79,24 @@ describe('synth in-flight tracking', () => {
     await studio;
     expect(state.ttsInflight).toBe(0);
     expect(isAppBusy(state)).toBe(false);
+  });
+
+  it('shares admission between Convert and every other synthesis path', async () => {
+    let release;
+    apiFetch.mockReturnValue(
+      new Promise((res) => {
+        release = () => res({ ok: true });
+      }),
+    );
+
+    const convert = convertSpeech(new FormData());
+    await expect(generateSpeech(new FormData())).rejects.toBeInstanceOf(TtsGenerationBusyError);
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(state.ttsInflight).toBe(1);
+
+    release();
+    await convert;
+    expect(state.ttsInflight).toBe(0);
   });
 
   it('releases on failure and on abort, not just on success', async () => {

@@ -13,7 +13,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Show estimated and measured model, dependency, cache, and temporary disk costs in the engine catalogue (#1718)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
-- Studio gains a Convert method: re-say any clip in one of your saved voices, speech to speech, fully local (#1765)
+- Studio gains a Convert method: re-say any clip in one of your saved voices, speech to speech, fully local (#1765) — thanks @mvanhorn!
 
 ### Changed
 

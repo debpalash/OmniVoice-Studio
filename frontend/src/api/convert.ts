@@ -1,4 +1,5 @@
 import { apiPost } from './client';
+import { withTtsInflight } from './generate';
 
 /** JSON body of a successful POST /convert (speech-to-speech voice change). */
 export interface ConvertResult {
@@ -16,5 +17,5 @@ export interface ConvertResult {
  * Multipart: `audio` (source clip), `profile_id`, `match_duration` ('1'|'0').
  */
 export async function convertSpeech(formData: FormData): Promise<ConvertResult> {
-  return apiPost<ConvertResult>('/convert', formData);
+  return withTtsInflight(() => apiPost<ConvertResult>('/convert', formData));
 }

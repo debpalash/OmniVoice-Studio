@@ -12,11 +12,7 @@ vi.mock('../WaveformPlayer', () => ({
 // plain <select> so the panel's own wiring is what's under test.
 vi.mock('../VoiceSelector', () => ({
   default: ({ value, onChange, profiles }) => (
-    <select
-      aria-label="voice-selector"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
+    <select aria-label="voice-selector" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">—</option>
       {profiles.map((p) => (
         <option key={p.id} value={p.id}>
@@ -45,8 +41,7 @@ vi.mock('../../api/convert', () => ({
 
 const toastAsrModelMissing = vi.fn();
 vi.mock('../../utils/asrModelMissing', () => ({
-  asrMissingPayload: (err) =>
-    err?.detail?.error === 'asr_model_missing' ? err.detail : null,
+  asrMissingPayload: (err) => (err?.detail?.error === 'asr_model_missing' ? err.detail : null),
   toastAsrModelMissing: (...args) => toastAsrModelMissing(...args),
 }));
 

@@ -64,7 +64,8 @@ export default function WorkspaceVoices({
     );
   }, [profiles, defineMethod, qLower]);
 
-  const title = defineMethod === 'design' ? t('sidebar.designed_voices') : t('sidebar.voice_clones');
+  const title =
+    defineMethod === 'design' ? t('sidebar.designed_voices') : t('sidebar.voice_clones');
 
   return (
     <section className={`wv ${items.length === 0 ? 'wv--collapsed' : ''}`}>
@@ -159,7 +160,11 @@ export default function WorkspaceVoices({
               : defineMethod === 'design'
                 ? '#8ec07c'
                 : '#d3869b';
-            const KindIcon = proj.is_locked ? Lock : defineMethod === 'design' ? Wand2 : Fingerprint;
+            const KindIcon = proj.is_locked
+              ? Lock
+              : defineMethod === 'design'
+                ? Wand2
+                : Fingerprint;
             return (
               <div
                 key={proj.id}
