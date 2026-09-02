@@ -29,12 +29,14 @@ the frozen-backend fallback mirror it for their toolchains.
 - Studio gains a Convert method: re-say any clip in one of your saved voices, speech to speech, fully local (#1765) — thanks @mvanhorn!
 - Hardsub video export gains an opt-in karaoke word-highlight caption style (#1764) — thanks @mvanhorn!
 - The audiobook player now shows the chapter text and highlights the word being narrated (#1766) — thanks @mvanhorn!
+- The dub editor gains a casting board: drag voice chips onto speakers, dropdowns stay in sync (#1767) — thanks @mvanhorn!
 
 ### Changed
 
 ### Added
 
 - The audiobook result is now a synced-lyrics player: chapter text follows playback with the current word highlighted and click-to-seek, timed from the render's own chapter durations with a karaoke-style even split — no ASR pass, fully local (#1766) — thanks @mvanhorn!
+- The dub CAST strip expands into a project-level casting board: drag voice chips (clone profiles, design presets, Default) onto speaker rows — or pick from a keyboard listbox — writing the same per-speaker cast fields as the existing dropdowns (#1767) — thanks @mvanhorn!
 - Studio's new Convert method turns a dropped or recorded clip into an existing voice profile's voice, with optional source-duration matching (#1765) — thanks @mvanhorn!
 - Hardsub export can now burn karaoke word-highlight captions: an opt-in Line | Karaoke control renders a word-timed ASS sweep from timings persisted at transcription, with an even-split fallback for older jobs and translated tracks, plus a `GET /dub/ass/{job_id}` sidecar (#1764) — thanks @mvanhorn!
 - Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)

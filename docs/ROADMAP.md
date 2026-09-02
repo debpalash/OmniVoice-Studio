@@ -18,7 +18,7 @@ Phase 5 · Productisation          ░░░░░░░░░░  0 / 5     �
 
 Design track        ▓▓▓▓▓▓▓▓▓░  ongoing · 14 primitives + ~67 migrated inline styles · DubTab/Header/Sidebar/CloneDesignTab drained
 Performance track   ▓▓▓░░░░░░░  underway · profiling, preload, isolated engines + cache-remix I/O
-Feature-magic track ░░░░░░░░░░  not started
+Feature-magic track ▓▓░░░░░░░░  underway · project-level casting board shipped
 Quality track       ▓▓░░░░░░░░  12 smoke tests, 10 error messages rewritten
 ```
 
@@ -205,11 +205,11 @@ None on the critical path to world-class. All are answers to real demand.
 | Interaction budgets (<50 ms UI, <200 ms preview, <4 s first seg) | 🟡 | `/ws/tts` reports real TTFA, total generation time and RTF; frontend responsiveness instrumentation exists, but no cross-surface budget gate yet. |
 | Dedicated dev-week per quarter | ⏳ | Cadence not yet booked. |
 
-### ✨ Feature-magic track _(⏳ not started)_
+### ✨ Feature-magic track _(🟡 underway)_
 
 | Feature | Status | Phase gate |
 |------|:---:|------|
-| Project-level casting view (drag voices to speakers) | ⏳ | After Phase 3 |
+| Project-level casting view (drag voices to speakers) | ✅ | Shipped (#1767): the dub CAST strip expands into a casting board — drag voice chips onto speaker rows, keyboard listbox included, same fields as the dropdowns. |
 | Voice memory across projects | ⏳ | After Phase 4 |
 | Context-aware pipeline (video frames → pipeline decisions) | ⏳ | After Phase 4 |
 | On-device learning from corrections (user edits → LoRA) | ⏳ | Research only; possibly Phase 5+ |
