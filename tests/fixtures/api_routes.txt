@@ -175,6 +175,7 @@ POST /batch/enqueue
 POST /batch/jobs/{job_id}/cancel
 POST /clean-audio
 POST /community/items/{item_id}/use
+POST /convert
 POST /design/describe
 POST /dictation/prefs
 POST /dub/abort/{job_id}

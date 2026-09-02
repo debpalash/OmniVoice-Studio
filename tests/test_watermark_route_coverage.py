@@ -62,6 +62,7 @@ _ALLOWED = {
 #: /engines/sonitranslate/dub route, not silently ignored.)
 _PRODUCERS = [
     "api/routers/generation.py",
+    "api/routers/voice_convert.py",
     "api/routers/openai_compat.py",
     "api/routers/tts_stream.py",
     "api/routers/dub_generate.py",

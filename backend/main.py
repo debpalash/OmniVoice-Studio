@@ -685,11 +685,12 @@ def _phase_a_build_inner() -> None:
         settings as settings_router,  # Phase 1 AUTH-03: HF token save/clear/state
         media_tools as media_tools_router,  # Audio tools: ffmpeg/ffprobe/yt-dlp
         auth as auth_router,
+        voice_convert,  # Studio Convert: speech-to-speech via ASR → TTS
     )
     from api.routers import mcp_bindings as _mcp_bindings_router  # noqa: E402
     from api.routers import workers as workers_router  # noqa: E402
     _router_modules.extend([
-        system, profiles, exports, generation, dub_core, dub_generate,
+        system, profiles, exports, generation, voice_convert, dub_core, dub_generate,
         dub_export, dub_translate, projects, glossary, engines, tools,
         stories, setup, gallery, archetypes, describe_voice, community,
         batch, watermark, events, capture, capture_ws, speech_platform, dictation,
