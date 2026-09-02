@@ -44,7 +44,9 @@ describe('scriptChapters', () => {
   });
 
   it('strips control tokens but keeps reaction tags as highlightable words', () => {
-    const [ch] = scriptChapters('# C\n[voice:Mara] Hello [pause 500ms] there [laughs] [slow]end[/slow]');
+    const [ch] = scriptChapters(
+      '# C\n[voice:Mara] Hello [pause 500ms] there [laughs] [slow]end[/slow]',
+    );
     expect(ch.tokens).toEqual(['Hello', 'there', '[laughs]', 'end']);
   });
 

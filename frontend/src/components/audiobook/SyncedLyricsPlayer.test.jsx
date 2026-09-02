@@ -18,7 +18,13 @@ const CHAPTERS = [
 
 function renderPlayer(props = {}) {
   const utils = render(
-    <SyncedLyricsPlayer t={t} src="/audio/book.m4b" script={SCRIPT} chapters={CHAPTERS} {...props} />,
+    <SyncedLyricsPlayer
+      t={t}
+      src="/audio/book.m4b"
+      script={SCRIPT}
+      chapters={CHAPTERS}
+      {...props}
+    />,
   );
   const audio = utils.container.querySelector('audio');
   const seek = (time) => {
@@ -34,7 +40,12 @@ describe('SyncedLyricsPlayer', () => {
     const { container, activeText } = renderPlayer();
     const words = [...container.querySelectorAll('.synced-lyrics__word')];
     expect(words.map((w) => w.textContent)).toEqual([
-      'Alpha', 'beta', 'gamma', 'delta.', 'Epsilon', 'zeta.',
+      'Alpha',
+      'beta',
+      'gamma',
+      'delta.',
+      'Epsilon',
+      'zeta.',
     ]);
     expect(container.querySelectorAll('.synced-lyrics__title')).toHaveLength(2);
     expect(activeText()).toBeNull();

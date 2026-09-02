@@ -85,7 +85,10 @@ export function scriptChapters(script) {
   const out = [];
   for (const { title, body } of raw) {
     const hasPause = fresh(PAUSE_RE).test(body);
-    const spoken = body.replace(fresh(VOICE_RE), ' ').replace(fresh(PAUSE_RE), ' ').replace(fresh(SSML_RE), ' ');
+    const spoken = body
+      .replace(fresh(VOICE_RE), ' ')
+      .replace(fresh(PAUSE_RE), ' ')
+      .replace(fresh(SSML_RE), ' ');
     const tokens = spoken.split(WS).filter(Boolean);
     // Parser drop rule: a chapter survives iff any span survives — i.e. it
     // says something OR carries a pause (pause-only chapters render silence).
