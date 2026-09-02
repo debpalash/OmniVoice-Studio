@@ -40,8 +40,12 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   const abortRef = useRef(null);
   const invalidateInFlight = () => {
     convertSeqRef.current += 1;
-    abortRef.current?.abort();
-    abortRef.current = null;
+    const obsolete = abortRef.current;
+    if (obsolete) {
+      abortRef.current = null;
+      obsolete.abort();
+      setIsConverting(false);
+    }
   };
 
   const ingestSource = (file) => {
@@ -84,6 +88,9 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
       // Re-wrap the File as a fresh Blob — same Tauri/WebKit quirk workaround
       // as useTTS's ref_audio append (a stale File handle can upload empty).
       const buf = await sourceFile.arrayBuffer();
+      // File reads are not abortable. If the inputs changed while this read
+      // was pending, stop before the obsolete source can enter admission.
+      if (seq !== convertSeqRef.current || controller.signal.aborted) return;
       fd.append(
         'audio',
         new Blob([buf], { type: sourceFile.type || 'audio/wav' }),
@@ -113,8 +120,12 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
         toastErrorWithReport(t('tts_errors.error_prefix', { message: e?.message || String(e) }), e);
       }
     } finally {
-      if (abortRef.current === controller) abortRef.current = null;
-      setIsConverting(false);
+      // An obsolete request may finish after its replacement has started.
+      // Only the request that still owns the ref may release the busy state.
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsConverting(false);
+      }
     }
   };
 

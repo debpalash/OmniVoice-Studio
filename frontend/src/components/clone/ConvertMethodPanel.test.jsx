@@ -254,6 +254,52 @@ describe('ConvertMethodPanel', () => {
     expect(screen.queryByTestId('convert-result')).toBeNull();
   });
 
+  it('releases Convert while an obsolete source preflight is still pending', async () => {
+    let releaseOldBuffer;
+    let bufferCalls = 0;
+    const arrayBuffer = vi.spyOn(File.prototype, 'arrayBuffer').mockImplementation(() => {
+      bufferCalls += 1;
+      if (bufferCalls === 1) {
+        return new Promise((resolve) => {
+          releaseOldBuffer = () => resolve(new ArrayBuffer(8));
+        });
+      }
+      return Promise.resolve(new ArrayBuffer(8));
+    });
+    let resolveCurrent;
+    convertSpeech.mockImplementation(() => new Promise((resolve) => (resolveCurrent = resolve)));
+
+    try {
+      render(<ConvertMethodPanel t={t} profiles={profiles} />);
+      addSourceClip();
+      fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+      fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+      await waitFor(() => expect(bufferCalls).toBe(1));
+
+      // This invalidates the request before it reaches fetch. The replacement
+      // input must be usable without waiting for the old File read to settle.
+      addSourceClip();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'convert.convert' })).toBeEnabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+      await waitFor(() => expect(convertSpeech).toHaveBeenCalledTimes(1));
+      expect(screen.getByRole('button', { name: 'convert.converting' })).toBeDisabled();
+
+      // The obsolete preflight may finish now, but its finally block must not
+      // release the newer request's busy state or dispatch the old source.
+      releaseOldBuffer();
+      await waitFor(() => expect(bufferCalls).toBe(2));
+      expect(convertSpeech).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'convert.converting' })).toBeDisabled();
+
+      resolveCurrent({ id: 'fresh', audio_url: '/audio/fresh.wav', text: 'new', duration_s: 1 });
+      await waitFor(() => expect(screen.getByTestId('convert-result')).toBeInTheDocument());
+    } finally {
+      arrayBuffer.mockRestore();
+    }
+  });
+
   it('clears a completed take when the target voice changes', async () => {
     convertSpeech.mockResolvedValue({
       id: 't3',
