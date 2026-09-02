@@ -33,8 +33,9 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
 
   const currentVoice = (spk) =>
     dubSegments.find((s) => s.speaker_id === spk)?.profile_id ||
-    dubSegments.flatMap((s) => s.merge_parts || []).find((part) => part.speaker_id === spk)
-      ?.profile_id ||
+    dubSegments
+      .flatMap((s) => s.merge_parts ?? s.merge_parts_original ?? [])
+      .find((part) => part.speaker_id === spk)?.profile_id ||
     '';
 
   const voiceLabel = (val, spk) => {
@@ -99,9 +100,13 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
       e.preventDefault();
       assign(spk, options[activeIdx].value);
       closePicker();
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
+    } else if (e.key === 'Escape') {
       e.preventDefault();
       closePicker();
+    } else if (e.key === 'Tab') {
+      // Let the browser move focus forward/backward. Refocusing the trigger
+      // here traps keyboard users inside the picker.
+      closePicker(false);
     }
   };
 
@@ -110,7 +115,9 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
     setDropTarget(null);
     const raw = e.dataTransfer?.getData('text/plain');
     if (!raw) return;
-    assign(spk, raw === DEFAULT_VOICE ? '' : raw);
+    const value = raw === DEFAULT_VOICE ? '' : raw;
+    if (!voiceOptions(spk).some((option) => option.value === value)) return;
+    assign(spk, value);
   };
 
   // Speaker-independent palette (the auto-clone chip lives on its row).

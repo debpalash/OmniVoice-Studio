@@ -57,7 +57,8 @@ export function autoProfileId(speakerId) {
 export function assignSpeakerProfile(segments, speakerId, profileId) {
   return (segments || []).map((s) => {
     const directMatch = s.speaker_id === speakerId;
-    const nestedMatch = s.merge_parts?.some((part) => part.speaker_id === speakerId);
+    const castParts = s.merge_parts ?? s.merge_parts_original ?? [];
+    const nestedMatch = castParts.some((part) => part.speaker_id === speakerId);
     if (!directMatch && !nestedMatch) return s;
     return {
       ...s,
@@ -86,7 +87,10 @@ export function castSpeakers(segments) {
   return [
     ...new Set(
       (segments || [])
-        .flatMap((s) => [s.speaker_id, ...(s.merge_parts || []).map((part) => part.speaker_id)])
+        .flatMap((s) => [
+          s.speaker_id,
+          ...(s.merge_parts ?? s.merge_parts_original ?? []).map((part) => part.speaker_id),
+        ])
         .filter(Boolean),
     ),
   ];

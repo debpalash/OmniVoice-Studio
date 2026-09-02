@@ -98,6 +98,14 @@ describe('CastingBoard drag & drop', () => {
     fireEvent.drop(row, { dataTransfer: { getData: () => '' } });
     expect(props.setDubSegments).not.toHaveBeenCalled();
   });
+
+  it('ignores text/plain drops that are not one of the available voices', () => {
+    const { props } = renderBoard();
+    openBoard();
+    const row = screen.getByTestId('casting-board').querySelector('[data-speaker="SPEAKER_1"]');
+    fireEvent.drop(row, { dataTransfer: { getData: () => 'selected text from another app' } });
+    expect(props.setDubSegments).not.toHaveBeenCalled();
+  });
 });
 
 describe('CastingBoard keyboard path', () => {
@@ -130,6 +138,21 @@ describe('CastingBoard keyboard path', () => {
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(props.setDubSegments).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Tab', false],
+    ['Shift+Tab', true],
+  ])('%s closes the listbox without trapping focus', (_label, shiftKey) => {
+    renderBoard();
+    openBoard();
+    const trigger = screen.getByRole('button', { name: /assign a voice to SPEAKER_1/i });
+    fireEvent.click(trigger);
+    const listbox = screen.getByRole('listbox');
+
+    expect(fireEvent.keyDown(listbox, { key: 'Tab', shiftKey })).toBe(true);
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(trigger).not.toHaveFocus();
   });
 });
 
@@ -174,6 +197,33 @@ describe('CastingBoard auto-clone chip', () => {
     const options = within(screen.getByRole('listbox')).getAllByRole('option');
     expect(options[0]).toHaveTextContent(/from video · 6\.2s/i);
     expect(options[1]).toHaveTextContent('Default');
+  });
+
+  it('keeps a speaker addressable when only merge_parts_original remains', () => {
+    const segments = [
+      {
+        id: 'merged',
+        speaker_id: 'SPEAKER_1',
+        profile_id: 'voice-a',
+        text: 'one two',
+        merge_parts_original: [
+          { speaker_id: 'SPEAKER_1', profile_id: 'voice-a' },
+          { speaker_id: 'SPEAKER_2', profile_id: '' },
+        ],
+      },
+    ];
+    const { props } = renderBoard({ dubSegments: segments });
+    openBoard();
+    expect(
+      screen.getByRole('button', { name: /assign a voice to SPEAKER_2/i }),
+    ).toBeInTheDocument();
+
+    const selects = document.querySelectorAll('.dub-cast__select');
+    fireEvent.change(selects[1], { target: { value: 'voice-b' } });
+
+    const updated = props.setDubSegments.mock.calls[0][0];
+    expect(updated[0].profile_id).toBe('voice-a');
+    expect(updated[0].merge_parts_original[1].profile_id).toBe('voice-b');
   });
 
   it('renders nothing when no segment carries a speaker', () => {
