@@ -75,8 +75,16 @@ def test_release_workflow_resolves_stable_once_before_the_matrix() -> None:
     stable_lookup = workflow.index(
         "gh release view --repo \"$GITHUB_REPOSITORY\" --json tagName"
     )
+    lookup_command = "gh release view --repo \"$GITHUB_REPOSITORY\" --json tagName"
+    preview_gate_body = workflow[preview_gate:build_matrix]
+    build_body = workflow[build_matrix:]
     assert preview_gate < stable_lookup < build_matrix
+    assert workflow.count(lookup_command) == 1
+    assert "STABLE_TAG=$(gh release view" in preview_gate_body
+    assert '[[ "$STABLE_TAG" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]' in preview_gate_body
+    assert 'echo "stable_tag=$STABLE_TAG" >> "$GITHUB_OUTPUT"' in preview_gate_body
+    assert lookup_command not in build_body
     assert "stable_tag: ${{ steps.decide.outputs.stable_tag }}" in workflow
-    assert "gh release view --repo \"$GITHUB_REPOSITORY\" --json tagName" in workflow
+    assert "STABLE_TAG: ${{ needs.preview-gate.outputs.stable_tag }}" in build_body
     assert "python scripts/stamp-preview-version.py" in workflow
-    assert '--stable-tag "${{ needs.preview-gate.outputs.stable_tag }}"' in workflow
+    assert '--stable-tag "$STABLE_TAG"' in workflow

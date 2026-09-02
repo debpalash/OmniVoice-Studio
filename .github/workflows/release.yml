@@ -148,6 +148,8 @@ jobs:
   preview-gate:
     name: Preview gate
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     outputs:
       is_preview: ${{ steps.decide.outputs.is_preview }}
       proceed: ${{ steps.decide.outputs.proceed }}
@@ -177,6 +179,9 @@ jobs:
             # Resolve once before the matrix starts so every platform stamps
             # against the same immutable Stable-channel snapshot.
             STABLE_TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+            [[ "$STABLE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              echo "::error::latest stable release has an invalid tag"; exit 1;
+            }
             echo "stable_tag=$STABLE_TAG" >> "$GITHUB_OUTPUT"
           else
             echo "is_preview=false" >> "$GITHUB_OUTPUT"
@@ -512,11 +517,13 @@ jobs:
       - name: Stamp preview version
         if: needs.preview-gate.outputs.is_preview == 'true'
         shell: bash
+        env:
+          STABLE_TAG: ${{ needs.preview-gate.outputs.stable_tag }}
         run: |
           set -euo pipefail
           PREVIEW_VERSION=$(python scripts/stamp-preview-version.py \
             --package-json frontend/package.json \
-            --stable-tag "${{ needs.preview-gate.outputs.stable_tag }}" \
+            --stable-tag "$STABLE_TAG" \
             --run-number "${{ github.run_number }}")
           echo "Stamped preview version: $PREVIEW_VERSION"
 
