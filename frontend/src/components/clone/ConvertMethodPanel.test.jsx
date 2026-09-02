@@ -231,6 +231,25 @@ describe('ConvertMethodPanel', () => {
     expect(screen.queryByTestId('convert-result')).toBeNull();
   });
 
+  it('clears a completed take when the target voice changes', async () => {
+    convertSpeech.mockResolvedValue({
+      id: 't3',
+      audio_url: '/audio/t3.wav',
+      text: 'done',
+      duration_s: 1,
+    });
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(screen.getByTestId('convert-result')).toBeInTheDocument());
+
+    // Picking a different voice must drop the old take — that audio belongs
+    // to the previous selection.
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: '' } });
+    expect(screen.queryByTestId('convert-result')).toBeNull();
+  });
+
   it('ignores an error that lands after the target voice changed', async () => {
     let rejectConvert;
     convertSpeech.mockImplementation(

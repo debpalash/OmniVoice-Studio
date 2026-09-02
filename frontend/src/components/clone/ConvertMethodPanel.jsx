@@ -44,13 +44,21 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   const ingestSource = (file) => {
     if (!file) return;
     convertSeqRef.current += 1;
-    setSourceFile(file);
+    // Re-wrap the picked/dropped File with a metacharacter-free name before it
+    // enters state (CodeQL js/xss-through-dom): a file's NAME is DOM-derived
+    // text, and this object later feeds the shared player and the upload
+    // filename. Same bytes, same type — only the name is constrained.
+    const safeName = (file.name || 'source.wav').replace(/[^\w .()-]+/g, '_');
+    setSourceFile(new File([file], safeName, { type: file.type }));
     setResult(null);
   };
 
   const selectVoice = (id) => {
     convertSeqRef.current += 1;
     setVoiceId(id);
+    // A finished take belongs to the previously chosen voice — showing it
+    // against the new selection would misattribute the audio.
+    setResult(null);
   };
 
   // Own mic instance: a convert source is not the clone reference, so it
