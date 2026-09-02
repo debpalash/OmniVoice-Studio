@@ -4,7 +4,7 @@
  * media events — jsdom has no real media pipeline).
  */
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import SyncedLyricsPlayer from './SyncedLyricsPlayer.jsx';
 
@@ -79,6 +79,18 @@ describe('SyncedLyricsPlayer', () => {
   it('clicking a word seeks the audio to that word', () => {
     const { getByText, audio } = renderPlayer();
     fireEvent.click(getByText('Epsilon'));
+    expect(audio.currentTime).toBe(8);
+  });
+
+  it('keeps words out of sequential focus and exposes one seek button per chapter', () => {
+    const { container, audio } = renderPlayer();
+    expect(
+      [...container.querySelectorAll('.synced-lyrics__word')].every((word) => word.tabIndex === -1),
+    ).toBe(true);
+
+    const chapter = screen.getByRole('button', { name: 'Two' });
+    expect(chapter.tabIndex).toBe(0);
+    fireEvent.click(chapter);
     expect(audio.currentTime).toBe(8);
   });
 

@@ -10,33 +10,16 @@
  *    events carry `duration_s`) — no new backend work, no ASR pass. Words
  *    inside a chapter are even-split across its span, exactly like the
  *    karaoke burn-in's old-job fallback.
- * 2. When those durations are gone (a reload — the output filename persists
- *    in the store but the stream events don't), the whole book's words are
+ * 2. When those durations are unavailable, the whole book's words are
  *    even-split over the audio element's own duration, chapter spans falling
  *    out proportionally by word count.
  *
- * The chapter split MIRRORS the canonical grammar in
- * `backend/services/longform_parser.py` (H1 headings; intro text before the
- * first heading is its own chapter; a chapter is dropped iff it produces no
- * spoken text and no pause). The golden-corpus parser stays the source of
- * truth for rendering — this only needs the same chapter COUNT and order so
- * cue indices line up with the stream's chapter list, and any drift (e.g. the
- * script was edited after the render) is caught by the count check in
- * {@link buildLyricsTimeline}, which then degrades to the proportional split.
+ * Chapter/token parsing reuses the canonical JS grammar twin, including
+ * `[spell]` expansion, so cue count and order match the backend render.
  */
-
-// H1 chapter heading (mirrors _HEADING_RE): `# <non-space>…`, multiline.
-const HEADING_RE = /^[ \t]*#[ \t]+(\S.*)$/gm;
-// [voice:NAME] — content excludes BOTH brackets (mirrors _VOICE_RE).
-const VOICE_RE = /\[voice:[^\][]*\]/gi;
-// [pause] / [pause 500ms] / [pause 1.5s] (mirrors parse_pause_markers' shape).
-const PAUSE_RE = /\[\s*pause(?:\s+\d+(?:\.\d+)?(?:\s*(?:ms|s))?)?\s*\]/gi;
-// SSML-lite control tags — delivery modifiers, never spoken.
-const SSML_RE = /\[\/?(?:slow|fast|emphasis|spell)\]/gi;
+import { parseScriptToSpans } from './longformParser';
 
 const WS = /\s+/;
-
-const fresh = (re) => new RegExp(re.source, re.flags);
 
 /**
  * Uniformly distribute a text's whitespace tokens over `[start, end]` —
@@ -62,39 +45,10 @@ export function evenSplitWords(text, start, end) {
  * highlight window like any word. Returns `[]` for a blank script.
  */
 export function scriptChapters(script) {
-  const norm = String(script || '').replace(/\r\n?/g, '\n');
-  if (!norm.trim()) return [];
-  const heads = [];
-  const re = fresh(HEADING_RE);
-  let m;
-  while ((m = re.exec(norm)) !== null) {
-    heads.push({ start: m.index, end: m.index + m[0].length, title: (m[1] || '').trim() });
-    if (re.lastIndex === m.index) re.lastIndex++; // zero-width guard
-  }
-  const raw = [];
-  if (!heads.length) {
-    raw.push({ title: '', body: norm });
-  } else {
-    const intro = norm.slice(0, heads[0].start);
-    if (intro.trim()) raw.push({ title: '', body: intro });
-    for (let i = 0; i < heads.length; i++) {
-      const bodyEnd = i + 1 < heads.length ? heads[i + 1].start : norm.length;
-      raw.push({ title: heads[i].title, body: norm.slice(heads[i].end, bodyEnd) });
-    }
-  }
-  const out = [];
-  for (const { title, body } of raw) {
-    const hasPause = fresh(PAUSE_RE).test(body);
-    const spoken = body
-      .replace(fresh(VOICE_RE), ' ')
-      .replace(fresh(PAUSE_RE), ' ')
-      .replace(fresh(SSML_RE), ' ');
-    const tokens = spoken.split(WS).filter(Boolean);
-    // Parser drop rule: a chapter survives iff any span survives — i.e. it
-    // says something OR carries a pause (pause-only chapters render silence).
-    if (tokens.length || hasPause) out.push({ title, tokens });
-  }
-  return out;
+  return parseScriptToSpans(String(script || '')).map(({ title, spans }) => ({
+    title,
+    tokens: spans.flatMap((span) => span.text.split(WS).filter(Boolean)),
+  }));
 }
 
 /**

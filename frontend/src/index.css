@@ -5653,6 +5653,14 @@ button.dub-stepper__action:focus-visible {
 }
 
 .synced-lyrics__title {
+  appearance: none;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 3px 0;
+  text-align: left;
+  cursor: pointer;
   font-family: var(--chrome-font-mono);
   font-size: var(--chrome-label-size);
   font-weight: 600;
@@ -5660,6 +5668,11 @@ button.dub-stepper__action:focus-visible {
   text-transform: uppercase;
   color: var(--chrome-fg-muted);
   margin-bottom: 4px;
+}
+
+.synced-lyrics__title:hover,
+.synced-lyrics__title:focus-visible {
+  color: var(--color-fg);
 }
 
 .synced-lyrics__text {

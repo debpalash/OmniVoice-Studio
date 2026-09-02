@@ -105,6 +105,7 @@ export default function SyncedLyricsPlayer({ t, src, script, chapters }) {
               }
               past={active >= ch.wordStart + ch.wordCount}
               onSeek={seekTo}
+              title={ch.title || t('audiobook.chapter_n', { n: ci + 1 })}
             />
           ))}
         </div>
@@ -119,10 +120,13 @@ const LyricsChapter = React.memo(function LyricsChapter({
   activeInChapter,
   past,
   onSeek,
+  title,
 }) {
   return (
     <div className="synced-lyrics__chapter">
-      {chapter.title ? <div className="synced-lyrics__title">{chapter.title}</div> : null}
+      <button type="button" className="synced-lyrics__title" onClick={() => onSeek(chapter.start)}>
+        {title}
+      </button>
       <p className="synced-lyrics__text">
         {words.slice(chapter.wordStart, chapter.wordStart + chapter.wordCount).map((w, j) => {
           const gi = chapter.wordStart + j;
@@ -137,6 +141,7 @@ const LyricsChapter = React.memo(function LyricsChapter({
                 (isPast ? ' is-past' : '')
               }
               onClick={() => onSeek(w.start)}
+              tabIndex={-1}
             >
               {w.text}
             </button>

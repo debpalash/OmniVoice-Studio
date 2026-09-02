@@ -39,7 +39,7 @@ describe('evenSplitWords', () => {
 describe('scriptChapters', () => {
   it('splits on H1 headings and keeps intro text as its own chapter', () => {
     const chs = scriptChapters('Intro line.\n# One\nAlpha beta.\n# Two\nGamma.');
-    expect(chs.map((c) => c.title)).toEqual(['', 'One', 'Two']);
+    expect(chs.map((c) => c.title)).toEqual(['Chapter 1', 'One', 'Two']);
     expect(chs[1].tokens).toEqual(['Alpha', 'beta.']);
   });
 
@@ -48,6 +48,11 @@ describe('scriptChapters', () => {
       '# C\n[voice:Mara] Hello [pause 500ms] there [laughs] [slow]end[/slow]',
     );
     expect(ch.tokens).toEqual(['Hello', 'there', '[laughs]', 'end']);
+  });
+
+  it('expands spell markup into the same separately spoken tokens as the renderer', () => {
+    const [ch] = scriptChapters('# C\nCall [spell]USA[/spell] now.');
+    expect(ch.tokens).toEqual(['Call', 'U', 'S', 'A', 'now.']);
   });
 
   it("mirrors the parser's drop rules: pause-only chapters survive, empty ones don't", () => {

@@ -151,7 +151,9 @@ describe('app-store persistence scheduling', () => {
       defaultVoice: 'profile-narrator',
       language: 'English',
     });
-    state.setLastOutput('a-book.mp3');
+    state.setLastOutputSnapshot('a-book.mp3', '# Rendered script', [
+      { title: 'Chapter one', status: 'done', duration_s: 4 },
+    ]);
     state.convertMode('audiobook');
 
     await vi.advanceTimersByTimeAsync(250);
@@ -191,6 +193,8 @@ describe('app-store persistence scheduling', () => {
       defaultVoice: 'profile-narrator',
       language: 'English',
       lastOutput: 'a-book.mp3',
+      lastOutputScript: '# Rendered script',
+      lastOutputChapters: [{ title: 'Chapter one', status: 'done', duration_s: 4 }],
       projectMode: 'audiobook',
     });
     expect((durableRecord!.payload.storyTracks as any[])[0]).not.toHaveProperty('generating');
@@ -209,6 +213,8 @@ describe('app-store persistence scheduling', () => {
       defaultVoice: null,
       language: 'Auto',
       lastOutput: '',
+      lastOutputScript: '',
+      lastOutputChapters: [],
       projectMode: 'stories',
     });
     discardLongformPendingWrites();

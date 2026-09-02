@@ -37,6 +37,8 @@ const UNBOUNDED_LONGFORM_KEYS = [
   'meta',
   'lexicon',
   'voiceCast',
+  'lastOutputScript',
+  'lastOutputChapters',
 ] as const;
 
 type JsonObject = Record<string, unknown>;
