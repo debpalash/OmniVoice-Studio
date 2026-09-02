@@ -65,11 +65,18 @@ def test_cli_rewrites_only_the_package_version(tmp_path: Path) -> None:
     }
 
 
-def test_release_workflow_stamps_against_the_latest_stable_release() -> None:
+def test_release_workflow_resolves_stable_once_before_the_matrix() -> None:
     workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
 
+    preview_gate = workflow.index("  preview-gate:")
+    build_matrix = workflow.index("  build:", preview_gate)
+    stable_lookup = workflow.index(
+        "gh release view --repo \"$GITHUB_REPOSITORY\" --json tagName"
+    )
+    assert preview_gate < stable_lookup < build_matrix
+    assert "stable_tag: ${{ steps.decide.outputs.stable_tag }}" in workflow
     assert "gh release view --repo \"$GITHUB_REPOSITORY\" --json tagName" in workflow
     assert "python scripts/stamp-preview-version.py" in workflow
-    assert '--stable-tag "$STABLE_TAG"' in workflow
+    assert '--stable-tag "${{ needs.preview-gate.outputs.stable_tag }}"' in workflow

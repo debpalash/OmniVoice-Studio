@@ -151,12 +151,15 @@ jobs:
     outputs:
       is_preview: ${{ steps.decide.outputs.is_preview }}
       proceed: ${{ steps.decide.outputs.proceed }}
+      stable_tag: ${{ steps.decide.outputs.stable_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 50
       - id: decide
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           event="${{ github.event_name }}"
@@ -171,6 +174,10 @@ jobs:
               exit 1
             fi
             echo "is_preview=true" >> "$GITHUB_OUTPUT"
+            # Resolve once before the matrix starts so every platform stamps
+            # against the same immutable Stable-channel snapshot.
+            STABLE_TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+            echo "stable_tag=$STABLE_TAG" >> "$GITHUB_OUTPUT"
           else
             echo "is_preview=false" >> "$GITHUB_OUTPUT"
           fi
@@ -505,14 +512,11 @@ jobs:
       - name: Stamp preview version
         if: needs.preview-gate.outputs.is_preview == 'true'
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          STABLE_TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
           PREVIEW_VERSION=$(python scripts/stamp-preview-version.py \
             --package-json frontend/package.json \
-            --stable-tag "$STABLE_TAG" \
+            --stable-tag "${{ needs.preview-gate.outputs.stable_tag }}" \
             --run-number "${{ github.run_number }}")
           echo "Stamped preview version: $PREVIEW_VERSION"
 

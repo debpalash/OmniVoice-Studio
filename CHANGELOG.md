@@ -11,6 +11,7 @@ the frozen-backend fallback mirror it for their toolchains.
 **Highlights**
 
 - Show estimated and measured model, dependency, cache, and temporary disk costs in the engine catalogue (#1718)
+- Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
 
@@ -29,8 +30,6 @@ the frozen-backend fallback mirror it for their toolchains.
 - RX 6700 XT/gfx1031 over WSL2 ROCDXG is now explicitly unverified until a published end-to-end GPU workload proves the mapped path (#1716)
 
 ### Fixed
-
-- Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
 
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
 - Windows isolated engines now retain direct Job ownership without an extra Python supervisor process that can deadlock the child loader (#1734)
