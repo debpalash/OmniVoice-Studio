@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PRESETS } from '../../utils/constants';
-import { autoProfileId, assignSpeakerProfile, castSpeakers } from '../../utils/segments';
+import { autoProfileId, assignSpeakerProfile, castParts, castSpeakers } from '../../utils/segments';
 
 // The Default voice IS the empty profile_id, but a dataTransfer payload can't
 // carry '' distinguishably from "no data" — so it travels as this sentinel.
@@ -33,9 +33,7 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
 
   const currentVoice = (spk) =>
     dubSegments.find((s) => s.speaker_id === spk)?.profile_id ||
-    dubSegments
-      .flatMap((s) => s.merge_parts ?? s.merge_parts_original ?? [])
-      .find((part) => part.speaker_id === spk)?.profile_id ||
+    dubSegments.flatMap(castParts).find((part) => part.speaker_id === spk)?.profile_id ||
     '';
 
   const voiceLabel = (val, spk) => {

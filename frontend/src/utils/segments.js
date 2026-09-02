@@ -46,6 +46,16 @@ export function autoProfileId(speakerId) {
   return `auto:${cleaned.join('') || 'speaker'}`;
 }
 
+/** Active merged parts for cast lookup. An empty `merge_parts` means the
+ * editable projection was cleared; the original attribution remains the
+ * canonical source for speakers and their assigned voices. */
+export function castParts(segment) {
+  if (Array.isArray(segment?.merge_parts) && segment.merge_parts.length) {
+    return segment.merge_parts;
+  }
+  return Array.isArray(segment?.merge_parts_original) ? segment.merge_parts_original : [];
+}
+
 /**
  * The one per-speaker cast mutation: give every segment (and merged part)
  * spoken by `speakerId` the voice `profileId`. Shared by the CAST dropdowns
@@ -57,8 +67,7 @@ export function autoProfileId(speakerId) {
 export function assignSpeakerProfile(segments, speakerId, profileId) {
   return (segments || []).map((s) => {
     const directMatch = s.speaker_id === speakerId;
-    const castParts = s.merge_parts ?? s.merge_parts_original ?? [];
-    const nestedMatch = castParts.some((part) => part.speaker_id === speakerId);
+    const nestedMatch = castParts(s).some((part) => part.speaker_id === speakerId);
     if (!directMatch && !nestedMatch) return s;
     return {
       ...s,
@@ -87,10 +96,7 @@ export function castSpeakers(segments) {
   return [
     ...new Set(
       (segments || [])
-        .flatMap((s) => [
-          s.speaker_id,
-          ...(s.merge_parts ?? s.merge_parts_original ?? []).map((part) => part.speaker_id),
-        ])
+        .flatMap((s) => [s.speaker_id, ...castParts(s).map((part) => part.speaker_id)])
         .filter(Boolean),
     ),
   ];

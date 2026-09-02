@@ -206,6 +206,7 @@ describe('CastingBoard auto-clone chip', () => {
         speaker_id: 'SPEAKER_1',
         profile_id: 'voice-a',
         text: 'one two',
+        merge_parts: [],
         merge_parts_original: [
           { speaker_id: 'SPEAKER_1', profile_id: 'voice-a' },
           { speaker_id: 'SPEAKER_2', profile_id: '' },
@@ -223,6 +224,7 @@ describe('CastingBoard auto-clone chip', () => {
 
     const updated = props.setDubSegments.mock.calls[0][0];
     expect(updated[0].profile_id).toBe('voice-a');
+    expect(updated[0].merge_parts).toEqual([]);
     expect(updated[0].merge_parts_original[1].profile_id).toBe('voice-b');
   });
 
