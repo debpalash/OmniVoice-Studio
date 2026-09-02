@@ -20,7 +20,13 @@ export interface ConvertResult {
  * (`withTtsInflight`): a convert IS a native synthesis, and overlapping it
  * with another render is the exact capacity/crash class the guard exists
  * for. A concurrent request rejects with `TtsGenerationBusyError`.
+ *
+ * `signal` mirrors `generateSpeech`: aborting releases the admission slot,
+ * so an obsolete convert (inputs changed mid-flight) doesn't block the next.
  */
-export async function convertSpeech(formData: FormData): Promise<ConvertResult> {
-  return withTtsInflight(() => apiPost<ConvertResult>('/convert', formData));
+export async function convertSpeech(
+  formData: FormData,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<ConvertResult> {
+  return withTtsInflight(() => apiPost<ConvertResult>('/convert', formData, { signal }));
 }

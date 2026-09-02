@@ -224,6 +224,36 @@ describe('ConvertMethodPanel', () => {
     expect(screen.queryByTestId('convert-result')).toBeNull();
   });
 
+  it('aborts the in-flight request on input change and frees Convert immediately', async () => {
+    // Faithful to the real client: the promise only settles when the abort
+    // signal fires — a change of inputs must not wait out the old request.
+    convertSpeech.mockImplementation(
+      (fd, { signal } = {}) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+          );
+        }),
+    );
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    addSourceClip();
+    fireEvent.change(screen.getByLabelText('voice-selector'), { target: { value: 'vp-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'convert.convert' }));
+    await waitFor(() => expect(convertSpeech).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'convert.converting' })).toBeDisabled();
+
+    // Swapping the source aborts the obsolete request → button usable again
+    // without waiting for the old response, and the abort stays silent.
+    addSourceClip();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'convert.convert' })).toBeEnabled(),
+    );
+    expect(convertSpeech.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(toastErrorWithReport).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('convert-result')).toBeNull();
+  });
+
   it('clears a completed take when the target voice changes', async () => {
     convertSpeech.mockResolvedValue({
       id: 't3',

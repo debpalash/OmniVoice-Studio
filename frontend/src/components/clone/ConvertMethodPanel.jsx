@@ -32,15 +32,21 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   const [matchDuration, setMatchDuration] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
   const [result, setResult] = useState(null);
-  // Stale-response guard: every source/voice change bumps this, and an
-  // in-flight convert only lands (result OR error toast) when its captured
-  // sequence still matches — an obsolete take must never render against the
-  // newly-chosen inputs.
+  // Stale-request guard: every source/voice change bumps the sequence AND
+  // aborts any in-flight convert, so an obsolete take never renders against
+  // the newly-chosen inputs and the abort releases the shared TTS admission
+  // slot — the next convert isn't blocked behind a request nobody wants.
   const convertSeqRef = useRef(0);
+  const abortRef = useRef(null);
+  const invalidateInFlight = () => {
+    convertSeqRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
 
   const ingestSource = (file) => {
     if (!file) return;
-    convertSeqRef.current += 1;
+    invalidateInFlight();
     // Re-wrap the picked/dropped File with a metacharacter-free name before it
     // enters state (CodeQL js/xss-through-dom): a file's NAME is DOM-derived
     // text, and this object later feeds the shared player and the upload
@@ -51,7 +57,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   };
 
   const selectVoice = (id) => {
-    convertSeqRef.current += 1;
+    invalidateInFlight();
     setVoiceId(id);
     // A finished take belongs to the previously chosen voice — showing it
     // against the new selection would misattribute the audio.
@@ -69,6 +75,8 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
   const handleConvert = async () => {
     if (!canConvert) return;
     const seq = convertSeqRef.current;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsConverting(true);
     setResult(null);
     try {
@@ -83,10 +91,11 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
       );
       fd.append('profile_id', voiceId);
       fd.append('match_duration', matchDuration ? '1' : '0');
-      const res = await convertSpeech(fd);
+      const res = await convertSpeech(fd, { signal: controller.signal });
       if (seq === convertSeqRef.current) setResult(res);
     } catch (e) {
-      if (seq !== convertSeqRef.current) return; // inputs changed — obsolete
+      // Obsolete request (inputs changed, which also aborted it) — silent.
+      if (seq !== convertSeqRef.current || e?.name === 'AbortError') return;
       // Same error ladder as useTTS's generate catch: structured payloads get
       // their one-click CTA, the busy guard gets its localized notice, and
       // everything else goes through toastErrorWithReport — which maps the
@@ -104,6 +113,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
         toastErrorWithReport(t('tts_errors.error_prefix', { message: e?.message || String(e) }), e);
       }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setIsConverting(false);
     }
   };
@@ -171,7 +181,7 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
             variant="ghost"
             size="sm"
             onClick={() => {
-              convertSeqRef.current += 1;
+              invalidateInFlight();
               setSourceFile(null);
               setResult(null);
             }}
