@@ -1377,7 +1377,8 @@
     "watch_stop": "Detener",
     "watch_started": "Vigilando {{folder}} — los vídeos nuevos se añaden a la cola automáticamente",
     "watch_unsupported": "La vigilancia de carpetas requiere la aplicación de escritorio o un navegador basado en Chromium — usa Añadir vídeos.",
-    "watch_failed": "Error al vigilar la carpeta: {{message}}"
+    "watch_failed": "La vigilancia se detuvo: la carpeta ya no se puede leer (movida, eliminada o con permisos cambiados). Selecciónala de nuevo para continuar.",
+    "watch_start_failed": "No se pudo empezar a vigilar esa carpeta — selecciónala de nuevo para reintentar."
   },
   "gallery": {
     "title": "VoiceStudio Galería",

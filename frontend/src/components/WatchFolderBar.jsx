@@ -56,7 +56,9 @@ export default function WatchFolderBar({ onIngest }) {
       if (e?.code === 'watch-unsupported') {
         toast.error(t('batch.watch_unsupported'));
       } else {
-        toast.error(t('batch.watch_failed', { message: e?.message || String(e) }));
+        // Actionable message for the user; raw detail to the console only.
+        console.warn('watch folder start failed', e);
+        toast.error(t('batch.watch_start_failed'));
       }
     }
   }, [t]);
@@ -73,10 +75,18 @@ export default function WatchFolderBar({ onIngest }) {
         try {
           files.push(await src.readFile(entry));
         } catch {
-          // Vanished between scan and read (moved/deleted) — skip it.
+          // Vanished or changed between scan and read — skip; a changed file
+          // re-settles under its new name+size+mtime key on later scans.
         }
       }
-      if (files.length && sourceRef.current === src) {
+      // The user may have paused (or stopped) while the awaits above were in
+      // flight — nothing may enter the queue after the UI says paused. Hand
+      // the released entries back so they ingest on the next unpaused poll.
+      if (pausedRef.current || sourceRef.current !== src) {
+        for (const entry of fresh) tracker.unsee(entry);
+        return;
+      }
+      if (files.length) {
         await onIngest(files);
         setAdded((n) => n + files.length);
       }
@@ -84,8 +94,9 @@ export default function WatchFolderBar({ onIngest }) {
       // The folder itself became unreadable (unmounted, deleted, permission
       // revoked) — stop loudly rather than failing silently every 5s.
       if (sourceRef.current === src) {
+        console.warn('watch folder scan failed', e);
         stop();
-        toast.error(t('batch.watch_failed', { message: e?.message || String(e) }));
+        toast.error(t('batch.watch_failed'));
       }
     } finally {
       tickingRef.current = false;

@@ -1377,7 +1377,8 @@
     "watch_stop": "Stoppa",
     "watch_started": "Bevakar {{folder}} — nya videor läggs automatiskt i kön",
     "watch_unsupported": "Mappbevakning kräver skrivbordsappen eller en Chromium-baserad webbläsare — använd Lägg till videor i stället.",
-    "watch_failed": "Fel vid mappbevakning: {{message}}"
+    "watch_failed": "Bevakningen stoppades — mappen kan inte längre läsas (flyttad, borttagen eller ändrade behörigheter). Välj den igen för att fortsätta.",
+    "watch_start_failed": "Kunde inte börja bevaka mappen — välj den igen för att försöka på nytt."
   },
   "gallery": {
     "title": "VoiceStudio Galleri",

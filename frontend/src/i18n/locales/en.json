@@ -1635,7 +1635,8 @@
     "watch_stop": "Stop",
     "watch_started": "Watching {{folder}} — new videos are added to the queue automatically",
     "watch_unsupported": "Folder watching needs the desktop app or a Chromium-based browser — use Add Videos here instead.",
-    "watch_failed": "Watch folder error: {{message}}"
+    "watch_failed": "Folder watching stopped — the folder is no longer readable (moved, deleted, or permissions changed). Pick it again to resume.",
+    "watch_start_failed": "Couldn't start watching that folder — pick it again to retry."
   },
   "gallery": {
     "title": "VoiceStudio Gallery",

@@ -1377,7 +1377,8 @@
     "watch_stop": "Durdur",
     "watch_started": "{{folder}} izleniyor — yeni videolar kuyruğa otomatik olarak eklenir",
     "watch_unsupported": "Klasör izleme, masaüstü uygulaması veya Chromium tabanlı bir tarayıcı gerektirir — bunun yerine Video Ekle'yi kullanın.",
-    "watch_failed": "Klasör izleme hatası: {{message}}"
+    "watch_failed": "İzleme durdu — klasör artık okunamıyor (taşındı, silindi veya izinler değişti). Devam etmek için klasörü yeniden seçin.",
+    "watch_start_failed": "Bu klasör izlenemedi — yeniden denemek için klasörü tekrar seçin."
   },
   "gallery": {
     "title": "VoiceStudio Galeri",

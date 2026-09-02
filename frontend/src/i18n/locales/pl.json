@@ -1377,7 +1377,8 @@
     "watch_stop": "Zatrzymaj",
     "watch_started": "Obserwowanie {{folder}} — nowe filmy trafiają do kolejki automatycznie",
     "watch_unsupported": "Obserwowanie folderów wymaga aplikacji desktopowej lub przeglądarki opartej na Chromium — użyj opcji Dodaj filmy.",
-    "watch_failed": "Błąd obserwowania folderu: {{message}}"
+    "watch_failed": "Obserwowanie zatrzymane — folder nie jest już czytelny (przeniesiony, usunięty lub zmieniono uprawnienia). Wybierz go ponownie, aby wznowić.",
+    "watch_start_failed": "Nie udało się rozpocząć obserwowania tego folderu — wybierz go ponownie, aby spróbować jeszcze raz."
   },
   "gallery": {
     "title": "VoiceStudio Galeria",

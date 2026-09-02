@@ -1336,7 +1336,8 @@
     "watch_stop": "停止",
     "watch_started": "正在监视 {{folder}} — 新视频会自动加入队列",
     "watch_unsupported": "文件夹监视需要桌面应用或基于 Chromium 的浏览器 — 请改用“添加视频”。",
-    "watch_failed": "文件夹监视出错：{{message}}"
+    "watch_failed": "监视已停止 — 文件夹无法再读取（已移动、删除或权限更改）。请重新选择该文件夹以继续。",
+    "watch_start_failed": "无法开始监视该文件夹 — 请重新选择以重试。"
   },
   "gallery": {
     "title": "VoiceStudio 音色库",

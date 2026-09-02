@@ -1377,7 +1377,8 @@
     "watch_stop": "Arrêter",
     "watch_started": "Surveillance de {{folder}} — les nouvelles vidéos sont ajoutées à la file automatiquement",
     "watch_unsupported": "La surveillance de dossier nécessite l'application de bureau ou un navigateur basé sur Chromium — utilisez plutôt Ajouter des vidéos.",
-    "watch_failed": "Erreur de surveillance du dossier : {{message}}"
+    "watch_failed": "Surveillance arrêtée — le dossier n'est plus lisible (déplacé, supprimé ou permissions modifiées). Sélectionnez-le à nouveau pour reprendre.",
+    "watch_start_failed": "Impossible de commencer à surveiller ce dossier — sélectionnez-le à nouveau pour réessayer."
   },
   "gallery": {
     "title": "VoiceStudio Galerie",

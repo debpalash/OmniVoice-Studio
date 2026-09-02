@@ -169,17 +169,58 @@ describe('WatchFolderBar', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('stops loudly when the watched folder becomes unreadable', async () => {
+  it('stops loudly with an actionable message when the watched folder becomes unreadable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const source = makeSource();
     openWatchSource.mockResolvedValue(source);
     render(<WatchFolderBar onIngest={vi.fn()} />);
     fireEvent.click(screen.getByText('Watch folder'));
     await screen.findByTestId('watch-folder-active');
 
-    source.listEntries.mockRejectedValue(new Error('folder went away'));
+    source.listEntries.mockRejectedValue(new Error('EACCES: permission denied /watched/Drop'));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
-    expect(toastError.mock.calls[0][0]).toContain('folder went away');
+    // The toast is a stable actionable string; the raw error goes to the
+    // console only (never technical text in the user's face).
+    expect(toastError.mock.calls[0][0]).toMatch(/Pick it again to resume/);
+    expect(toastError.mock.calls[0][0]).not.toContain('EACCES');
     expect(source.closed).toBe(true);
     expect(screen.getByText('Watch folder')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('a file arriving during a poll that straddles Pause is NOT enqueued until Resume', async () => {
+    const source = makeSource();
+    const realList = source.listEntries.getMockImplementation();
+    openWatchSource.mockResolvedValue(source);
+    const onIngest = vi.fn().mockResolvedValue(undefined);
+    render(<WatchFolderBar onIngest={onIngest} />);
+    fireEvent.click(screen.getByText('Watch folder'));
+    await screen.findByTestId('watch-folder-active');
+
+    // Gate every scan after the prime so each poll is released explicitly.
+    const gates = [];
+    source.listEntries.mockImplementation(
+      () => new Promise((resolve) => gates.push(() => resolve(realList()))),
+    );
+    source.files.set('raced.mp4', { size: 5, mtime: 3, bytes: 'raced' });
+
+    // Scan 1: the new file becomes a pending (settling) candidate.
+    await waitFor(() => expect(gates.length).toBe(1));
+    gates[0]();
+    // Scan 2 is the one that would release + enqueue it. While it is still
+    // in flight, the user pauses — then the scan completes.
+    await waitFor(() => expect(gates.length).toBe(2));
+    fireEvent.click(screen.getByText('Pause'));
+    gates[1]();
+    await settle();
+    expect(onIngest).not.toHaveBeenCalled(); // nothing enters the queue while paused
+
+    // Resume: the handed-back file is ingested on the next poll, exactly once.
+    source.listEntries.mockImplementation(realList);
+    fireEvent.click(screen.getByText('Resume'));
+    await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
+    expect(onIngest.mock.calls[0][0][0].name).toBe('raced.mp4');
+    await settle();
+    expect(onIngest).toHaveBeenCalledTimes(1);
   });
 });

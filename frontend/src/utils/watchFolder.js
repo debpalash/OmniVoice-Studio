@@ -101,6 +101,14 @@ export function createIngestTracker() {
       }
       return ready;
     },
+    /** Hand a released entry back (e.g. the watcher was paused mid-poll
+     *  before it could enqueue): it re-releases on the next scan instead of
+     *  being remembered as already ingested. */
+    unsee(entry) {
+      const key = entryKey(entry);
+      seen.delete(key);
+      pending.set(entry.name, key);
+    },
   };
 }
 
@@ -115,9 +123,29 @@ async function openTauriSource() {
     label,
     path,
     listEntries: () => invoke('watch_folder_scan', { token }),
+    // Chunked read: the Rust side serves bounded slices (validating on every
+    // chunk that the file still matches the settled size+mtime snapshot and
+    // refusing symlinks), and the chunks become Blob parts — a multi-gigabyte
+    // video never has to fit in one contiguous buffer on either side.
     async readFile(entry) {
-      const bytes = await invoke('watch_folder_read', { token, name: entry.name });
-      return new File([bytes], entry.name, {
+      const chunks = [];
+      let offset = 0;
+      while (offset < entry.size) {
+        const chunk = await invoke('watch_folder_read', {
+          token,
+          name: entry.name,
+          offset,
+          expectedSize: entry.size,
+          expectedMtime: entry.mtime,
+        });
+        const bytes = chunk instanceof ArrayBuffer ? chunk : new Uint8Array(chunk).buffer;
+        if (!bytes.byteLength) {
+          throw new Error(`Watched file ${entry.name} returned an empty read`);
+        }
+        chunks.push(bytes);
+        offset += bytes.byteLength;
+      }
+      return new File(chunks, entry.name, {
         type: videoMimeFor(entry.name),
         lastModified: entry.mtime,
       });
@@ -150,7 +178,14 @@ async function openBrowserSource() {
     },
     async readFile(entry) {
       const fileHandle = await handle.getFileHandle(entry.name);
-      return await fileHandle.getFile();
+      const file = await fileHandle.getFile();
+      // Bind the read to the settled scan snapshot — a file replaced between
+      // settling and reading is refused; its new content re-settles on later
+      // scans and is ingested then.
+      if (file.size !== entry.size || file.lastModified !== entry.mtime) {
+        throw new Error(`Watched file ${entry.name} changed after it was scanned`);
+      }
+      return file;
     },
     close() {},
   };

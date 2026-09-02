@@ -1377,7 +1377,8 @@
     "watch_stop": "Dừng",
     "watch_started": "Đang theo dõi {{folder}} — video mới sẽ tự động được thêm vào hàng đợi",
     "watch_unsupported": "Theo dõi thư mục cần ứng dụng máy tính hoặc trình duyệt dựa trên Chromium — hãy dùng Thêm video thay thế.",
-    "watch_failed": "Lỗi theo dõi thư mục: {{message}}"
+    "watch_failed": "Đã dừng theo dõi — không thể đọc thư mục nữa (đã di chuyển, bị xóa hoặc quyền đã thay đổi). Chọn lại thư mục để tiếp tục.",
+    "watch_start_failed": "Không thể bắt đầu theo dõi thư mục đó — hãy chọn lại để thử lại."
   },
   "gallery": {
     "title": "VoiceStudio Thư viện ảnh",
