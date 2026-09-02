@@ -3,11 +3,14 @@ import { Download } from 'lucide-react';
 import { audioUrl } from '../../api/generate';
 import { Button } from '@/components/ui/button.tsx';
 import { downloadMedia } from '../../utils/mediaDownload';
+import SyncedLyricsPlayer from './SyncedLyricsPlayer';
 
 /**
  * The finished-render result: the "ready" note (with cached/failed chapter
- * summaries), the player, and the Download button. Extracted from AudiobookTab
- * to keep that page under the line lint; behaviour is unchanged.
+ * summaries), the synced-lyrics player (chapter text with the current word
+ * highlighted from playback time — timing via `utils/audiobookLyrics`), and
+ * the Download button. Extracted from AudiobookTab to keep that page under
+ * the line lint.
  *
  * Download goes through the shared `downloadMedia` util (#1218), NOT a raw
  * `<a href={audioUrl(output)} download>`. In the Tauri WebView that anchor does
@@ -15,7 +18,7 @@ import { downloadMedia } from '../../utils/mediaDownload';
  * to the file and plays it fullscreen, hijacking the app. `downloadMedia` uses
  * the native save dialog + a server-side copy from OUTPUTS_DIR instead.
  */
-export default function AudiobookResult({ t, output, done }) {
+export default function AudiobookResult({ t, output, done, script, chapters }) {
   const filename = output.split('/').pop();
   return (
     <div className="audiobook-done">
@@ -30,7 +33,7 @@ export default function AudiobookResult({ t, output, done }) {
           {t('audiobook.cached_note', { count: done.cached_chapters })}
         </div>
       )}
-      <audio controls src={audioUrl(output)} style={{ width: '100%' }} />
+      <SyncedLyricsPlayer t={t} src={audioUrl(output)} script={script} chapters={chapters} />
       <div style={{ marginTop: 8 }}>
         <Button
           variant="subtle"

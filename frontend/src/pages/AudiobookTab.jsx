@@ -82,6 +82,11 @@ export default function AudiobookTab({ profiles = [] }) {
   const setOutput = useAppStore((s) => s.setLastOutput);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null); // {cached_chapters, failed_chapters}
+  // The script as it was when Create ran — the synced-lyrics player's text
+  // source. Editing the script after a render must not shift the highlight
+  // against the already-rendered audio; empty (a reload) falls back to the
+  // current text, whose drift the timeline builder detects and degrades on.
+  const [renderedScript, setRenderedScript] = useState('');
   const [chapterPrev, setChapterPrev] = useState({}); // index → {url, loading}
   const abortRef = useRef(false);
   const abortControllerRef = useRef(null); // per-generation fetch AbortController
@@ -243,6 +248,7 @@ export default function AudiobookTab({ profiles = [] }) {
     setChapters([]);
     setAssembling(false);
     setGenerating(true);
+    setRenderedScript(text);
     abortRef.current = false;
     // A per-generation AbortController: Stop aborts it, which cancels the fetch
     // end-to-end so the backend sees the disconnect and stops rendering (#1216).
@@ -288,11 +294,17 @@ export default function AudiobookTab({ profiles = [] }) {
             );
           } else if (evt.type === 'chapter') {
             // A chapter finished (cached vs freshly rendered per evt.cached); the
-            // next pending chapter becomes the one rendering.
+            // next pending chapter becomes the one rendering. duration_s feeds
+            // the synced-lyrics player's chapter timeline.
             setChapters((prev) =>
               prev.map((c, j) =>
                 j === evt.index
-                  ? { ...c, title: evt.title, status: evt.cached ? 'cached' : 'done' }
+                  ? {
+                      ...c,
+                      title: evt.title,
+                      status: evt.cached ? 'cached' : 'done',
+                      duration_s: evt.duration_s,
+                    }
                   : j === evt.index + 1 && c.status === 'pending'
                     ? { ...c, status: 'rendering' }
                     : c,
@@ -474,7 +486,15 @@ export default function AudiobookTab({ profiles = [] }) {
             </div>
           )}
 
-          {output && <AudiobookResult t={t} output={output} done={done} />}
+          {output && (
+            <AudiobookResult
+              t={t}
+              output={output}
+              done={done}
+              script={renderedScript || text}
+              chapters={chapters}
+            />
+          )}
 
           {plan && (
             <PlanList
