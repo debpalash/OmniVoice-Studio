@@ -497,35 +497,23 @@ jobs:
             echo "APPLE_TEAM_ID=$TID"
           } >> "$GITHUB_ENV"
 
-      # Stamp each preview build with a unique, monotonically increasing semver
-      # PRERELEASE so the updater actually offers it (a rolling preview that
-      # always reported the static 0.3.0 never looked "newer", so no update was
-      # ever delivered). Ephemeral, CI-only — never committed. Tauri reads the
-      # bundle + updater version from tauri.conf.json, so rewriting it here
-      # stamps the artifacts + latest.json. Under the versioning hard rule
-      # (owner-set 2026-06-11) main is always last-release + 1, so BASE-N is a
-      # prerelease of the NEXT version and semver-sorts ABOVE the last stable
-      # (0.3.6-N > 0.3.5) — preview users naturally upgrade past stable, and
-      # the Windows MSI ProductVersion (which strips the prerelease → 0.3.6)
-      # is also correctly above the last stable.
+      # Stamp each preview with a numeric prerelease that is strictly above the
+      # latest stable release. Main may intentionally retain the released
+      # version while AUTO_VERSION_BUMP is disabled; in that case the helper
+      # advances the preview base by one patch so stable users can still opt in
+      # and receive it. The edit is ephemeral and never committed.
       - name: Stamp preview version
         if: needs.preview-gate.outputs.is_preview == 'true'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # package.json is the single source of truth; tauri.conf.json reads its
-          # version from it ("version": "../package.json"), so stamping
-          # package.json restamps the whole bundle.
-          CONF=frontend/package.json
-          BASE=$(jq -r .version "$CONF")
-          # MSI/WiX requires the semver pre-release identifier to be numeric-only
-          # (and <= 65535). "preview.N" hard-fails the Windows bundler, so the
-          # preview stamp is BASE-N — still sorts below the stable BASE for the
-          # updater, still unique per run.
-          PREVIEW_VERSION="${BASE}-${{ github.run_number }}"
-          tmp=$(mktemp)
-          jq --arg v "$PREVIEW_VERSION" '.version = $v' "$CONF" > "$tmp"
-          mv "$tmp" "$CONF"
+          STABLE_TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          PREVIEW_VERSION=$(python scripts/stamp-preview-version.py \
+            --package-json frontend/package.json \
+            --stable-tag "$STABLE_TAG" \
+            --run-number "${{ github.run_number }}")
           echo "Stamped preview version: $PREVIEW_VERSION"
 
       # The rolling `preview` release is REUSED every night, and macOS updater

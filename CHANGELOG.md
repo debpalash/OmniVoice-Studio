@@ -30,6 +30,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
+
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
 - Windows isolated engines now retain direct Job ownership without an extra Python supervisor process that can deadlock the child loader (#1734)
 - The setup splash now waits through the backend's full startup budget instead of reporting slow Windows CUDA initialization as stuck after two minutes (#1749)
