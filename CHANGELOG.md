@@ -14,6 +14,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available.
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
+- Hear a dub line as you type it — an opt-in live preview streams TTS for the edited segment (#1769) — thanks @mvanhorn!
 - Studio gains a Convert method: re-say any clip in one of your saved voices, speech to speech, fully local (#1765) — thanks @mvanhorn!
 - Hardsub video export gains an opt-in karaoke word-highlight caption style (#1764) — thanks @mvanhorn!
 
@@ -24,6 +25,7 @@ the frozen-backend fallback mirror it for their toolchains.
 - Studio's new Convert method turns a dropped or recorded clip into an existing voice profile's voice, with optional source-duration matching (#1765) — thanks @mvanhorn!
 - Hardsub export can now burn karaoke word-highlight captions: an opt-in Line | Karaoke control renders a word-timed ASS sweep from timings persisted at transcription, with an even-split fallback for older jobs and translated tracks, plus a `GET /dub/ass/{job_id}` sidecar (#1764) — thanks @mvanhorn!
 - Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
+- Dub segments can now stream live TTS while you edit a translated line — opt-in toggle, existing `/ws/tts` socket, shared generation admission, exports still render at full quality (#1769) — thanks @mvanhorn!
 - Engine status and diagnostic bundles now record loaded execution provider, device, precision, fallback stage, accelerator identity, runtime versions, and parent-process memory visibility (#1717)
 
 ### Docs
