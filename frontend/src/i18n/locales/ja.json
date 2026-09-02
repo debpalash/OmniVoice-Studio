@@ -543,7 +543,7 @@
     "synthesizing": "合成中… ({{seconds}}s)",
     "drop_audio": "ここに音声をドロップするか、クリックします。 WAV、MP3、M4A… 🎤",
     "record": "記録",
-    "cleaning": "掃除中…",
+    "cleaning": "ノイズ除去中…",
     "using_profile": "使用プロファイル: {{name}}",
     "clear": "クリア",
     "production_overrides": "プロダクションオーバーライド",
