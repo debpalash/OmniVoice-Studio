@@ -15,12 +15,18 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 use tauri_plugin_dialog::DialogExt;
+
+/// Upper bound for one `watch_folder_read` IPC transfer. The webview
+/// assembles the chunks into a `File` (Blob parts), so a multi-gigabyte video
+/// never has to exist as a single contiguous buffer on the Rust side.
+const READ_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
 fn registry() -> &'static Mutex<HashMap<String, PathBuf>> {
     static WATCHED: OnceLock<Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
@@ -71,31 +77,102 @@ fn validate_entry_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn mtime_ms(meta: &fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 /// Non-recursive listing of the regular files in `dir` (name, size, mtime).
-fn scan_dir(dir: &std::path::Path) -> Result<Vec<WatchEntry>, String> {
+/// Symlinks are skipped outright — the read path refuses to follow them, so
+/// listing them would only produce entries that can never be ingested.
+fn scan_dir(dir: &Path) -> Result<Vec<WatchEntry>, String> {
     let mut entries = Vec::new();
     let read = fs::read_dir(dir).map_err(|e| format!("Watched folder is unreadable: {e}"))?;
     for item in read.flatten() {
-        let Ok(meta) = item.metadata() else { continue };
-        if !meta.is_file() {
+        // DirEntry::file_type does NOT traverse symlinks, unlike metadata().
+        let Ok(file_type) = item.file_type() else {
+            continue;
+        };
+        if !file_type.is_file() {
             continue;
         }
+        let Ok(meta) = item.metadata() else { continue };
         let Ok(name) = item.file_name().into_string() else {
             continue; // non-UTF-8 names can't round-trip through IPC; skip
         };
-        let mtime = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
         entries.push(WatchEntry {
             name,
             size: meta.len(),
-            mtime,
+            mtime: mtime_ms(&meta),
         });
     }
     Ok(entries)
+}
+
+/// Open a file inside the watched folder WITHOUT following symlinks, and
+/// validate the opened handle (not the pathname) so a swap between the scan
+/// and the read cannot redirect the read outside the authorized folder.
+fn open_watched_file(path: &Path) -> Result<fs::File, String> {
+    let mut opts = fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.custom_flags(libc::O_NOFOLLOW);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // Open the reparse point itself rather than its target; the handle
+        // metadata check below then rejects it.
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let file = opts
+        .open(path)
+        .map_err(|e| format!("Watched file could not be opened: {e}"))?;
+    let meta = file
+        .metadata()
+        .map_err(|e| format!("Watched file could not be inspected: {e}"))?;
+    if meta.file_type().is_symlink() || !meta.is_file() {
+        return Err("Watched entry is not a regular file".into());
+    }
+    Ok(file)
+}
+
+/// Read one bounded chunk of a watched file, bound to the settled scan
+/// snapshot: the opened handle's size and mtime must still match what the
+/// stability tracker released, otherwise the file changed (or was replaced)
+/// after settling and the read is refused.
+fn read_watched_chunk(
+    dir: &Path,
+    name: &str,
+    offset: u64,
+    expected_size: u64,
+    expected_mtime: u64,
+) -> Result<Vec<u8>, String> {
+    validate_entry_name(name)?;
+    let path = dir.join(name);
+    let mut file = open_watched_file(&path)?;
+    let meta = file
+        .metadata()
+        .map_err(|e| format!("Watched file could not be inspected: {e}"))?;
+    if meta.len() != expected_size || mtime_ms(&meta) != expected_mtime {
+        return Err("Watched file changed after it was scanned".into());
+    }
+    if offset >= expected_size {
+        return Ok(Vec::new());
+    }
+    file.seek(SeekFrom::Start(offset))
+        .map_err(|e| format!("Watched file could not be read: {e}"))?;
+    let len = (expected_size - offset).min(READ_CHUNK_BYTES) as usize;
+    let mut buf = vec![0_u8; len];
+    file.read_exact(&mut buf)
+        .map_err(|e| format!("Watched file could not be read: {e}"))?;
+    Ok(buf)
 }
 
 /// Open the native folder picker and register the chosen directory for this
@@ -132,17 +209,21 @@ pub fn watch_folder_scan(token: String) -> Result<Vec<WatchEntry>, String> {
     scan_dir(&registered_dir(&token)?)
 }
 
-/// Read one file from the watched folder as raw bytes (arrives in the webview
-/// as an ArrayBuffer, wrapped into a File for the multipart upload). Whole-file
-/// buffering matches what the existing Add-to-queue FormData upload does.
+/// Read one chunk (≤ `READ_CHUNK_BYTES`) of a watched file as raw bytes; the
+/// webview loops over offsets and assembles the chunks into a `File` for the
+/// multipart upload, so neither side ever buffers the whole video at once.
+/// `expected_size`/`expected_mtime` are the settled scan snapshot — the read
+/// refuses files that changed after settling, and never follows symlinks.
 #[tauri::command]
-pub fn watch_folder_read(token: String, name: String) -> Result<tauri::ipc::Response, String> {
-    validate_entry_name(&name)?;
-    let path = registered_dir(&token)?.join(&name);
-    if !path.is_file() {
-        return Err("Watched file no longer exists".into());
-    }
-    let bytes = fs::read(&path).map_err(|e| format!("Watched file could not be read: {e}"))?;
+pub fn watch_folder_read(
+    token: String,
+    name: String,
+    offset: u64,
+    expected_size: u64,
+    expected_mtime: u64,
+) -> Result<tauri::ipc::Response, String> {
+    let dir = registered_dir(&token)?;
+    let bytes = read_watched_chunk(&dir, &name, offset, expected_size, expected_mtime)?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
@@ -156,8 +237,21 @@ pub fn watch_folder_forget(token: String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{scan_dir, validate_entry_name};
+    use super::{mtime_ms, read_watched_chunk, scan_dir, validate_entry_name};
     use std::fs;
+    use std::path::PathBuf;
+
+    fn temp_watch_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("vs-watch-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn snapshot(path: &std::path::Path) -> (u64, u64) {
+        let meta = fs::metadata(path).unwrap();
+        (meta.len(), mtime_ms(&meta))
+    }
 
     #[test]
     fn entry_names_must_be_single_components() {
@@ -170,8 +264,7 @@ mod tests {
 
     #[test]
     fn scan_lists_regular_files_with_size_and_mtime_and_skips_dirs() {
-        let dir = std::env::temp_dir().join(format!("vs-watch-scan-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
+        let dir = temp_watch_dir("scan");
         fs::create_dir_all(dir.join("nested")).unwrap();
         fs::write(dir.join("a.mp4"), b"12345").unwrap();
         fs::write(dir.join("notes.txt"), b"x").unwrap();
@@ -190,5 +283,62 @@ mod tests {
     #[test]
     fn scan_fails_on_missing_directory() {
         assert!(scan_dir(std::path::Path::new("/definitely-not-a-real-dir-vs")).is_err());
+    }
+
+    #[test]
+    fn chunked_reads_reassemble_the_exact_bytes() {
+        let dir = temp_watch_dir("chunks");
+        fs::write(dir.join("clip.mp4"), b"0123456789").unwrap();
+        let (size, mtime) = snapshot(&dir.join("clip.mp4"));
+
+        // READ_CHUNK_BYTES is far larger than this file, so exercise the
+        // offset walk directly: partial reads must line up back to back.
+        let whole = read_watched_chunk(&dir, "clip.mp4", 0, size, mtime).unwrap();
+        assert_eq!(whole, b"0123456789");
+        let tail = read_watched_chunk(&dir, "clip.mp4", 7, size, mtime).unwrap();
+        assert_eq!(tail, b"789");
+        let past_end = read_watched_chunk(&dir, "clip.mp4", size, size, mtime).unwrap();
+        assert!(past_end.is_empty());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_are_bound_to_the_settled_snapshot() {
+        let dir = temp_watch_dir("snapshot");
+        fs::write(dir.join("clip.mp4"), b"settled bytes").unwrap();
+        let (size, mtime) = snapshot(&dir.join("clip.mp4"));
+
+        // The file is replaced after the scan settled → the read must refuse
+        // rather than upload bytes the tracker never saw stabilize.
+        fs::write(dir.join("clip.mp4"), b"replaced with something longer").unwrap();
+        let err = read_watched_chunk(&dir, "clip.mp4", 0, size, mtime).unwrap_err();
+        assert!(err.contains("changed"), "unexpected error: {err}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_are_never_followed() {
+        let dir = temp_watch_dir("symlink");
+        let secret = std::env::temp_dir().join(format!("vs-secret-{}", std::process::id()));
+        fs::write(&secret, b"outside the folder").unwrap();
+        std::os::unix::fs::symlink(&secret, dir.join("evil.mp4")).unwrap();
+        let meta = fs::metadata(dir.join("evil.mp4")).unwrap();
+
+        // Even with a "correct" snapshot of the symlink target, the no-follow
+        // open must refuse it (O_NOFOLLOW → ELOOP).
+        let err =
+            read_watched_chunk(&dir, "evil.mp4", 0, meta.len(), mtime_ms(&meta)).unwrap_err();
+        assert!(
+            err.contains("could not be opened") || err.contains("not a regular file"),
+            "unexpected error: {err}"
+        );
+        // And the scanner never lists it in the first place.
+        assert!(scan_dir(&dir).unwrap().is_empty());
+
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_file(&secret);
     }
 }
