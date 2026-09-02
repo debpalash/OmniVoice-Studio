@@ -28,8 +28,66 @@ use tauri_plugin_dialog::DialogExt;
 /// never has to exist as a single contiguous buffer on the Rust side.
 const READ_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
-fn registry() -> &'static Mutex<HashMap<String, PathBuf>> {
-    static WATCHED: OnceLock<Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
+/// An authorized watch folder plus the identity it had when the user picked
+/// it. Every scan/read re-verifies that identity, so replacing the directory
+/// itself (e.g. with a symlink or junction to somewhere else) after
+/// authorization refuses instead of silently redirecting the watcher.
+#[derive(Clone)]
+struct WatchedDir {
+    /// Fully-resolved directory path captured at pick time.
+    canonical: PathBuf,
+    /// Filesystem identity (device, inode) captured at pick time.
+    #[cfg(unix)]
+    identity: (u64, u64),
+}
+
+#[cfg(unix)]
+fn dir_identity(meta: &fs::Metadata) -> (u64, u64) {
+    use std::os::unix::fs::MetadataExt;
+    (meta.dev(), meta.ino())
+}
+
+fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
+    let canonical = fs::canonicalize(dir)
+        .map_err(|e| format!("Selected watch folder could not be resolved: {e}"))?;
+    if !canonical.is_dir() {
+        return Err("Selected watch folder is not a directory".into());
+    }
+    #[cfg(unix)]
+    let identity = dir_identity(
+        &fs::metadata(&canonical)
+            .map_err(|e| format!("Selected watch folder could not be inspected: {e}"))?,
+    );
+    Ok(WatchedDir {
+        canonical,
+        #[cfg(unix)]
+        identity,
+    })
+}
+
+/// Re-verify a watched folder's identity and return the path to operate on.
+/// `canonicalize` re-resolves the stored path, so a symlink/junction swapped
+/// in at that location resolves elsewhere and is refused; on unix the
+/// device+inode pair additionally pins the exact directory.
+fn verify_watched_dir(watched: &WatchedDir) -> Result<PathBuf, String> {
+    let canonical_now = fs::canonicalize(&watched.canonical)
+        .map_err(|_| "Watched folder is no longer accessible".to_string())?;
+    if canonical_now != watched.canonical {
+        return Err("Watched folder changed identity".into());
+    }
+    #[cfg(unix)]
+    {
+        let meta = fs::metadata(&canonical_now)
+            .map_err(|_| "Watched folder is no longer accessible".to_string())?;
+        if dir_identity(&meta) != watched.identity {
+            return Err("Watched folder changed identity".into());
+        }
+    }
+    Ok(canonical_now)
+}
+
+fn registry() -> &'static Mutex<HashMap<String, WatchedDir>> {
+    static WATCHED: OnceLock<Mutex<HashMap<String, WatchedDir>>> = OnceLock::new();
     WATCHED.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -53,13 +111,16 @@ fn new_token() -> Result<String, String> {
     Ok(random.iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// Resolve a session token to its directory, re-verifying the folder's
+/// identity on every access.
 fn registered_dir(token: &str) -> Result<PathBuf, String> {
-    registry()
+    let watched = registry()
         .lock()
         .map_err(|_| "Watch-folder registry poisoned".to_string())?
         .get(token)
         .cloned()
-        .ok_or_else(|| "Watch folder is not authorized".to_string())
+        .ok_or_else(|| "Watch folder is not authorized".to_string())?;
+    verify_watched_dir(&watched)
 }
 
 /// A directory entry name must be a single plain path component — anything
@@ -192,14 +253,16 @@ pub async fn watch_folder_pick(
     if !dir.is_absolute() || !dir.is_dir() {
         return Err("Selected watch folder is not a directory".into());
     }
+    let watched = authorize_watched_dir(&dir)?;
+    let display = watched.canonical.to_string_lossy().into_owned();
     let token = new_token()?;
     registry()
         .lock()
         .map_err(|_| "Watch-folder registry poisoned".to_string())?
-        .insert(token.clone(), dir.clone());
+        .insert(token.clone(), watched);
     Ok(Some(WatchFolderSelection {
         token,
-        path: dir.to_string_lossy().into_owned(),
+        path: display,
     }))
 }
 
@@ -237,7 +300,10 @@ pub fn watch_folder_forget(token: String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{mtime_ms, read_watched_chunk, scan_dir, validate_entry_name};
+    use super::{
+        authorize_watched_dir, mtime_ms, read_watched_chunk, scan_dir, validate_entry_name,
+        verify_watched_dir,
+    };
     use std::fs;
     use std::path::PathBuf;
 
@@ -315,6 +381,49 @@ mod tests {
         let err = read_watched_chunk(&dir, "clip.mp4", 0, size, mtime).unwrap_err();
         assert!(err.contains("changed"), "unexpected error: {err}");
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn authorization_pins_the_directory_identity() {
+        let dir = temp_watch_dir("identity");
+        let watched = authorize_watched_dir(&dir).unwrap();
+        // Untouched directory verifies fine…
+        assert_eq!(verify_watched_dir(&watched).unwrap(), watched.canonical);
+        // …and a directory that disappears after authorization is refused.
+        fs::remove_dir_all(&dir).unwrap();
+        assert!(verify_watched_dir(&watched).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_directory_swapped_for_a_symlink_is_refused() {
+        let dir = temp_watch_dir("dir-swap");
+        let elsewhere = temp_watch_dir("dir-swap-target");
+        fs::write(elsewhere.join("clip.mp4"), b"outside").unwrap();
+
+        let watched = authorize_watched_dir(&dir).unwrap();
+        assert!(verify_watched_dir(&watched).is_ok());
+
+        // Replace the authorized directory itself with a symlink pointing
+        // somewhere else — every later scan/read must refuse, not follow.
+        fs::remove_dir_all(&dir).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, &dir).unwrap();
+        let err = verify_watched_dir(&watched).unwrap_err();
+        assert!(err.contains("identity"), "unexpected error: {err}");
+
+        let _ = fs::remove_file(&dir);
+        let _ = fs::remove_dir_all(&elsewhere);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_recreated_directory_at_the_same_path_is_refused() {
+        let dir = temp_watch_dir("dir-recreate");
+        let watched = authorize_watched_dir(&dir).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+        fs::create_dir_all(&dir).unwrap(); // same path, different inode
+        assert!(verify_watched_dir(&watched).is_err());
         let _ = fs::remove_dir_all(&dir);
     }
 
