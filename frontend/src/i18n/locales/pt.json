@@ -1383,7 +1383,8 @@
     "watch_stop": "Parar",
     "watch_started": "Monitorando {{folder}} — vídeos novos entram na fila automaticamente",
     "watch_unsupported": "O monitoramento de pastas requer o app para desktop ou um navegador baseado em Chromium — use Adicionar vídeos.",
-    "watch_failed": "Erro ao monitorar a pasta: {{message}}"
+    "watch_failed": "Monitoramento interrompido — a pasta não pode mais ser lida (movida, excluída ou permissões alteradas). Selecione-a novamente para retomar.",
+    "watch_start_failed": "Não foi possível começar a monitorar essa pasta — selecione-a novamente para tentar de novo."
   },
   "gallery": {
     "title": "VoiceStudio Galeria",

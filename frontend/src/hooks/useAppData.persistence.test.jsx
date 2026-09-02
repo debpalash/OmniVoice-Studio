@@ -186,6 +186,17 @@ describe('useAppData omni_ui persistence', () => {
     expect(persistenceProbe.queuedProviders[0].key).toBe('omni_ui');
   });
 
+  it("normalizes the legacy persisted 'queue' mode to 'batch' on restore", () => {
+    // Regression: App.jsx used to switch on mode === 'queue' (an id nothing
+    // could set, since the store's Mode union says 'batch'); any persisted
+    // 'queue' would strand the restore on an unrenderable mode.
+    seedOmniUi({ mode: 'queue' });
+
+    renderHook(() => useAppData());
+
+    expect(useAppStore.getState().mode).toBe('batch');
+  });
+
   it('keeps serialization and physical writes out of a burst and flushes only the latest value', () => {
     const setItemSpy = watchStorageWrites();
     renderHook(() => useAppData());

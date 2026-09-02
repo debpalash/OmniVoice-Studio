@@ -1383,7 +1383,8 @@
     "watch_stop": "Stoppen",
     "watch_started": "{{folder}} wordt gevolgd — nieuwe video's komen automatisch in de wachtrij",
     "watch_unsupported": "Mappen volgen vereist de desktop-app of een op Chromium gebaseerde browser — gebruik anders Video's toevoegen.",
-    "watch_failed": "Fout bij het volgen van de map: {{message}}"
+    "watch_failed": "Volgen gestopt — de map is niet meer leesbaar (verplaatst, verwijderd of rechten gewijzigd). Kies de map opnieuw om verder te gaan.",
+    "watch_start_failed": "Kon deze map niet volgen — kies de map opnieuw om het nogmaals te proberen."
   },
   "gallery": {
     "title": "VoiceStudio Galerij",

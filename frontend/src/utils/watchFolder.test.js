@@ -85,7 +85,18 @@ describe('createIngestTracker', () => {
     expect(tracker.next([entry('gone.mp4', 10, 1)])).toEqual([entry('gone.mp4', 10, 1)]);
   });
 
-  it('retries a stable file after its asynchronous ingest fails', () => {
+  it('unsee() hands a released entry back so it re-releases on the next scan', () => {
+    const tracker = createIngestTracker();
+    tracker.next([entry('raced.mp4', 10, 1)]);
+    expect(tracker.next([entry('raced.mp4', 10, 1)])).toEqual([entry('raced.mp4', 10, 1)]);
+    // Released but never enqueued (e.g. paused mid-poll) → given back…
+    tracker.unsee(entry('raced.mp4', 10, 1));
+    // …and released again on the very next scan, exactly once.
+    expect(tracker.next([entry('raced.mp4', 10, 1)])).toEqual([entry('raced.mp4', 10, 1)]);
+    expect(tracker.next([entry('raced.mp4', 10, 1)])).toEqual([]);
+  });
+
+  it('retries a stable file after its asynchronous ingest fails (full re-settle)', () => {
     const tracker = createIngestTracker();
     const clip = entry('retry.mp4', 10, 1);
     expect(tracker.next([clip])).toEqual([]);
@@ -113,10 +124,12 @@ describe('openWatchSource — Tauri backend', () => {
 
   it('reads watched entries back as File objects and only ever sends the session token + bare name over IPC', async () => {
     const token = 'f'.repeat(64);
-    invoke.mockImplementation(async (cmd) => {
+    invoke.mockImplementation(async (cmd, args) => {
       if (cmd === 'watch_folder_pick') return { token, path: '/Users/me/Watched Drop' };
       if (cmd === 'watch_folder_scan') return [{ name: 'clip.mp4', size: 4, mtime: 1234 }];
-      if (cmd === 'watch_folder_read') return new TextEncoder().encode('vid!').buffer;
+      if (cmd === 'watch_folder_read') {
+        return new TextEncoder().encode('vid!').buffer.slice(args.offset);
+      }
       return undefined;
     });
 
@@ -143,7 +156,74 @@ describe('openWatchSource — Tauri backend', () => {
       expect(JSON.stringify(args)).not.toContain('/Users/me');
       expect(JSON.stringify(args)).not.toContain('Watched Drop');
     }
-    expect(invoke).toHaveBeenCalledWith('watch_folder_read', { token, name: 'clip.mp4' });
+    // Reads carry the settled snapshot so the Rust side can refuse a file
+    // that changed (or was symlink-swapped) after it stabilized.
+    expect(invoke).toHaveBeenCalledWith('watch_folder_read', {
+      token,
+      name: 'clip.mp4',
+      offset: 0,
+      expectedSize: 4,
+      expectedMtime: 1234,
+    });
+  });
+
+  it('assembles multi-chunk reads back into the exact file bytes', async () => {
+    const token = 'a'.repeat(64);
+    const payload = new TextEncoder().encode('0123456789');
+    invoke.mockImplementation(async (cmd, args) => {
+      if (cmd === 'watch_folder_pick') return { token, path: '/w/Drop' };
+      if (cmd === 'watch_folder_read') {
+        // Serve at most 4 bytes per call, like the Rust chunk cap does.
+        return payload.slice(args.offset, args.offset + 4).buffer;
+      }
+      return undefined;
+    });
+
+    const source = await openWatchSource();
+    const file = await source.readFile({ name: 'big.mp4', size: 10, mtime: 7 });
+    expect(await file.text()).toBe('0123456789');
+    const readCalls = invoke.mock.calls.filter(([cmd]) => cmd === 'watch_folder_read');
+    expect(readCalls.map(([, a]) => a.offset)).toEqual([0, 4, 8]);
+  });
+});
+
+describe('openWatchSource — File System Access backend', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete window.__TAURI_INTERNALS__;
+  });
+  afterEach(() => {
+    delete window.showDirectoryPicker;
+  });
+
+  function fakeDirectoryHandle(files) {
+    return {
+      name: 'Drop',
+      kind: 'directory',
+      async *values() {
+        for (const file of files) yield { kind: 'file', getFile: async () => file };
+      },
+      async getFileHandle(name) {
+        const file = files.find((f) => f.name === name);
+        if (!file) throw new Error('NotFound');
+        return { getFile: async () => file };
+      },
+    };
+  }
+
+  it('refuses a file whose bytes changed after the scan settled', async () => {
+    const settled = new File(['settled'], 'clip.mp4', { type: 'video/mp4', lastModified: 111 });
+    window.showDirectoryPicker = vi.fn(async () => fakeDirectoryHandle([settled]));
+
+    const source = await openWatchSource();
+    const [entry] = await source.listEntries();
+    expect(entry).toEqual({ name: 'clip.mp4', size: settled.size, mtime: 111 });
+
+    // Read against the settled snapshot works…
+    expect(await source.readFile(entry)).toBe(settled);
+    // …but a stale snapshot (the file was replaced after settling) is refused.
+    await expect(source.readFile({ ...entry, size: entry.size + 5 })).rejects.toThrow(/changed/);
+    await expect(source.readFile({ ...entry, mtime: 999 })).rejects.toThrow(/changed/);
   });
 });
 

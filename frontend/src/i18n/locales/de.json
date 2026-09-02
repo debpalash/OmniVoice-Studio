@@ -1383,7 +1383,8 @@
     "watch_stop": "Stoppen",
     "watch_started": "{{folder}} wird überwacht — neue Videos landen automatisch in der Warteschlange",
     "watch_unsupported": "Ordnerüberwachung erfordert die Desktop-App oder einen Chromium-basierten Browser — nutze stattdessen „Videos hinzufügen“.",
-    "watch_failed": "Fehler bei der Ordnerüberwachung: {{message}}"
+    "watch_failed": "Ordnerüberwachung gestoppt — der Ordner ist nicht mehr lesbar (verschoben, gelöscht oder Berechtigungen geändert). Wähle ihn erneut aus, um fortzufahren.",
+    "watch_start_failed": "Die Überwachung dieses Ordners konnte nicht gestartet werden — wähle ihn erneut aus, um es noch einmal zu versuchen."
   },
   "gallery": {
     "title": "VoiceStudio Galerie",

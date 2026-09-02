@@ -1383,7 +1383,8 @@
     "watch_stop": "Interrompi",
     "watch_started": "Sorveglianza di {{folder}} — i nuovi video vengono aggiunti automaticamente alla coda",
     "watch_unsupported": "La sorveglianza delle cartelle richiede l'app desktop o un browser basato su Chromium — usa invece Aggiungi video.",
-    "watch_failed": "Errore nella sorveglianza della cartella: {{message}}"
+    "watch_failed": "Sorveglianza interrotta — la cartella non è più leggibile (spostata, eliminata o permessi cambiati). Selezionala di nuovo per riprendere.",
+    "watch_start_failed": "Impossibile avviare la sorveglianza di quella cartella — selezionala di nuovo per riprovare."
   },
   "gallery": {
     "title": "VoiceStudio Galleria",

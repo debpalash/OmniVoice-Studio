@@ -1383,7 +1383,8 @@
     "watch_stop": "停止",
     "watch_started": "正在監看 {{folder}} — 新影片會自動加入佇列",
     "watch_unsupported": "資料夾監看需要桌面應用程式或以 Chromium 為基礎的瀏覽器 — 請改用「新增影片」。",
-    "watch_failed": "資料夾監看錯誤：{{message}}"
+    "watch_failed": "監看已停止 — 資料夾已無法讀取（已移動、刪除或權限變更）。請重新選擇資料夾以繼續。",
+    "watch_start_failed": "無法開始監看該資料夾 — 請重新選擇以重試。"
   },
   "gallery": {
     "title": "VoiceStudio 畫廊",
