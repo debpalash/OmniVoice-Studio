@@ -915,6 +915,7 @@
     "paste_url": "…或粘贴 YouTube / 视频链接",
     "ingest": "导入",
     "pull_captions": "拉取 YouTube 字幕 + 自动翻译",
+    "batch_queue_link": "要给很多视频配音？打开批量队列",
     "youtube_auth": "YouTube 登录（可选）",
     "youtube_cookie_file": "选择导出的 cookies.txt",
     "remove_cookie_file": "移除 Cookie 文件",

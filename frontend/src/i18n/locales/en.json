@@ -1198,6 +1198,7 @@
     "paste_url": "…or paste YouTube / video URL",
     "ingest": "Ingest",
     "pull_captions": "Pull YouTube captions + auto-translations",
+    "batch_queue_link": "Dubbing many videos? Open the batch queue",
     "youtube_auth": "YouTube sign-in (optional)",
     "youtube_cookie_file": "Choose a cookies.txt export",
     "remove_cookie_file": "Remove cookie file",

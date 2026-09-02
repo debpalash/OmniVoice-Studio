@@ -956,6 +956,7 @@
     "paste_url": "…hoặc dán URL YouTube/video",
     "ingest": "Nhập",
     "pull_captions": "Kéo phụ đề YouTube + bản dịch tự động",
+    "batch_queue_link": "Lồng tiếng nhiều video? Mở hàng đợi hàng loạt",
     "youtube_auth": "Đăng nhập YouTube (tùy chọn)",
     "youtube_cookie_file": "Chọn bản xuất cookies.txt",
     "remove_cookie_file": "Xóa tệp cookie",

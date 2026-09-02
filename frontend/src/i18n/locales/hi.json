@@ -956,6 +956,7 @@
     "paste_url": "...या यूट्यूब/वीडियो यूआरएल पेस्ट करें",
     "ingest": "निगलना",
     "pull_captions": "YouTube कैप्शन + ऑटो-अनुवाद खींचें",
+    "batch_queue_link": "कई वीडियो डब कर रहे हैं? बैच कतार खोलें",
     "youtube_auth": "YouTube साइन-इन (वैकल्पिक)",
     "youtube_cookie_file": "cookies.txt निर्यात चुनें",
     "remove_cookie_file": "कुकी फ़ाइल हटाएँ",

@@ -956,6 +956,7 @@
     "paste_url": "…eller klistra in YouTube/videons URL",
     "ingest": "Inta",
     "pull_captions": "Dra YouTube-textning + automatiska översättningar",
+    "batch_queue_link": "Dubbar du många videor? Öppna batchkön",
     "youtube_auth": "YouTube-inloggning (valfritt)",
     "youtube_cookie_file": "Välj en cookies.txt-export",
     "remove_cookie_file": "Ta bort cookie-filen",

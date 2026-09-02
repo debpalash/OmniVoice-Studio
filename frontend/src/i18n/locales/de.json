@@ -956,6 +956,7 @@
     "paste_url": "…oder fügen Sie die YouTube-/Video-URL ein",
     "ingest": "Verschlucken",
     "pull_captions": "Rufen Sie YouTube-Untertitel und automatische Übersetzungen ab",
+    "batch_queue_link": "Viele Videos zu synchronisieren? Warteschlange öffnen",
     "youtube_auth": "YouTube-Anmeldung (optional)",
     "youtube_cookie_file": "cookies.txt-Export auswählen",
     "remove_cookie_file": "Cookie-Datei entfernen",

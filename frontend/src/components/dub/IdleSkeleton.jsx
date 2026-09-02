@@ -17,6 +17,7 @@ import {
   Trash2,
   Play,
   Download,
+  Activity,
 } from 'lucide-react';
 import { Button, Progress } from '../../ui';
 import { useEffect, useRef } from 'react';
@@ -104,6 +105,7 @@ export default function IdleSkeleton({
   setLandingAdvOpen,
   dubInstruct,
   setDubInstruct,
+  onOpenQueue,
 }) {
   const youtubeCookieInputRef = useRef(null);
   useEffect(() => {
@@ -487,6 +489,22 @@ export default function IdleSkeleton({
                     </button>
                   )}
                 </div>
+                {/* Quiet path into the batch dubbing queue — the queue page
+                    itself (many videos × many languages, plus the watch
+                    folder) had no UI entry point anywhere in the app. */}
+                <button
+                  type="button"
+                  data-testid="dub-open-batch-queue"
+                  className="mt-[8px] inline-flex cursor-pointer items-center gap-[6px] rounded-[4px] border-0 bg-[rgba(255,255,255,0.02)] px-[8px] py-[4px] text-[0.62rem] text-fg-muted hover:bg-[rgba(255,255,255,0.05)] hover:text-fg"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenQueue?.();
+                  }}
+                >
+                  <Activity size={11} aria-hidden="true" />
+                  <span>{t('dub.batch_queue_link')}</span>
+                </button>
               </label>
 
               {/* One decision up front: the target language. Everything else

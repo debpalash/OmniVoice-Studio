@@ -956,6 +956,7 @@
     "paste_url": "…of plak de YouTube-/video-URL",
     "ingest": "Innemen",
     "pull_captions": "Haal YouTube-ondertitels en automatische vertalingen op",
+    "batch_queue_link": "Veel video's te dubben? Open de batchwachtrij",
     "youtube_auth": "YouTube-aanmelding (optioneel)",
     "youtube_cookie_file": "Een cookies.txt-export kiezen",
     "remove_cookie_file": "Cookiebestand verwijderen",

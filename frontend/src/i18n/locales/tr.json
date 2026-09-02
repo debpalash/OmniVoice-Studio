@@ -956,6 +956,7 @@
     "paste_url": "…veya YouTube / video URL'sini yapıştırın",
     "ingest": "Al",
     "pull_captions": "YouTube altyazılarını + otomatik çevirileri çekin",
+    "batch_queue_link": "Çok sayıda video mu dubluyorsunuz? Toplu kuyruğu açın",
     "youtube_auth": "YouTube oturumu (isteğe bağlı)",
     "youtube_cookie_file": "Bir cookies.txt dışa aktarımı seçin",
     "remove_cookie_file": "Çerez dosyasını kaldır",

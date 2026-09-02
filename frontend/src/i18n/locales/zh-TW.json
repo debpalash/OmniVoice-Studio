@@ -956,6 +956,7 @@
     "paste_url": "…或貼上 YouTube/影片 URL",
     "ingest": "攝取",
     "pull_captions": "擷取 YouTube 字幕 + 自動翻譯",
+    "batch_queue_link": "要為許多影片配音？開啟批次佇列",
     "youtube_auth": "YouTube 登入（選用）",
     "youtube_cookie_file": "選擇匯出的 cookies.txt",
     "remove_cookie_file": "移除 Cookie 檔案",
