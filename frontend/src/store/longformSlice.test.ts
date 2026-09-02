@@ -86,15 +86,25 @@ describe('longformSlice — long-form fields', () => {
     expect(get().projectMode).toBe('stories');
   });
 
-  it('lastOutput survives as store state and clears on newProject (#1139)', () => {
+  it('the output keeps its render-time lyrics snapshot and clears on newProject', () => {
     // The finished render's filename used to be AudiobookTab useState — the
     // Download affordance evaporated on the first tab switch.
     const { get } = harness();
     expect(get().lastOutput).toBe('');
-    get().setLastOutput('audiobook_abc123.m4b');
+    get().setLastOutputSnapshot('audiobook_abc123.m4b', '# Rendered', [
+      { title: 'Rendered', status: 'done', duration_s: 3 },
+    ]);
     expect(get().lastOutput).toBe('audiobook_abc123.m4b');
+    expect(get().lastOutputScript).toBe('# Rendered');
+    expect(get().lastOutputChapters).toEqual([
+      { title: 'Rendered', status: 'done', duration_s: 3 },
+    ]);
+    get().setScript('# Edited afterwards');
+    expect(get().lastOutputScript).toBe('# Rendered');
     get().newProject('audiobook');
     expect(get().lastOutput).toBe(''); // a new book doesn't show the old file
+    expect(get().lastOutputScript).toBe('');
+    expect(get().lastOutputChapters).toEqual([]);
   });
 
   it('loadProject clears lastOutput — no cross-project leak (#1139 review)', () => {

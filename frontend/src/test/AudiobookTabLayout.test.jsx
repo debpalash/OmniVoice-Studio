@@ -39,6 +39,7 @@ const withI18n = (node) => (
 describe('AudiobookTab — compact grouped layout (#1214)', () => {
   beforeEach(() => {
     localStorage.clear();
+    useAppStore.getState().setLastOutput('');
     useAppStore.getState().setScript('');
   });
 
@@ -96,5 +97,19 @@ describe('AudiobookTab — compact grouped layout (#1214)', () => {
     fireEvent.click(screen.getByRole('button', { name: en.audiobook.output }));
     expect(screen.queryByLabelText(en.audiobook.meta_title)).toBeNull();
     expect(screen.getByLabelText(en.audiobook.loudness)).toBeTruthy();
+  });
+
+  it('pairs a persisted output with its render-time script after later edits', () => {
+    useAppStore
+      .getState()
+      .setLastOutputSnapshot('rendered.m4b', '# Rendered\nOld line', [
+        { title: 'Rendered', status: 'done', duration_s: 2 },
+      ]);
+    useAppStore.getState().setScript('# Edited\nNew line');
+
+    render(withI18n(<AudiobookTab profiles={[]} />));
+
+    expect(screen.getByRole('button', { name: 'Old' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'New' })).toBeNull();
   });
 });

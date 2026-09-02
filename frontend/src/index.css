@@ -5713,6 +5713,80 @@ button.dub-stepper__action:focus-visible {
   .audiobook-tab__script textarea { min-height: 240px; }
 }
 
+/* Synced-lyrics player (audiobook result): chapter text under the native
+   controls, current word highlighted from playback time. Words are real
+   <button>s (click-to-seek, keyboard reachable) restyled to read as prose. */
+
+.synced-lyrics__pane {
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--color-bg-elev-2);
+  box-shadow: inset 0 0 0 1px var(--chrome-border);
+}
+
+.synced-lyrics__chapter + .synced-lyrics__chapter {
+  margin-top: 10px;
+}
+
+.synced-lyrics__title {
+  appearance: none;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 3px 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--chrome-font-mono);
+  font-size: var(--chrome-label-size);
+  font-weight: 600;
+  letter-spacing: var(--chrome-label-track);
+  text-transform: uppercase;
+  color: var(--chrome-fg-muted);
+  margin-bottom: 4px;
+}
+
+.synced-lyrics__title:hover,
+.synced-lyrics__title:focus-visible {
+  color: var(--color-fg);
+}
+
+.synced-lyrics__text {
+  margin: 0;
+  line-height: 1.9;
+}
+
+.synced-lyrics__word {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--chrome-fg-muted);
+  padding: 1px 3px;
+  margin: 0 1px 0 0;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.synced-lyrics__word:hover {
+  color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+}
+
+.synced-lyrics__word.is-past {
+  color: var(--color-fg);
+}
+
+.synced-lyrics__word.is-active {
+  color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-brand) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 35%, transparent);
+}
+
 /* ═══ from src/pages/BatchQueue.css ═══ */
 /* Only the genuinely-irreducible bit remains: the running-job progress fill's
    gradient + its ::after shimmer (pseudo-element + keyframes) — not expressible

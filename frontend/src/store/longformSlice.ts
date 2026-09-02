@@ -87,6 +87,12 @@ export interface CoverRef {
   serverPath: string | null;
 }
 
+export interface AudiobookRenderChapter {
+  title: string;
+  status: string;
+  duration_s?: number;
+}
+
 interface LongformProject {
   id: string;
   name: string;
@@ -143,6 +149,10 @@ export interface LongformSlice {
   // reported "no way to download". A server filename (never a blob: URL) is
   // safe to persist and rehydrate.
   lastOutput: string;
+  // Render-time inputs for the persisted output. The editable manuscript may
+  // change afterwards; lyrics must continue to follow the audio that exists.
+  lastOutputScript: string;
+  lastOutputChapters: AudiobookRenderChapter[];
   // NB: named `projectMode` (not `mode`) to avoid colliding with the app-level
   // navigation `mode` (uiSlice, AppMode). The stored LongformProject.mode is a
   // nested record field and keeps its name.
@@ -167,6 +177,11 @@ export interface LongformSlice {
   setLongformOverrides: (patch: Partial<LongformOverrides>) => void; // merge
   setCoverRef: (ref: CoverRef | null) => void;
   setLastOutput: (output: string) => void;
+  setLastOutputSnapshot: (
+    output: string,
+    script: string,
+    chapters: AudiobookRenderChapter[],
+  ) => void;
   convertMode: (mode: LongformMode) => void; // flips mode only (#24 seam)
   // Project lifecycle:
   saveProject: (name: string) => void;
@@ -194,6 +209,8 @@ export const SLICE_DEFAULTS = {
   overrides: DEFAULT_OVERRIDES as LongformOverrides,
   voiceCast: {} as Record<string, string>,
   lastOutput: '' as string,
+  lastOutputScript: '' as string,
+  lastOutputChapters: [] as AudiobookRenderChapter[],
   projectMode: 'stories' as LongformMode,
 } as const;
 
@@ -262,7 +279,13 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
     })),
   setLongformOverrides: (patch) => set((s) => ({ overrides: { ...s.overrides, ...patch } })),
   setCoverRef: (coverRef) => set({ coverRef: coverRef ? { ...coverRef } : null }),
-  setLastOutput: (lastOutput) => set({ lastOutput }),
+  setLastOutput: (lastOutput) => set({ lastOutput, lastOutputScript: '', lastOutputChapters: [] }),
+  setLastOutputSnapshot: (lastOutput, lastOutputScript, lastOutputChapters) =>
+    set({
+      lastOutput,
+      lastOutputScript,
+      lastOutputChapters: lastOutputChapters.map((chapter) => ({ ...chapter })),
+    }),
   convertMode: (mode) => {
     if (mode !== 'stories' && mode !== 'audiobook') return; // G3
     if (get().projectMode === mode) return; // G2 idempotent
@@ -325,6 +348,8 @@ export const createLongformSlice: StateCreator<LongformSlice, [], [], LongformSl
       // A render belongs to the project it was made in — loading another
       // project must not present A's finished file as B's output (#1139).
       lastOutput: SLICE_DEFAULTS.lastOutput,
+      lastOutputScript: SLICE_DEFAULTS.lastOutputScript,
+      lastOutputChapters: [...SLICE_DEFAULTS.lastOutputChapters],
       projectMode: p.mode === 'audiobook' ? 'audiobook' : 'stories', // E3 default-safe
       currentProjectId: id,
     });

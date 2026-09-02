@@ -80,11 +80,15 @@ export default function AudiobookTab({ profiles = [] }) {
   // users reported "no way to export". It now survives tab switches/reloads.
   const output = useAppStore((s) => s.lastOutput);
   const setOutput = useAppStore((s) => s.setLastOutput);
+  const outputScript = useAppStore((s) => s.lastOutputScript);
+  const outputChapters = useAppStore((s) => s.lastOutputChapters);
+  const setOutputSnapshot = useAppStore((s) => s.setLastOutputSnapshot);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null); // {cached_chapters, failed_chapters}
   const [chapterPrev, setChapterPrev] = useState({}); // index → {url, loading}
   const abortRef = useRef(false);
   const abortControllerRef = useRef(null); // per-generation fetch AbortController
+  const chaptersRef = useRef([]);
 
   // Abort an in-flight generation when the tab unmounts. Without this, leaving
   // mid-render keeps the stream (and the backend job) running, and a late
@@ -241,6 +245,7 @@ export default function AudiobookTab({ profiles = [] }) {
     setDone(null);
     setStopped(false);
     setChapters([]);
+    chaptersRef.current = [];
     setAssembling(false);
     setGenerating(true);
     abortRef.current = false;
@@ -280,45 +285,48 @@ export default function AudiobookTab({ profiles = [] }) {
         (evt) => {
           if (evt.type === 'started') {
             // Seed the per-chapter list; chapter 0 starts rendering immediately.
-            setChapters(
-              Array.from({ length: evt.chapters }, (_, i) => ({
-                title: '',
-                status: i === 0 ? 'rendering' : 'pending',
-              })),
-            );
+            chaptersRef.current = Array.from({ length: evt.chapters }, (_, i) => ({
+              title: '',
+              status: i === 0 ? 'rendering' : 'pending',
+            }));
+            setChapters(chaptersRef.current);
           } else if (evt.type === 'chapter') {
             // A chapter finished (cached vs freshly rendered per evt.cached); the
-            // next pending chapter becomes the one rendering.
-            setChapters((prev) =>
-              prev.map((c, j) =>
-                j === evt.index
-                  ? { ...c, title: evt.title, status: evt.cached ? 'cached' : 'done' }
-                  : j === evt.index + 1 && c.status === 'pending'
-                    ? { ...c, status: 'rendering' }
-                    : c,
-              ),
+            // next pending chapter becomes the one rendering. duration_s feeds
+            // the synced-lyrics player's chapter timeline.
+            chaptersRef.current = chaptersRef.current.map((c, j) =>
+              j === evt.index
+                ? {
+                    ...c,
+                    title: evt.title,
+                    status: evt.cached ? 'cached' : 'done',
+                    duration_s: evt.duration_s,
+                  }
+                : j === evt.index + 1 && c.status === 'pending'
+                  ? { ...c, status: 'rendering' }
+                  : c,
             );
+            setChapters(chaptersRef.current);
           } else if (evt.type === 'chapter_error') {
-            setChapters((prev) =>
-              prev.map((c, j) =>
-                j === evt.index
-                  ? {
-                      ...c,
-                      title: evt.title,
-                      status: 'failed',
-                      error: evt.reason || evt.error || '',
-                    }
-                  : j === evt.index + 1 && c.status === 'pending'
-                    ? { ...c, status: 'rendering' }
-                    : c,
-              ),
+            chaptersRef.current = chaptersRef.current.map((c, j) =>
+              j === evt.index
+                ? {
+                    ...c,
+                    title: evt.title,
+                    status: 'failed',
+                    error: evt.reason || evt.error || '',
+                  }
+                : j === evt.index + 1 && c.status === 'pending'
+                  ? { ...c, status: 'rendering' }
+                  : c,
             );
+            setChapters(chaptersRef.current);
           } else if (evt.type === 'assembling') {
             setAssembling(true);
           } else if (evt.type === 'stopped') {
             setStopped(true);
           } else if (evt.type === 'done') {
-            setOutput(evt.output);
+            setOutputSnapshot(evt.output, text, chaptersRef.current);
             setDone({
               cached_chapters: evt.cached_chapters || 0,
               failed_chapters: evt.failed_chapters || [],
@@ -352,6 +360,7 @@ export default function AudiobookTab({ profiles = [] }) {
     overrides,
     language,
     voiceMapArg,
+    setOutputSnapshot,
   ]);
 
   // Stop = abort the fetch (cancels the request → backend disconnect) AND flip
@@ -474,7 +483,15 @@ export default function AudiobookTab({ profiles = [] }) {
             </div>
           )}
 
-          {output && <AudiobookResult t={t} output={output} done={done} />}
+          {output && (
+            <AudiobookResult
+              t={t}
+              output={output}
+              done={done}
+              script={outputScript}
+              chapters={outputChapters}
+            />
+          )}
 
           {plan && (
             <PlanList
