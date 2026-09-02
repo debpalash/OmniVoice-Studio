@@ -8,10 +8,14 @@
 //! as `commands::authorize_host_path`).
 //!
 //! Access model: the folder is picked in a native dialog inside this process
-//! and registered under a random session token. Scan/read commands resolve the
-//! directory from that token, so the webview cannot point them at an arbitrary
-//! path — reads are confined to files sitting directly in a folder the user
-//! explicitly picked this session (non-recursive by design).
+//! and registered under a random session token, together with a `cap_std`
+//! directory HANDLE opened at pick time. Scan/read commands resolve entries
+//! relative to that handle — no pathname is ever re-resolved after
+//! authorization, so swapping the directory (or any component of its path)
+//! for a symlink/junction later cannot redirect the watcher, on any OS. The
+//! webview cannot point the commands at an arbitrary path; reads are confined
+//! to files sitting directly in the folder the user explicitly picked this
+//! session (non-recursive by design).
 
 use std::collections::HashMap;
 use std::fs;
@@ -20,6 +24,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
+use cap_std::ambient_authority;
+use cap_std::fs::Dir;
 use serde::Serialize;
 use tauri_plugin_dialog::DialogExt;
 
@@ -28,17 +34,20 @@ use tauri_plugin_dialog::DialogExt;
 /// never has to exist as a single contiguous buffer on the Rust side.
 const READ_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
 
-/// An authorized watch folder plus the identity it had when the user picked
-/// it. Every scan/read re-verifies that identity, so replacing the directory
-/// itself (e.g. with a symlink or junction to somewhere else) after
-/// authorization refuses instead of silently redirecting the watcher.
-#[derive(Clone)]
+/// An authorized watch folder: the directory handle everything resolves
+/// against, plus the identity the folder had when the user picked it. The
+/// handle is the security boundary (operations can never leave it); the
+/// identity check is the LIVENESS signal — when the folder is deleted, moved,
+/// or replaced, token resolution fails loudly and the UI stops the watcher
+/// instead of polling silently forever.
 struct WatchedDir {
     /// Fully-resolved directory path captured at pick time.
     canonical: PathBuf,
     /// Filesystem identity (device, inode) captured at pick time.
     #[cfg(unix)]
     identity: (u64, u64),
+    /// Directory handle captured at pick time — all scans/reads go through it.
+    handle: Dir,
 }
 
 #[cfg(unix)]
@@ -53,6 +62,8 @@ fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
     if !canonical.is_dir() {
         return Err("Selected watch folder is not a directory".into());
     }
+    let handle = Dir::open_ambient_dir(&canonical, ambient_authority())
+        .map_err(|e| format!("Selected watch folder could not be opened: {e}"))?;
     #[cfg(unix)]
     let identity = dir_identity(
         &fs::metadata(&canonical)
@@ -62,14 +73,16 @@ fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
         canonical,
         #[cfg(unix)]
         identity,
+        handle,
     })
 }
 
-/// Re-verify a watched folder's identity and return the path to operate on.
-/// `canonicalize` re-resolves the stored path, so a symlink/junction swapped
-/// in at that location resolves elsewhere and is refused; on unix the
-/// device+inode pair additionally pins the exact directory.
-fn verify_watched_dir(watched: &WatchedDir) -> Result<PathBuf, String> {
+/// Re-verify a watched folder's identity: the stored path must still resolve
+/// to the same canonical target (and, on unix, the same device+inode). A
+/// deleted, moved, replaced, or recreated directory fails here, which is what
+/// stops the watcher loudly in the UI. Reads never depend on this check for
+/// confinement — they go through the pinned handle regardless.
+fn verify_watched_dir(watched: &WatchedDir) -> Result<(), String> {
     let canonical_now = fs::canonicalize(&watched.canonical)
         .map_err(|_| "Watched folder is no longer accessible".to_string())?;
     if canonical_now != watched.canonical {
@@ -83,7 +96,7 @@ fn verify_watched_dir(watched: &WatchedDir) -> Result<PathBuf, String> {
             return Err("Watched folder changed identity".into());
         }
     }
-    Ok(canonical_now)
+    Ok(())
 }
 
 fn registry() -> &'static Mutex<HashMap<String, WatchedDir>> {
@@ -111,20 +124,26 @@ fn new_token() -> Result<String, String> {
     Ok(random.iter().map(|b| format!("{b:02x}")).collect())
 }
 
-/// Resolve a session token to its directory, re-verifying the folder's
-/// identity on every access.
-fn registered_dir(token: &str) -> Result<PathBuf, String> {
-    let watched = registry()
+/// Resolve a session token to a clone of its pinned directory handle,
+/// re-verifying the folder's liveness/identity on every access.
+fn registered_dir(token: &str) -> Result<Dir, String> {
+    let map = registry()
         .lock()
-        .map_err(|_| "Watch-folder registry poisoned".to_string())?
+        .map_err(|_| "Watch-folder registry poisoned".to_string())?;
+    let watched = map
         .get(token)
-        .cloned()
         .ok_or_else(|| "Watch folder is not authorized".to_string())?;
-    verify_watched_dir(&watched)
+    verify_watched_dir(watched)?;
+    watched
+        .handle
+        .try_clone()
+        .map_err(|e| format!("Watched folder handle could not be reused: {e}"))
 }
 
 /// A directory entry name must be a single plain path component — anything
-/// that could climb out of the watched folder is rejected.
+/// that could climb out of the watched folder is rejected. (The `cap_std`
+/// handle would also refuse an escape; this keeps the error crisp and the
+/// contract explicit.)
 fn validate_entry_name(name: &str) -> Result<(), String> {
     if name.is_empty()
         || name == "."
@@ -146,14 +165,28 @@ fn mtime_ms(meta: &fs::Metadata) -> u64 {
         .unwrap_or(0)
 }
 
-/// Non-recursive listing of the regular files in `dir` (name, size, mtime).
-/// Symlinks are skipped outright — the read path refuses to follow them, so
+fn cap_mtime_ms(meta: &cap_std::fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| {
+            t.into_std()
+                .duration_since(UNIX_EPOCH)
+                .ok()
+        })
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// Non-recursive listing of the regular files in the watched folder (name,
+/// size, mtime), resolved through the pinned handle. Symlinks are skipped
+/// outright — the read path cannot follow them out of the folder anyway, so
 /// listing them would only produce entries that can never be ingested.
-fn scan_dir(dir: &Path) -> Result<Vec<WatchEntry>, String> {
+fn scan_dir(dir: &Dir) -> Result<Vec<WatchEntry>, String> {
     let mut entries = Vec::new();
-    let read = fs::read_dir(dir).map_err(|e| format!("Watched folder is unreadable: {e}"))?;
+    let read = dir
+        .entries()
+        .map_err(|e| format!("Watched folder is unreadable: {e}"))?;
     for item in read.flatten() {
-        // DirEntry::file_type does NOT traverse symlinks, unlike metadata().
         let Ok(file_type) = item.file_type() else {
             continue;
         };
@@ -167,60 +200,36 @@ fn scan_dir(dir: &Path) -> Result<Vec<WatchEntry>, String> {
         entries.push(WatchEntry {
             name,
             size: meta.len(),
-            mtime: mtime_ms(&meta),
+            mtime: cap_mtime_ms(&meta),
         });
     }
     Ok(entries)
 }
 
-/// Open a file inside the watched folder WITHOUT following symlinks, and
-/// validate the opened handle (not the pathname) so a swap between the scan
-/// and the read cannot redirect the read outside the authorized folder.
-fn open_watched_file(path: &Path) -> Result<fs::File, String> {
-    let mut opts = fs::OpenOptions::new();
-    opts.read(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opts.custom_flags(libc::O_NOFOLLOW);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        // Open the reparse point itself rather than its target; the handle
-        // metadata check below then rejects it.
-        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
-        opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
-    }
-    let file = opts
-        .open(path)
-        .map_err(|e| format!("Watched file could not be opened: {e}"))?;
-    let meta = file
-        .metadata()
-        .map_err(|e| format!("Watched file could not be inspected: {e}"))?;
-    if meta.file_type().is_symlink() || !meta.is_file() {
-        return Err("Watched entry is not a regular file".into());
-    }
-    Ok(file)
-}
-
-/// Read one bounded chunk of a watched file, bound to the settled scan
-/// snapshot: the opened handle's size and mtime must still match what the
-/// stability tracker released, otherwise the file changed (or was replaced)
-/// after settling and the read is refused.
+/// Read one bounded chunk of a watched file through the pinned directory
+/// handle, bound to the settled scan snapshot: the opened file's size and
+/// mtime must still match what the stability tracker released, otherwise the
+/// file changed (or was replaced) after settling and the read is refused. A
+/// symlink pointing outside the watched folder cannot be opened at all —
+/// `cap_std` confines resolution to the handle.
 fn read_watched_chunk(
-    dir: &Path,
+    dir: &Dir,
     name: &str,
     offset: u64,
     expected_size: u64,
     expected_mtime: u64,
 ) -> Result<Vec<u8>, String> {
     validate_entry_name(name)?;
-    let path = dir.join(name);
-    let mut file = open_watched_file(&path)?;
+    let mut file = dir
+        .open(name)
+        .map_err(|e| format!("Watched file could not be opened: {e}"))?
+        .into_std();
     let meta = file
         .metadata()
         .map_err(|e| format!("Watched file could not be inspected: {e}"))?;
+    if !meta.is_file() {
+        return Err("Watched entry is not a regular file".into());
+    }
     if meta.len() != expected_size || mtime_ms(&meta) != expected_mtime {
         return Err("Watched file changed after it was scanned".into());
     }
@@ -276,7 +285,8 @@ pub fn watch_folder_scan(token: String) -> Result<Vec<WatchEntry>, String> {
 /// webview loops over offsets and assembles the chunks into a `File` for the
 /// multipart upload, so neither side ever buffers the whole video at once.
 /// `expected_size`/`expected_mtime` are the settled scan snapshot — the read
-/// refuses files that changed after settling, and never follows symlinks.
+/// refuses files that changed after settling, and resolution is confined to
+/// the directory handle captured when the user picked the folder.
 #[tauri::command]
 pub fn watch_folder_read(
     token: String,
@@ -302,8 +312,9 @@ pub fn watch_folder_forget(token: String) {
 mod tests {
     use super::{
         authorize_watched_dir, mtime_ms, read_watched_chunk, scan_dir, validate_entry_name,
-        verify_watched_dir,
+        verify_watched_dir, Dir,
     };
+    use cap_std::ambient_authority;
     use std::fs;
     use std::path::PathBuf;
 
@@ -312,6 +323,10 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    fn open_handle(dir: &std::path::Path) -> Dir {
+        Dir::open_ambient_dir(dir, ambient_authority()).unwrap()
     }
 
     fn snapshot(path: &std::path::Path) -> (u64, u64) {
@@ -335,7 +350,7 @@ mod tests {
         fs::write(dir.join("a.mp4"), b"12345").unwrap();
         fs::write(dir.join("notes.txt"), b"x").unwrap();
 
-        let mut entries = scan_dir(&dir).unwrap();
+        let mut entries = scan_dir(&open_handle(&dir)).unwrap();
         entries.sort_by(|a, b| a.name.cmp(&b.name));
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
         // Directories are skipped; filtering to *videos* is the frontend's job.
@@ -347,23 +362,19 @@ mod tests {
     }
 
     #[test]
-    fn scan_fails_on_missing_directory() {
-        assert!(scan_dir(std::path::Path::new("/definitely-not-a-real-dir-vs")).is_err());
-    }
-
-    #[test]
     fn chunked_reads_reassemble_the_exact_bytes() {
         let dir = temp_watch_dir("chunks");
         fs::write(dir.join("clip.mp4"), b"0123456789").unwrap();
         let (size, mtime) = snapshot(&dir.join("clip.mp4"));
+        let handle = open_handle(&dir);
 
         // READ_CHUNK_BYTES is far larger than this file, so exercise the
         // offset walk directly: partial reads must line up back to back.
-        let whole = read_watched_chunk(&dir, "clip.mp4", 0, size, mtime).unwrap();
+        let whole = read_watched_chunk(&handle, "clip.mp4", 0, size, mtime).unwrap();
         assert_eq!(whole, b"0123456789");
-        let tail = read_watched_chunk(&dir, "clip.mp4", 7, size, mtime).unwrap();
+        let tail = read_watched_chunk(&handle, "clip.mp4", 7, size, mtime).unwrap();
         assert_eq!(tail, b"789");
-        let past_end = read_watched_chunk(&dir, "clip.mp4", size, size, mtime).unwrap();
+        let past_end = read_watched_chunk(&handle, "clip.mp4", size, size, mtime).unwrap();
         assert!(past_end.is_empty());
 
         let _ = fs::remove_dir_all(&dir);
@@ -374,11 +385,12 @@ mod tests {
         let dir = temp_watch_dir("snapshot");
         fs::write(dir.join("clip.mp4"), b"settled bytes").unwrap();
         let (size, mtime) = snapshot(&dir.join("clip.mp4"));
+        let handle = open_handle(&dir);
 
         // The file is replaced after the scan settled → the read must refuse
         // rather than upload bytes the tracker never saw stabilize.
         fs::write(dir.join("clip.mp4"), b"replaced with something longer").unwrap();
-        let err = read_watched_chunk(&dir, "clip.mp4", 0, size, mtime).unwrap_err();
+        let err = read_watched_chunk(&handle, "clip.mp4", 0, size, mtime).unwrap_err();
         assert!(err.contains("changed"), "unexpected error: {err}");
 
         let _ = fs::remove_dir_all(&dir);
@@ -389,7 +401,7 @@ mod tests {
         let dir = temp_watch_dir("identity");
         let watched = authorize_watched_dir(&dir).unwrap();
         // Untouched directory verifies fine…
-        assert_eq!(verify_watched_dir(&watched).unwrap(), watched.canonical);
+        assert!(verify_watched_dir(&watched).is_ok());
         // …and a directory that disappears after authorization is refused.
         fs::remove_dir_all(&dir).unwrap();
         assert!(verify_watched_dir(&watched).is_err());
@@ -397,20 +409,25 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_directory_swapped_for_a_symlink_is_refused() {
+    fn a_directory_swapped_for_a_symlink_is_refused_and_never_followed() {
         let dir = temp_watch_dir("dir-swap");
         let elsewhere = temp_watch_dir("dir-swap-target");
         fs::write(elsewhere.join("clip.mp4"), b"outside").unwrap();
+        let (size, mtime) = snapshot(&elsewhere.join("clip.mp4"));
 
         let watched = authorize_watched_dir(&dir).unwrap();
         assert!(verify_watched_dir(&watched).is_ok());
 
         // Replace the authorized directory itself with a symlink pointing
-        // somewhere else — every later scan/read must refuse, not follow.
+        // somewhere else. Token resolution refuses (identity check)…
         fs::remove_dir_all(&dir).unwrap();
         std::os::unix::fs::symlink(&elsewhere, &dir).unwrap();
         let err = verify_watched_dir(&watched).unwrap_err();
         assert!(err.contains("identity"), "unexpected error: {err}");
+        // …and even the pinned handle cannot reach the swap target: it still
+        // points at the ORIGINAL (now unlinked) directory, which is empty.
+        assert!(scan_dir(&watched.handle).unwrap().is_empty());
+        assert!(read_watched_chunk(&watched.handle, "clip.mp4", 0, size, mtime).is_err());
 
         let _ = fs::remove_file(&dir);
         let _ = fs::remove_dir_all(&elsewhere);
@@ -429,23 +446,22 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn symlinks_are_never_followed() {
+    fn symlinks_are_never_followed_out_of_the_folder() {
         let dir = temp_watch_dir("symlink");
         let secret = std::env::temp_dir().join(format!("vs-secret-{}", std::process::id()));
         fs::write(&secret, b"outside the folder").unwrap();
         std::os::unix::fs::symlink(&secret, dir.join("evil.mp4")).unwrap();
         let meta = fs::metadata(dir.join("evil.mp4")).unwrap();
+        let handle = open_handle(&dir);
 
-        // Even with a "correct" snapshot of the symlink target, the no-follow
-        // open must refuse it (O_NOFOLLOW → ELOOP).
-        let err =
-            read_watched_chunk(&dir, "evil.mp4", 0, meta.len(), mtime_ms(&meta)).unwrap_err();
-        assert!(
-            err.contains("could not be opened") || err.contains("not a regular file"),
-            "unexpected error: {err}"
-        );
+        // Even with a "correct" snapshot of the symlink target, opening it
+        // through the capability handle refuses: resolution may not escape
+        // the watched folder.
+        let err = read_watched_chunk(&handle, "evil.mp4", 0, meta.len(), mtime_ms(&meta))
+            .unwrap_err();
+        assert!(err.contains("could not be opened"), "unexpected error: {err}");
         // And the scanner never lists it in the first place.
-        assert!(scan_dir(&dir).unwrap().is_empty());
+        assert!(scan_dir(&handle).unwrap().is_empty());
 
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::remove_file(&secret);

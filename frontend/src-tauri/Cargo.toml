@@ -23,6 +23,10 @@ tauri-build = { version = "2.6.0", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 getrandom = "0.3"
+# Capability-scoped fs access for the batch watch folder: scans/reads resolve
+# against a directory HANDLE captured at pick time, so no pathname is ever
+# re-resolved after authorization (no symlink/junction swap window, #1768).
+cap-std = "3"
 log = "0.4"
 tauri = { version = "2.11.0", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
 tauri-plugin-log = "2"
