@@ -68,7 +68,7 @@
 
 ```bash
 # Docker 快速运行 (CPU / 本地环回模式)
-docker run -d -p 127.0.0.1:3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
+docker run -d -p 127.0.0.1:3900:3900 -v omnivoice-data:/app/omnivoice_data --name voicestudio palashdeb/omnivoice-studio:stable
 ```
 
 **三步克隆出你的第一个声音：**

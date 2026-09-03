@@ -78,7 +78,7 @@ First launch creates a managed Python environment and downloads the default mode
 ### Quick Docker run
 
 ```bash
-docker run -d -p 127.0.0.1:3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
+docker run -d -p 127.0.0.1:3900:3900 -v omnivoice-data:/app/omnivoice_data --name voicestudio palashdeb/omnivoice-studio:stable
 ```
 
 ### First voice
