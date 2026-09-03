@@ -48,10 +48,11 @@ def consume(token: str, expected_kind: str) -> str:
     # "the store doesn't exist at all" (the desktop app and this backend are
     # very likely pointed at different data directories, e.g. a dev backend
     # started without OMNIVOICE_DATA_DIR, or a stale custom data folder — see
-    # #1781). Both still 403 with a generic client-facing message (never leak
-    # local filesystem paths over HTTP), but the mismatch case gets a server
-    # log line so it's diagnosable instead of a silent 403. That log line is
-    # deliberately path-free (CWE-532: per-user filesystem paths, e.g. a home
+    # #1781). The client-facing message is byte-identical either way (never
+    # leak local filesystem paths, or even which case occurred, over HTTP —
+    # CWE-200); the mismatch case additionally gets a server log line so it's
+    # diagnosable instead of a silent 403. That log line is deliberately
+    # path-free too (CWE-532: per-user filesystem paths, e.g. a home
     # directory username, are sensitive and don't belong in application
     # logs) — it names the failure mode, not the directory.
     try:
@@ -62,9 +63,7 @@ def consume(token: str, expected_kind: str) -> str:
             "this backend likely resolved different data directories "
             "(see #1781)"
         )
-        raise PathAuthorizationError(
-            "Invalid or expired desktop authorization (no authorization store)"
-        ) from exc
+        raise PathAuthorizationError("Invalid or expired desktop authorization") from exc
     except OSError as exc:
         raise PathAuthorizationError("Invalid or expired desktop authorization") from exc
     candidate = None

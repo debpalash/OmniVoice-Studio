@@ -149,11 +149,14 @@ def test_symlinked_capability_file_is_never_followed(auth, tmp_path):
 # ── #1781: distinguishing "no such capability" from "store is elsewhere" ──
 
 
+_GENERIC_MESSAGE = "Invalid or expired desktop authorization"
+
+
 def test_missing_token_in_an_existing_store_is_the_generic_message(auth):
     os.makedirs(auth.dir, exist_ok=True)  # store exists; just nothing in it
     with pytest.raises(auth.Error) as exc:
         auth.consume(_token(), "dub_export")
-    assert "no authorization store" not in str(exc.value)
+    assert str(exc.value) == _GENERIC_MESSAGE
 
 
 def test_missing_store_directory_is_distinguished_from_a_missing_token(auth, caplog):
@@ -162,21 +165,27 @@ def test_missing_store_directory_is_distinguished_from_a_missing_token(auth, cap
     Before this fix, a nonexistent store (Tauri and the backend resolving
     different data dirs — the actual #1781 symptom) and an existing-but-empty
     store (an ordinary expired/consumed token) raised the byte-identical
-    "Invalid or expired desktop authorization" with no server-side signal,
-    which is exactly what made the mismatch silent and hard to diagnose.
-    `auth.dir` is deliberately never created here.
+    "Invalid or expired desktop authorization" with no server-side signal at
+    all, which is exactly what made the mismatch silent and hard to
+    diagnose. `auth.dir` is deliberately never created here.
 
-    The log line itself must not name the actual store directory (CWE-532:
-    per-user filesystem paths — e.g. a home-directory username — are
-    sensitive and don't belong in application logs).
+    The HTTP-facing message stays byte-identical to the ordinary
+    missing-token case on purpose (CWE-200: a client must not be able to
+    distinguish "store missing" from "token missing/expired" — that's
+    reconnaissance information about server-side filesystem state). The
+    distinction is verified through `caplog` only, never through the
+    exception string reaching the response body. The log line itself must
+    not name the actual store directory either (CWE-532: per-user
+    filesystem paths — e.g. a home-directory username — are sensitive and
+    don't belong in application logs).
     """
     assert not os.path.isdir(auth.dir)
     caplog.set_level(logging.WARNING, logger="omnivoice.path_authorization")
     with pytest.raises(auth.Error) as exc:
         auth.consume(_token(), "dub_export")
-    assert "no authorization store" in str(exc.value)
-    # Still a generic, path-free message over HTTP (no local filesystem
-    # disclosure) — the actual directory only appears in the server log.
+    # Client-facing: identical to the missing-token case, no HTTP-visible
+    # distinction and no path disclosure.
+    assert str(exc.value) == _GENERIC_MESSAGE
     assert auth.dir not in str(exc.value)
     # Server-log-only: the mismatch is diagnosable, but the log line never
     # names the actual (per-user) directory.
