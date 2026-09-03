@@ -18,6 +18,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Korean locale overhauled: 231 mistranslations corrected and all 493 missing keys translated (#1776) — thanks @j30231!
+
 ## [0.5.2] — 2026-09-02
 
 **Highlights**
