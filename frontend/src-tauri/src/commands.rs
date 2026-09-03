@@ -286,12 +286,17 @@ mod host_path_authorization_tests {
 
     /// Loopback responder answering `/system/info` with a given `data_dir`,
     /// standing in for a running backend during `path_authorization_dir`
-    /// tests.
+    /// tests. `data_dir` is JSON-escaped before insertion — required for a
+    /// Windows fixture like `C:\backend\data`, whose backslashes would
+    /// otherwise land on the wire unescaped and be misread by
+    /// `backend::parse_json_string_field`'s escape decoding (e.g. an
+    /// unescaped `\b` would decode as a literal backspace, not `\` + `b`).
     fn spawn_data_dir_stub(data_dir: &str) -> u16 {
         use std::io::{Read, Write};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let port = listener.local_addr().unwrap().port();
-        let body = format!(r#"{{"data_dir": "{data_dir}"}}"#);
+        let escaped = data_dir.replace('\\', "\\\\").replace('"', "\\\"");
+        let body = format!(r#"{{"data_dir": "{escaped}"}}"#);
         std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(mut stream) = stream else { break };
@@ -326,7 +331,16 @@ mod host_path_authorization_tests {
     #[test]
     fn prefers_the_running_backends_advertised_data_dir() {
         let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let port = spawn_data_dir_stub("/backend/advertised/data");
+        // Platform-appropriate ABSOLUTE fixture: `backend::backend_data_dir`
+        // filters through `Path::new(dir).is_absolute()`, which is FALSE for
+        // a Unix-style `/backend/advertised/data` on Windows (no drive
+        // prefix), so a Unix-only fixture would spuriously fall through to
+        // the Tauri-resolution branch on that platform.
+        #[cfg(windows)]
+        let advertised = r"C:\backend\advertised\data";
+        #[cfg(not(windows))]
+        let advertised = "/backend/advertised/data";
+        let port = spawn_data_dir_stub(advertised);
         std::env::set_var("OMNIVOICE_PORT", port.to_string());
         let handle = mock_app_handle();
 
@@ -335,7 +349,7 @@ mod host_path_authorization_tests {
         std::env::remove_var("OMNIVOICE_PORT");
         assert_eq!(
             dir,
-            PathBuf::from("/backend/advertised/data").join(".path-authorizations"),
+            PathBuf::from(advertised).join(".path-authorizations"),
             "must write into the backend's own data_dir, not Tauri's independent resolution"
         );
     }

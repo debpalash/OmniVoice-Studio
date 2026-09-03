@@ -977,8 +977,43 @@ mod tests {
         // files live (#1781) even when they'd otherwise resolve different
         // platform defaults (e.g. a dev backend spawned without
         // OMNIVOICE_DATA_DIR).
-        let port = spawn_system_info_stub(r#"{"data_dir": "/custom/data"}"#);
-        assert_eq!(backend_data_dir(port), Some("/custom/data".into()));
+        //
+        // The fixture must be a platform-appropriate ABSOLUTE path:
+        // `Path::new("/custom/data").is_absolute()` is FALSE on Windows
+        // (Windows requires a drive prefix like `C:` *and* a root — a
+        // rooted-but-driveless path is drive-relative and genuinely
+        // ambiguous), so a Unix-style fixture would spuriously fail the
+        // `is_absolute()` filter in `backend_data_dir` on that platform.
+        // The wire body doubles each backslash (JSON escaping); the new
+        // `decode_json_string` decodes that back to a single backslash, so
+        // the assertion checks the DECODED form, not the wire form.
+        #[cfg(windows)]
+        let (body, expected) = (
+            r#"{"data_dir": "C:\\custom\\data"}"#,
+            r"C:\custom\data",
+        );
+        #[cfg(not(windows))]
+        let (body, expected) = (r#"{"data_dir": "/custom/data"}"#, "/custom/data");
+        let port = spawn_system_info_stub(body);
+        assert_eq!(backend_data_dir(port), Some(expected.to_string()));
+
+        // A rooted-but-driveless path is drive-relative on Windows (which
+        // drive is "the" drive is ambiguous) and must be REJECTED there —
+        // `is_absolute()` correctly returns false for it, and the fixture
+        // fixed above must not silently paper over that. `/custom/data` and
+        // `\data` are exactly the un-prefixed forms a misbehaving responder
+        // (or a backend running under an unexpected shell) could send.
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                backend_data_dir(spawn_system_info_stub(r#"{"data_dir": "/custom/data"}"#)),
+                None
+            );
+            assert_eq!(
+                backend_data_dir(spawn_system_info_stub(r#"{"data_dir": "\\data"}"#)),
+                None
+            );
+        }
 
         // Old backend body (identifies via model_checkpoint) predating the
         // data_dir field → None, so callers fall back to Tauri's own
