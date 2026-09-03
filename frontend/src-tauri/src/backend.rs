@@ -85,13 +85,24 @@ fn parse_app_version(body: &str) -> Option<String> {
 /// `None` when nothing VoiceStudio answers at `port` (not started yet,
 /// unreachable) or an old backend predating the `data_dir` field — callers
 /// fall back to Tauri's own resolution, the historical behavior.
+///
+/// Only an ABSOLUTE path is accepted. `get_app_data_dir()` returns
+/// `OMNIVOICE_DATA_DIR` verbatim, so a relative value (`OMNIVOICE_DATA_DIR=
+/// omnivoice_data`, plausible for source/Docker setups) would make the
+/// backend resolve the store against ITS working directory while Tauri
+/// resolved the same string against its own — silently recreating the very
+/// split this function exists to close. A relative advertisement is
+/// therefore treated as unusable and the caller falls back, which is also
+/// what keeps a foreign responder on the port from steering capability
+/// writes to a path of its choosing.
 pub fn backend_data_dir(port: u16) -> Option<String> {
     let url = format!("http://127.0.0.1:{}/system/info", port);
     let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
     if !is_omnivoice_body(&body) {
         return None;
     }
-    parse_json_string_field(&body, "data_dir").filter(|dir| !dir.is_empty())
+    parse_json_string_field(&body, "data_dir")
+        .filter(|dir| !dir.is_empty() && Path::new(dir).is_absolute())
 }
 
 /// Whether a running backend's version matches THIS app build, comparing
@@ -914,6 +925,17 @@ mod tests {
         // A foreign (non-VoiceStudio) responder must not be trusted either.
         let foreign = spawn_system_info_stub(r#"{"hello": "world"}"#);
         assert_eq!(backend_data_dir(foreign), None);
+
+        // A RELATIVE data_dir is unusable and must not be adopted: the
+        // backend resolves it against its own working directory, so joining
+        // the same string onto Tauri's cwd would recreate exactly the split
+        // #1781 is about. `get_app_data_dir()` hands back
+        // OMNIVOICE_DATA_DIR verbatim, so this is reachable without any
+        // malice — a source or Docker setup using a relative override.
+        let relative = spawn_system_info_stub(r#"{"data_dir": "omnivoice_data"}"#);
+        assert_eq!(backend_data_dir(relative), None);
+        let dotted = spawn_system_info_stub(r#"{"data_dir": "./data"}"#);
+        assert_eq!(backend_data_dir(dotted), None);
 
         // Nothing listening → None, same fallback path.
         assert_eq!(backend_data_dir(1), None); // port 1 — never bindable by us
