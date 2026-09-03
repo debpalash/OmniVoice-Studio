@@ -9,12 +9,23 @@
 //! Access model: the folder is picked in a native dialog inside this process
 //! and registered under a random session token, together with a `cap_std`
 //! directory HANDLE opened at pick time. Scan/read commands resolve entries
-//! relative to that handle — no pathname is ever re-resolved after
-//! authorization, so swapping the directory (or any component of its path)
-//! for a symlink/junction later cannot redirect the watcher, on any OS. The
+//! relative to that handle — the pathname is never re-resolved for *access*,
+//! so swapping the directory (or any component of its path) for a
+//! symlink/junction later cannot redirect the watcher, on any OS. The stored
+//! pathname is re-resolved only by the liveness/identity check, which stops
+//! the watcher loudly when the folder is deleted, moved, or replaced. The
 //! webview cannot point the commands at an arbitrary path; reads are confined
 //! to files sitting directly in the folder the user explicitly picked this
 //! session (non-recursive by design).
+//!
+//! Holding the handle must not lock the user's folder: `cap_std` opens
+//! directories on Windows WITHOUT `FILE_SHARE_DELETE` (it pins the pathname
+//! for its own path-based helpers), which would make Explorer refuse to
+//! rename or delete a watched folder until the watch is stopped — a
+//! Windows-only behaviour the other two platforms don't have. The handle is
+//! therefore opened here with the full share mode (`open_dir_handle`), so
+//! replacing the folder behaves identically everywhere: the OS allows it, the
+//! next poll's identity check fails, and the UI stops the watcher.
 
 use std::collections::HashMap;
 use std::fs;
@@ -23,6 +34,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
+#[cfg(not(windows))]
 use cap_std::ambient_authority;
 use cap_std::fs::Dir;
 use serde::Serialize;
@@ -72,13 +84,45 @@ fn dir_identity(dir: &Dir) -> Result<(u32, u64), String> {
     ))
 }
 
+/// Open a directory handle for capability-scoped access.
+///
+/// Unix: `cap_std`'s own ambient open. Windows: the same
+/// `FILE_FLAG_BACKUP_SEMANTICS` directory open `cap_std` performs, but with
+/// `FILE_SHARE_DELETE` included so the user can still rename/delete the folder
+/// while it is watched (see the module docs). Child opens stay handle-relative
+/// (`CreateFileAtW` / `NtCreateFile` with a root directory) so confinement is
+/// unaffected; only the liveness check observes the rename, which is the
+/// intended signal.
+#[cfg(not(windows))]
+fn open_dir_handle(dir: &Path) -> io::Result<Dir> {
+    Dir::open_ambient_dir(dir, ambient_authority())
+}
+
+#[cfg(windows)]
+fn open_dir_handle(dir: &Path) -> io::Result<Dir> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows::Win32::Storage::FileSystem::{
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    };
+
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS.0)
+        .share_mode((FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0)
+        .open(dir)?;
+    if !file.metadata()?.is_dir() {
+        return Err(io::Error::other("not a directory"));
+    }
+    Ok(Dir::from_std_file(file))
+}
+
 fn authorize_watched_dir(dir: &Path) -> Result<WatchedDir, String> {
     let canonical = fs::canonicalize(dir)
         .map_err(|e| format!("Selected watch folder could not be resolved: {e}"))?;
     if !canonical.is_dir() {
         return Err("Selected watch folder is not a directory".into());
     }
-    let handle = Dir::open_ambient_dir(&canonical, ambient_authority())
+    let handle = open_dir_handle(&canonical)
         .map_err(|e| format!("Selected watch folder could not be opened: {e}"))?;
     #[cfg(unix)]
     let identity = dir_identity(
@@ -118,7 +162,7 @@ fn verify_watched_dir(watched: &WatchedDir) -> Result<(), String> {
     }
     #[cfg(windows)]
     {
-        let current = Dir::open_ambient_dir(&canonical_now, ambient_authority())
+        let current = open_dir_handle(&canonical_now)
             .map_err(|_| "Watched folder is no longer accessible".to_string())?;
         if dir_identity(&current)? != watched.identity {
             return Err("Watched folder changed identity".into());
@@ -410,10 +454,9 @@ pub fn watch_folder_forget(token: String) {
 #[cfg(test)]
 mod tests {
     use super::{
-        authorize_watched_dir, mtime_ms, open_watched_reader, scan_dir, validate_entry_name,
-        verify_watched_dir, Dir,
+        authorize_watched_dir, mtime_ms, open_dir_handle, open_watched_reader, scan_dir,
+        validate_entry_name, verify_watched_dir, Dir,
     };
-    use cap_std::ambient_authority;
     use std::fs;
     use std::io::Read;
     use std::path::PathBuf;
@@ -426,7 +469,7 @@ mod tests {
     }
 
     fn open_handle(dir: &std::path::Path) -> Dir {
-        Dir::open_ambient_dir(dir, ambient_authority()).unwrap()
+        open_dir_handle(dir).unwrap()
     }
 
     fn snapshot(path: &std::path::Path) -> (u64, u64) {
@@ -522,8 +565,34 @@ mod tests {
         // Untouched directory verifies fine…
         assert!(verify_watched_dir(&watched).is_ok());
         // …and a directory that disappears after authorization is refused.
+        // The removal itself must succeed WHILE the handle is held: a watch
+        // that locked the user's folder against deletion (Windows sharing
+        // violation, OS error 32) would be a Windows-only behaviour.
         fs::remove_dir_all(&dir).unwrap();
         assert!(verify_watched_dir(&watched).is_err());
+    }
+
+    #[test]
+    fn a_watched_folder_can_be_renamed_by_the_user_while_watched() {
+        // Cross-platform contract: holding the pinned handle never blocks the
+        // user from moving the folder (Explorer/Finder/mv). The liveness
+        // check is what notices — it must refuse, not the OS.
+        let dir = temp_watch_dir("rename-while-watched");
+        let moved = dir.with_extension("moved");
+        let _ = fs::remove_dir_all(&moved);
+        let watched = authorize_watched_dir(&dir).unwrap();
+        fs::rename(&dir, &moved).unwrap();
+        assert!(verify_watched_dir(&watched).is_err());
+        // The pinned handle still points at the ORIGINAL directory object.
+        fs::write(moved.join("clip.mp4"), b"x").unwrap();
+        let names: Vec<String> = scan_dir(&watched.handle)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names, ["clip.mp4"]);
+        drop(watched);
+        let _ = fs::remove_dir_all(&moved);
     }
 
     #[cfg(unix)]
@@ -566,13 +635,17 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn a_replaced_directory_at_the_same_windows_path_is_refused() {
+        // Same pathname, different directory object (volume serial + file
+        // index): the pathname check alone would pass, the identity must not.
         let dir = temp_watch_dir("windows-dir-replace");
         let moved = dir.with_extension("moved");
         let _ = fs::remove_dir_all(&moved);
         let watched = authorize_watched_dir(&dir).unwrap();
         fs::rename(&dir, &moved).unwrap();
         fs::create_dir_all(&dir).unwrap();
-        assert!(verify_watched_dir(&watched).is_err());
+        let err = verify_watched_dir(&watched).unwrap_err();
+        assert!(err.contains("identity"), "unexpected error: {err}");
+        drop(watched);
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::remove_dir_all(&moved);
     }
