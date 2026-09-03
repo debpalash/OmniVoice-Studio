@@ -204,7 +204,8 @@ ws://gpu-box:3900/ws/transcribe?api_key=<key>
 That URL form is retained for non-browser compatibility only. The first-party
 UI never constructs it. A bearer administrator session first calls
 `POST /api/auth/ws-ticket` and puts only the returned `ws_ticket` in the URL.
-Tickets are scoped to `/ws/transcribe` or `/ws/events`, expire after 30 seconds,
+Tickets are scoped to one of `/ws/transcribe`, `/ws/events` or `/ws/tts` (the
+live dub preview stream), expire after 30 seconds,
 return the same bounded `expires_in`/`expires_at` pair, and are consumed
 atomically at most once. Same-origin UI WebSockets use the
 HttpOnly session cookie and must pass exact `Origin` validation; `null`, missing,
@@ -338,7 +339,8 @@ drives exact-Origin checks and the session cookie's `Secure` attribute.
 For a public path prefix such as `/studio`, either strip that prefix before
 forwarding or configure the ASGI `root_path` to the same value. WebSocket ticket
 validation removes only that trusted, configured prefix; it never accepts an
-arbitrary path merely because it ends in `/ws/events` or `/ws/transcribe`.
+arbitrary path merely because it ends in `/ws/events`, `/ws/transcribe` or
+`/ws/tts`.
 
 ## Status codes
 

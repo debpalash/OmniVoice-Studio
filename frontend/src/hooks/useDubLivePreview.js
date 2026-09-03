@@ -118,7 +118,13 @@ export default function useDubLivePreview({ enabled }) {
           try {
             // Same one-use-ticket boundary as /ws/events and /ws/transcribe.
             endpoint = await authenticatedWsUrl('/ws/tts', { apiBase: API });
-          } catch {
+          } catch (err) {
+            // Say so — a silently dead toggle is the one failure the user
+            // can't diagnose (a backend that refuses the ticket looks exactly
+            // like "the feature does nothing").
+            throttledToast('live-connect', () =>
+              toast.error(t('tts_errors.error_prefix', { message: err?.message || '' })),
+            );
             settle();
             return;
           }

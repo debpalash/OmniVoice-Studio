@@ -321,6 +321,21 @@ describe('useDubLivePreview', () => {
     expect(mocks.state.ttsInflight).toBe(0);
   });
 
+  it('tells the user and releases admission when the ticket handshake fails', async () => {
+    // A backend whose ticket allowlist lacks /ws/tts answers 422; that must
+    // not look like "the toggle does nothing" (the #1769 first-cut symptom).
+    mocks.authenticatedWsUrl.mockRejectedValueOnce(new Error('ticket refused'));
+    const { result } = renderPreview();
+    await editAndSettle(result, SEG, 'Hola mundo');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    expect(mocks.toast.error).toHaveBeenCalledWith('tts_errors.error_prefix');
+    expect(mocks.state.ttsInflight).toBe(0);
+    expect(result.current.liveSegId).toBe(null);
+  });
+
   it('releases admission when WebSocket construction throws synchronously', async () => {
     vi.stubGlobal(
       'WebSocket',
