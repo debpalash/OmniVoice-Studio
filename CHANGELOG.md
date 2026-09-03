@@ -58,7 +58,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
-- Windows: the backend can now start when the install path contains non-English characters (e.g. a CJK username) on a non-UTF-8 system code page — the managed Python environment resolves to an ASCII-safe path, and a specific setup-screen message now names the cause if the interpreter still crashes in `site` (#1783)
+- Windows: the backend can now start when the install path contains non-English characters (e.g. a CJK username) on a non-UTF-8 system code page — a new or broken Python environment now builds at an ASCII-safe path automatically (a healthy existing one is never relocated), and a specific setup-screen message names the cause if the interpreter still crashes in `site` (#1783)
 - Exports and other native-picker actions no longer 403 with "Invalid or expired desktop authorization" when the desktop app and backend resolve different data directories, e.g. dev mode or a custom data folder (#1781)
 - Voice Design no longer lets you pick a Chinese dialect and an English accent together — the picker keeps them mutually exclusive instead of round-tripping a 400 (#1771)
 - Korean locale overhauled: 231 mistranslations corrected and all 493 missing keys translated (#1776) — thanks @j30231!

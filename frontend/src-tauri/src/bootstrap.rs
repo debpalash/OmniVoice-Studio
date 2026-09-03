@@ -1620,14 +1620,20 @@ fn apply_uv_env<R: tauri::Runtime>(app: &tauri::AppHandle<R>, cmd: &mut Command)
     }
 }
 
-/// `<env_root>/wheels` — a local wheel-drop dir uv installs from via
+/// `<app_data>/wheels` — a local wheel-drop dir uv installs from via
 /// `--find-links`. When a huge wheel can't be pulled on a restricted network
 /// (the ~2.5 GB cu128 torch wheel from download.pytorch.org — #569), the user
 /// downloads the matching wheel, drops it here, and a retry picks it up.
 /// Created so the path always exists to name in the error/docs. It lives under
-/// `env_root` (not `project/`), so it survives Clean & Retry.
-fn wheels_drop_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
-    let dir = crate::setup::env_root(app).join("wheels");
+/// `app_data` (not `project/`), so it survives Clean & Retry.
+///
+/// Takes the already-resolved env root as a plain path (#1783) rather than
+/// re-deriving it from `env_root(app)` — `ensure_venv_ready` may have
+/// redirected to an ASCII-safe root, and this must agree with wherever
+/// `uv sync` actually runs, or `UV_FIND_LINKS` and the error text naming
+/// this path would point somewhere the user never sees.
+fn wheels_drop_dir(app_data: &Path) -> PathBuf {
+    let dir = app_data.join("wheels");
     let _ = fs::create_dir_all(&dir);
     dir
 }
@@ -1815,11 +1821,14 @@ pub fn backend_exit_indicates_nonascii_pth_crash(err_tail: &str) -> bool {
 
 /// #1783: unlike the broken-venv signature, rebuilding the SAME venv at the
 /// SAME path can't fix this on its own — the path itself is the problem.
-/// `setup::ascii_safe_dir` already routes every new venv away from a
-/// non-ASCII path, so on a current build this only fires when 8.3 short-name
-/// generation is disabled (`fsutil 8dot3name`) or a pre-fix venv already
-/// exists at the broken location — both need the user to pick a new,
-/// ASCII-only install location rather than "Clean & Retry" the same one.
+/// `ensure_venv_ready`'s `resolve_venv_root` already redirects away from a
+/// non-ASCII path whenever an ASCII-safe alternative exists, so this
+/// specific message only fires when that redirect couldn't help — 8.3
+/// short-name generation is disabled (`fsutil 8dot3name`) — and needs the
+/// user to pick a new, ASCII-only install location by hand. It's also the
+/// fallback if a spawned backend somehow still hits this crash despite the
+/// pre-spawn probe in `ensure_venv_ready` (defense in depth, not the primary
+/// path).
 const NONASCII_PTH_CRASH_MSG: &str =
     "The backend's Python environment lives at a path Windows' active language/region \
 setting can't decode (commonly a non-English Windows username), so the interpreter \
@@ -1829,6 +1838,68 @@ row and pick a folder using only English letters/numbers (e.g. C:\\VoiceStudio) 
 replaces only the Python environment, not your voices/projects. Advanced: an \
 administrator can instead re-enable 8.3 short filenames with \"fsutil 8dot3name set 0\" \
 (run as Administrator) and retry. See docs/install/troubleshooting.md (#1783).";
+
+/// What `ensure_venv_ready` should do about where the venv lives, decided by
+/// [`resolve_venv_root`].
+#[derive(Debug, PartialEq, Eq)]
+enum VenvRootDecision {
+    /// Use `true_root` exactly as before — nothing here relocates a venv
+    /// that either doesn't need it or wouldn't be helped by it.
+    Keep,
+    /// Build/verify at this ASCII-safe root instead. The old location at
+    /// `true_root` is left untouched — never deleted by this decision.
+    Redirect(PathBuf),
+    /// `true_root` has the #1783 crash signature AND redirecting wouldn't
+    /// change anything (8.3 short names unavailable) — fail with the
+    /// specific diagnosis instead of cascading into an unrelated repair.
+    Unfixable,
+}
+
+/// #1783: decide whether `ensure_venv_ready` should trust/build the venv at
+/// `true_root` or redirect to `ascii_safe_root` (`setup::ascii_safe_dir`'s
+/// output for `true_root`). Pure — every input is an already-observed fact —
+/// so this is unit-testable without a real venv, interpreter, or AppHandle.
+///
+/// The controlling invariant, matching the existing #314 self-heal's
+/// `venv_rebuild_justified` (a venv that probes healthy is never destroyed):
+/// **a venv that exists and doesn't show the #1783 signature is never
+/// relocated**, no matter how it got a non-ASCII path or what `probe_stderr`
+/// otherwise says. Only two situations redirect:
+///   1. `venv_exists` is false — nothing usable is at `true_root` (a fresh
+///      install, or one just quarantined by the #314 structural check) — so
+///      building fresh there instead of at a byte-invalid path costs nothing.
+///   2. `venv_exists` is true and `probe_stderr` carries the exact #1783
+///      crash — the venv can never start where it is, so leaving it in place
+///      (untouched, recoverable by hand) and building fresh elsewhere is the
+///      only way forward.
+/// Any other probe outcome — healthy (`Some("")`), a different failure, or
+/// `None` (couldn't even spawn) — keeps `true_root`, exactly as before this
+/// fix existed, and falls through to the pre-existing uvicorn/pkg_resources/
+/// omnivoice repair logic unchanged.
+fn resolve_venv_root(
+    true_root: &Path,
+    ascii_safe_root: &Path,
+    venv_exists: bool,
+    probe_stderr: Option<&str>,
+) -> VenvRootDecision {
+    let redirect_helps = ascii_safe_root != true_root;
+    if venv_exists {
+        match probe_stderr {
+            Some(stderr) if backend_exit_indicates_nonascii_pth_crash(stderr) => {
+                if redirect_helps {
+                    VenvRootDecision::Redirect(ascii_safe_root.to_path_buf())
+                } else {
+                    VenvRootDecision::Unfixable
+                }
+            }
+            _ => VenvRootDecision::Keep,
+        }
+    } else if redirect_helps {
+        VenvRootDecision::Redirect(ascii_safe_root.to_path_buf())
+    } else {
+        VenvRootDecision::Keep
+    }
+}
 
 /// Data-safe guard for the destructive half of the #314 self-heal
 /// (feat/safe-updates): an exit-*signature* match alone is text matching on a
@@ -1870,6 +1941,23 @@ fn venv_interpreter_probe(venv_py: &Path) -> Option<bool> {
         Ok(status) => Some(status.success()),
         Err(_) => None,
     }
+}
+
+/// Like [`venv_interpreter_probe`] but captures stderr instead of discarding
+/// it, so a failure can be pattern-matched (#1783's non-ASCII-path `.pth`
+/// crash) rather than only reported healthy/unhealthy. `None` only when the
+/// binary couldn't be spawned at all (same "leave it to the existing repair
+/// path" case `venv_interpreter_probe`'s `None` gets elsewhere) — `Some("")`
+/// is a clean, healthy exit. Deliberately NOT `-S` (skip-site): the crash
+/// this exists to detect happens inside `site.py` during NORMAL interpreter
+/// startup, exactly like the real backend spawn, so a skip-site probe would
+/// never reproduce it.
+fn venv_interpreter_probe_stderr(venv_py: &Path) -> Option<String> {
+    let mut cmd = Command::new(venv_py);
+    scrub_python_env(&mut cmd);
+    crate::tools::no_window(&mut cmd);
+    cmd.args(["-c", "import encodings"]).stdout(Stdio::null()).stderr(Stdio::piped());
+    cmd.output().ok().map(|o| String::from_utf8_lossy(&o.stderr).into_owned())
 }
 
 // ── Linux/Windows: cuDNN 8 compat side-load ────────────────────────────────
@@ -2103,12 +2191,15 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     }
 
     // Root chosen on the setup screen: app_local_data_dir by default, the
-    // exe-adjacent folder in portable mode, or a user-picked custom dir.
-    let app_data = crate::setup::env_root(app);
-    let project_dir = app_data.join("project");
-    let venv_dir = project_dir.join(".venv");
-    let venv_py = venv_python_path(&venv_dir);
-    let backend_dir = project_dir.join("backend");
+    // exe-adjacent folder in portable mode, or a user-picked custom dir. This
+    // is the TRUE root (never redirected) — `resolve_venv_root` below decides
+    // if this call should build/verify somewhere else instead.
+    let true_app_data = crate::setup::env_root(app);
+    let mut app_data = true_app_data.clone();
+    let mut project_dir = app_data.join("project");
+    let mut venv_dir = project_dir.join(".venv");
+    let mut venv_py = venv_python_path(&venv_dir);
+    let mut backend_dir = project_dir.join("backend");
 
     // #314: structural validation before trusting an existing venv. A venv
     // whose pyvenv.cfg is gone (interrupted install) or whose python is a
@@ -2117,7 +2208,8 @@ pub fn ensure_venv_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, progress:
     // backend would just exit 106 ("No pyvenv.cfg file") forever. Quarantine
     // it and fall through to the creation path below, which rebuilds it with
     // the normal CreatingVenv/InstallingDeps progress. A healthy venv returns
-    // None here and is never touched.
+    // None here and is never touched. Runs against the TRUE root — this is a
+    // structural check on-disk, independent of #1783's ASCII redirect below.
     if let Some(problem) = venv_structural_problem(&venv_dir) {
         log::warn!(
             "Venv at {} is structurally broken ({}) — removing it and rebuilding (#314)",
@@ -2139,6 +2231,54 @@ manually, then relaunch.",
             ));
             return None;
         }
+    }
+
+    // #1783: a venv that exists here and probes healthy (or fails for any
+    // OTHER reason) is NEVER relocated — see `resolve_venv_root`'s doc for
+    // the full invariant. `is_ascii_path` is a cheap pre-check (string scan,
+    // no subprocess): an ASCII `true_app_data` — every macOS/Linux install
+    // and the overwhelming majority on Windows — can never produce this
+    // crash, so it skips straight to `Keep` without spawning the venv's
+    // interpreter a second time on every single launch just to confirm what
+    // is already structurally impossible.
+    let venv_exists_at_true_root = venv_py.is_file() && backend_dir.is_dir();
+    let decision = if crate::setup::is_ascii_path(&true_app_data) {
+        VenvRootDecision::Keep
+    } else {
+        let probe_stderr =
+            if venv_exists_at_true_root { venv_interpreter_probe_stderr(&venv_py) } else { None };
+        let ascii_safe_root = crate::setup::ascii_safe_dir(&true_app_data);
+        resolve_venv_root(&true_app_data, &ascii_safe_root, venv_exists_at_true_root, probe_stderr.as_deref())
+    };
+    match decision {
+        VenvRootDecision::Redirect(new_root) => {
+            if venv_exists_at_true_root {
+                log::warn!(
+                    "Venv at {} can't start — a non-ASCII path .pth crash (#1783) — building a \
+fresh environment at the ASCII-safe path {} instead. The old environment is left in place.",
+                    venv_dir.display(),
+                    new_root.display()
+                );
+            } else {
+                log::info!(
+                    "No usable environment at {} and its path isn't ASCII-safe — creating the \
+new environment at {} instead (#1783)",
+                    app_data.display(),
+                    new_root.display()
+                );
+            }
+            emit_log(app, "checking", "Building the Python environment at an ASCII-safe path (#1783)");
+            app_data = new_root;
+            project_dir = app_data.join("project");
+            venv_dir = project_dir.join(".venv");
+            venv_py = venv_python_path(&venv_dir);
+            backend_dir = project_dir.join("backend");
+        }
+        VenvRootDecision::Unfixable => {
+            fail(progress, NONASCII_PTH_CRASH_MSG);
+            return None;
+        }
+        VenvRootDecision::Keep => {}
     }
 
     if venv_py.is_file() && backend_dir.is_dir() {
@@ -2594,7 +2734,7 @@ the existing venv; newly added dependencies may be missing (#307)",
     if let Some(p) = progress {
         set_stage(p, BootstrapStage::InstallingDeps);
     }
-    let wheels_dir = wheels_drop_dir(app);
+    let wheels_dir = wheels_drop_dir(&app_data);
     let mut sync_cmd = Command::new(&uv_path);
     scrub_python_env(&mut sync_cmd); // #144: don't inherit AppImage's bundled Python
     apply_uv_env(app, &mut sync_cmd);
@@ -3235,11 +3375,98 @@ UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal m
         // #1783 acceptance: "the setup screen shows a specific message and a
         // fix, not the generic stall text." Pin the two load-bearing
         // ingredients of the fix so a future edit can't silently drop them —
-        // the concrete action (Custom location / ASCII path) and the escape
-        // hatch for the 8.3-disabled case.
+        // the concrete action (the "App environment" row's picker) and the
+        // escape hatch for the 8.3-disabled case.
         assert!(NONASCII_PTH_CRASH_MSG.contains("App environment"));
         assert!(NONASCII_PTH_CRASH_MSG.contains("8dot3name"));
         assert!(NONASCII_PTH_CRASH_MSG.contains("#1783"));
+    }
+
+    // ── #1783: resolve_venv_root — the relocation-safety invariant ─────────
+
+    #[test]
+    fn a_healthy_existing_venv_at_a_nonascii_path_is_never_relocated() {
+        // This is the regression a blunter fix would create: a Windows user
+        // on a non-ASCII path whose venv already works (e.g. a code page
+        // that happens to decode those bytes) must NOT lose a 9 GiB
+        // environment and be forced to re-download it just because this
+        // landed. `ascii_safe_root` differs from `true_root` (proving a
+        // redirect target genuinely exists) — the decision must still be
+        // Keep, because the venv exists and its probe carries no #1783
+        // signature.
+        let true_root = Path::new("/nonascii/root");
+        let ascii_root = Path::new("/ascii/root");
+        assert_eq!(
+            resolve_venv_root(true_root, ascii_root, true, Some("")), // clean probe exit
+            VenvRootDecision::Keep
+        );
+        // Same for a venv that fails to probe for an unrelated reason — that
+        // is the EXISTING uvicorn/pkg_resources/omnivoice repair machinery's
+        // job, untouched by this fix.
+        assert_eq!(
+            resolve_venv_root(true_root, ascii_root, true, Some("Traceback (most recent call last)...")),
+            VenvRootDecision::Keep
+        );
+        // And when the probe couldn't even spawn the interpreter (None) —
+        // also left to the existing logic, never relocated.
+        assert_eq!(resolve_venv_root(true_root, ascii_root, true, None), VenvRootDecision::Keep);
+    }
+
+    #[test]
+    fn identical_ascii_safe_and_true_roots_never_redirect() {
+        // The overwhelming majority case: `ascii_safe_dir` is a no-op for an
+        // ASCII path, so `ascii_safe_root == true_root` — nothing usable to
+        // redirect TO, so this decides purely on whether the venv needs
+        // fixing at all, never on relocating it.
+        let root = Path::new("/ascii/root");
+        assert_eq!(resolve_venv_root(root, root, true, Some("")), VenvRootDecision::Keep);
+        assert_eq!(resolve_venv_root(root, root, false, None), VenvRootDecision::Keep);
+        // A #1783-signature probe couldn't occur for a genuinely ASCII path
+        // in practice, but the decision function doesn't get to assume that
+        // — with nowhere better to go, it must fail specifically rather than
+        // silently return Keep (which would hand back a venv that can never
+        // start) or claim a redirect that changes nothing.
+        assert_eq!(
+            resolve_venv_root(root, root, true, Some("UnicodeDecodeError in init_import_site")),
+            VenvRootDecision::Unfixable
+        );
+    }
+
+    #[test]
+    fn a_nonexistent_venv_redirects_to_an_available_ascii_safe_root() {
+        // Case 1: nothing usable at the true (non-ASCII) path — a genuine
+        // first run, or one just quarantined by the #314 structural check.
+        // Building fresh at the ASCII-safe root costs nothing since there is
+        // nothing to abandon.
+        let true_root = Path::new("/nonascii/root");
+        let ascii_root = Path::new("/ascii/root");
+        assert_eq!(
+            resolve_venv_root(true_root, ascii_root, false, None),
+            VenvRootDecision::Redirect(ascii_root.to_path_buf())
+        );
+    }
+
+    #[test]
+    fn a_venv_with_the_1783_signature_redirects_when_a_safe_root_exists() {
+        // Case 2: the venv exists but can never start where it is.
+        let true_root = Path::new("/nonascii/root");
+        let ascii_root = Path::new("/ascii/root");
+        let crash_stderr = "Fatal Python error: init_import_site: ...\nUnicodeDecodeError: ...";
+        assert_eq!(
+            resolve_venv_root(true_root, ascii_root, true, Some(crash_stderr)),
+            VenvRootDecision::Redirect(ascii_root.to_path_buf())
+        );
+    }
+
+    #[test]
+    fn a_venv_with_the_1783_signature_is_unfixable_when_redirect_cannot_help() {
+        // 8.3 short names disabled (or any other reason `ascii_safe_dir`
+        // couldn't produce a different path) — redirecting to the SAME path
+        // achieves nothing, so this must fail with the specific diagnosis
+        // rather than loop into the unrelated pkg_resources repair cascade.
+        let root = Path::new("/nonascii/root");
+        let crash_stderr = "Fatal Python error: init_import_site: ...\nUnicodeDecodeError: ...";
+        assert_eq!(resolve_venv_root(root, root, true, Some(crash_stderr)), VenvRootDecision::Unfixable);
     }
 
     #[test]

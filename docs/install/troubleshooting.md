@@ -851,15 +851,18 @@ interpreter can never start (#1783).
 **Fix:** current builds resolve the managed environment through Windows' 8.3
 short filename for any path containing non-ASCII bytes (the same trick
 already used for the HuggingFace cache — see
-[`backend/core/config.py`](../../backend/core/config.py)), so the venv itself
-lives at an ASCII-safe path and `uv sync`'s `.pth` never contains a
-non-ASCII byte. This applies automatically; no user action is needed for a
-first-time install.
+[`backend/core/config.py`](../../backend/core/config.py)) whenever there is
+no usable environment yet, or an existing one shows exactly this crash — so
+a first-time install, and an install already broken by this bug, both land
+at an ASCII-safe path automatically with no user action needed. The old
+broken environment (if any) is left in place, not deleted, in case manual
+recovery is ever needed. An existing environment that already works — ASCII
+path or not — is never touched or relocated.
 
-If it still happens (an install created before this fix, or 8.3 short
-filenames disabled on the system drive), the setup screen names this cause
-specifically rather than the generic "backend never reported ready." Fix
-either by:
+If it still happens (8.3 short filenames disabled on the system drive, so no
+ASCII-safe alternative exists to redirect to), the setup screen names this
+cause specifically rather than the generic "backend never reported ready."
+Fix either by:
 
 - On the setup screen, using the **Change…** button on the "App environment"
   row (or "Portable folder" in portable mode) to pick an ASCII-only path

@@ -376,32 +376,39 @@ pub fn default_models_dir() -> PathBuf {
 /// Root that holds the managed Python project (`<root>/project/.venv`).
 /// Single source of truth for bootstrap + clean-retry + backend spawn.
 ///
-/// Passed through [`ascii_safe_dir`] (#1783): on Windows, Python 3.11's
-/// `site.addpackage` decodes every `.pth` in `site-packages` with the ANSI
-/// code page even when `PYTHONUTF8=1` is set, so `uv sync`'s
-/// `_editable_impl_omnivoice.pth` (which embeds this root's absolute path in
-/// UTF-8) kills the interpreter before `main.py` runs if the path contains a
-/// byte that isn't valid in the active code page — e.g. a CJK Windows
-/// username. Elsewhere this is a byte-identical no-op.
+/// Deliberately always the TRUE, non-redirected path — never routed through
+/// [`ascii_safe_dir`] here. `ensure_venv_ready` (bootstrap.rs) is the only
+/// caller allowed to redirect to an ASCII-safe root (#1783), and only after
+/// confirming there is nothing usable at this true path (see
+/// `resolve_venv_root`): a working venv, ASCII path or not, must never be
+/// silently relocated just because this function was called — every other
+/// consumer (uninstall size/deletion, disk-space checks, the first-run
+/// storage preview) needs the path that actually holds the data on disk.
 pub fn env_root<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
     let cfg = config::load_config(app);
     if cfg.install_mode == "portable" {
         if let Some(base) = portable_base() {
-            return ascii_safe_dir(&base.join("env"));
+            return base.join("env");
         }
     }
     if let Some(dir) = cfg.env_dir.as_deref().filter(|s| !s.is_empty()) {
-        return ascii_safe_dir(&PathBuf::from(dir));
+        return PathBuf::from(dir);
     }
-    ascii_safe_dir(&app.path().app_local_data_dir().unwrap_or_default())
+    app.path().app_local_data_dir().unwrap_or_default()
 }
 
 /// True when `path`'s displayed form is pure ASCII — the precondition
 /// Windows' ANSI-code-page `.pth` decoding needs (#1783). Byte-identical
 /// fast path for the overwhelming majority of installs, which never touch
 /// the WinAPI short-name call below.
-#[cfg(any(target_os = "windows", test))]
-fn is_ascii_path(path: &Path) -> bool {
+///
+/// `pub(crate)`, not Windows-gated: `bootstrap::ensure_venv_ready` uses this
+/// as a cheap pre-check (a string scan, no subprocess) to skip its non-ASCII
+/// interpreter probe entirely for an ASCII env root — which is every install
+/// on macOS/Linux and the overwhelming majority on Windows too. Without this
+/// gate, every launch with an existing venv would pay for one extra
+/// subprocess spawn it never needed.
+pub(crate) fn is_ascii_path(path: &Path) -> bool {
     path.to_string_lossy().is_ascii()
 }
 
