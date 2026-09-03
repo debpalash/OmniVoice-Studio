@@ -75,7 +75,7 @@ docker run -d -p 127.0.0.1:3900:3900 --name voicestudio palashdeb/omnivoice-stud
 
 1. **安装并启动。** 首次启动会自动搭建 Python 运行环境并下载模型权重——启动画面会逐步显示进度（仅首次，需要几分钟；之后即开即用）。
 2. 从启动台打开**语音克隆**，拖入任意声音的 **3 秒音频**。
-3. **输入一句话，点击生成。** 音频完全属于你——在你的设备上生成和保存，支持 646 种语言。
+3. **输入一句话，点击生成。** 音频在你的设备上生成并保存，支持 646 种语言（商业使用前请审阅所选模型与分词器的许可条款）。
 
 ### 🎧 音频示例
 
@@ -365,9 +365,9 @@ print(result.text)
 
 ### 📓 在 Google Colab 上运行
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/VoiceStudio_Studio_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
 
-没有本地 GPU？官方笔记本（[notebooks/VoiceStudio_Studio_Colab.ipynb](notebooks/VoiceStudio_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
+没有本地 GPU？官方笔记本（[notebooks/OmniVoice_Studio_Colab.ipynb](notebooks/OmniVoice_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
 
 ### 🤝 智能体技能（Agent Skills）
 

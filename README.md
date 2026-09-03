@@ -329,7 +329,7 @@ with client.audio.speech.with_streaming_response.create(
 # Quick test via cURL
 curl http://localhost:3900/v1/audio/speech \
   -H "Content-Type: application/json" \
-  -d '{"model": "tts-1", "input": "Made on my own hardware.", "voice": "default"}' \
+  -d '{"model": "tts-1", "input": "Made on my own hardware.", "voice": "default", "response_format": "wav"}' \
   --output speech.wav
 ```
 
