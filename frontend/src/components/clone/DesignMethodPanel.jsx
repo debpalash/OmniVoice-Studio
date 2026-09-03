@@ -201,7 +201,7 @@ export default function DesignMethodPanel({
                 data-chip-nav="true"
                 className={`${PCHIP_BASE} ${checked ? PCHIP_ACTIVE : PCHIP_INACTIVE}`}
                 onClick={() => selectChip(chip.uid)}
-                onKeyDown={(e) => onChipKeyDown(e, visibleUids, activeUid, selectChip)}
+                onKeyDown={(e) => onChipKeyDown(e, visibleUids, i)}
               >
                 <span className="inline-flex items-center">
                   <Icon size={13} />

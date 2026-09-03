@@ -133,7 +133,19 @@ export default function CloneDesignTab(props) {
   // follow-up) both drive the category picks from describeText, so this is
   // the ONE place that does it — resetToDescription must never grow a
   // second, divergent implementation of the same mapping.
+  //
+  // describeRequestRef guards the await: this fires on every keystroke's
+  // debounce AND on-demand from the reset button, so two calls can be in
+  // flight together, and whichever `apiPost` resolves LAST used to always
+  // win regardless of which was actually issued last (the original inline
+  // effect closed over its own `cancelled` flag per call, which this
+  // extraction dropped — greptile caught it in review). Each call claims the
+  // next token and only commits state if it's still the most recent one when
+  // its response lands, so a slow, superseded response can never clobber a
+  // faster, newer one.
+  const describeRequestRef = useRef(0);
   const applyDescribeToVdStates = async (q) => {
+    const requestId = ++describeRequestRef.current;
     if (!q) {
       // No description to reset to: every category goes back to Auto.
       setVdStates(Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, 'Auto'])));
@@ -145,6 +157,7 @@ export default function CloneDesignTab(props) {
     }
     try {
       const res = await apiPost('/design/describe', { description: q });
+      if (requestId !== describeRequestRef.current) return; // superseded — discard
       setVdStates(mergeDescribedAttrs(res.attrs));
       setDescribeUnmatched(res.unmatched || []);
       setDescribeMatchedAny((res.matched || []).length > 0);
@@ -300,20 +313,29 @@ export default function CloneDesignTab(props) {
   };
 
   // 10x P4 a11y (spec §3): chip strips get a roving tabindex —
-  // ArrowLeft/ArrowRight move focus AND selection within the group, per the
-  // WAI-ARIA toolbar pattern. Gender/Age/Pitch/Style/Accent-or-Dialect moved
-  // to native <select>s in the #1771 follow-up (which get this navigation
-  // for free from the browser), so the only remaining chip strip is the
-  // "Starting points" personality row — including chips currently hidden
-  // behind its overflow toggle, once revealed. Generic over (ids, currentId,
-  // onSelect) rather than a vdStates category, since that's no longer the
-  // only chip consumer.
-  const onChipKeyDown = (e, ids, currentId, onSelect) => {
+  // ArrowLeft/ArrowRight move FOCUS ONLY, per the WAI-ARIA toolbar pattern
+  // (a native <button> already activates on Enter/Space/click, so the
+  // handler never needs to fire selection itself). Gender/Age/Pitch/Style/
+  // Accent-or-Dialect moved to native <select>s in the #1771 follow-up
+  // (free keyboard nav from the browser), so the only remaining chip strip
+  // is the "Starting points" row — including chips currently hidden behind
+  // its overflow toggle, once revealed.
+  //
+  // This USED to also apply the newly-focused option (`onSelect`), which was
+  // correct for the old CATEGORIES radiogroups (a true single-value pick,
+  // where "arrow lands on X" and "X is now selected" are the same thing) but
+  // wrong for this toggle strip — CodeRabbit caught it in review: every
+  // arrow press was calling applyPersonality, which resets every vdStates
+  // category, so merely traversing the row with the keyboard destroyed the
+  // user's Details recipe. `currentIndex` is the target button's OWN index
+  // (from the render loop), not a lookup by "currently active id" — the old
+  // lookup-based `cur` silently reset to 0 whenever nothing was active
+  // (activePersonality can be '' most of the time), so it never advanced
+  // past the first two chips.
+  const onChipKeyDown = (e, ids, currentIndex) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
-    const cur = Math.max(0, ids.indexOf(currentId));
-    const next = (cur + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
-    onSelect(ids[next]);
+    const next = (currentIndex + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
     e.currentTarget.closest('[role="group"]')?.querySelectorAll('[data-chip-nav]')[next]?.focus();
   };
 

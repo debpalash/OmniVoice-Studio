@@ -5,12 +5,13 @@
 // "personalities + PRESETS share one lane" data flow. These tests mount the
 // actual CloneDesignTab so both bugs would fail here.
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CloneDesignTab from './CloneDesignTab';
 import { useAppStore } from '../store';
 import { CATEGORIES } from '../utils/constants';
+import { apiPost } from '../api/client';
 
 vi.mock('../api/hooks', () => ({
   useEngines: () => ({ data: { tts: { backends: [] }, asr: { backends: [] } } }),
@@ -38,76 +39,81 @@ vi.mock('../api/client', () => ({
 
 const NOOP = () => {};
 
-function renderDesignTab() {
+function baseProps(overrides = {}) {
+  const vdStates = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, 'Auto']));
+  return {
+    textAreaRef: { current: null },
+    text: '',
+    setText: NOOP,
+    language: 'en',
+    setLanguage: NOOP,
+    steps: 16,
+    setSteps: NOOP,
+    cfg: 2,
+    setCfg: NOOP,
+    speed: 1,
+    setSpeed: NOOP,
+    tShift: 0,
+    setTShift: NOOP,
+    posTemp: 0,
+    setPosTemp: NOOP,
+    classTemp: 0,
+    setClassTemp: NOOP,
+    layerPenalty: 0,
+    setLayerPenalty: NOOP,
+    duration: '',
+    setDuration: NOOP,
+    denoise: false,
+    setDenoise: NOOP,
+    postprocess: false,
+    setPostprocess: NOOP,
+    showOverrides: false,
+    setShowOverrides: NOOP,
+    profiles: [],
+    selectedProfile: '',
+    setSelectedProfile: NOOP,
+    refAudio: null,
+    refText: '',
+    setRefText: NOOP,
+    instruct: '',
+    setInstruct: NOOP,
+    profileName: '',
+    setProfileName: NOOP,
+    showSaveProfile: false,
+    setShowSaveProfile: NOOP,
+    isRecording: false,
+    isCleaning: false,
+    recordingTime: 0,
+    audioInputs: [],
+    selectedAudioInputId: '',
+    setSelectedAudioInputId: NOOP,
+    channelMode: 'mono',
+    setChannelMode: NOOP,
+    inputLevelStore: undefined,
+    vdStates,
+    setVdStates: NOOP,
+    isGenerating: false,
+    generationTime: 0,
+    applyPreset: NOOP,
+    insertTag: NOOP,
+    handleSaveProfile: NOOP,
+    handleSaveDesignProfile: NOOP,
+    handleGenerate: NOOP,
+    startRecording: NOOP,
+    stopRecording: NOOP,
+    ingestRefAudio: NOOP,
+    ...overrides,
+  };
+}
+
+function renderDesignTab(overrides = {}) {
   // Default defineMethod is 'audio' — jump straight to the Design method so
   // DesignMethodPanel (not AudioMethodPanel) mounts.
   useAppStore.getState().setDefineMethod('design');
   const queryClient = new QueryClient();
-  const vdStates = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, 'Auto']));
   return render(
     <QueryClientProvider client={queryClient}>
-      <CloneDesignTab
-        textAreaRef={{ current: null }}
-        text=""
-        setText={NOOP}
-        language="en"
-        setLanguage={NOOP}
-        steps={16}
-        setSteps={NOOP}
-        cfg={2}
-        setCfg={NOOP}
-        speed={1}
-        setSpeed={NOOP}
-        tShift={0}
-        setTShift={NOOP}
-        posTemp={0}
-        setPosTemp={NOOP}
-        classTemp={0}
-        setClassTemp={NOOP}
-        layerPenalty={0}
-        setLayerPenalty={NOOP}
-        duration=""
-        setDuration={NOOP}
-        denoise={false}
-        setDenoise={NOOP}
-        postprocess={false}
-        setPostprocess={NOOP}
-        showOverrides={false}
-        setShowOverrides={NOOP}
-        profiles={[]}
-        selectedProfile=""
-        setSelectedProfile={NOOP}
-        refAudio={null}
-        refText=""
-        setRefText={NOOP}
-        instruct=""
-        setInstruct={NOOP}
-        profileName=""
-        setProfileName={NOOP}
-        showSaveProfile={false}
-        setShowSaveProfile={NOOP}
-        isRecording={false}
-        isCleaning={false}
-        recordingTime={0}
-        audioInputs={[]}
-        selectedAudioInputId=""
-        setSelectedAudioInputId={NOOP}
-        channelMode="mono"
-        setChannelMode={NOOP}
-        inputLevelStore={undefined}
-        vdStates={vdStates}
-        setVdStates={NOOP}
-        isGenerating={false}
-        generationTime={0}
-        applyPreset={NOOP}
-        insertTag={NOOP}
-        handleSaveProfile={NOOP}
-        handleSaveDesignProfile={NOOP}
-        handleGenerate={NOOP}
-        startRecording={NOOP}
-        stopRecording={NOOP}
-        ingestRefAudio={NOOP}
-      />
+      <CloneDesignTab {...baseProps(overrides)} />
     </QueryClientProvider>,
   );
 }
@@ -138,5 +144,91 @@ describe('CloneDesignTab — Voice Design panel redesign regressions', () => {
     expect(screen.getByText('Energetic')).toBeInTheDocument();
     expect(screen.getByText(/Authoritative/)).toBeInTheDocument();
     expect(screen.queryByText(/more…/)).toBeNull();
+  });
+
+  // CodeRabbit (PR #1793 review): the Starting Points chip strip is a toggle
+  // group, not a true radio group — clicking the active chip again clears
+  // it (applyPersonality). Arrow-key navigation must move focus ONLY; it
+  // used to also re-apply the newly-focused chip on every press, which
+  // reset every vdStates category to Auto just from tabbing through with
+  // the keyboard, and (since nothing is "active" most of the time) got
+  // stuck re-selecting index 0→1 instead of actually advancing.
+  it('ArrowRight only moves focus across chips — it never re-applies a personality/preset', async () => {
+    const setVdStates = vi.fn();
+    const setInstruct = vi.fn();
+    renderDesignTab({ setVdStates, setInstruct });
+    const narrator = await screen.findByRole('button', { name: /narrator/i });
+    const casual = screen.getByRole('button', { name: /casual/i });
+
+    narrator.focus();
+    expect(document.activeElement).toBe(narrator);
+
+    fireEvent.keyDown(narrator, { key: 'ArrowRight' });
+
+    expect(document.activeElement).toBe(casual);
+    expect(setVdStates).not.toHaveBeenCalled();
+    expect(setInstruct).not.toHaveBeenCalled();
+  });
+});
+
+// Bot review on PR #1793 (greptile + coderabbit, independently): extracting
+// the debounced describe→vdStates body into applyDescribeToVdStates() (so
+// the live-typing effect and the "Reset to description" button share it)
+// dropped the original inline effect's `if (cancelled) return;` guard AFTER
+// the await. Two overlapping /design/describe calls can resolve out of
+// order (a slow first request racing a fast, newer second one); the fix is
+// a describeRequestRef sequence token that discards a response once a newer
+// call has started.
+describe('CloneDesignTab — stale /design/describe response race guard', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a slow, superseded response never overwrites a faster, newer one', async () => {
+    let resolveFirst;
+    let resolveSecond;
+    apiPost
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+
+    const setVdStates = vi.fn();
+    renderDesignTab({ setVdStates });
+    const textarea = screen.getByPlaceholderText(
+      'e.g. a warm elderly British storyteller, slightly raspy',
+    );
+
+    // First description — its debounce fires and its (slow) apiPost call
+    // starts, but nothing has resolved yet.
+    fireEvent.change(textarea, { target: { value: 'a deep male voice' } });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(apiPost).toHaveBeenCalledTimes(1);
+
+    // A second, different description supersedes it before the first
+    // request resolves.
+    fireEvent.change(textarea, { target: { value: 'a bright female voice' } });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(apiPost).toHaveBeenCalledTimes(2);
+
+    // The NEWER request resolves first (plausible under real network
+    // jitter) — its result must be applied.
+    await act(async () => {
+      resolveSecond({ attrs: { Gender: 'female' }, matched: ['female'], unmatched: [] });
+    });
+    expect(setVdStates).toHaveBeenCalledTimes(1);
+    expect(setVdStates).toHaveBeenLastCalledWith(expect.objectContaining({ Gender: 'female' }));
+
+    // The OLDER, now-stale request finally resolves — it must be discarded,
+    // not silently overwrite the newer state that already landed.
+    await act(async () => {
+      resolveFirst({ attrs: { Gender: 'male' }, matched: ['male'], unmatched: [] });
+    });
+    expect(setVdStates).toHaveBeenCalledTimes(1); // still just the one, newer call
   });
 });
