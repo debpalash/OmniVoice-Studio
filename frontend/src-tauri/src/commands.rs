@@ -44,11 +44,27 @@ pub struct AuthorizedPathSelection {
 /// the backend already started, previously left Tauri writing capability
 /// files the backend could never find, 403ing every export.
 pub fn path_authorization_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
-    crate::backend::backend_data_dir(crate::backend_port())
+    authorization_dir_from(crate::backend::backend_data_dir(crate::backend_port()), || {
+        crate::setup::resolved_data_dir(app).unwrap_or_else(crate::setup::default_data_dir)
+    })
+}
+
+/// The resolution rule itself, with the two inputs passed in rather than
+/// fetched, so it is unit-testable without an `AppHandle`.
+///
+/// Constructing one in a test (`tauri::test::mock_builder`) aborts the whole
+/// test binary on the Windows CI runner — it exits before the harness prints
+/// a single line — and nothing else in this crate builds a Tauri app in a
+/// unit test. Keeping the decision in a plain function means the branch that
+/// matters for #1781 is covered on every platform, and the wrapper above is
+/// left as two argument expressions with no logic of its own.
+fn authorization_dir_from(
+    advertised: Option<String>,
+    tauri_fallback: impl FnOnce() -> PathBuf,
+) -> PathBuf {
+    advertised
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            crate::setup::resolved_data_dir(app).unwrap_or_else(crate::setup::default_data_dir)
-        })
+        .unwrap_or_else(tauri_fallback)
         .join(".path-authorizations")
 }
 
@@ -278,48 +294,6 @@ mod host_path_authorization_tests {
         );
     }
 
-    // Serializes tests that mutate OMNIVOICE_PORT (a process-global env var
-    // `crate::backend_port()` reads); nothing else in this crate's unit test
-    // suite touches it, but future tests should still take this lock before
-    // doing so.
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    /// Loopback responder answering `/system/info` with a given `data_dir`,
-    /// standing in for a running backend during `path_authorization_dir`
-    /// tests. `data_dir` is JSON-escaped before insertion — required for a
-    /// Windows fixture like `C:\backend\data`, whose backslashes would
-    /// otherwise land on the wire unescaped and be misread by
-    /// `backend::parse_json_string_field`'s escape decoding (e.g. an
-    /// unescaped `\b` would decode as a literal backspace, not `\` + `b`).
-    fn spawn_data_dir_stub(data_dir: &str) -> u16 {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-        let port = listener.local_addr().unwrap().port();
-        let escaped = data_dir.replace('\\', "\\\\").replace('"', "\\\"");
-        let body = format!(r#"{{"data_dir": "{escaped}"}}"#);
-        std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { break };
-                let mut buf = [0u8; 512];
-                let _ = stream.read(&mut buf);
-                let resp = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
-                    body.len()
-                );
-                let _ = stream.write_all(resp.as_bytes());
-            }
-        });
-        port
-    }
-
-    fn mock_app_handle() -> tauri::AppHandle<tauri::test::MockRuntime> {
-        tauri::test::mock_builder()
-            .build(tauri::test::mock_context(tauri::test::noop_assets()))
-            .expect("mock app")
-            .handle()
-            .clone()
-    }
-
     /// Regression for #1781: a native save dialog succeeded and Tauri wrote
     /// the one-shot capability file, but the backend 403'd every export
     /// because it scanned a DIFFERENT `.path-authorizations` directory (its
@@ -328,25 +302,26 @@ mod host_path_authorization_tests {
     /// applied after the backend already started). When a backend is
     /// reachable, its advertised `data_dir` must win so the two processes
     /// are structurally unable to disagree.
+    ///
+    /// Exercised through `authorization_dir_from` rather than
+    /// `path_authorization_dir`: the wrapper needs an `AppHandle`, and
+    /// building one in a unit test aborts the entire test binary on the
+    /// Windows runner. The HTTP side (`backend::backend_data_dir`, including
+    /// its absolute-path filter) has its own tests in `backend.rs`.
     #[test]
     fn prefers_the_running_backends_advertised_data_dir() {
-        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // Platform-appropriate ABSOLUTE fixture: `backend::backend_data_dir`
-        // filters through `Path::new(dir).is_absolute()`, which is FALSE for
-        // a Unix-style `/backend/advertised/data` on Windows (no drive
-        // prefix), so a Unix-only fixture would spuriously fall through to
-        // the Tauri-resolution branch on that platform.
+        // Platform-appropriate absolute fixture: a Unix-style path is NOT
+        // absolute on Windows (no drive prefix), and `PathBuf::join`
+        // normalizes separators per platform.
         #[cfg(windows)]
         let advertised = r"C:\backend\advertised\data";
         #[cfg(not(windows))]
         let advertised = "/backend/advertised/data";
-        let port = spawn_data_dir_stub(advertised);
-        std::env::set_var("OMNIVOICE_PORT", port.to_string());
-        let handle = mock_app_handle();
 
-        let dir = super::path_authorization_dir(&handle);
+        let dir = super::authorization_dir_from(Some(advertised.to_string()), || {
+            panic!("must not fall back to Tauri's resolution while a backend advertises a dir")
+        });
 
-        std::env::remove_var("OMNIVOICE_PORT");
         assert_eq!(
             dir,
             PathBuf::from(advertised).join(".path-authorizations"),
@@ -354,22 +329,17 @@ mod host_path_authorization_tests {
         );
     }
 
-    /// When no backend answers (unreachable, not started yet), the resolver
-    /// must fall back to Tauri's own resolution — the pre-#1781 behavior —
-    /// rather than erroring or writing somewhere unpredictable.
+    /// When no backend answers (unreachable, not started yet, or advertising
+    /// something unusable), the resolver must fall back to Tauri's own
+    /// resolution — the pre-#1781 behavior — rather than erroring or writing
+    /// somewhere unpredictable.
     #[test]
     fn falls_back_to_tauris_own_resolution_when_the_backend_is_unreachable() {
-        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        std::env::set_var("OMNIVOICE_PORT", "1"); // never bindable by us
-        let handle = mock_app_handle();
+        let fallback = std::env::temp_dir().join("voicestudio-fallback-fixture");
 
-        let dir = super::path_authorization_dir(&handle);
+        let dir = super::authorization_dir_from(None, || fallback.clone());
 
-        let expected_fallback = crate::setup::resolved_data_dir(&handle)
-            .unwrap_or_else(crate::setup::default_data_dir)
-            .join(".path-authorizations");
-        std::env::remove_var("OMNIVOICE_PORT");
-        assert_eq!(dir, expected_fallback);
+        assert_eq!(dir, fallback.join(".path-authorizations"));
     }
 }
 
