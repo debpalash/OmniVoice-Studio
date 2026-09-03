@@ -956,6 +956,7 @@
     "paste_url": "…oder fügen Sie die YouTube-/Video-URL ein",
     "ingest": "Verschlucken",
     "pull_captions": "Rufen Sie YouTube-Untertitel und automatische Übersetzungen ab",
+    "batch_queue_link": "Viele Videos zu synchronisieren? Warteschlange öffnen",
     "youtube_auth": "YouTube-Anmeldung (optional)",
     "youtube_cookie_file": "cookies.txt-Export auswählen",
     "remove_cookie_file": "Cookie-Datei entfernen",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "Die Übersetzung für {{langs}} ist fehlgeschlagen. Diese Synchronfassungen wurden übersprungen, damit keine Spur in der falschen Sprache entsteht.",
     "manage_languages": "Sprachen verwalten",
     "languages_done": "Fertig",
-    "languages_pending": "Ausstehend"
+    "languages_pending": "Ausstehend",
+    "live_preview": "Live-Vorschau",
+    "live_preview_title": "Zeile beim Bearbeiten anhören — das bearbeitete Segment streamt nach kurzer Pause TTS mit seiner CAST-Stimme. Nur Wiedergabe: nichts wird gespeichert, der Export rendert weiterhin in voller Qualität.",
+    "live_preview_pick_voice": "Weise dieser Zeile oder ihrem Sprecher eine CAST-Stimme zu, um die Live-Vorschau zu hören."
   },
   "glossary": {
     "title": "Glossar",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "Audio passt in den Steckplatz.",
     "fit_ratio_title": "TTS-Audio macht {{pct}} % des Slots aus.",
     "qc_verify": "Überprüfen",
-    "qc_verify_title": "ASR im zweiten Durchgang hörte: „{{heard}}“ – hören Sie sich diese Zeile noch einmal an oder überspielen Sie sie erneut."
+    "qc_verify_title": "ASR im zweiten Durchgang hörte: „{{heard}}“ – hören Sie sich diese Zeile noch einmal an oder überspielen Sie sie erneut.",
+    "live_play_title": "Diese Zeile jetzt streamen (Live-Vorschau)",
+    "live_stop_title": "Live-Vorschau stoppen"
   },
   "timeline": {
     "track_label": "Segment-Zeitleiste",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "Hintergrundaudio (Musik/FX) beibehalten",
     "estimate": "{{videos}} Video(s) × {{langs}} Sprache(n) = {{jobs}} Job(s)",
     "select_files_langs": "Wählen Sie Dateien und Sprachen aus",
-    "add_to_queue": "Zur Warteschlange hinzufügen"
+    "add_to_queue": "Zur Warteschlange hinzufügen",
+    "watch_folder": "Ordner überwachen",
+    "watching": "Überwache {{folder}}",
+    "watch_paused": "Pausiert — {{folder}}",
+    "watch_added": "{{count}} automatisch hinzugefügt",
+    "watch_pause": "Pausieren",
+    "watch_resume": "Fortsetzen",
+    "watch_stop": "Stoppen",
+    "watch_started": "{{folder}} wird überwacht — neue Videos landen automatisch in der Warteschlange",
+    "watch_unsupported": "Ordnerüberwachung erfordert die Desktop-App oder einen Chromium-basierten Browser — nutze stattdessen „Videos hinzufügen“.",
+    "watch_failed": "Ordnerüberwachung gestoppt — der Ordner ist nicht mehr lesbar (verschoben, gelöscht oder Berechtigungen geändert). Wähle ihn erneut aus, um fortzufahren.",
+    "watch_start_failed": "Die Überwachung dieses Ordners konnte nicht gestartet werden — wähle ihn erneut aus, um es noch einmal zu versuchen."
   },
   "gallery": {
     "title": "VoiceStudio Galerie",

@@ -379,7 +379,10 @@ export async function revokeAdminSession(
   }
 }
 
-const ALLOWED_WS_PATHS = new Set(['/ws/events', '/ws/transcribe']);
+// Mirrors the backend ticket allowlist (`_ALLOWED_WS_PATHS` in
+// backend/services/admin_sessions.py). A path listed here but not there mints
+// a 422, and the consumer fails silently — keep the two in lockstep.
+const ALLOWED_WS_PATHS = new Set(['/ws/events', '/ws/transcribe', '/ws/tts']);
 const LOGICAL_WS_ORIGIN = 'http://omnivoice.invalid';
 
 function websocketTarget(path: string, apiBase: string): { url: URL; logicalPath: string } {
@@ -426,6 +429,12 @@ export async function requestWebSocketTicket(
   const { logicalPath } = websocketTarget(path, base);
   const session = getAdminSession(base, { storage, now });
   if (!session) throw new AuthSessionError(401);
+  // Deliberately no plaintext (`ws:`) refusal: the documented remote-GPU setup
+  // is plain HTTP over a Tailscale/WireGuard tailnet (docs/remote-gpu.md), and
+  // the bearer session that mints this ticket already crossed that same
+  // transport. A one-use, 30 s, path-bound ticket adds no exposure the session
+  // lacks; refusing it would only cut /ws/events and /ws/transcribe off for
+  // every remote-backend user.
 
   let response: Response;
   const controller = new AbortController();

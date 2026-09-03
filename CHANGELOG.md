@@ -27,8 +27,10 @@ the frozen-backend fallback mirror it for their toolchains.
 - Preview builds now stay newer than Stable even when automatic post-release version bumps are disabled (#1762)
 - CosyVoice setup guidance now separates downloaded model files from the runtime that makes the engine available (#1761)
 - MCP tools can now keep audio out of agent context by returning files and accepting base-path-confined file inputs (#1760) — thanks @agudmund!
+- Hear a dub line as you type it — an opt-in live preview streams TTS for the edited segment (#1769) — thanks @mvanhorn!
 - Studio gains a Convert method: re-say any clip in one of your saved voices, speech to speech, fully local (#1765) — thanks @mvanhorn!
 - Hardsub video export gains an opt-in karaoke word-highlight caption style (#1764) — thanks @mvanhorn!
+- The batch queue can now watch a folder: new videos dropped into it are dubbed automatically (#1768) — thanks @mvanhorn!
 - The audiobook player now shows the chapter text and highlights the word being narrated (#1766) — thanks @mvanhorn!
 - The dub editor gains a casting board: drag voice chips onto speakers, dropdowns stay in sync (#1767) — thanks @mvanhorn!
 
@@ -39,8 +41,10 @@ the frozen-backend fallback mirror it for their toolchains.
 - The audiobook result is now a synced-lyrics player: chapter text follows playback with the current word highlighted and click-to-seek, timed from the render's own chapter durations with a karaoke-style even split — no ASR pass, fully local (#1766) — thanks @mvanhorn!
 - The dub CAST strip expands into a project-level casting board: drag voice chips (clone profiles, design presets, Default) onto speaker rows — or pick from a keyboard listbox — writing the same per-speaker cast fields as the existing dropdowns (#1767) — thanks @mvanhorn!
 - Studio's new Convert method turns a dropped or recorded clip into an existing voice profile's voice, with optional source-duration matching (#1765) — thanks @mvanhorn!
+- Opt-in watch folder on the batch queue: pick a directory once and new videos are auto-enqueued with your last Add-to-queue settings, with pause/stop controls and copy-in-progress protection — files upload as bytes, paths never leave the app (#1768) — thanks @mvanhorn!
 - Hardsub export can now burn karaoke word-highlight captions: an opt-in Line | Karaoke control renders a word-timed ASS sweep from timings persisted at transcription, with an even-split fallback for older jobs and translated tracks, plus a `GET /dub/ass/{job_id}` sidecar (#1764) — thanks @mvanhorn!
 - Windows releases now include an independently updatable per-user MSI that installs and uninstalls without elevation (#1713)
+- Dub segments can now stream live TTS while you edit a translated line — opt-in toggle, existing `/ws/tts` socket, shared generation admission, exports still render at full quality (#1769) — thanks @mvanhorn!
 - Engine status and diagnostic bundles now record loaded execution provider, device, precision, fallback stage, accelerator identity, runtime versions, and parent-process memory visibility (#1717)
 
 ### Docs
@@ -53,7 +57,7 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Fixed
 
 - Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
-
+- The batch dubbing queue now has a UI entry point — a quiet link on the Dub landing (it was previously unreachable: the app switched on a mode nothing ever set) (#1768) — thanks @mvanhorn!
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
 - Windows isolated engines now retain direct Job ownership without an extra Python supervisor process that can deadlock the child loader (#1734)
 - The setup splash now waits through the backend's full startup budget instead of reporting slow Windows CUDA initialization as stuck after two minutes (#1749)

@@ -111,6 +111,24 @@ BATCH_WIDTH_ENV = "OMNIVOICE_DUB_BATCH_WIDTH"
 #: that costs more than the saving.
 _MAX_BATCH_WIDTH = 16
 
+# Bound each allocation while persisting multipart uploads. Video inputs can
+# be many gigabytes; `await UploadFile.read()` with no size used to mirror the
+# entire file in process memory before writing it back out.
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+async def _save_upload(upload: UploadFile, destination: str) -> None:
+    try:
+        with open(destination, "wb") as output:
+            while chunk := await upload.read(_UPLOAD_CHUNK_BYTES):
+                output.write(chunk)
+    except BaseException:
+        try:
+            unlink_if_present(destination)
+        except FileCleanupError:
+            logger.warning("Could not remove incomplete batch upload", exc_info=True)
+        raise
+
 
 def _native_batch_width(backend) -> int:
     """How many segments to render in one native batch on THIS host.
@@ -690,9 +708,7 @@ async def enqueue_batch_job(
     ext = os.path.splitext(video.filename or "video.mp4")[1] or ".mp4"
     video_path = os.path.join(batch_dir, f"{job_id}{ext}")
 
-    with open(video_path, "wb") as f:
-        content = await video.read()
-        f.write(content)
+    await _save_upload(video, video_path)
 
     job = {
         "id": job_id,

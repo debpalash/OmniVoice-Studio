@@ -209,4 +209,16 @@ describe('IdleSkeleton — pipeline-stage vs idle dropzone', () => {
     expect(container.querySelector('.dub-idle-drop')).toBeNull();
     expect(screen.queryByPlaceholderText(URL_PLACEHOLDER)).not.toBeInTheDocument();
   });
+
+  it('offers the batch-queue entry point from the idle landing without triggering the file picker', () => {
+    // Regression: BatchQueue (and its watch folder) had NO entry point
+    // anywhere in the UI — App.jsx switched on a mode nothing ever set.
+    const onOpenQueue = vi.fn();
+    const setDubVideoFile = vi.fn();
+    renderIdle({ dubStep: 'idle', dubJobId: null, onOpenQueue, setDubVideoFile });
+
+    fireEvent.click(screen.getByTestId('dub-open-batch-queue'));
+    expect(onOpenQueue).toHaveBeenCalledOnce();
+    expect(setDubVideoFile).not.toHaveBeenCalled();
+  });
 });

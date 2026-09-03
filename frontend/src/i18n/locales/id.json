@@ -956,6 +956,7 @@
     "paste_url": "…atau tempel URL YouTube/video",
     "ingest": "Menelan",
     "pull_captions": "Tarik teks YouTube + terjemahan otomatis",
+    "batch_queue_link": "Men-dubbing banyak video? Buka antrean batch",
     "youtube_auth": "Masuk YouTube (opsional)",
     "youtube_cookie_file": "Pilih ekspor cookies.txt",
     "remove_cookie_file": "Hapus berkas kuki",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "Terjemahan untuk {{langs}} gagal; sulih suara tersebut dilewati agar tidak menghasilkan trek dalam bahasa yang salah.",
     "manage_languages": "Kelola bahasa",
     "languages_done": "Selesai",
-    "languages_pending": "Tertunda"
+    "languages_pending": "Tertunda",
+    "live_preview": "Pratinjau langsung",
+    "live_preview_title": "Dengarkan baris saat Anda mengeditnya — segmen yang diedit menstreaming TTS dengan suara CAST-nya setelah jeda singkat. Hanya pemutaran: tidak ada yang disimpan, dan ekspor tetap dirender dalam kualitas penuh.",
+    "live_preview_pick_voice": "Tetapkan suara CAST ke baris ini atau pembicaranya untuk mendengar pratinjau langsung."
   },
   "glossary": {
     "title": "Glosarium",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "Audio pas di dalam slot.",
     "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot.",
     "qc_verify": "Verifikasi",
-    "qc_verify_title": "ASR lintasan kedua mendengar: \"{{heard}}\" — dengarkan ulang atau sulih suara ulang baris ini."
+    "qc_verify_title": "ASR lintasan kedua mendengar: \"{{heard}}\" — dengarkan ulang atau sulih suara ulang baris ini.",
+    "live_play_title": "Streaming baris ini sekarang (pratinjau langsung)",
+    "live_stop_title": "Hentikan pratinjau langsung"
   },
   "timeline": {
     "track_label": "Lini masa segmen",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "Pertahankan audio latar belakang (musik/FX)",
     "estimate": "{{videos}} video × {{langs}} bahasa = {{jobs}} pekerjaan",
     "select_files_langs": "Pilih file dan bahasa",
-    "add_to_queue": "Tambahkan ke Antrean"
+    "add_to_queue": "Tambahkan ke Antrean",
+    "watch_folder": "Pantau folder",
+    "watching": "Memantau {{folder}}",
+    "watch_paused": "Dijeda — {{folder}}",
+    "watch_added": "{{count}} ditambahkan otomatis",
+    "watch_pause": "Jeda",
+    "watch_resume": "Lanjutkan",
+    "watch_stop": "Hentikan",
+    "watch_started": "Memantau {{folder}} — video baru otomatis masuk ke antrean",
+    "watch_unsupported": "Pemantauan folder memerlukan aplikasi desktop atau peramban berbasis Chromium — gunakan Tambah Video sebagai gantinya.",
+    "watch_failed": "Pemantauan berhenti — folder tidak lagi dapat dibaca (dipindahkan, dihapus, atau izin berubah). Pilih lagi foldernya untuk melanjutkan.",
+    "watch_start_failed": "Tidak dapat mulai memantau folder itu — pilih lagi untuk mencoba ulang."
   },
   "gallery": {
     "title": "VoiceStudio Galeri",

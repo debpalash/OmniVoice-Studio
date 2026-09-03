@@ -5,6 +5,7 @@ import DubSegmentRow from './DubSegmentRow';
 import { Table, Select } from '../ui';
 import { useAppStore } from '../store';
 import { visibleMergeAvailability } from '../utils/segmentParts';
+import useDubLivePreview from '../hooks/useDubLivePreview';
 
 const BASE_ROW_HEIGHT = 48;
 const ROW_HEIGHT_WITH_ORIG = 62;
@@ -50,6 +51,14 @@ export default function DubSegmentTable({
   // table re-renders only when the playing segment changes, not on every
   // timeupdate tick.
   const currentSegId = useAppStore((s) => s.dubCurrentSegId);
+
+  // Opt-in live dub preview (default off): editing a row's translated text
+  // streams that line over /ws/tts. Suspended while a dub generation runs —
+  // the pipeline already owns the TTS admission slot.
+  const livePreviewOn = useAppStore((s) => s.dubLivePreview);
+  const setDubLivePreview = useAppStore((s) => s.setDubLivePreview);
+  const liveEnabled = livePreviewOn && !disabled;
+  const { liveSegId, onLiveEdit, onLiveToggle } = useDubLivePreview({ enabled: liveEnabled });
 
   // Imperative handle for react-window v2 so we can auto-scroll the row
   // containing the playhead into view. (The scroll effect itself lives
@@ -162,6 +171,10 @@ export default function DubSegmentTable({
       segments,
       currentSegId,
       timelineSelectedId,
+      liveEnabled,
+      liveSegId,
+      onLiveEdit,
+      onLiveToggle,
     }),
     [
       filtered,
@@ -186,6 +199,10 @@ export default function DubSegmentTable({
       segments,
       currentSegId,
       timelineSelectedId,
+      liveEnabled,
+      liveSegId,
+      onLiveEdit,
+      onLiveToggle,
     ],
   );
 
@@ -215,6 +232,10 @@ export default function DubSegmentTable({
       segments: segs,
       currentSegId: curId,
       timelineSelectedId: tlSel,
+      liveEnabled: liveOn,
+      liveSegId: liveId,
+      onLiveEdit: liveEdit,
+      onLiveToggle: liveToggle,
     }) => {
       const seg = fl[index];
       if (!seg) return null;
@@ -261,6 +282,10 @@ export default function DubSegmentTable({
           canMergePrev={canMergePrev}
           onDirect={direct}
           onSeek={seek}
+          liveEnabled={liveOn}
+          liveActive={liveOn && liveId === seg.id}
+          onLiveEdit={liveEdit}
+          onLiveToggle={liveToggle}
         />
       );
     },
@@ -290,6 +315,15 @@ export default function DubSegmentTable({
         searchPlaceholder={t('segment.search_placeholder')}
         meta={meta}
       >
+        <label className="dub-live-toggle" title={t('dub.live_preview_title')}>
+          <input
+            type="checkbox"
+            className="accent-[var(--color-brand)]"
+            checked={!!livePreviewOn}
+            onChange={(e) => setDubLivePreview(e.target.checked)}
+          />
+          {t('dub.live_preview')}
+        </label>
         {speakers.length > 1 && (
           <Select
             size="sm"

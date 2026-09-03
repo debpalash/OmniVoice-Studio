@@ -1199,6 +1199,7 @@
     "paste_url": "…or paste YouTube / video URL",
     "ingest": "Ingest",
     "pull_captions": "Pull YouTube captions + auto-translations",
+    "batch_queue_link": "Dubbing many videos? Open the batch queue",
     "youtube_auth": "YouTube sign-in (optional)",
     "youtube_cookie_file": "Choose a cookies.txt export",
     "remove_cookie_file": "Remove cookie file",
@@ -1395,7 +1396,10 @@
     "languages_selected_other": "{{count}} languages selected",
     "manage_languages": "Manage languages",
     "languages_done": "Done",
-    "languages_pending": "Pending"
+    "languages_pending": "Pending",
+    "live_preview": "Live preview",
+    "live_preview_title": "Hear a line as you edit it — the edited segment streams TTS with its CAST voice after a short pause. Playback only: nothing is saved, and export still renders at full quality.",
+    "live_preview_pick_voice": "Assign a CAST voice to this line or its speaker to hear the live preview."
   },
   "glossary": {
     "title": "Glossary",
@@ -1498,7 +1502,9 @@
     "plan_impossible": "Won't fit +{{seconds}}s",
     "plan_impossible_title": "Predicted speech ≈{{est}}s vs {{avail}}s available — about {{seconds}}s more than any fitting can absorb, so the audio would be trimmed. Shorten the text before generating.",
     "plan_apply": "Use shorter rewrite",
-    "plan_apply_title": "Replace this line with the suggested shorter rewrite: \"{{text}}\""
+    "plan_apply_title": "Replace this line with the suggested shorter rewrite: \"{{text}}\"",
+    "live_play_title": "Stream this line now (live preview)",
+    "live_stop_title": "Stop the live preview"
   },
   "timeline": {
     "track_label": "Segment timeline",
@@ -1631,7 +1637,18 @@
     "preserve_bg": "Preserve background audio (music/FX)",
     "estimate": "{{videos}} video(s) × {{langs}} lang(s) = {{jobs}} job(s)",
     "select_files_langs": "Select files and languages",
-    "add_to_queue": "Add to Queue"
+    "add_to_queue": "Add to Queue",
+    "watch_folder": "Watch folder",
+    "watching": "Watching {{folder}}",
+    "watch_paused": "Paused — {{folder}}",
+    "watch_added": "{{count}} auto-added",
+    "watch_pause": "Pause",
+    "watch_resume": "Resume",
+    "watch_stop": "Stop",
+    "watch_started": "Watching {{folder}} — new videos are added to the queue automatically",
+    "watch_unsupported": "Folder watching needs the desktop app or a Chromium-based browser — use Add Videos here instead.",
+    "watch_failed": "Folder watching stopped — the folder is no longer readable (moved, deleted, or permissions changed). Pick it again to resume.",
+    "watch_start_failed": "Couldn't start watching that folder — pick it again to retry."
   },
   "gallery": {
     "title": "VoiceStudio Gallery",

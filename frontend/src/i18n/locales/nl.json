@@ -956,6 +956,7 @@
     "paste_url": "…of plak de YouTube-/video-URL",
     "ingest": "Innemen",
     "pull_captions": "Haal YouTube-ondertitels en automatische vertalingen op",
+    "batch_queue_link": "Veel video's te dubben? Open de batchwachtrij",
     "youtube_auth": "YouTube-aanmelding (optioneel)",
     "youtube_cookie_file": "Een cookies.txt-export kiezen",
     "remove_cookie_file": "Cookiebestand verwijderen",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "De vertaling voor {{langs}} is mislukt. Deze nasynchronisaties zijn overgeslagen om een track in de verkeerde taal te voorkomen.",
     "manage_languages": "Talen beheren",
     "languages_done": "Gereed",
-    "languages_pending": "In behandeling"
+    "languages_pending": "In behandeling",
+    "live_preview": "Livevoorbeeld",
+    "live_preview_title": "Hoor een regel terwijl je die bewerkt — het bewerkte segment streamt na een korte pauze TTS met zijn CAST-stem. Alleen afspelen: er wordt niets opgeslagen en exporteren rendert nog steeds op volledige kwaliteit.",
+    "live_preview_pick_voice": "Wijs een CAST-stem toe aan deze regel of de spreker om het livevoorbeeld te horen."
   },
   "glossary": {
     "title": "Woordenlijst",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "Audio past in de sleuf.",
     "fit_ratio_title": "TTS-audio is {{pct}}% van de sleuf.",
     "qc_verify": "Verifieer",
-    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of kopieer deze regel opnieuw."
+    "qc_verify_title": "Tweede passage ASR hoorde: \"{{heard}}\" — luister of dub deze regel opnieuw.",
+    "live_play_title": "Deze regel nu streamen (livevoorbeeld)",
+    "live_stop_title": "Livevoorbeeld stoppen"
   },
   "timeline": {
     "track_label": "Segmenttijdlijn",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "Achtergrondaudio behouden (muziek/FX)",
     "estimate": "{{videos}} video(s) × {{langs}} taal(s) = {{jobs}} vacature(s)",
     "select_files_langs": "Selecteer bestanden en talen",
-    "add_to_queue": "Toevoegen aan wachtrij"
+    "add_to_queue": "Toevoegen aan wachtrij",
+    "watch_folder": "Map volgen",
+    "watching": "{{folder}} wordt gevolgd",
+    "watch_paused": "Gepauzeerd — {{folder}}",
+    "watch_added": "{{count}} automatisch toegevoegd",
+    "watch_pause": "Pauzeren",
+    "watch_resume": "Hervatten",
+    "watch_stop": "Stoppen",
+    "watch_started": "{{folder}} wordt gevolgd — nieuwe video's komen automatisch in de wachtrij",
+    "watch_unsupported": "Mappen volgen vereist de desktop-app of een op Chromium gebaseerde browser — gebruik anders Video's toevoegen.",
+    "watch_failed": "Volgen gestopt — de map is niet meer leesbaar (verplaatst, verwijderd of rechten gewijzigd). Kies de map opnieuw om verder te gaan.",
+    "watch_start_failed": "Kon deze map niet volgen — kies de map opnieuw om het nogmaals te proberen."
   },
   "gallery": {
     "title": "VoiceStudio Galerij",

@@ -136,6 +136,16 @@ export interface PrefsSlice {
   voiceMatch: VoiceMatch;
 
   /**
+   * Opt-in live dub preview (default OFF). When on, editing a segment's
+   * translated text streams TTS for that line over the existing `/ws/tts`
+   * socket (debounced, local playback only) so the user hears the edit
+   * without pressing Generate. Never persisted as job audio — export still
+   * goes through the full-quality generate path.
+   */
+  dubLivePreview: boolean;
+  setDubLivePreview: (on: boolean) => void;
+
+  /**
    * Last app version whose release notes the user has seen (feat/safe-updates).
    * `null` = never recorded (fresh install / pre-feature profile): the first
    * launch baselines it silently so brand-new users don't get a "What's new"
@@ -293,6 +303,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   timingStrategy: 'strict_slot',
   fitOptions: null,
   voiceMatch: 'per_line',
+  dubLivePreview: false,
   whatsNewSeenVersion: null,
   dismissedNotificationIds: [],
   aecEnabled: false,
@@ -318,6 +329,7 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setTimingStrategy: (s) => set({ timingStrategy: s }),
   setFitOptions: (o) => set({ fitOptions: o }),
   setVoiceMatch: (m) => set({ voiceMatch: m }),
+  setDubLivePreview: (on) => set({ dubLivePreview: on }),
   setWhatsNewSeenVersion: (v) => set({ whatsNewSeenVersion: v }),
   dismissNotification: (id) =>
     set((s) => ({

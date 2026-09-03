@@ -459,7 +459,7 @@ def test_legacy_cookie_migration_fails_without_exact_origin(origin):
 
 @pytest.mark.parametrize(
     "path",
-    ["/ws/transcribe", "/v1/audio/transcriptions/stream"],
+    ["/ws/events", "/ws/transcribe", "/ws/tts", "/v1/audio/transcriptions/stream"],
 )
 def test_session_can_mint_path_bound_ws_ticket(path):
     client = _client()

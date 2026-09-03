@@ -956,6 +956,7 @@
     "paste_url": "…lub wklej adres URL YouTube/wideo",
     "ingest": "Połknąć",
     "pull_captions": "Pobieraj napisy z YouTube + automatyczne tłumaczenia",
+    "batch_queue_link": "Dubbingujesz wiele filmów? Otwórz kolejkę wsadową",
     "youtube_auth": "Logowanie do YouTube (opcjonalne)",
     "youtube_cookie_file": "Wybierz eksport cookies.txt",
     "remove_cookie_file": "Usuń plik cookie",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "Tłumaczenie dla {{langs}} nie powiodło się. Te dubbingi pominięto, aby nie utworzyć ścieżki w niewłaściwym języku.",
     "manage_languages": "Zarządzaj językami",
     "languages_done": "Gotowe",
-    "languages_pending": "Oczekujące"
+    "languages_pending": "Oczekujące",
+    "live_preview": "Podgląd na żywo",
+    "live_preview_title": "Słuchaj linii podczas edycji — edytowany segment po krótkiej pauzie streamuje TTS z przypisanym głosem CAST. Tylko odtwarzanie: nic nie jest zapisywane, a eksport nadal renderuje się w pełnej jakości.",
+    "live_preview_pick_voice": "Przypisz głos CAST tej linii lub jej mówcy, aby usłyszeć podgląd na żywo."
   },
   "glossary": {
     "title": "Glosariusz",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "Dźwięk mieści się w gnieździe.",
     "fit_ratio_title": "Dźwięk TTS zajmuje {{pct}}% szczeliny.",
     "qc_verify": "Zweryfikuj",
-    "qc_verify_title": "ASR drugiego przejścia usłyszał: „{{heard}}” — posłuchaj ponownie lub ponownie dubuj tę linijkę."
+    "qc_verify_title": "ASR drugiego przejścia usłyszał: „{{heard}}” — posłuchaj ponownie lub ponownie dubuj tę linijkę.",
+    "live_play_title": "Streamuj tę linię teraz (podgląd na żywo)",
+    "live_stop_title": "Zatrzymaj podgląd na żywo"
   },
   "timeline": {
     "track_label": "Oś czasu segmentów",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "Zachowaj dźwięk w tle (muzyka/FX)",
     "estimate": "{{videos}} filmy × {{langs}} języki = {{jobs}} zadania",
     "select_files_langs": "Wybierz pliki i języki",
-    "add_to_queue": "Dodaj do kolejki"
+    "add_to_queue": "Dodaj do kolejki",
+    "watch_folder": "Obserwuj folder",
+    "watching": "Obserwowanie {{folder}}",
+    "watch_paused": "Wstrzymano — {{folder}}",
+    "watch_added": "{{count}} dodano automatycznie",
+    "watch_pause": "Wstrzymaj",
+    "watch_resume": "Wznów",
+    "watch_stop": "Zatrzymaj",
+    "watch_started": "Obserwowanie {{folder}} — nowe filmy trafiają do kolejki automatycznie",
+    "watch_unsupported": "Obserwowanie folderów wymaga aplikacji desktopowej lub przeglądarki opartej na Chromium — użyj opcji Dodaj filmy.",
+    "watch_failed": "Obserwowanie zatrzymane — folder nie jest już czytelny (przeniesiony, usunięty lub zmieniono uprawnienia). Wybierz go ponownie, aby wznowić.",
+    "watch_start_failed": "Nie udało się rozpocząć obserwowania tego folderu — wybierz go ponownie, aby spróbować jeszcze raz."
   },
   "gallery": {
     "title": "VoiceStudio Galeria",

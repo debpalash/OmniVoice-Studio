@@ -22,6 +22,7 @@ pub mod speech_sidecar;
 pub mod tools;
 pub mod uninstall;
 pub mod updater_channel;
+pub mod watch_folder;
 #[cfg(target_os = "linux")]
 pub mod wayland_shortcut;
 
@@ -739,6 +740,10 @@ pub fn run() {
             reset::reset_purge,
             blank_guard::report_render_state,
             blank_guard::recover_main_window,
+            watch_folder::watch_folder_pick,
+            watch_folder::watch_folder_scan,
+            watch_folder::watch_folder_enqueue,
+            watch_folder::watch_folder_forget,
         ])
         .setup(move |app| {
             // Blank-window guard: watch the main window and, if nothing ever

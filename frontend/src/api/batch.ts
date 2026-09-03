@@ -4,7 +4,7 @@
  * Used by BatchQueue and BatchAddDialog to enqueue, monitor, and
  * manage batch dub jobs.
  */
-import { apiJson, apiPost, apiDelete, API } from './client';
+import { apiJson, apiPost, apiDelete, ApiError } from './client';
 
 export interface BatchJob {
   id: string;
@@ -28,6 +28,18 @@ export interface BatchJob {
   outputs?: Record<string, string>;
 }
 
+interface NativeWatchUpload {
+  __voiceStudioNativeWatchUpload: true;
+  token: string;
+  name: string;
+  size: number;
+  mtime: number;
+}
+
+function isNativeWatchUpload(file: File | NativeWatchUpload): file is NativeWatchUpload {
+  return !(file instanceof File) && file.__voiceStudioNativeWatchUpload === true;
+}
+
 /** List batch jobs, optionally filtered by status. */
 export async function listBatchJobs(status?: string, limit = 50): Promise<BatchJob[]> {
   const qs = new URLSearchParams();
@@ -43,11 +55,31 @@ export async function getBatchJob(id: string): Promise<BatchJob> {
 
 /** Enqueue a video for batch dubbing. */
 export async function enqueueBatchJob(
-  file: File,
+  file: File | NativeWatchUpload,
   langs: string[],
   voiceId?: string,
   preserveBg = true,
 ): Promise<{ job_id: string; status: string; queue_position: number }> {
+  if (isNativeWatchUpload(file)) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const reply = await invoke<{ status: number; body: unknown }>('watch_folder_enqueue', {
+      token: file.token,
+      name: file.name,
+      expectedSize: file.size,
+      expectedMtime: file.mtime,
+      langs,
+      voiceId,
+      preserveBg,
+    });
+    if (reply.status < 200 || reply.status >= 300) {
+      const detail = (reply.body as { detail?: unknown })?.detail ?? reply.body;
+      throw new ApiError(`Watch-folder upload failed (${reply.status})`, {
+        status: reply.status,
+        detail,
+      });
+    }
+    return reply.body as { job_id: string; status: string; queue_position: number };
+  }
   const form = new FormData();
   form.append('video', file);
   form.append('langs', langs.join(','));

@@ -248,6 +248,11 @@ export default function useAppData() {
       } else if (saved.mode === 'design') {
         setMode('studio');
         setDefineMethod('design');
+      } else if (saved.mode === 'queue') {
+        // Legacy shim: the batch queue's mode id is 'batch' (the store's Mode
+        // union); 'queue' was an App.jsx-only id that nothing could set, but
+        // normalize any persisted copy of it rather than strand the restore.
+        setMode('batch');
       } else if (saved.mode) setMode(saved.mode);
       if (saved.defineMethod) setDefineMethod(saved.defineMethod);
       // #983: legacy localStorage state had no shape validation at all — a

@@ -956,6 +956,7 @@
     "paste_url": "…veya YouTube / video URL'sini yapıştırın",
     "ingest": "Al",
     "pull_captions": "YouTube altyazılarını + otomatik çevirileri çekin",
+    "batch_queue_link": "Çok sayıda video mu dubluyorsunuz? Toplu kuyruğu açın",
     "youtube_auth": "YouTube oturumu (isteğe bağlı)",
     "youtube_cookie_file": "Bir cookies.txt dışa aktarımı seçin",
     "remove_cookie_file": "Çerez dosyasını kaldır",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "{{langs}} için çeviri başarısız oldu; yanlış dilde parça oluşmaması için bu dublajlar atlandı.",
     "manage_languages": "Dilleri yönet",
     "languages_done": "Tamamlandı",
-    "languages_pending": "Bekliyor"
+    "languages_pending": "Bekliyor",
+    "live_preview": "Canlı önizleme",
+    "live_preview_title": "Bir satırı düzenlerken dinleyin — düzenlenen segment kısa bir duraklamadan sonra CAST sesiyle TTS akışı yapar. Yalnızca oynatma: hiçbir şey kaydedilmez ve dışa aktarma yine tam kalitede işlenir.",
+    "live_preview_pick_voice": "Canlı önizlemeyi duymak için bu satıra veya konuşmacısına bir CAST sesi atayın."
   },
   "glossary": {
     "title": "Sözlük",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "Ses yuvanın içine sığar.",
     "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır.",
     "qc_verify": "Doğrula",
-    "qc_verify_title": "İkinci geçiş ASR şunu duydu: \"{{heard}}\" — bu satırı yeniden dinleyin veya yeniden dublajlayın."
+    "qc_verify_title": "İkinci geçiş ASR şunu duydu: \"{{heard}}\" — bu satırı yeniden dinleyin veya yeniden dublajlayın.",
+    "live_play_title": "Bu satırı şimdi akıt (canlı önizleme)",
+    "live_stop_title": "Canlı önizlemeyi durdur"
   },
   "timeline": {
     "track_label": "Segment zaman çizelgesi",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "Arka plan sesini koru (müzik/FX)",
     "estimate": "{{videos}} video(lar) × {{langs}} dil(ler) = {{jobs}} iş(ler)",
     "select_files_langs": "Dosyaları ve dilleri seçin",
-    "add_to_queue": "Kuyruğa Ekle"
+    "add_to_queue": "Kuyruğa Ekle",
+    "watch_folder": "Klasörü izle",
+    "watching": "{{folder}} izleniyor",
+    "watch_paused": "Duraklatıldı — {{folder}}",
+    "watch_added": "{{count}} otomatik eklendi",
+    "watch_pause": "Duraklat",
+    "watch_resume": "Devam et",
+    "watch_stop": "Durdur",
+    "watch_started": "{{folder}} izleniyor — yeni videolar kuyruğa otomatik olarak eklenir",
+    "watch_unsupported": "Klasör izleme, masaüstü uygulaması veya Chromium tabanlı bir tarayıcı gerektirir — bunun yerine Video Ekle'yi kullanın.",
+    "watch_failed": "İzleme durdu — klasör artık okunamıyor (taşındı, silindi veya izinler değişti). Devam etmek için klasörü yeniden seçin.",
+    "watch_start_failed": "Bu klasör izlenemedi — yeniden denemek için klasörü tekrar seçin."
   },
   "gallery": {
     "title": "VoiceStudio Galeri",

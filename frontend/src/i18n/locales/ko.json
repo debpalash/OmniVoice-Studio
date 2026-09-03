@@ -956,6 +956,7 @@
     "paste_url": "...또는 YouTube/동영상 URL을 붙여넣으세요.",
     "ingest": "섭취",
     "pull_captions": "YouTube 캡션 및 자동 번역 가져오기",
+    "batch_queue_link": "많은 동영상을 더빙하나요? 배치 대기열 열기",
     "youtube_auth": "YouTube 로그인(선택 사항)",
     "youtube_cookie_file": "cookies.txt 내보내기 선택",
     "remove_cookie_file": "쿠키 파일 제거",
@@ -1142,7 +1143,10 @@
     "multi_lang_skipped": "{{langs}} 번역에 실패하여 잘못된 언어의 트랙이 생성되지 않도록 해당 더빙을 건너뛰었습니다.",
     "manage_languages": "언어 관리",
     "languages_done": "완료",
-    "languages_pending": "대기 중"
+    "languages_pending": "대기 중",
+    "live_preview": "실시간 미리듣기",
+    "live_preview_title": "편집 중인 문장을 바로 들어보세요 — 편집한 세그먼트는 잠시 후 CAST 보이스로 TTS를 스트리밍합니다. 재생 전용: 아무것도 저장되지 않으며 내보내기는 여전히 최고 품질로 렌더링됩니다.",
+    "live_preview_pick_voice": "실시간 미리듣기를 들으려면 이 줄이나 화자에게 CAST 보이스를 지정하세요."
   },
   "glossary": {
     "title": "용어집",
@@ -1239,7 +1243,9 @@
     "fit_audio_title": "오디오는 슬롯 안에 맞습니다.",
     "fit_ratio_title": "TTS 오디오는 슬롯의 {{pct}}%입니다.",
     "qc_verify": "확인",
-    "qc_verify_title": "두 번째 패스 ASR 수신: \"{{heard}}\" — 이 라인을 다시 듣거나 다시 더빙합니다."
+    "qc_verify_title": "두 번째 패스 ASR 수신: \"{{heard}}\" — 이 라인을 다시 듣거나 다시 더빙합니다.",
+    "live_play_title": "이 줄 지금 스트리밍(실시간 미리듣기)",
+    "live_stop_title": "실시간 미리듣기 중지"
   },
   "timeline": {
     "track_label": "세그먼트 타임라인",
@@ -1372,7 +1378,18 @@
     "preserve_bg": "배경 오디오 보존(음악/FX)",
     "estimate": "{{videos}} 동영상 × {{langs}} 언어 = {{jobs}} 작업",
     "select_files_langs": "파일 및 언어 선택",
-    "add_to_queue": "대기열에 추가"
+    "add_to_queue": "대기열에 추가",
+    "watch_folder": "폴더 감시",
+    "watching": "{{folder}} 감시 중",
+    "watch_paused": "일시정지됨 — {{folder}}",
+    "watch_added": "{{count}}개 자동 추가됨",
+    "watch_pause": "일시정지",
+    "watch_resume": "재개",
+    "watch_stop": "중지",
+    "watch_started": "{{folder}} 감시 중 — 새 동영상이 자동으로 대기열에 추가됩니다",
+    "watch_unsupported": "폴더 감시에는 데스크톱 앱 또는 Chromium 기반 브라우저가 필요합니다. 대신 동영상 추가를 사용하세요.",
+    "watch_failed": "감시가 중지되었습니다 — 폴더를 더 이상 읽을 수 없습니다(이동, 삭제 또는 권한 변경). 다시 시작하려면 폴더를 다시 선택하세요.",
+    "watch_start_failed": "해당 폴더 감시를 시작할 수 없습니다 — 다시 시도하려면 폴더를 다시 선택하세요."
   },
   "gallery": {
     "title": "VoiceStudio 갤러리",

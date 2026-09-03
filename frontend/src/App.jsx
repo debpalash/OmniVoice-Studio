@@ -300,7 +300,7 @@ function App() {
     mode === 'settings' ||
     mode === 'voice' ||
     mode === 'donate' ||
-    mode === 'queue' ||
+    mode === 'batch' ||
     mode === 'tools' ||
     mode === 'projects' ||
     mode === 'gallery' ||
@@ -1474,7 +1474,7 @@ function App() {
               />
             </Suspense>
           </ErrorBoundary>
-        ) : mode === 'queue' ? (
+        ) : mode === 'batch' ? (
           <ErrorBoundary name="batch-queue">
             <Suspense fallback={<LazyFallback />}>
               <BatchQueue onBack={() => setMode('launchpad')} />
