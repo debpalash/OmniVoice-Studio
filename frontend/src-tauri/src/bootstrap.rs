@@ -734,11 +734,17 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
                     );
                     return false;
                 }
-                // #1223: the backend exits EXIT_PORT_IN_USE when it could not
-                // bind its port. That is a conflict, not a crash — say what to
-                // do instead of dumping a traceback whose one meaningful line
-                // is an OS-translated errno.
-                let msg = if real_exit
+                // #1783: the interpreter dies inside `site` before main.py runs
+                // when the venv path has a byte that isn't valid in the active
+                // Windows ANSI code page (`.pth` files decode with
+                // `encoding="locale"` on Python 3.11 — PYTHONUTF8=1 doesn't
+                // help). `setup::ascii_safe_dir` prevents this for every new
+                // venv, but name the cause specifically if it still happens
+                // (8.3 short names disabled, or an already-broken pre-fix
+                // install) instead of dumping the raw traceback.
+                let msg = if backend_exit_indicates_nonascii_pth_crash(&err_tail) {
+                    NONASCII_PTH_CRASH_MSG.to_string()
+                } else if real_exit
                     .as_ref()
                     .and_then(|e| e.code)
                     .is_some_and(|c| c == crate::backend::EXIT_PORT_IN_USE)
@@ -1789,6 +1795,40 @@ pub fn backend_exit_indicates_broken_venv(exit_info: &str, err_tail: &str) -> bo
         || err_tail.contains("No module named 'encodings'")
         || exit_info.trim_end().ends_with(": 106")
 }
+
+// ── #1783: non-ASCII venv-path `.pth` crash detection ──────────────────────
+
+/// True when a dead backend's stderr tail is Python 3.11's `site` module
+/// dying on a `.pth` file it can't decode in the active (non-UTF-8) Windows
+/// code page — the exact crash from #1771/#1783:
+/// ```text
+/// Fatal Python error: init_import_site: Failed to import the site module
+///   File "<frozen site>", line 188, in addpackage
+/// UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11...
+/// ```
+/// Both phrases are required (narrow, quoted-phrase match, same discipline as
+/// [`backend_exit_indicates_broken_venv`]) so an ordinary `UnicodeDecodeError`
+/// raised by app code — unrelated to interpreter startup — never matches.
+pub fn backend_exit_indicates_nonascii_pth_crash(err_tail: &str) -> bool {
+    err_tail.contains("init_import_site") && err_tail.contains("UnicodeDecodeError")
+}
+
+/// #1783: unlike the broken-venv signature, rebuilding the SAME venv at the
+/// SAME path can't fix this on its own — the path itself is the problem.
+/// `setup::ascii_safe_dir` already routes every new venv away from a
+/// non-ASCII path, so on a current build this only fires when 8.3 short-name
+/// generation is disabled (`fsutil 8dot3name`) or a pre-fix venv already
+/// exists at the broken location — both need the user to pick a new,
+/// ASCII-only install location rather than "Clean & Retry" the same one.
+const NONASCII_PTH_CRASH_MSG: &str =
+    "The backend's Python environment lives at a path Windows' active language/region \
+setting can't decode (commonly a non-English Windows username), so the interpreter \
+crashes on startup before VoiceStudio's code ever runs. Fix: on the setup screen, use the \
+\"Change…\" button on the \"App environment\" (or \"Portable folder\" in portable mode) \
+row and pick a folder using only English letters/numbers (e.g. C:\\VoiceStudio) — this \
+replaces only the Python environment, not your voices/projects. Advanced: an \
+administrator can instead re-enable 8.3 short filenames with \"fsutil 8dot3name set 0\" \
+(run as Administrator) and retry. See docs/install/troubleshooting.md (#1783).";
 
 /// Data-safe guard for the destructive half of the #314 self-heal
 /// (feat/safe-updates): an exit-*signature* match alone is text matching on a
@@ -3166,6 +3206,40 @@ mod tests {
             "exit status: 1",
             "ModuleNotFoundError: No module named 'encodings_helper'"
         ));
+    }
+
+    #[test]
+    fn nonascii_pth_crash_signature_matches_the_real_traceback_only() {
+        // #1783: the exact crash captured in #1771.
+        let real_tail = "Fatal Python error: init_import_site: Failed to import the site module\n  \
+File \"<frozen site>\", line 188, in addpackage\n\
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal multibyte sequence";
+        assert!(backend_exit_indicates_nonascii_pth_crash(real_tail));
+        // Both phrases are required — narrow match, same discipline as the
+        // broken-venv signature.
+        assert!(!backend_exit_indicates_nonascii_pth_crash("UnicodeDecodeError: ..."));
+        assert!(!backend_exit_indicates_nonascii_pth_crash(
+            "Fatal Python error: init_import_site: Failed to import the site module"
+        ));
+        // An ordinary app-level UnicodeDecodeError (unrelated to interpreter
+        // startup) must not match.
+        assert!(!backend_exit_indicates_nonascii_pth_crash(
+            "UnicodeDecodeError: 'utf-8' codec can't decode byte in transcript.txt"
+        ));
+        assert!(!backend_exit_indicates_nonascii_pth_crash("Traceback ..."));
+        assert!(!backend_exit_indicates_nonascii_pth_crash(""));
+    }
+
+    #[test]
+    fn nonascii_pth_crash_produces_a_specific_diagnosis_not_the_generic_stall_text() {
+        // #1783 acceptance: "the setup screen shows a specific message and a
+        // fix, not the generic stall text." Pin the two load-bearing
+        // ingredients of the fix so a future edit can't silently drop them —
+        // the concrete action (Custom location / ASCII path) and the escape
+        // hatch for the 8.3-disabled case.
+        assert!(NONASCII_PTH_CRASH_MSG.contains("App environment"));
+        assert!(NONASCII_PTH_CRASH_MSG.contains("8dot3name"));
+        assert!(NONASCII_PTH_CRASH_MSG.contains("#1783"));
     }
 
     #[test]

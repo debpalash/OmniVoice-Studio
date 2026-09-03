@@ -829,6 +829,47 @@ unaffected and works normally.
 > deep-links the exact OS pane described above. The dictation blocker rechecks
 > Accessibility while it is visible and closes as soon as macOS reports the grant.
 
+## 17. Windows: backend won't start with a non-English (CJK) username — `UnicodeDecodeError` in `site`
+
+**Symptom:** the app never gets past first-run setup / "starting_backend", and
+the backend log shows the interpreter dying before any VoiceStudio code runs:
+
+```
+Fatal Python error: init_import_site: Failed to import the site module
+  File "<frozen site>", line 188, in addpackage
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal multibyte sequence
+```
+
+**Cause:** Python 3.11's `site` module opens every `.pth` file in
+`site-packages` using the ANSI code page — even with `PYTHONUTF8=1` set. When
+the managed environment lives under a Windows user profile whose account name
+contains non-ASCII characters (most commonly CJK), `uv sync`'s editable
+install `.pth` embeds that path in UTF-8, which is rarely a valid byte
+sequence in the active ANSI code page (`gbk`, `shift_jis`, etc.), and the
+interpreter can never start (#1783).
+
+**Fix:** current builds resolve the managed environment through Windows' 8.3
+short filename for any path containing non-ASCII bytes (the same trick
+already used for the HuggingFace cache — see
+[`backend/core/config.py`](../../backend/core/config.py)), so the venv itself
+lives at an ASCII-safe path and `uv sync`'s `.pth` never contains a
+non-ASCII byte. This applies automatically; no user action is needed for a
+first-time install.
+
+If it still happens (an install created before this fix, or 8.3 short
+filenames disabled on the system drive), the setup screen names this cause
+specifically rather than the generic "backend never reported ready." Fix
+either by:
+
+- On the setup screen, using the **Change…** button on the "App environment"
+  row (or "Portable folder" in portable mode) to pick an ASCII-only path
+  (e.g. `C:\VoiceStudio`) — replaces only the Python environment, not your
+  voices/projects/settings, or
+- As an administrator, re-enabling 8.3 short filenames on the system drive
+  (`fsutil 8dot3name set 0`) and retrying.
+
+**Linked issue:** [#1783](https://github.com/debpalash/VoiceStudio/issues/1783) (auto-captured from [#1771](https://github.com/debpalash/VoiceStudio/issues/1771))
+
 ## Dub: "translation engine needs the optional … package"
 
 **Symptom:** in the Dub tab, translating fails with e.g. *"The 'google'

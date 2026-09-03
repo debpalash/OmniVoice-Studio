@@ -375,17 +375,109 @@ pub fn default_models_dir() -> PathBuf {
 
 /// Root that holds the managed Python project (`<root>/project/.venv`).
 /// Single source of truth for bootstrap + clean-retry + backend spawn.
+///
+/// Passed through [`ascii_safe_dir`] (#1783): on Windows, Python 3.11's
+/// `site.addpackage` decodes every `.pth` in `site-packages` with the ANSI
+/// code page even when `PYTHONUTF8=1` is set, so `uv sync`'s
+/// `_editable_impl_omnivoice.pth` (which embeds this root's absolute path in
+/// UTF-8) kills the interpreter before `main.py` runs if the path contains a
+/// byte that isn't valid in the active code page — e.g. a CJK Windows
+/// username. Elsewhere this is a byte-identical no-op.
 pub fn env_root<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
     let cfg = config::load_config(app);
     if cfg.install_mode == "portable" {
         if let Some(base) = portable_base() {
-            return base.join("env");
+            return ascii_safe_dir(&base.join("env"));
         }
     }
     if let Some(dir) = cfg.env_dir.as_deref().filter(|s| !s.is_empty()) {
-        return PathBuf::from(dir);
+        return ascii_safe_dir(&PathBuf::from(dir));
     }
-    app.path().app_local_data_dir().unwrap_or_default()
+    ascii_safe_dir(&app.path().app_local_data_dir().unwrap_or_default())
+}
+
+/// True when `path`'s displayed form is pure ASCII — the precondition
+/// Windows' ANSI-code-page `.pth` decoding needs (#1783). Byte-identical
+/// fast path for the overwhelming majority of installs, which never touch
+/// the WinAPI short-name call below.
+#[cfg(any(target_os = "windows", test))]
+fn is_ascii_path(path: &Path) -> bool {
+    path.to_string_lossy().is_ascii()
+}
+
+/// Split `path` into (longest existing ancestor, remaining components that
+/// don't exist yet). `GetShortPathNameW` can only resolve a path that
+/// already exists on disk end-to-end, but the managed env root's leaf
+/// directories (`<bundle-id>`, `project`, `.venv`) are created by bootstrap
+/// itself and won't exist on first run — only the user-profile ancestor
+/// (e.g. `%LOCALAPPDATA%`, which Windows always creates) does. The
+/// remainder is literal ASCII we chose ourselves, so it's reattached as-is.
+#[cfg(any(target_os = "windows", test))]
+fn split_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
+    let mut remainder = PathBuf::new();
+    let mut candidate = path.to_path_buf();
+    loop {
+        if candidate.exists() {
+            return (candidate, remainder);
+        }
+        match candidate.file_name().map(|n| n.to_os_string()) {
+            Some(name) => {
+                remainder = Path::new(&name).join(&remainder);
+                candidate.pop();
+            }
+            None => return (candidate, remainder), // walked past the root — give up
+        }
+    }
+}
+
+/// Windows-only: if `dir` contains a non-ASCII byte, resolve its longest
+/// existing ancestor to its 8.3 short name (the same trick
+/// `backend/core/config.py::_ensure_short_hf_cache_on_windows` documents for
+/// the HF-cache MAX_PATH problem) and reattach the not-yet-created ASCII
+/// remainder, so every byte written into the venv — including `uv sync`'s
+/// editable `.pth` — is valid in any single-byte Windows code page (#1783).
+///
+/// Best-effort: an ASCII `dir` is returned unchanged without ever calling
+/// into WinAPI. When `dir` isn't ASCII but the short-name call fails or
+/// still isn't ASCII (8.3 name generation disabled via
+/// `fsutil 8dot3name`), the original path is returned unchanged — no worse
+/// than before the fix, and the bootstrap crash-signature diagnosis names
+/// the cause if the interpreter still dies in `site`.
+#[cfg(target_os = "windows")]
+pub fn ascii_safe_dir(dir: &Path) -> PathBuf {
+    if is_ascii_path(dir) {
+        return dir.to_path_buf();
+    }
+    let (existing, remainder) = split_existing_ancestor(dir);
+    match win_short_path_name(&existing) {
+        Some(short) if is_ascii_path(&short) => short.join(&remainder),
+        _ => dir.to_path_buf(),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn ascii_safe_dir(dir: &Path) -> PathBuf {
+    dir.to_path_buf()
+}
+
+/// Raw `GetShortPathNameW` call. `None` on any failure (path doesn't exist,
+/// buffer too small, 8.3 names disabled) — callers fall back to the
+/// original path rather than trust a partial/garbled result.
+#[cfg(target_os = "windows")]
+fn win_short_path_name(path: &Path) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetShortPathNameW;
+
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut buf = vec![0u16; 4096];
+    // Safety: `wide` is NUL-terminated and outlives the call; `buf` is sized
+    // and its length is passed as `cchbuffer`, so the call cannot write past it.
+    let len = unsafe { GetShortPathNameW(PCWSTR(wide.as_ptr()), Some(&mut buf)) } as usize;
+    if len == 0 || len >= buf.len() {
+        return None; // 0 = failure (see GetLastError); >= buf.len() = truncated
+    }
+    Some(PathBuf::from(String::from_utf16_lossy(&buf[..len])))
 }
 
 /// User-chosen backend data dir (voices/projects/db) → `OMNIVOICE_DATA_DIR`.
@@ -1451,5 +1543,64 @@ mod tests {
         assert!(REQUIRED_ENV_BYTES >= 8 * GIB);
         assert!(REQUIRED_MODELS_BYTES >= 7 * GIB);
         assert!(REQUIRED_DATA_BYTES >= GIB / 2);
+    }
+
+    // ── #1783: ASCII-safe env root ─────────────────────────────────────────
+
+    // `\u{...}` escapes (not literal CJK bytes) so this source file itself
+    // stays outside tests/test_no_hardcoded_cjk.py's scan — those escapes
+    // still build the real crash-report username at runtime.
+    fn cjk_username_path() -> PathBuf {
+        // U+65E5 U+672C U+8A9E — three Japanese characters, matching #1771's
+        // report. Spelled as escapes, not literal bytes, on purpose.
+        PathBuf::from(format!("C:\\Users\\{}\\AppData\\Local\\OmniVoice", "\u{65e5}\u{672c}\u{8a9e}"))
+    }
+
+    #[test]
+    fn is_ascii_path_flags_non_ascii_bytes() {
+        assert!(is_ascii_path(Path::new("/Users/alice/AppData/Local/OmniVoice")));
+        assert!(is_ascii_path(Path::new(r"C:\Users\alice\AppData\Local\OmniVoice")));
+        // The exact byte from the crash report: a CJK Windows username.
+        assert!(!is_ascii_path(&cjk_username_path()));
+        assert!(!is_ascii_path(Path::new("/home/\u{443}\u{441}\u{435}\u{440}/.omnivoice")));
+    }
+
+    #[test]
+    fn split_existing_ancestor_finds_the_deepest_real_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "ov-ascii-safe-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+
+        let target = root.join("project").join(".venv");
+        let (existing, remainder) = split_existing_ancestor(&target);
+        assert_eq!(existing, root);
+        assert_eq!(remainder, Path::new("project").join(".venv"));
+
+        // A path that exists outright has no remainder.
+        let (existing2, remainder2) = split_existing_ancestor(&root);
+        assert_eq!(existing2, root);
+        assert_eq!(remainder2, Path::new(""));
+
+        // Reassembling must reproduce the original path exactly.
+        assert_eq!(existing.join(&remainder), target);
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    // On every non-Windows target `ascii_safe_dir` never touches the
+    // filesystem or WinAPI — it exists so `env_root` has one call site
+    // regardless of platform. The real short-name resolution is
+    // Windows-only and gated behind `#[cfg(target_os = "windows")]` above
+    // (untestable on this machine — see #1783 PR notes on what couldn't be
+    // exercised here).
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn ascii_safe_dir_is_a_byte_identical_noop_off_windows() {
+        let p = cjk_username_path();
+        assert_eq!(ascii_safe_dir(&p), p);
     }
 }
