@@ -90,7 +90,10 @@ export const shouldFallbackToClassic = (error) =>
  *  The binary-WebSocket twin of decodePcm16Base64 (`/ws/tts` sends raw
  *  frames, not NDJSON base64). Exported for tests. */
 export const pcm16BytesToFloat32 = (data) => {
-  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  let bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  // An Int16Array view must start on an even byte; a view carved at an odd
+  // offset (sliced framing buffers) would throw a RangeError, so copy it.
+  if (bytes.byteOffset % 2) bytes = bytes.slice();
   const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength >> 1);
   const out = new Float32Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) out[i] = pcm[i] / 32768;

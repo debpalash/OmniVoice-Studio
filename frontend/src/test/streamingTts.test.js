@@ -171,6 +171,14 @@ describe('pcm16BytesToFloat32', () => {
     expect(Array.from(raw)).toEqual(Array.from(viaB64));
   });
 
+  it('decodes a view carved at an odd byteOffset instead of throwing', () => {
+    const backing = new Uint8Array(5);
+    backing.set(new Uint8Array(new Int16Array([-12345]).buffer), 1);
+    const out = pcm16BytesToFloat32(backing.subarray(1, 3));
+    expect(out.length).toBe(1);
+    expect(out[0]).toBeCloseTo(-12345 / 32768, 5);
+  });
+
   it('respects a Uint8Array view with a nonzero byteOffset', () => {
     const backing = new Uint8Array(8);
     backing.set(new Uint8Array(new Int16Array([12345]).buffer), 2);

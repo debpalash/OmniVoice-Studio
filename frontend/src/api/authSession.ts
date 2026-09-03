@@ -379,19 +379,11 @@ export async function revokeAdminSession(
   }
 }
 
+// Mirrors the backend ticket allowlist (`_ALLOWED_WS_PATHS` in
+// backend/services/admin_sessions.py). A path listed here but not there mints
+// a 422, and the consumer fails silently — keep the two in lockstep.
 const ALLOWED_WS_PATHS = new Set(['/ws/events', '/ws/transcribe', '/ws/tts']);
 const LOGICAL_WS_ORIGIN = 'http://omnivoice.invalid';
-
-function isLoopbackWebSocket(url: URL): boolean {
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (host === 'localhost' || host === '::1') return true;
-  const octets = host.split('.');
-  return (
-    octets.length === 4 &&
-    octets[0] === '127' &&
-    octets.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
-  );
-}
 
 function websocketTarget(path: string, apiBase: string): { url: URL; logicalPath: string } {
   const base = normalizedApiBase(apiBase);
@@ -434,12 +426,15 @@ export async function requestWebSocketTicket(
   }: CommonOptions,
 ): Promise<string> {
   const base = normalizedApiBase(apiBase);
-  const { url, logicalPath } = websocketTarget(path, base);
+  const { logicalPath } = websocketTarget(path, base);
   const session = getAdminSession(base, { storage, now });
   if (!session) throw new AuthSessionError(401);
-  // A one-use bearer ticket is still a credential. Never place it in a
-  // cleartext URL outside loopback, where intermediaries can observe it.
-  if (url.protocol === 'ws:' && !isLoopbackWebSocket(url)) throw new AuthSessionError();
+  // Deliberately no plaintext (`ws:`) refusal: the documented remote-GPU setup
+  // is plain HTTP over a Tailscale/WireGuard tailnet (docs/remote-gpu.md), and
+  // the bearer session that mints this ticket already crossed that same
+  // transport. A one-use, 30 s, path-bound ticket adds no exposure the session
+  // lacks; refusing it would only cut /ws/events and /ws/transcribe off for
+  // every remote-backend user.
 
   let response: Response;
   const controller = new AbortController();
