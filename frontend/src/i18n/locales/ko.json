@@ -835,7 +835,7 @@
     "stop_playback": "재생 중지",
     "describe_label": "목소리를 설명하세요",
     "describe_placeholder": "예: a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "설명(영어)이 아래 컨트롤을 설정합니다. 이후에 직접 조정할 수도 있습니다.",
+    "describe_hint": "목소리를 설명하거나 시작점을 선택하세요. 둘 중 무엇을 해도 아래 세부 정보가 채워집니다.",
     "describe_unmatched": "매핑할 수 없음: {{items}}",
     "describe_no_match": "아직 인식된 목소리 특징이 없습니다. deep, elderly, British 같은 단어를 사용해 보세요.",
     "define_by_design": "디자인으로",

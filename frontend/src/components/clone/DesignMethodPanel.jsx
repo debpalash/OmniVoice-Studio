@@ -44,10 +44,15 @@ const SELECT_CATEGORIES = ['Gender', 'Age', 'Pitch', 'Style'];
 // rule itself.
 const ACCENT_OPTIONS = CATEGORIES.EnglishAccent.filter((opt) => opt !== 'Auto');
 const DIALECT_OPTIONS = CATEGORIES.ChineseDialect.filter((opt) => opt !== 'Auto');
-// "Starting points" personality chips (#1771 follow-up item 5): only the
-// first N show by default — the rest reveal in place via a dynamic
-// "{{count}} more…" chip, so the row never hardcodes names or a count.
-const VISIBLE_PERSONALITY_COUNT = 5;
+// "Starting points" chips (#1771 follow-up item 5): only the first N of the
+// COMBINED lane show by default — the rest reveal in place via a dynamic
+// "{{count}} more…" chip, so the row never hardcodes names or a count. The
+// lane renders two sources (personalities from the backend + the hardcoded
+// PRESETS below) sharing one row, so both must be sliced together — slicing
+// only chipPersonalities left PRESETS permanently visible after the overflow
+// chip and made the "N more…" count wrong (only counted the hidden
+// personalities, not the hidden presets too).
+const VISIBLE_CHIP_COUNT = 5;
 
 export default function DesignMethodPanel({
   t,
@@ -107,11 +112,26 @@ export default function DesignMethodPanel({
     onVdChange(ACCENT_OPTIONS.includes(value) ? 'EnglishAccent' : 'ChineseDialect', value);
   };
 
-  const visiblePersonalities = chipsExpanded
-    ? chipPersonalities
-    : chipPersonalities.slice(0, VISIBLE_PERSONALITY_COUNT);
-  const overflowCount = chipPersonalities.length - visiblePersonalities.length;
-  const visibleIds = visiblePersonalities.map((p) => p.id);
+  // ONE preset system (10x §1.3): personalities + the old PROMPT presets
+  // share a single "Starting points" lane, so the 5-visible slice and its
+  // overflow count are computed over the COMBINED list, not chipPersonalities
+  // alone. `uid` is namespaced (personality ids and PRESETS ids can collide —
+  // e.g. both have a 'narrator') so it's safe as both the React key and the
+  // roving-tabindex nav id.
+  const allChips = [
+    ...chipPersonalities.map((p) => ({ ...p, kind: 'personality', uid: `personality:${p.id}` })),
+    ...PRESETS.map((p) => ({ ...p, kind: 'preset', uid: `preset:${p.id}` })),
+  ];
+  const visibleChips = chipsExpanded ? allChips : allChips.slice(0, VISIBLE_CHIP_COUNT);
+  const overflowCount = allChips.length - visibleChips.length;
+  const visibleUids = visibleChips.map((c) => c.uid);
+  const activeUid = activePersonality ? `personality:${activePersonality}` : null;
+  const selectChip = (uid) => {
+    const chip = allChips.find((c) => c.uid === uid);
+    if (!chip) return;
+    if (chip.kind === 'personality') applyPersonality(chip);
+    else applyPreset(chip);
+  };
 
   return (
     <div>
@@ -142,9 +162,9 @@ export default function DesignMethodPanel({
 
       {/* ONE preset system (10x §1.3): personalities + the old PROMPT
                 presets share a single "Starting points" lane — both set
-                vdStates + instruct. Personality chips beyond the first 5
-                (#1771 follow-up) reveal in place via a dynamic "N more…"
-                chip so the row never hardcodes names or a count. */}
+                vdStates + instruct. Chips beyond the first 5 of that COMBINED
+                lane (#1771 follow-up) reveal in place via a dynamic "N
+                more…" chip so the row never hardcodes names or a count. */}
       <div className="mt-[8px] mr-0 mb-[12px] ml-0">
         <div className="font-[var(--chrome-font-mono)] text-[0.62rem] uppercase tracking-[0.06em] text-[var(--chrome-fg-muted)] mb-[6px]">
           {t('clone.starting_points', { defaultValue: 'Starting points' })}
@@ -154,35 +174,39 @@ export default function DesignMethodPanel({
           role="group"
           aria-label={t('clone.starting_points', { defaultValue: 'Starting points' })}
         >
-          {visiblePersonalities.map((p, i) => {
-            const Icon = PERSONALITY_ICONS[p.id] || FALLBACK_PERSONALITY_ICON;
-            const checked = activePersonality === p.id;
-            // Roving tabindex (WAI-ARIA toolbar pattern): the active chip is
-            // the group's single tab stop (first chip if nothing matches).
-            // This is a toggle strip, not a true radio group — clicking the
-            // active chip again clears it (applyPersonality) — so it uses
-            // aria-pressed rather than role="radio"/aria-checked.
-            const roving = checked || (!visibleIds.includes(activePersonality) && i === 0);
+          {visibleChips.map((chip, i) => {
+            const isPersonality = chip.kind === 'personality';
+            const Icon = isPersonality
+              ? PERSONALITY_ICONS[chip.id] || FALLBACK_PERSONALITY_ICON
+              : PRESET_ICONS[chip.id] || FALLBACK_VOICE_ICON;
+            // Only personalities track an "active" pick — PRESETS never did
+            // (applying one rewrites vdStates directly with no selection
+            // memory). Roving tabindex (WAI-ARIA toolbar pattern): the active
+            // chip is the group's single tab stop (first chip if nothing
+            // matches). This is a toggle strip, not a true radio group —
+            // clicking the active personality chip again clears it
+            // (applyPersonality) — so it uses aria-pressed rather than
+            // role="radio"/aria-checked.
+            const checked = isPersonality && activePersonality === chip.id;
+            const roving = checked || (!visibleUids.includes(activeUid) && i === 0);
+            const label = isPersonality
+              ? t(`clone.personality_${chip.id}`, { defaultValue: chip.name })
+              : t(`clone.preset_${chip.id}`, { defaultValue: chip.name });
             return (
               <button
-                key={p.id}
+                key={chip.uid}
                 type="button"
                 aria-pressed={checked}
                 tabIndex={roving ? 0 : -1}
                 data-chip-nav="true"
                 className={`${PCHIP_BASE} ${checked ? PCHIP_ACTIVE : PCHIP_INACTIVE}`}
-                onClick={() => applyPersonality(p)}
-                onKeyDown={(e) =>
-                  onChipKeyDown(e, visibleIds, activePersonality, (id) => {
-                    const next = chipPersonalities.find((x) => x.id === id);
-                    if (next) applyPersonality(next);
-                  })
-                }
+                onClick={() => selectChip(chip.uid)}
+                onKeyDown={(e) => onChipKeyDown(e, visibleUids, activeUid, selectChip)}
               >
                 <span className="inline-flex items-center">
                   <Icon size={13} />
                 </span>
-                {stripVoiceEmoji(t(`clone.personality_${p.id}`, { defaultValue: p.name }))}
+                {stripVoiceEmoji(label)}
               </button>
             );
           })}
@@ -198,22 +222,6 @@ export default function DesignMethodPanel({
               })}
             </button>
           )}
-          {PRESETS.map((p) => {
-            const Icon = PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`${PCHIP_BASE} ${PCHIP_INACTIVE}`}
-                onClick={() => applyPreset(p)}
-              >
-                <span className="inline-flex items-center">
-                  <Icon size={13} />
-                </span>
-                {stripVoiceEmoji(t(`clone.preset_${p.id}`, { defaultValue: p.name }))}
-              </button>
-            );
-          })}
         </div>
       </div>
       {/* Details summary (10x §1.5, #1771 follow-up): the whole fine-grained

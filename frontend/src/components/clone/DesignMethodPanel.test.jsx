@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DesignMethodPanel from './DesignMethodPanel';
+import { PRESETS } from '../../utils/constants';
 
 // #983: "Cannot read properties of undefined (reading 'replace')" — the
 // identity panel crashed whenever vdStates was missing one of the 6
@@ -154,34 +155,50 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
   });
 });
 
-// #1771 follow-up item 5: only the first 5 personality chips show by
-// default; the rest reveal in place via a dynamic "{{count}} more…" chip.
-describe('DesignMethodPanel — starting-points chip overflow', () => {
+// #1771 follow-up item 5: only the first 5 chips of the COMBINED lane show
+// by default — the lane renders personalities (chipPersonalities, dynamic)
+// AND the hardcoded PRESETS together (the "ONE preset system" comment in
+// DesignMethodPanel.jsx), so both sources must be sliced as one list and the
+// overflow count must cover whatever's hidden from EITHER source. Slicing
+// only chipPersonalities left PRESETS always fully visible after the
+// overflow toggle and undercounted "N more…" by PRESETS.length.
+describe('DesignMethodPanel — starting-points chip overflow (combined personalities + PRESETS)', () => {
   const chipPersonalities = Array.from({ length: 7 }, (_, i) => ({
     id: `p${i}`,
     name: `Personality ${i}`,
   }));
+  const totalChips = chipPersonalities.length + PRESETS.length;
+  const overflow = totalChips - 5;
 
-  it('shows only the first 5 chips plus a "more" chip', () => {
+  it('shows only the first 5 combined chips, with PRESETS not yet visible', () => {
     setup({}, { chipPersonalities });
     for (let i = 0; i < 5; i++) {
       expect(screen.getByText(`Personality ${i}`)).toBeInTheDocument();
     }
     expect(screen.queryByText('Personality 5')).toBeNull();
-    expect(screen.getByText('2 more…')).toBeInTheDocument();
+    expect(screen.queryByText('Personality 6')).toBeNull();
+    expect(screen.queryByText(/Authoritative/)).toBeNull(); // first PRESETS chip
   });
 
-  it('reveals the rest in place when the overflow chip is clicked', () => {
+  it('counts the overflow across BOTH sources, not just the hidden personalities', () => {
     setup({}, { chipPersonalities });
-    fireEvent.click(screen.getByText('2 more…'));
+    // 7 personalities + 6 PRESETS = 13 total, 5 visible -> 8 hidden.
+    expect(screen.getByText(`${overflow} more…`)).toBeInTheDocument();
+  });
+
+  it('reveals every remaining chip from both sources when the overflow chip is clicked', () => {
+    setup({}, { chipPersonalities });
+    fireEvent.click(screen.getByText(`${overflow} more…`));
     for (let i = 0; i < 7; i++) {
       expect(screen.getByText(`Personality ${i}`)).toBeInTheDocument();
     }
-    expect(screen.queryByText('2 more…')).toBeNull();
+    expect(screen.getByText(/Authoritative/)).toBeInTheDocument();
+    expect(screen.queryByText(/more…/)).toBeNull();
   });
 
-  it('does not show a "more" chip when there are 5 or fewer personalities', () => {
-    setup({}, { chipPersonalities: chipPersonalities.slice(0, 5) });
-    expect(screen.queryByText(/more…/)).toBeNull();
+  it('counts PRESETS into the overflow even with zero personalities', () => {
+    setup({}, { chipPersonalities: [] });
+    // PRESETS alone (6) already exceed the 5-visible slice.
+    expect(screen.getByText(`${PRESETS.length - 5} more…`)).toBeInTheDocument();
   });
 });

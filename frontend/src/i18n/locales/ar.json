@@ -599,7 +599,7 @@
     "stop_playback": "إيقاف التشغيل",
     "describe_label": "صِف صوتك",
     "describe_placeholder": "مثال: a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "وصفك (بالإنجليزية) يضبط عناصر التحكم أدناه — ويمكنك تعديلها يدويًا لاحقًا.",
+    "describe_hint": "صِف الصوت، أو اختر نقطة بداية. أيٌّ منهما يملأ التفاصيل أدناه.",
     "describe_unmatched": "تعذّر التعيين: {{items}}",
     "describe_no_match": "لم يتم التعرف على سمات صوتية بعد — جرّب كلمات مثل deep أو elderly أو British.",
     "define_by_design": "بالتصميم",

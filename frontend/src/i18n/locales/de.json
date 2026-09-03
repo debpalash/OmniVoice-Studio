@@ -599,7 +599,7 @@
     "stop_playback": "Wiedergabe stoppen",
     "describe_label": "Beschreibe deine Stimme",
     "describe_placeholder": "z. B. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Deine Beschreibung (auf Englisch) stellt die Regler unten ein — du kannst sie danach weiter anpassen.",
+    "describe_hint": "Beschreibe die Stimme oder wähle einen Ausgangspunkt. Beides füllt die Details unten aus.",
     "describe_unmatched": "Nicht zuordenbar: {{items}}",
     "describe_no_match": "Noch keine Stimmmerkmale erkannt — versuche Wörter wie deep, elderly oder British.",
     "define_by_design": "Per Design",

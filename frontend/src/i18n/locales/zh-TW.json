@@ -599,7 +599,7 @@
     "stop_playback": "停止播放",
     "describe_label": "描述你想要的聲音",
     "describe_placeholder": "例如：a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "你的描述（英文）會自動設定下方的控制項，之後仍可手動微調。",
+    "describe_hint": "描述這個聲音，或選擇一個起點——兩者都會自動填好下方的詳情。",
     "describe_unmatched": "無法辨識：{{items}}",
     "describe_no_match": "尚未辨識出聲音特徵——試試 deep、elderly 或 British 等詞。",
     "define_by_design": "以設計",

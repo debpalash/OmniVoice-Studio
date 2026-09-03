@@ -599,7 +599,7 @@
     "stop_playback": "Arrêter la lecture",
     "describe_label": "Décrivez votre voix",
     "describe_placeholder": "p. ex. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Votre description (en anglais) règle les contrôles ci-dessous — vous pouvez encore les ajuster après.",
+    "describe_hint": "Décrivez la voix, ou choisissez un point de départ. L'un ou l'autre renseigne les détails ci-dessous.",
     "describe_unmatched": "Impossible d'associer : {{items}}",
     "describe_no_match": "Aucun trait vocal reconnu pour l'instant — essayez des mots comme deep, elderly ou British.",
     "define_by_design": "Par conception",

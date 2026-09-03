@@ -599,7 +599,7 @@
     "stop_playback": "प्लेबैक रोकें",
     "describe_label": "अपनी आवाज़ का वर्णन करें",
     "describe_placeholder": "उदा. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "आपका विवरण (अंग्रेज़ी में) नीचे के नियंत्रण सेट करता है — आप बाद में इन्हें बदल सकते हैं।",
+    "describe_hint": "आवाज़ का वर्णन करें, या कोई शुरुआती बिंदु चुनें। दोनों में से कोई भी नीचे के विवरण भर देगा।",
     "describe_unmatched": "मैप नहीं हो सका: {{items}}",
     "describe_no_match": "अभी कोई आवाज़ विशेषता पहचानी नहीं गई — deep, elderly या British जैसे शब्द आज़माएँ।",
     "define_by_design": "डिज़ाइन से",

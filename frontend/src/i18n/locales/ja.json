@@ -599,7 +599,7 @@
     "stop_playback": "再生を停止",
     "describe_label": "声を言葉で説明",
     "describe_placeholder": "例: a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "説明（英語）が下のコントロールを設定します。後から微調整もできます。",
+    "describe_hint": "声を説明するか、起点を選んでください。どちらでも下の詳細が自動入力されます。",
     "describe_unmatched": "対応付けできません: {{items}}",
     "describe_no_match": "まだ声の特徴を認識できていません。deep、elderly、British などの単語を試してください。",
     "define_by_design": "デザインで",

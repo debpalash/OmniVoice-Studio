@@ -97,15 +97,17 @@ export default function CloneDesignTab(props) {
   const [activePersonality, setActivePersonality] = useState('');
   const [insertOpen, setInsertOpen] = useState(false);
 
-  // Identity recipe line (10x §1.5): the non-Auto category picks as one
-  // readable string. All-Auto (nothing chosen yet) starts the chips expanded.
+  // Details recipe line (10x §1.5, #1771 follow-up): the non-Auto category
+  // picks as one readable string, shown on the collapsed summary.
   const identityPicks = Object.values(vdStates || {}).filter((v) => v && v !== 'Auto');
   const identityRecipe = identityPicks.length
     ? identityPicks.join(' · ')
     : t('clone.identity_auto', { defaultValue: 'Auto — the model decides' });
-  const [identityOpen, setIdentityOpen] = useState(
-    () => !Object.values(vdStates || {}).some((v) => v && v !== 'Auto'),
-  );
+  // #1771 follow-up: the whole point of collapsing the 12-row block to one
+  // line is that it STAYS collapsed until asked — it must never start open,
+  // including on first run (the old design opened it whenever every category
+  // was still Auto; that behavior does not carry over).
+  const [identityOpen, setIdentityOpen] = useState(false);
 
   // ── "Describe your voice" (#317): free-text → design parameters ──────────
   // Debounced call to the local deterministic mapper (POST /design/describe);
@@ -353,7 +355,14 @@ export default function CloneDesignTab(props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 min-w-0">
-      <div className="flex-1 flex flex-col gap-[6px] min-h-0 overflow-y-auto">
+      {/* #1771 follow-up (item 6): NOT flex-1 — the old always-open 12-row
+          Design block was tall enough that this area routinely filled the
+          full column height on its own. Now that Details defaults collapsed,
+          forcing this to grow-fill would strand a dead gap between it and
+          ActionBar below. Sizing to content (min-h-0 + overflow-y-auto still
+          in play) lets it shrink for short content and still scroll when
+          content genuinely exceeds the available height. */}
+      <div className="flex flex-col gap-[6px] min-h-0 overflow-y-auto">
         {/* ═══ SCRIPT — what should it say ═══
             Hidden for Convert: the source clip IS the script (the backend
             transcribes it), so a text panel would only mislead. */}

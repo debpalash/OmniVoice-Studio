@@ -599,7 +599,7 @@
     "stop_playback": "Зупинити відтворення",
     "describe_label": "Опишіть свій голос",
     "describe_placeholder": "напр. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Ваш опис (англійською) налаштовує елементи нижче — їх можна підлаштувати вручну.",
+    "describe_hint": "Опишіть голос або виберіть відправну точку — в обох випадках деталі нижче заповняться автоматично.",
     "describe_unmatched": "Не вдалося зіставити: {{items}}",
     "describe_no_match": "Голосові риси ще не розпізнано — спробуйте слова deep, elderly або British.",
     "define_by_design": "За дизайном",

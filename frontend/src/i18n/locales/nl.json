@@ -599,7 +599,7 @@
     "stop_playback": "Afspelen stoppen",
     "describe_label": "Beschrijf je stem",
     "describe_placeholder": "bijv. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Je beschrijving (in het Engels) stelt de regelaars hieronder in — je kunt ze daarna bijstellen.",
+    "describe_hint": "Beschrijf de stem, of kies een startpunt. Beide vullen de details hieronder in.",
     "describe_unmatched": "Kon niet toewijzen: {{items}}",
     "describe_no_match": "Nog geen stemkenmerken herkend — probeer woorden als deep, elderly of British.",
     "define_by_design": "Via ontwerp",

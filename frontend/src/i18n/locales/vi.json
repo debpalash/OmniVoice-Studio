@@ -599,7 +599,7 @@
     "stop_playback": "Dừng phát",
     "describe_label": "Mô tả giọng nói của bạn",
     "describe_placeholder": "vd. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Mô tả của bạn (bằng tiếng Anh) sẽ thiết lập các điều khiển bên dưới — bạn vẫn có thể tinh chỉnh sau.",
+    "describe_hint": "Mô tả giọng nói, hoặc chọn một điểm khởi đầu. Cả hai cách đều tự điền chi tiết bên dưới.",
     "describe_unmatched": "Không thể ánh xạ: {{items}}",
     "describe_no_match": "Chưa nhận ra đặc điểm giọng nói nào — hãy thử các từ như deep, elderly hoặc British.",
     "define_by_design": "Theo thiết kế",

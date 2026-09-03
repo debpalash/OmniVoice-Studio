@@ -599,7 +599,7 @@
     "stop_playback": "Oynatmayı durdur",
     "describe_label": "Sesinizi tarif edin",
     "describe_placeholder": "örn. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Açıklamanız (İngilizce) aşağıdaki denetimleri ayarlar — sonradan ince ayar yapabilirsiniz.",
+    "describe_hint": "Sesi tanımlayın veya bir başlangıç noktası seçin. Her ikisi de aşağıdaki ayrıntıları doldurur.",
     "describe_unmatched": "Eşlenemedi: {{items}}",
     "describe_no_match": "Henüz ses özelliği tanınmadı — deep, elderly veya British gibi kelimeler deneyin.",
     "define_by_design": "Tasarımla",

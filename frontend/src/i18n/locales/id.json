@@ -599,7 +599,7 @@
     "stop_playback": "Hentikan pemutaran",
     "describe_label": "Deskripsikan suara Anda",
     "describe_placeholder": "mis. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "Deskripsi Anda (dalam bahasa Inggris) mengatur kontrol di bawah — Anda tetap bisa menyetelnya setelahnya.",
+    "describe_hint": "Deskripsikan suaranya, atau pilih titik awal. Keduanya akan mengisi detail di bawah.",
     "describe_unmatched": "Tidak dapat dipetakan: {{items}}",
     "describe_no_match": "Belum ada ciri suara yang dikenali — coba kata seperti deep, elderly, atau British.",
     "define_by_design": "Lewat desain",

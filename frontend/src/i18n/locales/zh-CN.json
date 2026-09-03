@@ -258,7 +258,7 @@
     "stop_playback": "停止播放",
     "describe_label": "描述你想要的声音",
     "describe_placeholder": "例如：中年男性，低音调，四川话",
-    "describe_hint": "你的描述会自动设置下方的控件，之后仍可手动微调。（也支持英文描述）",
+    "describe_hint": "描述这个声音，或选择一个起点——两者都会自动填好下方的详情。",
     "describe_unmatched": "无法识别：{{items}}",
     "describe_no_match": "尚未识别出声音特征——试试 deep、elderly、British 或「中年」「低音调」等词。",
     "define_by_design": "通过设计",

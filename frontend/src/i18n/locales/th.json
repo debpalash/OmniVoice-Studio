@@ -599,7 +599,7 @@
     "stop_playback": "หยุดเล่น",
     "describe_label": "อธิบายเสียงของคุณ",
     "describe_placeholder": "เช่น a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "คำอธิบายของคุณ (ภาษาอังกฤษ) จะตั้งค่าตัวควบคุมด้านล่าง และคุณยังปรับเองได้ภายหลัง",
+    "describe_hint": "อธิบายเสียงพูด หรือเลือกจุดเริ่มต้น อย่างใดอย่างหนึ่งจะกรอกรายละเอียดด้านล่างให้อัตโนมัติ",
     "describe_unmatched": "จับคู่ไม่ได้: {{items}}",
     "describe_no_match": "ยังไม่พบลักษณะเสียง ลองใช้คำอย่าง deep, elderly หรือ British",
     "define_by_design": "โดยการออกแบบ",

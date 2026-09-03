@@ -599,7 +599,7 @@
     "stop_playback": "Interrompi riproduzione",
     "describe_label": "Descrivi la tua voce",
     "describe_placeholder": "es. a warm elderly British storyteller, slightly raspy",
-    "describe_hint": "La tua descrizione (in inglese) imposta i controlli qui sotto — puoi comunque regolarli dopo.",
+    "describe_hint": "Descrivi la voce, oppure scegli un punto di partenza. In entrambi i casi i dettagli qui sotto si compilano automaticamente.",
     "describe_unmatched": "Impossibile mappare: {{items}}",
     "describe_no_match": "Nessun tratto vocale riconosciuto — prova parole come deep, elderly o British.",
     "define_by_design": "Tramite progettazione",
