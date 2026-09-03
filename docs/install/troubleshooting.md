@@ -557,8 +557,21 @@ them to fail faster on a small machine.
 
 CPU-only hosts use a bounded 600-second generation floor because correct CPU
 synthesis can take longer than the accelerated five-minute budget. Override it
-with `OMNIVOICE_CPU_GENERATE_TIMEOUT_S`; an explicit higher
-or lower `OMNIVOICE_GENERATE_TIMEOUT_S` always wins.
+with `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` — an explicit value here always
+governs CPU-family generation, independent of `OMNIVOICE_GENERATE_TIMEOUT_S`.
+Setting *only* `OMNIVOICE_GENERATE_TIMEOUT_S` still governs CPU hosts too, the
+same as it always has (a quick way to lower the watchdog everywhere with one
+var); it only stops doing so once you also set an explicit
+`OMNIVOICE_CPU_GENERATE_TIMEOUT_S`, which then takes precedence for CPU jobs.
+
+Both budgets are also editable from **Settings → Performance & Device →
+Compute-time budget** — no env var or config file needed. A value saved there
+persists across restarts but only takes effect on the *next* backend restart
+(the running process already read the old value at startup), which the panel
+states — and if an external env var (shell profile, `.env`, Docker `-e`,
+systemd unit, …) is already providing the same key, the panel says so instead,
+since that external value keeps winning on every future restart too, not just
+this one.
 
 **Two things changed here** ([#1190](https://github.com/debpalash/VoiceStudio/issues/1190)):
 
