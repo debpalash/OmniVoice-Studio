@@ -620,7 +620,13 @@
     "script": "Skrypt",
     "starting_points": "Punkty wyjścia",
     "voice_kicker": "Głos",
-    "define_convert": "Konwertuj"
+    "define_convert": "Konwertuj",
+    "details": "Szczegóły",
+    "edit": "Edytuj",
+    "cat_AccentDialect": "Akcent lub dialekt",
+    "accent_dialect_hint": "jedno albo drugie, nigdy oba",
+    "reset_to_description": "Przywróć na podstawie opisu",
+    "chips_more": "jeszcze {{count}}…"
   },
   "about": {
     "app": "Aplikacja",

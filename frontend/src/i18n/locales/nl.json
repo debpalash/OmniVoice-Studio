@@ -620,7 +620,13 @@
     "script": "Script",
     "starting_points": "Startpunten",
     "voice_kicker": "Stem",
-    "define_convert": "Converteren"
+    "define_convert": "Converteren",
+    "details": "Details",
+    "edit": "Bewerken",
+    "cat_AccentDialect": "Accent of dialect",
+    "accent_dialect_hint": "het een of het ander, nooit beide",
+    "reset_to_description": "Terugzetten naar beschrijving",
+    "chips_more": "nog {{count}}…"
   },
   "about": {
     "app": "App",

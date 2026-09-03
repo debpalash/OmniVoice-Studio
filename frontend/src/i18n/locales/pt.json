@@ -620,7 +620,13 @@
     "seed_keep": "Guarde esta semente",
     "seed_reroll": "Nova semente",
     "seed_reroll_hint": "Role uma nova semente aleatória e guarde-a",
-    "define_convert": "Converter"
+    "define_convert": "Converter",
+    "details": "Detalhes",
+    "edit": "Editar",
+    "cat_AccentDialect": "Sotaque ou dialeto",
+    "accent_dialect_hint": "um ou outro, nunca os dois",
+    "reset_to_description": "Redefinir conforme a descrição",
+    "chips_more": "mais {{count}}…"
   },
   "about": {
     "app": "Aplicativo",

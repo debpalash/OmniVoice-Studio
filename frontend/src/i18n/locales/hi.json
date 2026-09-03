@@ -620,7 +620,13 @@
     "seed_keep": "इस बीज को अपने पास रखें",
     "seed_reroll": "नया बीज",
     "seed_reroll_hint": "एक नये यादृच्छिक बीज को रोल करके रख लें",
-    "define_convert": "कन्वर्ट"
+    "define_convert": "कन्वर्ट",
+    "details": "विवरण",
+    "edit": "संपादित करें",
+    "cat_AccentDialect": "एक्सेंट या बोली",
+    "accent_dialect_hint": "इनमें से एक ही, दोनों नहीं",
+    "reset_to_description": "विवरण के अनुसार रीसेट करें",
+    "chips_more": "{{count}} और…"
   },
   "about": {
     "app": "ऐप",

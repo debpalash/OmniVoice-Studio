@@ -620,7 +620,13 @@
     "seed_keep": "Behalte diesen Samen",
     "seed_reroll": "Neues Saatgut",
     "seed_reroll_hint": "Würfeln Sie einen neuen zufälligen Samen und behalten Sie ihn",
-    "define_convert": "Konvertieren"
+    "define_convert": "Konvertieren",
+    "details": "Details",
+    "edit": "Bearbeiten",
+    "cat_AccentDialect": "Akzent oder Dialekt",
+    "accent_dialect_hint": "eins von beiden, nie beides",
+    "reset_to_description": "Auf Beschreibung zurücksetzen",
+    "chips_more": "{{count}} weitere…"
   },
   "about": {
     "app": "App",

@@ -279,7 +279,13 @@
     "seed_keep": "保留这个种子",
     "seed_reroll": "新种子",
     "seed_reroll_hint": "滚动一个新的随机种子并保留它",
-    "define_convert": "转换"
+    "define_convert": "转换",
+    "details": "详情",
+    "edit": "编辑",
+    "cat_AccentDialect": "口音或方言",
+    "accent_dialect_hint": "二选一，不能同时选择",
+    "reset_to_description": "按描述重置",
+    "chips_more": "还有 {{count}} 个…"
   },
   "settings": {
     "remote_backend_test": "测试连接",

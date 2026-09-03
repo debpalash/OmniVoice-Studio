@@ -620,7 +620,13 @@
     "seed_keep": "Bu tohumu sakla",
     "seed_reroll": "Yeni tohum",
     "seed_reroll_hint": "Yeni bir rastgele tohum yuvarlayın ve saklayın",
-    "define_convert": "Dönüştür"
+    "define_convert": "Dönüştür",
+    "details": "Ayrıntılar",
+    "edit": "Düzenle",
+    "cat_AccentDialect": "Aksan veya lehçe",
+    "accent_dialect_hint": "yalnızca biri, asla ikisi birden",
+    "reset_to_description": "Açıklamaya göre sıfırla",
+    "chips_more": "{{count}} tane daha…"
   },
   "about": {
     "app": "Uygulama",

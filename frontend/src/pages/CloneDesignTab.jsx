@@ -126,26 +126,43 @@ export default function CloneDesignTab(props) {
     }
   };
 
+  // Shared "description -> vdStates" path: the debounced live-typing effect
+  // below and the Details editor's "Reset to description" button (#1771
+  // follow-up) both drive the category picks from describeText, so this is
+  // the ONE place that does it — resetToDescription must never grow a
+  // second, divergent implementation of the same mapping.
+  const applyDescribeToVdStates = async (q) => {
+    if (!q) {
+      // No description to reset to: every category goes back to Auto.
+      setVdStates(Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, 'Auto'])));
+      setDescribeUnmatched([]);
+      setDescribeMatchedAny(true);
+      setActivePersonality('');
+      setInstruct('');
+      return;
+    }
+    try {
+      const res = await apiPost('/design/describe', { description: q });
+      setVdStates(mergeDescribedAttrs(res.attrs));
+      setDescribeUnmatched(res.unmatched || []);
+      setDescribeMatchedAny((res.matched || []).length > 0);
+      // The description now owns the design parameters — clear any stale
+      // personality instruct so the synthesize path can't merge conflicting
+      // tokens from two sources (the issue-#114 failure mode).
+      setActivePersonality('');
+      setInstruct('');
+    } catch {
+      // Backend unreachable — leave the controls untouched; the live-typing
+      // path retries on the next keystroke, the reset button on the next click.
+    }
+  };
+
   useEffect(() => {
     const q = describeText.trim();
     if (!q) return undefined;
     let cancelled = false;
-    const id = setTimeout(async () => {
-      try {
-        const res = await apiPost('/design/describe', { description: q });
-        if (cancelled) return;
-        setVdStates(mergeDescribedAttrs(res.attrs));
-        setDescribeUnmatched(res.unmatched || []);
-        setDescribeMatchedAny((res.matched || []).length > 0);
-        // The description now owns the design parameters — clear any stale
-        // personality instruct so the synthesize path can't merge conflicting
-        // tokens from two sources (the issue-#114 failure mode).
-        setActivePersonality('');
-        setInstruct('');
-      } catch {
-        // Backend unreachable mid-typing — leave the controls untouched;
-        // the next keystroke retries.
-      }
+    const id = setTimeout(() => {
+      if (!cancelled) applyDescribeToVdStates(q);
     }, 450);
     return () => {
       cancelled = true;
@@ -153,6 +170,11 @@ export default function CloneDesignTab(props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [describeText]);
+
+  // "Reset to description" (#1771 follow-up): returns every category to what
+  // the current description implies, or all-Auto when there is none —
+  // without waiting for the 450ms debounce or requiring a fresh keystroke.
+  const resetToDescription = () => applyDescribeToVdStates(describeText.trim());
 
   // Fetch personality presets from backend
   const { data: personalities = [] } = useQuery({
@@ -275,16 +297,22 @@ export default function CloneDesignTab(props) {
     }
   };
 
-  // 10x P4 a11y (spec §3): category chip groups are radiogroups with a
-  // roving tabindex — ArrowLeft/ArrowRight move focus AND selection within
-  // the group, per the WAI-ARIA radio-group pattern.
-  const onChipKeyDown = (e, key, options) => {
+  // 10x P4 a11y (spec §3): chip strips get a roving tabindex —
+  // ArrowLeft/ArrowRight move focus AND selection within the group, per the
+  // WAI-ARIA toolbar pattern. Gender/Age/Pitch/Style/Accent-or-Dialect moved
+  // to native <select>s in the #1771 follow-up (which get this navigation
+  // for free from the browser), so the only remaining chip strip is the
+  // "Starting points" personality row — including chips currently hidden
+  // behind its overflow toggle, once revealed. Generic over (ids, currentId,
+  // onSelect) rather than a vdStates category, since that's no longer the
+  // only chip consumer.
+  const onChipKeyDown = (e, ids, currentId, onSelect) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
-    const cur = Math.max(0, options.indexOf(vdStates[key]));
-    const next = (cur + (e.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
-    handleVdChange(key, options[next]);
-    e.currentTarget.closest('.chip-group')?.querySelectorAll('[role="radio"]')[next]?.focus();
+    const cur = Math.max(0, ids.indexOf(currentId));
+    const next = (cur + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
+    onSelect(ids[next]);
+    e.currentTarget.closest('[role="group"]')?.querySelectorAll('[data-chip-nav]')[next]?.focus();
   };
 
   // 10x P4 a11y (spec §3): once a generation has run, the persistent status
@@ -434,6 +462,7 @@ export default function CloneDesignTab(props) {
                 vdStates={vdStates}
                 onVdChange={handleVdChange}
                 onChipKeyDown={onChipKeyDown}
+                resetToDescription={resetToDescription}
                 showSaveProfile={showSaveProfile}
                 setShowSaveProfile={setShowSaveProfile}
                 profileName={profileName}

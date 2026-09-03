@@ -393,7 +393,13 @@
     "script": "Script",
     "starting_points": "Starting points",
     "voice_kicker": "Voice",
-    "define_convert": "Convert"
+    "define_convert": "Convert",
+    "details": "Details",
+    "edit": "Edit",
+    "cat_AccentDialect": "Accent or Dialect",
+    "accent_dialect_hint": "one or the other, never both",
+    "reset_to_description": "Reset to description",
+    "chips_more": "{{count}} more…"
   },
   "settings": {
     "title": "Settings",

@@ -620,7 +620,13 @@
     "script": "Скрипт",
     "starting_points": "Отправные точки",
     "voice_kicker": "Голос",
-    "define_convert": "Преобразовать"
+    "define_convert": "Преобразовать",
+    "details": "Детали",
+    "edit": "Изменить",
+    "cat_AccentDialect": "Акцент или диалект",
+    "accent_dialect_hint": "одно из двух, никогда оба сразу",
+    "reset_to_description": "Сбросить по описанию",
+    "chips_more": "ещё {{count}}…"
   },
   "about": {
     "app": "Приложение",

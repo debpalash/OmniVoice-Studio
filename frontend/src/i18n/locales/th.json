@@ -620,7 +620,13 @@
     "seed_keep": "เก็บเมล็ดพันธุ์นี้ไว้",
     "seed_reroll": "เมล็ดพันธุ์ใหม่",
     "seed_reroll_hint": "สุ่มเมล็ดใหม่แบบสุ่มแล้วเก็บไว้",
-    "define_convert": "แปลง"
+    "define_convert": "แปลง",
+    "details": "รายละเอียด",
+    "edit": "แก้ไข",
+    "cat_AccentDialect": "สำเนียงหรือภาษาถิ่น",
+    "accent_dialect_hint": "เลือกได้อย่างใดอย่างหนึ่ง ไม่ใช่ทั้งสองอย่าง",
+    "reset_to_description": "รีเซ็ตตามคำอธิบาย",
+    "chips_more": "อีก {{count}} รายการ…"
   },
   "about": {
     "app": "แอพ",

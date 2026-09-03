@@ -620,7 +620,13 @@
     "script": "Manus",
     "starting_points": "Utgångspunkter",
     "voice_kicker": "Röst",
-    "define_convert": "Konvertera"
+    "define_convert": "Konvertera",
+    "details": "Detaljer",
+    "edit": "Redigera",
+    "cat_AccentDialect": "Accent eller dialekt",
+    "accent_dialect_hint": "det ena eller det andra, aldrig båda",
+    "reset_to_description": "Återställ till beskrivning",
+    "chips_more": "{{count}} till…"
   },
   "about": {
     "app": "App",

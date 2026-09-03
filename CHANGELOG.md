@@ -36,6 +36,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- Voice Design simplified: the 12-row fine-grained block collapses to one summary line with a five-field editor, English accent and Chinese dialect merge into a single field, and the starting-point chips now show 5 with an overflow toggle
+
 ### Added
 
 - The audiobook result is now a synced-lyrics player: chapter text follows playback with the current word highlighted and click-to-seek, timed from the render's own chapter durations with a karaoke-style even split — no ASR pass, fully local (#1766) — thanks @mvanhorn!

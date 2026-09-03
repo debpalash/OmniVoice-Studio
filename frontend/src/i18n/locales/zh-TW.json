@@ -620,7 +620,13 @@
     "seed_keep": "保留這個種子",
     "seed_reroll": "新種子",
     "seed_reroll_hint": "滾動一個新的隨機種子並保留它",
-    "define_convert": "轉換"
+    "define_convert": "轉換",
+    "details": "詳情",
+    "edit": "編輯",
+    "cat_AccentDialect": "口音或方言",
+    "accent_dialect_hint": "二選一，不能同時選擇",
+    "reset_to_description": "依描述重設",
+    "chips_more": "還有 {{count}} 個…"
   },
   "about": {
     "app": "應用程式",

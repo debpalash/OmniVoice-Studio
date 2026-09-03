@@ -620,7 +620,13 @@
     "script": "Сценарій",
     "starting_points": "Відправні точки",
     "voice_kicker": "Голос",
-    "define_convert": "Перетворити"
+    "define_convert": "Перетворити",
+    "details": "Деталі",
+    "edit": "Редагувати",
+    "cat_AccentDialect": "Акцент або діалект",
+    "accent_dialect_hint": "одне з двох, ніколи обидва",
+    "reset_to_description": "Скинути за описом",
+    "chips_more": "ще {{count}}…"
   },
   "about": {
     "app": "додаток",

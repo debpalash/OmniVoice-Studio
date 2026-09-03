@@ -620,7 +620,13 @@
     "seed_keep": "Conserva questo seme",
     "seed_reroll": "Nuovo seme",
     "seed_reroll_hint": "Lancia un nuovo seme casuale e conservalo",
-    "define_convert": "Converti"
+    "define_convert": "Converti",
+    "details": "Dettagli",
+    "edit": "Modifica",
+    "cat_AccentDialect": "Accento o dialetto",
+    "accent_dialect_hint": "uno o l'altro, mai entrambi",
+    "reset_to_description": "Reimposta in base alla descrizione",
+    "chips_more": "altri {{count}}…"
   },
   "about": {
     "app": "App",

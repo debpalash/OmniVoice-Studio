@@ -620,7 +620,13 @@
     "seed_keep": "Simpan benih ini",
     "seed_reroll": "Benih baru",
     "seed_reroll_hint": "Gulung benih acak baru dan simpan",
-    "define_convert": "Konversi"
+    "define_convert": "Konversi",
+    "details": "Detail",
+    "edit": "Edit",
+    "cat_AccentDialect": "Aksen atau dialek",
+    "accent_dialect_hint": "salah satu saja, tidak keduanya",
+    "reset_to_description": "Setel ulang sesuai deskripsi",
+    "chips_more": "{{count}} lainnya…"
   },
   "about": {
     "app": "Aplikasi",

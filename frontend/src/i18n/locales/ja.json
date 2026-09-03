@@ -620,7 +620,13 @@
     "seed_keep": "この種を保管しておいてください",
     "seed_reroll": "新しい種",
     "seed_reroll_hint": "新しいランダムシードをロールして保持します",
-    "define_convert": "変換"
+    "define_convert": "変換",
+    "details": "詳細",
+    "edit": "編集",
+    "cat_AccentDialect": "アクセントまたは方言",
+    "accent_dialect_hint": "どちらか一方のみ、両方は不可",
+    "reset_to_description": "説明に基づいてリセット",
+    "chips_more": "他{{count}}件…"
   },
   "about": {
     "app": "アプリ",

@@ -620,7 +620,13 @@
     "seed_keep": "Giữ hạt giống này",
     "seed_reroll": "Hạt giống mới",
     "seed_reroll_hint": "Cuộn một hạt giống ngẫu nhiên mới và giữ nó",
-    "define_convert": "Chuyển đổi"
+    "define_convert": "Chuyển đổi",
+    "details": "Chi tiết",
+    "edit": "Chỉnh sửa",
+    "cat_AccentDialect": "Giọng hoặc phương ngữ",
+    "accent_dialect_hint": "chỉ một trong hai, không cả hai",
+    "reset_to_description": "Đặt lại theo mô tả",
+    "chips_more": "{{count}} mục khác…"
   },
   "about": {
     "app": "ứng dụng",

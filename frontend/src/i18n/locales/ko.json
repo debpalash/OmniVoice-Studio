@@ -856,7 +856,13 @@
     "seed_keep": "이 시드를 유지하세요",
     "seed_reroll": "새 시드",
     "seed_reroll_hint": "새로운 무작위 시드를 굴려 유지하세요.",
-    "define_convert": "변환"
+    "define_convert": "변환",
+    "details": "세부 정보",
+    "edit": "편집",
+    "cat_AccentDialect": "억양 또는 방언",
+    "accent_dialect_hint": "둘 중 하나만, 동시에는 불가",
+    "reset_to_description": "설명에 따라 재설정",
+    "chips_more": "{{count}}개 더 보기…"
   },
   "about": {
     "app": "앱",

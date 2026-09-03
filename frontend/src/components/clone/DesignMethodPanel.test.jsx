@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import DesignMethodPanel from './DesignMethodPanel';
 
 // #983: "Cannot read properties of undefined (reading 'replace')" — the
@@ -34,6 +34,7 @@ function setup(vdStates, props = {}) {
       vdStates={vdStates}
       onVdChange={vi.fn()}
       onChipKeyDown={vi.fn()}
+      resetToDescription={vi.fn()}
       showSaveProfile={false}
       setShowSaveProfile={vi.fn()}
       profileName=""
@@ -49,8 +50,7 @@ function setup(vdStates, props = {}) {
 describe('DesignMethodPanel — #983 partial vdStates crash', () => {
   it('does not throw when vdStates is missing 5 of the 6 CATEGORIES keys', () => {
     // Only Gender is set — Age, Pitch, Style, EnglishAccent, ChineseDialect
-    // are all undefined, exercising both the chip-based and <select>-based
-    // ("many" options) render paths.
+    // are all undefined, exercising the select-based render path.
     expect(() => setup({ Gender: 'male' })).not.toThrow();
   });
 
@@ -61,8 +61,127 @@ describe('DesignMethodPanel — #983 partial vdStates crash', () => {
   it('still renders category labels and the identity recipe with a partial shape', () => {
     const { container } = setup({ Gender: 'male' });
     expect(screen.getByText('test recipe')).toBeInTheDocument();
-    // The label text sits alongside a sibling <span> kicker, so assert via
-    // textContent rather than getByText's exact-node matching.
     expect(container.textContent).toContain('clone.cat_Gender');
+  });
+});
+
+// #1771 follow-up: the 12-row always-open chip block became one collapsed
+// "Details" summary line that expands to a 5-field editor.
+describe('DesignMethodPanel — Details collapse/expand', () => {
+  it('hides the field editor when collapsed and shows it when expanded', () => {
+    const { rerender } = setup({ Gender: 'Auto' }, { identityOpen: false });
+    expect(document.getElementById('design-details-fields')).toBeNull();
+
+    rerender(
+      <DesignMethodPanel
+        t={t}
+        describeText=""
+        onDescribeChange={vi.fn()}
+        describeMatchedAny={false}
+        describeUnmatched={[]}
+        chipPersonalities={[]}
+        activePersonality={null}
+        applyPersonality={vi.fn()}
+        applyPreset={vi.fn()}
+        identityOpen={true}
+        setIdentityOpen={vi.fn()}
+        identityRecipe="test recipe"
+        vdStates={{ Gender: 'Auto' }}
+        onVdChange={vi.fn()}
+        onChipKeyDown={vi.fn()}
+        resetToDescription={vi.fn()}
+        showSaveProfile={false}
+        setShowSaveProfile={vi.fn()}
+        profileName=""
+        setProfileName={vi.fn()}
+        handleSaveDesignProfile={vi.fn()}
+        instruct=""
+        language="Auto"
+      />,
+    );
+    expect(document.getElementById('design-details-fields')).not.toBeNull();
+  });
+
+  it('toggles identityOpen via the summary button', () => {
+    const setIdentityOpen = vi.fn();
+    setup({ Gender: 'Auto' }, { identityOpen: false, setIdentityOpen });
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect(setIdentityOpen).toHaveBeenCalledTimes(1);
+    // The handler is a functional updater — verify it flips the boolean.
+    expect(setIdentityOpen.mock.calls[0][0](false)).toBe(true);
+  });
+
+  it('never prints the recipe value a second time inside a category header', () => {
+    const { container } = setup({ Gender: 'male' }, { identityRecipe: 'male' });
+    // The old markup suffixed every header with "· VALUE" (e.g. "· male").
+    expect(container.textContent).not.toMatch(/·\s*male/i);
+  });
+});
+
+// #1771 follow-up item 3: English accent and Chinese dialect merge into one
+// <select>, but must still route through the shared onVdChange (-> the real
+// applyVdState exclusivity guard in CloneDesignTab) per CATEGORIES key.
+describe('DesignMethodPanel — merged accent/dialect field', () => {
+  it('routes an English accent pick through onVdChange for EnglishAccent', () => {
+    const onVdChange = vi.fn();
+    setup({ EnglishAccent: 'Auto', ChineseDialect: 'Auto' }, { identityOpen: true, onVdChange });
+    const select = document.getElementById('vd-AccentDialect');
+    fireEvent.change(select, { target: { value: 'british accent' } });
+    expect(onVdChange).toHaveBeenCalledWith('EnglishAccent', 'british accent');
+  });
+
+  it('routes a Chinese dialect pick through onVdChange for ChineseDialect', () => {
+    const onVdChange = vi.fn();
+    setup({ EnglishAccent: 'Auto', ChineseDialect: 'Auto' }, { identityOpen: true, onVdChange });
+    const select = document.getElementById('vd-AccentDialect');
+    fireEvent.change(select, { target: { value: '四川话' } });
+    expect(onVdChange).toHaveBeenCalledWith('ChineseDialect', '四川话');
+  });
+
+  it('picking "Auto" clears whichever side is currently set, not both blindly', () => {
+    const onVdChange = vi.fn();
+    setup({ EnglishAccent: 'Auto', ChineseDialect: '四川话' }, { identityOpen: true, onVdChange });
+    const select = document.getElementById('vd-AccentDialect');
+    fireEvent.change(select, { target: { value: 'Auto' } });
+    expect(onVdChange).toHaveBeenCalledWith('ChineseDialect', 'Auto');
+    expect(onVdChange).not.toHaveBeenCalledWith('EnglishAccent', expect.anything());
+  });
+
+  it('shows the currently-set dialect as the merged select value', () => {
+    setup({ EnglishAccent: 'Auto', ChineseDialect: '四川话' }, { identityOpen: true });
+    const select = document.getElementById('vd-AccentDialect');
+    expect(select.value).toBe('四川话');
+  });
+});
+
+// #1771 follow-up item 5: only the first 5 personality chips show by
+// default; the rest reveal in place via a dynamic "{{count}} more…" chip.
+describe('DesignMethodPanel — starting-points chip overflow', () => {
+  const chipPersonalities = Array.from({ length: 7 }, (_, i) => ({
+    id: `p${i}`,
+    name: `Personality ${i}`,
+  }));
+
+  it('shows only the first 5 chips plus a "more" chip', () => {
+    setup({}, { chipPersonalities });
+    for (let i = 0; i < 5; i++) {
+      expect(screen.getByText(`Personality ${i}`)).toBeInTheDocument();
+    }
+    expect(screen.queryByText('Personality 5')).toBeNull();
+    expect(screen.getByText('2 more…')).toBeInTheDocument();
+  });
+
+  it('reveals the rest in place when the overflow chip is clicked', () => {
+    setup({}, { chipPersonalities });
+    fireEvent.click(screen.getByText('2 more…'));
+    for (let i = 0; i < 7; i++) {
+      expect(screen.getByText(`Personality ${i}`)).toBeInTheDocument();
+    }
+    expect(screen.queryByText('2 more…')).toBeNull();
+  });
+
+  it('does not show a "more" chip when there are 5 or fewer personalities', () => {
+    setup({}, { chipPersonalities: chipPersonalities.slice(0, 5) });
+    expect(screen.queryByText(/more…/)).toBeNull();
   });
 });

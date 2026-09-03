@@ -620,7 +620,13 @@
     "seed_keep": "احتفظ بهذه البذرة",
     "seed_reroll": "بذرة جديدة",
     "seed_reroll_hint": "قم بلف بذرة عشوائية جديدة واحتفظ بها",
-    "define_convert": "تحويل"
+    "define_convert": "تحويل",
+    "details": "التفاصيل",
+    "edit": "تعديل",
+    "cat_AccentDialect": "لكنة أو لهجة",
+    "accent_dialect_hint": "أحدهما فقط، لا كلاهما",
+    "reset_to_description": "إعادة الضبط حسب الوصف",
+    "chips_more": "{{count}} أخرى…"
   },
   "about": {
     "app": "التطبيق",

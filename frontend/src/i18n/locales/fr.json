@@ -620,7 +620,13 @@
     "seed_keep": "Gardez cette graine",
     "seed_reroll": "Nouvelle graine",
     "seed_reroll_hint": "Lancez une nouvelle graine aléatoire et conservez-la",
-    "define_convert": "Convertir"
+    "define_convert": "Convertir",
+    "details": "Détails",
+    "edit": "Modifier",
+    "cat_AccentDialect": "Accent ou dialecte",
+    "accent_dialect_hint": "l'un ou l'autre, jamais les deux",
+    "reset_to_description": "Réinitialiser selon la description",
+    "chips_more": "{{count}} de plus…"
   },
   "about": {
     "app": "Application",
