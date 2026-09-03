@@ -456,15 +456,41 @@ fn prepare_backend_launch<R: tauri::Runtime>(
 ) -> LaunchPreparation {
     let mut replace = tracked_backend_exists(app);
     // #1770: version and code fingerprint are read from ONE `/system/info`
-    // fetch (`running_backend_identity`) — never two independent probes.
-    // Splitting them into separate round-trips would let a transport hiccup
-    // on the second one masquerade as "responded, but the field was absent",
-    // which `code_fingerprint_is_current` treats as stale — silently killing
-    // a perfectly healthy backend on a single flaky probe.
+    // fetch (`running_backend_identity`) — never two independent probes for
+    // THOSE two fields. Splitting them would let a transport hiccup on the
+    // second one masquerade as "responded, but the field was absent", which
+    // `code_fingerprint_is_current` treats as stale — silently killing a
+    // perfectly healthy backend on a single flaky probe.
+    //
+    // The health probe (`/profiles`) and the identity probe (`/system/info`)
+    // are still two separate requests — they hit different routes, so they
+    // can't be folded into one fetch — which leaves a structurally similar
+    // window open: two unsynchronized requests can never be atomic, and if
+    // the process on the port changes between them, a naive
+    // identity-then-health ordering could pair one process's (already
+    // stale) identity with a DIFFERENT process's health, attaching to the
+    // second process without ever validating IT — precisely what this
+    // fingerprint check exists to prevent, reached by a different route.
+    // (This window predates #1770: the old code split `running_backend_version`
+    // and `backend_deep_healthy` the same way, but this PR makes the
+    // identity check load-bearing, so it's the right place to close it.)
+    //
+    // Health is therefore probed FIRST and identity LAST, immediately
+    // before the attach decision — the thing validated most recently is
+    // the identity of whatever is actually on the port right now, and any
+    // process swap that happened before the identity probe is caught by
+    // that fresh read (the version-mismatch and fingerprint-mismatch arms
+    // below fire exactly as if the swap had always been there). The
+    // remaining exposure is irreducible without one atomic endpoint
+    // returning identity + readiness together: a swap in the (sub-millisecond,
+    // no further network I/O) gap between reading `identity` and the
+    // `SuperviseAttached` return below can still occur in principle. That
+    // residual window is far tighter than "spans two round-trips" and is
+    // accepted as the practical floor for a two-probe HTTP handshake.
+    let deep_healthy = crate::backend::backend_deep_healthy(backend_port());
     match crate::backend::running_backend_identity(backend_port()) {
         Some(identity) if crate::backend::same_app_version(&identity.version) => {
             let v = identity.version;
-            let deep_healthy = crate::backend::backend_deep_healthy(backend_port());
             // Version match alone doesn't prove code match — `main` holds
             // one version string for an entire release cycle, so a
             // same-version backend can still be running weeks-old code.

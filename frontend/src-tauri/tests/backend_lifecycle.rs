@@ -761,6 +761,110 @@ fn stale_code_fingerprint_external_backend_is_refused_not_attached() {
     let _ = external.wait();
 }
 
+/// Greptile P1 on #1796: `backend_deep_healthy` (GET /profiles) and
+/// `running_backend_identity` (GET /system/info) are two independent
+/// requests — never atomic. If the process on the port changed between
+/// them, an identity-THEN-health ordering could pair one process's
+/// (already stale) identity with a DIFFERENT process's health and attach
+/// without ever validating that second process — exactly what this
+/// fingerprint check exists to prevent, reached by a different route.
+/// `prepare_backend_launch` closes most of that window by probing health
+/// FIRST and identity LAST, immediately before the attach decision, so the
+/// identity that governs the decision is always the freshest read of
+/// whatever currently answers the port.
+///
+/// A genuine multi-process bind-swap race is non-deterministic to trigger
+/// on demand (the second process must win the port back inside a
+/// microsecond gap), so this models the same OBSERVABLE property with a
+/// single deterministic stub: it serves a MATCHING identity right up until
+/// it answers the health probe, then flips to a body with no
+/// `code_fingerprint` key at all — "the port changed hands" from the
+/// launcher's point of view is indistinguishable from "the same process
+/// changed what it reports". With identity probed last, the launcher must
+/// read the post-flip (stale) state and refuse. Had identity still been
+/// probed FIRST (the pre-fix ordering), it would have captured the
+/// pre-flip (matching) identity and attached despite the divergence.
+#[test]
+fn identity_probed_after_health_reflects_the_port_at_decision_time() {
+    let t = TestApp::new(&Scenario {
+        serve_ms: Some(0),
+        ..Default::default()
+    });
+    let port: u16 = std::env::var("OMNIVOICE_PORT").unwrap().parse().unwrap();
+    let flipped = Arc::new(AtomicBool::new(false));
+    let stop = Arc::new(AtomicBool::new(false));
+    let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind identity-flip stub");
+    listener.set_nonblocking(true).unwrap();
+    let stub = {
+        let flipped = flipped.clone();
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                if stop.load(std::sync::atomic::Ordering::SeqCst) || Instant::now() >= deadline {
+                    return;
+                }
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let mut buf = [0u8; 512];
+                        let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
+                        let n = stream.read(&mut buf).unwrap_or(0);
+                        let req = String::from_utf8_lossy(&buf[..n]);
+                        let resp = if req.starts_with("GET /profiles") {
+                            // Answering the health probe is the trigger:
+                            // flip identity for whatever comes next,
+                            // modeling the port changing hands right after
+                            // this response.
+                            flipped.store(true, std::sync::atomic::Ordering::SeqCst);
+                            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n[]".to_string()
+                        } else if req.starts_with("GET /system/info") {
+                            let body = if flipped.load(std::sync::atomic::Ordering::SeqCst) {
+                                // Post-flip: same version, but no
+                                // code_fingerprint key at all — the
+                                // pre-fingerprinting shape, as if a
+                                // different (stale) process now answers.
+                                format!(
+                                    r#"{{"data_dir": "/x", "app_version": "{}"}}"#,
+                                    env!("CARGO_PKG_VERSION")
+                                )
+                            } else {
+                                format!(
+                                    r#"{{"data_dir": "/x", "app_version": "{}", "code_fingerprint": ""}}"#,
+                                    env!("CARGO_PKG_VERSION")
+                                )
+                            };
+                            format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", body.len(), body)
+                        } else {
+                            "HTTP/1.1 404 X\r\nContent-Length: 0\r\n\r\n".to_string()
+                        };
+                        let _ = stream.write_all(resp.as_bytes());
+                    }
+                    Err(_) => std::thread::sleep(Duration::from_millis(10)),
+                }
+            }
+        })
+    };
+
+    let bootstrap = t.run_bootstrap();
+    assert!(
+        wait_until(Duration::from_secs(10), || {
+            flipped.load(std::sync::atomic::Ordering::SeqCst)
+                && matches!(t.stage_snapshot(), BootstrapStage::Failed { .. })
+        }),
+        "identity read AFTER the health probe must reflect the post-flip (stale) state and \
+         refuse the attach — got stage {:?}",
+        t.stage_snapshot()
+    );
+    assert!(
+        !t.app.state::<BackendState>().attached.load(std::sync::atomic::Ordering::SeqCst),
+        "a post-flip identity mismatch must never be attached to"
+    );
+
+    stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    join_with_timeout(bootstrap, Duration::from_secs(10), "identity-after-health refusal");
+    let _ = stub.join();
+}
+
 #[test]
 fn attached_backend_health_grace_recovers_without_false_crash_or_port_failure() {
     let t = TestApp::new(&Scenario {
