@@ -1,8 +1,9 @@
 <div align="center">
-  <a href="https://trendshift.io/repositories/28176?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/28176" alt="VoiceStudio ranking on Trendshift" width="250" height="55" /></a>
-
-  <img src="docs/logo.png" alt="VoiceStudio logo" width="120" height="120" />
+  <p><img src="docs/logo.png" alt="VoiceStudio logo" width="120" height="120" /></p>
   <h1>VoiceStudio</h1>
+  <p>
+    <a href="https://trendshift.io/repositories/28176?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-28176" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/28176" alt="VoiceStudio ranking on Trendshift" width="220" height="48" /></a>
+  </p>
   <p><sub>Previously OmniVoice-Studio</sub></p>
   <h3>Clone voices, dub video, dictate, and produce long-form audio on your own hardware.</h3>
   <p>16 TTS engines · 11 ASR engines · 646-language catalogue · macOS, Windows, Linux, and Docker</p>
