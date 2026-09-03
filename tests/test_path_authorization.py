@@ -165,6 +165,10 @@ def test_missing_store_directory_is_distinguished_from_a_missing_token(auth, cap
     "Invalid or expired desktop authorization" with no server-side signal,
     which is exactly what made the mismatch silent and hard to diagnose.
     `auth.dir` is deliberately never created here.
+
+    The log line itself must not name the actual store directory (CWE-532:
+    per-user filesystem paths — e.g. a home-directory username — are
+    sensitive and don't belong in application logs).
     """
     assert not os.path.isdir(auth.dir)
     caplog.set_level(logging.WARNING, logger="omnivoice.path_authorization")
@@ -174,4 +178,8 @@ def test_missing_store_directory_is_distinguished_from_a_missing_token(auth, cap
     # Still a generic, path-free message over HTTP (no local filesystem
     # disclosure) — the actual directory only appears in the server log.
     assert auth.dir not in str(exc.value)
-    assert any("does not exist" in rec.message for rec in caplog.records)
+    # Server-log-only: the mismatch is diagnosable, but the log line never
+    # names the actual (per-user) directory.
+    warnings = [rec for rec in caplog.records if rec.levelno == logging.WARNING]
+    assert any("does not exist" in rec.message for rec in warnings)
+    assert not any(auth.dir in rec.message for rec in warnings)

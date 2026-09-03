@@ -50,16 +50,17 @@ def consume(token: str, expected_kind: str) -> str:
     # started without OMNIVOICE_DATA_DIR, or a stale custom data folder — see
     # #1781). Both still 403 with a generic client-facing message (never leak
     # local filesystem paths over HTTP), but the mismatch case gets a server
-    # log line so it's diagnosable instead of a silent 403.
+    # log line so it's diagnosable instead of a silent 403. That log line is
+    # deliberately path-free (CWE-532: per-user filesystem paths, e.g. a home
+    # directory username, are sensitive and don't belong in application
+    # logs) — it names the failure mode, not the directory.
     try:
         entries = os.scandir(root)
     except FileNotFoundError as exc:
         logger.warning(
-            "path authorization store %r does not exist; the desktop app "
-            "wrote its capability file to a different data directory than "
-            "this backend resolved (DATA_DIR=%r)",
-            root,
-            DATA_DIR,
+            "path authorization store does not exist; the desktop app and "
+            "this backend likely resolved different data directories "
+            "(see #1781)"
         )
         raise PathAuthorizationError(
             "Invalid or expired desktop authorization (no authorization store)"
