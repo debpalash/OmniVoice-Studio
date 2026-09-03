@@ -26,6 +26,11 @@ class SystemInfoResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     app_version: str = ""
+    # #1770: the desktop attach handshake's code fingerprint — whatever
+    # Tauri set OMNIVOICE_BUILD_FINGERPRINT to when it spawned this process,
+    # echoed back verbatim. Blank when unset (dev mode, a manually started
+    # backend). See frontend/src-tauri/src/backend.rs::code_fingerprint_is_current.
+    code_fingerprint: str = ""
     data_dir: str
     outputs_dir: str
     crash_log_path: str

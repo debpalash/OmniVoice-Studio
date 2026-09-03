@@ -205,6 +205,7 @@ def system_info():
         _ffmpeg = find_ffmpeg()
         return {
             "app_version": APP_VERSION,
+            "code_fingerprint": os.environ.get("OMNIVOICE_BUILD_FINGERPRINT", ""),
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": CRASH_LOG_PATH,
@@ -240,6 +241,7 @@ def system_info():
         logger.exception("system_info failed — returning safe defaults")
         return {
             "app_version": APP_VERSION,
+            "code_fingerprint": os.environ.get("OMNIVOICE_BUILD_FINGERPRINT", ""),
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": str(CRASH_LOG_PATH),

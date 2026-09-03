@@ -122,6 +122,58 @@ pub fn same_app_version(running: &str) -> bool {
     !running.is_empty() && base(running) == base(env!("CARGO_PKG_VERSION"))
 }
 
+/// The `code_fingerprint` `/system/info` reports for the backend at `:port`
+/// — see `code_fingerprint_is_current` for how callers interpret this.
+///
+/// `None` when nothing VoiceStudio answers at `port`, OR when it answers but
+/// the response has no `code_fingerprint` key at all (an old backend whose
+/// `/system/info` schema predates the field, since a present field always
+/// serializes — even as `""`). `Some("")` when the field is present but
+/// blank (current schema, but the process wasn't spawned with
+/// `OMNIVOICE_BUILD_FINGERPRINT` set — dev mode's `dev-backend.mjs` strips
+/// `OMNIVOICE_*`, and a manually started `uvicorn` never sets it).
+pub fn running_backend_code_fingerprint(port: u16) -> Option<String> {
+    let url = format!("http://127.0.0.1:{}/system/info", port);
+    let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
+    if !is_omnivoice_body(&body) {
+        return None;
+    }
+    parse_json_string_field(&body, "code_fingerprint")
+}
+
+/// Whether an already-version-matched running backend's *code* is current
+/// enough to attach to, for the `prepare_backend_launch` handshake (#1770).
+///
+/// `running` is `running_backend_code_fingerprint`'s result; `ours` is
+/// `bootstrap::own_backend_code_fingerprint`'s.
+///
+/// - `running: None` — the backend's `/system/info` has no `code_fingerprint`
+///   key at all, meaning its code predates this fingerprinting mechanism
+///   outright. Because `main` holds one version string for an entire
+///   release cycle (see `same_app_version`'s doc comment), a matching
+///   version string does NOT mean matching code — this is exactly the class
+///   of bug #1770 reported: a same-version backend running weeks-old code
+///   was attached to and adopted as current. Treated as STALE, the same
+///   "replace it" outcome a version mismatch already gets.
+/// - `running: Some("")` — the field IS present (current schema) but blank:
+///   confirmed at-least-this-fix-or-later by schema, just unverifiable
+///   further (no env var at spawn time — dev mode, a manually started
+///   backend). Accepted rather than hard-failing every dev session or
+///   manual-start workflow.
+/// - `ours: None` — we failed to compute our own fingerprint (unreadable
+///   resource dir / dev root). We can't enforce a check we can't compute
+///   either side of, so this degrades to accept too, same as the historical
+///   version-only behavior.
+/// - both `Some` — must match exactly; a mismatch is STALE.
+pub fn code_fingerprint_is_current(running: Option<&str>, ours: Option<&str>) -> bool {
+    match (running, ours) {
+        (None, _) => false,
+        (Some(""), _) => true,
+        (Some(_), None) => true,
+        (Some(r), Some(o)) => r == o,
+    }
+}
+
 /// Deep health probe for the attach-to-a-running-backend shortcut.
 ///
 /// `/health` and `/system/info` keep answering from a backend whose install
@@ -723,6 +775,12 @@ pub(crate) fn spawn_backend<R: tauri::Runtime>(
     // Analytics destination (#1123) — see analytics_env() below for why.
     env.extend(analytics_env(option_env!("VITE_POSTHOG_KEY"), option_env!("VITE_POSTHOG_HOST")));
     if cmd_override.is_none() {
+        // #1770: lets the attach handshake tell "this build's code" apart
+        // from "a same-version backend running older code" — see
+        // `bootstrap::own_backend_code_fingerprint` / `code_fingerprint_is_current`.
+        if let Some(fingerprint) = crate::bootstrap::own_backend_code_fingerprint(app) {
+            env.push(("OMNIVOICE_BUILD_FINGERPRINT".into(), fingerprint));
+        }
         let app_data = app.path().app_local_data_dir().unwrap_or_default();
         if let Some(ffmpeg_path) = resolve_ffmpeg(app, &app_data) {
             env.push(("FFMPEG_PATH".into(), ffmpeg_path.to_string_lossy().into()));
@@ -1203,6 +1261,66 @@ mod tests {
         assert!(!same_app_version("0.0.1"));
         // unversioned (pre-app_version backend) is stale by definition
         assert!(!same_app_version(""));
+    }
+
+    // ── #1770: code fingerprint decision (pure — no AppHandle, per the
+    //    Windows tauri::test::mock_builder abort that broke a PR earlier
+    //    today) ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn code_fingerprint_absent_is_stale() {
+        // No `code_fingerprint` key at all in /system/info -> the backend's
+        // code predates the fingerprinting mechanism outright, regardless of
+        // whether we could compute our own. This is the #1770 bug case: a
+        // same-version backend running weeks-old code must NOT be adopted.
+        assert!(!code_fingerprint_is_current(None, Some("abc123")));
+        assert!(!code_fingerprint_is_current(None, None));
+    }
+
+    #[test]
+    fn code_fingerprint_present_but_blank_degrades_to_accept() {
+        // Present-but-blank means current schema, no env var at spawn time
+        // (dev mode's dev-backend.mjs strips OMNIVOICE_*; a manually started
+        // uvicorn never sets it) — don't hard-fail every dev/manual-start
+        // session over an unverifiable-but-plausibly-current backend.
+        assert!(code_fingerprint_is_current(Some(""), Some("abc123")));
+        assert!(code_fingerprint_is_current(Some(""), None));
+    }
+
+    #[test]
+    fn code_fingerprint_matches_and_mismatches() {
+        // Tracked re-supervision / preview-build reattach: same resource
+        // dir hashed twice by the same build -> identical value -> accept.
+        assert!(code_fingerprint_is_current(Some("abc123"), Some("abc123")));
+        // Different code within the same version string -> stale, replace it.
+        assert!(!code_fingerprint_is_current(Some("abc123"), Some("def456")));
+    }
+
+    #[test]
+    fn code_fingerprint_our_side_unknown_degrades_to_accept() {
+        // We failed to compute our own fingerprint (unreadable resource dir
+        // / dev root) — can't enforce a check we can't compute either side
+        // of, so don't block a legitimate attach on our own tooling failure.
+        assert!(code_fingerprint_is_current(Some("abc123"), None));
+    }
+
+    #[test]
+    fn running_backend_code_fingerprint_distinguishes_absent_from_blank() {
+        // Old backend: /system/info has no code_fingerprint key at all.
+        let old = spawn_system_info_stub(r#"{"data_dir": "/x"}"#);
+        assert_eq!(running_backend_code_fingerprint(old), None);
+
+        // Current schema, no env var set at spawn time.
+        let blank = spawn_system_info_stub(r#"{"data_dir": "/x", "code_fingerprint": ""}"#);
+        assert_eq!(running_backend_code_fingerprint(blank), Some(String::new()));
+
+        // Current schema, fingerprint present.
+        let known = spawn_system_info_stub(r#"{"data_dir": "/x", "code_fingerprint": "abc123"}"#);
+        assert_eq!(running_backend_code_fingerprint(known), Some("abc123".to_string()));
+
+        // Not our backend at all (no data_dir/model_checkpoint marker).
+        let foreign = spawn_system_info_stub(r#"{"code_fingerprint": "abc123"}"#);
+        assert_eq!(running_backend_code_fingerprint(foreign), None);
     }
 
     // ── Per-run crash evidence (#1510) ───────────────────────────────────

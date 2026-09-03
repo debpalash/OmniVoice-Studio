@@ -60,6 +60,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 - Exports and other native-picker actions no longer 403 with "Invalid or expired desktop authorization" when the desktop app and backend resolve different data directories, e.g. dev mode or a custom data folder (#1781)
 - Voice Design no longer lets you pick a Chinese dialect and an English accent together — the picker keeps them mutually exclusive instead of round-tripping a 400 (#1771)
+- The desktop app no longer attaches to an already-running backend on version string alone: it now verifies the backend's actual code fingerprint too, so an orphaned or manually started backend reporting the current version but running older code (e.g. a stale `destination_path` export 422) gets replaced instead of adopted (#1770)
 - Korean locale overhauled: 231 mistranslations corrected and all 493 missing keys translated (#1776) — thanks @j30231!
 - Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
 - The batch dubbing queue now has a UI entry point — a quiet link on the Dub landing (it was previously unreachable: the app switched on a mode nothing ever set) (#1768) — thanks @mvanhorn!
