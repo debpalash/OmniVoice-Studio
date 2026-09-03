@@ -78,7 +78,7 @@ First launch creates a managed Python environment and downloads the default mode
 ### Quick Docker run
 
 ```bash
-docker run -d -p 3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
+docker run -d -p 127.0.0.1:3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
 ```
 
 ### First voice
@@ -358,8 +358,21 @@ VoiceStudio mounts an MCP server at `http://localhost:3900/mcp` for Claude Deskt
 {
   "mcpServers": {
     "voicestudio": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3900/mcp"]
+      "url": "http://localhost:3900/mcp"
+    }
+  }
+}
+```
+
+For clients requiring stdio transport, use the bundled local shim (`docs/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "voicestudio": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_shim"],
+      "cwd": "/path/to/VoiceStudio"
     }
   }
 }
@@ -452,7 +465,7 @@ VoiceStudio is free and has no paid tier. Donations fund development and infrast
 VoiceStudio enables zero-shot voice cloning and speech generation on personal hardware. Please use it responsibly:
 - **Consent:** Only clone or synthesize voices with explicit permission from the speaker.
 - **Audio provenance:** VoiceStudio integrates [AudioSeal](https://github.com/facebookresearch/audioseal) imperceptible watermarking by default to detect and identify synthetic speech without altering sound quality.
-- **Local privacy:** Audio recordings, transcripts, voices, and projects remain strictly on your local disk.
+- **Local privacy:** For the default local workflow, audio recordings, transcripts, voices, and projects remain strictly on your local disk; data leaves your device only when you explicitly configure remote workers or external ASR endpoints.
 
 ## License
 

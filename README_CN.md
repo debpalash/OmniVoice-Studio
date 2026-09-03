@@ -68,7 +68,7 @@
 
 ```bash
 # Docker 快速运行 (CPU / 本地环回模式)
-docker run -d -p 3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
+docker run -d -p 127.0.0.1:3900:3900 --name voicestudio palashdeb/omnivoice-studio:latest
 ```
 
 **三步克隆出你的第一个声音：**
@@ -387,8 +387,21 @@ VoiceStudio 在 `http://localhost:3900/mcp` 挂载了 MCP 服务，可供 Claude
 {
   "mcpServers": {
     "voicestudio": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3900/mcp"]
+      "url": "http://localhost:3900/mcp"
+    }
+  }
+}
+```
+
+对于需要 stdio 管道传输的客户端，请使用内置的本地桥接脚本（`docs/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "voicestudio": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_shim"],
+      "cwd": "/path/to/VoiceStudio"
     }
   }
 }
@@ -591,7 +604,7 @@ VoiceStudio 完全本地运行——卸载就是删除应用及其写入的文�
 VoiceStudio 在个人硬件上提供零样本语音克隆与语音创作能力。我们提倡负责任的技术使用：
 - **明确授权：** 严禁在未经说话人本人知情并明确授权的情况下克隆其声音。
 - **AI 溯源：** VoiceStudio 默认集成 [AudioSeal](https://github.com/facebookresearch/audioseal) 不可见神经音频水印，在完全不影响听感音质的前提下精准标记合成语音。
-- **本地隐私：** 你的所有音频、声音档案、项目与转录文本始终严格保存在你的本地设备上。
+- **本地隐私：** 默认本地工作流下，所有音频、声音档案、项目与转录文本始终保存在你的本地设备上；仅当你主动配置远程工作节点或第三方 ASR 端点时，相应数据才会传输到对应服务。
 
 ---
 
