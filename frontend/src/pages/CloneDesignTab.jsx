@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { CATEGORIES } from '../utils/constants';
 import { Segmented } from '../ui';
 import { useAppStore } from '../store';
 import { API, apiPost, apiFetch } from '../api/client';
-import { mergeDescribedAttrs } from '../utils/voiceInstruct';
+import { mergeDescribedAttrs, applyVdState } from '../utils/voiceInstruct';
 import { useEngines } from '../api/hooks';
 import { claimPlayback, stopActivePlayback, usePlaybackSource } from '../utils/playback';
 import ScriptPanel from '../components/clone/ScriptPanel';
@@ -259,6 +260,21 @@ export default function CloneDesignTab(props) {
       });
   };
 
+  // #1771: the ONE place a category pick is applied — mirrors the engine's
+  // dialect-vs-accent exclusivity (omnivoice/models/omnivoice.py::_resolve_
+  // instruct) live in the picker, so ChineseDialect and EnglishAccent can
+  // never both be set from the form. When picking one clears the other, say
+  // so instead of a silent reset.
+  const handleVdChange = (key, value) => {
+    const { vdStates: next, clearedCategory } = applyVdState(vdStates, key, value);
+    setVdStates(next);
+    if (clearedCategory) {
+      toast(t('clone.vd_exclusive_cleared', { cleared: t(`clone.cat_${clearedCategory}`) }), {
+        icon: '⚠️',
+      });
+    }
+  };
+
   // 10x P4 a11y (spec §3): category chip groups are radiogroups with a
   // roving tabindex — ArrowLeft/ArrowRight move focus AND selection within
   // the group, per the WAI-ARIA radio-group pattern.
@@ -267,7 +283,7 @@ export default function CloneDesignTab(props) {
     e.preventDefault();
     const cur = Math.max(0, options.indexOf(vdStates[key]));
     const next = (cur + (e.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length;
-    setVdStates({ ...vdStates, [key]: options[next] });
+    handleVdChange(key, options[next]);
     e.currentTarget.closest('.chip-group')?.querySelectorAll('[role="radio"]')[next]?.focus();
   };
 
@@ -291,7 +307,17 @@ export default function CloneDesignTab(props) {
   // Synthesize Audio immediately — no further input needed.
   const applyDemoPreset = (p) => {
     if (p.script) setText(p.script);
-    if (p.attrs) setVdStates({ ...vdStates, ...p.attrs });
+    if (p.attrs) {
+      // #1771: apply one category at a time through the same exclusivity
+      // guard the picker uses — a preset merged wholesale onto the existing
+      // vdStates could otherwise set a dialect on top of an already-picked
+      // accent (or vice versa).
+      let next = vdStates;
+      for (const [key, value] of Object.entries(p.attrs)) {
+        next = applyVdState(next, key, value).vdStates;
+      }
+      setVdStates(next);
+    }
     setInstruct('');
     if (p.language) setLanguage(p.language);
     setActivePersonality(p.id);
@@ -406,7 +432,7 @@ export default function CloneDesignTab(props) {
                 setIdentityOpen={setIdentityOpen}
                 identityRecipe={identityRecipe}
                 vdStates={vdStates}
-                setVdStates={setVdStates}
+                onVdChange={handleVdChange}
                 onChipKeyDown={onChipKeyDown}
                 showSaveProfile={showSaveProfile}
                 setShowSaveProfile={setShowSaveProfile}

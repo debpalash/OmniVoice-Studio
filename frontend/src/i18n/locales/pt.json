@@ -580,6 +580,7 @@
     "cat_Style": "Estilo",
     "cat_EnglishAccent": "Sotaque Inglês",
     "cat_ChineseDialect": "Dialeto Chinês",
+    "vd_exclusive_cleared": "{{cleared}} limpo — um dialeto chinês e um sotaque inglês não podem ser combinados.",
     "opt_Auto": "✨ Automóvel",
     "opt_male": "masculino",
     "opt_female": "feminino",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Erro: {{message}}",
     "ignored_unsupported": "Instrução não suportada ignorada: {{items}}",
     "ignored_duplicate": "Ignorado (categoria já definida): {{items}}",
+    "ignored_conflict": "{{items}} ignorado — um dialeto chinês e um sotaque inglês não podem ser combinados.",
+    "dialect_accent_conflict": "Um dialeto chinês e um sotaque inglês não podem ser usados juntos. Limpe um deles antes de gerar novamente.",
+    "instruct_category_conflict": "Foram selecionadas duas opções de design de voz conflitantes na mesma categoria (ex.: dois gêneros). Limpe uma delas antes de gerar novamente.",
     "ref_audio_unusable": "Nenhuma fala foi detectada no áudio de referência — o clipe está em silêncio ou quase, então não há voz para clonar. Grave novamente mais perto do microfone (confira se o dispositivo de entrada correto está selecionado e se o nível se move) ou escolha outro clipe.",
     "ref_audio_too_long": "Uma referência pode ter no máximo 20 segundos com transcrição ou 75 segundos sem ela. Corte-a para um trecho de fala claro de 3–10 segundos; se fornecer texto, corte a transcrição para o mesmo trecho.",
     "ref_audio_no_speech": "A detecção automática não encontrou palavras faladas na referência. Corte-a para um trecho de fala claro de 3–10 segundos ou forneça uma transcrição correspondente."

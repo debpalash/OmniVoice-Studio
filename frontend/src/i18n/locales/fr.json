@@ -580,6 +580,7 @@
     "cat_Style": "Style",
     "cat_EnglishAccent": "Accent anglais",
     "cat_ChineseDialect": "Dialecte chinois",
+    "vd_exclusive_cleared": "{{cleared}} effacé — un dialecte chinois et un accent anglais ne peuvent pas être combinés.",
     "opt_Auto": "✨Auto",
     "opt_male": "mâle",
     "opt_female": "femelle",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Erreur : {{message}}",
     "ignored_unsupported": "Instruction non prise en charge ignorée : {{items}}",
     "ignored_duplicate": "Ignoré (catégorie déjà définie) : {{items}}",
+    "ignored_conflict": "{{items}} ignoré — un dialecte chinois et un accent anglais ne peuvent pas être combinés.",
+    "dialect_accent_conflict": "Un dialecte chinois et un accent anglais ne peuvent pas être utilisés ensemble. Effacez l'un des deux avant de régénérer.",
+    "instruct_category_conflict": "Deux options de conception vocale contradictoires ont été sélectionnées dans la même catégorie (par ex. deux genres). Effacez-en une avant de régénérer.",
     "ref_audio_unusable": "Aucune voix n'a été détectée dans l'audio de référence — le clip est silencieux ou presque, il n'y a donc aucune voix à cloner. Réenregistrez plus près du micro (vérifiez que le bon périphérique d'entrée est sélectionné et que le niveau bouge) ou choisissez un autre clip.",
     "ref_audio_too_long": "Une référence peut durer au maximum 20 secondes avec transcription, ou 75 secondes sans transcription. Coupez-la sur un passage vocal clair de 3 à 10 secondes ; si vous fournissez du texte, coupez la transcription sur le même passage.",
     "ref_audio_no_speech": "La détection automatique n'a trouvé aucune parole dans la référence. Coupez-la sur un passage vocal clair de 3 à 10 secondes ou fournissez une transcription correspondante."

@@ -580,6 +580,7 @@
     "cat_Style": "風格",
     "cat_EnglishAccent": "英語口音",
     "cat_ChineseDialect": "中國方言",
+    "vd_exclusive_cleared": "已清除{{cleared}} — 中文方言和英文口音不能同時使用。",
     "opt_Auto": "✨ 汽車",
     "opt_male": "男",
     "opt_female": "女",
@@ -2132,6 +2133,9 @@
     "error_prefix": "錯誤：{{message}}",
     "ignored_unsupported": "忽略不支援的指令：{{items}}",
     "ignored_duplicate": "忽略（類別已設定）：{{items}}",
+    "ignored_conflict": "已忽略{{items}} — 中文方言和英文口音不能同時使用。",
+    "dialect_accent_conflict": "中文方言和英文口音不能同時使用。請先清除其中一項，再重新產生。",
+    "instruct_category_conflict": "同一類別中選擇了兩個互相衝突的語音設計選項（例如兩種性別）。請先清除其中一項，再重新產生。",
     "ref_audio_unusable": "參考音訊中聽不到任何語音——片段為靜音或幾乎靜音，因此沒有可複製的聲音。請靠近麥克風重新錄製（檢查是否選擇了正確的輸入裝置、音量電平是否有跳動），或改用其他片段。",
     "ref_audio_too_long": "參考音訊在提供文字稿時最長20秒，未提供時最長75秒。請裁剪為含清晰語音的3–10秒片段；若提供文字稿，請將其裁剪到同一片段。",
     "ref_audio_no_speech": "自動語音偵測未在參考音訊中找到口語。請裁剪為含清晰語音的3–10秒片段，或提供相符的文字稿。"

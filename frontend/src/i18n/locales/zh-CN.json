@@ -239,6 +239,7 @@
     "cat_Style": "风格",
     "cat_EnglishAccent": "英语口音",
     "cat_ChineseDialect": "中文方言",
+    "vd_exclusive_cleared": "已清除{{cleared}} — 中文方言和英文口音不能同时使用。",
     "opt_Auto": "✨ 自动",
     "opt_male": "男声",
     "opt_female": "女声",
@@ -2139,6 +2140,9 @@
     "error_prefix": "错误：{{message}}",
     "ignored_unsupported": "忽略不支持的指令：{{items}}",
     "ignored_duplicate": "忽略（类别已设置）：{{items}}",
+    "ignored_conflict": "已忽略{{items}} — 中文方言和英文口音不能同时使用。",
+    "dialect_accent_conflict": "中文方言和英文口音不能同时使用。请先清除其中一项，然后再重新生成。",
+    "instruct_category_conflict": "同一类别中选择了两个相互冲突的语音设计选项（例如两种性别）。请先清除其中一项，然后再重新生成。",
     "ref_audio_unusable": "参考音频中听不到任何语音——片段是静音或几乎静音的，因此没有可克隆的声音。请靠近麦克风重新录制（检查是否选择了正确的输入设备、电平是否有跳动），或换一段其他音频。",
     "ref_audio_too_long": "参考音频在提供文字稿时最长20秒，未提供时最长75秒。请裁剪为含清晰语音的3–10秒片段；若提供文字稿，请将其裁剪到同一片段。",
     "ref_audio_no_speech": "自动语音检测未在参考音频中发现口语。请裁剪为含清晰语音的3–10秒片段，或提供匹配的文字稿。"
