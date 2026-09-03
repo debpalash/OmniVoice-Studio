@@ -18,6 +18,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+
 ## [0.5.2] — 2026-09-02
 
 **Highlights**
@@ -55,8 +56,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Korean locale overhauled: 231 mistranslations corrected and all 493 missing keys translated (#1776) — thanks @j30231!
 - Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
-
 - The batch dubbing queue now has a UI entry point — a quiet link on the Dub landing (it was previously unreachable: the app switched on a mode nothing ever set) (#1768) — thanks @mvanhorn!
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
 - Windows isolated engines now retain direct Job ownership without an extra Python supervisor process that can deadlock the child loader (#1734)
