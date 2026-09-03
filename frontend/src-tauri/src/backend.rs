@@ -122,30 +122,59 @@ pub fn same_app_version(running: &str) -> bool {
     !running.is_empty() && base(running) == base(env!("CARGO_PKG_VERSION"))
 }
 
-/// The `code_fingerprint` `/system/info` reports for the backend at `:port`
-/// — see `code_fingerprint_is_current` for how callers interpret this.
-///
-/// `None` when nothing VoiceStudio answers at `port`, OR when it answers but
-/// the response has no `code_fingerprint` key at all (an old backend whose
-/// `/system/info` schema predates the field, since a present field always
-/// serializes — even as `""`). `Some("")` when the field is present but
-/// blank (current schema, but the process wasn't spawned with
-/// `OMNIVOICE_BUILD_FINGERPRINT` set — dev mode's `dev-backend.mjs` strips
-/// `OMNIVOICE_*`, and a manually started `uvicorn` never sets it).
-pub fn running_backend_code_fingerprint(port: u16) -> Option<String> {
-    let url = format!("http://127.0.0.1:{}/system/info", port);
-    let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
-    if !is_omnivoice_body(&body) {
+/// `app_version` + `code_fingerprint`, parsed from ONE `/system/info` fetch
+/// — see `code_fingerprint_is_current` for how callers interpret
+/// `code_fingerprint`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct BackendIdentity {
+    pub version: String,
+    /// `None` when the response has no `code_fingerprint` key at all (an old
+    /// backend whose `/system/info` schema predates the field, since a
+    /// *present* field always serializes — even as `""`). `Some("")` when
+    /// the field is present but blank (current schema, but the process
+    /// wasn't spawned with `OMNIVOICE_BUILD_FINGERPRINT` set — dev mode's
+    /// `dev-backend.mjs` strips `OMNIVOICE_*`, and a manually started
+    /// `uvicorn` never sets it).
+    pub code_fingerprint: Option<String>,
+}
+
+/// Parse both fields out of a single already-fetched `/system/info` body.
+/// Pure — no network — so the absent/blank/known distinction is unit-tested
+/// directly against fixture bodies, not against a live probe.
+fn parse_backend_identity(body: &str) -> Option<BackendIdentity> {
+    if !is_omnivoice_body(body) {
         return None;
     }
-    parse_json_string_field(&body, "code_fingerprint")
+    Some(BackendIdentity {
+        version: parse_app_version(body).unwrap_or_default(),
+        code_fingerprint: parse_json_string_field(body, "code_fingerprint"),
+    })
+}
+
+/// `running_backend_version` + a separate `code_fingerprint` fetch used to be
+/// two independent `/system/info` round-trips in the attach handshake —
+/// besides the redundant probe, that let a transport hiccup on the *second*
+/// fetch (a transient timeout, not "no key in the body") come back as
+/// `None`, indistinguishable from a successfully parsed body that genuinely
+/// lacks `code_fingerprint`. `code_fingerprint_is_current` treats a missing
+/// key as stale, so that ambiguity could kill and respawn a perfectly
+/// healthy backend on a single flaky probe. One fetch removes the ambiguity
+/// structurally: `None` here means "nothing answered at all" (the caller's
+/// existing "no VoiceStudio here" branch), full stop — it can never be
+/// confused with "answered, but the field was absent from that body".
+pub fn running_backend_identity(port: u16) -> Option<BackendIdentity> {
+    let url = format!("http://127.0.0.1:{}/system/info", port);
+    let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
+    parse_backend_identity(&body)
 }
 
 /// Whether an already-version-matched running backend's *code* is current
 /// enough to attach to, for the `prepare_backend_launch` handshake (#1770).
 ///
-/// `running` is `running_backend_code_fingerprint`'s result; `ours` is
-/// `bootstrap::own_backend_code_fingerprint`'s.
+/// `running` is `BackendIdentity::code_fingerprint` from the SAME
+/// `/system/info` fetch that established the version match — never a
+/// separate probe (see `running_backend_identity`'s doc comment for why);
+/// `ours` is `bootstrap::own_backend_code_fingerprint`'s.
 ///
 /// - `running: None` — the backend's `/system/info` has no `code_fingerprint`
 ///   key at all, meaning its code predates this fingerprinting mechanism
@@ -1305,22 +1334,66 @@ mod tests {
     }
 
     #[test]
-    fn running_backend_code_fingerprint_distinguishes_absent_from_blank() {
+    fn parse_backend_identity_distinguishes_absent_from_blank_from_known() {
         // Old backend: /system/info has no code_fingerprint key at all.
-        let old = spawn_system_info_stub(r#"{"data_dir": "/x"}"#);
-        assert_eq!(running_backend_code_fingerprint(old), None);
+        let old = parse_backend_identity(r#"{"app_version":"0.5.2","data_dir": "/x"}"#).unwrap();
+        assert_eq!(old.version, "0.5.2");
+        assert_eq!(old.code_fingerprint, None);
 
         // Current schema, no env var set at spawn time.
-        let blank = spawn_system_info_stub(r#"{"data_dir": "/x", "code_fingerprint": ""}"#);
-        assert_eq!(running_backend_code_fingerprint(blank), Some(String::new()));
+        let blank = parse_backend_identity(
+            r#"{"app_version":"0.5.2","data_dir": "/x", "code_fingerprint": ""}"#,
+        )
+        .unwrap();
+        assert_eq!(blank.code_fingerprint, Some(String::new()));
 
         // Current schema, fingerprint present.
-        let known = spawn_system_info_stub(r#"{"data_dir": "/x", "code_fingerprint": "abc123"}"#);
-        assert_eq!(running_backend_code_fingerprint(known), Some("abc123".to_string()));
+        let known = parse_backend_identity(
+            r#"{"app_version":"0.5.2","data_dir": "/x", "code_fingerprint": "abc123"}"#,
+        )
+        .unwrap();
+        assert_eq!(known.code_fingerprint, Some("abc123".to_string()));
 
-        // Not our backend at all (no data_dir/model_checkpoint marker).
-        let foreign = spawn_system_info_stub(r#"{"code_fingerprint": "abc123"}"#);
-        assert_eq!(running_backend_code_fingerprint(foreign), None);
+        // Not our backend at all (no data_dir/model_checkpoint marker) — the
+        // whole identity is unknown, not just the fingerprint.
+        assert!(parse_backend_identity(r#"{"code_fingerprint": "abc123"}"#).is_none());
+    }
+
+    #[test]
+    fn running_backend_identity_reads_both_fields_from_one_fetch() {
+        let stub = spawn_system_info_stub(
+            r#"{"app_version":"0.5.2","data_dir": "/x", "code_fingerprint": "abc123"}"#,
+        );
+        let identity = running_backend_identity(stub).unwrap();
+        assert_eq!(identity.version, "0.5.2");
+        assert_eq!(identity.code_fingerprint, Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn running_backend_identity_transport_failure_is_not_conflated_with_absent_field() {
+        // The P1 Greptile caught in review of #1796: when version and
+        // fingerprint came from two independent /system/info fetches, a
+        // transport hiccup on the SECOND one (nothing listening, timeout,
+        // connection reset) returned `None` from
+        // `running_backend_code_fingerprint` alone — wire-identical to "the
+        // body parsed fine but the key was genuinely absent", which
+        // `code_fingerprint_is_current` treats as stale. That could kill and
+        // respawn a perfectly healthy, externally-owned backend on a single
+        // flaky probe.
+        //
+        // With one fetch, a transport failure can no longer reach that
+        // branch at all: `running_backend_identity` returns a flat `None`,
+        // which `prepare_backend_launch`'s `None => {}` arm treats as
+        // "nothing answered" — a wholly different code path from "answered,
+        // but predates the fingerprint field" (`Some(identity)` with
+        // `code_fingerprint: None`). Assert that boundary directly: nothing
+        // is listening on this port, so the fetch itself fails, and the
+        // result must be the "nothing answered" `None` — never a `Some`
+        // that a caller could misread as an absent-field verdict.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        drop(listener); // frees the port; nothing is listening on it now
+        assert_eq!(running_backend_identity(port), None);
     }
 
     // ── Per-run crash evidence (#1510) ───────────────────────────────────

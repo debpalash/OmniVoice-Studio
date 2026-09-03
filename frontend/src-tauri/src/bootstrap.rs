@@ -455,19 +455,22 @@ fn prepare_backend_launch<R: tauri::Runtime>(
     stage_handle: &Arc<Mutex<BootstrapStage>>,
 ) -> LaunchPreparation {
     let mut replace = tracked_backend_exists(app);
-    match crate::backend::running_backend_version(backend_port()) {
-        Some(v) if crate::backend::same_app_version(&v) => {
+    // #1770: version and code fingerprint are read from ONE `/system/info`
+    // fetch (`running_backend_identity`) — never two independent probes.
+    // Splitting them into separate round-trips would let a transport hiccup
+    // on the second one masquerade as "responded, but the field was absent",
+    // which `code_fingerprint_is_current` treats as stale — silently killing
+    // a perfectly healthy backend on a single flaky probe.
+    match crate::backend::running_backend_identity(backend_port()) {
+        Some(identity) if crate::backend::same_app_version(&identity.version) => {
+            let v = identity.version;
             let deep_healthy = crate::backend::backend_deep_healthy(backend_port());
-            // #1770: version match alone doesn't prove code match — `main`
-            // holds one version string for an entire release cycle, so a
-            // same-version backend can still be running weeks-old code. Only
-            // probed once deep-healthy, so a dead/broken responder is
-            // replaced for that reason alone, not conflated with this one.
-            let running_fp = deep_healthy
-                .then(|| crate::backend::running_backend_code_fingerprint(backend_port()))
-                .flatten();
-            let our_fp = deep_healthy.then(|| own_backend_code_fingerprint(app)).flatten();
-            let code_current = crate::backend::code_fingerprint_is_current(running_fp.as_deref(), our_fp.as_deref());
+            // Version match alone doesn't prove code match — `main` holds
+            // one version string for an entire release cycle, so a
+            // same-version backend can still be running weeks-old code.
+            let our_fp = own_backend_code_fingerprint(app);
+            let code_current =
+                crate::backend::code_fingerprint_is_current(identity.code_fingerprint.as_deref(), our_fp.as_deref());
             if !deep_healthy {
                 log::warn!(
                     "Port {} serves VoiceStudio v{} but failed the deep health probe — replacing it",
@@ -486,7 +489,7 @@ this build, but its code fingerprint does not (running={:?}, ours={:?}). A same-
 can still run stale code within one release cycle; replacing it instead of attaching.",
                     backend_port(),
                     v,
-                    running_fp,
+                    identity.code_fingerprint,
                     our_fp,
                 );
                 replace = true;
@@ -513,11 +516,11 @@ can still run stale code within one release cycle; replacing it instead of attac
                 return LaunchPreparation::SuperviseAttached { owner };
             }
         }
-        Some(v) => {
+        Some(identity) => {
             log::warn!(
                 "Port {} serves a stale VoiceStudio backend (v{} != app v{}) — replacing it",
                 backend_port(),
-                if v.is_empty() { "<unknown>" } else { v.as_str() },
+                if identity.version.is_empty() { "<unknown>" } else { identity.version.as_str() },
                 env!("CARGO_PKG_VERSION"),
             );
             replace = true;
