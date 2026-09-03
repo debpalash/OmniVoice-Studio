@@ -562,7 +562,15 @@
     "usage_since": "{{date}}부터",
     "usage_starred": "즐겨찾기한 테이크",
     "usage_takes": "생성된 테이크",
-    "usage_voices": "음성"
+    "usage_voices": "음성",
+    "generate_budget_title": "연산 시간 예산",
+    "generate_budget_desc": "이 하드웨어에 너무 무겁다고 판단되어 중단되기 전까지 한 번의 생성이 실행될 수 있는 시간입니다. CPU 렌더링은 가속 렌더링보다 원래 느리기 때문에, 별도로 더 높은 하한선을 갖습니다.",
+    "generate_timeout_gpu": "가속(GPU) 예산",
+    "generate_timeout_gpu_note": "생성이 CUDA, ROCm, MPS 또는 다른 가속기에서 실행될 때 사용됩니다.",
+    "generate_timeout_cpu": "CPU 예산",
+    "generate_timeout_cpu_note": "생성이 CPU에서 실행될 때 사용됩니다 — 여기서는 긴 텍스트가 원래 더 오래 걸립니다.",
+    "generate_timeout_invalid": "0보다 크고 최대 {{max}}인 초 단위 숫자를 입력하세요.",
+    "generate_timeout_saved": "저장되었습니다. 새 예산을 적용하려면 VoiceStudio를 재시작하세요."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -1089,7 +1097,8 @@
     "setupSnippetLabel": "VoiceStudio가 모델 디렉터리를 가리키도록 설정한 후 재시작하세요:",
     "unload": "언로드",
     "unloadFailed": "언로드하지 못했습니다: {{message}}",
-    "unloading": "언로드 중…"
+    "unloading": "언로드 중…",
+    "mpsLongText": "여기서는 {{engine}}이(가) Apple Silicon(MPS)에서 실행되며 이 텍스트는 길어 생성이 시간 제한을 초과할 수 있습니다. 텍스트를 줄이거나 여러 번에 나누면 훨씬 빠릅니다."
   },
   "capture": {
     "desc": "전역 단축키는 데스크톱 앱에서만 작동합니다. 웹 UI는 창에 포커스가 있는 동안 페이지 내 <1>Ctrl+Shift+Space</1> 단축키를 사용합니다.",

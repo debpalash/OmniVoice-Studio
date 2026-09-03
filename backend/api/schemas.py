@@ -26,6 +26,12 @@ class SystemInfoResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     app_version: str = ""
+    # Effective compute-time budgets (seconds) for one synthesis job — the
+    # values services/model_manager.py's GPU_JOB_TIMEOUT_S / CPU_JOB_TIMEOUT_S
+    # captured at backend import time (#1787). A value just saved via
+    # /system/set-env is NOT reflected here until the next restart.
+    generate_timeout_s: float = 300.0
+    cpu_generate_timeout_s: float = 600.0
     data_dir: str
     outputs_dir: str
     crash_log_path: str

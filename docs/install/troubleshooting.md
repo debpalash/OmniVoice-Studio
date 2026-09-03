@@ -560,6 +560,12 @@ synthesis can take longer than the accelerated five-minute budget. Override it
 with `OMNIVOICE_CPU_GENERATE_TIMEOUT_S`; an explicit higher
 or lower `OMNIVOICE_GENERATE_TIMEOUT_S` always wins.
 
+Both budgets are also editable from **Settings → Performance & Device →
+Compute-time budget** — no env var or config file needed. A value saved there
+persists across restarts but only takes effect on the *next* backend restart
+(the running process already read the old value at startup), which the panel
+states.
+
 **Two things changed here** ([#1190](https://github.com/debpalash/VoiceStudio/issues/1190)):
 
 - **Waiting in line is no longer counted as compute.** The generate budget used

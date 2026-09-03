@@ -337,7 +337,15 @@
     "device_family_mps": "Apple GPU (MPS)",
     "device_family_cpu": "CPU",
     "device_load_failed": "Kunde inte läsa in enhetsinställningen",
-    "perf_save_failed": "Kunde inte spara inställningen"
+    "perf_save_failed": "Kunde inte spara inställningen",
+    "generate_budget_title": "Beräkningstidsbudget",
+    "generate_budget_desc": "Hur länge en generering får köras innan den avbryts som för tung för den här hårdvaran. CPU-rendering är naturligt långsammare än accelererad rendering, så den har sin egen, högre nedre gräns.",
+    "generate_timeout_gpu": "Accelererad (GPU-)budget",
+    "generate_timeout_gpu_note": "Används när genereringen körs på CUDA, ROCm, MPS eller en annan accelerator.",
+    "generate_timeout_cpu": "CPU-budget",
+    "generate_timeout_cpu_note": "Används när genereringen körs på CPU:n — lång text tar naturligt längre tid här.",
+    "generate_timeout_invalid": "Ange ett antal sekunder större än 0 och högst {{max}}.",
+    "generate_timeout_saved": "Sparat. Starta om VoiceStudio för att den nya budgeten ska gälla."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -805,7 +813,8 @@
     "familyMatrixTitle": "{{family}}-motorer",
     "familyDesc_tts": "Gör om manus till tal. Studio, Dubbning och Batch använder den aktiva motorn.",
     "familyDesc_asr": "Gör om ljud till text för transkribering, dubbning, undertexter och diktering.",
-    "familyDesc_llm": "Valfri texthjälp för översättning och omskrivning. ”Av” hoppar över dessa steg."
+    "familyDesc_llm": "Valfri texthjälp för översättning och omskrivning. ”Av” hoppar över dessa steg.",
+    "mpsLongText": "{{engine}} körs på Apple Silicon (MPS) här och den här texten är lång — genereringen kan överskrida tidsbudgeten. Kortare text, eller uppdelad i flera tagningar, går betydligt snabbare."
   },
   "capture": {
     "desc": "Globala snabbtangenter fungerar bara i skrivbordsappen. Webbgränssnittet använder en genväg <1>Ctrl+Skift+Mellanslag</1> på sidan medan fönstret har fokus.",
