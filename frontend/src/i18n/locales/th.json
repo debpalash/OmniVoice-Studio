@@ -956,6 +956,7 @@
     "paste_url": "…หรือวาง URL ของ YouTube / วิดีโอ",
     "ingest": "นำเข้า",
     "pull_captions": "ดึงคำบรรยาย YouTube + การแปลอัตโนมัติ",
+    "batch_queue_link": "พากย์วิดีโอหลายรายการ? เปิดคิวแบบกลุ่ม",
     "youtube_auth": "ลงชื่อเข้าใช้ YouTube (ไม่บังคับ)",
     "youtube_cookie_file": "เลือกไฟล์ส่งออก cookies.txt",
     "remove_cookie_file": "ลบไฟล์คุกกี้",
@@ -1377,7 +1378,18 @@
     "preserve_bg": "รักษาเสียงพื้นหลัง (เพลง/FX)",
     "estimate": "{{videos}} วิดีโอ × {{langs}} lang(s) = {{jobs}} งาน",
     "select_files_langs": "เลือกไฟล์และภาษา",
-    "add_to_queue": "เพิ่มเข้าคิว"
+    "add_to_queue": "เพิ่มเข้าคิว",
+    "watch_folder": "เฝ้าดูโฟลเดอร์",
+    "watching": "กำลังเฝ้าดู {{folder}}",
+    "watch_paused": "หยุดชั่วคราว — {{folder}}",
+    "watch_added": "เพิ่มอัตโนมัติแล้ว {{count}} รายการ",
+    "watch_pause": "หยุดชั่วคราว",
+    "watch_resume": "ทำต่อ",
+    "watch_stop": "หยุด",
+    "watch_started": "กำลังเฝ้าดู {{folder}} — วิดีโอใหม่จะถูกเพิ่มเข้าคิวโดยอัตโนมัติ",
+    "watch_unsupported": "การเฝ้าดูโฟลเดอร์ต้องใช้แอปเดสก์ท็อปหรือเบราว์เซอร์ที่ใช้ Chromium — โปรดใช้เพิ่มวิดีโอแทน",
+    "watch_failed": "หยุดการเฝ้าดูแล้ว — ไม่สามารถอ่านโฟลเดอร์ได้อีกต่อไป (ถูกย้าย ถูกลบ หรือสิทธิ์เปลี่ยนไป) เลือกโฟลเดอร์อีกครั้งเพื่อทำต่อ",
+    "watch_start_failed": "เริ่มเฝ้าดูโฟลเดอร์นั้นไม่ได้ — เลือกโฟลเดอร์อีกครั้งเพื่อลองใหม่"
   },
   "gallery": {
     "title": "VoiceStudio แกลเลอรี่",

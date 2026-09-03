@@ -956,6 +956,7 @@
     "paste_url": "…ou collez l’URL YouTube/vidéo",
     "ingest": "Ingérer",
     "pull_captions": "Extrayez les sous-titres YouTube + les traductions automatiques",
+    "batch_queue_link": "Beaucoup de vidéos à doubler ? Ouvrir la file par lots",
     "youtube_auth": "Connexion YouTube (facultative)",
     "youtube_cookie_file": "Choisir un export cookies.txt",
     "remove_cookie_file": "Supprimer le fichier de cookies",
@@ -1377,7 +1378,18 @@
     "preserve_bg": "Préserver l'audio de fond (musique/FX)",
     "estimate": "{{videos}} vidéo(s) × {{langs}} langue(s) = {{jobs}} travail(s)",
     "select_files_langs": "Sélectionnez les fichiers et les langues",
-    "add_to_queue": "Ajouter à la file d'attente"
+    "add_to_queue": "Ajouter à la file d'attente",
+    "watch_folder": "Surveiller un dossier",
+    "watching": "Surveillance de {{folder}}",
+    "watch_paused": "En pause — {{folder}}",
+    "watch_added": "{{count}} ajoutés automatiquement",
+    "watch_pause": "Pause",
+    "watch_resume": "Reprendre",
+    "watch_stop": "Arrêter",
+    "watch_started": "Surveillance de {{folder}} — les nouvelles vidéos sont ajoutées à la file automatiquement",
+    "watch_unsupported": "La surveillance de dossier nécessite l'application de bureau ou un navigateur basé sur Chromium — utilisez plutôt Ajouter des vidéos.",
+    "watch_failed": "Surveillance arrêtée — le dossier n'est plus lisible (déplacé, supprimé ou permissions modifiées). Sélectionnez-le à nouveau pour reprendre.",
+    "watch_start_failed": "Impossible de commencer à surveiller ce dossier — sélectionnez-le à nouveau pour réessayer."
   },
   "gallery": {
     "title": "VoiceStudio Galerie",

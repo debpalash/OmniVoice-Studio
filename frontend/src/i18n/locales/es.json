@@ -956,6 +956,7 @@
     "paste_url": "…o pegue la URL de YouTube/vídeo",
     "ingest": "Ingerir",
     "pull_captions": "Extraiga subtítulos de YouTube + traducciones automáticas",
+    "batch_queue_link": "¿Doblas muchos vídeos? Abre la cola por lotes",
     "youtube_auth": "Inicio de sesión en YouTube (opcional)",
     "youtube_cookie_file": "Elegir una exportación cookies.txt",
     "remove_cookie_file": "Quitar archivo de cookies",
@@ -1377,7 +1378,18 @@
     "preserve_bg": "Conservar audio de fondo (música/FX)",
     "estimate": "{{videos}} vídeo(s) × {{langs}} idioma(s) = {{jobs}} trabajo(s)",
     "select_files_langs": "Seleccionar archivos e idiomas",
-    "add_to_queue": "Agregar a la cola"
+    "add_to_queue": "Agregar a la cola",
+    "watch_folder": "Vigilar carpeta",
+    "watching": "Vigilando {{folder}}",
+    "watch_paused": "En pausa — {{folder}}",
+    "watch_added": "{{count}} añadidos automáticamente",
+    "watch_pause": "Pausar",
+    "watch_resume": "Reanudar",
+    "watch_stop": "Detener",
+    "watch_started": "Vigilando {{folder}} — los vídeos nuevos se añaden a la cola automáticamente",
+    "watch_unsupported": "La vigilancia de carpetas requiere la aplicación de escritorio o un navegador basado en Chromium — usa Añadir vídeos.",
+    "watch_failed": "La vigilancia se detuvo: la carpeta ya no se puede leer (movida, eliminada o con permisos cambiados). Selecciónala de nuevo para continuar.",
+    "watch_start_failed": "No se pudo empezar a vigilar esa carpeta — selecciónala de nuevo para reintentar."
   },
   "gallery": {
     "title": "VoiceStudio Galería",

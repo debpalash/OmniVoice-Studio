@@ -705,6 +705,7 @@ export default function DubTab(props) {
           setLandingAdvOpen={setLandingAdvOpen}
           dubInstruct={dubInstruct}
           setDubInstruct={setDubInstruct}
+          onOpenQueue={() => useAppStore.getState().setMode?.('batch')}
         />
       )}
 

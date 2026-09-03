@@ -956,6 +956,7 @@
     "paste_url": "…または YouTube / ビデオの URL を貼り付けます",
     "ingest": "摂取する",
     "pull_captions": "YouTube のキャプションと自動翻訳を取得します",
+    "batch_queue_link": "多くの動画を吹き替えますか？バッチキューを開く",
     "youtube_auth": "YouTube ログイン（任意）",
     "youtube_cookie_file": "cookies.txt のエクスポートを選択",
     "remove_cookie_file": "Cookie ファイルを削除",
@@ -1377,7 +1378,18 @@
     "preserve_bg": "バックグラウンドオーディオの保存 (音楽/FX)",
     "estimate": "{{videos}} ビデオ × {{langs}} 言語 = {{jobs}} ジョブ",
     "select_files_langs": "ファイルと言語を選択してください",
-    "add_to_queue": "キューに追加"
+    "add_to_queue": "キューに追加",
+    "watch_folder": "フォルダーを監視",
+    "watching": "{{folder}} を監視中",
+    "watch_paused": "一時停止中 — {{folder}}",
+    "watch_added": "{{count}} 件を自動追加",
+    "watch_pause": "一時停止",
+    "watch_resume": "再開",
+    "watch_stop": "停止",
+    "watch_started": "{{folder}} を監視中 — 新しい動画は自動的にキューへ追加されます",
+    "watch_unsupported": "フォルダー監視にはデスクトップアプリまたはChromiumベースのブラウザーが必要です。代わりに「動画を追加」をご利用ください。",
+    "watch_failed": "フォルダー監視を停止しました — フォルダーを読み取れません（移動・削除・権限変更の可能性）。再開するにはフォルダーを選び直してください。",
+    "watch_start_failed": "そのフォルダーの監視を開始できませんでした。フォルダーを選び直して再試行してください。"
   },
   "gallery": {
     "title": "VoiceStudio ギャラリー",

@@ -112,6 +112,42 @@ class TestEnqueue:
         job = client.get(f"/batch/jobs/{job_id}").json()
         assert job["filename"] == "test.mp4"
 
+    @pytest.mark.asyncio
+    async def test_upload_is_persisted_in_bounded_chunks(self, batch, tmp_path):
+        class RecordingUpload:
+            def __init__(self):
+                self.read_sizes = []
+                self.remaining = b"video"
+
+            async def read(self, size):
+                self.read_sizes.append(size)
+                chunk, self.remaining = self.remaining[:size], self.remaining[size:]
+                return chunk
+
+        upload = RecordingUpload()
+        destination = tmp_path / "video.mp4"
+        await batch._save_upload(upload, str(destination))
+
+        assert destination.read_bytes() == b"video"
+        assert upload.read_sizes == [batch._UPLOAD_CHUNK_BYTES, batch._UPLOAD_CHUNK_BYTES]
+
+    @pytest.mark.asyncio
+    async def test_failed_upload_removes_partial_file(self, batch, tmp_path):
+        class FailingUpload:
+            calls = 0
+
+            async def read(self, _size):
+                self.calls += 1
+                if self.calls == 1:
+                    return b"partial"
+                raise OSError("upload interrupted")
+
+        destination = tmp_path / "video.mp4"
+        with pytest.raises(OSError, match="upload interrupted"):
+            await batch._save_upload(FailingUpload(), str(destination))
+
+        assert not destination.exists()
+
 
 class TestListJobs:
     def test_empty(self, client):

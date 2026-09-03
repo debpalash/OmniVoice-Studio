@@ -1199,6 +1199,7 @@
     "paste_url": "…or paste YouTube / video URL",
     "ingest": "Ingest",
     "pull_captions": "Pull YouTube captions + auto-translations",
+    "batch_queue_link": "Dubbing many videos? Open the batch queue",
     "youtube_auth": "YouTube sign-in (optional)",
     "youtube_cookie_file": "Choose a cookies.txt export",
     "remove_cookie_file": "Remove cookie file",
@@ -1636,7 +1637,18 @@
     "preserve_bg": "Preserve background audio (music/FX)",
     "estimate": "{{videos}} video(s) × {{langs}} lang(s) = {{jobs}} job(s)",
     "select_files_langs": "Select files and languages",
-    "add_to_queue": "Add to Queue"
+    "add_to_queue": "Add to Queue",
+    "watch_folder": "Watch folder",
+    "watching": "Watching {{folder}}",
+    "watch_paused": "Paused — {{folder}}",
+    "watch_added": "{{count}} auto-added",
+    "watch_pause": "Pause",
+    "watch_resume": "Resume",
+    "watch_stop": "Stop",
+    "watch_started": "Watching {{folder}} — new videos are added to the queue automatically",
+    "watch_unsupported": "Folder watching needs the desktop app or a Chromium-based browser — use Add Videos here instead.",
+    "watch_failed": "Folder watching stopped — the folder is no longer readable (moved, deleted, or permissions changed). Pick it again to resume.",
+    "watch_start_failed": "Couldn't start watching that folder — pick it again to retry."
   },
   "gallery": {
     "title": "VoiceStudio Gallery",

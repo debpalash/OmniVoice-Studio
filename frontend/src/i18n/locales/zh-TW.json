@@ -956,6 +956,7 @@
     "paste_url": "…或貼上 YouTube/影片 URL",
     "ingest": "攝取",
     "pull_captions": "擷取 YouTube 字幕 + 自動翻譯",
+    "batch_queue_link": "要為許多影片配音？開啟批次佇列",
     "youtube_auth": "YouTube 登入（選用）",
     "youtube_cookie_file": "選擇匯出的 cookies.txt",
     "remove_cookie_file": "移除 Cookie 檔案",
@@ -1377,7 +1378,18 @@
     "preserve_bg": "保留背景音訊（音樂/FX）",
     "estimate": "{{videos}} 影片 × {{langs}} 語言 = {{jobs}} 作業",
     "select_files_langs": "選擇文件和語言",
-    "add_to_queue": "添加到隊列"
+    "add_to_queue": "添加到隊列",
+    "watch_folder": "監看資料夾",
+    "watching": "正在監看 {{folder}}",
+    "watch_paused": "已暫停 — {{folder}}",
+    "watch_added": "已自動加入 {{count}} 部",
+    "watch_pause": "暫停",
+    "watch_resume": "繼續",
+    "watch_stop": "停止",
+    "watch_started": "正在監看 {{folder}} — 新影片會自動加入佇列",
+    "watch_unsupported": "資料夾監看需要桌面應用程式或以 Chromium 為基礎的瀏覽器 — 請改用「新增影片」。",
+    "watch_failed": "監看已停止 — 資料夾已無法讀取（已移動、刪除或權限變更）。請重新選擇資料夾以繼續。",
+    "watch_start_failed": "無法開始監看該資料夾 — 請重新選擇以重試。"
   },
   "gallery": {
     "title": "VoiceStudio 畫廊",

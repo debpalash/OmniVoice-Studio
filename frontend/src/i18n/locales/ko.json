@@ -1255,6 +1255,7 @@
     "paste_url": "...또는 YouTube/동영상 URL을 붙여넣으세요.",
     "ingest": "가져오기",
     "pull_captions": "YouTube 캡션 및 자동 번역 가져오기",
+    "batch_queue_link": "많은 동영상을 더빙하나요? 배치 대기열 열기",
     "youtube_auth": "YouTube 로그인(선택 사항)",
     "youtube_cookie_file": "cookies.txt 내보내기 선택",
     "remove_cookie_file": "쿠키 파일 제거",
@@ -1692,7 +1693,18 @@
     "preserve_bg": "배경 오디오 보존(음악/FX)",
     "estimate": "{{videos}} 동영상 × {{langs}} 언어 = {{jobs}} 작업",
     "select_files_langs": "파일 및 언어 선택",
-    "add_to_queue": "대기열에 추가"
+    "add_to_queue": "대기열에 추가",
+    "watch_folder": "폴더 감시",
+    "watching": "{{folder}} 감시 중",
+    "watch_paused": "일시정지됨 — {{folder}}",
+    "watch_added": "{{count}}개 자동 추가됨",
+    "watch_pause": "일시정지",
+    "watch_resume": "재개",
+    "watch_stop": "중지",
+    "watch_started": "{{folder}} 감시 중 — 새 동영상이 자동으로 대기열에 추가됩니다",
+    "watch_unsupported": "폴더 감시에는 데스크톱 앱 또는 Chromium 기반 브라우저가 필요합니다. 대신 동영상 추가를 사용하세요.",
+    "watch_failed": "감시가 중지되었습니다 — 폴더를 더 이상 읽을 수 없습니다(이동, 삭제 또는 권한 변경). 다시 시작하려면 폴더를 다시 선택하세요.",
+    "watch_start_failed": "해당 폴더 감시를 시작할 수 없습니다 — 다시 시도하려면 폴더를 다시 선택하세요."
   },
   "gallery": {
     "title": "VoiceStudio 갤러리",

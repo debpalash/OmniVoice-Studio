@@ -134,7 +134,7 @@ The desktop launcher configures Python dependencies on first run via `uv` automa
 | **[Dictation Widget](docs/features/dictation.md)** | System-wide shortcut, live transcription, optional local-LLM cleanup |
 | **Vocal Isolation** | Demucs speech/background separation |
 | **Speaker Diarization** | Pyannote and WhisperX speaker assignment ([guide](docs/features/diarization.md)) |
-| **Batch Queue** | Queue large sets of audio and video jobs with per-job progress |
+| **Batch Queue** | Queue large sets of audio and video jobs with per-job progress, or watch a local folder for new videos |
 | **Model Catalogue** | Install, remove, select, and route TTS, ASR, and LLM models ([catalogue](docs/engines/README.md)) |
 | **Remote Model Downloads** | Install models on enrolled remote workers with live progress ([guide](docs/downloading-models.md)) |
 | **GPU Auto-Detect** | CUDA, MPS, ROCm, and CPU routing with per-engine checks ([performance](docs/performance.md)) |
