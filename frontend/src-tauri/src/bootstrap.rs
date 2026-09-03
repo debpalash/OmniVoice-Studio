@@ -743,7 +743,7 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
                 // (8.3 short names disabled, or an already-broken pre-fix
                 // install) instead of dumping the raw traceback.
                 let msg = if backend_exit_indicates_nonascii_pth_crash(&err_tail) {
-                    NONASCII_PTH_CRASH_MSG.to_string()
+                    nonascii_pth_crash_msg(crate::config::load_config(app).install_mode == "portable")
                 } else if real_exit
                     .as_ref()
                     .and_then(|e| e.code)
@@ -1829,34 +1829,62 @@ pub fn backend_exit_indicates_nonascii_pth_crash(err_tail: &str) -> bool {
 /// primary path).
 ///
 /// The remedy must be actionable from wherever the user actually sees this
-/// message — greptile #1783 review, P1: an earlier draft pointed at the
-/// first-run setup screen's "Change…" picker, but this message is shown via
-/// `BootstrapStage::Failed`, which only offers Retry / Clean & Retry (neither
-/// changes where the environment is stored, so both fail identically — the
-/// exact "names a control the user cannot reach" defect #1787 exists to
-/// catch). The one action that ALWAYS works, regardless of screen or install
-/// state, is hand-editing the JSON config's `env_dir` field (`config.rs`'s
-/// `AppConfig::env_dir`, read fresh by `env_root()` on every launch) to an
-/// ASCII path — that's the primary instruction here.
-///
-/// CodeRabbit #1783 review: `fsutil 8dot3name` is per-volume and only
-/// affects newly created directories, not the already-existing one this
-/// failure is about — recommending "run this command and retry" would often
-/// fix nothing, so this explains the likely cause without prescribing a
-/// command that may not help.
-const NONASCII_PTH_CRASH_MSG: &str =
-    "The backend's Python environment lives at a path Windows' active language/region \
-setting can't decode (commonly a non-English Windows username), so the interpreter \
-crashes on startup before VoiceStudio's code ever runs — this can happen if Windows' 8.3 \
-short-filename support is off on your system drive, or if this folder already existed \
-before this fix shipped. \"Retry\" and \"Clean & Retry\" won't fix it — they don't change \
-where the environment is stored. Fix: quit VoiceStudio, open (creating it if missing) \
+/// message AND correct for whichever install mode they're actually in —
+/// three separate bot findings on this exact PR, each "the text names an
+/// action that doesn't work" for some reachable state:
+///   - greptile P1: an earlier draft pointed at the first-run setup screen's
+///     "Change…" picker, but this message is shown via
+///     `BootstrapStage::Failed`, which only offers Retry / Clean & Retry
+///     (neither changes where the environment is stored, so both fail
+///     identically — the exact defect #1787 exists to catch).
+///   - CodeRabbit: `fsutil 8dot3name` is per-volume and only affects
+///     directories created AFTER the change, not the already-existing one
+///     this failure is about — recommending "run this and retry" often
+///     fixes nothing.
+///   - greptile P1 (3rd instance): the previous fix told EVERY user to set
+///     `env_dir` in `config.json` — but `setup::env_root` checks
+///     `cfg.install_mode == "portable"` FIRST and returns
+///     `portable_base().join("env")` without ever consulting `env_dir` (see
+///     `env_root`'s body). A portable install following that advice hits
+///     the identical crash on relaunch. `is_portable` is threaded in from
+///     each call site (a config read, not free state) so the two mutually
+///     exclusive remedies are never both shown, and neither is shown to the
+///     mode it doesn't apply to.
+///   - Self-caught while fixing the above (4th instance, same class): the
+///     managed branch used to add "Still on first-run setup instead? Use
+///     the Change… button…" — but BOTH call sites of this function are only
+///     reachable once `!setup::is_first_run(app)` (`launch_backend_and_wait`
+///     gates `ensure_venv_ready`/`spawn_backend_until_ready` behind
+///     `first_run_gate`, which parks in `AwaitingSetup` — the FirstRunSetup
+///     screen — instead of calling either). This message can therefore
+///     NEVER be showing while that screen is; the clause described a state
+///     that cannot coexist with its own display. Removed rather than kept
+///     as "harmless extra info" — the whole point of this history is that
+///     an unreachable action in a failure message is never harmless.
+fn nonascii_pth_crash_msg(is_portable: bool) -> String {
+    let cause = "The backend's Python environment lives at a path Windows' active \
+language/region setting can't decode (commonly a non-English Windows username), so the \
+interpreter crashes on startup before VoiceStudio's code ever runs — this can happen if \
+Windows' 8.3 short-filename support is off on your system drive, or if this folder \
+already existed before this fix shipped. \"Retry\" and \"Clean & Retry\" won't fix it — \
+they don't change where the environment is stored.";
+    let remedy = if is_portable {
+        "Fix: quit VoiceStudio, then move the whole VoiceStudio folder (the app plus its \
+\"OmniVoiceStudio-Data\" folder) to a location whose path uses only English letters and \
+numbers (e.g. C:\\VoiceStudio), and run it from there — portable installs ignore \
+`env_dir` in config.json entirely, so editing that file does nothing here. If you'd \
+rather not move the whole folder, create a \"portable.path\" text file beside the app \
+containing one line, an absolute ASCII-only path for the data folder (e.g. \
+C:\\VoiceStudio\\Data), and relaunch."
+    } else {
+        "Fix: quit VoiceStudio, open (creating it if missing) \
 %LOCALAPPDATA%\\com.debpalash.omnivoice-studio\\config.json in a text editor, add \
 \"env_dir\": \"C:/VoiceStudio/env\" (any path using only English letters/numbers works — \
 forward slashes are fine on Windows), save, and relaunch. This only moves the Python \
-environment, not your voices/projects. Still on first-run setup instead? Use the \
-\"Change…\" button next to \"App environment\" there instead of editing the file. See \
-docs/install/troubleshooting.md (#1783).";
+environment, not your voices/projects."
+    };
+    format!("{cause} {remedy} See docs/install/troubleshooting.md (#1783).")
+}
 
 /// What `ensure_venv_ready` should do about where the venv lives, decided by
 /// [`resolve_venv_root`].
@@ -2296,7 +2324,8 @@ creating the new environment at an ASCII-safe path instead (#1783)"
             backend_dir = project_dir.join("backend");
         }
         VenvRootDecision::Unfixable => {
-            fail(progress, NONASCII_PTH_CRASH_MSG);
+            let msg = nonascii_pth_crash_msg(crate::config::load_config(app).install_mode == "portable");
+            fail(progress, &msg);
             return None;
         }
         VenvRootDecision::Keep => {}
@@ -3392,7 +3421,7 @@ UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal m
     }
 
     #[test]
-    fn nonascii_pth_crash_produces_a_specific_diagnosis_not_the_generic_stall_text() {
+    fn nonascii_pth_crash_diagnosis_is_correct_for_a_managed_install() {
         // #1783 acceptance: "the setup screen shows a specific message and a
         // fix, not the generic stall text." Pin the load-bearing ingredients
         // so a future edit can't silently drop them.
@@ -3400,15 +3429,52 @@ UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal m
         // greptile P1: the primary remedy must be reachable from the FAILED
         // screen this message is actually shown on (Retry / Clean & Retry
         // only — no "Change…" picker there), so the config-file edit is the
-        // one asserted as the concrete action; "App environment" is only the
-        // secondary note for a still-mid-setup user, never the sole fix.
-        assert!(NONASCII_PTH_CRASH_MSG.contains("config.json"));
-        assert!(NONASCII_PTH_CRASH_MSG.contains("env_dir"));
-        assert!(NONASCII_PTH_CRASH_MSG.contains("App environment"));
+        // one asserted as the concrete action.
+        let msg = nonascii_pth_crash_msg(false);
+        assert!(msg.contains("config.json"));
+        assert!(msg.contains("env_dir"));
+        // Both call sites of this function are only reachable once
+        // `!setup::is_first_run(app)` — the FirstRunSetup screen and its
+        // "Change…"/"App environment" picker can never be showing at the
+        // same time as this message, so it must never cite that control
+        // (the exact defect this whole finding chain is about: naming an
+        // action unreachable in the state the message actually appears in).
+        assert!(!msg.contains("App environment"));
+        // The portable-only remedy must never leak into the managed message
+        // — moving "the whole VoiceStudio folder" would be nonsense advice
+        // for an install that already has an ASCII-safe custom env_dir lever.
+        assert!(!msg.contains("OmniVoiceStudio-Data"));
+        assert!(!msg.contains("portable.path"));
         // CodeRabbit: never tell the user to run a specific fsutil command —
         // its retroactivity/per-volume semantics mean it may fix nothing.
-        assert!(!NONASCII_PTH_CRASH_MSG.contains("fsutil"));
-        assert!(NONASCII_PTH_CRASH_MSG.contains("#1783"));
+        assert!(!msg.contains("fsutil"));
+        assert!(msg.contains("#1783"));
+    }
+
+    #[test]
+    fn nonascii_pth_crash_diagnosis_is_correct_for_a_portable_install() {
+        // greptile P1 (third instance of the same defect class on this PR:
+        // "the text names an action that doesn't work" for the state the
+        // message is actually shown in). Verified directly against
+        // `env_root`'s body: for `install_mode == "portable"` it returns
+        // `portable_base().join("env")` and returns BEFORE the `env_dir`
+        // check ever runs — so a portable user told to edit `env_dir` in
+        // config.json follows the instructions exactly and hits the
+        // identical crash on relaunch. The portable message must instead
+        // name something that actually changes `portable_base()`'s
+        // resolution (moving the app+data folder, or the `portable.path`
+        // pointer file — see `portable_base`'s resolution order).
+        let msg = nonascii_pth_crash_msg(true);
+        assert!(msg.contains("OmniVoiceStudio-Data"));
+        assert!(msg.contains("portable.path"));
+        // The managed-only remedy must never leak into the portable message
+        // without its "ignores env_dir" caveat — bare mention of the JSON
+        // snippet here would be exactly the misleading advice this test
+        // exists to catch.
+        assert!(!msg.contains("\"env_dir\": \"C:/VoiceStudio/env\""));
+        assert!(!msg.contains("App environment"));
+        assert!(!msg.contains("fsutil"));
+        assert!(msg.contains("#1783"));
     }
 
     // ── #1783: resolve_venv_root — the relocation-safety invariant ─────────

@@ -872,23 +872,34 @@ broken environment (if any) is left in place, not deleted, in case manual
 recovery is ever needed. An existing environment that already works — ASCII
 path or not — is never touched or relocated.
 
+**Prevention, on a brand new install:** on the first-run setup screen (before
+clicking through it), the **Change…** button on the "App environment" row
+(or "Portable folder" in portable mode) lets you pick an ASCII-only path up
+front — nothing below is needed if you do this before setup completes.
+
 If it still happens — most likely because Windows' 8.3 short filenames are
 off on the system drive, or the affected folder already existed before this
 fix shipped — the app names this cause specifically rather than the generic
-"backend never reported ready," and the error screen offers only **Retry**
-and **Clean & Retry**, neither of which changes where the environment is
-stored, so both fail identically. There are two ways to actually fix it:
+"backend never reported ready." By the time this message can appear, setup
+has already been confirmed (it's only reached after the first-run screen
+hands off to the installer), so the error screen you're actually looking at
+offers only **Retry** and **Clean & Retry** — neither changes where the
+environment is stored, so both fail identically, and the first-run picker
+above is no longer reachable either. The right fix depends on which install
+mode you're in:
 
-- **Still on first-run setup:** use the **Change…** button on the "App
-  environment" row (or "Portable folder" in portable mode) to pick an
-  ASCII-only path (e.g. `C:\VoiceStudio`) — replaces only the Python
-  environment, not your voices/projects/settings.
-- **Already past setup, stuck on the error screen:** quit VoiceStudio, open
-  (creating it if it doesn't exist) `%LOCALAPPDATA%\com.debpalash.omnivoice-studio\config.json`
+- **Standard (non-portable) install:** quit VoiceStudio, open (creating it
+  if it doesn't exist) `%LOCALAPPDATA%\com.debpalash.omnivoice-studio\config.json`
   in a text editor, add `"env_dir": "C:/VoiceStudio/env"` (any path using
   only English letters/numbers — forward slashes are fine on Windows), save,
-  and relaunch. Portable installs keep this file inside the portable folder
-  instead.
+  and relaunch.
+- **Portable install:** the `env_dir` config key above does **not** apply —
+  portable mode resolves its own environment folder from the portable
+  location and never consults it. Quit VoiceStudio, then either move the
+  whole VoiceStudio folder (the app plus its `OmniVoiceStudio-Data` folder)
+  to an ASCII-only path and run it from there, or create a `portable.path`
+  text file beside the app containing one line — an absolute ASCII-only path
+  for the data folder (e.g. `C:\VoiceStudio\Data`) — and relaunch.
 
 Re-enabling 8.3 short filenames (`fsutil 8dot3name`) is deliberately **not**
 recommended here: the setting is per-volume and only affects directories
