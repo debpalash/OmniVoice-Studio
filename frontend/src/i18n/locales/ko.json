@@ -566,11 +566,14 @@
     "generate_budget_title": "연산 시간 예산",
     "generate_budget_desc": "이 하드웨어에 너무 무겁다고 판단되어 중단되기 전까지 한 번의 생성이 실행될 수 있는 시간입니다. CPU 렌더링은 가속 렌더링보다 원래 느리기 때문에, 별도로 더 높은 하한선을 갖습니다.",
     "generate_timeout_gpu": "가속(GPU) 예산",
-    "generate_timeout_gpu_note": "생성이 CUDA, ROCm, MPS 또는 다른 가속기에서 실행될 때 사용됩니다.",
+    "generate_timeout_gpu_note": "생성이 CUDA, ROCm, MPS 또는 다른 가속기에서 실행될 때 사용됩니다. 아래에 CPU 예산이 설정되어 있지 않으면 CPU 생성에도 사용됩니다.",
     "generate_timeout_cpu": "CPU 예산",
-    "generate_timeout_cpu_note": "생성이 CPU에서 실행될 때 사용됩니다 — 여기서는 긴 텍스트가 원래 더 오래 걸립니다.",
+    "generate_timeout_cpu_note": "생성이 CPU에서 실행될 때 사용됩니다. 여기에 저장하면 위의 가속 예산과 관계없이 이 값이 항상 CPU 생성을 관리합니다.",
     "generate_timeout_invalid": "0보다 크고 최대 {{max}}인 초 단위 숫자를 입력하세요.",
-    "generate_timeout_saved": "저장되었습니다. 새 예산을 적용하려면 VoiceStudio를 재시작하세요."
+    "generate_timeout_saved": "저장되었습니다. 새 예산을 적용하려면 VoiceStudio를 재시작하세요.",
+    "generate_timeout_shadowed_badge": "외부에서 재정의됨",
+    "generate_timeout_shadowed_note": "VoiceStudio 외부의 환경 변수(셸, .env 파일 또는 컨테이너)가 현재 이 값을 설정하고 있습니다 — 해당 변수가 제거될 때까지 여기에 저장한 값은 무시됩니다.",
+    "generate_timeout_shadowed_toast": "저장되었지만, VoiceStudio 외부의 환경 변수가 현재 이 값을 설정하고 있습니다 — 해당 변수가 제거될 때까지 계속 사용됩니다."
   },
   "bootstrap": {
     "title": "VoiceStudio",

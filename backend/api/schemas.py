@@ -32,6 +32,10 @@ class SystemInfoResponse(BaseModel):
     # /system/set-env is NOT reflected here until the next restart.
     generate_timeout_s: float = 300.0
     cpu_generate_timeout_s: float = 600.0
+    # True when an external env var (shell, `.env`, Docker, …) is currently
+    # shadowing a prefs.json save for this key — see core.prefs.is_env_shadowed.
+    generate_timeout_shadowed: bool = False
+    cpu_generate_timeout_shadowed: bool = False
     data_dir: str
     outputs_dir: str
     crash_log_path: str

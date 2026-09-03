@@ -204,10 +204,20 @@ def system_info():
     try:
         _ffmpeg = find_ffmpeg()
         from services import model_manager as _mm
+        from core import prefs as _prefs_mod
         return {
             "app_version": APP_VERSION,
             "generate_timeout_s": _mm.GPU_JOB_TIMEOUT_S,
             "cpu_generate_timeout_s": _mm.CPU_JOB_TIMEOUT_S,
+            # #1787 review fix: a saved prefs.json value for either key can be
+            # silently shadowed by an external env var (os.environ.setdefault
+            # in core.prefs.restore_env is a no-op when one is already
+            # present) — the Settings panel must say so rather than promise a
+            # restart will apply a value that never will.
+            "generate_timeout_shadowed": _prefs_mod.is_env_shadowed(
+                "OMNIVOICE_GENERATE_TIMEOUT_S"),
+            "cpu_generate_timeout_shadowed": _prefs_mod.is_env_shadowed(
+                "OMNIVOICE_CPU_GENERATE_TIMEOUT_S"),
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": CRASH_LOG_PATH,
@@ -245,6 +255,8 @@ def system_info():
             "app_version": APP_VERSION,
             "generate_timeout_s": 300.0,
             "cpu_generate_timeout_s": 600.0,
+            "generate_timeout_shadowed": False,
+            "cpu_generate_timeout_shadowed": False,
             "data_dir": DATA_DIR,
             "outputs_dir": OUTPUTS_DIR,
             "crash_log_path": str(CRASH_LOG_PATH),
@@ -989,7 +1001,13 @@ async def set_env_var(body: dict):
         else:
             prefs_delete(prefs_key)
 
-    return {"key": key, "set": bool(value)}
+    # #1787 review fix: tell the caller up front when the value just saved is
+    # being shadowed by an external env var — set at THIS process's startup,
+    # before our own prefs restore ran, so it predicts the next restart too.
+    # A response that just said {"set": True} let the Settings panel promise
+    # a restart would apply a value that never will.
+    from core.prefs import is_env_shadowed
+    return {"key": key, "set": bool(value), "shadowed": is_env_shadowed(key)}
 
 
 @router.post("/clean-audio")
