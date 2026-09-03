@@ -177,12 +177,81 @@ pub fn startup_progress(port: u16) -> Option<(String, String, String)> {
 /// First `"key": "value"` string field in a JSON body — same dependency-free
 /// sniffing style as `parse_app_version`. `None` for absent or non-string
 /// (e.g. `null`) values.
+///
+/// Decodes JSON string escapes properly (`decode_json_string`) rather than
+/// substring-slicing to the first `"` byte: a naive slice returns the
+/// literal wire form, which breaks on any value containing a backslash or an
+/// escaped quote. This matters most for `data_dir` — a Windows path like
+/// `C:\Users\x\AppData\Roaming\OmniVoice` serialises as
+/// `"C:\\Users\\x\\..."`, and slicing to the first raw `"` would either hand
+/// back the doubled-backslash form verbatim or, for a path containing a
+/// literal quote, truncate the value outright.
 fn parse_json_string_field(body: &str, key: &str) -> Option<String> {
     let needle = format!("\"{key}\"");
     let rest = &body[body.find(&needle)? + needle.len()..];
     let rest = rest[rest.find(':')? + 1..].trim_start();
     let rest = rest.strip_prefix('"')?;
-    Some(rest[..rest.find('"')?].to_string())
+    decode_json_string(rest)
+}
+
+/// Decode a JSON string body starting right after its opening `"`, stopping
+/// at the first *unescaped* closing `"`. Handles `\\`, `\"`, `\/`, `\n`,
+/// `\r`, `\t`, `\b`, `\f`, and `\uXXXX` (including UTF-16 surrogate pairs for
+/// codepoints outside the BMP). Returns `None` on an unterminated string or a
+/// malformed escape — matching the previous function's `?`-propagating
+/// behavior on absent/malformed input.
+fn decode_json_string(rest: &str) -> Option<String> {
+    fn read_hex4(chars: &mut std::str::Chars) -> Option<u32> {
+        let mut hex = String::with_capacity(4);
+        for _ in 0..4 {
+            hex.push(chars.next()?);
+        }
+        u32::from_str_radix(&hex, 16).ok()
+    }
+
+    let mut chars = rest.chars();
+    let mut out = String::new();
+    loop {
+        let c = chars.next()?;
+        if c == '"' {
+            return Some(out);
+        }
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next()? {
+            '"' => out.push('"'),
+            '\\' => out.push('\\'),
+            '/' => out.push('/'),
+            'n' => out.push('\n'),
+            'r' => out.push('\r'),
+            't' => out.push('\t'),
+            'b' => out.push('\u{0008}'),
+            'f' => out.push('\u{000C}'),
+            'u' => {
+                let code = read_hex4(&mut chars)?;
+                if (0xD800..=0xDBFF).contains(&code) {
+                    // High surrogate: must be followed by a \uXXXX low
+                    // surrogate to form one codepoint outside the BMP.
+                    if chars.next()? != '\\' || chars.next()? != 'u' {
+                        return None;
+                    }
+                    let low = read_hex4(&mut chars)?;
+                    if !(0xDC00..=0xDFFF).contains(&low) {
+                        return None;
+                    }
+                    let cp = 0x10000 + (((code - 0xD800) << 10) | (low - 0xDC00));
+                    out.push(char::from_u32(cp)?);
+                } else if (0xDC00..=0xDFFF).contains(&code) {
+                    return None; // lone low surrogate — malformed
+                } else {
+                    out.push(char::from_u32(code)?);
+                }
+            }
+            _ => return None, // invalid escape
+        }
+    }
 }
 
 /// Status code from a raw HTTP response ("HTTP/1.1 200 OK" → 200).
@@ -939,6 +1008,52 @@ mod tests {
 
         // Nothing listening → None, same fallback path.
         assert_eq!(backend_data_dir(1), None); // port 1 — never bindable by us
+    }
+
+    #[test]
+    fn parse_json_string_field_decodes_escape_sequences() {
+        // Windows data dirs are full of backslashes: the backend serializes
+        // `C:\Users\x\AppData\Roaming\OmniVoice` as
+        // `"C:\\Users\\x\\AppData\\Roaming\\OmniVoice"` on the wire. A naive
+        // substring extract to the first raw `"` would hand back the
+        // doubled-backslash literal instead of the real path.
+        assert_eq!(
+            parse_json_string_field(
+                r#"{"data_dir": "C:\\Users\\x\\AppData\\Roaming\\OmniVoice"}"#,
+                "data_dir"
+            ),
+            Some(r"C:\Users\x\AppData\Roaming\OmniVoice".to_string())
+        );
+
+        // A path containing an escaped quote must not truncate the value at
+        // that quote — only an UNESCAPED quote terminates the string.
+        assert_eq!(
+            parse_json_string_field(r#"{"data_dir": "C:\\a \"weird\" dir"}"#, "data_dir"),
+            Some("C:\\a \"weird\" dir".to_string())
+        );
+
+        // \uXXXX escapes, including a surrogate pair for a codepoint outside
+        // the BMP (backend labels are ensure_ascii-encoded JSON, so any
+        // non-ASCII text — e.g. an ellipsis "…" or an emoji — arrives this
+        // way, not as raw UTF-8 bytes).
+        assert_eq!(
+            parse_json_string_field(r#"{"label": "Loading\u2026"}"#, "label"),
+            Some("Loading\u{2026}".to_string())
+        );
+        assert_eq!(
+            parse_json_string_field(r#"{"label": "\ud83d\ude00"}"#, "label"),
+            Some("\u{1F600}".to_string())
+        );
+
+        // The other basic escapes.
+        assert_eq!(
+            parse_json_string_field(r#"{"x": "a\nb\tc\rd\/e"}"#, "x"),
+            Some("a\nb\tc\rd/e".to_string())
+        );
+
+        // Malformed/unterminated input still degrades to None.
+        assert_eq!(parse_json_string_field(r#"{"x": "unterminated"#, "x"), None);
+        assert_eq!(parse_json_string_field(r#"{"x": "bad \q escape"}"#, "x"), None);
     }
 
     #[test]
