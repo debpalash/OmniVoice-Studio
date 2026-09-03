@@ -12,7 +12,11 @@ import {
 } from '../utils/streamingTts';
 import { probeAudioDuration } from '../utils/format';
 import { CLONE_MAX_SECONDS, PRESETS } from '../utils/constants';
-import { buildDesignInstruct, designModeProfileId, mergeDescribedAttrs } from '../utils/voiceInstruct';
+import {
+  buildDesignInstruct,
+  designModeProfileId,
+  mergeDescribedAttrs,
+} from '../utils/voiceInstruct';
 import { toast } from 'react-hot-toast';
 import { toastErrorWithReport } from '../utils/errorToast';
 import { modelNotDownloadedPayload, toastModelNotDownloaded } from '../utils/modelNotDownloaded';

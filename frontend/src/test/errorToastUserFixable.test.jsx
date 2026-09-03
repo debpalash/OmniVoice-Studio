@@ -114,14 +114,42 @@ describe('toastErrorWithReport voice-design instruct guidance (#1771)', () => {
     });
   });
 
-  it('tts_errors.dialect_accent_conflict and instruct_category_conflict exist in every locale', () => {
+  // Enumerated rather than globbed: a `>= 21` count over readdir() passes
+  // even when a supported locale is missing, as long as some other .json
+  // makes up the number. Naming the files means dropping one fails here.
+  const SUPPORTED_LOCALES = [
+    'ar',
+    'de',
+    'en',
+    'es',
+    'fr',
+    'hi',
+    'id',
+    'it',
+    'ja',
+    'ko',
+    'nl',
+    'pl',
+    'pt',
+    'ru',
+    'sv',
+    'th',
+    'tr',
+    'uk',
+    'vi',
+    'zh-CN',
+    'zh-TW',
+  ];
+
+  it('every new i18n key added for #1771 exists in all 21 locales', () => {
     const localesDir = path.resolve(__dirname, '../i18n/locales');
-    const files = fs.readdirSync(localesDir).filter((f) => f.endsWith('.json'));
-    expect(files.length).toBeGreaterThanOrEqual(21);
-    for (const f of files) {
-      const locale = JSON.parse(fs.readFileSync(path.join(localesDir, f), 'utf8'));
-      expect(locale.tts_errors?.dialect_accent_conflict, `${f} missing the key`).toBeTruthy();
-      expect(locale.tts_errors?.instruct_category_conflict, `${f} missing the key`).toBeTruthy();
+    expect(SUPPORTED_LOCALES).toHaveLength(21);
+    for (const code of SUPPORTED_LOCALES) {
+      const locale = JSON.parse(fs.readFileSync(path.join(localesDir, `${code}.json`), 'utf8'));
+      expect(locale.tts_errors?.dialect_accent_conflict, `${code} missing key`).toBeTruthy();
+      expect(locale.tts_errors?.instruct_category_conflict, `${code} missing key`).toBeTruthy();
+      expect(locale.tts_errors?.ignored_conflict, `${code} missing key`).toBeTruthy();
+      expect(locale.clone?.vd_exclusive_cleared, `${code} missing key`).toBeTruthy();
     }
   });
 });

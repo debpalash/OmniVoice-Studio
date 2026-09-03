@@ -125,7 +125,10 @@ describe('buildDesignInstruct', () => {
     });
 
     it('drops a free-text dialect when a dropdown accent already claimed the group', () => {
-      const { instruct, conflicts } = buildDesignInstruct({ EnglishAccent: 'british accent' }, '四川话');
+      const { instruct, conflicts } = buildDesignInstruct(
+        { EnglishAccent: 'british accent' },
+        '四川话',
+      );
       expect(instruct).toBe('british accent');
       expect(conflicts).toContain('四川话');
     });
@@ -140,10 +143,7 @@ describe('buildDesignInstruct', () => {
     });
 
     it('drops the second of two free-text conflicting items, keeping the first', () => {
-      const { instruct, conflicts, unsupported } = buildDesignInstruct(
-        {},
-        'indian accent, 四川话',
-      );
+      const { instruct, conflicts, unsupported } = buildDesignInstruct({}, 'indian accent, 四川话');
       expect(instruct).toBe('indian accent');
       expect(conflicts).toEqual(['四川话']);
       expect(unsupported).toEqual([]);
@@ -253,7 +253,11 @@ describe('applyVdState (#1771 — live picker guard)', () => {
       'EnglishAccent',
       'korean accent',
     );
-    expect(vdStates).toEqual({ ...allAuto, EnglishAccent: 'korean accent', ChineseDialect: 'Auto' });
+    expect(vdStates).toEqual({
+      ...allAuto,
+      EnglishAccent: 'korean accent',
+      ChineseDialect: 'Auto',
+    });
     expect(clearedCategory).toBe('ChineseDialect');
   });
 
