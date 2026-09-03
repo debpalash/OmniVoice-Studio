@@ -44,7 +44,7 @@ export default function DesignMethodPanel({
   setIdentityOpen,
   identityRecipe,
   vdStates,
-  setVdStates,
+  onVdChange,
   onChipKeyDown,
   showSaveProfile,
   setShowSaveProfile,
@@ -172,7 +172,7 @@ export default function DesignMethodPanel({
                   <select
                     className="input-base"
                     value={vdStates[key]}
-                    onChange={(e) => setVdStates({ ...vdStates, [key]: e.target.value })}
+                    onChange={(e) => onVdChange(key, e.target.value)}
                   >
                     {options.map((opt) => (
                       <option key={opt} value={opt}>
@@ -206,7 +206,7 @@ export default function DesignMethodPanel({
                           aria-checked={checked}
                           tabIndex={roving ? 0 : -1}
                           className={`${CHIP_BASE} ${checked ? CHIP_ACTIVE : CHIP_INACTIVE}`}
-                          onClick={() => setVdStates({ ...vdStates, [key]: opt })}
+                          onClick={() => onVdChange(key, opt)}
                           onKeyDown={(e) => onChipKeyDown(e, key, options)}
                         >
                           {opt === 'Auto' ? (

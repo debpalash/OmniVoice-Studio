@@ -580,6 +580,7 @@
     "cat_Style": "Stile",
     "cat_EnglishAccent": "Accento inglese",
     "cat_ChineseDialect": "Dialetto cinese",
+    "vd_exclusive_cleared": "{{cleared}} rimosso — un dialetto cinese e un accento inglese non possono essere combinati.",
     "opt_Auto": "✨ Automatico",
     "opt_male": "maschio",
     "opt_female": "femmina",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Errore: {{message}}",
     "ignored_unsupported": "Istruzione non supportata ignorata: {{items}}",
     "ignored_duplicate": "Ignorato (categoria già impostata): {{items}}",
+    "ignored_conflict": "{{items}} ignorato — un dialetto cinese e un accento inglese non possono essere combinati.",
+    "dialect_accent_conflict": "Un dialetto cinese e un accento inglese non possono essere usati insieme. Rimuovine uno prima di generare di nuovo.",
+    "instruct_category_conflict": "Sono state selezionate due opzioni di progettazione vocale in conflitto nella stessa categoria (ad es. due generi). Rimuovine una prima di generare di nuovo.",
     "ref_audio_unusable": "Nessuna voce rilevata nell'audio di riferimento: la clip è silenziosa o quasi, quindi non c'è alcuna voce da clonare. Registra di nuovo più vicino al microfono (verifica che sia selezionato il dispositivo di ingresso corretto e che il livello si muova) oppure scegli un'altra clip.",
     "ref_audio_too_long": "Un riferimento può durare al massimo 20 secondi con trascrizione o 75 secondi senza. Taglialo a un passaggio parlato chiaro di 3–10 secondi; se fornisci il testo, taglia la trascrizione sullo stesso passaggio.",
     "ref_audio_no_speech": "Il rilevamento automatico non ha trovato parole pronunciate nel riferimento. Taglialo a un passaggio parlato chiaro di 3–10 secondi o fornisci una trascrizione corrispondente."

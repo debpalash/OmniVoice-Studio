@@ -580,6 +580,7 @@
     "cat_Style": "Estilo",
     "cat_EnglishAccent": "acento inglés",
     "cat_ChineseDialect": "dialecto chino",
+    "vd_exclusive_cleared": "Se borró {{cleared}} — un dialecto chino y un acento inglés no se pueden combinar.",
     "opt_Auto": "✨Automático",
     "opt_male": "masculino",
     "opt_female": "hembra",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Error: {{message}}",
     "ignored_unsupported": "Instrucción no admitida ignorada: {{items}}",
     "ignored_duplicate": "Ignorado (categoría ya establecida): {{items}}",
+    "ignored_conflict": "Se ignoró {{items}} — un dialecto chino y un acento inglés no se pueden combinar.",
+    "dialect_accent_conflict": "Un dialecto chino y un acento inglés no se pueden usar juntos. Borra uno antes de generar de nuevo.",
+    "instruct_category_conflict": "Se seleccionaron dos opciones de diseño de voz conflictivas en la misma categoría (por ejemplo, dos géneros). Borra una antes de generar de nuevo.",
     "ref_audio_unusable": "No se detectó voz en el audio de referencia: el clip está en silencio o casi en silencio, así que no hay voz que clonar. Graba de nuevo más cerca del micrófono (comprueba que está seleccionado el dispositivo de entrada correcto y que el nivel se mueve) o elige otro clip.",
     "ref_audio_too_long": "Una referencia puede durar como máximo 20 segundos con transcripción o 75 segundos sin ella. Recórtala a un fragmento de voz claro de 3–10 segundos; si aportas texto, recorta la transcripción al mismo fragmento.",
     "ref_audio_no_speech": "La detección automática no encontró palabras habladas en la referencia. Recórtala a un fragmento de voz claro de 3–10 segundos o proporciona una transcripción coincidente."

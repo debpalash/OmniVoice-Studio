@@ -580,6 +580,7 @@
     "cat_Style": "phong cách",
     "cat_EnglishAccent": "Giọng Anh",
     "cat_ChineseDialect": "Phương ngữ Trung Quốc",
+    "vd_exclusive_cleared": "Đã xóa {{cleared}} — không thể kết hợp giọng địa phương Trung Quốc và giọng Anh.",
     "opt_Auto": "✨ Ô tô",
     "opt_male": "nam giới",
     "opt_female": "nữ",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Lỗi: {{message}}",
     "ignored_unsupported": "Đã bỏ qua hướng dẫn không được hỗ trợ: {{items}}",
     "ignored_duplicate": "Đã bỏ qua (danh mục đã được đặt): {{items}}",
+    "ignored_conflict": "Đã bỏ qua {{items}} — không thể kết hợp giọng địa phương Trung Quốc và giọng Anh.",
+    "dialect_accent_conflict": "Không thể dùng giọng địa phương Trung Quốc và giọng Anh cùng lúc. Hãy xóa một trong hai trước khi tạo lại.",
+    "instruct_category_conflict": "Đã chọn hai tùy chọn thiết kế giọng nói xung đột trong cùng một danh mục (ví dụ: hai giới tính). Hãy xóa một trong hai trước khi tạo lại.",
     "ref_audio_unusable": "Không nghe thấy giọng nói trong âm thanh tham chiếu — đoạn clip im lặng hoặc gần như im lặng nên không có giọng để nhân bản. Hãy thu âm lại gần micro hơn (kiểm tra đã chọn đúng thiết bị đầu vào và mức âm có dao động) hoặc chọn một clip khác.",
     "ref_audio_too_long": "Âm thanh tham chiếu dài tối đa 20 giây khi có bản chép lời hoặc 75 giây khi không có. Hãy cắt thành đoạn lời nói rõ dài 3–10 giây; nếu cung cấp văn bản, hãy cắt bản chép lời theo đúng đoạn đó.",
     "ref_audio_no_speech": "Tính năng phát hiện tự động không tìm thấy lời nói trong âm thanh tham chiếu. Hãy cắt thành đoạn lời nói rõ dài 3–10 giây hoặc cung cấp bản chép lời khớp."

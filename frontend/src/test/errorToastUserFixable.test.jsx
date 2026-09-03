@@ -82,6 +82,50 @@ describe('toastErrorWithReport user-fixable marker mapping (#1188)', () => {
   });
 });
 
+// #1771: the voice-design instruct validator (omnivoice/models/omnivoice.py::
+// _resolve_instruct, #664) rejects a dialect+accent mix and a same-category
+// conflict with a fixed English message and no [marker]. The client-side
+// guards in voiceInstruct.js already stop the picker from building these —
+// this is the backstop for a conflict that reaches the engine by any other
+// route (an imported project, a hand-edited/legacy profile).
+describe('toastErrorWithReport voice-design instruct guidance (#1771)', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+  });
+
+  it('shows actionable guidance for the dialect/accent 400, not the raw detail', () => {
+    const detail =
+      '400 Bad Request: Cannot mix Chinese dialect and English accent in a single instruct. ' +
+      'Dialects are for Chinese speech, accents for English speech.';
+    toastErrorWithReport(`Error: ${detail}`, new Error(detail));
+    expect(toastErrorMock).toHaveBeenCalledWith('t:tts_errors.dialect_accent_conflict', {
+      duration: 8000,
+    });
+  });
+
+  it('shows actionable guidance for a same-category conflict 400', () => {
+    const detail =
+      "400 Bad Request: Conflicting instruct items within the same category: 'male' vs " +
+      "'female'. Each category (gender, age, pitch, style, accent, dialect) allows at most " +
+      'one item.';
+    toastErrorWithReport(`Error: ${detail}`, new Error(detail));
+    expect(toastErrorMock).toHaveBeenCalledWith('t:tts_errors.instruct_category_conflict', {
+      duration: 8000,
+    });
+  });
+
+  it('tts_errors.dialect_accent_conflict and instruct_category_conflict exist in every locale', () => {
+    const localesDir = path.resolve(__dirname, '../i18n/locales');
+    const files = fs.readdirSync(localesDir).filter((f) => f.endsWith('.json'));
+    expect(files.length).toBeGreaterThanOrEqual(21);
+    for (const f of files) {
+      const locale = JSON.parse(fs.readFileSync(path.join(localesDir, f), 'utf8'));
+      expect(locale.tts_errors?.dialect_accent_conflict, `${f} missing the key`).toBeTruthy();
+      expect(locale.tts_errors?.instruct_category_conflict, `${f} missing the key`).toBeTruthy();
+    }
+  });
+});
+
 // #1276: a shutdown is not a fault and must not offer a bug report. Matched on
 // the [shutting_down] MARKER, never on the bare 503 status — 503 is also how a
 // real engine-load timeout and an unavailable engine are reported (#1246,

@@ -580,6 +580,7 @@
     "cat_Style": "Stijl",
     "cat_EnglishAccent": "Engels accent",
     "cat_ChineseDialect": "Chinees dialect",
+    "vd_exclusive_cleared": "{{cleared}} gewist — een Chinees dialect en een Engels accent kunnen niet worden gecombineerd.",
     "opt_Auto": "✨ Automatisch",
     "opt_male": "mannetje",
     "opt_female": "vrouwelijk",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Fout: {{message}}",
     "ignored_unsupported": "Genegeerde niet-ondersteunde instructie: {{items}}",
     "ignored_duplicate": "Genegeerd (categorie al ingesteld): {{items}}",
+    "ignored_conflict": "{{items}} genegeerd — een Chinees dialect en een Engels accent kunnen niet worden gecombineerd.",
+    "dialect_accent_conflict": "Een Chinees dialect en een Engels accent kunnen niet samen worden gebruikt. Wis er een voordat u opnieuw genereert.",
+    "instruct_category_conflict": "Er zijn twee tegenstrijdige spraakontwerpopties in dezelfde categorie geselecteerd (bijv. twee geslachten). Wis er een voordat u opnieuw genereert.",
     "ref_audio_unusable": "Er is geen spraak gehoord in de referentie-audio — de clip is stil of bijna stil, dus er is geen stem om te klonen. Neem opnieuw op dichter bij de microfoon (controleer of het juiste invoerapparaat is geselecteerd en het niveau beweegt) of kies een andere clip.",
     "ref_audio_too_long": "Een referentie mag maximaal 20 seconden duren met transcript, of 75 seconden zonder transcript. Knip deze tot een duidelijke gesproken passage van 3–10 seconden; knip een meegeleverd transcript tot dezelfde passage.",
     "ref_audio_no_speech": "De automatische spraakdetectie vond geen gesproken woorden in de referentie. Knip deze tot een duidelijke gesproken passage van 3–10 seconden of geef een passend transcript op."

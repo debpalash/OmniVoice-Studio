@@ -580,6 +580,7 @@
     "cat_Style": "Stil",
     "cat_EnglishAccent": "Engelsk accent",
     "cat_ChineseDialect": "Kinesisk dialekt",
+    "vd_exclusive_cleared": "{{cleared}} rensades — en kinesisk dialekt och en engelsk brytning kan inte kombineras.",
     "opt_Auto": "✨ Auto",
     "opt_male": "manlig",
     "opt_female": "kvinnlig",
@@ -2132,6 +2133,9 @@
     "error_prefix": "Fel: {{message}}",
     "ignored_unsupported": "Ignorerad instruktion som inte stöds: {{items}}",
     "ignored_duplicate": "Ignorerad (kategori redan inställd): {{items}}",
+    "ignored_conflict": "{{items}} ignorerades — en kinesisk dialekt och en engelsk brytning kan inte kombineras.",
+    "dialect_accent_conflict": "En kinesisk dialekt och en engelsk brytning kan inte användas tillsammans. Rensa en av dem innan du genererar igen.",
+    "instruct_category_conflict": "Två motstridiga röstdesignalternativ valdes i samma kategori (t.ex. två kön). Rensa ett av dem innan du genererar igen.",
     "ref_audio_unusable": "Inget tal kunde höras i referensljudet — klippet är tyst eller nästan tyst, så det finns ingen röst att klona. Spela in igen närmare mikrofonen (kontrollera att rätt ingångsenhet är vald och att nivån rör sig) eller välj ett annat klipp.",
     "ref_audio_too_long": "En referens får vara högst 20 sekunder med transkription eller 75 sekunder utan. Klipp den till ett tydligt talavsnitt på 3–10 sekunder; om du anger text ska transkriptionen klippas till samma avsnitt.",
     "ref_audio_no_speech": "Den automatiska taldetekteringen hittade inga talade ord. Klipp referensen till ett tydligt talavsnitt på 3–10 sekunder eller ange en matchande transkription."
