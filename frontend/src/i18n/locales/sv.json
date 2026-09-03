@@ -1142,7 +1142,10 @@
     "multi_lang_skipped": "Översättningen misslyckades för {{langs}}. Dessa dubbningar hoppades över för att undvika ett spår på fel språk.",
     "manage_languages": "Hantera språk",
     "languages_done": "Klart",
-    "languages_pending": "Väntar"
+    "languages_pending": "Väntar",
+    "live_preview": "Live-förhandsvisning",
+    "live_preview_title": "Hör en rad medan du redigerar den — det redigerade segmentet strömmar TTS med sin CAST-röst efter en kort paus. Endast uppspelning: inget sparas och exporten renderas fortfarande i full kvalitet.",
+    "live_preview_pick_voice": "Tilldela en CAST-röst till den här raden eller dess talare för att höra live-förhandsvisningen."
   },
   "glossary": {
     "title": "Ordlista",
@@ -1239,7 +1242,9 @@
     "fit_audio_title": "Ljudet passar in i öppningen.",
     "fit_ratio_title": "TTS-ljud är {{pct}}% av kortplatsen.",
     "qc_verify": "Verifiera",
-    "qc_verify_title": "Second-pass ASR hörde: \"{{heard}}\" — lyssna igen eller dubba om den här raden."
+    "qc_verify_title": "Second-pass ASR hörde: \"{{heard}}\" — lyssna igen eller dubba om den här raden.",
+    "live_play_title": "Strömma den här raden nu (live-förhandsvisning)",
+    "live_stop_title": "Stoppa live-förhandsvisningen"
   },
   "timeline": {
     "track_label": "Segmenttidslinje",

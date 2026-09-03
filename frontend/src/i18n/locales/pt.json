@@ -1142,7 +1142,10 @@
     "multi_lang_skipped": "A tradução de {{langs}} falhou; essas dublagens foram ignoradas para evitar uma faixa no idioma errado.",
     "manage_languages": "Gerenciar idiomas",
     "languages_done": "Concluído",
-    "languages_pending": "Pendente"
+    "languages_pending": "Pendente",
+    "live_preview": "Prévia ao vivo",
+    "live_preview_title": "Ouça uma linha enquanto a edita — o segmento editado transmite TTS com sua voz do CAST após uma breve pausa. Apenas reprodução: nada é salvo e a exportação continua renderizando em qualidade total.",
+    "live_preview_pick_voice": "Atribua uma voz do CAST a esta linha ou ao seu falante para ouvir a prévia ao vivo."
   },
   "glossary": {
     "title": "Glossário",
@@ -1239,7 +1242,9 @@
     "fit_audio_title": "O áudio cabe dentro do slot.",
     "fit_ratio_title": "O áudio TTS é {{pct}}% do slot.",
     "qc_verify": "Verifique",
-    "qc_verify_title": "ASR de segunda passagem ouvido: \"{{heard}}\" — ouça novamente ou duble esta linha."
+    "qc_verify_title": "ASR de segunda passagem ouvido: \"{{heard}}\" — ouça novamente ou duble esta linha.",
+    "live_play_title": "Transmitir esta linha agora (prévia ao vivo)",
+    "live_stop_title": "Parar a prévia ao vivo"
   },
   "timeline": {
     "track_label": "Linha do tempo de segmentos",

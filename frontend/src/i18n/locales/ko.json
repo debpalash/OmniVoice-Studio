@@ -1451,7 +1451,10 @@
     "timing_stretch_video": "영상 늘리기",
     "timing_strict_slot": "엄격한 슬롯",
     "track_tip_duration": "길이 {{duration}}",
-    "track_tip_timing": "타이밍 {{strategy}}"
+    "track_tip_timing": "타이밍 {{strategy}}",
+    "live_preview": "실시간 미리듣기",
+    "live_preview_title": "편집 중인 문장을 바로 들어보세요 — 편집한 세그먼트는 잠시 후 CAST 보이스로 TTS를 스트리밍합니다. 재생 전용: 아무것도 저장되지 않으며 내보내기는 여전히 최고 품질로 렌더링됩니다.",
+    "live_preview_pick_voice": "실시간 미리듣기를 들으려면 이 줄이나 화자에게 CAST 보이스를 지정하세요."
   },
   "glossary": {
     "title": "용어집",
@@ -1554,7 +1557,9 @@
     "plan_impossible": "맞지 않음 +{{seconds}}초",
     "plan_impossible_title": "예상 발화 길이는 ≈{{est}}초, 사용 가능 시간은 {{avail}}초입니다 — 어떤 맞춤 조정으로도 흡수할 수 없는 약 {{seconds}}초가 초과되어 오디오가 잘리게 됩니다. 생성하기 전에 텍스트를 줄이세요.",
     "plan_tight": "빠듯하게 맞음",
-    "plan_tight_title": "예상 발화 길이는 ≈{{est}}초, 사용 가능 시간은 {{avail}}초입니다 — 스마트 핏으로 흡수할 수 있지만, 체감되는 속도 조절이나 영상 슬로우다운이 필요합니다. 더 깔끔한 결과를 위해 텍스트를 줄이세요."
+    "plan_tight_title": "예상 발화 길이는 ≈{{est}}초, 사용 가능 시간은 {{avail}}초입니다 — 스마트 핏으로 흡수할 수 있지만, 체감되는 속도 조절이나 영상 슬로우다운이 필요합니다. 더 깔끔한 결과를 위해 텍스트를 줄이세요.",
+    "live_play_title": "이 줄 지금 스트리밍(실시간 미리듣기)",
+    "live_stop_title": "실시간 미리듣기 중지"
   },
   "timeline": {
     "track_label": "세그먼트 타임라인",

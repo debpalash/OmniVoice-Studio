@@ -1142,7 +1142,10 @@
     "multi_lang_skipped": "{{langs}} の翻訳に失敗したため、誤った言語のトラックが生成されないよう該当する吹き替えをスキップしました。",
     "manage_languages": "言語を管理",
     "languages_done": "完了",
-    "languages_pending": "保留中"
+    "languages_pending": "保留中",
+    "live_preview": "ライブプレビュー",
+    "live_preview_title": "編集中のセリフをそのまま試聴 — 編集したセグメントは少し置いてから CAST ボイスで TTS をストリーミングします。再生のみ: 何も保存されず、書き出しは引き続きフル品質でレンダリングされます。",
+    "live_preview_pick_voice": "ライブプレビューを聴くには、この行または話者に CAST ボイスを割り当ててください。"
   },
   "glossary": {
     "title": "用語集",
@@ -1239,7 +1242,9 @@
     "fit_audio_title": "オーディオはスロット内に収まります。",
     "fit_ratio_title": "TTS オーディオはスロットの {{pct}}% です。",
     "qc_verify": "検証する",
-    "qc_verify_title": "2 パス目の ASR は次のように聞きました: 「{{heard}}」 — この行をもう一度聞くか、再ダビングします。"
+    "qc_verify_title": "2 パス目の ASR は次のように聞きました: 「{{heard}}」 — この行をもう一度聞くか、再ダビングします。",
+    "live_play_title": "この行を今すぐストリーミング(ライブプレビュー)",
+    "live_stop_title": "ライブプレビューを停止"
   },
   "timeline": {
     "track_label": "セグメントタイムライン",
