@@ -1923,6 +1923,17 @@ enum VenvRootDecision {
 /// `None` (couldn't even spawn) — keeps `true_root`, exactly as before this
 /// fix existed, and falls through to the pre-existing uvicorn/pkg_resources/
 /// omnivoice repair logic unchanged.
+///
+/// One more case fails fast rather than falling to `Keep` (greptile P1): case
+/// 1 above with `redirect_helps` false — a fresh install whose non-ASCII
+/// `true_root` has no ASCII-safe alternative (8.3 short names unavailable).
+/// `Keep` there used to mean "commit to a multi-GB `uv sync` at a path
+/// already known unusable, then diagnose the identical crash afterwards" —
+/// the information needed to fail fast was already available before the
+/// download started. `is_ascii_path(true_root)` is checked explicitly here
+/// (not inferred from `redirect_helps`, which is also false for the
+/// perfectly-fine ASCII case) so an ASCII `true_root` still takes the
+/// zero-cost, zero-behaviour-change `Keep` path.
 fn resolve_venv_root(
     true_root: &Path,
     ascii_safe_root: &Path,
@@ -1943,6 +1954,21 @@ fn resolve_venv_root(
         }
     } else if redirect_helps {
         VenvRootDecision::Redirect(ascii_safe_root.to_path_buf())
+    } else if !crate::setup::is_ascii_path(true_root) {
+        // greptile P1: a fresh install at a non-ASCII path whose short-name
+        // redirect genuinely failed (8.3 generation unavailable) used to
+        // fall through to `Keep` here — which doesn't mean "this path is
+        // fine", it means "nothing could be done about it". Committing to a
+        // multi-GB `uv sync` at a path already known unusable just moves the
+        // same diagnosis to AFTER the wait instead of skipping it. Fail fast
+        // with the same conclusion the existing-venv branch above already
+        // reaches for the identical unfixable case, before anything
+        // downloads. An ASCII `true_root` never reaches this arm —
+        // `redirect_helps` is trivially false for it too, but `is_ascii_path`
+        // is checked explicitly rather than inferred from that, so this
+        // stays correct even if `resolve_venv_root` is ever called directly
+        // without the `ensure_venv_ready` pre-check that normally shields it.
+        VenvRootDecision::Unfixable
     } else {
         VenvRootDecision::Keep
     }
@@ -3539,6 +3565,41 @@ UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal m
             resolve_venv_root(true_root, ascii_root, false, None),
             VenvRootDecision::Redirect(ascii_root.to_path_buf())
         );
+    }
+
+    #[test]
+    fn a_nonexistent_venv_at_a_nonascii_root_fails_fast_when_no_safe_alternative_exists() {
+        // greptile P1: `ascii_safe_dir` returning the path UNCHANGED for a
+        // non-ASCII `true_root` (8.3 short names unavailable) used to fall
+        // through to `Keep` here — silently committing to a multi-GB
+        // `uv sync` at a path already known unusable, and only diagnosing
+        // the identical #1783 crash after the whole download completed. The
+        // information needed to fail fast — true_root is non-ASCII AND
+        // ascii_safe_root changed nothing — was already available before
+        // any of that started, so this must be `Unfixable`, not `Keep`.
+        //
+        // Genuinely non-ASCII bytes (`\u{...}` escapes, matching setup.rs's
+        // convention) — "/nonascii/root" elsewhere in this file is only a
+        // descriptive LABEL, not actual non-ASCII content, and would have
+        // let this exact bug slip past a less careful fixture.
+        let true_root = PathBuf::from(format!("/{}/root", "\u{65e5}\u{672c}\u{8a9e}"));
+        assert_eq!(
+            resolve_venv_root(&true_root, &true_root, false, None),
+            VenvRootDecision::Unfixable
+        );
+    }
+
+    #[test]
+    fn an_ascii_root_with_nothing_built_yet_is_always_kept_zero_cost() {
+        // The other half of the same greptile finding: fixing the
+        // non-ASCII-fails-fast case above must NOT over-trigger on the
+        // overwhelming-majority ASCII case, which is trivially "redirect
+        // changes nothing" too (`ascii_safe_root == true_root`) but for a
+        // completely different, harmless reason. `is_ascii_path` is checked
+        // explicitly inside `resolve_venv_root` rather than inferred from
+        // `redirect_helps` alone, specifically so this stays `Keep`.
+        let root = Path::new("/ascii/root");
+        assert_eq!(resolve_venv_root(root, root, false, None), VenvRootDecision::Keep);
     }
 
     #[test]
