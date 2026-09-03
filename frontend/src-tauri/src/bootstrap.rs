@@ -465,28 +465,45 @@ fn prepare_backend_launch<R: tauri::Runtime>(
     // The health probe (`/profiles`) and the identity probe (`/system/info`)
     // are still two separate requests — they hit different routes, so they
     // can't be folded into one fetch — which leaves a structurally similar
-    // window open: two unsynchronized requests can never be atomic, and if
-    // the process on the port changes between them, a naive
-    // identity-then-health ordering could pair one process's (already
-    // stale) identity with a DIFFERENT process's health, attaching to the
-    // second process without ever validating IT — precisely what this
-    // fingerprint check exists to prevent, reached by a different route.
-    // (This window predates #1770: the old code split `running_backend_version`
-    // and `backend_deep_healthy` the same way, but this PR makes the
-    // identity check load-bearing, so it's the right place to close it.)
+    // window open: two unsynchronized requests can never be atomic, so
+    // EITHER ordering can pair the response of one process on the port with
+    // a DIFFERENT process's response to the other probe if the port changes
+    // hands between them. (This window predates #1770: the old code split
+    // `running_backend_version` and `backend_deep_healthy` the same way, but
+    // this PR makes the identity check load-bearing, so it's the right
+    // place to reason about it explicitly rather than leave it implicit.)
+    //
+    // Reordering cannot remove that window — it only decides which side of
+    // the pair can be stale, and the two failure modes are not equally bad:
+    //   - identity-then-health (the naive order): a swap after the identity
+    //     probe means we could attach on a STALE IDENTITY paired with a
+    //     fresh health check — silently adopting code we never actually
+    //     validated. That's exactly the #1770 bug, and nothing downstream
+    //     ever re-checks identity on an attached backend, so it would be
+    //     permanent for the life of the session.
+    //   - health-then-identity (this order): a swap after the health probe
+    //     means we could attach on a STALE HEALTH CHECK paired with a fresh
+    //     identity — the code is correctly validated, only the "it was
+    //     alive a moment ago" claim might be outdated. That failure is
+    //     SELF-CORRECTING: an attached backend is polled continuously by
+    //     `attached_backend_healthy()` in the supervisor loop (see its grace
+    //     window — `attached_backend_health_grace_recovers_without_false_crash_or_port_failure`
+    //     covers exactly this), so a backend that was actually unhealthy at
+    //     attach time is caught and replaced within one poll interval.
+    //     Identity has no equivalent recheck — that absence is the whole
+    //     reason this PR exists — so its correctness must be established at
+    //     attach time, as late as possible.
     //
     // Health is therefore probed FIRST and identity LAST, immediately
-    // before the attach decision — the thing validated most recently is
-    // the identity of whatever is actually on the port right now, and any
-    // process swap that happened before the identity probe is caught by
-    // that fresh read (the version-mismatch and fingerprint-mismatch arms
-    // below fire exactly as if the swap had always been there). The
-    // remaining exposure is irreducible without one atomic endpoint
-    // returning identity + readiness together: a swap in the (sub-millisecond,
-    // no further network I/O) gap between reading `identity` and the
-    // `SuperviseAttached` return below can still occur in principle. That
-    // residual window is far tighter than "spans two round-trips" and is
-    // accepted as the practical floor for a two-probe HTTP handshake.
+    // before the attach decision, deliberately choosing "stale health" over
+    // "stale identity" as the side left exposed. A process swap that
+    // happened before the identity probe is caught by that fresh read (the
+    // version-mismatch and fingerprint-mismatch arms below fire exactly as
+    // if the swap had always been there). The remaining exposure —
+    // attaching to a backend whose health was confirmed a moment earlier
+    // rather than at this exact instant — is irreducible without one atomic
+    // endpoint returning identity + readiness together, and is accepted
+    // because the supervisor's continuous health polling already covers it.
     let deep_healthy = crate::backend::backend_deep_healthy(backend_port());
     match crate::backend::running_backend_identity(backend_port()) {
         Some(identity) if crate::backend::same_app_version(&identity.version) => {

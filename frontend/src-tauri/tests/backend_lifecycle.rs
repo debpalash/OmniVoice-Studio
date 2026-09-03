@@ -806,6 +806,13 @@ fn identity_probed_after_health_reflects_the_port_at_decision_time() {
                 }
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Whether an accepted socket inherits the listening
+                        // socket's non-blocking flag is OS-dependent (Linux,
+                        // macOS, and Windows disagree) — this job runs on all
+                        // three, so leave nothing to inheritance. Force
+                        // blocking mode explicitly; the read timeout below
+                        // then bounds it deterministically everywhere.
+                        stream.set_nonblocking(false).expect("accepted stream to blocking mode");
                         let mut buf = [0u8; 512];
                         let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
                         let n = stream.read(&mut buf).unwrap_or(0);
