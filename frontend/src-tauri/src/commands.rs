@@ -30,9 +30,25 @@ pub struct AuthorizedPathSelection {
     path: String,
 }
 
+/// Directory for one-shot host-path capability files (and the
+/// paired `revealed-paths` ledger) — must agree with what the *running
+/// backend* resolves in `backend/core/path_authorization.py`, since the
+/// backend is what reads these tokens back over loopback HTTP.
+///
+/// Prefers the backend's own advertised `data_dir` (`GET /system/info`, see
+/// `backend::backend_data_dir`) so the two processes cannot disagree; falls
+/// back to Tauri's own resolution (`setup::resolved_data_dir` / historical
+/// behavior) when the backend isn't reachable yet, e.g. very early startup.
+/// See #1781 for the split this closes: a dev backend spawned without
+/// `OMNIVOICE_*` env, or a custom data folder / portable mode applied after
+/// the backend already started, previously left Tauri writing capability
+/// files the backend could never find, 403ing every export.
 pub fn path_authorization_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
-    crate::setup::resolved_data_dir(app)
-        .unwrap_or_else(crate::setup::default_data_dir)
+    crate::backend::backend_data_dir(crate::backend_port())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            crate::setup::resolved_data_dir(app).unwrap_or_else(crate::setup::default_data_dir)
+        })
         .join(".path-authorizations")
 }
 
@@ -260,6 +276,86 @@ mod host_path_authorization_tests {
         assert!(
             validate_host_path("dub_export", parent.join("missing-directory/export.wav"),).is_err()
         );
+    }
+
+    // Serializes tests that mutate OMNIVOICE_PORT (a process-global env var
+    // `crate::backend_port()` reads); nothing else in this crate's unit test
+    // suite touches it, but future tests should still take this lock before
+    // doing so.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Loopback responder answering `/system/info` with a given `data_dir`,
+    /// standing in for a running backend during `path_authorization_dir`
+    /// tests.
+    fn spawn_data_dir_stub(data_dir: &str) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        let body = format!(r#"{{"data_dir": "{data_dir}"}}"#);
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let mut buf = [0u8; 512];
+                let _ = stream.read(&mut buf);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        port
+    }
+
+    fn mock_app_handle() -> tauri::AppHandle<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app")
+            .handle()
+            .clone()
+    }
+
+    /// Regression for #1781: a native save dialog succeeded and Tauri wrote
+    /// the one-shot capability file, but the backend 403'd every export
+    /// because it scanned a DIFFERENT `.path-authorizations` directory (its
+    /// own `DATA_DIR`, resolved independently — e.g. the dev backend spawned
+    /// without `OMNIVOICE_*` env, or a custom data folder / portable mode
+    /// applied after the backend already started). When a backend is
+    /// reachable, its advertised `data_dir` must win so the two processes
+    /// are structurally unable to disagree.
+    #[test]
+    fn prefers_the_running_backends_advertised_data_dir() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let port = spawn_data_dir_stub("/backend/advertised/data");
+        std::env::set_var("OMNIVOICE_PORT", port.to_string());
+        let handle = mock_app_handle();
+
+        let dir = super::path_authorization_dir(&handle);
+
+        std::env::remove_var("OMNIVOICE_PORT");
+        assert_eq!(
+            dir,
+            PathBuf::from("/backend/advertised/data").join(".path-authorizations"),
+            "must write into the backend's own data_dir, not Tauri's independent resolution"
+        );
+    }
+
+    /// When no backend answers (unreachable, not started yet), the resolver
+    /// must fall back to Tauri's own resolution — the pre-#1781 behavior —
+    /// rather than erroring or writing somewhere unpredictable.
+    #[test]
+    fn falls_back_to_tauris_own_resolution_when_the_backend_is_unreachable() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("OMNIVOICE_PORT", "1"); // never bindable by us
+        let handle = mock_app_handle();
+
+        let dir = super::path_authorization_dir(&handle);
+
+        let expected_fallback = crate::setup::resolved_data_dir(&handle)
+            .unwrap_or_else(crate::setup::default_data_dir)
+            .join(".path-authorizations");
+        std::env::remove_var("OMNIVOICE_PORT");
+        assert_eq!(dir, expected_fallback);
     }
 }
 

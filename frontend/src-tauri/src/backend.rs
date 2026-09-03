@@ -66,6 +66,34 @@ fn parse_app_version(body: &str) -> Option<String> {
     Some(rest[..rest.find('"')?].to_string())
 }
 
+/// The `data_dir` the running backend advertises via `/system/info` — the
+/// directory `backend/core/config.py::get_app_data_dir()` resolved for
+/// itself (honors `OMNIVOICE_DATA_DIR`, else the per-OS default).
+///
+/// This exists so Tauri's one-shot host-path capability files
+/// (`commands::authorize_host_path`) always land where
+/// `backend/core/path_authorization.py` actually looks for them. Tauri's own
+/// `setup::resolved_data_dir` normally agrees with the backend, but they can
+/// diverge: dev mode spawns the backend out-of-process
+/// (`scripts/dev-backend.mjs`, which strips `OMNIVOICE_*` from the child
+/// env) so it may fall back to a different platform default than Tauri
+/// computes, and in a packaged build a custom data folder or portable mode
+/// applied after the backend already started can do the same (#1781).
+/// Asking the backend directly makes the two processes structurally unable
+/// to disagree.
+///
+/// `None` when nothing VoiceStudio answers at `port` (not started yet,
+/// unreachable) or an old backend predating the `data_dir` field — callers
+/// fall back to Tauri's own resolution, the historical behavior.
+pub fn backend_data_dir(port: u16) -> Option<String> {
+    let url = format!("http://127.0.0.1:{}/system/info", port);
+    let body = ureq_get_with_timeout(&url, Duration::from_millis(500)).ok()?;
+    if !is_omnivoice_body(&body) {
+        return None;
+    }
+    parse_json_string_field(&body, "data_dir").filter(|dir| !dir.is_empty())
+}
+
 /// Whether a running backend's version matches THIS app build, comparing
 /// **base** versions (any `-N` pre-release suffix stripped from both sides) so
 /// a preview build `0.3.10-4` still attaches to its `0.3.10` backend.
@@ -839,6 +867,56 @@ mod tests {
             }
         });
         port
+    }
+
+    /// Loopback responder that answers `/system/info` with an arbitrary
+    /// body, for `backend_data_dir` tests.
+    fn spawn_system_info_stub(body: &'static str) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let mut buf = [0u8; 512];
+                let _ = stream.read(&mut buf);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn backend_data_dir_reads_system_info_and_degrades_safely() {
+        // Reachable backend advertising data_dir → Some(path). This is what
+        // lets Tauri and the backend agree on where one-shot capability
+        // files live (#1781) even when they'd otherwise resolve different
+        // platform defaults (e.g. a dev backend spawned without
+        // OMNIVOICE_DATA_DIR).
+        let port = spawn_system_info_stub(r#"{"data_dir": "/custom/data"}"#);
+        assert_eq!(backend_data_dir(port), Some("/custom/data".into()));
+
+        // Old backend body (identifies via model_checkpoint) predating the
+        // data_dir field → None, so callers fall back to Tauri's own
+        // resolution instead of trusting a missing field.
+        let old = spawn_system_info_stub(r#"{"model_checkpoint": "x"}"#);
+        assert_eq!(backend_data_dir(old), None);
+
+        // Explicit empty data_dir must not resolve to a bare/relative root —
+        // treated the same as absent.
+        let empty = spawn_system_info_stub(r#"{"data_dir": ""}"#);
+        assert_eq!(backend_data_dir(empty), None);
+
+        // A foreign (non-VoiceStudio) responder must not be trusted either.
+        let foreign = spawn_system_info_stub(r#"{"hello": "world"}"#);
+        assert_eq!(backend_data_dir(foreign), None);
+
+        // Nothing listening → None, same fallback path.
+        assert_eq!(backend_data_dir(1), None); // port 1 — never bindable by us
     }
 
     #[test]
