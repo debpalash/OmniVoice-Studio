@@ -118,11 +118,37 @@ export default function CloneDesignTab(props) {
   const [describeUnmatched, setDescribeUnmatched] = useState([]);
   const [describeMatchedAny, setDescribeMatchedAny] = useState(true);
 
+  // describeRequestRef guards a describe response landing after it's been
+  // superseded. It fires on every keystroke's debounce AND on-demand from
+  // the reset button, so two /design/describe calls can be in flight
+  // together, and whichever resolves LAST used to always win regardless of
+  // which was actually issued last (the original inline effect closed over
+  // its own `cancelled` flag per call, which extracting it into
+  // applyDescribeToVdStates dropped — greptile caught it in review).
+  //
+  // That first fix only ordered describe-vs-describe correctly — it left a
+  // second, worse hole greptile found on the next pass: describe-vs-MANUAL
+  // races. A describe request can still be in flight when the user picks a
+  // category by hand, clicks a personality/preset chip, or clears the
+  // description entirely; none of those bumped the token, so a describe
+  // response landing afterwards silently overwrote the user's manual pick
+  // (or re-applied attributes for a description that no longer exists).
+  // invalidateDescribe() is the one place that bumps it — call it from
+  // EVERY path that should beat an in-flight describe response, not just
+  // from inside applyDescribeToVdStates itself.
+  const describeRequestRef = useRef(0);
+  const invalidateDescribe = () => {
+    describeRequestRef.current += 1;
+  };
+
   const onDescribeChange = (e) => {
     const value = e.target.value;
     setDescribeText(value);
     if (!value.trim()) {
-      // Cleared: drop stale feedback immediately (controls stay as they are).
+      // Cleared: an in-flight response for the old (now-gone) description
+      // must never land and re-apply attributes for text that no longer
+      // exists — bump the token so it's discarded on arrival.
+      invalidateDescribe();
       setDescribeUnmatched([]);
       setDescribeMatchedAny(true);
     }
@@ -133,17 +159,6 @@ export default function CloneDesignTab(props) {
   // follow-up) both drive the category picks from describeText, so this is
   // the ONE place that does it — resetToDescription must never grow a
   // second, divergent implementation of the same mapping.
-  //
-  // describeRequestRef guards the await: this fires on every keystroke's
-  // debounce AND on-demand from the reset button, so two calls can be in
-  // flight together, and whichever `apiPost` resolves LAST used to always
-  // win regardless of which was actually issued last (the original inline
-  // effect closed over its own `cancelled` flag per call, which this
-  // extraction dropped — greptile caught it in review). Each call claims the
-  // next token and only commits state if it's still the most recent one when
-  // its response lands, so a slow, superseded response can never clobber a
-  // faster, newer one.
-  const describeRequestRef = useRef(0);
   const applyDescribeToVdStates = async (q) => {
     const requestId = ++describeRequestRef.current;
     if (!q) {
@@ -199,6 +214,9 @@ export default function CloneDesignTab(props) {
   });
 
   const applyPersonality = (p) => {
+    // A manual pick always beats an in-flight describe response (greptile,
+    // PR #1793 second pass) — bump the token before touching state.
+    invalidateDescribe();
     if (activePersonality === p.id) {
       setActivePersonality('');
       return;
@@ -303,6 +321,9 @@ export default function CloneDesignTab(props) {
   // never both be set from the form. When picking one clears the other, say
   // so instead of a silent reset.
   const handleVdChange = (key, value) => {
+    // A manual pick always beats an in-flight describe response (greptile,
+    // PR #1793 second pass) — bump the token before touching state.
+    invalidateDescribe();
     const { vdStates: next, clearedCategory } = applyVdState(vdStates, key, value);
     setVdStates(next);
     if (clearedCategory) {
@@ -358,6 +379,9 @@ export default function CloneDesignTab(props) {
   // highlight the chip equivalent. After this fires, the user can hit
   // Synthesize Audio immediately — no further input needed.
   const applyDemoPreset = (p) => {
+    // A manual pick always beats an in-flight describe response (greptile,
+    // PR #1793 second pass) — bump the token before touching state.
+    invalidateDescribe();
     if (p.script) setText(p.script);
     if (p.attrs) {
       // #1771: apply one category at a time through the same exclusivity
@@ -373,6 +397,18 @@ export default function CloneDesignTab(props) {
     setInstruct('');
     if (p.language) setLanguage(p.language);
     setActivePersonality(p.id);
+  };
+
+  // `applyPreset` is owned by useTTS.js (it writes straight to the global
+  // store), not this component — but the "Starting points" PRESETS chips
+  // still fire it from inside DesignMethodPanel, and a manual pick always
+  // beats an in-flight describe response (greptile, PR #1793 second pass).
+  // Wrap it here so invalidateDescribe fires before the prop's own logic
+  // runs, rather than reaching into useTTS.js for a second describe-aware
+  // implementation.
+  const applyPresetAndInvalidate = (p) => {
+    invalidateDescribe();
+    applyPreset(p);
   };
 
   return (
@@ -486,7 +522,7 @@ export default function CloneDesignTab(props) {
                 chipPersonalities={chipPersonalities}
                 activePersonality={activePersonality}
                 applyPersonality={applyPersonality}
-                applyPreset={applyPreset}
+                applyPreset={applyPresetAndInvalidate}
                 identityOpen={identityOpen}
                 setIdentityOpen={setIdentityOpen}
                 identityRecipe={identityRecipe}

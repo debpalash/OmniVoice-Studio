@@ -182,6 +182,11 @@ describe('CloneDesignTab — Voice Design panel redesign regressions', () => {
 describe('CloneDesignTab — stale /design/describe response race guard', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // apiPost is a module-level mock shared across every test in this file —
+    // clear its call history (not its queued mockImplementationOnce, which
+    // each test sets up fresh) so `toHaveBeenCalledTimes` counts THIS test's
+    // calls only.
+    apiPost.mockClear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -230,5 +235,76 @@ describe('CloneDesignTab — stale /design/describe response race guard', () => 
       resolveFirst({ attrs: { Gender: 'male' }, matched: ['male'], unmatched: [] });
     });
     expect(setVdStates).toHaveBeenCalledTimes(1); // still just the one, newer call
+  });
+
+  // Greptile's second-pass finding on PR #1793: the sequence-token fix above
+  // only orders describe-vs-describe correctly. It missed describe-vs-MANUAL
+  // races — a describe request can still be in flight when the user hand-
+  // picks a category, and the response landing afterward used to silently
+  // discard the manual pick because nothing bumped the token except another
+  // describe call. invalidateDescribe() must fire from every manual
+  // mutation path.
+  it('a manual vdStates edit made while a describe is in flight is never overwritten by that response', async () => {
+    let resolveDescribe;
+    apiPost.mockImplementationOnce(() => new Promise((resolve) => (resolveDescribe = resolve)));
+
+    const setVdStates = vi.fn();
+    renderDesignTab({ setVdStates });
+    const textarea = screen.getByPlaceholderText(
+      'e.g. a warm elderly British storyteller, slightly raspy',
+    );
+
+    // A describe request is in flight (not yet resolved).
+    fireEvent.change(textarea, { target: { value: 'a deep male voice' } });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(apiPost).toHaveBeenCalledTimes(1);
+
+    // The user hand-picks Gender before that response lands.
+    fireEvent.click(screen.getByRole('button', { name: /details/i }));
+    const genderSelect = document.getElementById('vd-Gender');
+    fireEvent.change(genderSelect, { target: { value: 'male' } });
+    expect(setVdStates).toHaveBeenCalledTimes(1);
+    expect(setVdStates).toHaveBeenLastCalledWith(expect.objectContaining({ Gender: 'male' }));
+
+    // The in-flight describe response finally lands with a DIFFERENT
+    // Gender — it must not clobber the manual pick that came after it was
+    // issued.
+    await act(async () => {
+      resolveDescribe({ attrs: { Gender: 'female' }, matched: ['female'], unmatched: [] });
+    });
+    expect(setVdStates).toHaveBeenCalledTimes(1); // still just the manual edit
+  });
+
+  // The second shape of the same bug: clearing the description entirely.
+  // `onDescribeChange`'s cleared branch never scheduled a NEW describe call
+  // (there's nothing to describe), but it also never invalidated the OLD
+  // one already in flight — so a response for text that no longer exists
+  // could still land and re-apply its attributes.
+  it('clearing the description discards an in-flight response for the old text', async () => {
+    let resolveDescribe;
+    apiPost.mockImplementationOnce(() => new Promise((resolve) => (resolveDescribe = resolve)));
+
+    const setVdStates = vi.fn();
+    renderDesignTab({ setVdStates });
+    const textarea = screen.getByPlaceholderText(
+      'e.g. a warm elderly British storyteller, slightly raspy',
+    );
+
+    fireEvent.change(textarea, { target: { value: 'a deep male voice' } });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(apiPost).toHaveBeenCalledTimes(1);
+
+    // Cleared before the request resolves.
+    fireEvent.change(textarea, { target: { value: '' } });
+
+    await act(async () => {
+      resolveDescribe({ attrs: { Gender: 'male' }, matched: ['male'], unmatched: [] });
+    });
+    // A description that no longer exists must never re-apply its attrs.
+    expect(setVdStates).not.toHaveBeenCalled();
   });
 });
