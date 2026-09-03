@@ -10,8 +10,6 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
-- Japanese voice-cleaning status now describes denoising instead of housekeeping (#1775) — thanks @j30231!
-
 ### Changed
 
 ### Added
@@ -19,8 +17,6 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Docs
 
 ### Fixed
-
-- Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
 
 ## [0.5.2] — 2026-09-02
 
@@ -58,6 +54,8 @@ the frozen-backend fallback mirror it for their toolchains.
 - RX 6700 XT/gfx1031 over WSL2 ROCDXG is now explicitly unverified until a published end-to-end GPU workload proves the mapped path (#1716)
 
 ### Fixed
+
+- Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
 
 - The batch dubbing queue now has a UI entry point — a quiet link on the Dub landing (it was previously unreachable: the app switched on a mode nothing ever set) (#1768) — thanks @mvanhorn!
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
