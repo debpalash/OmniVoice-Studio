@@ -18,7 +18,6 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
-- Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
 
 ## [0.5.2] — 2026-09-02
 
@@ -52,6 +51,8 @@ the frozen-backend fallback mirror it for their toolchains.
 - RX 6700 XT/gfx1031 over WSL2 ROCDXG is now explicitly unverified until a published end-to-end GPU workload proves the mapped path (#1716)
 
 ### Fixed
+
+- Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
 
 - OpenAI-compatible ASR now requires HTTPS outside loopback and refuses redirects so audio stays on the configured origin (#1736)
 - Windows isolated engines now retain direct Job ownership without an extra Python supervisor process that can deadlock the child loader (#1734)
