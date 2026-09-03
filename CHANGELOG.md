@@ -18,6 +18,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Japanese "Cleaning…" clone status now reads as denoising instead of housekeeping (#1775) — thanks @j30231!
+
 ## [0.5.2] — 2026-09-02
 
 **Highlights**
