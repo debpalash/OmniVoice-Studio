@@ -86,15 +86,26 @@ export class StreamingPreviewError extends Error {
 export const shouldFallbackToClassic = (error) =>
   error instanceof StreamingPreviewError && !error.retryable && !error.terminal;
 
+/** Raw PCM16 bytes (ArrayBuffer / Uint8Array) → Float32 samples in [-1, 1].
+ *  The binary-WebSocket twin of decodePcm16Base64 (`/ws/tts` sends raw
+ *  frames, not NDJSON base64). Exported for tests. */
+export const pcm16BytesToFloat32 = (data) => {
+  let bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  // An Int16Array view must start on an even byte; a view carved at an odd
+  // offset (sliced framing buffers) would throw a RangeError, so copy it.
+  if (bytes.byteOffset % 2) bytes = bytes.slice();
+  const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength >> 1);
+  const out = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) out[i] = pcm[i] / 32768;
+  return out;
+};
+
 /** base64 → Int16 PCM → Float32 samples in [-1, 1]. Exported for tests. */
 export const decodePcm16Base64 = (b64) => {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const pcm = new Int16Array(bytes.buffer, 0, bytes.length >> 1);
-  const out = new Float32Array(pcm.length);
-  for (let i = 0; i < pcm.length; i++) out[i] = pcm[i] / 32768;
-  return out;
+  return pcm16BytesToFloat32(bytes);
 };
 
 /**
@@ -259,33 +270,38 @@ export const createStreamingChunkPlayer = ({ label, sampleRate, crossfadeMs = 0,
     }
   }, 250);
 
+  // Schedule one decoded Float32 chunk for gapless playback. Shared by the
+  // NDJSON (base64) and binary-WebSocket (raw PCM16 frame) append shapes.
+  const appendSamples = (data) => {
+    if (finished) return;
+    if (!data.length) return;
+    const i = chunks.length;
+    chunks.push(data);
+    starts.push(i === 0 ? 0 : starts[i - 1] + dur(i - 1) - fadeFor(i));
+    totalDuration = starts[i] + dur(i);
+
+    const when = anchor + (starts[i] - baseOffset);
+    if (i > 0 && when < ctx.currentTime - 0.01) {
+      // Underrun: playback drained the buffered chunks before this one
+      // arrived. Re-anchor so the new chunk starts now (the playhead sat at
+      // the buffered edge) instead of clipping its head.
+      baseOffset = starts[i];
+      anchor = ctx.currentTime + 0.02;
+      scheduleChunk(i, 0, false);
+    } else {
+      scheduleChunk(i);
+    }
+    session.update({
+      duration: totalDuration,
+      peaks: peaksFromChunkList(chunks),
+    });
+  };
+
   return {
     /** Append one base64 PCM16 chunk and schedule it for gapless playback. */
-    appendPcm16Base64: (b64) => {
-      if (finished) return;
-      const data = decodePcm16Base64(b64);
-      if (!data.length) return;
-      const i = chunks.length;
-      chunks.push(data);
-      starts.push(i === 0 ? 0 : starts[i - 1] + dur(i - 1) - fadeFor(i));
-      totalDuration = starts[i] + dur(i);
-
-      const when = anchor + (starts[i] - baseOffset);
-      if (i > 0 && when < ctx.currentTime - 0.01) {
-        // Underrun: playback drained the buffered chunks before this one
-        // arrived. Re-anchor so the new chunk starts now (the playhead sat at
-        // the buffered edge) instead of clipping its head.
-        baseOffset = starts[i];
-        anchor = ctx.currentTime + 0.02;
-        scheduleChunk(i, 0, false);
-      } else {
-        scheduleChunk(i);
-      }
-      session.update({
-        duration: totalDuration,
-        peaks: peaksFromChunkList(chunks),
-      });
-    },
+    appendPcm16Base64: (b64) => appendSamples(decodePcm16Base64(b64)),
+    /** Append one raw PCM16 binary frame (ArrayBuffer) — the `/ws/tts` shape. */
+    appendPcm16Bytes: (buf) => appendSamples(pcm16BytesToFloat32(buf)),
     /** All chunks received: freeze the duration and retitle the bar. */
     finalize: ({ label: finalLabel } = {}) => {
       if (finished) return;

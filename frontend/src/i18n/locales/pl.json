@@ -1143,7 +1143,10 @@
     "multi_lang_skipped": "Tłumaczenie dla {{langs}} nie powiodło się. Te dubbingi pominięto, aby nie utworzyć ścieżki w niewłaściwym języku.",
     "manage_languages": "Zarządzaj językami",
     "languages_done": "Gotowe",
-    "languages_pending": "Oczekujące"
+    "languages_pending": "Oczekujące",
+    "live_preview": "Podgląd na żywo",
+    "live_preview_title": "Słuchaj linii podczas edycji — edytowany segment po krótkiej pauzie streamuje TTS z przypisanym głosem CAST. Tylko odtwarzanie: nic nie jest zapisywane, a eksport nadal renderuje się w pełnej jakości.",
+    "live_preview_pick_voice": "Przypisz głos CAST tej linii lub jej mówcy, aby usłyszeć podgląd na żywo."
   },
   "glossary": {
     "title": "Glosariusz",
@@ -1240,7 +1243,9 @@
     "fit_audio_title": "Dźwięk mieści się w gnieździe.",
     "fit_ratio_title": "Dźwięk TTS zajmuje {{pct}}% szczeliny.",
     "qc_verify": "Zweryfikuj",
-    "qc_verify_title": "ASR drugiego przejścia usłyszał: „{{heard}}” — posłuchaj ponownie lub ponownie dubuj tę linijkę."
+    "qc_verify_title": "ASR drugiego przejścia usłyszał: „{{heard}}” — posłuchaj ponownie lub ponownie dubuj tę linijkę.",
+    "live_play_title": "Streamuj tę linię teraz (podgląd na żywo)",
+    "live_stop_title": "Zatrzymaj podgląd na żywo"
   },
   "timeline": {
     "track_label": "Oś czasu segmentów",

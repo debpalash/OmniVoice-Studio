@@ -33,8 +33,11 @@ WS_TICKET_PREFIX = "ovs_ws_ticket_"
 _TOKEN_BYTES = 32
 _ENCODED_TOKEN_LENGTH = 43
 _TOKEN_BODY_RE = re.compile(rf"^[A-Za-z0-9_-]{{{_ENCODED_TOKEN_LENGTH}}}$")
+# Every ticketed WebSocket route. The first-party mirror is ``ALLOWED_WS_PATHS``
+# in frontend/src/api/authSession.ts — a route missing here mints a 422 and the
+# UI consumer fails silently (#1769 added /ws/tts for the live dub preview).
 _ALLOWED_WS_PATHS = frozenset(
-    {"/ws/events", "/ws/transcribe", "/v1/audio/transcriptions/stream"}
+    {"/ws/events", "/ws/transcribe", "/ws/tts", "/v1/audio/transcriptions/stream"}
 )
 _ADMIN_CAPABILITIES = frozenset({"consume", "admin"})
 _KEY_GENERATION_INFO = b"omnivoice-admin-key-generation-v1"

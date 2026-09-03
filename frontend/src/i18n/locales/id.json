@@ -1143,7 +1143,10 @@
     "multi_lang_skipped": "Terjemahan untuk {{langs}} gagal; sulih suara tersebut dilewati agar tidak menghasilkan trek dalam bahasa yang salah.",
     "manage_languages": "Kelola bahasa",
     "languages_done": "Selesai",
-    "languages_pending": "Tertunda"
+    "languages_pending": "Tertunda",
+    "live_preview": "Pratinjau langsung",
+    "live_preview_title": "Dengarkan baris saat Anda mengeditnya — segmen yang diedit menstreaming TTS dengan suara CAST-nya setelah jeda singkat. Hanya pemutaran: tidak ada yang disimpan, dan ekspor tetap dirender dalam kualitas penuh.",
+    "live_preview_pick_voice": "Tetapkan suara CAST ke baris ini atau pembicaranya untuk mendengar pratinjau langsung."
   },
   "glossary": {
     "title": "Glosarium",
@@ -1240,7 +1243,9 @@
     "fit_audio_title": "Audio pas di dalam slot.",
     "fit_ratio_title": "Audio TTS adalah {{pct}}% dari slot.",
     "qc_verify": "Verifikasi",
-    "qc_verify_title": "ASR lintasan kedua mendengar: \"{{heard}}\" — dengarkan ulang atau sulih suara ulang baris ini."
+    "qc_verify_title": "ASR lintasan kedua mendengar: \"{{heard}}\" — dengarkan ulang atau sulih suara ulang baris ini.",
+    "live_play_title": "Streaming baris ini sekarang (pratinjau langsung)",
+    "live_stop_title": "Hentikan pratinjau langsung"
   },
   "timeline": {
     "track_label": "Lini masa segmen",

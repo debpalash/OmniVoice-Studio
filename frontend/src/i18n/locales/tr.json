@@ -1143,7 +1143,10 @@
     "multi_lang_skipped": "{{langs}} için çeviri başarısız oldu; yanlış dilde parça oluşmaması için bu dublajlar atlandı.",
     "manage_languages": "Dilleri yönet",
     "languages_done": "Tamamlandı",
-    "languages_pending": "Bekliyor"
+    "languages_pending": "Bekliyor",
+    "live_preview": "Canlı önizleme",
+    "live_preview_title": "Bir satırı düzenlerken dinleyin — düzenlenen segment kısa bir duraklamadan sonra CAST sesiyle TTS akışı yapar. Yalnızca oynatma: hiçbir şey kaydedilmez ve dışa aktarma yine tam kalitede işlenir.",
+    "live_preview_pick_voice": "Canlı önizlemeyi duymak için bu satıra veya konuşmacısına bir CAST sesi atayın."
   },
   "glossary": {
     "title": "Sözlük",
@@ -1240,7 +1243,9 @@
     "fit_audio_title": "Ses yuvanın içine sığar.",
     "fit_ratio_title": "TTS sesi yuvanın %{{pct}} kadarıdır.",
     "qc_verify": "Doğrula",
-    "qc_verify_title": "İkinci geçiş ASR şunu duydu: \"{{heard}}\" — bu satırı yeniden dinleyin veya yeniden dublajlayın."
+    "qc_verify_title": "İkinci geçiş ASR şunu duydu: \"{{heard}}\" — bu satırı yeniden dinleyin veya yeniden dublajlayın.",
+    "live_play_title": "Bu satırı şimdi akıt (canlı önizleme)",
+    "live_stop_title": "Canlı önizlemeyi durdur"
   },
   "timeline": {
     "track_label": "Segment zaman çizelgesi",

@@ -374,6 +374,19 @@ def test_ticket_is_scoped_to_normalized_path(store: AdminSessionStore):
     assert store.consume_ws_ticket(ticket.token, "/ws/transcribe", MASTER) is None
 
 
+def test_ticket_covers_every_first_party_ws_route(store: AdminSessionStore):
+    """Backend allowlist must carry every route the UI mints tickets for
+    (authSession.ts ALLOWED_WS_PATHS); a missing route fails silently in the
+    UI — #1769's live dub preview over /ws/tts was the first casualty."""
+    session = store.issue(MASTER)
+    for path in ("/ws/events", "/ws/transcribe", "/ws/tts"):
+        wrong = "/ws/events" if path != "/ws/events" else "/ws/tts"
+        ticket = store.issue_ws_ticket(session.token, path, MASTER)
+        assert store.consume_ws_ticket(ticket.token, wrong, MASTER) is None
+        ticket = store.issue_ws_ticket(session.token, path, MASTER)
+        assert store.consume_ws_ticket(ticket.token, path, MASTER) is not None
+
+
 @pytest.mark.parametrize(
     "path",
     [

@@ -1143,7 +1143,10 @@
     "multi_lang_skipped": "{{langs}} 翻譯失敗；已略過這些配音，以免產生語言錯誤的音軌。",
     "manage_languages": "管理語言",
     "languages_done": "已完成",
-    "languages_pending": "待處理"
+    "languages_pending": "待處理",
+    "live_preview": "即時預覽",
+    "live_preview_title": "邊編輯邊試聽 — 停頓片刻後,所編輯的片段會以其 CAST 聲音串流合成語音。僅播放:不會儲存任何內容,匯出仍以完整品質算繪。",
+    "live_preview_pick_voice": "為此行或其說話者指定一個 CAST 聲音,即可聆聽即時預覽。"
   },
   "glossary": {
     "title": "詞彙表",
@@ -1240,7 +1243,9 @@
     "fit_audio_title": "音訊適合插槽內。",
     "fit_ratio_title": "TTS 音訊佔插槽的 {{pct}}%。",
     "qc_verify": "驗證",
-    "qc_verify_title": "第二遍 ASR 聽到：「{{heard}}」 — 重新聆聽或重新配音此台詞。"
+    "qc_verify_title": "第二遍 ASR 聽到：「{{heard}}」 — 重新聆聽或重新配音此台詞。",
+    "live_play_title": "立即串流此行(即時預覽)",
+    "live_stop_title": "停止即時預覽"
   },
   "timeline": {
     "track_label": "片段時間軸",
