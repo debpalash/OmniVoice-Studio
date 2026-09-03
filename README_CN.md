@@ -20,6 +20,7 @@
   </p>
 
   <p>
+    <a href="https://github.com/debpalash/VoiceStudio/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/debpalash/VoiceStudio/ci.yml?branch=main&style=flat-square&label=CI" alt="CI 状态" /></a>
     <a href="https://github.com/debpalash/VoiceStudio/stargazers"><img src="https://img.shields.io/github/stars/debpalash/VoiceStudio?style=flat-square&color=f59e0b" alt="Star 数" /></a>
     <a href="https://github.com/debpalash/VoiceStudio/releases/latest"><img src="https://img.shields.io/github/v/release/debpalash/VoiceStudio?style=flat-square&color=10b981" alt="版本" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="许可证" /></a>
@@ -65,11 +66,27 @@
 - 🐧 **Linux** — [docs/install/linux.md](docs/install/linux.md)
 - 🐳 **Docker** — [docs/install/docker.md](docs/install/docker.md) · [Docker Hub: `palashdeb/omnivoice-studio`](https://hub.docker.com/r/palashdeb/omnivoice-studio)
 
+```bash
+# Docker 快速运行 (CPU / 本地环回模式)
+docker run -d -p 127.0.0.1:3900:3900 -v omnivoice-data:/app/omnivoice_data --name voicestudio palashdeb/omnivoice-studio:stable
+```
+
 **三步克隆出你的第一个声音：**
 
 1. **安装并启动。** 首次启动会自动搭建 Python 运行环境并下载模型权重——启动画面会逐步显示进度（仅首次，需要几分钟；之后即开即用）。
 2. 从启动台打开**语音克隆**，拖入任意声音的 **3 秒音频**。
-3. **输入一句话，点击生成。** 音频完全属于你——在你的设备上生成和保存，支持 646 种语言。
+3. **输入一句话，点击生成。** 音频在你的设备上生成并保存，支持 646 种语言（商业使用前请审阅所选模型与分词器的许可条款）。
+
+### 🎧 音频示例
+
+在线试听 VoiceStudio 本地生成的实际音频样例：
+
+| 工作流 | 提示词 / 参考音频 | 生成音频 |
+|---|---|---|
+| **声音克隆** | [demo_voice.wav](backend/assets/samples/demo_voice.wav) | [demo_clone_output.wav](backend/assets/samples/demo_clone_output.wav) |
+| **声音设计** (美语新闻主播) | *"清晰、权威的美国广播级音色"* | [demo_voice_design_us_news_anchor.wav](backend/assets/samples/voice_design/demo_voice_design_us_news_anchor.wav) |
+| **声音设计** (英式有声书) | *"温暖生动的英式故事讲述音色"* | [demo_voice_design_audiobook_uk_narrator.wav](backend/assets/samples/voice_design/demo_voice_design_audiobook_uk_narrator.wav) |
+| **视频配音** (多语种) | [source.src.wav](backend/assets/samples/demo/dubbing/source.src.wav) | [西班牙语](backend/assets/samples/demo/dubbing/dubbed_es.src.wav) · [法语](backend/assets/samples/demo/dubbing/dubbed_fr.src.wav) · [日语](backend/assets/samples/demo/dubbing/dubbed_ja.src.wav) · [中文](backend/assets/samples/demo/dubbing/dubbed_zh.src.wav) |
 
 觉得慢？[docs/performance.md](docs/performance.md) 讲清了生成时间到底花在哪里、有哪些调优开关，以及“它变慢了”的三个经典原因。各引擎/设备的实测数据见 [docs/benchmarks.md](docs/benchmarks.md)。
 
@@ -217,6 +234,16 @@ Hugging Face Token 的配置见
 > [!IMPORTANT]
 > **macOS Intel（x86_64）不支持本地后端：** 应用 UI 可以安装，但 Python 后端无法运行，因为 PyTorch 已不再发布 Intel Mac 轮子（[#889](https://github.com/debpalash/VoiceStudio/issues/889)）。Intel Mac 用户仍可让 UI 指向另一台机器上的远程后端——参见 [docs/install/macos.md](docs/install/macos.md)。
 
+<a id="hardware-recommendations"></a>
+
+### 💡 按硬件推荐引擎配置
+
+| 硬件配置 | 推荐 TTS 引擎 | 推荐 ASR 语音识别 | 优势 |
+|---|---|---|---|
+| **Apple Silicon (M1–M4)** | [MLX-Audio](docs/engines/mlx-audio.md) · [OmniVoice](docs/engines/omnivoice.md) (MPS) | [MLX Whisper](docs/engines/mlx-whisper.md) · [Parakeet MLX](docs/engines/parakeet-mlx.md) | 原生统一内存，macOS 上延迟最低、性能最强 |
+| **NVIDIA 显卡 (8 GB+ 显存)** | [OmniVoice](docs/engines/omnivoice.md) · [CosyVoice 3](docs/engines/cosyvoice.md) | [WhisperX](docs/engines/whisperx.md) | 极致零样本克隆品质、字级时间戳对齐与说话人分离 |
+| **低显存 / 仅 CPU 设备** | [PocketTTS](docs/engines/pockettts.md) · [Sherpa-ONNX](docs/engines/sherpa-onnx.md) · [KittenTTS](docs/engines/kittentts.md) | [Moonshine](docs/engines/moonshine.md) · [Faster-Whisper](docs/engines/faster-whisper.md) (`int8`) | 超低内存占用，针对 CPU 指令集深度优化 |
+
 <a id="tts-engines"></a>
 
 ### 🗣️ TTS 引擎
@@ -338,9 +365,9 @@ print(result.text)
 
 ### 📓 在 Google Colab 上运行
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/VoiceStudio_Studio_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/debpalash/VoiceStudio/blob/main/notebooks/OmniVoice_Studio_Colab.ipynb)
 
-没有本地 GPU？官方笔记本（[notebooks/VoiceStudio_Studio_Colab.ipynb](notebooks/VoiceStudio_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
+没有本地 GPU？官方笔记本（[notebooks/OmniVoice_Studio_Colab.ipynb](notebooks/OmniVoice_Studio_Colab.ipynb)）可在免费的 Colab T4 上启动完整应用（包含 Web 界面）：在笔记本内直接构建前端，用 uv 安装后端（复用 Colab 预装的 CUDA PyTorch），并通过 Colab 内置端口代理打开界面。无需第三方隧道，也无需任何 API 密钥。随后还有一套覆盖全部主要功能的 API 导览，全部可在笔记本内直接播放：多语言 TTS、声音克隆与声音设计、已保存的声音档案、语音转写、AI 水印检测、OpenAI 兼容 API、多角色故事、带章节的 m4b 有声书，以及一个附带人声分离音轨的迷你视频配音。
 
 ### 🤝 智能体技能（Agent Skills）
 
@@ -351,6 +378,36 @@ npx skills add debpalash/omnivoice-studio
 ```
 
 内含两个 [skills](https://skills.sh)：**`omnivoice`**——让任何智能体通过你的本地安装进行语音合成与转录（包括你克隆的声音），免费且离线；以及 **`oss-maintainer`**——本项目所遵循的维护者方法论，适合任何用智能体运营自己开源项目的人。
+
+### 🔌 模型上下文协议（MCP 服务器）
+
+VoiceStudio 在 `http://localhost:3900/mcp` 挂载了 MCP 服务，可供 Claude Desktop、Cursor 与自主智能体调用：
+
+```json
+{
+  "mcpServers": {
+    "voicestudio": {
+      "url": "http://localhost:3900/mcp"
+    }
+  }
+}
+```
+
+对于需要 stdio 管道传输的客户端，请使用内置的本地桥接脚本（`docs/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "voicestudio": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_shim"],
+      "cwd": "/path/to/VoiceStudio"
+    }
+  }
+}
+```
+
+支持 `generate_speech`、`clone_voice`、`transcribe` 等工具与流式文件输出模式，详见 [docs/mcp.md](docs/mcp.md)。
 
 ---
 
@@ -541,6 +598,13 @@ VoiceStudio **免费**且采用 **AGPL-3.0** 许可——没有付费版，没�
 <br/>
 VoiceStudio 完全本地运行——卸载就是删除应用及其写入的文件夹（模型缓存、Python 环境、你的声音/项目、配置）。运行 <code>scripts/uninstall.sh</code>（macOS/Linux）或 <code>scripts\uninstall.ps1</code>（Windows）——它会先以干跑方式列出每个文件夹及其大小，加 <code>--yes</code> 才会真正删除。完整的各平台路径列表和应用移除步骤见 <a href="docs/install/uninstall.md"><b>docs/install/uninstall.md</b></a>。
 </details>
+
+## 🛡️ 负责任使用与安全
+
+VoiceStudio 在个人硬件上提供零样本语音克隆与语音创作能力。我们提倡负责任的技术使用：
+- **明确授权：** 严禁在未经说话人本人知情并明确授权的情况下克隆其声音。
+- **AI 溯源：** VoiceStudio 默认集成 [AudioSeal](https://github.com/facebookresearch/audioseal) 不可见神经音频水印，在完全不影响听感音质的前提下精准标记合成语音。
+- **本地隐私：** 默认本地工作流下，所有音频、声音档案、项目与转录文本始终保存在你的本地设备上；仅当你主动配置远程工作节点或第三方 ASR 端点时，相应数据才会传输到对应服务。
 
 ---
 
