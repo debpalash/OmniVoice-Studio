@@ -859,17 +859,29 @@ broken environment (if any) is left in place, not deleted, in case manual
 recovery is ever needed. An existing environment that already works — ASCII
 path or not — is never touched or relocated.
 
-If it still happens (8.3 short filenames disabled on the system drive, so no
-ASCII-safe alternative exists to redirect to), the setup screen names this
-cause specifically rather than the generic "backend never reported ready."
-Fix either by:
+If it still happens — most likely because Windows' 8.3 short filenames are
+off on the system drive, or the affected folder already existed before this
+fix shipped — the app names this cause specifically rather than the generic
+"backend never reported ready," and the error screen offers only **Retry**
+and **Clean & Retry**, neither of which changes where the environment is
+stored, so both fail identically. There are two ways to actually fix it:
 
-- On the setup screen, using the **Change…** button on the "App environment"
-  row (or "Portable folder" in portable mode) to pick an ASCII-only path
-  (e.g. `C:\VoiceStudio`) — replaces only the Python environment, not your
-  voices/projects/settings, or
-- As an administrator, re-enabling 8.3 short filenames on the system drive
-  (`fsutil 8dot3name set 0`) and retrying.
+- **Still on first-run setup:** use the **Change…** button on the "App
+  environment" row (or "Portable folder" in portable mode) to pick an
+  ASCII-only path (e.g. `C:\VoiceStudio`) — replaces only the Python
+  environment, not your voices/projects/settings.
+- **Already past setup, stuck on the error screen:** quit VoiceStudio, open
+  (creating it if it doesn't exist) `%LOCALAPPDATA%\com.debpalash.omnivoice-studio\config.json`
+  in a text editor, add `"env_dir": "C:/VoiceStudio/env"` (any path using
+  only English letters/numbers — forward slashes are fine on Windows), save,
+  and relaunch. Portable installs keep this file inside the portable folder
+  instead.
+
+Re-enabling 8.3 short filenames (`fsutil 8dot3name`) is deliberately **not**
+recommended here: the setting is per-volume and only affects directories
+created *after* it's changed, so toggling it does nothing for a folder that
+already exists — it would not actually fix this without also recreating the
+folder, which the ASCII-path options above already do more reliably.
 
 **Linked issue:** [#1783](https://github.com/debpalash/VoiceStudio/issues/1783) (auto-captured from [#1771](https://github.com/debpalash/VoiceStudio/issues/1771))
 

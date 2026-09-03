@@ -1823,21 +1823,40 @@ pub fn backend_exit_indicates_nonascii_pth_crash(err_tail: &str) -> bool {
 /// SAME path can't fix this on its own — the path itself is the problem.
 /// `ensure_venv_ready`'s `resolve_venv_root` already redirects away from a
 /// non-ASCII path whenever an ASCII-safe alternative exists, so this
-/// specific message only fires when that redirect couldn't help — 8.3
-/// short-name generation is disabled (`fsutil 8dot3name`) — and needs the
-/// user to pick a new, ASCII-only install location by hand. It's also the
-/// fallback if a spawned backend somehow still hits this crash despite the
-/// pre-spawn probe in `ensure_venv_ready` (defense in depth, not the primary
-/// path).
+/// specific message only fires when that redirect couldn't help. It's also
+/// the fallback if a spawned backend somehow still hits this crash despite
+/// the pre-spawn probe in `ensure_venv_ready` (defense in depth, not the
+/// primary path).
+///
+/// The remedy must be actionable from wherever the user actually sees this
+/// message — greptile #1783 review, P1: an earlier draft pointed at the
+/// first-run setup screen's "Change…" picker, but this message is shown via
+/// `BootstrapStage::Failed`, which only offers Retry / Clean & Retry (neither
+/// changes where the environment is stored, so both fail identically — the
+/// exact "names a control the user cannot reach" defect #1787 exists to
+/// catch). The one action that ALWAYS works, regardless of screen or install
+/// state, is hand-editing the JSON config's `env_dir` field (`config.rs`'s
+/// `AppConfig::env_dir`, read fresh by `env_root()` on every launch) to an
+/// ASCII path — that's the primary instruction here.
+///
+/// CodeRabbit #1783 review: `fsutil 8dot3name` is per-volume and only
+/// affects newly created directories, not the already-existing one this
+/// failure is about — recommending "run this command and retry" would often
+/// fix nothing, so this explains the likely cause without prescribing a
+/// command that may not help.
 const NONASCII_PTH_CRASH_MSG: &str =
     "The backend's Python environment lives at a path Windows' active language/region \
 setting can't decode (commonly a non-English Windows username), so the interpreter \
-crashes on startup before VoiceStudio's code ever runs. Fix: on the setup screen, use the \
-\"Change…\" button on the \"App environment\" (or \"Portable folder\" in portable mode) \
-row and pick a folder using only English letters/numbers (e.g. C:\\VoiceStudio) — this \
-replaces only the Python environment, not your voices/projects. Advanced: an \
-administrator can instead re-enable 8.3 short filenames with \"fsutil 8dot3name set 0\" \
-(run as Administrator) and retry. See docs/install/troubleshooting.md (#1783).";
+crashes on startup before VoiceStudio's code ever runs — this can happen if Windows' 8.3 \
+short-filename support is off on your system drive, or if this folder already existed \
+before this fix shipped. \"Retry\" and \"Clean & Retry\" won't fix it — they don't change \
+where the environment is stored. Fix: quit VoiceStudio, open (creating it if missing) \
+%LOCALAPPDATA%\\com.debpalash.omnivoice-studio\\config.json in a text editor, add \
+\"env_dir\": \"C:/VoiceStudio/env\" (any path using only English letters/numbers works — \
+forward slashes are fine on Windows), save, and relaunch. This only moves the Python \
+environment, not your voices/projects. Still on first-run setup instead? Use the \
+\"Change…\" button next to \"App environment\" there instead of editing the file. See \
+docs/install/troubleshooting.md (#1783).";
 
 /// What `ensure_venv_ready` should do about where the venv lives, decided by
 /// [`resolve_venv_root`].
@@ -2252,19 +2271,21 @@ manually, then relaunch.",
     };
     match decision {
         VenvRootDecision::Redirect(new_root) => {
+            // CWE-532: this env root's non-ASCII component is, by definition
+            // of this whole bug, a per-user identifier (most often a Windows
+            // account name) — never log the path itself, only what happened
+            // and why. The old environment's exact location stays in the
+            // config/registry the app already tracks, not the log.
             if venv_exists_at_true_root {
                 log::warn!(
-                    "Venv at {} can't start — a non-ASCII path .pth crash (#1783) — building a \
-fresh environment at the ASCII-safe path {} instead. The old environment is left in place.",
-                    venv_dir.display(),
-                    new_root.display()
+                    "Existing venv can't start — its path isn't valid in the active Windows code \
+page (#1783 .pth crash) — building a fresh environment at an ASCII-safe path instead. The old \
+environment is left on disk, untouched, for manual recovery."
                 );
             } else {
                 log::info!(
-                    "No usable environment at {} and its path isn't ASCII-safe — creating the \
-new environment at {} instead (#1783)",
-                    app_data.display(),
-                    new_root.display()
+                    "No usable environment yet, and its configured path isn't ASCII-safe — \
+creating the new environment at an ASCII-safe path instead (#1783)"
                 );
             }
             emit_log(app, "checking", "Building the Python environment at an ASCII-safe path (#1783)");
@@ -3373,12 +3394,20 @@ UnicodeDecodeError: 'gbk' codec can't decode byte 0x80 in position 11: illegal m
     #[test]
     fn nonascii_pth_crash_produces_a_specific_diagnosis_not_the_generic_stall_text() {
         // #1783 acceptance: "the setup screen shows a specific message and a
-        // fix, not the generic stall text." Pin the two load-bearing
-        // ingredients of the fix so a future edit can't silently drop them —
-        // the concrete action (the "App environment" row's picker) and the
-        // escape hatch for the 8.3-disabled case.
+        // fix, not the generic stall text." Pin the load-bearing ingredients
+        // so a future edit can't silently drop them.
+        //
+        // greptile P1: the primary remedy must be reachable from the FAILED
+        // screen this message is actually shown on (Retry / Clean & Retry
+        // only — no "Change…" picker there), so the config-file edit is the
+        // one asserted as the concrete action; "App environment" is only the
+        // secondary note for a still-mid-setup user, never the sole fix.
+        assert!(NONASCII_PTH_CRASH_MSG.contains("config.json"));
+        assert!(NONASCII_PTH_CRASH_MSG.contains("env_dir"));
         assert!(NONASCII_PTH_CRASH_MSG.contains("App environment"));
-        assert!(NONASCII_PTH_CRASH_MSG.contains("8dot3name"));
+        // CodeRabbit: never tell the user to run a specific fsutil command —
+        // its retroactivity/per-volume semantics mean it may fix nothing.
+        assert!(!NONASCII_PTH_CRASH_MSG.contains("fsutil"));
         assert!(NONASCII_PTH_CRASH_MSG.contains("#1783"));
     }
 

@@ -437,28 +437,85 @@ fn split_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
     }
 }
 
-/// Windows-only: if `dir` contains a non-ASCII byte, resolve its longest
-/// existing ancestor to its 8.3 short name (the same trick
-/// `backend/core/config.py::_ensure_short_hf_cache_on_windows` documents for
-/// the HF-cache MAX_PATH problem) and reattach the not-yet-created ASCII
-/// remainder, so every byte written into the venv — including `uv sync`'s
-/// editable `.pth` — is valid in any single-byte Windows code page (#1783).
-///
-/// Best-effort: an ASCII `dir` is returned unchanged without ever calling
-/// into WinAPI. When `dir` isn't ASCII but the short-name call fails or
-/// still isn't ASCII (8.3 name generation disabled via
-/// `fsutil 8dot3name`), the original path is returned unchanged — no worse
-/// than before the fix, and the bootstrap crash-signature diagnosis names
-/// the cause if the interpreter still dies in `site`.
-#[cfg(target_os = "windows")]
-pub fn ascii_safe_dir(dir: &Path) -> PathBuf {
+/// What [`ascii_safe_dir`] should do, decided by [`plan_ascii_safe_dir`].
+/// Pure/portable so the DECISION is unit-testable on every platform even
+/// though only the Windows build ever executes a `Shorten*` variant.
+#[cfg(any(target_os = "windows", test))]
+#[derive(Debug, PartialEq, Eq)]
+enum AsciiSafePlan {
+    /// `dir` is already ASCII — return unchanged, no OS calls at all.
+    NoOp,
+    /// The non-ASCII bytes are confined to `ancestor`, which already exists
+    /// (Windows creates a user's profile dirs at account-creation time, so a
+    /// non-ASCII *username* is always here) — shorten just that and
+    /// reattach `remainder`, which is literal ASCII we chose ourselves and
+    /// doesn't exist yet, unchanged.
+    ShortenAncestor { ancestor: PathBuf, remainder: PathBuf },
+    /// The not-yet-created remainder ITSELF carries non-ASCII bytes — e.g. a
+    /// user-chosen custom install folder named in their own language
+    /// (greptile #1783 review: reattaching a non-ASCII remainder unchanged
+    /// would silently leave the result non-ASCII for exactly the user this
+    /// exists to help). `GetShortPathNameW` can't mint a short name for a
+    /// path that doesn't exist, so `full` must be created on disk first —
+    /// Windows assigns every new directory an 8.3 short name by default —
+    /// then the COMPLETE path is shortened in one call.
+    CreateThenShorten { full: PathBuf },
+}
+
+/// True when [`split_existing_ancestor`]'s reattached remainder needs its
+/// own short-name resolution — non-empty AND non-ASCII — because the
+/// `ShortenAncestor` fast path (reattach unchanged) would silently leave the
+/// result non-ASCII otherwise.
+#[cfg(any(target_os = "windows", test))]
+fn remainder_needs_own_shortening(remainder: &Path) -> bool {
+    !remainder.as_os_str().is_empty() && !is_ascii_path(remainder)
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn plan_ascii_safe_dir(dir: &Path) -> AsciiSafePlan {
     if is_ascii_path(dir) {
-        return dir.to_path_buf();
+        return AsciiSafePlan::NoOp;
     }
     let (existing, remainder) = split_existing_ancestor(dir);
-    match win_short_path_name(&existing) {
-        Some(short) if is_ascii_path(&short) => short.join(&remainder),
-        _ => dir.to_path_buf(),
+    if remainder_needs_own_shortening(&remainder) {
+        AsciiSafePlan::CreateThenShorten { full: dir.to_path_buf() }
+    } else {
+        AsciiSafePlan::ShortenAncestor { ancestor: existing, remainder }
+    }
+}
+
+/// Windows-only: if `dir` contains a non-ASCII byte, resolve it to an
+/// ASCII-safe equivalent via Windows' 8.3 short filenames (the same trick
+/// `backend/core/config.py::_ensure_short_hf_cache_on_windows` documents for
+/// the HF-cache MAX_PATH problem), so every byte later written into the venv
+/// — including `uv sync`'s editable `.pth` — is valid in any single-byte
+/// Windows code page (#1783). See [`plan_ascii_safe_dir`] for which of the
+/// two non-ASCII cases applies.
+///
+/// Best-effort throughout: an ASCII `dir` is returned unchanged without ever
+/// calling into WinAPI or touching the filesystem. Any failure along the way
+/// (short-name call fails or is still non-ASCII — 8.3 generation disabled
+/// via `fsutil 8dot3name` — or the `CreateThenShorten` directory creation
+/// fails) returns the original path unchanged — no worse than before this
+/// fix, and the bootstrap crash-signature diagnosis names the cause if the
+/// interpreter still dies in `site`.
+#[cfg(target_os = "windows")]
+pub fn ascii_safe_dir(dir: &Path) -> PathBuf {
+    match plan_ascii_safe_dir(dir) {
+        AsciiSafePlan::NoOp => dir.to_path_buf(),
+        AsciiSafePlan::ShortenAncestor { ancestor, remainder } => match win_short_path_name(&ancestor) {
+            Some(short) if is_ascii_path(&short) => short.join(&remainder),
+            _ => dir.to_path_buf(),
+        },
+        AsciiSafePlan::CreateThenShorten { full } => {
+            if fs::create_dir_all(&full).is_err() {
+                return dir.to_path_buf();
+            }
+            match win_short_path_name(&full) {
+                Some(short) if is_ascii_path(&short) => short,
+                _ => dir.to_path_buf(),
+            }
+        }
     }
 }
 
@@ -1595,6 +1652,60 @@ mod tests {
         // Reassembling must reproduce the original path exactly.
         assert_eq!(existing.join(&remainder), target);
 
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn plan_ascii_safe_dir_is_a_noop_for_ascii_paths() {
+        assert_eq!(plan_ascii_safe_dir(Path::new("/ascii/only/path")), AsciiSafePlan::NoOp);
+    }
+
+    #[test]
+    fn plan_ascii_safe_dir_shortens_only_the_ancestor_when_the_remainder_is_ascii() {
+        // The common #1783 case: a non-ASCII Windows username is always
+        // part of an EXISTING ancestor (Windows creates the profile dir at
+        // account-creation time) — the not-yet-created subpath bootstrap
+        // appends (`AppData\Local\OmniVoice`) is ours and always ASCII.
+        let root = std::env::temp_dir().join(format!(
+            "ov-plan-ascii-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let nonascii_ancestor = root.join("\u{65e5}\u{672c}\u{8a9e}"); // exists
+        fs::create_dir_all(&nonascii_ancestor).unwrap();
+        let target = nonascii_ancestor.join("AppData").join("Local").join("OmniVoice"); // doesn't exist
+
+        match plan_ascii_safe_dir(&target) {
+            AsciiSafePlan::ShortenAncestor { ancestor, remainder } => {
+                assert_eq!(ancestor, nonascii_ancestor);
+                assert_eq!(remainder, Path::new("AppData").join("Local").join("OmniVoice"));
+            }
+            other => panic!("expected ShortenAncestor, got {:?}", other),
+        }
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn plan_ascii_safe_dir_creates_then_shortens_when_the_not_yet_created_leaf_is_nonascii() {
+        // greptile #1783 review, P1: a user-chosen custom install folder
+        // named in their own language — the ancestor exists and is ASCII,
+        // but the NOT-YET-CREATED leaf itself carries the non-ASCII bytes.
+        // Reattaching it unchanged (the ShortenAncestor fast path) would
+        // silently leave the result non-ASCII — exactly the bug flagged.
+        let root = std::env::temp_dir().join(format!(
+            "ov-plan-ascii-leaf-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap(); // ASCII ancestor, exists
+        let target = root.join("\u{6211}\u{7684}\u{8f6f}\u{4ef6}").join("env"); // doesn't exist, non-ASCII leaf
+
+        match plan_ascii_safe_dir(&target) {
+            AsciiSafePlan::CreateThenShorten { full } => assert_eq!(full, target),
+            other => panic!("expected CreateThenShorten, got {:?}", other),
+        }
         fs::remove_dir_all(&root).unwrap();
     }
 
