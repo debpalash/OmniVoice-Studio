@@ -307,7 +307,11 @@ export default function DesignMethodPanel({
                     one as a reusable profile (0005): the backend renders a
                     deterministic identity sample (seed 42) and stores the
                     slider picks for later re-editing. */}
-          <div className="mt-[10px] pt-[10px] border-t border-[var(--chrome-border)] flex items-center justify-between gap-[var(--space-3)] flex-wrap">
+          {/* Separated by space alone, never a rule: the app-wide border
+                    removal (tests/test_no_literal_borders.py) took every
+                    decorative divider out, so a token hairline here would
+                    reintroduce exactly the class that guard protects. */}
+          <div className="mt-[var(--space-4)] flex items-center justify-between gap-[var(--space-3)] flex-wrap">
             <Button variant="ghost" size="sm" onClick={resetToDescription}>
               {t('clone.reset_to_description', { defaultValue: 'Reset to description' })}
             </Button>
