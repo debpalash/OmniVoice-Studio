@@ -337,7 +337,18 @@
     "device_family_mps": "Apple GPU (MPS)",
     "device_family_cpu": "CPU",
     "device_load_failed": "Không tải được cài đặt thiết bị",
-    "perf_save_failed": "Không lưu được cài đặt"
+    "perf_save_failed": "Không lưu được cài đặt",
+    "generate_budget_title": "Ngân sách thời gian tính toán",
+    "generate_budget_desc": "Một lượt tạo được phép chạy bao lâu trước khi bị hủy vì quá nặng đối với phần cứng này. Việc kết xuất trên CPU vốn chậm hơn kết xuất tăng tốc, nên nó có ngưỡng riêng, cao hơn.",
+    "generate_timeout_gpu": "Ngân sách tăng tốc (GPU)",
+    "generate_timeout_gpu_note": "Dùng khi quá trình tạo chạy trên CUDA, ROCm, MPS hoặc bộ tăng tốc khác. Cũng dùng cho việc tạo trên CPU nếu chưa đặt ngân sách CPU bên dưới.",
+    "generate_timeout_cpu": "Ngân sách CPU",
+    "generate_timeout_cpu_note": "Dùng khi quá trình tạo chạy trên CPU. Sau khi lưu ở đây, giá trị này luôn chi phối việc tạo trên CPU — không phụ thuộc vào ngân sách tăng tốc ở trên.",
+    "generate_timeout_invalid": "Nhập số giây lớn hơn 0 và tối đa {{max}}.",
+    "generate_timeout_saved": "Đã lưu. Khởi động lại VoiceStudio để ngân sách mới có hiệu lực.",
+    "generate_timeout_shadowed_badge": "Bị ghi đè từ bên ngoài",
+    "generate_timeout_shadowed_note": "Một biến môi trường bên ngoài VoiceStudio (shell, tệp .env hoặc container) hiện đang đặt giá trị này — giá trị đã lưu ở đây sẽ bị bỏ qua cho đến khi biến đó được gỡ bỏ.",
+    "generate_timeout_shadowed_toast": "Đã lưu, nhưng một biến môi trường bên ngoài VoiceStudio hiện đang đặt giá trị này — giá trị đó sẽ tiếp tục được dùng cho đến khi biến đó được gỡ bỏ."
   },
   "bootstrap": {
     "title": "VoiceStudio",
@@ -805,7 +816,8 @@
     "familyMatrixTitle": "Công cụ {{family}}",
     "familyDesc_tts": "Chuyển kịch bản thành giọng nói. Studio, Lồng tiếng và Hàng loạt dùng công cụ đang hoạt động.",
     "familyDesc_asr": "Chuyển âm thanh thành văn bản để phiên âm, lồng tiếng, tạo phụ đề và đọc chính tả.",
-    "familyDesc_llm": "Trợ lý văn bản tùy chọn cho dịch thuật và viết lại. “Tắt” sẽ bỏ qua các bước này."
+    "familyDesc_llm": "Trợ lý văn bản tùy chọn cho dịch thuật và viết lại. “Tắt” sẽ bỏ qua các bước này.",
+    "mpsLongText": "{{engine}} chạy trên Apple Silicon (MPS) ở đây và văn bản này dài — quá trình tạo có thể vượt quá giới hạn thời gian. Văn bản ngắn hơn, hoặc chia thành vài phần, sẽ nhanh hơn nhiều."
   },
   "capture": {
     "desc": "Phím nóng chung chỉ hoạt động trong ứng dụng máy tính để bàn. Giao diện người dùng web sử dụng phím tắt <1>Ctrl+Shift+Space</1> trong trang trong khi cửa sổ đang có tiêu điểm.",
