@@ -804,16 +804,23 @@ def _oom_friendly_reraise(e):
     ) from e
 
 
-def _generate_timeout_s(text: str, *, execution_device=None) -> float:
+def _generate_timeout_s(text: str, *, execution_device=None, min_vram_gb=0.0) -> float:
     """Wall-clock budget for one generate, scaled to the request.
 
     Thin alias for the canonical helper, which moved to
     ``services.model_manager.generate_timeout_s`` (#1190) so /v1/audio/speech,
     batch, dub and archetype previews share it instead of each re-deriving (or,
     as they did, silently keeping the flat 300s).
+
+    ``min_vram_gb`` is the engine's declared VRAM floor. A GPU below it pages to
+    system RAM and renders slower than this machine's CPU, so it must not be
+    budgeted as fast hardware (#1804) — the same figure the dispatch already
+    hands the guard so a timeout message can name the card (#1226/#1222).
     """
     from services.model_manager import generate_timeout_s
-    return generate_timeout_s(text, execution_device=execution_device)
+    return generate_timeout_s(
+        text, execution_device=execution_device, min_vram_gb=min_vram_gb,
+    )
 
 
 def _run_inference(
@@ -1718,7 +1725,8 @@ async def generate_speech(
             local=gpu_gateway.LocalCall(
                 _remote_only_local_call(_target_label),
                 what="TTS generate",
-                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
+                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"],
+                                            min_vram_gb=_engine_min_vram_gb),
                 min_vram_gb=_engine_min_vram_gb,
             ),
             remote=_remote_call,
@@ -2012,7 +2020,8 @@ async def generate_speech(
                                 ),
                                 what="TTS generate",
                                 min_vram_gb=_engine_min_vram_gb,
-                                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
+                                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"],
+                                                            min_vram_gb=_engine_min_vram_gb),
                                 on_abandon=release,
                             )
                         )
@@ -2032,7 +2041,8 @@ async def generate_speech(
                                 ),
                                 what="TTS generate",
                                 min_vram_gb=_engine_min_vram_gb,
-                                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
+                                timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"],
+                                                            min_vram_gb=_engine_min_vram_gb),
                                 on_abandon=release,
                             )
                         )
@@ -2072,7 +2082,8 @@ async def generate_speech(
                                 # Budget scaled to THIS chunk (#1190) — the flat
                                 # 300s here is what made long streamed renders fail
                                 # even after the v0.3.22 scaled budget shipped.
-                                timeout=_generate_timeout_s(chunk_text, execution_device=_routing["effective_device"]),
+                                timeout=_generate_timeout_s(chunk_text, execution_device=_routing["effective_device"],
+                                                            min_vram_gb=_engine_min_vram_gb),
                                 on_abandon=release,
                             )
                         )
@@ -2232,7 +2243,8 @@ async def generate_speech(
                     _REMOTE_OP,
                     local=gpu_gateway.LocalCall(
                         _local_render, what="TTS generate",
-                        timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"]),
+                        timeout=_generate_timeout_s(text, execution_device=_routing["effective_device"],
+                                                    min_vram_gb=_engine_min_vram_gb),
                         min_vram_gb=_engine_min_vram_gb,
                         on_abandon=release,
                     ),

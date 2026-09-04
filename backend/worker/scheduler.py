@@ -652,6 +652,9 @@ class Scheduler:
             execution_device=worker.execution_device(
                 task.engine, task.model_id, task.operation
             ),
+            under_provisioned=worker.under_provisioned(
+                task.engine, task.model_id, task.operation
+            ),
         )
         attempt.renew_lease(budget.accept_seconds, now=now)
         self._save(task, now=now)
@@ -1304,6 +1307,12 @@ class Scheduler:
             execution_device=(
                 worker.execution_device(task.engine, task.model_id, task.operation)
                 if worker else None
+            ),
+            under_provisioned=bool(
+                worker
+                and worker.under_provisioned(
+                    task.engine, task.model_id, task.operation
+                )
             ),
         )
 

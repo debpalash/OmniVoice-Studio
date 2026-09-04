@@ -525,6 +525,7 @@ class GpuPoolBusyError(TimeoutError):
 
 def generate_timeout_s(
     text: "str | None", *, engine: object = None, execution_device: "str | None" = None,
+    min_vram_gb: float = 0.0,
 ) -> float:
     """THE wall-clock execution budget for one synthesis job, scaled to input.
 
@@ -543,11 +544,26 @@ def generate_timeout_s(
     characters past a 1200-character free allowance — generous enough for
     CPU-class hardware, still bounded (a wedged job is caught in minutes, not
     hours).
+
+    #1804: "accelerated" is not one performance class. A card with less VRAM
+    than the engine declares it needs pages to system RAM over PCIe and renders
+    SLOWER than the same machine's CPU would — yet, judged by device family
+    alone, it was handed HALF the CPU budget. That inversion is what three 4 GB
+    reporters hit (#1226 GTX 1650 Ti, #1222 Quadro P2000, #1804 GTX 1650), all
+    on the engine that declares a 6 GB floor. Every layer already knew: routing
+    raises a caveat, the preflight toast warns, and the timeout message names
+    the card. Only the budget ignored it. So an under-provisioned accelerator
+    now floors at the CPU budget — the class of hardware it actually performs
+    like. ``min_vram_gb`` is the engine's declared floor; callers that pass
+    ``engine`` get it read off the engine automatically.
     """
     base = GPU_JOB_TIMEOUT_S
     try:
         from core.device_caps import detect_host_caps
-        family = execution_device or detect_host_caps().family
+        caps = detect_host_caps()
+        family = execution_device or caps.family
+        if not min_vram_gb and engine is not None:
+            min_vram_gb = float(getattr(engine, "min_vram_gb", 0.0) or 0.0)
         if execution_device is None and engine is not None:
             from services.engine_routing import resolve_routing
             compat = getattr(engine, "gpu_compat", None)
@@ -556,10 +572,7 @@ def generate_timeout_s(
             if tuple(compat) == ("cpu",):
                 family = "cpu"
             else:
-                family = resolve_routing(
-                    compat, detect_host_caps(),
-                    float(getattr(engine, "min_vram_gb", 0.0) or 0.0),
-                )["effective_device"]
+                family = resolve_routing(compat, caps, min_vram_gb)["effective_device"]
         universal_override = (
             _GENERATE_TIMEOUT_EXPLICIT
             or GPU_JOB_TIMEOUT_S != _CONFIGURED_GPU_JOB_TIMEOUT_S
@@ -573,6 +586,13 @@ def generate_timeout_s(
         )
         if family == "cpu" and (cpu_explicit or not universal_override):
             base = CPU_JOB_TIMEOUT_S
+        elif not universal_override and family in ("cuda", "rocm"):
+            from services.engine_routing import under_provisioned_vram
+
+            if under_provisioned_vram(caps, min_vram_gb):
+                # `max`, never a plain assignment: an operator who raised the
+                # accelerated budget above the CPU one must not have it cut.
+                base = max(base, CPU_JOB_TIMEOUT_S)
     except Exception:
         # Device probing is advisory here; the configured universal bound is
         # still safe when a platform probe is unavailable during startup.
@@ -1076,6 +1096,7 @@ def _timeout_guidance(
     """
     family = "cuda"  # conservative default: GPU wording if the probe fails
     device_name, vram_gb = "", 0.0
+    _caps = None  # a failed probe stays None; under_provisioned_vram() reads it safely
     try:
         from core.device_caps import detect_host_caps
         _caps = detect_host_caps()
@@ -1123,11 +1144,9 @@ def _timeout_guidance(
     # a threshold applied without knowing whose job it is would confidently
     # misdiagnose most of them. And on MPS `vram_gb` is a unified-memory
     # heuristic (RAM/2), not a dedicated pool to compare against.
-    if (
-        min_vram_gb > 0
-        and family in ("cuda", "rocm")
-        and 0 < vram_gb < min_vram_gb
-    ):
+    from services.engine_routing import under_provisioned_vram
+
+    if under_provisioned_vram(_caps, min_vram_gb):
         return common + (
             f"{device_name or 'this GPU'} has {vram_gb:.1f} GB of VRAM and "
             f"this engine wants about {min_vram_gb:.0f} GB — generations here "

@@ -127,16 +127,29 @@ class Deadlines:
 
 
 def _base_execution_seconds(
-    text: Optional[str], *, execution_device: Optional[str] = None
+    text: Optional[str], *, execution_device: Optional[str] = None,
+    under_provisioned: bool = False,
 ) -> float:
     """Delegate to model_manager's budget; fall back to its formula.
 
     The lazy import keeps this module usable in a process that has no torch —
     the control plane schedules work it never executes.
+
+    ``under_provisioned`` is the worker's own verdict that its card sits below
+    the engine's declared VRAM floor (``ConnectedWorker.under_provisioned``).
+    It floors the budget at what the same job would get on a CPU, because that
+    is what a card paging to system RAM performs like (#1804). Derived by asking
+    for the CPU budget rather than by probing VRAM here: this process is the
+    control plane, and its hardware is not the worker's.
     """
     target_device = str(execution_device or "cpu").lower()
     if target_device not in {"cpu", "cuda", "mps", "mlx", "directml", "rocm", "xpu"}:
         target_device = "cpu"
+    if under_provisioned and target_device != "cpu":
+        return max(
+            _base_execution_seconds(text, execution_device=target_device),
+            _base_execution_seconds(text, execution_device="cpu"),
+        )
     try:
         from services import model_manager  # noqa: PLC0415 — intentionally lazy
 
@@ -171,6 +184,7 @@ def for_task(
     model_downloaded: bool = True,
     input_seconds: float = 0.0,
     execution_device: Optional[str] = None,
+    under_provisioned: bool = False,
 ) -> Deadlines:
     """Compute the deadlines for one attempt.
 
@@ -183,7 +197,8 @@ def for_task(
     multiplier, grace = _PROFILE[op]
 
     execution = _base_execution_seconds(
-        text, execution_device=execution_device
+        text, execution_device=execution_device,
+        under_provisioned=under_provisioned,
     ) * multiplier
     # Media-length operations scale on duration, not characters.
     if input_seconds > 0:

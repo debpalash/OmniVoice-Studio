@@ -26,7 +26,11 @@ quantized native binary with a much smaller memory footprint.
   [#1222](https://github.com/debpalash/VoiceStudio/issues/1222)) the driver
   pages to system RAM and a render that should take seconds runs for minutes
   until the compute budget kills it. The UI warns before you wait; nothing
-  hard-blocks, since short inputs can still fit.
+  hard-blocks, since short inputs can still fit. A CUDA or ROCm card below the
+  floor is also budgeted as the CPU-class hardware it performs like — the longer
+  `OMNIVOICE_CPU_GENERATE_TIMEOUT_S` (600 s), not the accelerated 300 s
+  ([#1804](https://github.com/debpalash/VoiceStudio/issues/1804)). Apple Silicon
+  is excluded: unified memory has no dedicated pool to compare against.
 - No extra install — the model ships with the app and downloads its weights
   on first use (see [downloading-models.md](../downloading-models.md)).
 
@@ -88,9 +92,10 @@ The env var overrides the persisted UI choice.
   is ignored. Design is trained on English and Chinese and can be unstable
   in low-resource languages; for description-driven design in other cases
   try [VoxCPM2](voxcpm2.md).
-- Below the 6 GB VRAM floor, expect very slow renders or budget timeouts;
-  prefer [OmniVoice GGUF](omnivoice-gguf.md) or a CPU engine such as
-  [PocketTTS](pockettts.md).
+- Below the 6 GB VRAM floor on a CUDA or ROCm card, expect very slow renders;
+  they get the longer CPU compute-time budget rather than the accelerated one,
+  but can still time out. Prefer [OmniVoice GGUF](omnivoice-gguf.md) or a CPU
+  engine such as [PocketTTS](pockettts.md).
 
 ## Troubleshooting
 

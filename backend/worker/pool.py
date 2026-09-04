@@ -93,12 +93,11 @@ class ConnectedWorker:
             return "busy"
         return "ready"
 
-    def supports(self, engine: str, model_id: str, operation: str) -> bool:
-        """Can this worker run this work at all?
+    def _capability_for(self, engine: str, model_id: str, operation: str):
+        """The advertised capability this task would actually be run by.
 
-        ``supported`` alone is not enough — an engine whose weights are not on
-        disk cannot start without a download, and one that is not installed
-        cannot start at all. Both are capability mismatches, not failures.
+        One selection rule, so the answers below cannot describe different
+        capabilities of the same worker.
         """
         for cap in self.record.capabilities:
             if cap.get("engine") != engine:
@@ -107,23 +106,55 @@ class ConnectedWorker:
                 continue
             if operation and operation not in (cap.get("operations") or [operation]):
                 continue
-            return bool(cap.get("supported")) and bool(cap.get("installed", True))
-        return False
+            return cap
+        return None
+
+    def supports(self, engine: str, model_id: str, operation: str) -> bool:
+        """Can this worker run this work at all?
+
+        ``supported`` alone is not enough — an engine whose weights are not on
+        disk cannot start without a download, and one that is not installed
+        cannot start at all. Both are capability mismatches, not failures.
+        """
+        cap = self._capability_for(engine, model_id, operation)
+        if cap is None:
+            return False
+        return bool(cap.get("supported")) and bool(cap.get("installed", True))
 
     def execution_device(self, engine: str, model_id: str, operation: str) -> str:
         """Device used by the exact capability selected for this task."""
-        for cap in self.record.capabilities:
-            if cap.get("engine") != engine:
-                continue
-            if model_id and cap.get("model_id") not in (model_id, "", None):
-                continue
-            if operation and operation not in (cap.get("operations") or [operation]):
-                continue
-            if cap.get("cpu_fallback"):
-                return "cpu"
-            backend = str(cap.get("backend") or "").lower()
-            return backend if backend in _KNOWN_EXECUTION_DEVICES else "cpu"
-        return "cpu"
+        cap = self._capability_for(engine, model_id, operation)
+        if cap is None:
+            return "cpu"
+        if cap.get("cpu_fallback"):
+            return "cpu"
+        backend = str(cap.get("backend") or "").lower()
+        return backend if backend in _KNOWN_EXECUTION_DEVICES else "cpu"
+
+    def under_provisioned(self, engine: str, model_id: str, operation: str) -> bool:
+        """Is this worker's GPU below the engine's declared VRAM floor?
+
+        The remote half of #1804. A card under the floor pages to system RAM and
+        renders slower than a CPU, so it must not be given the shorter
+        accelerated deadline. Decided from the two figures the WORKER itself
+        advertises (``free_memory_bytes`` / ``min_memory_bytes``, both set in
+        ``worker/capabilities.py``): the control plane's own VRAM says nothing
+        about the machine that will run the job, so
+        ``engine_routing.under_provisioned_vram`` — which probes THIS host —
+        cannot answer for a remote worker.
+
+        Same rules as that predicate otherwise: dedicated-VRAM devices only
+        (unified memory is not a comparable pool), and a zero on either side
+        means "unknown", never "too small".
+        """
+        cap = self._capability_for(engine, model_id, operation)
+        if cap is None or cap.get("cpu_fallback"):
+            return False
+        if str(cap.get("backend") or "").lower() not in ("cuda", "rocm"):
+            return False
+        floor = int(cap.get("min_memory_bytes") or 0)
+        have = int(cap.get("free_memory_bytes") or 0)
+        return floor > 0 and 0 < have < floor
 
     def is_warm(self, engine: str, model_id: str) -> bool:
         return self.capacity.is_resident(engine, model_id)

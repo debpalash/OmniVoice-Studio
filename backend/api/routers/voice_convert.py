@@ -323,7 +323,9 @@ async def convert_speech(
             audio_tensor = await run_on_gpu_pool_guarded(
                 _render,
                 what="Voice convert",
-                timeout=_generate_timeout_s(text),
+                timeout=_generate_timeout_s(
+                    text, min_vram_gb=getattr(type(backend), "min_vram_gb", 0.0),
+                ),
                 min_vram_gb=getattr(type(backend), "min_vram_gb", 0.0),
             )
         except GpuPoolBusyError as e:

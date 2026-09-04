@@ -31,6 +31,30 @@ class RoutingResult(TypedDict):
     routing_reason: str | None     # raw, pre-scrub
 
 
+def under_provisioned_vram(caps: HostCaps, min_vram_gb: float = 0.0) -> bool:
+    """Is this host's DEDICATED VRAM below the engine's declared floor?
+
+    The one definition of "under-provisioned", shared by everything that acts
+    on the verdict: the routing caveat below, the timeout guidance, and — since
+    #1804 — the compute-time budget itself (``model_manager
+    .generate_timeout_s``). It was written out inline in each of them, which is
+    how the budget came to disagree with the warning printed next to it.
+
+    Dedicated-VRAM families ONLY. On MPS, ``HostCaps.vram_gb`` is a heuristic
+    (system RAM / 2, see device_caps) for a UNIFIED memory pool; comparing it
+    against a floor measured on discrete CUDA hardware would tell every 8 GB Mac
+    its 4 GB "VRAM" is too small for an engine that runs fine there. A VRAM
+    figure of 0 means the probe failed — don't guess from it. A floor of 0 means
+    the engine declares none, and inventing one is worse than staying quiet.
+    """
+    if not min_vram_gb or min_vram_gb <= 0:
+        return False
+    if getattr(caps, "family", None) not in ("cuda", "rocm"):
+        return False
+    vram_gb = float(getattr(caps, "vram_gb", 0.0) or 0.0)
+    return 0 < vram_gb < float(min_vram_gb)
+
+
 def _caveat(caps: HostCaps, min_vram_gb: float = 0.0) -> str | None:
     """A caveat string for an otherwise-accelerated host, or None.
 
@@ -51,16 +75,7 @@ def _caveat(caps: HostCaps, min_vram_gb: float = 0.0) -> str | None:
     for note in caps.notes:
         if KERNEL_RISK_MARKER in note:
             return f"{caps.family.upper()} selected, but: {note}"
-    # Dedicated-VRAM families ONLY. On MPS, HostCaps.vram_gb is a heuristic
-    # (system RAM / 2, see device_caps) for a UNIFIED memory pool — comparing
-    # it against a floor measured on discrete CUDA hardware would tell every
-    # 8 GB Mac its 4 GB "VRAM" is too small for an engine that runs fine there.
-    # Different memory model, different (unmeasured) floor; don't guess.
-    if (
-        caps.family in ("cuda", "rocm")
-        and min_vram_gb > 0
-        and 0 < caps.vram_gb < min_vram_gb
-    ):
+    if under_provisioned_vram(caps, min_vram_gb):
         device = caps.device_name or caps.family.upper()
         return (
             f"{device} has {caps.vram_gb:.1f} GB VRAM; this engine wants about "
@@ -208,5 +223,5 @@ def routing_fields(
 
 __all__ = [
     "RoutingStatus", "RoutingResult", "resolve_routing", "routing_fields",
-    "routing_notice", "header_safe_reason",
+    "routing_notice", "header_safe_reason", "under_provisioned_vram",
 ]
