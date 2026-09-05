@@ -265,6 +265,9 @@ pub fn respawn_backend<R: tauri::Runtime>(
     stage: Arc<Mutex<BootstrapStage>>,
     logs: Arc<Mutex<Vec<LogPayload>>>,
 ) {
+    // Before anything reaches for lifecycle ownership: a readiness wait may be
+    // holding it while a slow backend starts (#1791).
+    preempt_backend_wait();
     if let Ok(mut guard) = stage.lock() {
         *guard = BootstrapStage::Checking;
     }
@@ -308,6 +311,7 @@ pub fn with_backend_stopped<R: tauri::Runtime, T>(
     app: &tauri::AppHandle<R>,
     action: impl FnOnce() -> T,
 ) -> Result<T, String> {
+    preempt_backend_wait();
     let state = app.state::<BackendState>();
     let _lifecycle = state.lifecycle.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(error) = stop_backend_locked(app) {
@@ -682,21 +686,37 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
     stage_handle: &Arc<Mutex<BootstrapStage>>,
 ) -> bool {
     let mut venv_heal_attempted = false;
+    // Snapshot taken AFTER our caller acquired lifecycle ownership, so a bump
+    // that happened before we started is not mistaken for a preemption of us.
+    let wait_generation = backend_wait_generation();
     'bootstrap: loop {
         if backend_stop_requested(app) {
             return false;
         }
         spawn_and_track_backend(app, stage_handle);
         let start = std::time::Instant::now();
+        // Latest `/startup/progress` status, or None while nothing answers.
+        let mut last_status: Option<String> = None;
         // Early-bind narration: the backend answers /startup/progress within
         // ~1s of spawn, long before it is Ready — surface each step change
         // as a log line so the splash shows "Loading ML runtime (PyTorch)…"
         // instead of a silent 300s wait. An old backend (no endpoint) yields
         // None and the wait looks exactly as it did before.
         let mut last_step = String::new();
-        while start.elapsed() < startup_budget() {
+        // #1791: the clock measures time since the last sign of life, not time
+        // since spawn — see `keep_waiting_for_backend`.
+        let mut last_progress = start;
+        while keep_waiting_for_backend(last_status.as_deref(), last_progress.elapsed(), startup_budget())
+        {
             if backend_stop_requested(app) {
                 log::info!("App is quitting — backend startup poll cancelled");
+                return false;
+            }
+            if backend_wait_generation() != wait_generation {
+                log::info!(
+                    "Retry/reset is taking the backend lifecycle — standing down from \
+                     the startup wait so it can proceed"
+                );
                 return false;
             }
             if crate::backend::backend_ready(backend_port()) {
@@ -838,13 +858,20 @@ fn spawn_backend_until_ready<R: tauri::Runtime>(
                 set_stage(stage_handle, BootstrapStage::Failed { message: msg });
                 return false;
             }
-            if let Some((status, step, label)) =
-                crate::backend::startup_progress(backend_port())
-            {
-                if status == "starting" && !step.is_empty() && step != last_step {
-                    last_step = step;
-                    emit_log(app, "starting_backend", &format!("Startup: {label}"));
+            match crate::backend::startup_progress(backend_port()) {
+                Some((status, step, label)) => {
+                    if status == "starting" {
+                        // Alive, serving, and naming the step it is on — that is
+                        // the evidence the wait is keyed on (#1791).
+                        last_progress = std::time::Instant::now();
+                        if !step.is_empty() && step != last_step {
+                            last_step = step;
+                            emit_log(app, "starting_backend", &format!("Startup: {label}"));
+                        }
+                    }
+                    last_status = Some(status);
                 }
+                None => last_status = None,
             }
             std::thread::sleep(Duration::from_millis(500));
         }
@@ -888,6 +915,30 @@ static SUPERVISOR_OWNER: AtomicU64 = AtomicU64::new(0);
 /// crash marker for — or respawn against — an *intentional* kill. Cleared the
 /// moment a fresh child is spawned and tracked (`track_backend_child`).
 static BACKEND_KILL_INTENDED: AtomicBool = AtomicBool::new(false);
+
+/// Bumped by any flow about to take backend lifecycle ownership for a
+/// deliberate replacement — Retry, Clean & Retry, reset, uninstall.
+///
+/// #1791: the readiness wait keeps waiting for as long as the backend answers
+/// `/startup/progress`, and it holds `BackendState::lifecycle` the whole time
+/// (`launch_backend_and_wait` takes it around the entire launch). Without a way
+/// to interrupt that wait, the user's own escape hatch would deadlock behind
+/// it: Retry and Clean & Retry both need the same lock, so pressing either on
+/// a slow start would hang instead of restarting anything — trading a backend
+/// killed too early for an app with no way out, which is worse. Every such
+/// flow bumps this BEFORE reaching for the lock; the waiting loop sees the
+/// change within one poll, returns, and releases it (Greptile, #1809).
+static BACKEND_WAIT_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Ask any in-flight readiness wait to stand down, so this caller can take
+/// lifecycle ownership. Call before locking, never while holding the lock.
+pub fn preempt_backend_wait() {
+    BACKEND_WAIT_GENERATION.fetch_add(1, Ordering::SeqCst);
+}
+
+fn backend_wait_generation() -> u64 {
+    BACKEND_WAIT_GENERATION.load(Ordering::SeqCst)
+}
 
 /// Bumped every time `track_backend_child` installs a new child. The
 /// supervisor snapshots it when it observes a death; a change during its
@@ -1122,6 +1173,42 @@ fn startup_budget() -> Duration {
         .filter(|&s| s > 0)
         .map(Duration::from_secs)
         .unwrap_or(Duration::from_secs(300))
+}
+
+/// Should the readiness poll keep waiting for a backend that is not Ready yet?
+///
+/// `status` is the `status` field of the latest `/startup/progress` reply, or
+/// `None` while nothing answers on the port.
+///
+/// #1791: this used to be a flat `elapsed < startup_budget()` from spawn, so a
+/// host where the cold start genuinely takes longer than five minutes — a
+/// project on a mapped network drive, a cold `import torch` off a spinning
+/// disk, a first CUDA DLL load — had its backend killed *while it was still
+/// importing*, reported as "the backend never reported ready". The respawn
+/// then threw away the warm work and raced the same clock again, so the app
+/// could never start even though launching the same backend by hand reached
+/// ready in under a minute.
+///
+/// A backend answering `status: "starting"` is not a backend we have to guess
+/// about: it bound its socket, it is serving HTTP, and it is telling us which
+/// step it is on. Killing it cannot make the next attempt faster, and the
+/// launcher has no information the user lacks — so keep waiting and keep
+/// narrating. The user's escape hatch is deliberate rather than clock-driven:
+/// the splash's own stall budget surfaces Retry and the logs, and its
+/// `/health` recovery poll walks straight into the app if the slow start does
+/// finish. The budget still governs *silence* — nothing answering, or a
+/// `failed`/unknown status — because there we truly cannot tell a slow
+/// backend from a wedged one, and the existing failure path (stderr tail +
+/// Retry) is the right answer.
+fn keep_waiting_for_backend(
+    status: Option<&str>,
+    since_progress: Duration,
+    budget: Duration,
+) -> bool {
+    match status {
+        Some("starting") => true,
+        _ => since_progress < budget,
+    }
 }
 
 /// The supervisor's death-detection poll interval. 2s in production;
@@ -3394,6 +3481,58 @@ mod tests {
         assert_eq!(startup_budget(), Duration::from_secs(6));
         std::env::remove_var("OMNIVOICE_STARTUP_BUDGET_S");
         std::env::remove_var("OMNIVOICE_SUPERVISOR_POLL_MS");
+    }
+
+    #[test]
+    fn a_backend_that_is_still_starting_is_never_timed_out() {
+        let budget = Duration::from_secs(300);
+        // #1791: the whole point — a slow cold start on a network drive or a
+        // cold disk keeps waiting no matter how long it has already taken,
+        // because it is demonstrably alive and naming its current step.
+        assert!(keep_waiting_for_backend(
+            Some("starting"),
+            Duration::from_secs(3_600),
+            budget
+        ));
+        // Silence is the case we cannot read, so the budget still governs it:
+        // wait up to the budget, then fail with the stderr tail as before.
+        assert!(keep_waiting_for_backend(None, Duration::from_secs(299), budget));
+        assert!(!keep_waiting_for_backend(None, budget, budget));
+        // A backend that reports its own startup failure gets no extension —
+        // it is not making progress and never will.
+        assert!(!keep_waiting_for_backend(
+            Some("failed"),
+            Duration::from_secs(301),
+            budget
+        ));
+        // An unrecognised status is treated as silence, not as liveness.
+        assert!(!keep_waiting_for_backend(
+            Some("wat"),
+            Duration::from_secs(301),
+            budget
+        ));
+    }
+
+    #[test]
+    fn a_retry_preempts_an_in_flight_readiness_wait() {
+        // #1791 + Greptile on #1809: the wait holds lifecycle ownership, which
+        // Retry and Clean & Retry both need. A waiter that cannot be asked to
+        // stand down turns a slow start into an app with no way out — strictly
+        // worse than the early kill this fix removed. The waiter snapshots the
+        // generation once ownership is held; a later bump means someone else is
+        // taking over.
+        let snapshot = backend_wait_generation();
+        assert_eq!(backend_wait_generation(), snapshot, "nothing changed yet");
+        preempt_backend_wait();
+        assert_ne!(
+            backend_wait_generation(),
+            snapshot,
+            "Retry must be visible to the waiting loop"
+        );
+        // And the flow that preempted then takes its OWN snapshot, so it does
+        // not immediately cancel itself.
+        let theirs = backend_wait_generation();
+        assert_eq!(backend_wait_generation(), theirs);
     }
 
     #[test]

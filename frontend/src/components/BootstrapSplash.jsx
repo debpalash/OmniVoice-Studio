@@ -365,6 +365,27 @@ function IpcLostRecovery({ t }) {
 }
 
 /** Mono error block. */
+/** When the backend last produced ANY line of bootstrap output.
+ *
+ * #1791: the stall watchdog in `useBootstrapStage` keys on `bootstrap_status`,
+ * which sits on a single stage for the whole of a slow start — a cold `import
+ * torch` off a mapped network drive can hold `starting_backend` for many
+ * minutes. The narration that proves it is alive ("Loading ML runtime
+ * (PyTorch)…") arrives on the separate `bootstrap-log` event stream instead,
+ * so the watchdog never saw it and called a live launch stuck. A splash that
+ * is still printing new lines is by definition not the info-less spinner the
+ * watchdog exists to break.
+ *
+ * Module-scoped rather than a ref because the two halves live in different
+ * components — `BootstrapSplash` owns the event subscription, `useBootstrapStage`
+ * owns the watchdog — and they are always mounted as a pair.
+ */
+let lastBootstrapLogTs = 0;
+
+export function noteBootstrapLogActivity(ts = Date.now()) {
+  lastBootstrapLogTs = ts;
+}
+
 function ErrorBox({ children }) {
   return (
     <pre className="m-0 overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-danger/10 px-3 py-2 font-mono text-[0.66rem] leading-relaxed text-danger shadow-[inset_2px_0_0_var(--color-danger)]">
@@ -523,6 +544,7 @@ export function BootstrapSplash({ stage, message }) {
         unlistenLog = await listen('bootstrap-log', (e) => {
           const { stage: s, line } = e.payload || {};
           if (!line) return;
+          noteBootstrapLogActivity();
           setLogs((prev) => {
             // Deduplicate against backfill by checking the last few lines.
             const lastFew = prev.slice(-5);
@@ -982,7 +1004,8 @@ export function useBootstrapStage(pollMs = 1000) {
           }
           // Rust returns { stage: 'ready' } or { stage: 'failed', message: '…' } etc.
           if (stage !== 'ready' && stage !== 'failed') {
-            if (Date.now() - lastChangeTs > stallBudgetMs(stage)) {
+            const lastActivity = Math.max(lastChangeTs, lastBootstrapLogTs);
+            if (Date.now() - lastActivity > stallBudgetMs(stage)) {
               // Stuck — surface it as a failure so Retry/logs/hints appear.
               setState({
                 stage: 'failed',

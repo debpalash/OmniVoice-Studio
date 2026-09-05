@@ -60,6 +60,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The desktop app no longer gives up on a backend that is still starting: a slow cold start (project on a network drive, a cold `import torch`, a first CUDA load) is kept and narrated instead of being killed at five minutes and reported as "the backend never reported ready" (#1791)
 - The generation compute-time budget is now a Settings control (Performance & Device) instead of an env-var-only setting the timeout error recommended with no UI path — the error copy points there too, and long CPU/MPS renders get an upfront heads-up before they start (#1787)
 - Windows: the backend can now start when the install path contains non-English characters (e.g. a CJK username) on a non-UTF-8 system code page — a new or broken Python environment now builds at an ASCII-safe path automatically (a healthy existing one is never relocated), and a specific error message names the cause and a working fix if the interpreter still crashes in `site` (#1783)
 - Exports and other native-picker actions no longer 403 with "Invalid or expired desktop authorization" when the desktop app and backend resolve different data directories, e.g. dev mode or a custom data folder (#1781)
