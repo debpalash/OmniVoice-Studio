@@ -57,7 +57,7 @@
 | **Storage** | Voices, projects, settings, and outputs stay on the machine by default |
 | **License** | AGPL-3.0 application; downloaded models keep their upstream terms |
 
-The Voice workspace starts with the active engine selector and three tabs: **From audio** for cloning, **By design** for creating a voice, and **Convert** for speech-to-speech conversion. Each tab displays its own workflow below. In From audio and By design, Synthesize Audio stays at the bottom while the form scrolls above it.
+The Voice workspace starts with the active engine selector and three tabs: **From audio** for cloning, **By design** for creating a voice, and **Convert** for speech-to-speech conversion. Each tab displays its own workflow below. In From audio and By design, Synthesize Audio stays at the bottom while the form scrolls above it. The searchable language picker shares Dubbing’s flags and language list layout, selects one output language, and retains Auto and the full cloning catalogue.
 
 <a id="install"></a>
 
