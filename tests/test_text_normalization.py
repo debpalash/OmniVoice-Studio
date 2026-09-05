@@ -65,6 +65,18 @@ _CHANGE_CASES = [
     ("French", "il a 42 chats", "il a quarante-deux chats"),
     ("French", "Mme Dupont arrive", "Madame Dupont arrive"),
     ("Russian", "у меня 42 кота", "у меня сорок два кота"),
+    # Digit ranges: the tilde has to be SPOKEN or the engine mashes the two
+    # numbers into one ("20~30초" was read as "이십삼"). Spacing is part of the
+    # per-language form — a Korean postposition binds to its numeral, Japanese
+    # and Chinese set no spaces, English needs them.
+    ("Korean", "대략 20~30초짜리", "대략 20에서 30초짜리"),
+    ("Korean", "가격은 20~30만원", "가격은 20에서 30만원"),
+    ("ko", "20~30초", "20에서 30초"),
+    ("Japanese", "20〜30分ぐらい", "20から30分ぐらい"),          # wave dash U+301C
+    ("Japanese", "20～30分ぐらい", "20から30分ぐらい"),          # fullwidth U+FF5E
+    ("Chinese", "大约需要20～30秒", "大约需要20到30秒"),
+    # EN runs the range through num2words afterwards, as it does any digit
+    ("English", "It takes 20~30 seconds", "It takes twenty to thirty seconds"),
     # Universal safety filters (language-independent)
     (None, "hello​ ‍world", "hello world"),
     (None, "too   many\t spaces", "too many spaces"),
@@ -124,6 +136,16 @@ _UNCHANGED_CASES = [
     ("English", "I said no. Fine."),            # the word "no.", not "number"
     ("English", "down main st. Anyway"),        # lowercase "st." is not Saint
     ("German", "es kostet 3,5 Euro"),           # decimal comma: ambiguous
+    # Digit ranges: only the tilde family is a range mark. Everything else that
+    # sits between digits means something other than "to".
+    ("Korean", "대략 20-30초"),                   # ASCII hyphen: also dates/phones
+    ("Korean", "2026-09-05 회의"),                # date
+    ("Korean", "010-1234-5678"),                 # phone number
+    ("Korean", "AB20~30CD"),                     # product code, not a range
+    ("Korean", "1.20~30.5"),                     # decimals either side
+    ("Japanese", "そうですね〜"),                   # tilde not between digits
+    ("Vietnamese", "20~30 giây"),                # no verified spoken form
+    (None, "20~30초"),                           # no language given
     # Unsupported languages keep every digit (num2words unmapped)
     ("Japanese", "42 cats and 3.5 stars at 3:30"),
     ("Thai", "42 cats"),

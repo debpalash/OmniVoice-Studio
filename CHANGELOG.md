@@ -10,6 +10,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- Number ranges are read as ranges — "20~30초" no longer comes out as "23" (#1821)
+
 ### Changed
 
 ### Added
@@ -17,6 +19,8 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Docs
 
 ### Fixed
+
+- Digit ranges written with a tilde are now spoken: `20~30초` read aloud as "23" because the separator never reached the engine, and the two numbers ran together (#1821)
 
 
 ## [0.5.2] — 2026-09-02
