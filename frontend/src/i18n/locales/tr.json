@@ -539,6 +539,9 @@
     "convert_desc": "Bir kez söyleyin — başka bir sesle duyun. Konuşmadan konuşmaya, tamamen yerel."
   },
   "clone": {
+    "text_label": "Metin",
+    "paste": "Yapıştır",
+    "paste_failed": "Pano erişimi engellendi. Klavyeyi kullanarak doğrudan metin alanına yapıştırın.",
     "prompt": "İstemi",
     "language": "Dil",
     "steps": "Adımlar",

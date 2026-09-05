@@ -15,6 +15,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- Voice tabs and upload/record controls have subtle SVG motion; Text adds clipboard paste and the upload area fills available height (#1823)
 - The title-bar label cycles through active speech, transcription, and LLM engines; bundled model labels correctly say OmniVoice (#1823)
 - The top-bar Engines panel groups Speech, Transcription, and LLM choices into tabs, with compact memory controls and no duplicate pickers (#1823)
 ### Added
@@ -23,6 +24,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The notification count stays inside the title bar instead of clipping above the bell (#1823)
 - The workspace engine menu opens beside its button instead of at the opposite edge of the page (#1823)
 - Cloning reuses the dubbing language picker with flags, search, and single selection, opening above the pinned synthesis controls (#1823)
 

@@ -15,6 +15,7 @@ import AudioMethodPanel from '../components/clone/AudioMethodPanel';
 import DesignMethodPanel from '../components/clone/DesignMethodPanel';
 import ConvertMethodPanel from '../components/clone/ConvertMethodPanel';
 import ActionBar from '../components/clone/ActionBar';
+import VoiceModeIcon from '../components/clone/VoiceModeIcon';
 
 export default function CloneDesignTab(props) {
   const [convertRecordingBusy, setConvertRecordingBusy] = useState(false);
@@ -432,9 +433,11 @@ export default function CloneDesignTab(props) {
             <TabsTrigger
               key={method.id}
               value={method.id}
+              data-voice-mode={method.id}
               disabled={isStartingRecording || isRecording || convertRecordingBusy}
-              className="min-h-11 h-auto min-w-0 cursor-pointer whitespace-normal rounded-[var(--chrome-radius-pill)] border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-[color:var(--chrome-fg-muted)] transition-colors data-[state=active]:border-[var(--chrome-accent-border)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:font-semibold data-[state=active]:text-[color:var(--chrome-accent)] data-[state=active]:shadow-none dark:data-[state=active]:border-[var(--chrome-accent-border)] dark:data-[state=active]:bg-[var(--chrome-accent-bg)] dark:data-[state=active]:text-[color:var(--chrome-accent)] hover:data-[state=inactive]:bg-[var(--chrome-hover-bg)]"
+              className="voice-mode-tab min-h-11 h-auto min-w-0 cursor-pointer whitespace-normal rounded-[var(--chrome-radius-pill)] border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-[color:var(--chrome-fg-muted)] transition-colors data-[state=active]:border-[var(--chrome-accent-border)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:font-semibold data-[state=active]:text-[color:var(--chrome-accent)] data-[state=active]:shadow-none dark:data-[state=active]:border-[var(--chrome-accent-border)] dark:data-[state=active]:bg-[var(--chrome-accent-bg)] dark:data-[state=active]:text-[color:var(--chrome-accent)] hover:data-[state=inactive]:bg-[var(--chrome-hover-bg)]"
             >
+              <VoiceModeIcon mode={method.id} />
               {method.label}
             </TabsTrigger>
           ))}
@@ -475,8 +478,10 @@ export default function CloneDesignTab(props) {
               )}
 
               {/* ═══ VOICE — who says it ═══ */}
-              <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[1]">
-                <div className="flex flex-col min-h-0 overflow-auto bg-[var(--chrome-bg)] border border-transparent rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
+              <div
+                className={`flex flex-col gap-[6px] ${defineMethod === 'audio' ? 'flex-[1_0_auto]' : 'flex-none'} min-h-0 relative z-[1]`}
+              >
+                <div className="flex flex-1 flex-col min-h-0 bg-[var(--chrome-bg)] border border-transparent rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
                   <div className="label-row justify-between">
                     <span className="label-row mb-0">
                       <Volume2 className="label-icon" size={14} />{' '}

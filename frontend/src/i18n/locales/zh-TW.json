@@ -539,6 +539,9 @@
     "convert_desc": "說一次,用另一種聲音聽到。語音到語音,完全在本機執行。"
   },
   "clone": {
+    "text_label": "文字",
+    "paste": "貼上",
+    "paste_failed": "剪貼簿存取遭到封鎖。請使用鍵盤直接貼上到文字欄位。",
     "prompt": "提示",
     "language": "語言",
     "steps": "步驟",

@@ -539,6 +539,9 @@
     "convert_desc": "Säg det en gång — hör det med en annan röst. Tal till tal, helt lokalt."
   },
   "clone": {
+    "text_label": "Text",
+    "paste": "Klistra in",
+    "paste_failed": "Åtkomst till urklipp blockerades. Klistra in direkt i textfältet med tangentbordet.",
     "prompt": "Fråga",
     "language": "Språk",
     "steps": "Steg",
