@@ -233,7 +233,7 @@ export default function MultiLangPicker({
                 : { visibility: 'hidden' }
             }
           >
-            <div className="flex items-center gap-[6px] px-[10px] py-[8px] border-b border-solid border-b-transparent text-[color:var(--chrome-fg-muted)]">
+            <div className="flex items-center gap-[6px] px-[10px] py-[8px] border-0 text-[color:var(--chrome-fg-muted)]">
               <Search size={10} aria-hidden="true" />
               <input
                 ref={inputRef}
@@ -247,7 +247,7 @@ export default function MultiLangPicker({
                 className="flex-1 bg-transparent border-0 text-[color:var(--chrome-fg)] [font-family:var(--font-sans)] text-[0.78rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chrome-accent)]"
               />
             </div>
-            <div className="overflow-y-auto overscroll-contain flex-1 py-[4px]">
+            <div className="multi-lang-options overflow-y-auto overscroll-contain flex-1 py-[4px]">
               {selectedFiltered.length > 0 && (
                 <>
                   <div className="[font-family:var(--font-mono)] text-[0.62rem] font-semibold uppercase [letter-spacing:0.04em] text-[color:var(--chrome-fg-dim)] pt-[6px] px-[10px] pb-[2px]">

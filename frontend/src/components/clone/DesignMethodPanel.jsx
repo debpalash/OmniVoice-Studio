@@ -1,5 +1,23 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Save } from 'lucide-react';
+import {
+  ChevronUp,
+  ChevronDown,
+  Save,
+  Sparkles,
+  Users,
+  User,
+  Baby,
+  Clock,
+  AudioLines,
+  SlidersHorizontal,
+  Languages,
+  Wind,
+  ArrowDown,
+  ArrowUp,
+  ChevronsDown,
+  ChevronsUp,
+  Minus,
+} from 'lucide-react';
 import { Button, Input } from '../../ui';
 import { PRESETS, CATEGORIES } from '../../utils/constants';
 import {
@@ -10,6 +28,7 @@ import {
   stripVoiceEmoji,
 } from '../../utils/voiceIcons';
 import { buildDesignInstruct } from '../../utils/voiceInstruct';
+import VoiceSelect from './VoiceSelect';
 
 // Chip / personality-chip class families migrated from index.css to Tailwind
 // utilities (shadcn P4). The token utilities reference the same --chrome-* vars
@@ -35,6 +54,32 @@ const CHIP_INACTIVE =
 // out as a 2x2 grid; kept as one array so the grid and its labels stay in
 // sync if a category is ever added/removed.
 const SELECT_CATEGORIES = ['Gender', 'Age', 'Pitch', 'Style'];
+const FIELD_ICONS = { Gender: Users, Age: Clock, Pitch: AudioLines, Style: SlidersHorizontal };
+function FieldIcon({ category }) {
+  const Icon = FIELD_ICONS[category] || Languages;
+  return (
+    <Icon
+      size={15}
+      aria-hidden="true"
+      className="inline-block mr-2 align-text-bottom text-[var(--chrome-fg-muted)]"
+    />
+  );
+}
+const PITCH_ICONS = {
+  'very low pitch': ChevronsDown,
+  'low pitch': ArrowDown,
+  'moderate pitch': Minus,
+  'high pitch': ArrowUp,
+  'very high pitch': ChevronsUp,
+};
+const designOptionIcon = (category, value) => {
+  if (value === 'Auto') return Sparkles;
+  if (category === 'Pitch') return PITCH_ICONS[value] || AudioLines;
+  if (category === 'Gender') return User;
+  if (category === 'Age') return value === 'child' ? Baby : User;
+  if (category === 'Style') return Wind;
+  return Languages;
+};
 // English accent and Chinese dialect are two independent CATEGORIES entries
 // (the engine's exclusivity rule lives in voiceInstruct.js's EXCLUSIVE_GROUPS)
 // but only one can ever apply, so the picker merges them into ONE <select>
@@ -87,10 +132,10 @@ export default function DesignMethodPanel({
   // curated CATEGORIES list — guard before .replace() rather than crash;
   // 'Auto' matches how the rest of the component treats an unset category.
   const optLabel = (val) => {
-    if (typeof val !== 'string' || !val) return t('clone.opt_Auto');
+    if (typeof val !== 'string' || !val || val === 'Auto') return t('clone.auto');
     const tKey = `clone.opt_${val.replace(/[ -]/g, '_')}`;
     const tl = t(tKey);
-    return tl !== tKey ? tl : val;
+    return stripVoiceEmoji(tl !== tKey ? tl : val);
   };
 
   const accentValue = vdStates.EnglishAccent;
@@ -250,57 +295,53 @@ export default function DesignMethodPanel({
       </button>
       {identityOpen && (
         <div id="design-details-fields">
-          <div className="grid grid-cols-2 gap-x-[12px] gap-y-[8px]">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
             {SELECT_CATEGORIES.map((key) => (
               <div key={key} className="min-w-0">
-                <label htmlFor={`vd-${key}`} className="label-row text-[0.7rem]">
+                <label
+                  htmlFor={`vd-${key}`}
+                  className="block mb-2 text-sm font-medium text-[var(--chrome-fg)]"
+                >
+                  <FieldIcon category={key} />
                   {t(`clone.cat_${key}`)}
                 </label>
-                <select
+                <VoiceSelect
                   id={`vd-${key}`}
-                  className="input-base"
+                  label={t(`clone.cat_${key}`)}
                   value={vdStates[key] || 'Auto'}
-                  onChange={(e) => onVdChange(key, e.target.value)}
-                >
-                  {CATEGORIES[key].map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => onVdChange(key, value)}
+                  options={CATEGORIES[key]}
+                  optionLabel={optLabel}
+                  optionIcon={(value) => designOptionIcon(key, value)}
+                />
               </div>
             ))}
             <div className="col-[1/-1] min-w-0">
-              <label htmlFor="vd-AccentDialect" className="label-row text-[0.7rem]">
+              <label
+                htmlFor="vd-AccentDialect"
+                className="block mb-2 text-sm font-medium text-[var(--chrome-fg)]"
+              >
+                <FieldIcon category="Accent" />
                 {t('clone.cat_AccentDialect', { defaultValue: 'Accent or Dialect' })}
-                <span className="ml-[6px] text-[0.58rem] text-[var(--chrome-fg-muted)] font-medium">
+                <span className="block mt-1 text-xs text-[var(--chrome-fg-muted)] font-normal">
                   {t('clone.accent_dialect_hint', {
                     defaultValue: 'one or the other, never both',
                   })}
                 </span>
               </label>
-              <select
+              <VoiceSelect
                 id="vd-AccentDialect"
-                className="input-base"
+                label={t('clone.cat_AccentDialect', { defaultValue: 'Accent or Dialect' })}
                 value={accentDialectValue}
-                onChange={(e) => onAccentDialectChange(e.target.value)}
-              >
-                <option value="Auto">{optLabel('Auto')}</option>
-                <optgroup label={t('clone.cat_EnglishAccent')}>
-                  {ACCENT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={t('clone.cat_ChineseDialect')}>
-                  {DIALECT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                onChange={onAccentDialectChange}
+                options={['Auto']}
+                optionLabel={optLabel}
+                optionIcon={(value) => designOptionIcon('Accent', value)}
+                groups={[
+                  { label: t('clone.cat_EnglishAccent'), options: ACCENT_OPTIONS },
+                  { label: t('clone.cat_ChineseDialect'), options: DIALECT_OPTIONS },
+                ]}
+              />
             </div>
           </div>
 

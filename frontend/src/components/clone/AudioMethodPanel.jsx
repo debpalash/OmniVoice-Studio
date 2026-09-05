@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from 'react';
 import { ChevronDown, Save, UploadCloud, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { Button, Input, Segmented, Select } from '../../ui';
+import { Button, Input, Segmented } from '../../ui';
+import VoiceSelect from './VoiceSelect';
 import MicButton from './MicButton';
 import WaveformPlayer from '../WaveformPlayer';
 import VoiceModeIcon from './VoiceModeIcon';
@@ -134,54 +135,57 @@ export default function AudioMethodPanel({
       )}
 
       {!hasReference && sourceMode === 'record' && (
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 max-[520px]:grid-cols-1">
-          <MicButton
-            isCleaning={isCleaning}
-            isStarting={isStartingRecording}
-            isRecording={isRecording}
-            recordingTime={recordingTime}
-            onStart={startRecording}
-            onStop={stopRecording}
-          />
-          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2 max-[520px]:grid-cols-1">
+        <div className="flex flex-1 flex-col gap-5 rounded-lg bg-[var(--chrome-hover-bg)] p-4">
+          <div className="flex flex-1 min-h-28 items-center justify-center [&>button]:min-h-24 [&>button]:min-w-32">
+            <MicButton
+              isCleaning={isCleaning}
+              isStarting={isStartingRecording}
+              isRecording={isRecording}
+              recordingTime={recordingTime}
+              onStart={startRecording}
+              onStop={stopRecording}
+            />
+          </div>
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 max-[520px]:grid-cols-1">
             <label className="min-w-0 text-[length:var(--text-xs)] text-fg-muted">
               <span className="mb-1 block">{t('recording.input_device')}</span>
-              <Select
-                size="sm"
-                className="w-full"
+              <VoiceSelect
+                label={t('recording.input_device')}
                 value={selectedAudioInputId}
-                onChange={(event) => {
+                onChange={(value) => {
                   if (!isStartingRecording && !isRecording && !isCleaning) {
-                    setSelectedAudioInputId?.(event.target.value);
+                    setSelectedAudioInputId?.(value);
                   }
                 }}
                 disabled={isStartingRecording || isRecording || isCleaning}
-              >
-                <option value="">{t('recording.default_input')}</option>
-                {audioInputs.map((device, index) => (
-                  <option key={device.deviceId || `input-${index}`} value={device.deviceId}>
-                    {device.label || t('recording.microphone_number', { number: index + 1 })}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  { value: '', label: t('recording.default_input') },
+                  ...audioInputs
+                    .filter((device) => device.deviceId)
+                    .map((device, index) => ({
+                      value: device.deviceId,
+                      label:
+                        device.label || t('recording.microphone_number', { number: index + 1 }),
+                    })),
+                ]}
+              />
             </label>
             <label className="min-w-0 text-[length:var(--text-xs)] text-fg-muted">
               <span className="mb-1 block">{t('recording.channels')}</span>
-              <Select
-                size="sm"
-                className="w-full"
+              <VoiceSelect
+                label={t('recording.channels')}
                 value={channelMode}
-                onChange={(event) => {
+                onChange={(value) => {
                   if (!isStartingRecording && !isRecording && !isCleaning) {
-                    setChannelMode?.(event.target.value);
+                    setChannelMode?.(value);
                   }
                 }}
                 disabled={isStartingRecording || isRecording || isCleaning}
-              >
-                <option value="auto">{t('recording.channels_auto')}</option>
-                <option value="mono">{t('recording.channels_mono')}</option>
-                <option value="stereo">{t('recording.channels_stereo')}</option>
-              </Select>
+                options={['auto', 'mono', 'stereo'].map((value) => ({
+                  value,
+                  label: t(`recording.channels_${value}`),
+                }))}
+              />
             </label>
           </div>
           {isRecording && (

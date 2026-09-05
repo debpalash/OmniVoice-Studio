@@ -127,7 +127,8 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
     const onVdChange = vi.fn();
     setup({ EnglishAccent: 'Auto', ChineseDialect: 'Auto' }, { identityOpen: true, onVdChange });
     const select = document.getElementById('vd-AccentDialect');
-    fireEvent.change(select, { target: { value: 'british accent' } });
+    fireEvent.keyDown(select, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: 'british accent' }));
     expect(onVdChange).toHaveBeenCalledWith('EnglishAccent', 'british accent');
   });
 
@@ -135,7 +136,8 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
     const onVdChange = vi.fn();
     setup({ EnglishAccent: 'Auto', ChineseDialect: 'Auto' }, { identityOpen: true, onVdChange });
     const select = document.getElementById('vd-AccentDialect');
-    fireEvent.change(select, { target: { value: '四川话' } });
+    fireEvent.keyDown(select, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: '四川话' }));
     expect(onVdChange).toHaveBeenCalledWith('ChineseDialect', '四川话');
   });
 
@@ -143,7 +145,8 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
     const onVdChange = vi.fn();
     setup({ EnglishAccent: 'Auto', ChineseDialect: '四川话' }, { identityOpen: true, onVdChange });
     const select = document.getElementById('vd-AccentDialect');
-    fireEvent.change(select, { target: { value: 'Auto' } });
+    fireEvent.keyDown(select, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: 'clone.auto' }));
     expect(onVdChange).toHaveBeenCalledWith('ChineseDialect', 'Auto');
     expect(onVdChange).not.toHaveBeenCalledWith('EnglishAccent', expect.anything());
   });
@@ -151,7 +154,7 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
   it('shows the currently-set dialect as the merged select value', () => {
     setup({ EnglishAccent: 'Auto', ChineseDialect: '四川话' }, { identityOpen: true });
     const select = document.getElementById('vd-AccentDialect');
-    expect(select.value).toBe('四川话');
+    expect(select).toHaveTextContent('四川话');
   });
 });
 
