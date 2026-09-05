@@ -21,6 +21,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The workspace engine menu opens beside its button instead of at the opposite edge of the page (#1823)
 - Cloning reuses the dubbing language picker with flags, search, and single selection, opening above the pinned synthesis controls (#1823)
 
 ## [0.5.2] — 2026-09-02
