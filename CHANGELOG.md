@@ -36,7 +36,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
-- Voice cloning now starts with a clear upload-or-record choice, reveals recording and reference details only when needed, and keeps sampling controls under Production Overrides
+- Voice cloning now starts with a clear upload-or-record choice, reveals recording and reference details only when needed, and keeps sampling controls under Production Overrides (#1817)
 - Voice Design simplified: the 12-row fine-grained block collapses to one summary line with a five-field editor, English accent and Chinese dialect merge into a single field, and the starting-point chips now show 5 with an overflow toggle (#1793)
 
 ### Added
