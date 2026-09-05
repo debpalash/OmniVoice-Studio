@@ -131,7 +131,7 @@ The desktop launcher configures Python dependencies on first run via `uv` automa
 |---|---|
 | **Voice Cloning** | Zero-shot synthesis from a short reference clip ([guide](docs/engines/README.md)) |
 | **Voice Design** | Create a voice from age, accent, pitch, style, and delivery instructions ([expressive speech](docs/expressive-speech.md)) |
-| **Video Dubbing** | Transcribe, translate, preserve speakers, synthesize, and export video ([export guide](docs/dubbing/export.md)) |
+| **Video Dubbing** | Transcribe, translate, preserve speakers, synthesize, and export video; grouped casting and translation controls include searchable language and engine menus ([export guide](docs/dubbing/export.md)) |
 | **Stories and audiobooks** | Multi-voice scripts · EPUB/PDF import · chapter rendering · `.m4b` export |
 | **[Dictation Widget](docs/features/dictation.md)** | System-wide shortcut, live transcription, optional local-LLM cleanup |
 | **Vocal Isolation** | Demucs speech/background separation |

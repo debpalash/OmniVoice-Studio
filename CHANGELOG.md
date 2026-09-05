@@ -15,6 +15,10 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- Export uses grouped format settings, themed track menus and switches, with a pinned filename summary and download action (#1823)
+- Dubbing output settings use icon-labelled switches, themed track and speaker menus, and clearer timing/transcript controls (#1823)
+- Casting voice menus use searchable themed options with SVG preset icons instead of native dropdowns (#1823)
+- Dubbing groups casting and translation controls with readable labels, SVG icons, searchable menus, and compact timeline spacing (#1823)
 - Production Overrides use readable icon-labelled controls and accessible Denoise/Postprocess switches (#1823)
 - Expanded navigation uses a theme-accent tint with subtle static wave gradients (#1823)
 - Convert groups source audio, target voice, and timing options into clearer controls; design choices include theme-matched SVG icons (#1823)

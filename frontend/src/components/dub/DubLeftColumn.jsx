@@ -12,6 +12,11 @@ import {
   Copy,
   ExternalLink,
   ArrowRightLeft,
+  Cpu,
+  Gauge,
+  Hash,
+  MapPin,
+  RotateCcw,
 } from 'lucide-react';
 import { Button, Segmented, Progress } from '../../ui';
 import { useAppStore } from '../../store';
@@ -21,7 +26,7 @@ import { API } from '../../api/client';
 import { dubListTracks } from '../../api/dub';
 import { LANG_CODES } from '../../utils/languages';
 import ALL_LANGUAGES from '../../languages.json';
-import { POPULAR_LANGS } from '../../utils/constants';
+import SearchableSelect from '../SearchableSelect';
 import { dialectOptionsFor, dialectLabel, dialectMatchesLang } from '../../api/dialects';
 import { dubSegmentsText } from '../../api/dub';
 import { copyText } from '../../utils/copyText';
@@ -29,6 +34,7 @@ import { openExternal } from '../../api/external';
 import { TRANSLATION_ENGINES_DOCS } from '../../utils/errorDocsMap';
 import CastingBoard from './CastingBoard';
 import toast from 'react-hot-toast';
+import './DubLeftColumn.css';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
 const SETTINGS_SUMMARY =
@@ -36,12 +42,11 @@ const SETTINGS_SUMMARY =
 const SUMMARY_TRIGGER =
   'inline-flex items-center gap-[5px] flex-1 min-w-0 bg-transparent border-none text-fg-muted cursor-pointer py-[2px] px-0 [font:inherit] text-left';
 const SETTINGS_BAR =
-  'flex flex-col gap-[3px] max-[900px]:gap-[6px] mb-[4px] px-[8px] py-[4px] bg-[var(--chrome-bg)] border border-transparent rounded-[var(--chrome-radius-pill)]';
-const FIELD = 'flex flex-col gap-[1px] min-w-0';
-const FIELD_RESP = 'max-[960px]:basis-full max-[960px]:min-w-0';
-const FIELD_LABEL =
-  'label-row !text-[0.58rem] !text-fg-muted !m-0 whitespace-nowrap overflow-hidden text-ellipsis';
-const FIELD_INPUT = 'input-base !w-full !text-[0.65rem] !px-[5px] !py-[3px]';
+  'dub-translation-settings flex flex-col gap-4 mb-2 p-4 bg-[var(--chrome-hover-bg)] border-0 rounded-lg';
+const FIELD = 'flex flex-col gap-2 min-w-0';
+const FIELD_RESP = '';
+const FIELD_LABEL = 'flex items-center gap-2 text-sm font-medium text-[var(--chrome-fg)]';
+const FIELD_INPUT = 'input-base !w-full !text-sm !px-3 !py-2 min-h-10';
 const ENGINE_CHIP =
   'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[color-mix(in_srgb,var(--color-brand)_14%,transparent)] border border-transparent text-[var(--color-brand)] rounded-[var(--radius-pill)] whitespace-nowrap transition-colors';
 // Highlighted accent Install affordance — brand-filled pill, deliberately louder
@@ -420,69 +425,60 @@ export default function DubLeftColumn({
       )}
       {settingsOpen && (
         <div className={SETTINGS_BAR}>
-          <div className="flex flex-wrap gap-x-[6px] gap-y-[4px] items-end">
+          <div className="dub-translation-fields">
             <button
               type="button"
-              className={`${SUMMARY_TRIGGER} flex-[0_0_auto] !px-[4px] self-center`}
+              className={`${SUMMARY_TRIGGER} col-span-full !py-2`}
               onClick={() => setSettingsOpen(false)}
               title={t('dub.collapse_settings')}
             >
-              <ChevronUp size={10} />
+              <Languages size={16} aria-hidden="true" />
+              {t('dub.edit_settings')}
+              <ChevronUp size={14} className="ml-auto" aria-hidden="true" />
             </button>
             <div className={`${FIELD} flex-[1_1_100px] min-w-[70px] ${FIELD_RESP}`}>
               <div className={FIELD_LABEL}>
-                <Globe className="label-icon" size={9} /> {t('dub.language')}
+                <Globe size={15} aria-hidden="true" /> {t('dub.language')}
               </div>
-              <select
-                className={FIELD_INPUT}
-                value={dubLang}
-                onChange={(e) => {
-                  const lang = e.target.value;
-                  setDubLang(lang);
+              <MultiLangPicker
+                single
+                ariaLabel={t('dub.language')}
+                selected={[{ lang: dubLang, code: dubLangCode }]}
+                options={ALL_LANGUAGES.map((label) => ({
+                  label,
+                  code: LANG_CODES.find((item) => item.label === label)?.code || label,
+                }))}
+                onChange={([item]) => {
+                  setDubLang(item.lang);
                   const match = LANG_CODES.find(
-                    (lc) => lc.label.toLowerCase() === lang.toLowerCase(),
+                    (lc) => lc.label.toLowerCase() === item.lang.toLowerCase(),
                   );
                   if (match) {
                     setDubLangCode(match.code);
-                    // #280: a dialect belongs to one language — clear it
-                    // whenever the new target doesn't match.
                     if (!dialectMatchesLang(dubDialect, match.code)) setDubDialect('');
                   }
                 }}
-              >
-                <optgroup label={t('dub.popular')}>
-                  {POPULAR_LANGS.map((l) => (
-                    <option key={`p-${l}`} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={t('dub.all_languages')}>
-                  {ALL_LANGUAGES.filter((l) => !POPULAR_LANGS.includes(l)).map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+              />
             </div>
             <div className={`${FIELD} flex-[0_1_72px] min-w-[52px] ${FIELD_RESP}`}>
-              <div className={FIELD_LABEL}>{t('dub.iso_code')}</div>
-              <select
-                className={FIELD_INPUT}
+              <div className={FIELD_LABEL}>
+                <Hash size={15} aria-hidden="true" />
+                {t('dub.iso_code')}
+              </div>
+              <SearchableSelect
+                ariaLabel={t('dub.iso_code')}
+                menuPortal
+                buttonClassName={FIELD_INPUT}
                 value={dubLangCode}
-                onChange={(e) => {
-                  const code = e.target.value;
+                options={LANG_CODES.map((lc) => ({
+                  value: lc.code,
+                  label: lc.code + ' — ' + lc.label,
+                }))}
+                onChange={(code) => {
                   setDubLangCode(code);
                   if (!dialectMatchesLang(dubDialect, code)) setDubDialect('');
                 }}
-              >
-                {LANG_CODES.map((lc) => (
-                  <option key={lc.code} value={lc.code}>
-                    {lc.code} — {lc.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             {/* #280: regional dialect / vocabulary. Only rendered for
                       languages with curated variants; region names come from
@@ -490,24 +486,28 @@ export default function DubLeftColumn({
             {dialectOptionsFor(dubLangCode).length > 0 && (
               <div className={`${FIELD} flex-[0_1_110px] min-w-[80px] ${FIELD_RESP}`}>
                 <div className={FIELD_LABEL} title={t('dub.dialect_title')}>
+                  <MapPin size={15} aria-hidden="true" />
                   {t('dub.dialect_label')}
                 </div>
-                <select
-                  className={FIELD_INPUT}
+                <SearchableSelect
+                  ariaLabel={t('dub.dialect_label')}
+                  menuPortal
+                  buttonClassName={FIELD_INPUT}
                   value={dialectMatchesLang(dubDialect, dubLangCode) ? dubDialect : ''}
-                  onChange={(e) => setDubDialect(e.target.value)}
-                >
-                  <option value="">{t('dub.dialect_default')}</option>
-                  {dialectOptionsFor(dubLangCode).map((d) => (
-                    <option key={d} value={d}>
-                      {dialectLabel(d, i18n.language)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDubDialect}
+                  options={[
+                    { value: '', label: t('dub.dialect_default') },
+                    ...dialectOptionsFor(dubLangCode).map((d) => ({
+                      value: d,
+                      label: dialectLabel(d, i18n.language),
+                    })),
+                  ]}
+                />
               </div>
             )}
             <div className={`${FIELD} flex-[1.4_1_130px] min-w-[90px] ${FIELD_RESP}`}>
               <div className={`${FIELD_LABEL} !overflow-visible flex items-center`}>
+                <Cpu size={15} aria-hidden="true" />
                 {t('dub.engine_label')}
                 {/* FROM-SOURCE lane: pip install works (uv pip install runs
                     in-process). Promote the muted chip to a highlighted accent
@@ -602,26 +602,27 @@ export default function DubLeftColumn({
                   </span>
                 )}
               </div>
-              <select
-                className={FIELD_INPUT}
+              <SearchableSelect
+                ariaLabel={t('dub.engine_label')}
+                menuPortal
+                buttonClassName={FIELD_INPUT}
                 value={translateProvider}
-                onChange={(e) => setTranslateProvider(e.target.value)}
-              >
-                {(engines.length ? engines : []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.installed
-                      ? p.display_name
-                      : `${p.display_name}${t('dub.needs_install_suffix')}`}
-                  </option>
-                ))}
-              </select>
+                onChange={setTranslateProvider}
+                options={engines.map((p) => ({
+                  value: p.id,
+                  label: p.installed
+                    ? p.display_name
+                    : p.display_name + t('dub.needs_install_suffix'),
+                }))}
+              />
             </div>
             <div className={`${FIELD} flex-[0_1_auto] min-w-[80px] ${FIELD_RESP}`}>
               <div className={FIELD_LABEL} title={t('dub.quality_title')}>
+                <Gauge size={15} aria-hidden="true" />
                 {t('dub.quality_label')}
               </div>
               <Segmented
-                className="w-full"
+                className="w-full [&_button]:min-h-8 [&_button]:text-xs"
                 size="sm"
                 value={translateQuality}
                 onChange={setTranslateQuality}
@@ -684,19 +685,20 @@ export default function DubLeftColumn({
             )}
             <div className={`${FIELD} flex-[1_1_90px] min-w-[64px] ${FIELD_RESP}`}>
               <div className={FIELD_LABEL}>
-                <UserSquare2 className="label-icon" size={9} /> {t('dub.style')}{' '}
+                <UserSquare2 size={15} aria-hidden="true" /> {t('dub.style')}{' '}
                 <span className="text-[0.52rem] text-fg-subtle italic ml-[2px]">
                   {t('dub.optional')}
                 </span>
               </div>
               <input
                 className={FIELD_INPUT}
+                aria-label={t('dub.style')}
                 placeholder={t('dub.style_placeholder')}
                 value={dubInstruct}
                 onChange={(e) => setDubInstruct(e.target.value)}
               />
             </div>
-            <div className={`${FIELD} basis-full pt-[3px] border-t border-transparent mt-[1px]`}>
+            <div className={`${FIELD} col-span-full pt-2`}>
               <label className="flex items-center gap-[6px] text-[0.65rem] text-[var(--chrome-fg-muted)] cursor-pointer mb-[2px]">
                 <input
                   type="checkbox"
@@ -716,7 +718,7 @@ export default function DubLeftColumn({
               )}
             </div>
           </div>
-          <div className="flex justify-end gap-[6px] flex-wrap">
+          <div className="dub-translation-actions flex justify-end gap-2 flex-wrap">
             {failedTranslationCount > 0 && (
               <>
                 <Button
@@ -760,6 +762,7 @@ export default function DubLeftColumn({
               }
               disabled={!dubSegments.some((s) => s.text_original && s.text_original !== s.text)}
               title={t('dub.restore_title')}
+              leading={<RotateCcw size={15} aria-hidden="true" />}
             >
               {t('dub.restore')}
             </Button>
@@ -769,7 +772,7 @@ export default function DubLeftColumn({
               onClick={handleCleanupSegments}
               disabled={!dubSegments.length || !dubJobId}
               title={t('dub.clean_up_title')}
-              leading={<Wand2 size={10} />}
+              leading={<Wand2 size={15} aria-hidden="true" />}
             >
               {t('dub.clean_up')}
             </Button>

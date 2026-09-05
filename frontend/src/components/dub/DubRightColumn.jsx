@@ -1,5 +1,21 @@
 import { Suspense, lazy, useState } from 'react';
-import { ChevronUp, ChevronDown, FileText, ClipboardPaste } from 'lucide-react';
+import {
+  ChevronUp,
+  ChevronDown,
+  FileText,
+  ClipboardPaste,
+  AudioLines,
+  Languages,
+  Captions,
+  ListMusic,
+  Timer,
+  Fingerprint,
+  BookOpen,
+  Settings2,
+} from 'lucide-react';
+import DubToggle from './DubToggle';
+import SearchableSelect from '../SearchableSelect';
+import './DubRightColumn.css';
 import { Button, Segmented } from '../../ui';
 import GlossaryPanel from '../GlossaryPanel';
 import CheckpointBanner from '../CheckpointBanner';
@@ -15,11 +31,8 @@ const LazyFallback = () => <div className="p-[12px] text-[#6b6657] text-[0.7rem]
 // ── Output-options + bulk-select utility clusters ────────────────────────
 const OUT_ROW =
   'flex items-center gap-[var(--space-3)] mb-[2px] px-[var(--space-2)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] flex-wrap';
-const OUT_LABEL =
-  'flex items-center gap-[var(--space-2)] cursor-pointer hover:text-[var(--chrome-fg)]';
 const OUT_TITLE =
   'font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] uppercase text-[var(--chrome-fg-muted)] font-semibold';
-const CHK = 'accent-[var(--color-brand)]';
 const BULK_SELECT = 'input-base !text-[0.62rem] !px-[4px] !py-[2px]';
 
 export default function DubRightColumn({
@@ -87,62 +100,63 @@ export default function DubRightColumn({
   return (
     <div className="studio-panel dub-panel-col dub-panel-right">
       {/* Output options + timing — moved to the top of the right section. */}
-      <div>
-        <div className={OUT_ROW}>
-          <span className={OUT_TITLE}>{t('dub.output_options')}</span>
-          <label className={OUT_LABEL}>
-            <input
-              type="checkbox"
-              className={CHK}
-              checked={preserveBg}
-              onChange={(e) => setPreserveBg(e.target.checked)}
-            />{' '}
-            {t('dub.mix_bg_audio')}
-          </label>
-          <label className={OUT_LABEL} title={t('dub.dual_subs_title')}>
-            <input
-              type="checkbox"
-              className={CHK}
-              checked={!!dualSubs}
-              onChange={(e) => setDualSubs(e.target.checked)}
-            />{' '}
-            {t('dub.dual_subs')}
-          </label>
-          <label className={OUT_LABEL} title={t('dub.burn_subs_title')}>
-            <input
-              type="checkbox"
-              className={CHK}
-              checked={!!burnSubs}
-              onChange={(e) => setBurnSubs(e.target.checked)}
-            />{' '}
-            {t('dub.burn_subs')}
-          </label>
-          <label className={OUT_LABEL}>
-            {t('dub.default_track')}
-            <select
-              className="input-base !text-[0.6rem] !px-[4px] !py-[2px] !w-[120px]"
+      <div className="dub-output-settings">
+        <div className="dub-output-grid">
+          <span className={`${OUT_TITLE} col-span-full inline-flex items-center gap-2`}>
+            <Settings2 size={16} aria-hidden="true" />
+            {t('dub.output_options')}
+          </span>
+          <DubToggle
+            label={t('dub.mix_bg_audio')}
+            Icon={AudioLines}
+            checked={preserveBg}
+            onChange={setPreserveBg}
+          />
+          <DubToggle
+            label={t('dub.dual_subs')}
+            title={t('dub.dual_subs_title')}
+            Icon={Languages}
+            checked={dualSubs}
+            onChange={setDualSubs}
+          />
+          <DubToggle
+            label={t('dub.burn_subs')}
+            title={t('dub.burn_subs_title')}
+            Icon={Captions}
+            checked={burnSubs}
+            onChange={setBurnSubs}
+          />
+          <div className="flex flex-col gap-2 min-w-0">
+            <span className="inline-flex items-center gap-2 text-sm">
+              <ListMusic size={15} aria-hidden="true" />
+              {t('dub.default_track')}
+            </span>
+            <SearchableSelect
+              ariaLabel={t('dub.default_track')}
+              menuPortal
               value={resolveDubDefaultTrack(defaultTrack, dubLangCode, dubTracks)}
-              onChange={(e) => setDefaultTrack(e.target.value)}
-            >
-              <option value="original">{t('dub.original_track')}</option>
-              {dubLangCode && (
-                <option value={dubLangCode}>{t('dub.selected_dub', { code: dubLangCode })}</option>
-              )}
-              {dubTracks
-                .filter((tr) => tr !== dubLangCode)
-                .map((tr) => (
-                  <option key={tr} value={tr}>
-                    {t('dub.dub_track', { code: tr })}
-                  </option>
-                ))}
-            </select>
-          </label>
+              onChange={setDefaultTrack}
+              buttonClassName="min-h-10 rounded-lg border-0 bg-[var(--chrome-hover-bg)] px-3 text-sm text-[var(--chrome-fg)]"
+              options={[
+                { value: 'original', label: t('dub.original_track') },
+                ...(dubLangCode
+                  ? [{ value: dubLangCode, label: t('dub.selected_dub', { code: dubLangCode }) }]
+                  : []),
+                ...dubTracks
+                  .filter((tr) => tr !== dubLangCode)
+                  .map((tr) => ({ value: tr, label: t('dub.dub_track', { code: tr }) })),
+              ]}
+            />
+          </div>
         </div>
         <div
           className={OUT_ROW}
           title="Timing strategy — how the dub reconciles natural-rate TTS with the original timeline."
         >
-          <span className={OUT_TITLE}>Timing:</span>
+          <span className={OUT_TITLE}>
+            <Timer size={16} aria-hidden="true" />
+            Timing:
+          </span>
           <Segmented
             value={timingStrategy}
             onChange={setTimingStrategy}
@@ -176,7 +190,10 @@ export default function DubRightColumn({
             (best prosody, identity may drift) or every line of a speaker
             shares ONE reference (steady identity). */}
         <div className={OUT_ROW} title={t('dub.voice_match_title')}>
-          <span className={OUT_TITLE}>{t('dub.voice_match')}</span>
+          <span className={OUT_TITLE}>
+            <Fingerprint size={16} aria-hidden="true" />
+            {t('dub.voice_match')}
+          </span>
           <Segmented
             value={voiceMatch}
             onChange={setVoiceMatch}
@@ -198,7 +215,9 @@ export default function DubRightColumn({
 
       {dubTranscript && (
         <div className="mb-[4px]">
-          <div
+          <button
+            type="button"
+            aria-expanded={showTranscript}
             className="override-toggle dub-transcript-toggle__inner"
             onClick={() => setShowTranscript(!showTranscript)}
           >
@@ -206,7 +225,7 @@ export default function DubRightColumn({
               <FileText size={10} className="align-middle mr-[3px]" /> {t('dub.transcript')}
             </span>
             {showTranscript ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-          </div>
+          </button>
           {showTranscript && (
             <div className="bg-[var(--chrome-bg)] border border-transparent border-t-0 rounded-b-[var(--chrome-radius-pill)] p-[var(--space-3)] text-[length:var(--text-xs)] text-[var(--chrome-fg-muted)] leading-[1.5] max-h-[80px] overflow-y-auto">
               {dubTranscript}
@@ -227,6 +246,7 @@ export default function DubRightColumn({
           }}
           title={t('dub.glossary_title')}
         >
+          <BookOpen size={15} aria-hidden="true" className="mr-2" />
           {t('dub.glossary_btn', { count: glossaryTermCount })}
         </button>
       )}
