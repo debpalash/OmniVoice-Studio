@@ -2470,6 +2470,15 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* from MultiLangPicker (components/MultiLangPicker.css) */
+@keyframes engine-title-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.engine-title-label { animation: engine-title-enter 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .engine-title-label { animation: none; }
+}
+
 /* Dropdown */
 .multi-lang__drop {
   position: fixed;

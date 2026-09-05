@@ -7,6 +7,7 @@ import { useEngines, useSelectEngine } from '../api/hooks';
 import { notifyEngineSelected } from '../utils/engineSelectToast';
 import { useAppStore } from '../store';
 import { MENU_SURFACE } from './computeTarget';
+import { engineDisplayName } from '../utils/engineDisplayName';
 
 /**
  * A compact TTS/ASR/LLM picker for chrome that needs to expose the active
@@ -150,7 +151,8 @@ export default function EngineQuickSwitch({
           {available.map((engine) => {
             const isActive = engine.id === familyData.active;
             const warm = residentIds.has(engine.id);
-            const parts = engine.display_name.match(/^(.+?)\s*\((.*)\)$/);
+            const displayName = engineDisplayName(engine.display_name);
+            const parts = displayName.match(/^(.+?)\s*\((.*)\)$/);
             return (
               <button
                 key={engine.id}
@@ -177,7 +179,7 @@ export default function EngineQuickSwitch({
                       </span>
                     </>
                   ) : (
-                    engine.display_name
+                    displayName
                   )}
                 </span>
                 <span className="shrink-0 text-[10px] text-[color:var(--chrome-fg-muted)]">
