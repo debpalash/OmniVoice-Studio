@@ -39,6 +39,13 @@ def _white_noise() -> "torch.Tensor":
     return 0.5 * (torch.rand(N, generator=g) * 2 - 1)
 
 
+def _two_tone_buzz() -> "torch.Tensor":
+    """Two inharmonic partials — the other shape a collapsed render takes."""
+    t = torch.arange(N, dtype=torch.float32) / SR
+    s = torch.sin(2 * math.pi * 180.0 * t) + 0.6 * torch.sin(2 * math.pi * 361.0 * t)
+    return 0.8 * s / s.abs().max()
+
+
 def _speech_like() -> "torch.Tensor":
     """Broadband + harmonic + amplitude-modulated — a coarse stand-in for voiced
     speech: several harmonics (formant-ish), additive noise (consonants), and a
@@ -83,6 +90,60 @@ def test_silence_is_unusable():
 
 def test_speech_like_is_usable():
     assert arch._is_unusable_audio(_speech_like()) is False
+
+
+# ── Threshold stays between the two things it has to separate ───────────────
+# The original 0.015 was calibrated against `_speech_like()` below, which is two
+# orders of magnitude flatter than real speech, so the threshold landed inside
+# the real-speech range and rejected legitimate previews (Japanese, Korean and
+# English alike — ASR transcribed every one of them correctly).
+#: Flattest REAL render observed, measured on engine output and confirmed to be
+#: speech by transcribing it (VoxCPM2, ko). Re-measure with real renders — never
+#: with a synthetic signal — before changing it.
+MEASURED_SPEECH_FLOOR = 2.0e-4
+
+
+def test_tonal_ceiling_is_measured_not_assumed():
+    """Derive the tonal side of the margin instead of trusting a literal.
+
+    A bare constant would keep passing if `_spectral_flatness` stopped scoring
+    tones near zero, so measure the degenerate signals here and require the
+    threshold to clear the worst of them tenfold.
+    """
+    tones = [
+        arch._spectral_flatness(_pure_tone(80.0)),
+        arch._spectral_flatness(_pure_tone(220.0)),
+        arch._spectral_flatness(_two_tone_buzz()),
+    ]
+    assert all(t is not None for t in tones)
+    assert max(tones) * 10 < arch._DEGENERATE_FLATNESS
+
+
+def test_threshold_clears_the_measured_real_speech_floor():
+    """The speech side of the margin cannot be synthesized — that IS the bug.
+
+    Shipping a real render as a fixture would add a binary to a suite whose
+    whole point is running without one, so the measurement is recorded in
+    ``MEASURED_SPEECH_FLOOR`` and the assumption behind it is asserted here:
+    the synthetic stand-in sits nowhere near the real floor, which is exactly
+    why it cannot stand in for it.
+    """
+    assert arch._DEGENERATE_FLATNESS < MEASURED_SPEECH_FLOOR / 10
+    assert arch._spectral_flatness(_speech_like()) > MEASURED_SPEECH_FLOOR * 10
+
+
+def test_flatness_is_not_clip_length_dependent():
+    """Repeating a signal must not change what it measures.
+
+    The whole-clip FFT this replaced failed exactly here: its frequency
+    resolution grew with duration, so the same audio measured 0.0229 at 3 s and
+    ~0 at 12 s (100% drift). Framed, the drift is under 0.1%.
+    """
+    short = _speech_like()
+    long = torch.cat([short] * 4)
+    a, b = arch._spectral_flatness(short), arch._spectral_flatness(long)
+    assert a is not None and b is not None
+    assert abs(a - b) / a < 0.02
 
 
 # ── Constants didn't regress ────────────────────────────────────────────────
