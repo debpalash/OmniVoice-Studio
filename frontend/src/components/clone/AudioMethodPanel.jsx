@@ -1,6 +1,6 @@
-import { useSyncExternalStore } from 'react';
-import { UploadCloud, X, Save, Dice5 } from 'lucide-react';
-import { Button, Input, Select } from '../../ui';
+import { useState, useSyncExternalStore } from 'react';
+import { ChevronDown, Save, UploadCloud, X } from 'lucide-react';
+import { Button, Input, Segmented, Select } from '../../ui';
 import MicButton from './MicButton';
 import WaveformPlayer from '../WaveformPlayer';
 
@@ -8,6 +8,9 @@ const EMPTY_LEVEL_STORE = {
   getSnapshot: () => 0,
   subscribe: () => () => {},
 };
+
+const isAudioFile = (file) =>
+  file && (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|flac|ogg|aac|webm)$/i.test(file.name));
 
 export default function AudioMethodPanel({
   t,
@@ -31,79 +34,89 @@ export default function AudioMethodPanel({
   setRefText,
   instruct,
   setInstruct,
-  defineMethod,
-  designSeed,
-  setDesignSeed,
-  keepSeed,
-  setKeepSeed,
   showSaveProfile,
   setShowSaveProfile,
   profileName,
   setProfileName,
   handleSaveProfile,
 }) {
+  const [sourceMode, setSourceMode] = useState(isRecording ? 'record' : 'upload');
   const inputLevel = useSyncExternalStore(inputLevelStore.subscribe, inputLevelStore.getSnapshot);
+  const hasReference = Boolean(refAudio || selectedProfile);
+
+  const ingestFile = (file) => {
+    if (isAudioFile(file)) ingestRefAudio(file);
+  };
+
   return (
-    <div>
-      {/* Saved voices now live in the right-side WorkspaceVoices panel. */}
-
-      {!selectedProfile && (
-        <>
-          <div className="flex gap-[8px] items-stretch">
-            <input
-              type="file"
-              accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
-              onChange={(e) => {
-                const f = e.target.files[0];
-                ingestRefAudio(f);
-                e.target.value = '';
-              }}
-              className="dub-hidden-file"
-              id="audio-upload"
-            />
-            <label
-              htmlFor="audio-upload"
-              // Migrated `.file-drag` + the old `.clone-drop-zone` padding override →
-              // utilities (fast shadcn, CloneDesignTab.css deleted). `is-dragging` stays
-              // a JS-toggled state marker, matched via the `[&.is-dragging]:` variant.
-              className="flex-1 [border:1px_dashed_var(--chrome-border-strong)] rounded-[var(--chrome-radius-pill)] p-[6px] text-center cursor-pointer flex flex-col items-center gap-[4px] bg-transparent [transition:border-color_var(--dur-fast),background_var(--dur-fast)] hover:[border-color:var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] [&.is-dragging]:[border-color:var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('is-dragging');
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove('is-dragging');
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove('is-dragging');
-                const file = e.dataTransfer.files[0];
-                const okType =
-                  file &&
-                  (file.type.startsWith('audio/') ||
-                    /\.(mp3|wav|m4a|flac|ogg|aac|webm)$/i.test(file.name));
-                if (okType) ingestRefAudio(file);
-              }}
-            >
-              <UploadCloud color="#a89984" size={18} />
-              <p className="m-0 text-[0.72rem] text-[color:var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] font-medium">
-                {refAudio ? (
-                  <span className="text-fg">{refAudio.name}</span>
-                ) : (
-                  t('clone.drop_audio')
-                )}
-              </p>
-            </label>
-
-            <MicButton
-              isCleaning={isCleaning}
-              isRecording={isRecording}
-              recordingTime={recordingTime}
-              onStart={startRecording}
-              onStop={stopRecording}
-            />
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3 max-[520px]:flex-col">
+        <div>
+          <div className="text-[length:var(--text-sm)] font-semibold text-fg">
+            {t('clone.reference_audio')}
           </div>
-          <div className="mt-2 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2 max-[520px]:grid-cols-1">
+          <p className="mt-0.5 text-[length:var(--text-xs)] text-fg-muted">
+            {t('clone.reference_hint')}
+          </p>
+        </div>
+        {!hasReference && (
+          <Segmented
+            size="sm"
+            value={sourceMode}
+            onChange={setSourceMode}
+            aria-label={t('clone.reference_audio')}
+            items={[
+              { value: 'upload', label: t('clone.upload_audio') },
+              { value: 'record', label: t('clone.record') },
+            ]}
+          />
+        )}
+      </div>
+
+      {!hasReference && sourceMode === 'upload' && (
+        <div>
+          <input
+            type="file"
+            accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
+            onChange={(event) => {
+              ingestFile(event.target.files[0]);
+              event.target.value = '';
+            }}
+            className="sr-only"
+            id="audio-upload"
+          />
+          <label
+            htmlFor="audio-upload"
+            className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--chrome-border-strong)] bg-white/[0.015] px-4 py-3 text-center transition-[border-color,background] duration-[var(--dur-fast)] hover:border-[var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] focus-within:border-[var(--chrome-accent)] [&.is-dragging]:border-[var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.currentTarget.classList.add('is-dragging');
+            }}
+            onDragLeave={(event) => event.currentTarget.classList.remove('is-dragging')}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.currentTarget.classList.remove('is-dragging');
+              ingestFile(event.dataTransfer.files[0]);
+            }}
+          >
+            <UploadCloud className="text-fg-muted" size={20} />
+            <span className="text-[length:var(--text-xs)] font-medium text-fg-muted">
+              {t('clone.drop_audio')}
+            </span>
+          </label>
+        </div>
+      )}
+
+      {!hasReference && sourceMode === 'record' && (
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 max-[520px]:grid-cols-1">
+          <MicButton
+            isCleaning={isCleaning}
+            isRecording={isRecording}
+            recordingTime={recordingTime}
+            onStart={startRecording}
+            onStop={stopRecording}
+          />
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2 max-[520px]:grid-cols-1">
             <label className="min-w-0 text-[length:var(--text-xs)] text-fg-muted">
               <span className="mb-1 block">{t('recording.input_device')}</span>
               <Select
@@ -138,7 +151,7 @@ export default function AudioMethodPanel({
           </div>
           {isRecording && (
             <div
-              className="mt-2 flex items-center gap-2 text-[length:var(--text-xs)]"
+              className="col-span-full flex items-center gap-2 text-[length:var(--text-xs)]"
               role="status"
               aria-live="polite"
             >
@@ -160,111 +173,93 @@ export default function AudioMethodPanel({
               </span>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {refAudio && !selectedProfile && (
-        <WaveformPlayer
-          src={refAudio}
-          source="clone-reference"
-          height={34}
-          compact
-          className="mt-2"
-        />
+        <div className="rounded-lg border border-[var(--chrome-border)] bg-white/[0.02] p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-[length:var(--text-sm)] font-medium text-fg">
+              {refAudio.name}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => ingestRefAudio(null)}
+              leading={<X size={12} />}
+            >
+              {t('clone.clear')}
+            </Button>
+          </div>
+          <WaveformPlayer
+            src={refAudio}
+            source="clone-reference"
+            height={34}
+            compact
+            className="mt-2"
+          />
+        </div>
       )}
 
       {selectedProfile && (
-        <div className="p-[var(--space-4)] bg-[rgba(142,192,124,0.08)] [border:1px_solid_rgba(142,192,124,0.2)] rounded-lg text-[var(--text-md)] mb-[var(--space-4)] flex items-center gap-[var(--space-4)]">
-          <span className="text-success flex-1">
+        <div className="flex items-center gap-3 rounded-lg border border-[rgba(142,192,124,0.2)] bg-[rgba(142,192,124,0.08)] p-3 text-[length:var(--text-sm)]">
+          <span className="min-w-0 flex-1 truncate text-success">
             {t('clone.using_profile', {
-              name: profiles.find((p) => p.id === selectedProfile)?.name,
+              name: profiles.find((profile) => profile.id === selectedProfile)?.name,
             })}
           </span>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSelectedProfile(null)}
-            leading={<X size={11} />}
+            leading={<X size={12} />}
           >
             {t('clone.clear')}
           </Button>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-[6px] max-[700px]:grid-cols-1 mt-[6px]">
-        <div>
-          <div className="label-row">{t('clone.transcript')}</div>
-          <input
-            type="text"
-            className="input-base"
-            value={refText}
-            onChange={(e) => setRefText(e.target.value)}
-            placeholder={t('clone.optional')}
-          />
-        </div>
-        <div>
-          <div className="label-row">{t('clone.style')}</div>
-          <input
-            type="text"
-            className="input-base"
-            value={instruct}
-            onChange={(e) => setInstruct(e.target.value)}
-            placeholder={t('clone.style_placeholder')}
-          />
-        </div>
-      </div>
-
-      {/* #526: voice-design seed — show + pin + re-roll so tweaks can
-                stay on the same base timbre. Design mode only. */}
-      {defineMethod === 'design' && (
-        <div className="mt-[var(--space-3)]">
-          <div className="label-row">{t('clone.seed_label')}</div>
-          <div className="flex gap-[var(--space-3)] items-center">
-            <input
-              type="number"
-              className="input-base w-[9rem] flex-none"
-              value={designSeed ?? ''}
-              placeholder={t('clone.seed_placeholder')}
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                if (v === '') {
-                  setDesignSeed(null);
-                  return;
-                }
-                const n = parseInt(v, 10);
-                if (Number.isInteger(n)) {
-                  setDesignSeed(n);
-                  setKeepSeed(true);
-                }
-              }}
+      {hasReference && (
+        <details
+          className="group rounded-lg border border-[var(--chrome-border)] bg-white/[0.01]"
+          defaultOpen={Boolean(refText || instruct)}
+        >
+          <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[length:var(--text-xs)] font-medium text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)] [&::-webkit-details-marker]:hidden">
+            {t('clone.optional_details')}
+            <ChevronDown
+              size={14}
+              className="transition-transform duration-[var(--dur-fast)] group-open:rotate-180"
             />
-            <Button
-              variant="subtle"
-              size="sm"
-              onClick={() => {
-                setDesignSeed(Math.floor(Math.random() * 2147483647));
-                setKeepSeed(true);
-              }}
-              leading={<Dice5 size={12} />}
-              title={t('clone.seed_reroll_hint')}
-            >
-              {t('clone.seed_reroll')}
-            </Button>
-            <label className="inline-flex items-center gap-[6px] text-[0.85em] text-fg-muted cursor-pointer select-none whitespace-nowrap">
+          </summary>
+          <div className="grid grid-cols-2 gap-2 border-t border-[var(--chrome-border)] p-3 max-[700px]:grid-cols-1">
+            <label htmlFor="clone-transcript" className="min-w-0">
+              <span className="label-row">{t('clone.transcript')}</span>
               <input
-                type="checkbox"
-                checked={keepSeed}
-                onChange={(e) => setKeepSeed(e.target.checked)}
+                id="clone-transcript"
+                type="text"
+                className="input-base"
+                value={refText}
+                onChange={(event) => setRefText(event.target.value)}
+                placeholder={t('clone.optional')}
               />
-              <span>{t('clone.seed_keep')}</span>
+            </label>
+            <label htmlFor="clone-style" className="min-w-0">
+              <span className="label-row">{t('clone.style')}</span>
+              <input
+                id="clone-style"
+                type="text"
+                className="input-base"
+                value={instruct}
+                onChange={(event) => setInstruct(event.target.value)}
+                placeholder={t('clone.style_placeholder')}
+              />
             </label>
           </div>
-        </div>
+        </details>
       )}
 
-      {/* Save as profile */}
       {refAudio && !selectedProfile && (
-        <div className="mt-[var(--space-4)]">
+        <div>
           {!showSaveProfile ? (
             <Button
               variant="subtle"
@@ -275,12 +270,12 @@ export default function AudioMethodPanel({
               {t('clone.save_as_profile')}
             </Button>
           ) : (
-            <div className="flex gap-[var(--space-3)] items-center [&>:first-child]:flex-1">
+            <div className="flex items-center gap-2 max-[520px]:flex-wrap [&>:first-child]:min-w-40 [&>:first-child]:flex-1">
               <Input
                 size="sm"
                 placeholder={t('clone.profile_name')}
                 value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
+                onChange={(event) => setProfileName(event.target.value)}
               />
               <Button variant="subtle" size="sm" onClick={handleSaveProfile}>
                 {t('clone.save')}

@@ -65,9 +65,9 @@ describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
     );
   });
 
-  it('gives the Script editor more height without crowding narrow shells', () => {
-    expect(indexRaw).toMatch(/\.studio-script-input\s*\{[^}]*min-height:\s*240px/s);
-    expect(indexRaw).toMatch(/\.shell-narrow\s+\.studio-script-input[^}]*min-height:\s*200px/s);
-    expect(indexRaw).toMatch(/\.shell-mini\s+\.studio-script-input[^}]*min-height:\s*160px/s);
+  it('keeps the Script editor useful without pushing voice setup below the fold', () => {
+    expect(indexRaw).toMatch(/\.studio-script-input\s*\{[^}]*min-height:\s*168px/s);
+    expect(indexRaw).toMatch(/\.shell-narrow\s+\.studio-script-input[^}]*min-height:\s*144px/s);
+    expect(indexRaw).toMatch(/\.shell-mini\s+\.studio-script-input[^}]*min-height:\s*120px/s);
   });
 });

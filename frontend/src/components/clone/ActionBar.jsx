@@ -56,6 +56,26 @@ export default function ActionBar({
       {showOverrides && (
         <div className="override-content">
           <div className="grid [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] gap-[6px] max-[500px]:grid-cols-2">
+            <label className="min-w-0">
+              <span className="label-row justify-between">
+                <span className="inline-flex items-center gap-[6px]">
+                  <SlidersHorizontal size={12} className="label-icon" />
+                  {t('clone.steps')}
+                </span>
+                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
+                  {steps}
+                </span>
+              </span>
+              <input
+                className="w-full"
+                type="range"
+                aria-label={t('clone.steps')}
+                min="8"
+                max="64"
+                value={steps}
+                onChange={(event) => setSteps(Number(event.target.value))}
+              />
+            </label>
             <div>
               <div className="label-row justify-between">
                 <span>CFG</span>
@@ -186,8 +206,8 @@ export default function ActionBar({
         </div>
       )}
 
-      {/* Controls row: language · steps · overrides disclosure */}
-      <div className="flex items-center gap-[16px] min-w-0">
+      {/* Keep the everyday row focused; sampling controls live in overrides. */}
+      <div className="flex items-center gap-3 min-w-0 max-[520px]:flex-wrap">
         <div className="flex items-center gap-[6px] flex-[1_1_220px] min-w-[140px] [&>:last-child]:flex-1 [&>:last-child]:min-w-0">
           <Globe size={12} className="label-icon" />
           <SearchableSelect
@@ -198,33 +218,9 @@ export default function ActionBar({
             onChange={setLanguage}
           />
         </div>
-        {/* Inference/sampling steps (#1771 follow-up): this slider used to
-            carry only a hover title, so its value ("16") read as an
-            unlabelled control sitting between the language picker and
-            Production Overrides — give it the same visible label treatment
-            as everything else in the bar. */}
-        <label
-          className="flex items-center gap-[6px] flex-[1_1_160px] min-w-[120px] [&_input]:flex-1 [&_input]:min-w-[60px]"
-          title={t('clone.steps')}
-        >
-          <SlidersHorizontal size={12} className="label-icon" />
-          <span className="text-[0.7rem] text-[var(--chrome-fg-muted)] whitespace-nowrap">
-            {t('clone.steps')}
-          </span>
-          <input
-            type="range"
-            min="8"
-            max="64"
-            value={steps}
-            onChange={(e) => setSteps(Number(e.target.value))}
-          />
-          <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-            {steps}
-          </span>
-        </label>
         <button
           type="button"
-          className="inline-flex items-center gap-[4px] px-[10px] py-[4px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-transparent rounded-[var(--chrome-radius-pill)] cursor-pointer whitespace-nowrap flex-none transition-[color,border-color] duration-[var(--dur-fast)] hover:text-[var(--chrome-fg)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
+          className="inline-flex min-h-9 items-center gap-[4px] px-[10px] py-[4px] text-[0.7rem] text-[var(--chrome-fg-muted)] bg-transparent border border-transparent rounded-md cursor-pointer whitespace-nowrap flex-none transition-[color,border-color] duration-[var(--dur-fast)] hover:text-[var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
           onClick={() => setShowOverrides(!showOverrides)}
           aria-expanded={showOverrides}
         >

@@ -46,6 +46,17 @@ const baseProps = {
 };
 
 describe('AudioMethodPanel', () => {
+  it('starts with a clean upload choice and hides recording controls', () => {
+    const { container } = render(<AudioMethodPanel {...baseProps} />);
+
+    expect(screen.getByRole('radio', { name: 'clone.upload_audio' })).toHaveAttribute(
+      'data-state',
+      'on',
+    );
+    expect(container.querySelector('#audio-upload')).toHaveClass('sr-only');
+    expect(screen.queryByLabelText('recording.input_device')).not.toBeInTheDocument();
+  });
+
   it('previews the cleaned reference with the shared waveform player', () => {
     const refAudio = new File(['clean'], 'recording_clean.wav', { type: 'audio/wav' });
     render(<AudioMethodPanel {...baseProps} refAudio={refAudio} />);
@@ -64,6 +75,8 @@ describe('AudioMethodPanel', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('radio', { name: 'clone.record' }));
+
     fireEvent.change(screen.getByLabelText('recording.input_device'), {
       target: { value: 'built-in' },
     });
@@ -81,5 +94,25 @@ describe('AudioMethodPanel', () => {
 
     act(() => inputLevelStore.set(0.3));
     expect(screen.getByText('recording.input_detected')).toBeInTheDocument();
+  });
+
+  it('keeps reference metadata behind an optional disclosure', () => {
+    const refAudio = new File(['clean'], 'speaker.wav', { type: 'audio/wav' });
+    render(<AudioMethodPanel {...baseProps} refAudio={refAudio} />);
+
+    const disclosure = screen.getByText('clone.optional_details').closest('details');
+    expect(disclosure).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText('clone.optional_details'));
+    expect(disclosure).toHaveAttribute('open');
+    expect(screen.getByRole('textbox', { name: 'clone.transcript' })).toBeInTheDocument();
+  });
+
+  it('clears a selected reference from its compact ready state', () => {
+    const ingestRefAudio = vi.fn();
+    const refAudio = new File(['clean'], 'speaker.wav', { type: 'audio/wav' });
+    render(<AudioMethodPanel {...baseProps} refAudio={refAudio} ingestRefAudio={ingestRefAudio} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'clone.clear' }));
+    expect(ingestRefAudio).toHaveBeenCalledWith(null);
   });
 });

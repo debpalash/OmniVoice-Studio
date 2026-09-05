@@ -1150,11 +1150,10 @@ html[data-ui-scale-engine='native'] .app-container {
 .input-base::placeholder { color: var(--chrome-fg-dim); }
 textarea.input-base { min-height: 60px; resize: vertical; line-height: 1.5; }
 
-/* Voice workspace script gets room for real copy while preserving the compact
-   stacked layout at scaled narrow-shell breakpoints. */
-.studio-script-input { min-height: 240px !important; }
-.shell-narrow .studio-script-input { min-height: 200px !important; }
-.shell-mini .studio-script-input { min-height: 160px !important; }
+/* Keep the script prominent without pushing the voice setup below the fold. */
+.studio-script-input { min-height: 168px !important; }
+.shell-narrow .studio-script-input { min-height: 144px !important; }
+.shell-mini .studio-script-input { min-height: 120px !important; }
 
 select.input-base {
   appearance: none;
