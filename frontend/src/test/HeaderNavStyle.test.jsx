@@ -27,9 +27,10 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function renderHeader(props) {
+function renderHeader(props, engines) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   qc.setQueryData(['sysinfo'], {});
+  if (engines) qc.setQueryData(['engines'], engines);
   return render(
     <QueryClientProvider client={qc}>
       <Header mode="dub" setMode={() => {}} modelStatus="idle" {...props} />
@@ -38,6 +39,22 @@ function renderHeader(props) {
 }
 
 describe('Header — rail mode (default)', () => {
+  it('shows the selected engine name on the title-bar trigger', () => {
+    renderHeader(
+      { onFlushMemory: vi.fn() },
+      {
+        tts: {
+          active: 'kitten',
+          backends: [
+            { id: 'kitten', display_name: 'KittenTTS (English, 8 preset voices)', available: true },
+          ],
+        },
+      },
+    );
+    const trigger = screen.getByRole('button', { name: 'Engines' });
+    expect(trigger).toHaveTextContent('KittenTTS');
+    expect(trigger).toHaveAttribute('title', 'KittenTTS (English, 8 preset voices)');
+  });
   it('opens combined engine and memory controls from the global shortcut', () => {
     renderHeader({ onFlushMemory: vi.fn() });
     fireEvent(window, new Event('engine-quick-switch'));
