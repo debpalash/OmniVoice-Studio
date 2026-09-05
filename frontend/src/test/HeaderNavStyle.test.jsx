@@ -43,6 +43,19 @@ describe('Header — rail mode (default)', () => {
     fireEvent(window, new Event('engine-quick-switch'));
     expect(screen.getByRole('dialog', { name: 'Engines' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Flush caches/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Speech' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Transcription' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(screen.getByRole('tab', { name: 'Transcription' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(
+      screen.getByRole('button', { name: /Unload all/ }).closest('details'),
+    ).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByText('Memory management'));
     expect(screen.getByRole('button', { name: /Unload all/ })).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Engines' })).not.toBeInTheDocument();

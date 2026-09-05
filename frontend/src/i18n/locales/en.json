@@ -2395,6 +2395,7 @@
     "hint": "8 steps · fast preview"
   },
   "header": {
+    "speech": "Speech",
     "kicker_studio": "Studio",
     "kicker_library": "Library",
     "kicker_preferences": "Preferences",
