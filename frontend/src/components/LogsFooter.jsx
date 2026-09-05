@@ -32,7 +32,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import NetworkToggle from './NetworkToggle';
 import ComputeQuickSettings from './ComputeQuickSettings';
-import EngineQuickSwitch from './EngineQuickSwitch';
 import { APP_VERSION, whatsNewPending } from '../utils/appVersion';
 import DonateMomentPopover, { DONATE_POPOVER_AUTO_DISMISS_MS } from './DonateMomentPopover';
 import { DONATION_MOMENT_EVENT, optOutOfDonationMoments } from '../utils/donationMoments';
@@ -640,7 +639,6 @@ export default function LogsFooter() {
             )}
           </button>
           <ComputeQuickSettings />
-          <EngineQuickSwitch shortcutTarget dropUp />
           <NetworkToggle />
           <button
             type="button"

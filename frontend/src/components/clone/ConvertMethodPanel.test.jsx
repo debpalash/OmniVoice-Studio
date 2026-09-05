@@ -101,6 +101,13 @@ beforeEach(() => {
 });
 
 describe('ConvertMethodPanel', () => {
+  it('keeps the primary action outside the scrolling form', () => {
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    const action = screen.getByTestId('convert-action-bar');
+    expect(action).toHaveClass('studio-action-bar');
+    expect(screen.getByTestId('convert-form')).not.toContainElement(action);
+    expect(action).toContainElement(screen.getByRole('button', { name: 'convert.convert' }));
+  });
   it('shows microphone startup instead of a duplicate record action', () => {
     recordingState.isStartingRecording = true;
     const onRecordingBusyChange = vi.fn();

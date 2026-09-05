@@ -10,11 +10,12 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
-- Voice modes now lead the workspace as full-width tabs, with the active engine above them and Synthesize pinned below the scrolling form (#1823)
+- Voice modes use themed tabs, with Synthesize and Convert pinned below their scrolling forms (#1823)
 - Voice cloning now starts with a clear upload-or-record choice, reveals recording and reference details only when needed, and keeps sampling controls under Production Overrides (#1817)
 
 ### Changed
 
+- The top-bar Engines panel combines engine selection, loaded models, and flush controls, replacing duplicate workspace and footer pickers (#1823)
 ### Added
 
 ### Docs

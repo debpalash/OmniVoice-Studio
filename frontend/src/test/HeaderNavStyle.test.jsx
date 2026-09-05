@@ -29,6 +29,7 @@ afterEach(() => {
 
 function renderHeader(props) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(['sysinfo'], {});
   return render(
     <QueryClientProvider client={qc}>
       <Header mode="dub" setMode={() => {}} modelStatus="idle" {...props} />
@@ -37,6 +38,16 @@ function renderHeader(props) {
 }
 
 describe('Header — rail mode (default)', () => {
+  it('opens combined engine and memory controls from the global shortcut', () => {
+    renderHeader({ onFlushMemory: vi.fn() });
+    fireEvent(window, new Event('engine-quick-switch'));
+    expect(screen.getByRole('dialog', { name: 'Engines' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Flush caches/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Unload all/ })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Engines' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Engines' })).toHaveFocus();
+  });
   it('keeps the breadcrumb and wordmark, and renders no tab strip', () => {
     const { container } = renderHeader({});
     expect(container.querySelector('.tabstrip')).toBeNull();

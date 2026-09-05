@@ -22,6 +22,7 @@ export default function EngineQuickSwitch({
   // top of the viewport.
   dropUp = false,
   prominent = false,
+  embedded = false,
 }) {
   const { t } = useTranslation();
   const rootRef = useRef(null);
@@ -34,7 +35,7 @@ export default function EngineQuickSwitch({
     queryFn: listLoadedModels,
     staleTime: 10_000,
     retry: false,
-    enabled: open,
+    enabled: open || embedded,
   });
 
   const familyData = engines?.[family];
@@ -100,41 +101,52 @@ export default function EngineQuickSwitch({
 
   return (
     <div
-      className={`relative inline-flex shrink-0 items-center ${prominent ? 'self-start max-w-full' : ''} ${className}`}
+      className={`${embedded ? 'block w-full' : 'relative inline-flex shrink-0 items-center'} ${prominent ? 'self-start max-w-full' : ''} ${className}`}
       ref={rootRef}
     >
-      <button
-        type="button"
-        onClick={() => {
-          setSwitchError('');
-          setOpen((value) => !value);
-        }}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        title={t('engines.activeEngine', {
-          family: family.toUpperCase(),
-          engine: active.display_name,
-        })}
-        aria-label={t('engines.activeEngine', {
-          family: family.toUpperCase(),
-          engine: active.display_name,
-        })}
-        className={`inline-flex items-center gap-[5px] rounded-sm border-0 bg-transparent px-[7px] font-medium text-[color:var(--chrome-fg-muted)] transition-[background,color] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] ${prominent ? 'min-h-11 text-sm text-left' : 'h-[20px] text-[11px]'}`}
-      >
-        <Cpu size={13} aria-hidden="true" />
-        <span className={prominent ? 'min-w-0 break-words' : 'max-w-[124px] truncate'}>
-          {active.display_name}
-        </span>
-      </button>
-
-      {open && (
-        <div
-          role="dialog"
-          aria-label={t('engines.engineCompatLabel', { family: family.toUpperCase() })}
-          className={`absolute ${prominent ? 'left-0' : 'right-0'} z-[60] flex w-[272px] max-w-[calc(100vw-32px)] flex-col gap-[4px] p-[8px] ${
-            dropUp ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'
-          } ${MENU_SURFACE}`}
+      {!embedded && (
+        <button
+          type="button"
+          onClick={() => {
+            setSwitchError('');
+            setOpen((value) => !value);
+          }}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          title={t('engines.activeEngine', {
+            family: family.toUpperCase(),
+            engine: active.display_name,
+          })}
+          aria-label={t('engines.activeEngine', {
+            family: family.toUpperCase(),
+            engine: active.display_name,
+          })}
+          className={`inline-flex items-center gap-[5px] rounded-sm border-0 bg-transparent px-[7px] font-medium text-[color:var(--chrome-fg-muted)] transition-[background,color] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] ${prominent ? 'min-h-11 text-sm text-left' : 'h-[20px] text-[11px]'}`}
         >
+          <Cpu size={13} aria-hidden="true" />
+          <span className={prominent ? 'min-w-0 break-words' : 'max-w-[124px] truncate'}>
+            {active.display_name}
+          </span>
+        </button>
+      )}
+
+      {(open || embedded) && (
+        <div
+          role={embedded ? 'group' : 'dialog'}
+          aria-label={t('engines.engineCompatLabel', { family: family.toUpperCase() })}
+          className={
+            embedded
+              ? 'flex w-full min-w-0 flex-col gap-1 py-2'
+              : `absolute ${prominent ? 'left-0' : 'right-0'} z-[60] flex w-[272px] max-w-[calc(100vw-32px)] flex-col gap-[4px] p-[8px] ${
+                  dropUp ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'
+                } ${MENU_SURFACE}`
+          }
+        >
+          {embedded && (
+            <div className="px-2 text-xs font-semibold text-[var(--chrome-fg-muted)]">
+              {t('engines.engineCompatLabel', { family: family.toUpperCase() })}
+            </div>
+          )}
           {locked && (
             <p className="m-[4px] text-[11px] leading-[1.4] text-[color:var(--chrome-fg-muted)]">
               {t('settings.llmp_env_override')}
@@ -154,7 +166,15 @@ export default function EngineQuickSwitch({
                 <span className="w-[12px] shrink-0">
                   {isActive && <Check size={12} aria-label={t('engines.active')} />}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{engine.display_name}</span>
+                <span
+                  className={
+                    embedded
+                      ? 'min-w-0 flex-1 whitespace-normal break-words'
+                      : 'min-w-0 flex-1 truncate'
+                  }
+                >
+                  {engine.display_name}
+                </span>
                 <span className="shrink-0 text-[10px] text-[color:var(--chrome-fg-muted)]">
                   {warm ? t('engines.inMemory') : t('engines.available')}
                 </span>

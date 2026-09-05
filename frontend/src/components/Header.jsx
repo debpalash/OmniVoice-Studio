@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import GpuTarget from './GpuTarget';
+import EngineQuickSwitch from './EngineQuickSwitch';
 import { createPortal } from 'react-dom';
 import {
   Globe,
@@ -172,8 +173,8 @@ export default function Header({
   const computePos = useCallback(() => {
     if (!flushBtnRef.current) return;
     const rect = flushBtnRef.current.getBoundingClientRect();
-    const dropW = 260;
-    const dropH = 220; // approximate max height
+    const dropW = Math.min(420, window.innerWidth - 16);
+    const dropH = Math.min(640, window.innerHeight - 80);
     const pad = 6;
 
     // Default: below button, right-aligned
@@ -182,13 +183,13 @@ export default function Header({
 
     // Flip up if too close to bottom
     if (top + dropH > window.innerHeight - 10) {
-      top = rect.top - dropH - pad;
+      top = Math.max(8, rect.top - dropH - pad);
     }
     // Clamp left so it doesn't go off-screen
     if (left < 8) left = 8;
     if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
 
-    setDropdownPos({ top, left });
+    setDropdownPos({ top, left, width: dropW });
   }, []);
 
   // Recompute on open, resize, and scroll
@@ -223,13 +224,35 @@ export default function Header({
   const dropdownRef = useRef(null);
   useEffect(() => {
     if (!flushOpen) return;
+    const frame = requestAnimationFrame(() =>
+      dropdownRef.current?.querySelector('button')?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [flushOpen]);
+  useEffect(() => {
+    const show = () => setFlushOpen(true);
+    window.addEventListener('engine-quick-switch', show);
+    return () => window.removeEventListener('engine-quick-switch', show);
+  }, []);
+  useEffect(() => {
+    if (!flushOpen) return;
     const handler = (e) => {
       const inBtn = flushRef.current && flushRef.current.contains(e.target);
       const inDrop = dropdownRef.current && dropdownRef.current.contains(e.target);
       if (!inBtn && !inDrop) setFlushOpen(false);
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const escape = (event) => {
+      if (event.key === 'Escape') {
+        setFlushOpen(false);
+        flushBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', escape);
+    };
   }, [flushOpen]);
 
   const unloadModel = async (modelId) => {
@@ -327,7 +350,7 @@ export default function Header({
           active={modelStatus === 'ready' || modelStatus === 'loading'}
         />
         {sysStats && (
-          <div className="flex items-center gap-[10px] [font-family:var(--chrome-font-mono)] text-[10.5px] text-[var(--chrome-fg-dim)] bg-transparent h-[var(--chrome-pill-h)] whitespace-nowrap shrink overflow-hidden tabular-nums slashed-zero max-[851px]:hidden!">
+          <div className="flex items-center gap-2 [font-family:var(--chrome-font-mono)] text-[10.5px] text-[var(--chrome-fg-dim)] bg-transparent h-[var(--chrome-pill-h)] whitespace-nowrap shrink-0 tabular-nums slashed-zero">
             {showLiveStats && (
               <>
                 <span className="max-[1081px]:hidden">
@@ -382,21 +405,48 @@ export default function Header({
                   variant="subtle"
                   size="sm"
                   title={t('header.memory_management')}
+                  aria-haspopup="dialog"
+                  aria-expanded={flushOpen}
                   loading={flushing}
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
                   onClick={() => setFlushOpen((o) => !o)}
                   className="ml-[2px]"
                 >
-                  {t('header.flush')}
+                  {t('settings.engines')}
                 </Button>
                 {flushOpen &&
                   createPortal(
                     <div
-                      className="fixed w-[260px] bg-[var(--color-bg-elev-1)] [border:1px_solid_var(--color-border)] rounded-[var(--radius-lg)] [box-shadow:0_8px_24px_rgba(0,0,0,0.5)] z-[9999] py-[4px] [animation:flush-slide_0.12s_ease-out]"
-                      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                      role="dialog"
+                      aria-label={t('settings.engines')}
+                      className="fixed overflow-y-auto bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-xl z-[9999] p-3"
+                      style={{
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        maxHeight: `calc(100vh - ${dropdownPos.top + 8}px)`,
+                      }}
                       ref={dropdownRef}
                     >
+                      <div className="flex items-center justify-between gap-2 pb-2">
+                        <span className="text-sm font-semibold">{t('settings.engines')}</span>
+                        <button
+                          type="button"
+                          aria-label={t('common.close')}
+                          onClick={() => {
+                            setFlushOpen(false);
+                            flushBtnRef.current?.focus();
+                          }}
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-[var(--chrome-hover-bg)]"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <EngineQuickSwitch family="tts" embedded />
+                      <EngineQuickSwitch family="asr" embedded />
+                      <EngineQuickSwitch family="llm" embedded />
+                      <div className="h-px bg-[var(--color-border)] my-2" />
                       <div className="text-[10px] font-semibold text-[var(--color-fg-subtle)] uppercase tracking-[0.5px] pt-[6px] px-[12px] pb-[4px]">
                         {t('header.loaded_models')}
                       </div>
