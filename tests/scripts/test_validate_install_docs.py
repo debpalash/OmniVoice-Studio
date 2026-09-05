@@ -21,6 +21,8 @@ the tests don't depend on the real repo state.
 from __future__ import annotations
 
 import importlib.util
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -50,6 +52,20 @@ def _make_root(tmp_path: Path, *, docs: dict[str, str], script: str) -> Path:
     (tmp_path / "scripts").mkdir(parents=True)
     (tmp_path / "scripts" / "desktop-prod.sh").write_text(script, encoding="utf-8")
     return tmp_path
+
+
+def test_help_is_safe_for_cp1252_consoles():
+    """The real help path must remain printable under legacy Windows encoding."""
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "cp1252"
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), "--help"],
+        check=False,
+        capture_output=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr.decode("ascii", errors="replace")
 
 
 def test_clean_state_passes(validator_module, tmp_path, capsys):

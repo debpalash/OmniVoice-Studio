@@ -13,7 +13,7 @@ Markers:
 
 Normalisation (per RESEARCH Pitfall #4):
   - rstrip trailing whitespace
-  - normalise CRLF → LF
+  - normalise CRLF -> LF
   - strip `$ ` and `>>> ` REPL/prompt prefixes
   - skip blank lines + lines that are only `#` comments
 
