@@ -26,10 +26,10 @@ export default function NotificationPanel() {
       aria-label={`Notifications (${count})`}
       title="Notifications"
     >
-      <Bell size={14} />
+      <Bell size={14} className={count > 0 ? '-translate-x-0.5 translate-y-0.5' : ''} />
       {count > 0 && (
         <span
-          className={`pointer-events-none absolute -top-[4px] -right-[4px] flex h-[14px] min-w-[14px] items-center justify-center rounded-[7px] px-[3px] font-mono text-[9px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] ${!hasErrors && hasWarns ? 'bg-warn' : 'bg-danger'}`}
+          className={`pointer-events-none absolute top-0 right-0 flex h-[14px] min-w-[14px] items-center justify-center rounded-[7px] px-[3px] font-mono text-[9px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] ${!hasErrors && hasWarns ? 'bg-warn' : 'bg-danger'}`}
         >
           {count}
         </span>

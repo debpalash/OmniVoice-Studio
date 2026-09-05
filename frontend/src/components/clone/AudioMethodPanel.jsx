@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Button, Input, Segmented, Select } from '../../ui';
 import MicButton from './MicButton';
 import WaveformPlayer from '../WaveformPlayer';
+import VoiceModeIcon from './VoiceModeIcon';
 
 const EMPTY_LEVEL_STORE = {
   getSnapshot: () => 0,
@@ -57,7 +58,7 @@ export default function AudioMethodPanel({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-1 flex-col gap-3">
       <div className="flex items-start justify-between gap-3 max-[520px]:flex-col">
         <div>
           <div className="text-[length:var(--text-sm)] font-semibold text-fg">
@@ -75,15 +76,31 @@ export default function AudioMethodPanel({
             disabled={isStartingRecording || isRecording}
             aria-label={t('clone.reference_audio')}
             items={[
-              { value: 'upload', label: t('clone.upload_audio') },
-              { value: 'record', label: t('clone.record') },
+              {
+                value: 'upload',
+                label: (
+                  <span className="voice-source-tab inline-flex items-center gap-2">
+                    <VoiceModeIcon mode="upload" />
+                    {t('clone.upload_audio')}
+                  </span>
+                ),
+              },
+              {
+                value: 'record',
+                label: (
+                  <span className="voice-source-tab inline-flex items-center gap-2">
+                    <VoiceModeIcon mode="record" />
+                    {t('clone.record')}
+                  </span>
+                ),
+              },
             ]}
           />
         )}
       </div>
 
       {!hasReference && sourceMode === 'upload' && (
-        <div>
+        <div className="flex flex-1 flex-col min-h-32">
           <input
             type="file"
             accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
@@ -96,7 +113,7 @@ export default function AudioMethodPanel({
           />
           <label
             htmlFor="audio-upload"
-            className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg bg-[var(--chrome-hover-bg)] px-4 py-3 text-center transition-[background] duration-[var(--dur-fast)] hover:bg-[var(--chrome-accent-bg)] focus-within:bg-[var(--chrome-accent-bg)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
+            className="flex flex-1 min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg bg-[var(--chrome-hover-bg)] px-4 py-3 text-center transition-[background] duration-[var(--dur-fast)] hover:bg-[var(--chrome-accent-bg)] focus-within:bg-[var(--chrome-accent-bg)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
             onDragOver={(event) => {
               event.preventDefault();
               event.currentTarget.classList.add('is-dragging');

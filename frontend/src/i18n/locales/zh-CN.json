@@ -187,6 +187,9 @@
     "convert_desc": "说一遍,用另一种声音听到。语音到语音,完全本地运行。"
   },
   "clone": {
+    "text_label": "文本",
+    "paste": "粘贴",
+    "paste_failed": "剪贴板访问被阻止。请使用键盘直接粘贴到文本框中。",
     "prompt": "提示词",
     "language": "语言",
     "steps": "步数",

@@ -539,6 +539,9 @@
     "convert_desc": "Dillo una volta — ascoltalo con un'altra voce. Da voce a voce, tutto in locale."
   },
   "clone": {
+    "text_label": "Testo",
+    "paste": "Incolla",
+    "paste_failed": "L’accesso agli appunti è bloccato. Incolla direttamente nel campo di testo con la tastiera.",
     "prompt": "Richiedi",
     "language": "Lingua",
     "steps": "Passi",
