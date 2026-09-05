@@ -4953,12 +4953,12 @@ button.dub-stepper__action:focus-visible {
   overflow-y: auto;
 }
 
-/* Let the form shrink into the available height on stacked shells too.
+/* Reserve a viewport-height workspace before the stacked voice library.
    The inner form scrolls independently; the action bar remains visible. */
 .shell-narrow .studio-with-history__main,
 .shell-mini .studio-with-history__main {
   overflow: visible;
-  flex: 1 1 0%;
+  flex: 1 0 100%;
   min-height: 0;
   order: 1;
 }

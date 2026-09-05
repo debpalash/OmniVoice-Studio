@@ -15,7 +15,6 @@ import AudioMethodPanel from '../components/clone/AudioMethodPanel';
 import DesignMethodPanel from '../components/clone/DesignMethodPanel';
 import ConvertMethodPanel from '../components/clone/ConvertMethodPanel';
 import ActionBar from '../components/clone/ActionBar';
-import EngineQuickSwitch from '../components/EngineQuickSwitch';
 
 export default function CloneDesignTab(props) {
   const [convertRecordingBusy, setConvertRecordingBusy] = useState(false);
@@ -420,11 +419,10 @@ export default function CloneDesignTab(props) {
       activationMode="manual"
       className="flex-1 min-h-0 min-w-0 gap-0"
     >
-      <div className="relative z-10 flex shrink-0 flex-col gap-3 px-3 pb-4 pt-2 max-[600px]:px-1.5">
-        <EngineQuickSwitch prominent />
+      <div className="voice-workspace-toolbar relative z-10 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-3 pb-3 pt-2 max-[600px]:px-1.5">
         <TabsList
           aria-label={t('clone.voice_kicker')}
-          className="grid h-auto w-full grid-cols-3 gap-1 rounded-lg bg-[var(--chrome-hover-bg)] p-1"
+          className="grid h-auto w-auto min-w-0 flex-[1_1_320px] grid-cols-3 gap-[3px] rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-bg)] p-[3px]"
         >
           {[
             { id: 'audio', label: t('clone.define_from_audio') },
@@ -435,7 +433,7 @@ export default function CloneDesignTab(props) {
               key={method.id}
               value={method.id}
               disabled={isStartingRecording || isRecording || convertRecordingBusy}
-              className="min-h-11 h-auto min-w-0 whitespace-normal rounded-md border-0 bg-transparent px-3 py-2 text-sm font-semibold text-[var(--chrome-fg-muted)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:text-[var(--chrome-accent)] data-[state=active]:shadow-none"
+              className="min-h-11 h-auto min-w-0 cursor-pointer whitespace-normal rounded-[var(--chrome-radius-pill)] border border-transparent bg-transparent px-3 py-2 text-sm font-medium text-[color:var(--chrome-fg-muted)] transition-colors data-[state=active]:border-[var(--chrome-accent-border)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:font-semibold data-[state=active]:text-[color:var(--chrome-accent)] data-[state=active]:shadow-none dark:data-[state=active]:border-[var(--chrome-accent-border)] dark:data-[state=active]:bg-[var(--chrome-accent-bg)] dark:data-[state=active]:text-[color:var(--chrome-accent)] hover:data-[state=inactive]:bg-[var(--chrome-hover-bg)]"
             >
               {method.label}
             </TabsTrigger>
@@ -443,155 +441,159 @@ export default function CloneDesignTab(props) {
         </TabsList>
       </div>
       <TabsContent value={defineMethod} className="flex min-h-0 flex-col">
-        {/* The form owns the remaining height and scrolls above the action bar. */}
-        <div className="flex flex-1 flex-col gap-[6px] min-h-0 overflow-y-auto">
-          {/* ═══ SCRIPT — what should it say ═══
+        {defineMethod === 'convert' ? (
+          <ConvertMethodPanel
+            t={t}
+            profiles={profiles}
+            onRecordingBusyChange={setConvertRecordingBusy}
+          />
+        ) : (
+          <>
+            {/* The form owns the remaining height and scrolls above the action bar. */}
+            <div className="flex flex-1 flex-col gap-[6px] min-h-0 overflow-y-auto">
+              {/* ═══ SCRIPT — what should it say ═══
             Hidden for Convert: the source clip IS the script (the backend
             transcribes it), so a text panel would only mislead. */}
-          {defineMethod !== 'convert' && (
-            <ScriptPanel
-              t={t}
-              defineMethod={defineMethod}
-              text={text}
-              setText={setText}
-              activePersonality={activePersonality}
-              demoPresets={demoPresets}
-              applyDemoPreset={applyDemoPreset}
-              showDemoCoachmark={showDemoCoachmark}
-              setShowDemoCoachmark={setShowDemoCoachmark}
-              selectedProfile={selectedProfile}
-              DEMO_PROFILE_ID={DEMO_PROFILE_ID}
-              textAreaRef={textAreaRef}
-              insertOpen={insertOpen}
-              setInsertOpen={setInsertOpen}
-              insertTag={insertTag}
-            />
-          )}
-
-          {/* ═══ VOICE — who says it ═══ */}
-          <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[1]">
-            <div className="flex flex-col min-h-0 overflow-auto bg-[var(--chrome-bg)] border border-transparent rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
-              <div className="label-row justify-between">
-                <span className="label-row mb-0">
-                  <Volume2 className="label-icon" size={14} />{' '}
-                  {t('clone.voice_kicker', { defaultValue: 'Voice' })}
-                </span>
-              </div>
-
-              {defineMethod === 'audio' ? (
-                <AudioMethodPanel
+              {defineMethod !== 'convert' && (
+                <ScriptPanel
                   t={t}
-                  selectedProfile={selectedProfile}
-                  setSelectedProfile={setSelectedProfile}
-                  profiles={profiles}
-                  ingestRefAudio={ingestRefAudio}
-                  refAudio={refAudio}
-                  isCleaning={isCleaning}
-                  isRecording={isRecording}
-                  isStartingRecording={isStartingRecording}
-                  recordingTime={recordingTime}
-                  audioInputs={audioInputs}
-                  selectedAudioInputId={selectedAudioInputId}
-                  setSelectedAudioInputId={setSelectedAudioInputId}
-                  channelMode={channelMode}
-                  setChannelMode={setChannelMode}
-                  inputLevelStore={inputLevelStore}
-                  startRecording={startRecording}
-                  stopRecording={stopRecording}
-                  refText={refText}
-                  setRefText={setRefText}
-                  instruct={instruct}
-                  setInstruct={setInstruct}
                   defineMethod={defineMethod}
-                  designSeed={designSeed}
-                  setDesignSeed={setDesignSeed}
-                  keepSeed={keepSeed}
-                  setKeepSeed={setKeepSeed}
-                  showSaveProfile={showSaveProfile}
-                  setShowSaveProfile={setShowSaveProfile}
-                  profileName={profileName}
-                  setProfileName={setProfileName}
-                  handleSaveProfile={handleSaveProfile}
-                />
-              ) : defineMethod === 'convert' ? (
-                <ConvertMethodPanel
-                  t={t}
-                  profiles={profiles}
-                  onRecordingBusyChange={setConvertRecordingBusy}
-                />
-              ) : (
-                <DesignMethodPanel
-                  t={t}
-                  describeText={describeText}
-                  onDescribeChange={onDescribeChange}
-                  describeMatchedAny={describeMatchedAny}
-                  describeUnmatched={describeUnmatched}
-                  chipPersonalities={chipPersonalities}
+                  text={text}
+                  setText={setText}
                   activePersonality={activePersonality}
-                  applyPersonality={applyPersonality}
-                  applyPreset={applyPresetAndInvalidate}
-                  identityOpen={identityOpen}
-                  setIdentityOpen={setIdentityOpen}
-                  identityRecipe={identityRecipe}
-                  vdStates={vdStates}
-                  onVdChange={handleVdChange}
-                  onChipKeyDown={onChipKeyDown}
-                  resetToDescription={resetToDescription}
-                  showSaveProfile={showSaveProfile}
-                  setShowSaveProfile={setShowSaveProfile}
-                  profileName={profileName}
-                  setProfileName={setProfileName}
-                  handleSaveDesignProfile={handleSaveDesignProfile}
-                  instruct={instruct}
-                  language={language}
+                  demoPresets={demoPresets}
+                  applyDemoPreset={applyDemoPreset}
+                  showDemoCoachmark={showDemoCoachmark}
+                  setShowDemoCoachmark={setShowDemoCoachmark}
+                  selectedProfile={selectedProfile}
+                  DEMO_PROFILE_ID={DEMO_PROFILE_ID}
+                  textAreaRef={textAreaRef}
+                  insertOpen={insertOpen}
+                  setInsertOpen={setInsertOpen}
+                  insertTag={insertTag}
                 />
               )}
-            </div>
-          </div>
-        </div>
 
-        {/* ═══ ACTION BAR — pinned to the column bottom ═══
+              {/* ═══ VOICE — who says it ═══ */}
+              <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[1]">
+                <div className="flex flex-col min-h-0 overflow-auto bg-[var(--chrome-bg)] border border-transparent rounded-none py-[10px] px-[12px] max-[800px]:px-[10px] max-[600px]:px-[6px] max-[600px]:py-[8px]">
+                  <div className="label-row justify-between">
+                    <span className="label-row mb-0">
+                      <Volume2 className="label-icon" size={14} />{' '}
+                      {t('clone.voice_kicker', { defaultValue: 'Voice' })}
+                    </span>
+                  </div>
+
+                  {defineMethod === 'audio' ? (
+                    <AudioMethodPanel
+                      t={t}
+                      selectedProfile={selectedProfile}
+                      setSelectedProfile={setSelectedProfile}
+                      profiles={profiles}
+                      ingestRefAudio={ingestRefAudio}
+                      refAudio={refAudio}
+                      isCleaning={isCleaning}
+                      isRecording={isRecording}
+                      isStartingRecording={isStartingRecording}
+                      recordingTime={recordingTime}
+                      audioInputs={audioInputs}
+                      selectedAudioInputId={selectedAudioInputId}
+                      setSelectedAudioInputId={setSelectedAudioInputId}
+                      channelMode={channelMode}
+                      setChannelMode={setChannelMode}
+                      inputLevelStore={inputLevelStore}
+                      startRecording={startRecording}
+                      stopRecording={stopRecording}
+                      refText={refText}
+                      setRefText={setRefText}
+                      instruct={instruct}
+                      setInstruct={setInstruct}
+                      defineMethod={defineMethod}
+                      designSeed={designSeed}
+                      setDesignSeed={setDesignSeed}
+                      keepSeed={keepSeed}
+                      setKeepSeed={setKeepSeed}
+                      showSaveProfile={showSaveProfile}
+                      setShowSaveProfile={setShowSaveProfile}
+                      profileName={profileName}
+                      setProfileName={setProfileName}
+                      handleSaveProfile={handleSaveProfile}
+                    />
+                  ) : (
+                    <DesignMethodPanel
+                      t={t}
+                      describeText={describeText}
+                      onDescribeChange={onDescribeChange}
+                      describeMatchedAny={describeMatchedAny}
+                      describeUnmatched={describeUnmatched}
+                      chipPersonalities={chipPersonalities}
+                      activePersonality={activePersonality}
+                      applyPersonality={applyPersonality}
+                      applyPreset={applyPresetAndInvalidate}
+                      identityOpen={identityOpen}
+                      setIdentityOpen={setIdentityOpen}
+                      identityRecipe={identityRecipe}
+                      vdStates={vdStates}
+                      onVdChange={handleVdChange}
+                      onChipKeyDown={onChipKeyDown}
+                      resetToDescription={resetToDescription}
+                      showSaveProfile={showSaveProfile}
+                      setShowSaveProfile={setShowSaveProfile}
+                      profileName={profileName}
+                      setProfileName={setProfileName}
+                      handleSaveDesignProfile={handleSaveDesignProfile}
+                      instruct={instruct}
+                      language={language}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ ACTION BAR — pinned to the column bottom ═══
           Hidden for Convert: it drives text synthesis (script + overrides),
           and Convert owns its action button inside its panel. */}
-        {defineMethod !== 'convert' && (
-          <ActionBar
-            t={t}
-            showOverrides={showOverrides}
-            setShowOverrides={setShowOverrides}
-            cfg={cfg}
-            setCfg={setCfg}
-            speed={speed}
-            setSpeed={setSpeed}
-            tShift={tShift}
-            setTShift={setTShift}
-            posTemp={posTemp}
-            setPosTemp={setPosTemp}
-            classTemp={classTemp}
-            setClassTemp={setClassTemp}
-            layerPenalty={layerPenalty}
-            setLayerPenalty={setLayerPenalty}
-            duration={duration}
-            setDuration={setDuration}
-            denoise={denoise}
-            setDenoise={setDenoise}
-            postprocess={postprocess}
-            setPostprocess={setPostprocess}
-            language={language}
-            setLanguage={setLanguage}
-            steps={steps}
-            setSteps={setSteps}
-            showHearDemo={showHearDemo}
-            playDemoOutput={playDemoOutput}
-            demoAudioPlaying={demoAudioPlaying}
-            demoAudioRef={demoAudioRef}
-            demoReleaseRef={demoReleaseRef}
-            setDemoAudioPlaying={setDemoAudioPlaying}
-            outputPlaying={outputPlaying}
-            isGenerating={isGenerating}
-            handleGenerate={handleGenerate}
-            generationTime={generationTime}
-            wasGeneratingRef={wasGeneratingRef}
-          />
+            {defineMethod !== 'convert' && (
+              <ActionBar
+                t={t}
+                showOverrides={showOverrides}
+                setShowOverrides={setShowOverrides}
+                cfg={cfg}
+                setCfg={setCfg}
+                speed={speed}
+                setSpeed={setSpeed}
+                tShift={tShift}
+                setTShift={setTShift}
+                posTemp={posTemp}
+                setPosTemp={setPosTemp}
+                classTemp={classTemp}
+                setClassTemp={setClassTemp}
+                layerPenalty={layerPenalty}
+                setLayerPenalty={setLayerPenalty}
+                duration={duration}
+                setDuration={setDuration}
+                denoise={denoise}
+                setDenoise={setDenoise}
+                postprocess={postprocess}
+                setPostprocess={setPostprocess}
+                language={language}
+                setLanguage={setLanguage}
+                steps={steps}
+                setSteps={setSteps}
+                showHearDemo={showHearDemo}
+                playDemoOutput={playDemoOutput}
+                demoAudioPlaying={demoAudioPlaying}
+                demoAudioRef={demoAudioRef}
+                demoReleaseRef={demoReleaseRef}
+                setDemoAudioPlaying={setDemoAudioPlaying}
+                outputPlaying={outputPlaying}
+                isGenerating={isGenerating}
+                handleGenerate={handleGenerate}
+                generationTime={generationTime}
+                wasGeneratingRef={wasGeneratingRef}
+              />
+            )}
+          </>
         )}
       </TabsContent>
     </Tabs>

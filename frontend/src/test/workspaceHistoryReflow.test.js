@@ -50,7 +50,7 @@ describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
     for (const shell of ['shell-mini', 'shell-narrow']) {
       const selector = `.${shell} .studio-with-history__main`;
       const rule = css.split('}').find((block) => block.split('{')[0].includes(selector));
-      expect(rule).toMatch(/flex:\s*1 1 0%;/);
+      expect(rule).toMatch(/flex:\s*1 0 100%;/);
       expect(rule).toMatch(/min-height:\s*0;/);
     }
     expect(indexRaw).toMatch(

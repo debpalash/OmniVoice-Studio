@@ -20,7 +20,7 @@ import { buildDesignInstruct } from '../../utils/voiceInstruct';
 // an opaque accent outline at 1px offset, on top of the app's global ring.
 const CHIP_FOCUS =
   'focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]';
-const PCHIP_BASE = `inline-flex items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-[0.72rem] font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
+const PCHIP_BASE = `inline-flex min-h-11 items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-sm font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
 const PCHIP_INACTIVE =
   'border-transparent text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:border-transparent hover:text-[var(--chrome-fg)]';
 const PCHIP_ACTIVE =
@@ -134,12 +134,13 @@ export default function DesignMethodPanel({
   };
 
   return (
-    <div>
+    <div className="space-y-3">
       {/* ── Describe your voice (#317) — free text drives the controls.
                 The placeholder explains itself; no extra header (10x §1.2). ── */}
       <div className="mb-[8px]">
         <textarea
-          className="input-base w-full resize-y min-h-[44px] mb-1"
+          className="input-base w-full resize-y min-h-24 mb-1"
+          aria-label={t('clone.define_by_design')}
           rows={2}
           placeholder={t('clone.describe_placeholder')}
           value={describeText}
@@ -155,7 +156,7 @@ export default function DesignMethodPanel({
             {t('clone.describe_unmatched', { items: describeUnmatched.join(', ') })}
           </div>
         )}
-        <div className="text-[0.62rem] text-[var(--chrome-fg-muted)]">
+        <div className="text-xs leading-relaxed text-[var(--chrome-fg-muted)]">
           {t('clone.describe_hint')}
         </div>
       </div>
@@ -231,7 +232,7 @@ export default function DesignMethodPanel({
                 All-Auto (first run) starts expanded. */}
       <button
         type="button"
-        className="flex items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-transparent rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
+        className="flex min-h-11 items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-transparent rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
         onClick={() => setIdentityOpen((o) => !o)}
         aria-expanded={identityOpen}
         aria-controls="design-details-fields"
