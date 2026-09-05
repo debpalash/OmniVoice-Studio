@@ -112,6 +112,13 @@ _FULL_NAME_TO_CODE = {
     "vietnamese": "vi",
     "kazakh": "kz",
     "standard arabic": "ar",
+    # Below: inert for num2words (absent from _NUM2WORDS_LANGS, which reads
+    # digits natively for these scripts), present so _plain_lang_code can
+    # resolve them for the digit-range rule.
+    "korean": "ko",
+    "japanese": "ja",
+    "chinese": "zh",
+    "mandarin chinese": "zh",
 }
 
 # ISO codes whose num2words locale name differs.
@@ -176,6 +183,68 @@ def _num2words_lang(language: Optional[str]) -> Optional[str]:
         if c in _NUM2WORDS_LANGS:
             return c
     return None
+
+
+def _plain_lang_code(language: Optional[str]) -> Optional[str]:
+    """Resolve a request language to a bare ISO code, with no num2words gate.
+
+    :func:`_num2words_lang` answers "may I call num2words for this?" and so
+    returns ``None`` for ko/ja/zh/th/vi. Rules that are not num2words-backed
+    need the code itself, which is what this returns.
+    """
+    if not language:
+        return None
+    s = str(language).strip().lower()
+    if not s or s == "auto":
+        return None
+    code = _FULL_NAME_TO_CODE.get(s)
+    if code:
+        return code
+    m = _ISO_CODE_RE.match(s)
+    if m:
+        return _ISO_ALIASES.get(m.group(1), m.group(1))
+    return None
+
+
+# ── Digit ranges ─────────────────────────────────────────────────────────────
+# "20~30" loses its separator at the engine and reads as ONE number: OmniVoice
+# says "이십삼" (23) for "20~30초". Speak the separator instead. Verified by
+# rendering each form and transcribing it back (ko, OmniVoice):
+#     "20~30초"        → heard "23초"          ✗
+#     "20에서 30초"     → heard "20에서 30초"    ✓
+# Only the tilde family is rewritten — those are unambiguously range marks
+# between digits. An ASCII hyphen is left alone on purpose: it also spells
+# dates, phone numbers and product codes, where "to" would be wrong.
+#: Spacing is part of the form, not decoration: a Korean postposition binds to
+#: the numeral ("20에서 30"), Japanese and Chinese set no spaces at all, and
+#: English needs them on both sides.
+_RANGE_FORM = {
+    "ko": "{a}에서 {b}",
+    "ja": "{a}から{b}",
+    "zh": "{a}到{b}",
+    "en": "{a} to {b}",
+}
+
+#: ASCII tilde, wave dash, fullwidth tilde — Japanese and Korean IMEs emit the
+#: latter two, so all three have to match.
+#:
+#: The neighbour guards block digits/decimal marks (so a longer number is never
+#: split) and ASCII letters (so a product code like "AB20~30CD" is left alone),
+#: but deliberately allow everything else: CJK writes its unit right against
+#: the digits — "20~30초", "20〜30分", "20～30秒" — and a \w guard would reject
+#: exactly the cases this rule exists for.
+_NUM_RANGE_RE = re.compile(
+    r"(?<![\d.,])(?<![A-Za-z])(\d{1,6})\s*[~\u301c\uff5e]\s*(\d{1,6})"
+    r"(?![\d.,])(?![A-Za-z])"
+)
+
+
+def _speak_number_ranges(text: str, lang: str) -> str:
+    """``20~30`` → ``20에서 30``. No-op where the spoken form isn't verified."""
+    form = _RANGE_FORM.get(lang)
+    if not form:
+        return text
+    return _NUM_RANGE_RE.sub(lambda m: form.format(a=m.group(1), b=m.group(2)), text)
 
 
 # ── Universal safety filters (all languages) ─────────────────────────────────
@@ -487,6 +556,11 @@ def normalize_text(text: str, language: Optional[str] = None) -> str:
     if not text:
         return text or ""
     out = _safety_filters(text)
+    # Runs outside the num2words gate below: ko/ja/zh keep their digits (that
+    # gate returns None for them) but still need the range mark spoken.
+    plain = _plain_lang_code(language)
+    if plain:
+        out = _outside_brackets(out, lambda t: _speak_number_ranges(t, plain))
     lang = _num2words_lang(language)
     if lang:
         if lang in _ABBREV_COMPILED:
