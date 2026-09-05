@@ -2148,6 +2148,11 @@ div[role="dialog"].audio-trimmer {
   gap: 8px;
 }
 
+.studio-action-bar .override-content {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE — make every component adapt to viewport width
    ════════════════════════════════════════════════════════════ */
@@ -4953,7 +4958,7 @@ button.dub-stepper__action:focus-visible {
 .shell-narrow .studio-with-history__main,
 .shell-mini .studio-with-history__main {
   overflow: visible;
-  flex: 0 0 auto;
+  flex: 1 0 auto;
   order: 1;
 }
 .shell-narrow .studio-with-history__main .studio-action-bar,

@@ -46,6 +46,13 @@ describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
     expect(css).toMatch(/\.studio-action-bar\s*\{[^}]*position:\s*sticky/s);
   });
 
+  it('fills narrow workspaces and bounds expanded settings above the pinned action', () => {
+    expect(css).toMatch(/\.shell-mini\s+\.studio-with-history__main\s*\{[^}]*flex:\s*1 0 auto/s);
+    expect(indexRaw).toMatch(
+      /\.studio-action-bar\s+\.override-content\s*\{[^}]*max-height:\s*40vh;[^}]*overflow-y:\s*auto/s,
+    );
+  });
+
   it('keeps saved voices in the left rail and generation history alone on the right', () => {
     expect(app).toMatch(
       /className="studio-voices">\s*<WorkspaceVoices[\s\S]*?<\/div>\s*<div className="studio-with-history__main">/,

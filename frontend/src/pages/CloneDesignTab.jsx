@@ -443,14 +443,8 @@ export default function CloneDesignTab(props) {
         </TabsList>
       </div>
       <TabsContent value={defineMethod} className="flex min-h-0 flex-col">
-        {/* #1771 follow-up (item 6): NOT flex-1 — the old always-open 12-row
-          Design block was tall enough that this area routinely filled the
-          full column height on its own. Now that Details defaults collapsed,
-          forcing this to grow-fill would strand a dead gap between it and
-          ActionBar below. Sizing to content (min-h-0 + overflow-y-auto still
-          in play) lets it shrink for short content and still scroll when
-          content genuinely exceeds the available height. */}
-        <div className="flex flex-col gap-[6px] min-h-0 overflow-y-auto">
+        {/* The form owns the remaining height and scrolls above the action bar. */}
+        <div className="flex flex-1 flex-col gap-[6px] min-h-0 overflow-y-auto">
           {/* ═══ SCRIPT — what should it say ═══
             Hidden for Convert: the source clip IS the script (the backend
             transcribes it), so a text panel would only mislead. */}
