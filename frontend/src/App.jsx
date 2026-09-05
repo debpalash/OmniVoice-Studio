@@ -1687,6 +1687,7 @@ function App() {
                 handlePreviewVoice={handlePreviewVoice}
                 handleUnlockProfile={handleUnlockProfile}
                 openVoiceProfile={openVoiceProfile}
+                selectionDisabled={isStartingRecording || isRecording}
                 onOpenVoicePreview={(profileId) => {
                   setVoicePreviewProfileId(profileId || '');
                   setIsVoicePreviewOpen(true);

@@ -23,15 +23,18 @@ vi.mock('../VoiceSelector', () => ({
   ),
 }));
 
+const recordingState = vi.hoisted(() => ({
+  isRecording: false,
+  isStartingRecording: false,
+  isCleaning: false,
+  recordingTime: 0,
+  startRecording: vi.fn(),
+  stopRecording: vi.fn(),
+}));
+
 // Mic capture needs real getUserMedia — inert here.
 vi.mock('../../hooks/useRecording', () => ({
-  default: () => ({
-    isRecording: false,
-    isCleaning: false,
-    recordingTime: 0,
-    startRecording: vi.fn(),
-    stopRecording: vi.fn(),
-  }),
+  default: () => recordingState,
 }));
 
 const convertSpeech = vi.fn();
@@ -88,6 +91,7 @@ function addSourceClip() {
 }
 
 beforeEach(() => {
+  recordingState.isStartingRecording = false;
   convertSpeech.mockReset();
   toastAsrModelMissing.mockReset();
   toastModelNotDownloaded.mockReset();
@@ -97,6 +101,14 @@ beforeEach(() => {
 });
 
 describe('ConvertMethodPanel', () => {
+  it('shows microphone startup instead of a duplicate record action', () => {
+    recordingState.isStartingRecording = true;
+    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Starting…');
+    expect(screen.queryByRole('button', { name: 'Record' })).not.toBeInTheDocument();
+  });
+
   it('keeps Convert disabled until a source clip AND a target voice are set', () => {
     render(<ConvertMethodPanel t={t} profiles={profiles} />);
     const button = screen.getByRole('button', { name: 'convert.convert' });

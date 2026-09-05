@@ -127,6 +127,28 @@ describe('AudioMethodPanel', () => {
     expect(screen.getByRole('option', { name: 'recording.microphone_number' })).toBeInTheDocument();
   });
 
+  it('locks recording settings while microphone startup is pending', () => {
+    const setDevice = vi.fn();
+    const setChannels = vi.fn();
+    render(
+      <AudioMethodPanel
+        {...baseProps}
+        isStartingRecording
+        setSelectedAudioInputId={setDevice}
+        setChannelMode={setChannels}
+      />,
+    );
+
+    const device = screen.getByLabelText('recording.input_device');
+    const channels = screen.getByLabelText('recording.channels');
+    expect(device).toBeDisabled();
+    expect(channels).toBeDisabled();
+    fireEvent.change(device, { target: { value: 'built-in' } });
+    fireEvent.change(channels, { target: { value: 'mono' } });
+    expect(setDevice).not.toHaveBeenCalled();
+    expect(setChannels).not.toHaveBeenCalled();
+  });
+
   it('shows whether live microphone input is detected', () => {
     const inputLevelStore = createInputLevelStore(0.01);
     render(<AudioMethodPanel {...baseProps} isRecording inputLevelStore={inputLevelStore} />);

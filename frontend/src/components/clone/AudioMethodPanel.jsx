@@ -133,8 +133,12 @@ export default function AudioMethodPanel({
                 size="sm"
                 className="w-full"
                 value={selectedAudioInputId}
-                onChange={(event) => setSelectedAudioInputId?.(event.target.value)}
-                disabled={isRecording || isCleaning}
+                onChange={(event) => {
+                  if (!isStartingRecording && !isRecording && !isCleaning) {
+                    setSelectedAudioInputId?.(event.target.value);
+                  }
+                }}
+                disabled={isStartingRecording || isRecording || isCleaning}
               >
                 <option value="">{t('recording.default_input')}</option>
                 {audioInputs.map((device, index) => (
@@ -150,8 +154,12 @@ export default function AudioMethodPanel({
                 size="sm"
                 className="w-full"
                 value={channelMode}
-                onChange={(event) => setChannelMode?.(event.target.value)}
-                disabled={isRecording || isCleaning}
+                onChange={(event) => {
+                  if (!isStartingRecording && !isRecording && !isCleaning) {
+                    setChannelMode?.(event.target.value);
+                  }
+                }}
+                disabled={isStartingRecording || isRecording || isCleaning}
               >
                 <option value="auto">{t('recording.channels_auto')}</option>
                 <option value="mono">{t('recording.channels_mono')}</option>

@@ -42,6 +42,7 @@ export default function WorkspaceVoices({
   handleUnlockProfile,
   openVoiceProfile,
   onOpenVoicePreview,
+  selectionDisabled = false,
 }) {
   const { t } = useTranslation();
   const setDefineMethod = useAppStore((s) => s.setDefineMethod);
@@ -108,6 +109,7 @@ export default function WorkspaceVoices({
               <button
                 type="button"
                 className="history-action-btn"
+                disabled={selectionDisabled}
                 onClick={() => setSelectedProfile?.(null)}
               >
                 <Plus size={10} /> {t('voices.new', { defaultValue: 'New voice' })}
@@ -170,7 +172,10 @@ export default function WorkspaceVoices({
                 key={proj.id}
                 className={`history-item ${selectedProfile === proj.id ? 'project-active' : ''}`}
                 style={{ '--row-accent': accent }}
-                onClick={() => handleSelectProfile(proj)}
+                aria-disabled={selectionDisabled}
+                onClick={() => {
+                  if (!selectionDisabled) handleSelectProfile(proj);
+                }}
               >
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <span
@@ -224,9 +229,10 @@ export default function WorkspaceVoices({
                   )}
                   <button
                     className="history-action-btn"
+                    disabled={selectionDisabled}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSelectProfile(proj);
+                      if (!selectionDisabled) handleSelectProfile(proj);
                     }}
                   >
                     <Check size={10} /> {t('sidebar.select')}

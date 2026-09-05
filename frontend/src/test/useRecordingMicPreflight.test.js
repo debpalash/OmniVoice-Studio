@@ -130,20 +130,24 @@ it('reports microphone startup as pending until permission resolves', async () =
         resolvePermission = resolve;
       }),
   );
-  installGum(async () => {
-    throw new Error('should not be reached');
+  const gum = installGum(async () => {
+    throw new Error('test microphone unavailable');
   });
   const { result } = renderHook(() => useRecording(vi.fn()));
 
   let startPromise;
+  let duplicateStartPromise;
   act(() => {
     startPromise = result.current.startRecording();
+    duplicateStartPromise = result.current.startRecording();
   });
   await waitFor(() => expect(result.current.isStartingRecording).toBe(true));
+  expect(invokeMock).toHaveBeenCalledTimes(1);
 
-  resolvePermission('denied');
-  await act(async () => startPromise);
+  resolvePermission('prompt');
+  await act(async () => Promise.all([startPromise, duplicateStartPromise]));
   expect(result.current.isStartingRecording).toBe(false);
+  expect(gum).toHaveBeenCalledTimes(1);
 });
 
 it('records a WAV through Web Audio when MediaRecorder is unsupported', async () => {
