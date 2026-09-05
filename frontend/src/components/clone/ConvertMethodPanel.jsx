@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { UploadCloud, X, ArrowRightLeft, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../../ui';
@@ -26,7 +26,7 @@ import WaveformPlayer from '../WaveformPlayer';
  * ScriptPanel (the script IS the source clip) or the shared ActionBar, so it
  * owns its source file, target voice, and result state locally.
  */
-export default function ConvertMethodPanel({ t, profiles = [] }) {
+export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyChange }) {
   const [sourceFile, setSourceFile] = useState(null);
   const [voiceId, setVoiceId] = useState('');
   const [matchDuration, setMatchDuration] = useState(true);
@@ -78,6 +78,11 @@ export default function ConvertMethodPanel({ t, profiles = [] }) {
     startRecording,
     stopRecording,
   } = useRecording(async (file) => ingestSource(file));
+
+  useEffect(() => {
+    onRecordingBusyChange?.(Boolean(isStartingRecording || isRecording));
+    return () => onRecordingBusyChange?.(false);
+  }, [isStartingRecording, isRecording, onRecordingBusyChange]);
 
   const canConvert = !!sourceFile && !!voiceId && !isConverting;
 

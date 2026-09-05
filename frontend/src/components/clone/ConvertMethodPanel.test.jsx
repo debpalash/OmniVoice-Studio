@@ -103,10 +103,20 @@ beforeEach(() => {
 describe('ConvertMethodPanel', () => {
   it('shows microphone startup instead of a duplicate record action', () => {
     recordingState.isStartingRecording = true;
-    render(<ConvertMethodPanel t={t} profiles={profiles} />);
+    const onRecordingBusyChange = vi.fn();
+    const { unmount } = render(
+      <ConvertMethodPanel
+        t={t}
+        profiles={profiles}
+        onRecordingBusyChange={onRecordingBusyChange}
+      />,
+    );
 
     expect(screen.getByRole('status')).toHaveTextContent('Starting…');
     expect(screen.queryByRole('button', { name: 'Record' })).not.toBeInTheDocument();
+    expect(onRecordingBusyChange).toHaveBeenLastCalledWith(true);
+    unmount();
+    expect(onRecordingBusyChange).toHaveBeenLastCalledWith(false);
   });
 
   it('keeps Convert disabled until a source clip AND a target voice are set', () => {

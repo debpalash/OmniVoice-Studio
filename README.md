@@ -57,6 +57,8 @@
 | **Storage** | Voices, projects, settings, and outputs stay on the machine by default |
 | **License** | AGPL-3.0 application; downloaded models keep their upstream terms |
 
+The Voice workspace starts with the active engine selector and three tabs: **From audio** for cloning, **By design** for creating a voice, and **Convert** for speech-to-speech conversion. Each tab displays its own workflow below.
+
 <a id="install"></a>
 
 ## Install

@@ -21,6 +21,7 @@ export default function EngineQuickSwitch({
   // workspace-header chips must open downward or the popover clips off the
   // top of the viewport.
   dropUp = false,
+  prominent = false,
 }) {
   const { t } = useTranslation();
   const rootRef = useRef(null);
@@ -115,10 +116,12 @@ export default function EngineQuickSwitch({
           family: family.toUpperCase(),
           engine: active.display_name,
         })}
-        className="inline-flex h-[20px] items-center gap-[5px] rounded-sm border-0 bg-transparent px-[7px] text-[11px] font-medium text-[color:var(--chrome-fg-muted)] transition-[background,color] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)]"
+        className={`inline-flex items-center gap-[5px] rounded-sm border-0 bg-transparent px-[7px] font-medium text-[color:var(--chrome-fg-muted)] transition-[background,color] hover:bg-[var(--chrome-hover-bg)] hover:text-[color:var(--chrome-fg)] ${prominent ? 'min-h-11 text-sm text-left' : 'h-[20px] text-[11px]'}`}
       >
         <Cpu size={13} aria-hidden="true" />
-        <span className="max-w-[124px] truncate">{active.display_name}</span>
+        <span className={prominent ? 'min-w-0 break-words' : 'max-w-[124px] truncate'}>
+          {active.display_name}
+        </span>
       </button>
 
       {open && (

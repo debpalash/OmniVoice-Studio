@@ -14,6 +14,7 @@ import { CATEGORIES } from '../utils/constants';
 import { apiPost } from '../api/client';
 
 vi.mock('../api/hooks', () => ({
+  useArchetypes: () => ({ data: { items: [] } }),
   useEngines: () => ({ data: { tts: { backends: [] }, asr: { backends: [] } } }),
   useSelectEngine: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -125,8 +126,35 @@ describe('CloneDesignTab — Voice Design panel redesign regressions', () => {
     ['microphone startup is pending', { isStartingRecording: true }],
   ])('keeps the active voice method mounted while %s', (_label, state) => {
     renderDesignTab(state);
-    expect(screen.getByRole('radio', { name: 'From audio' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: 'By design' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'From audio' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'By design' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Convert' })).toBeDisabled();
+  });
+
+  it('places mode tabs above their associated workspace and switches the whole content', () => {
+    renderDesignTab({ text: 'Keep my script' });
+    const design = screen.getByRole('tab', { name: 'By design' });
+    const panel = screen.getByRole('tabpanel');
+    expect(design).toHaveAttribute('aria-selected', 'true');
+    expect(design).toHaveAttribute('aria-controls', panel.id);
+    expect(panel).toHaveAttribute('aria-labelledby', design.id);
+    expect(
+      screen.getByRole('tablist').compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Convert' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(screen.getByTestId('convert-method-panel')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Keep my script')).not.toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'From audio' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(screen.getByDisplayValue('Keep my script')).toBeInTheDocument();
+    expect(screen.queryByTestId('convert-method-panel')).not.toBeInTheDocument();
   });
 
   it('starts the Details summary collapsed, not expanded', () => {
