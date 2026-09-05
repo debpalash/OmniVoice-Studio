@@ -1861,6 +1861,7 @@
     "hint": "8 passaggi · anteprima veloce"
   },
   "header": {
+    "speech": "Voce",
     "kicker_studio": "Studio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferenze",

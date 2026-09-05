@@ -142,11 +142,6 @@ export default function EngineQuickSwitch({
                 } ${MENU_SURFACE}`
           }
         >
-          {embedded && (
-            <div className="px-2 text-xs font-semibold text-[var(--chrome-fg-muted)]">
-              {t('engines.engineCompatLabel', { family: family.toUpperCase() })}
-            </div>
-          )}
           {locked && (
             <p className="m-[4px] text-[11px] leading-[1.4] text-[color:var(--chrome-fg-muted)]">
               {t('settings.llmp_env_override')}
@@ -155,13 +150,14 @@ export default function EngineQuickSwitch({
           {available.map((engine) => {
             const isActive = engine.id === familyData.active;
             const warm = residentIds.has(engine.id);
+            const parts = engine.display_name.match(/^(.+?)\s*\((.*)\)$/);
             return (
               <button
                 key={engine.id}
                 type="button"
                 disabled={isActive || locked || selectMutation.isPending}
                 onClick={() => choose(engine.id)}
-                className="flex w-full items-center gap-[8px] rounded-[5px] border-0 bg-transparent px-[7px] py-[6px] text-left text-[11px] text-[color:var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] disabled:cursor-default disabled:opacity-60"
+                className={`flex w-full items-center gap-2 rounded-md border-0 px-2 py-3 text-left text-xs text-[color:var(--chrome-fg)] hover:bg-[var(--chrome-hover-bg)] disabled:cursor-default ${embedded && isActive ? 'bg-[var(--chrome-accent-bg)]' : 'bg-transparent'}`}
               >
                 <span className="w-[12px] shrink-0">
                   {isActive && <Check size={12} aria-label={t('engines.active')} />}
@@ -173,10 +169,25 @@ export default function EngineQuickSwitch({
                       : 'min-w-0 flex-1 truncate'
                   }
                 >
-                  {engine.display_name}
+                  {embedded && parts ? (
+                    <>
+                      <span className="block font-medium text-sm">{parts[1]}</span>
+                      <span className="block mt-1 text-xs leading-relaxed text-[var(--chrome-fg-muted)]">
+                        {parts[2]}
+                      </span>
+                    </>
+                  ) : (
+                    engine.display_name
+                  )}
                 </span>
                 <span className="shrink-0 text-[10px] text-[color:var(--chrome-fg-muted)]">
-                  {warm ? t('engines.inMemory') : t('engines.available')}
+                  {warm
+                    ? t('engines.inMemory')
+                    : isActive
+                      ? t('engines.active')
+                      : embedded
+                        ? ''
+                        : t('engines.available')}
                 </span>
               </button>
             );
@@ -189,16 +200,18 @@ export default function EngineQuickSwitch({
               {switchError}
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              useAppStore.getState().openCatalogue({ pane: 'engines', family });
-            }}
-            className="mt-[3px] flex items-center gap-[3px] border-0 bg-transparent px-[7px] py-[5px] text-left text-[11px] text-[color:var(--chrome-fg-muted)] hover:text-[color:var(--chrome-fg)]"
-          >
-            {t('settings.engines')} <ChevronRight size={12} aria-hidden="true" />
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                useAppStore.getState().openCatalogue({ pane: 'engines', family });
+              }}
+              className="mt-[3px] flex items-center gap-[3px] border-0 bg-transparent px-[7px] py-[5px] text-left text-[11px] text-[color:var(--chrome-fg-muted)] hover:text-[color:var(--chrome-fg)]"
+            >
+              {t('settings.engines')} <ChevronRight size={12} aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
     </div>

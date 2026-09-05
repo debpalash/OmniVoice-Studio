@@ -15,7 +15,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
-- The top-bar Engines panel combines engine selection, loaded models, and flush controls, replacing duplicate workspace and footer pickers (#1823)
+- The top-bar Engines panel groups Speech, Transcription, and LLM choices into tabs, with compact memory controls and no duplicate pickers (#1823)
 ### Added
 
 ### Docs

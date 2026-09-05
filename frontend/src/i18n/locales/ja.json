@@ -1861,6 +1861,7 @@
     "hint": "8ステップ・高速プレビュー"
   },
   "header": {
+    "speech": "音声",
     "kicker_studio": "スタジオ",
     "kicker_library": "図書館",
     "kicker_preferences": "設定",

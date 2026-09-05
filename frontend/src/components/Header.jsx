@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import GpuTarget from './GpuTarget';
 import EngineQuickSwitch from './EngineQuickSwitch';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { createPortal } from 'react-dom';
 import {
   Globe,
@@ -163,6 +164,7 @@ export default function Header({
   const showLiveStats = useAppStore((s) => s.showHeaderLiveStats);
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
+  const [engineFamily, setEngineFamily] = useState('tts');
   const [loadedModels, setLoadedModels] = useState([]);
   const [unloading, setUnloading] = useState(null);
   const flushRef = useRef(null);
@@ -438,14 +440,46 @@ export default function Header({
                             setFlushOpen(false);
                             flushBtnRef.current?.focus();
                           }}
-                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-[var(--chrome-hover-bg)]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-[var(--chrome-fg-muted)] cursor-pointer hover:bg-[var(--chrome-hover-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
                         >
                           <X size={16} />
                         </button>
                       </div>
-                      <EngineQuickSwitch family="tts" embedded />
-                      <EngineQuickSwitch family="asr" embedded />
-                      <EngineQuickSwitch family="llm" embedded />
+                      <Tabs value={engineFamily} onValueChange={setEngineFamily}>
+                        <TabsList
+                          aria-label={t('settings.engines')}
+                          className="w-full h-auto grid grid-cols-3 bg-[var(--chrome-hover-bg)]"
+                        >
+                          {['tts', 'asr', 'llm'].map((family) => (
+                            <TabsTrigger
+                              key={family}
+                              value={family}
+                              className="min-h-11 cursor-pointer whitespace-normal bg-transparent text-xs text-[var(--chrome-fg-muted)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:text-[var(--chrome-accent)] dark:data-[state=active]:bg-[var(--chrome-accent-bg)] dark:data-[state=active]:text-[var(--chrome-accent)] hover:data-[state=inactive]:bg-[var(--chrome-hover-bg)]"
+                            >
+                              {family === 'tts'
+                                ? t('header.speech')
+                                : family === 'asr'
+                                  ? t('projects.transcription')
+                                  : t('models.role_llm')}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        <TabsContent value={engineFamily}>
+                          <EngineQuickSwitch key={engineFamily} family={engineFamily} embedded />
+                        </TabsContent>
+                      </Tabs>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 border-0 bg-transparent p-2 text-xs text-[var(--chrome-fg-muted)] cursor-pointer hover:text-[var(--chrome-fg)]"
+                        onClick={() => {
+                          setFlushOpen(false);
+                          useAppStore
+                            .getState()
+                            .openCatalogue({ pane: 'engines', family: engineFamily });
+                        }}
+                      >
+                        {t('header.label_catalogue')} <ChevronRight size={12} />
+                      </button>
                       <div className="h-px bg-[var(--color-border)] my-2" />
                       <div className="text-[10px] font-semibold text-[var(--color-fg-subtle)] uppercase tracking-[0.5px] pt-[6px] px-[12px] pb-[4px]">
                         {t('header.loaded_models')}
@@ -503,20 +537,25 @@ export default function Header({
                       >
                         <Zap size={10} /> {t('header.flush_caches')}
                       </button>
-                      <button
-                        className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[#fb4934] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(251,73,52,0.08)]"
-                        onClick={async () => {
-                          setFlushing(true);
-                          setFlushOpen(false);
-                          try {
-                            await onFlushMemory(true);
-                          } finally {
-                            setFlushing(false);
-                          }
-                        }}
-                      >
-                        <Trash2 size={10} /> {t('header.unload_all_flush')}
-                      </button>
+                      <details>
+                        <summary className="cursor-pointer px-3 py-2 text-xs text-[var(--chrome-fg-muted)]">
+                          {t('header.memory_management')}
+                        </summary>
+                        <button
+                          className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[#fb4934] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(251,73,52,0.08)]"
+                          onClick={async () => {
+                            setFlushing(true);
+                            setFlushOpen(false);
+                            try {
+                              await onFlushMemory(true);
+                            } finally {
+                              setFlushing(false);
+                            }
+                          }}
+                        >
+                          <Trash2 size={10} /> {t('header.unload_all_flush')}
+                        </button>
+                      </details>
                     </div>,
                     document.body,
                   )}

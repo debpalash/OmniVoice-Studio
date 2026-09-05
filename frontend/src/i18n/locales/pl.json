@@ -1861,6 +1861,7 @@
     "hint": "8 kroków · szybki podgląd"
   },
   "header": {
+    "speech": "Mowa",
     "kicker_studio": "Studio",
     "kicker_library": "Biblioteka",
     "kicker_preferences": "Preferencje",
