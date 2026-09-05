@@ -39,6 +39,13 @@ function renderPicker(props = {}) {
 }
 
 describe('EngineQuickSwitch', () => {
+  it('anchors the prominent menu to the left-hand engine button', async () => {
+    renderPicker({ prominent: true });
+    fireEvent.click(await screen.findByRole('button', { name: /active tts: omnivoice/i }));
+    expect(screen.getByRole('dialog')).toHaveClass('left-0');
+    expect(screen.getByRole('dialog')).not.toHaveClass('right-0');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(inventory());

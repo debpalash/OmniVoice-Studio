@@ -99,7 +99,10 @@ export default function EngineQuickSwitch({
   };
 
   return (
-    <div className={`relative inline-flex shrink-0 items-center ${className}`} ref={rootRef}>
+    <div
+      className={`relative inline-flex shrink-0 items-center ${prominent ? 'self-start max-w-full' : ''} ${className}`}
+      ref={rootRef}
+    >
       <button
         type="button"
         onClick={() => {
@@ -128,7 +131,7 @@ export default function EngineQuickSwitch({
         <div
           role="dialog"
           aria-label={t('engines.engineCompatLabel', { family: family.toUpperCase() })}
-          className={`absolute right-0 z-[60] flex w-[272px] flex-col gap-[4px] p-[8px] ${
+          className={`absolute ${prominent ? 'left-0' : 'right-0'} z-[60] flex w-[272px] max-w-[calc(100vw-32px)] flex-col gap-[4px] p-[8px] ${
             dropUp ? 'bottom-[calc(100%+8px)]' : 'top-[calc(100%+8px)]'
           } ${MENU_SURFACE}`}
         >
