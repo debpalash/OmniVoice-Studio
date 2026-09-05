@@ -6,7 +6,7 @@
     "clear_confirm": "Detta tar permanent bort alla sparade Berättelse- och Ljudboksprojekt och alla osparade utkast så att VoiceStudio kan öppnas igen. Det går inte att ångra. Fortsätta?"
   },
   "backendUnreachable": {
-    "contact_recent": "Den svarade för {{ago}} sedan och slutade sedan svara — den kraschade eller avslutades troligen mitt i en förfrågan.",
+    "contact_recent": "Den svarade för {{ago}} sedan och slutade sedan svara, och ingen krasch registrerades — den kan alltså fortfarande vara igång men fast i ett tungt jobb som håller motorn upptagen.",
     "contact_never": "Den har inte svarat alls under den här sessionen — den kanske aldrig startade.",
     "dev": "Kan inte nå den lokala VoiceStudio-backend. {{contact}} Med `bun run dev` körs backend med automatisk omladdning: varje filändring — även en sparning medan en förfrågan pågick — startar om den och bryter anslutningen. Försök med åtgärden igen först; var det en omladdning fungerar det. Om det fortsätter att misslyckas, titta i terminalen med `bun run dev` efter en Python-traceback eller ett avslutsmeddelande, och i omnivoice.log i din VoiceStudio-datamapp.",
     "server": "Kan inte nå VoiceStudio-backendservern. {{contact}} Kontrollera serverloggarna för orsaken (t.ex. `docker logs <container>` eller `journalctl`) — och observera att om Docker serverar den här sidan kan själva sidan gå ner tillsammans med backenden.",

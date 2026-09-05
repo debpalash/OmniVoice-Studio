@@ -75,7 +75,7 @@ export function contactAge(thenMs: number, nowMs: number = Date.now()): string {
 // values — used only when i18next has not been initialized (see module doc).
 const EN = {
   contact_recent:
-    'It was answering {{ago}} ago and then stopped responding — it most likely crashed or was killed mid-request.',
+    'It was answering {{ago}} ago and then stopped responding, and no crash was recorded — so it may still be alive but wedged on a heavy job that is holding the engine.',
   contact_never: 'It has not answered at all this session — it may never have started.',
   dev:
     "Can't reach the local VoiceStudio backend. {{contact}} In `bun run dev` the backend runs " +
@@ -108,7 +108,20 @@ function tr(key: string, vars: Record<string, string>, fallback: string): string
   return fallback.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => String(vars[k] ?? ''));
 }
 
-/** The honest last-contact phrase for error messages and bug reports. */
+/** The honest last-contact phrase for error messages and bug reports.
+ *
+ * #1802/#1805: this used to end "it most likely crashed or was killed
+ * mid-request" — a cause, asserted, on a path that by construction has already
+ * looked for a crash and found none. `apiFetch` reaches here only after
+ * `awaitBackendCrashMarker` has waited out the shell's death poll: a backend
+ * that really died is reported as a crash, with its exit code and a "View
+ * crash details" affordance, several branches earlier. So the one thing we
+ * know when we get here is that nothing recorded a death — and on an Apple
+ * Silicon machine mid-generation the far likelier story is a process alive and
+ * stalled under memory pressure, not a dead one. Naming a crash sent those
+ * users to Retry and Clean & Retry, which rebuilds the Python environment, for
+ * a backend that needed neither.
+ */
 export function describeLastContact(nowMs: number = Date.now()): string {
   const last = lastBackendContact();
   if (last == null) return tr('backendUnreachable.contact_never', {}, EN.contact_never);

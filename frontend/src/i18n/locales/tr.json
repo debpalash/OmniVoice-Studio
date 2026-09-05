@@ -6,7 +6,7 @@
     "clear_confirm": "VoiceStudio'nun yeniden açılabilmesi için kayıtlı tüm Hikâyeler ve Sesli Kitap projeleri ile kaydedilmemiş tüm taslaklar kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?"
   },
   "backendUnreachable": {
-    "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı — büyük olasılıkla bir istek sırasında çöktü veya sonlandırıldı.",
+    "contact_recent": "{{ago}} önce yanıt veriyordu, sonra yanıt vermeyi bıraktı ve herhangi bir çökme kaydedilmedi — yani hâlâ çalışıyor ama motoru meşgul eden ağır bir işte takılmış olabilir.",
     "contact_never": "Bu oturumda hiç yanıt vermedi — hiç başlamamış olabilir.",
     "dev": "Yerel VoiceStudio arka ucuna ulaşılamıyor. {{contact}} `bun run dev` ile arka uç otomatik yeniden yükleme ile çalışır: herhangi bir dosya değişikliği — bir istek sürerken kaydetmek dâhil — onu yeniden başlatır ve bağlantıyı koparır. Önce işlemi yeniden deneyin; yeniden yükleme olduysa çalışacaktır. Hata sürerse `bun run dev` çalıştıran terminalde bir Python izini veya çıkış mesajını ve VoiceStudio veri klasörünüzdeki omnivoice.log dosyasını kontrol edin.",
     "server": "VoiceStudio arka uç sunucusuna ulaşılamıyor. {{contact}} Nedenini görmek için sunucu günlüklerini kontrol edin (ör. `docker logs <container>` veya `journalctl`) — ve bu sayfayı Docker sunuyorsa sayfanın kendisinin de arka uçla birlikte kapanabileceğini unutmayın.",

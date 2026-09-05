@@ -66,14 +66,23 @@ describe('desktop unreachable copy tells the last-contact story (#1337)', () => 
     return mod;
   };
 
-  it('says it crashed rather than "still starting up" when it answered seconds ago', async () => {
+  it('tells the last-contact story rather than "still starting up" when it answered seconds ago', async () => {
     // The exact shape of #1337 / #1378.
     const mod = await withContact(2);
     const msg = mod.unreachableBackendMessage('desktop');
     expect(msg).toMatch(/answering .* ago and then stopped/i);
-    expect(msg).toMatch(/crashed or was killed/i);
     // The claim its own data contradicts must be gone.
     expect(msg).not.toMatch(/still be starting up/i);
+    // #1802/#1805: and so must the claim in the OTHER direction. This used to
+    // require "crashed or was killed" here, which overshot what #1337 had
+    // actually established: that the backend answered seconds ago, not what
+    // silenced it. `apiFetch` reaches this copy only after waiting out the
+    // shell's death poll and finding no crash marker, so asserting a crash
+    // was wrong exactly when it mattered — two Apple Silicon reporters were
+    // sent to Clean & Retry, which rebuilds the Python environment, for a
+    // backend that had not died at all.
+    expect(msg).not.toMatch(/crashed or was killed/i);
+    expect(msg).toMatch(/no crash was recorded/i);
   });
 
   it('says it may never have started when it never answered', async () => {

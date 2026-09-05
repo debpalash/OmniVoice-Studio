@@ -2233,7 +2233,7 @@
     "retry_hint": "Try \"Retry\" in Settings → Logs → Backend. If it fails again, \"Clean & Retry\" rebuilds the environment from scratch."
   },
   "backendUnreachable": {
-    "contact_recent": "It was answering {{ago}} ago and then stopped responding — it most likely crashed or was killed mid-request.",
+    "contact_recent": "It was answering {{ago}} ago and then stopped responding, and no crash was recorded — so it may still be alive but wedged on a heavy job that is holding the engine.",
     "contact_never": "It has not answered at all this session — it may never have started.",
     "dev": "Can't reach the local VoiceStudio backend. {{contact}} In `bun run dev` the backend runs with auto-reload, so any file change — including a save while a request was in flight — restarts it and drops the connection. Retry the action first; if it was a reload, it just works. If it keeps failing, check the terminal running `bun run dev` for a Python traceback or an exit banner, and omnivoice.log in your VoiceStudio data folder for the last thing the backend logged.",
     "server": "Can't reach the VoiceStudio backend server. {{contact}} Check the server logs for the cause (e.g. `docker logs <container>` or `journalctl`) — and note that if Docker serves this page, the page itself can go down with the backend.",

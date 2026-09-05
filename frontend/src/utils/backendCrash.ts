@@ -189,6 +189,47 @@ export async function getUnacknowledgedBackendCrash(): Promise<BackendCrashMarke
   return marker && !marker.acknowledged ? marker : null;
 }
 
+/** Wait, briefly, for the shell to record a crash marker.
+ *
+ * #1119: the desktop shell learns the backend died from a ~2 s POLL — it has
+ * to notice the child exit and write the marker. Asking for that marker ONCE,
+ * at the instant a request fails, races that poll and loses: we find nothing
+ * and conclude "no crash". That conclusion then gets stated as fact to the
+ * user, which is how #1802/#1805 came to read "it most likely crashed or was
+ * killed mid-request" on a backend that had left no evidence of dying at all.
+ *
+ * Outside the Tauri shell there is no death watcher to wait for — the
+ * run-sentinel record only appears after the backend RESTARTS — so one
+ * immediate ask is all the information there is, and a browser/Docker user is
+ * never stalled to learn nothing more.
+ *
+ * `getCrash` and `sleep` are injectable seams so the branch logic is
+ * unit-testable without a shell or real time.
+ */
+export async function awaitBackendCrashMarker(
+  getCrash: () => Promise<BackendCrashMarker | null> = getUnacknowledgedBackendCrash,
+  opts: { waitMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<{ crash: BackendCrashMarker | null; unavailable: boolean }> {
+  const waitMs = opts.waitMs ?? 8_000;
+  const intervalMs = opts.intervalMs ?? 1_000;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    let crash: BackendCrashMarker | null = null;
+    try {
+      crash = await getCrash();
+    } catch {
+      // Forensics unavailable — "no marker" would be a lie, so say so and let
+      // the caller keep its own wording rather than assert anything.
+      return { crash: null, unavailable: true };
+    }
+    if (crash) return { crash, unavailable: false };
+    if (!inTauri()) return { crash: null, unavailable: false };
+    if (Date.now() >= deadline) return { crash: null, unavailable: false };
+    await sleep(intervalMs);
+  }
+}
+
 /** Mark the newest crash as seen (the marker itself is retained for reports). */
 export async function acknowledgeBackendCrash(): Promise<void> {
   if (!inTauri()) {
@@ -458,27 +499,8 @@ export async function streamDropError(
   // the backend had in fact just died. That's the same race #1102 fixed for
   // apiFetch, which this path never got. Give the shell time to catch up before
   // believing there was no crash.
-  const waitMs = opts.waitMs ?? 8_000;
-  const intervalMs = opts.intervalMs ?? 1_000;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
-
-  let crash: BackendCrashMarker | null = null;
-  const deadline = Date.now() + waitMs;
-  for (;;) {
-    try {
-      crash = await getCrash();
-    } catch {
-      return new Error(fallbackMessage); // forensics unavailable — don't mask the caller
-    }
-    if (crash) break;
-    // Outside the Tauri shell there is no death watcher to wait for — the
-    // run-sentinel record (#1164) only appears after the backend RESTARTS,
-    // so one immediate ask is all the information there is; don't stall a
-    // browser/Docker user for 8 s to learn nothing more.
-    if (!inTauri()) break;
-    if (Date.now() >= deadline) break;
-    await sleep(intervalMs);
-  }
+  const { crash, unavailable } = await awaitBackendCrashMarker(getCrash, opts);
+  if (unavailable) return new Error(fallbackMessage); // don't mask the caller
   if (!crash) {
     // No crash marker — but "no marker" is not "the backend died and we missed
     // it". Outside the Tauri shell there is no death watcher at all, so this

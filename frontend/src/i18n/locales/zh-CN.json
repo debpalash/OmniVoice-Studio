@@ -6,7 +6,7 @@
     "clear_confirm": "这将永久删除所有已保存的故事和有声书项目以及所有未保存的草稿，以便 VoiceStudio 能够重新打开。此操作无法撤销。是否继续？"
   },
   "backendUnreachable": {
-    "contact_recent": "它在 {{ago}}前还在响应，随后停止了响应——很可能是在处理请求时崩溃或被强制终止。",
+    "contact_recent": "它在 {{ago}} 前还有响应，之后停止响应，并且没有记录到崩溃——因此它可能仍在运行，只是卡在了占用引擎的繁重任务上。",
     "contact_never": "本次会话中它从未响应过——可能根本没有启动。",
     "dev": "无法连接本地 VoiceStudio 后端。{{contact}} 在 `bun run dev` 下后端以自动重载方式运行，任何文件改动（包括请求进行中的保存）都会重启它并中断连接。请先重试该操作；如果是重载导致的，重试即可成功。若仍然失败，请查看运行 `bun run dev` 的终端是否有 Python 回溯或退出信息，以及 VoiceStudio 数据文件夹中的 omnivoice.log。",
     "server": "无法连接 VoiceStudio 后端服务器。{{contact}} 请查看服务器日志以找到原因（例如 `docker logs <容器>` 或 `journalctl`）——另外请注意：如果此页面由 Docker 提供，页面本身也可能随后端一起不可用。",

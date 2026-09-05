@@ -12,10 +12,10 @@
 // under `node --experimental-strip-types`, whose ESM resolver requires real
 // file extensions (tsconfig has allowImportingTsExtensions for tsc).
 import {
+  awaitBackendCrashMarker,
   getUnacknowledgedBackendCrash,
   describeCrashExit,
   crashAge,
-  type BackendCrashMarker,
 } from '../utils/backendCrash.ts';
 import { backendLifecycleStage, type BackendLifecycle } from '../utils/backendLifecycle.ts';
 import { scrubText } from '../utils/scrub.js';
@@ -429,12 +429,20 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
       // watcher, or (browser/dev/Docker) by the backend's own run sentinel —
       // tell the honest story instead of the vague "can't reach" and let
       // BackendCrashNotice raise its "View crash details" affordance.
-      let crash: BackendCrashMarker | null = null;
-      try {
-        crash = await getUnacknowledgedBackendCrash();
-      } catch {
-        /* forensics unavailable — fall through to the generic message */
-      }
+      //
+      // #1802/#1805: asking ONCE, right now, races the shell's ~2 s death
+      // poll and loses — the marker for a backend that just died has usually
+      // not been written yet. We then concluded "no crash" and said so, which
+      // is how a give-up came to assert "it most likely crashed or was killed
+      // mid-request" while carrying no forensics to back it. `streamDropError`
+      // already waits out that poll (#1119); this path never did. The budget
+      // is shorter than the stream path's 8 s because the retry cascade above
+      // has already cost the user a few seconds — two poll intervals is enough
+      // to stop losing the race without turning every failure into a stall.
+      const { crash } = await awaitBackendCrashMarker(getUnacknowledgedBackendCrash, {
+        waitMs: 4_000,
+        intervalMs: 1_000,
+      });
       if (crash) {
         try {
           window.dispatchEvent(new CustomEvent('ov:backend-crashed', { detail: crash }));

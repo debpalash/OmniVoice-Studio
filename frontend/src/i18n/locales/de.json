@@ -6,7 +6,7 @@
     "clear_confirm": "Dadurch werden alle gespeicherten Story- und Hörbuchprojekte sowie jeder nicht gespeicherte Entwurf dauerhaft gelöscht, damit VoiceStudio wieder geöffnet werden kann. Dies kann nicht rückgängig gemacht werden. Fortfahren?"
   },
   "backendUnreachable": {
-    "contact_recent": "Es hat vor {{ago}} noch geantwortet und dann aufgehört zu reagieren — höchstwahrscheinlich ist es mitten in einer Anfrage abgestürzt oder wurde beendet.",
+    "contact_recent": "Es hat vor {{ago}} noch geantwortet und reagiert seitdem nicht mehr, und es wurde kein Absturz aufgezeichnet — es läuft also möglicherweise noch, hängt aber an einer aufwendigen Aufgabe, die die Engine blockiert.",
     "contact_never": "Es hat in dieser Sitzung überhaupt nicht geantwortet — möglicherweise ist es nie gestartet.",
     "dev": "Der lokale VoiceStudio-Dienst ist nicht erreichbar. {{contact}} Bei `bun run dev` läuft das Backend mit Auto-Reload: jede Dateiänderung — auch ein Speichern während einer laufenden Anfrage — startet es neu und bricht die Verbindung ab. Wiederholen Sie die Aktion zuerst; war es ein Reload, funktioniert es einfach. Bleibt es fehlerhaft, prüfen Sie das Terminal mit `bun run dev` auf einen Python-Traceback oder eine Exit-Meldung und omnivoice.log in Ihrem VoiceStudio-Datenordner.",
     "server": "Der VoiceStudio-Backend-Server ist nicht erreichbar. {{contact}} Prüfe die Server-Logs auf die Ursache (z. B. `docker logs <container>` oder `journalctl`) — und beachte: Wenn Docker diese Seite ausliefert, kann die Seite selbst zusammen mit dem Backend ausfallen.",

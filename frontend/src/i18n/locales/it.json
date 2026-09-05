@@ -6,7 +6,7 @@
     "clear_confirm": "Questa operazione elimina definitivamente tutti i progetti Storie e Audiolibri salvati e qualsiasi bozza non salvata, così VoiceStudio potrà riaprirsi. Non può essere annullata. Continuare?"
   },
   "backendUnreachable": {
-    "contact_recent": "Rispondeva {{ago}} fa e poi ha smesso di rispondere — molto probabilmente è andato in crash o è stato terminato durante una richiesta.",
+    "contact_recent": "Rispondeva {{ago}} fa e poi ha smesso di rispondere, e non è stato registrato alcun crash — quindi potrebbe essere ancora attivo ma bloccato su un lavoro pesante che tiene occupato il motore.",
     "contact_never": "Non ha risposto affatto in questa sessione — forse non si è mai avviato.",
     "dev": "Impossibile raggiungere il backend VoiceStudio locale. {{contact}} Con `bun run dev` il backend gira con ricarica automatica: qualsiasi modifica a un file — incluso un salvataggio mentre una richiesta era in corso — lo riavvia e interrompe la connessione. Riprovi prima l'operazione; se era una ricarica, funzionerà. Se continua a fallire, controlli il terminale con `bun run dev` per un traceback Python o un messaggio di uscita, e omnivoice.log nella sua cartella dati VoiceStudio.",
     "server": "Impossibile raggiungere il server backend di VoiceStudio. {{contact}} Controlla i log del server per la causa (es. `docker logs <container>` o `journalctl`) — e tieni presente che se Docker serve questa pagina, la pagina stessa può cadere insieme al backend.",

@@ -6,7 +6,7 @@
     "clear_confirm": "Esto elimina permanentemente todos los proyectos guardados de Historias y Audiolibros y cualquier borrador sin guardar para que VoiceStudio pueda volver a abrirse. No se puede deshacer. ¿Continuar?"
   },
   "backendUnreachable": {
-    "contact_recent": "Estaba respondiendo hace {{ago}} y dejó de responder — lo más probable es que se haya bloqueado o haya sido terminado en mitad de una petición.",
+    "contact_recent": "Respondía hace {{ago}} y luego dejó de responder, y no se registró ningún fallo — así que puede seguir vivo pero atascado en una tarea pesada que mantiene ocupado el motor.",
     "contact_never": "No ha respondido en toda esta sesión — puede que nunca haya llegado a iniciarse.",
     "dev": "No se puede contactar con el backend local de VoiceStudio. {{contact}} Con `bun run dev` el backend se ejecuta con recarga automática: cualquier cambio de archivo — incluido guardar mientras había una petición en curso — lo reinicia y corta la conexión. Reintente la acción primero; si fue una recarga, funcionará. Si sigue fallando, revise la terminal con `bun run dev` por un traceback de Python o un mensaje de salida, y omnivoice.log en su carpeta de datos de VoiceStudio.",
     "server": "No se puede conectar con el servidor backend de VoiceStudio. {{contact}} Revisa los registros del servidor para encontrar la causa (p. ej. `docker logs <contenedor>` o `journalctl`) — y ten en cuenta que si Docker sirve esta página, la propia página puede caerse junto con el backend.",
