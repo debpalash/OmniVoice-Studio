@@ -3,8 +3,8 @@
 // inside `.map(t => …)` callbacks where `t` was the loop variable, shadowing the
 // useTranslation `t`. Rendering with a dub track that equals the primary
 // dubLangCode exercises the exact crashing branch.
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '../i18n';
 import ExportModal from './ExportModal';
 
@@ -41,6 +41,17 @@ function renderModal(extra = {}) {
 }
 
 describe('ExportModal (regression #183)', () => {
+  it('keeps export actions outside the scrolling settings and uses themed track choices', () => {
+    const setDefaultTrack = vi.fn();
+    renderModal({ setDefaultTrack });
+    expect(document.querySelector('.export-body')).not.toContainElement(
+      document.querySelector('.export-summary'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /default audio track/i }));
+    fireEvent.mouseDown(screen.getByRole('option', { name: /^ES/ }));
+    expect(setDefaultTrack).toHaveBeenCalledWith('es');
+    expect(screen.getAllByRole('switch')).toHaveLength(2);
+  });
   it('renders with dub tracks incl. the primary dub without throwing', () => {
     expect(() => renderModal()).not.toThrow();
   });

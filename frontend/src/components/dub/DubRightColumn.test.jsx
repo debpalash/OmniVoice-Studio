@@ -94,6 +94,8 @@ describe('DubRightColumn language targets', () => {
       }),
     );
 
-    expect(screen.getByRole('combobox', { name: 'dub.default_track' })).toHaveValue('es');
+    expect(screen.getByRole('button', { name: 'dub.default_track' })).toHaveTextContent(
+      'dub.dub_track',
+    );
   });
 });

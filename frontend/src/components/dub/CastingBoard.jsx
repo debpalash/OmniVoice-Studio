@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, Users, UserRound, Fingerprint } from 'lucide-react';
+import SearchableSelect from '../SearchableSelect';
+import { PRESET_ICONS, FALLBACK_VOICE_ICON, stripVoiceEmoji } from '../../utils/voiceIcons';
 import toast from 'react-hot-toast';
 import { PRESETS } from '../../utils/constants';
 import { autoProfileId, assignSpeakerProfile, castParts, castSpeakers } from '../../utils/segments';
@@ -130,12 +132,13 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
   ];
 
   return (
-    <div className="mt-[2px] px-[var(--space-3)] py-[3px] bg-[var(--chrome-bg)] rounded-[var(--chrome-radius-pill)] border border-transparent">
+    <div className="dub-casting-controls my-3 p-4 bg-[var(--chrome-hover-bg)] rounded-lg border-0">
       <div className="flex gap-[var(--space-2)] items-center flex-wrap">
         <span
           className="font-[family-name:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] text-[var(--chrome-fg-muted)] tracking-[var(--chrome-label-track)] uppercase font-semibold"
           title={t('dub.cast_title')}
         >
+          <Users size={16} aria-hidden="true" className="inline-block mr-2 align-text-bottom" />
           {t('dub.cast')}
         </span>
         {speakers.map((spk) => {
@@ -143,40 +146,56 @@ export default function CastingBoard({ t, dubSegments, setDubSegments, speakerCl
           return (
             <div key={spk} className="dub-cast__pair">
               <span className="font-[family-name:var(--chrome-font-mono)] text-[0.62rem] text-[var(--chrome-fg)]">
-                {spk}:
+                <UserRound
+                  size={14}
+                  aria-hidden="true"
+                  className="inline-block mr-1 align-text-bottom"
+                />
+                {spk}
               </span>
-              <select
-                className="input-base dub-cast__select"
+              <SearchableSelect
+                ariaLabel={spk}
+                menuPortal
+                renderGroupHeaders
+                buttonClassName="dub-cast__select min-h-10 rounded-lg border-0 bg-[var(--chrome-hover-bg)] px-3 py-2 text-sm text-[var(--chrome-fg)] hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
                 value={currentVoice(spk)}
-                onChange={(e) =>
-                  setDubSegments(assignSpeakerProfile(dubSegments, spk, e.target.value))
-                }
-              >
-                {clone && (
-                  <option value={autoProfileId(spk)}>
-                    {t('dub.from_video', { duration: clone.duration.toFixed(1) })}
-                  </option>
-                )}
-                <option value="">{t('dub.default')}</option>
-                {profiles.length > 0 && (
-                  <optgroup label={t('dub.clone_profiles')}>
-                    {profiles.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {PRESETS.length > 0 && (
-                  <optgroup label={t('dub.design_presets')}>
-                    {PRESETS.map((p) => (
-                      <option key={p.id} value={`preset:${p.id}`}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+                onChange={(value) => setDubSegments(assignSpeakerProfile(dubSegments, spk, value))}
+                options={[
+                  ...(clone
+                    ? [
+                        {
+                          value: autoProfileId(spk),
+                          label: t('dub.from_video', { duration: clone.duration.toFixed(1) }),
+                          Icon: UserRound,
+                        },
+                      ]
+                    : []),
+                  { value: '', label: t('dub.default'), Icon: UserRound },
+                  ...profiles.map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                    group: 'clones',
+                    groupLabel: t('dub.clone_profiles'),
+                    Icon: Fingerprint,
+                  })),
+                  ...PRESETS.map((p) => ({
+                    value: 'preset:' + p.id,
+                    label: stripVoiceEmoji(p.name),
+                    group: 'presets',
+                    groupLabel: t('dub.design_presets'),
+                    Icon: PRESET_ICONS[p.id] || FALLBACK_VOICE_ICON,
+                  })),
+                ]}
+                renderOption={(option) => {
+                  const Icon = option.Icon;
+                  return (
+                    <span className="inline-flex items-center gap-2">
+                      <Icon size={16} aria-hidden="true" className="shrink-0 opacity-75" />
+                      <span>{option.label}</span>
+                    </span>
+                  );
+                }}
+              />
             </div>
           );
         })}

@@ -1,0 +1,22 @@
+.dub-panel-left .wfm-layout { flex: 0 0 auto; }
+.dub-panel-left .wfm-stack { flex: 0 0 auto; }
+.dub-panel-left .wfm-controls { padding: 10px 4px; gap: 8px; flex-wrap: wrap; }
+.dub-panel-left .wfm-controls button { min-width: 32px; min-height: 32px; border: 0; border-radius: 6px; }
+.dub-translation-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; align-items: start; }
+.dub-translation-fields > div { min-width: 0; }
+.dub-translation-settings label { font-size: 12px; line-height: 1.5; gap: 8px; }
+.dub-translation-settings input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--chrome-accent); }
+.dub-translation-settings .label-icon { width: 15px; height: 15px; }
+.dub-translation-actions { padding-top: 8px; }
+.dub-translation-actions button { min-height: 36px; font-size: 12px; }
+.dub-casting-controls { padding: 12px; container-type: inline-size; }
+.dub-casting-controls > div:first-child { gap: 12px; align-items: center; }
+.dub-casting-controls .dub-cast__pair { display: flex; flex: 1 1 250px; flex-direction: row; align-items: center; gap: 8px; min-width: 0; padding: 0; }
+.dub-casting-controls .dub-cast__pair > span { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-family: var(--font-sans); font-size: 12px; }
+.dub-casting-controls .dub-cast__pair > .ss-wrap { flex: 1; min-width: 0; }
+.dub-casting-controls .dub-cast__select { width: 100%; height: 40px; min-height: 40px; font-size: 12px; padding: 8px 12px; }
+.dub-casting-controls .dub-cast__board-toggle { height: 40px; min-height: 40px; font-size: 12px; margin: 0; padding: 8px 10px; white-space: nowrap; }
+@container (max-width: 450px) {
+  .dub-casting-controls .dub-cast__pair { flex-basis: 100%; }
+  .dub-casting-controls .dub-cast__pair > span { flex-basis: 90px; }
+}

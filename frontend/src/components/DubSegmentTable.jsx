@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 import { List } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
-import { Table, Select } from '../ui';
+import { Table } from '../ui';
+import { Headphones } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
+import DubToggle from './dub/DubToggle';
 import { useAppStore } from '../store';
 import { visibleMergeAvailability } from '../utils/segmentParts';
 import useDubLivePreview from '../hooks/useDubLivePreview';
@@ -315,29 +318,25 @@ export default function DubSegmentTable({
         searchPlaceholder={t('segment.search_placeholder')}
         meta={meta}
       >
-        <label className="dub-live-toggle" title={t('dub.live_preview_title')}>
-          <input
-            type="checkbox"
-            className="accent-[var(--color-brand)]"
-            checked={!!livePreviewOn}
-            onChange={(e) => setDubLivePreview(e.target.checked)}
-          />
-          {t('dub.live_preview')}
-        </label>
+        <DubToggle
+          label={t('dub.live_preview')}
+          title={t('dub.live_preview_title')}
+          Icon={Headphones}
+          checked={livePreviewOn}
+          onChange={setDubLivePreview}
+        />
         {speakers.length > 1 && (
-          <Select
-            size="sm"
+          <SearchableSelect
+            menuPortal
+            ariaLabel={t('segment.all_speakers')}
             value={speakerFilter}
-            onChange={(e) => setSpeakerFilter(e.target.value)}
-            className="dub-segment-table__spk-filter"
-          >
-            <option value="">{t('segment.all_speakers')}</option>
-            {speakers.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+            onChange={setSpeakerFilter}
+            buttonClassName="min-h-10 rounded-lg border-0 px-3 text-sm bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg)]"
+            options={[
+              { value: '', label: t('segment.all_speakers') },
+              ...speakers.map((s) => ({ value: s, label: s })),
+            ]}
+          />
         )}
       </Table.Toolbar>
 

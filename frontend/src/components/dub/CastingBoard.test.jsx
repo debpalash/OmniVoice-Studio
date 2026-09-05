@@ -175,12 +175,12 @@ describe('CastingBoard ↔ dropdown sync', () => {
     openBoard();
 
     const selects = document.querySelectorAll('.dub-cast__select');
-    expect(selects[1].value).toBe(''); // SPEAKER_2 starts on Default
+    expect(selects[1]).toHaveTextContent(t('dub.default'));
 
     const row = screen.getByTestId('casting-board').querySelector('[data-speaker="SPEAKER_2"]');
     fireEvent.drop(row, { dataTransfer: { getData: () => 'voice-b' } });
 
-    expect(document.querySelectorAll('.dub-cast__select')[1].value).toBe('voice-b');
+    expect(document.querySelectorAll('.dub-cast__select')[1]).toHaveTextContent('Ben');
     expect(within(row).getByRole('button')).toHaveTextContent('Ben');
   });
 });
@@ -220,7 +220,8 @@ describe('CastingBoard auto-clone chip', () => {
     ).toBeInTheDocument();
 
     const selects = document.querySelectorAll('.dub-cast__select');
-    fireEvent.change(selects[1], { target: { value: 'voice-b' } });
+    fireEvent.click(selects[1]);
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'Ben', exact: true }));
 
     const updated = props.setDubSegments.mock.calls[0][0];
     expect(updated[0].profile_id).toBe('voice-a');
