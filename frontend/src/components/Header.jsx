@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import GpuTarget from './GpuTarget';
 import EngineQuickSwitch from './EngineQuickSwitch';
+import { engineDisplayName } from '../utils/engineDisplayName';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { createPortal } from 'react-dom';
 import {
@@ -166,11 +167,21 @@ export default function Header({
   const [flushOpen, setFlushOpen] = useState(false);
   const [engineFamily, setEngineFamily] = useState('tts');
   const { data: engines } = useEngines();
-  const activeFamily = engines?.[engineFamily];
-  const activeEngineName = activeFamily?.backends?.find(
-    (engine) => engine.id === activeFamily.active,
-  )?.display_name;
+  const [engineLabelIndex, setEngineLabelIndex] = useState(0);
+  const [engineLabelPaused, setEngineLabelPaused] = useState(false);
+  const activeEngines = ['tts', 'asr', 'llm'].flatMap((family) => {
+    const inventory = engines?.[family];
+    const active = inventory?.backends?.find((engine) => engine.id === inventory.active);
+    return active ? [{ family, name: engineDisplayName(active.display_name) }] : [];
+  });
+  const displayedEngine = activeEngines[engineLabelIndex % (activeEngines.length || 1)];
+  const activeEngineName = displayedEngine?.name;
   const activeEngineShortName = activeEngineName?.split(' (')[0];
+  useEffect(() => {
+    if (flushOpen || engineLabelPaused || activeEngines.length < 2) return;
+    const timer = setInterval(() => setEngineLabelIndex((index) => index + 1), 4000);
+    return () => clearInterval(timer);
+  }, [flushOpen, engineLabelPaused, activeEngines.length]);
   const [loadedModels, setLoadedModels] = useState([]);
   const [unloading, setUnloading] = useState(null);
   const flushRef = useRef(null);
@@ -419,10 +430,25 @@ export default function Header({
                   loading={flushing}
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
-                  onClick={() => setFlushOpen((o) => !o)}
+                  onMouseEnter={() => setEngineLabelPaused(true)}
+                  onMouseLeave={() => setEngineLabelPaused(false)}
+                  onFocus={() => setEngineLabelPaused(true)}
+                  onBlur={() => setEngineLabelPaused(false)}
+                  onClick={() => {
+                    if (!flushOpen && displayedEngine) setEngineFamily(displayedEngine.family);
+                    setFlushOpen((o) => !o);
+                  }}
                   className="ml-[2px]"
                 >
-                  <span className="max-w-[160px] truncate max-[600px]:max-w-[100px]">
+                  <span
+                    key={displayedEngine?.family}
+                    className="engine-title-label w-[190px] text-left truncate max-[600px]:w-[140px]"
+                  >
+                    {displayedEngine && (
+                      <span className="text-[var(--chrome-fg-dim)]">
+                        {t(`models.role_${displayedEngine.family}`)} ·{' '}
+                      </span>
+                    )}
                     {activeEngineShortName || t('settings.engines')}
                   </span>
                 </Button>
@@ -505,7 +531,7 @@ export default function Header({
                           >
                             <div className="flex flex-col gap-[1px] min-w-0">
                               <span className="text-[12px] text-[var(--color-fg)] font-medium">
-                                {m.name}
+                                {engineDisplayName(m.name)}
                                 {/* Resident-but-not-routed engine (e.g. VoiceStudio still in
                                     VRAM after switching to another backend) — say so. */}
                                 {m.is_active_engine === false && (
