@@ -2470,6 +2470,14 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* from MultiLangPicker (components/MultiLangPicker.css) */
+.multi-lang-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  align-content: start;
+  gap: 4px;
+}
+.multi-lang-options > div { grid-column: 1 / -1; }
+
 @keyframes engine-title-enter {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -2484,7 +2492,7 @@ input[type="file"]::file-selector-button:hover {
   position: fixed;
   z-index: var(--z-overlay);
   background: var(--chrome-bg);
-  border: 1px solid var(--chrome-border-strong);
+  border: 0;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   max-height: 260px;

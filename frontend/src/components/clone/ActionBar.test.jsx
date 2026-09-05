@@ -46,6 +46,26 @@ function Harness() {
 }
 
 describe('ActionBar', () => {
+  it('labels every tuning slider and exposes audio cleanup as switches', () => {
+    const setDenoise = vi.fn();
+    const setPostprocess = vi.fn();
+    render(
+      <ActionBar
+        {...baseProps}
+        showOverrides
+        setShowOverrides={setter}
+        setDenoise={setDenoise}
+        setPostprocess={setPostprocess}
+      />,
+    );
+    for (const slider of screen.getAllByRole('slider')) expect(slider).toHaveAccessibleName();
+    const denoise = screen.getByRole('switch', { name: 'clone.denoise' });
+    expect(denoise).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(denoise);
+    expect(setDenoise).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'clone.postprocess' }));
+    expect(setPostprocess).toHaveBeenCalledWith(true);
+  });
   it('opens the language list above the bottom bar outside its clipping ancestors', () => {
     const { container } = render(<Harness />);
     const wrapper = screen.getByRole('button', { name: 'clone.language' });

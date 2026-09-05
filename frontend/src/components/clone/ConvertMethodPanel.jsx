@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { UploadCloud, X, ArrowRightLeft, Loader } from 'lucide-react';
+import {
+  UploadCloud,
+  X,
+  ArrowRightLeft,
+  Loader,
+  AudioLines,
+  Fingerprint,
+  Timer,
+  Info,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '../../ui';
 import { API } from '../../api/client';
@@ -143,11 +152,14 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
     <div data-testid="convert-method-panel" className="flex flex-1 min-h-0 flex-col">
       <div
         data-testid="convert-form"
-        className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-3"
+        className="convert-form flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-5"
       >
         {/* ── Source clip: drop / pick / record ── */}
-        <div className="label-row mt-[6px]">{t('convert.source_kicker')}</div>
-        <div className="flex gap-[8px] items-stretch">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--chrome-fg)]">
+          <AudioLines size={17} aria-hidden="true" />
+          {t('convert.source_kicker')}
+        </div>
+        <div className="flex flex-wrap gap-3 items-stretch rounded-lg bg-[var(--chrome-hover-bg)] p-4">
           <input
             type="file"
             accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"
@@ -160,7 +172,15 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
           />
           <label
             htmlFor="convert-audio-upload"
-            className="flex-1 min-w-0 min-h-24 border border-dashed border-[var(--chrome-border-strong)] rounded-lg p-4 text-center cursor-pointer flex flex-col justify-center items-center gap-2 bg-[var(--chrome-hover-bg)] transition-colors hover:border-[var(--chrome-accent)] focus-within:ring-2 [&.is-dragging]:border-[var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
+            tabIndex={0}
+            role="button"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                document.getElementById('convert-audio-upload')?.click();
+              }
+            }}
+            className="flex-1 basis-56 min-w-0 min-h-48 rounded-lg p-5 text-center cursor-pointer flex flex-col justify-center items-center gap-3 bg-[var(--chrome-hover-bg)] transition-colors hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
             onDragOver={(e) => {
               e.preventDefault();
               e.currentTarget.classList.add('is-dragging');
@@ -179,8 +199,8 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
               if (okType) ingestSource(file);
             }}
           >
-            <UploadCloud color="#a89984" size={18} />
-            <p className="m-0 text-[0.72rem] text-[color:var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] font-medium">
+            <UploadCloud className="text-[var(--chrome-accent)]" size={28} aria-hidden="true" />
+            <p className="m-0 text-sm text-[color:var(--chrome-fg-muted)] font-[family-name:var(--font-sans)] font-medium">
               {sourceFile ? (
                 <span className="text-fg">{sourceFile.name}</span>
               ) : (
@@ -219,20 +239,27 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
         )}
 
         {/* ── Target voice ── */}
-        <div className="label-row mt-[var(--space-4)]">{t('convert.target_voice')}</div>
-        <VoiceSelector
-          value={voiceId}
-          onChange={selectVoice}
-          profiles={profiles}
-          engineDefault={false}
-          gallery={false}
-          placeholder={t('convert.pick_voice')}
-          ariaLabel={t('convert.target_voice')}
-          recentsKey="convert-target"
-        />
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--chrome-fg)]">
+          <Fingerprint size={17} aria-hidden="true" />
+          {t('convert.target_voice')}
+        </div>
+        <div className="rounded-lg bg-[var(--chrome-hover-bg)] p-3">
+          <VoiceSelector
+            value={voiceId}
+            onChange={selectVoice}
+            profiles={profiles}
+            engineDefault={false}
+            gallery={false}
+            placeholder={t('convert.pick_voice')}
+            ariaLabel={t('convert.target_voice')}
+            recentsKey="convert-target"
+            menuPortal
+          buttonClassName="min-h-12 px-3 text-sm border-0 rounded-lg bg-transparent text-[var(--chrome-fg)] hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
+          />
+        </div>
 
         {/* ── Options + action ── */}
-        <div className="mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)]">
+        <div className="flex flex-col items-start gap-3 rounded-lg bg-[var(--chrome-hover-bg)] p-4">
           <label
             className="inline-flex items-center gap-[6px] text-[0.85em] text-fg-muted cursor-pointer select-none whitespace-nowrap"
             title={t('convert.match_duration_hint')}
@@ -246,10 +273,15 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
                 setResult(null);
               }}
             />
+            <Timer size={16} aria-hidden="true" />
             <span>{t('convert.match_duration')}</span>
           </label>
+          <p className="m-0 text-xs text-[var(--chrome-fg-muted)]">
+            {t('convert.match_duration_hint')}
+          </p>
           {!sourceFile || !voiceId ? (
-            <span className="text-[0.72rem] text-fg-muted">
+            <span className="inline-flex items-center gap-2 text-xs text-fg-muted">
+              <Info size={14} aria-hidden="true" />
               {t('convert.need_source_and_voice')}
             </span>
           ) : null}

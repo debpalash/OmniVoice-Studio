@@ -302,7 +302,8 @@ describe('CloneDesignTab — stale /design/describe response race guard', () => 
     // The user hand-picks Gender before that response lands.
     fireEvent.click(screen.getByRole('button', { name: /details/i }));
     const genderSelect = document.getElementById('vd-Gender');
-    fireEvent.change(genderSelect, { target: { value: 'male' } });
+    fireEvent.keyDown(genderSelect, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: /^male$/i }));
     expect(setVdStates).toHaveBeenCalledTimes(1);
     expect(setVdStates).toHaveBeenLastCalledWith(expect.objectContaining({ Gender: 'male' }));
 
