@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../SearchableSelect', () => ({
-  default: () => <button type="button">Language</button>,
-}));
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
+afterAll(() => {
+  delete Element.prototype.scrollIntoView;
+});
 
 import ActionBar from './ActionBar';
 
@@ -49,6 +52,24 @@ function Harness() {
 }
 
 describe('ActionBar', () => {
+  it('opens the language list above the bottom bar outside its clipping ancestors', () => {
+    const { container } = render(<Harness />);
+    const wrapper = container.querySelector('.ss-wrap');
+    vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+      top: 650,
+      bottom: 680,
+      left: 20,
+      right: 320,
+      width: 300,
+      height: 30,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Auto' }));
+    const list = screen.getByRole('listbox');
+    expect(container).not.toContainElement(list);
+    expect(list).toHaveClass('fixed');
+    expect(list.style.bottom).not.toBe('');
+  });
+
   it('keeps sampling steps inside Production Overrides', () => {
     render(<Harness />);
 

@@ -211,6 +211,7 @@ export default function ActionBar({
         <div className="flex items-center gap-[6px] flex-[1_1_220px] min-w-[140px] [&>:last-child]:flex-1 [&>:last-child]:min-w-0">
           <Globe size={12} className="label-icon" />
           <SearchableSelect
+            menuPortal
             value={language}
             options={ALL_LANGUAGES}
             popular={POPULAR_LANGS}
