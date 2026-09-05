@@ -29,7 +29,7 @@ import NotificationPanel from './NotificationPanel';
 import TitleTabs from './TitleTabs';
 import VoiceStudioMark from './brand/VoiceStudioMark';
 import { useAppStore } from '../store';
-import { useSysinfo } from '../api/hooks';
+import { useSysinfo, useEngines } from '../api/hooks';
 import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 const VIEW_META = {
@@ -165,6 +165,12 @@ export default function Header({
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
   const [engineFamily, setEngineFamily] = useState('tts');
+  const { data: engines } = useEngines();
+  const activeFamily = engines?.[engineFamily];
+  const activeEngineName = activeFamily?.backends?.find(
+    (engine) => engine.id === activeFamily.active,
+  )?.display_name;
+  const activeEngineShortName = activeEngineName?.split(' (')[0];
   const [loadedModels, setLoadedModels] = useState([]);
   const [unloading, setUnloading] = useState(null);
   const flushRef = useRef(null);
@@ -406,7 +412,8 @@ export default function Header({
                   ref={flushBtnRef}
                   variant="subtle"
                   size="sm"
-                  title={t('header.memory_management')}
+                  title={activeEngineName || t('header.memory_management')}
+                  aria-label={t('settings.engines')}
                   aria-haspopup="dialog"
                   aria-expanded={flushOpen}
                   loading={flushing}
@@ -415,7 +422,9 @@ export default function Header({
                   onClick={() => setFlushOpen((o) => !o)}
                   className="ml-[2px]"
                 >
-                  {t('settings.engines')}
+                  <span className="max-w-[160px] truncate max-[600px]:max-w-[100px]">
+                    {activeEngineShortName || t('settings.engines')}
+                  </span>
                 </Button>
                 {flushOpen &&
                   createPortal(

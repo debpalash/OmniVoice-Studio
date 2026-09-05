@@ -15,6 +15,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- The title-bar engine button shows the selected engine name, with its full description in the tooltip (#1823)
 - The top-bar Engines panel groups Speech, Transcription, and LLM choices into tabs, with compact memory controls and no duplicate pickers (#1823)
 ### Added
 
