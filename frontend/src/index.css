@@ -2140,6 +2140,8 @@ div[role="dialog"].audio-trimmer {
    children migrated to Tailwind utilities at the usage site. */
 .studio-action-bar {
   flex: 0 0 auto;
+  /* Expanded settings leave room for the form even in a short window. */
+  max-height: 60%;
   border-top: 1px solid var(--chrome-border);
   background: var(--chrome-bg);
   padding: 8px 12px 10px;
@@ -2149,6 +2151,8 @@ div[role="dialog"].audio-trimmer {
 }
 
 .studio-action-bar .override-content {
+  min-height: 0;
+  flex-shrink: 1;
   max-height: 40vh;
   overflow-y: auto;
 }
@@ -4949,16 +4953,13 @@ button.dub-stepper__action:focus-visible {
   overflow-y: auto;
 }
 
-/* When stacked, the main column must NOT clip its own overflow — its
-   `overflow:hidden` (needed for the side-by-side scroll panes) otherwise trapped
-   the pinned action bar below the fold of the now-scrolling outer column (#476).
-   Letting it grow naturally hands scrolling to `.studio-with-history`, and the
-   action bar below stays reachable; `position:sticky` keeps the Synthesize CTA
-   pinned to the viewport bottom while the script content scrolls. */
+/* Let the form shrink into the available height on stacked shells too.
+   The inner form scrolls independently; the action bar remains visible. */
 .shell-narrow .studio-with-history__main,
 .shell-mini .studio-with-history__main {
   overflow: visible;
-  flex: 1 0 auto;
+  flex: 1 1 0%;
+  min-height: 0;
   order: 1;
 }
 .shell-narrow .studio-with-history__main .studio-action-bar,
