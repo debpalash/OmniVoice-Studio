@@ -1,17 +1,14 @@
-import {
-  Globe,
-  SlidersHorizontal,
-  Settings2,
-  ChevronUp,
-  ChevronDown,
-  Play,
-  Square,
-} from 'lucide-react';
+import { SlidersHorizontal, Settings2, ChevronUp, ChevronDown, Play, Square } from 'lucide-react';
 import { Button, Progress } from '../../ui';
-import SearchableSelect from '../SearchableSelect';
+import MultiLangPicker from '../MultiLangPicker';
 import ALL_LANGUAGES from '../../languages.json';
-import { POPULAR_LANGS } from '../../utils/constants';
+import { LANG_CODES } from '../../utils/languages';
 import { stopActivePlayback } from '../../utils/playback';
+
+const CLONE_LANGUAGES = ALL_LANGUAGES.map((label) => ({
+  label,
+  code: LANG_CODES.find((language) => language.label === label)?.code || label,
+}));
 
 export default function ActionBar({
   t,
@@ -209,14 +206,17 @@ export default function ActionBar({
       {/* Keep the everyday row focused; sampling controls live in overrides. */}
       <div className="flex items-center gap-3 min-w-0 max-[520px]:flex-wrap">
         <div className="flex items-center gap-[6px] flex-[1_1_220px] min-w-[140px] [&>:last-child]:flex-1 [&>:last-child]:min-w-0">
-          <Globe size={12} className="label-icon" />
-          <SearchableSelect
-            menuPortal
-            value={language}
-            options={ALL_LANGUAGES}
-            popular={POPULAR_LANGS}
-            recentsKey="omnivoice.recents.genLang"
-            onChange={setLanguage}
+          <MultiLangPicker
+            single
+            ariaLabel={t('clone.language')}
+            selected={[
+              {
+                lang: language,
+                code: CLONE_LANGUAGES.find((item) => item.label === language)?.code || language,
+              },
+            ]}
+            options={CLONE_LANGUAGES}
+            onChange={([item]) => setLanguage(item.lang)}
           />
         </div>
         <button

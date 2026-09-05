@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
-
-beforeAll(() => {
-  Element.prototype.scrollIntoView = vi.fn();
-});
-afterAll(() => {
-  delete Element.prototype.scrollIntoView;
-});
+import { describe, expect, it, vi } from 'vitest';
+import '../../i18n';
 
 import ActionBar from './ActionBar';
 
@@ -54,7 +48,7 @@ function Harness() {
 describe('ActionBar', () => {
   it('opens the language list above the bottom bar outside its clipping ancestors', () => {
     const { container } = render(<Harness />);
-    const wrapper = container.querySelector('.ss-wrap');
+    const wrapper = screen.getByRole('button', { name: 'clone.language' });
     vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
       top: 650,
       bottom: 680,
@@ -63,11 +57,17 @@ describe('ActionBar', () => {
       width: 300,
       height: 30,
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Auto' }));
-    const list = screen.getByRole('listbox');
+    fireEvent.click(wrapper);
+    const list = screen.getByRole('dialog');
     expect(container).not.toContainElement(list);
-    expect(list).toHaveClass('fixed');
+    expect(list).toHaveClass('multi-lang__drop');
     expect(list.style.bottom).not.toBe('');
+    expect(screen.getAllByTestId('language-flag-es').length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Zulu' } });
+    fireEvent.click(screen.getByRole('button', { name: /Zulu/ }));
+    expect(setter).toHaveBeenCalledWith('Zulu');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(wrapper).toHaveFocus();
   });
 
   it('keeps sampling steps inside Production Overrides', () => {

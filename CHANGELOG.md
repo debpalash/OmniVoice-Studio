@@ -21,7 +21,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
-- Language menus open above the pinned synthesis controls instead of being clipped below the window (#1823)
+- Cloning reuses the dubbing language picker with flags, search, and single selection, opening above the pinned synthesis controls (#1823)
 
 ## [0.5.2] — 2026-09-02
 
