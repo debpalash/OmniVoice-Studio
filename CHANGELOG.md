@@ -10,6 +10,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- The desktop app builds and opens from a fresh clone again (#1818)
+
 ### Changed
 
 ### Added
@@ -17,6 +19,8 @@ the frozen-backend fallback mirror it for their toolchains.
 ### Docs
 
 ### Fixed
+
+- `bun run desktop` now opens on a fresh clone: the Vite alias for `@tauri-apps/plugin-dialog` no longer assumes a nested `frontend/node_modules`, which bun's workspace hoisting leaves empty (#1818)
 
 
 ## [0.5.2] — 2026-09-02
