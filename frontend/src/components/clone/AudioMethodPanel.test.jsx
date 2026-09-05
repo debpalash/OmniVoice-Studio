@@ -2,6 +2,12 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
+const { toastMock } = vi.hoisted(() => ({
+  toastMock: { error: vi.fn() },
+}));
+
+vi.mock('react-hot-toast', () => ({ toast: toastMock }));
+
 vi.mock('../WaveformPlayer', () => ({
   default: ({ src }) => <div data-testid="reference-waveform">{src.name}</div>,
 }));
@@ -17,6 +23,7 @@ const baseProps = {
   ingestRefAudio: vi.fn(),
   isCleaning: false,
   isRecording: false,
+  isStartingRecording: false,
   recordingTime: 0,
   startRecording: vi.fn(),
   stopRecording: vi.fn(),
@@ -55,6 +62,40 @@ describe('AudioMethodPanel', () => {
     );
     expect(container.querySelector('#audio-upload')).toHaveClass('sr-only');
     expect(screen.queryByLabelText('recording.input_device')).not.toBeInTheDocument();
+  });
+
+  it('keeps the stop control mounted while recording', () => {
+    render(<AudioMethodPanel {...baseProps} isRecording />);
+
+    const upload = screen.getByRole('radio', { name: 'clone.upload_audio' });
+    expect(upload).toBeDisabled();
+    fireEvent.click(upload);
+    expect(screen.getByRole('radio', { name: 'clone.record' })).toBeChecked();
+    expect(screen.getByRole('button', { name: '0s' })).toBeInTheDocument();
+  });
+
+  it('locks the source choice while microphone startup is pending', () => {
+    render(<AudioMethodPanel {...baseProps} isStartingRecording />);
+
+    const upload = screen.getByRole('radio', { name: 'clone.upload_audio' });
+    expect(upload).toBeDisabled();
+    fireEvent.click(upload);
+    expect(screen.getByRole('radio', { name: 'clone.record' })).toBeChecked();
+    expect(screen.getByRole('status')).toHaveTextContent('Starting…');
+  });
+
+  it('explains how to recover from unsupported picker and drop files', () => {
+    toastMock.error.mockClear();
+    const { container } = render(<AudioMethodPanel {...baseProps} />);
+    const invalid = new File(['notes'], 'notes.txt', { type: 'text/plain' });
+
+    fireEvent.change(container.querySelector('#audio-upload'), { target: { files: [invalid] } });
+    fireEvent.drop(screen.getByText('clone.drop_audio').closest('label'), {
+      dataTransfer: { files: [invalid] },
+    });
+
+    expect(toastMock.error).toHaveBeenNthCalledWith(1, 'clone.unsupported_audio');
+    expect(toastMock.error).toHaveBeenNthCalledWith(2, 'clone.unsupported_audio');
   });
 
   it('previews the cleaned reference with the shared waveform player', () => {

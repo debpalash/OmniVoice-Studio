@@ -4,7 +4,7 @@
  * getUserMedia; anything else → unchanged.
  */
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 
 const { toastMock, cleanAudioMock, startMicCaptureMock } = vi.hoisted(() => ({
   toastMock: Object.assign(vi.fn(), {
@@ -118,6 +118,32 @@ it('plain browser: no probe, straight to getUserMedia', async () => {
   });
   expect(gum).toHaveBeenCalled();
   expect(invokeMock).not.toHaveBeenCalled();
+});
+
+it('reports microphone startup as pending until permission resolves', async () => {
+  window.__TAURI_INTERNALS__ = {};
+  let resolvePermission;
+  invokeMock.mockImplementation(
+    async (cmd) =>
+      cmd === 'check_microphone' &&
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      }),
+  );
+  installGum(async () => {
+    throw new Error('should not be reached');
+  });
+  const { result } = renderHook(() => useRecording(vi.fn()));
+
+  let startPromise;
+  act(() => {
+    startPromise = result.current.startRecording();
+  });
+  await waitFor(() => expect(result.current.isStartingRecording).toBe(true));
+
+  resolvePermission('denied');
+  await act(async () => startPromise);
+  expect(result.current.isStartingRecording).toBe(false);
 });
 
 it('records a WAV through Web Audio when MediaRecorder is unsupported', async () => {

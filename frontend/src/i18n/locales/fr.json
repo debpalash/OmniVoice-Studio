@@ -547,6 +547,8 @@
     "reference_hint": "Utilisez 5 à 15 secondes de voix claire.",
     "upload_audio": "Importer un audio",
     "optional_details": "Détails facultatifs",
+    "starting_recording": "Démarrage…",
+    "unsupported_audio": "Choisissez un fichier audio compatible : WAV, MP3, M4A, FLAC, OGG, AAC ou WebM.",
     "saved_profiles": "Profils enregistrés",
     "transcript": "Transcription",
     "style": "Style",

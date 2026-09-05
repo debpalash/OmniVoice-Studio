@@ -547,6 +547,8 @@
     "reference_hint": "5–15 saniyelik net konuşma kullanın.",
     "upload_audio": "Ses yükle",
     "optional_details": "İsteğe bağlı ayrıntılar",
+    "starting_recording": "Başlatılıyor…",
+    "unsupported_audio": "Desteklenen bir ses dosyası seçin: WAV, MP3, M4A, FLAC, OGG, AAC veya WebM.",
     "saved_profiles": "Kayıtlı Profiller",
     "transcript": "Transkript",
     "style": "Stil",

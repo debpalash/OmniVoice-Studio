@@ -547,6 +547,8 @@
     "reference_hint": "Użyj 5–15 sekund wyraźnej mowy.",
     "upload_audio": "Prześlij dźwięk",
     "optional_details": "Opcjonalne szczegóły",
+    "starting_recording": "Uruchamianie…",
+    "unsupported_audio": "Wybierz obsługiwany plik dźwiękowy: WAV, MP3, M4A, FLAC, OGG, AAC lub WebM.",
     "saved_profiles": "Zapisane profile",
     "transcript": "Transkrypcja",
     "style": "Styl",

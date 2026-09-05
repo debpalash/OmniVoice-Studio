@@ -82,6 +82,7 @@ function baseProps(overrides = {}) {
     showSaveProfile: false,
     setShowSaveProfile: NOOP,
     isRecording: false,
+    isStartingRecording: false,
     isCleaning: false,
     recordingTime: 0,
     audioInputs: [],
@@ -119,6 +120,15 @@ function renderDesignTab(overrides = {}) {
 }
 
 describe('CloneDesignTab — Voice Design panel redesign regressions', () => {
+  it.each([
+    ['recording is active', { isRecording: true }],
+    ['microphone startup is pending', { isStartingRecording: true }],
+  ])('keeps the active voice method mounted while %s', (_label, state) => {
+    renderDesignTab(state);
+    expect(screen.getByRole('radio', { name: 'From audio' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'By design' })).toBeDisabled();
+  });
+
   it('starts the Details summary collapsed, not expanded', () => {
     renderDesignTab();
     const summary = screen.getByRole('button', { name: /details/i });

@@ -547,6 +547,8 @@
     "reference_hint": "Dùng 5–15 giây lời nói rõ ràng.",
     "upload_audio": "Tải âm thanh lên",
     "optional_details": "Chi tiết tùy chọn",
+    "starting_recording": "Đang bắt đầu…",
+    "unsupported_audio": "Chọn tệp âm thanh được hỗ trợ: WAV, MP3, M4A, FLAC, OGG, AAC hoặc WebM.",
     "saved_profiles": "Hồ sơ đã lưu",
     "transcript": "bảng điểm",
     "style": "phong cách",

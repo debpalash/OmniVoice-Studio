@@ -547,6 +547,8 @@
     "reference_hint": "使用 5–15 秒清晰語音。",
     "upload_audio": "上傳音訊",
     "optional_details": "選填詳細資料",
+    "starting_recording": "正在啟動…",
+    "unsupported_audio": "請選擇支援的音訊檔案：WAV、MP3、M4A、FLAC、OGG、AAC 或 WebM。",
     "saved_profiles": "儲存的設定檔",
     "transcript": "成績單",
     "style": "風格",

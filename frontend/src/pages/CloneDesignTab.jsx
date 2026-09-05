@@ -59,6 +59,7 @@ export default function CloneDesignTab(props) {
     showSaveProfile,
     setShowSaveProfile,
     isRecording,
+    isStartingRecording,
     isCleaning,
     recordingTime,
     audioInputs,
@@ -458,6 +459,7 @@ export default function CloneDesignTab(props) {
                   size="sm"
                   value={defineMethod}
                   onChange={setDefineMethod}
+                  disabled={isStartingRecording || isRecording}
                   items={[
                     {
                       value: 'audio',
@@ -486,6 +488,7 @@ export default function CloneDesignTab(props) {
                 refAudio={refAudio}
                 isCleaning={isCleaning}
                 isRecording={isRecording}
+                isStartingRecording={isStartingRecording}
                 recordingTime={recordingTime}
                 audioInputs={audioInputs}
                 selectedAudioInputId={selectedAudioInputId}

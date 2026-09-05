@@ -547,6 +547,8 @@
     "reference_hint": "ใช้เสียงพูดที่ชัดเจน 5–15 วินาที",
     "upload_audio": "อัปโหลดเสียง",
     "optional_details": "รายละเอียดเสริม",
+    "starting_recording": "กำลังเริ่ม…",
+    "unsupported_audio": "เลือกไฟล์เสียงที่รองรับ: WAV, MP3, M4A, FLAC, OGG, AAC หรือ WebM",
     "saved_profiles": "โปรไฟล์ที่บันทึกไว้",
     "transcript": "การถอดเสียง",
     "style": "สไตล์",

@@ -195,6 +195,8 @@
     "reference_hint": "使用 5–15 秒清晰语音。",
     "upload_audio": "上传音频",
     "optional_details": "可选详情",
+    "starting_recording": "正在启动…",
+    "unsupported_audio": "请选择支持的音频文件：WAV、MP3、M4A、FLAC、OGG、AAC 或 WebM。",
     "saved_profiles": "已保存的配置",
     "transcript": "参考文本",
     "style": "风格",

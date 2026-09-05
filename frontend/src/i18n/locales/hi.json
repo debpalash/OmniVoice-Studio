@@ -547,6 +547,8 @@
     "reference_hint": "5–15 सेकंड की साफ़ आवाज़ इस्तेमाल करें।",
     "upload_audio": "ऑडियो अपलोड करें",
     "optional_details": "वैकल्पिक विवरण",
+    "starting_recording": "शुरू हो रहा है…",
+    "unsupported_audio": "कोई समर्थित ऑडियो फ़ाइल चुनें: WAV, MP3, M4A, FLAC, OGG, AAC या WebM।",
     "saved_profiles": "सहेजे गए प्रोफ़ाइल",
     "transcript": "प्रतिलिपि",
     "style": "अंदाज",

@@ -547,6 +547,8 @@
     "reference_hint": "Använd 5–15 sekunder tydligt tal.",
     "upload_audio": "Ladda upp ljud",
     "optional_details": "Valfria detaljer",
+    "starting_recording": "Startar…",
+    "unsupported_audio": "Välj en ljudfil som stöds: WAV, MP3, M4A, FLAC, OGG, AAC eller WebM.",
     "saved_profiles": "Sparade profiler",
     "transcript": "Avskrift",
     "style": "Stil",

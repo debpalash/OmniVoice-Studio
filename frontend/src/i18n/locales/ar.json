@@ -547,6 +547,8 @@
     "reference_hint": "استخدم من 5 إلى 15 ثانية من الكلام الواضح.",
     "upload_audio": "تحميل صوت",
     "optional_details": "تفاصيل اختيارية",
+    "starting_recording": "جارٍ البدء…",
+    "unsupported_audio": "اختر ملفًا صوتيًا مدعومًا: WAV أو MP3 أو M4A أو FLAC أو OGG أو AAC أو WebM.",
     "saved_profiles": "الملفات الشخصية المحفوظة",
     "transcript": "نسخة",
     "style": "النمط",

@@ -547,6 +547,8 @@
     "reference_hint": "Gebruik 5–15 seconden heldere spraak.",
     "upload_audio": "Audio uploaden",
     "optional_details": "Optionele details",
+    "starting_recording": "Starten…",
+    "unsupported_audio": "Kies een ondersteund audiobestand: WAV, MP3, M4A, FLAC, OGG, AAC of WebM.",
     "saved_profiles": "Opgeslagen profielen",
     "transcript": "Afschrift",
     "style": "Stijl",

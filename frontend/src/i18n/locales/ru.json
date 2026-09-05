@@ -547,6 +547,8 @@
     "reference_hint": "Используйте 5–15 секунд чистой речи.",
     "upload_audio": "Загрузить аудио",
     "optional_details": "Необязательные параметры",
+    "starting_recording": "Запуск…",
+    "unsupported_audio": "Выберите поддерживаемый аудиофайл: WAV, MP3, M4A, FLAC, OGG, AAC или WebM.",
     "saved_profiles": "Сохраненные профили",
     "transcript": "Стенограмма",
     "style": "Стиль",

@@ -547,6 +547,8 @@
     "reference_hint": "5～15秒のクリアな音声を使用してください。",
     "upload_audio": "音声をアップロード",
     "optional_details": "オプションの詳細",
+    "starting_recording": "開始しています…",
+    "unsupported_audio": "対応する音声ファイルを選択してください：WAV、MP3、M4A、FLAC、OGG、AAC、WebM。",
     "saved_profiles": "保存されたプロファイル",
     "transcript": "成績証明書",
     "style": "スタイル",

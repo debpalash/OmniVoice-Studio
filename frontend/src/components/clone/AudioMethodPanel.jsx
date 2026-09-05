@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { ChevronDown, Save, UploadCloud, X } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Button, Input, Segmented, Select } from '../../ui';
 import MicButton from './MicButton';
 import WaveformPlayer from '../WaveformPlayer';
@@ -21,6 +22,7 @@ export default function AudioMethodPanel({
   refAudio,
   isCleaning,
   isRecording,
+  isStartingRecording = false,
   recordingTime,
   audioInputs = [],
   selectedAudioInputId = '',
@@ -40,12 +42,18 @@ export default function AudioMethodPanel({
   setProfileName,
   handleSaveProfile,
 }) {
-  const [sourceMode, setSourceMode] = useState(isRecording ? 'record' : 'upload');
+  const [sourceMode, setSourceMode] = useState(
+    isStartingRecording || isRecording ? 'record' : 'upload',
+  );
   const inputLevel = useSyncExternalStore(inputLevelStore.subscribe, inputLevelStore.getSnapshot);
   const hasReference = Boolean(refAudio || selectedProfile);
 
   const ingestFile = (file) => {
-    if (isAudioFile(file)) ingestRefAudio(file);
+    if (isAudioFile(file)) {
+      ingestRefAudio(file);
+      return;
+    }
+    if (file) toast.error(t('clone.unsupported_audio'));
   };
 
   return (
@@ -64,6 +72,7 @@ export default function AudioMethodPanel({
             size="sm"
             value={sourceMode}
             onChange={setSourceMode}
+            disabled={isStartingRecording || isRecording}
             aria-label={t('clone.reference_audio')}
             items={[
               { value: 'upload', label: t('clone.upload_audio') },
@@ -87,7 +96,7 @@ export default function AudioMethodPanel({
           />
           <label
             htmlFor="audio-upload"
-            className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--chrome-border-strong)] bg-white/[0.015] px-4 py-3 text-center transition-[border-color,background] duration-[var(--dur-fast)] hover:border-[var(--chrome-accent)] hover:bg-[var(--chrome-accent-bg)] focus-within:border-[var(--chrome-accent)] [&.is-dragging]:border-[var(--chrome-accent)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
+            className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg bg-[var(--chrome-hover-bg)] px-4 py-3 text-center transition-[background] duration-[var(--dur-fast)] hover:bg-[var(--chrome-accent-bg)] focus-within:bg-[var(--chrome-accent-bg)] [&.is-dragging]:bg-[var(--chrome-accent-bg)]"
             onDragOver={(event) => {
               event.preventDefault();
               event.currentTarget.classList.add('is-dragging');
@@ -111,6 +120,7 @@ export default function AudioMethodPanel({
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-stretch gap-3 max-[520px]:grid-cols-1">
           <MicButton
             isCleaning={isCleaning}
+            isStarting={isStartingRecording}
             isRecording={isRecording}
             recordingTime={recordingTime}
             onStart={startRecording}
@@ -177,7 +187,7 @@ export default function AudioMethodPanel({
       )}
 
       {refAudio && !selectedProfile && (
-        <div className="rounded-lg border border-[var(--chrome-border)] bg-white/[0.02] p-3">
+        <div className="rounded-lg bg-[var(--chrome-hover-bg)] p-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className="min-w-0 flex-1 truncate text-[length:var(--text-sm)] font-medium text-fg">
               {refAudio.name}
@@ -202,7 +212,7 @@ export default function AudioMethodPanel({
       )}
 
       {selectedProfile && (
-        <div className="flex items-center gap-3 rounded-lg border border-[rgba(142,192,124,0.2)] bg-[rgba(142,192,124,0.08)] p-3 text-[length:var(--text-sm)]">
+        <div className="flex items-center gap-3 rounded-lg bg-[rgba(142,192,124,0.08)] p-3 text-[length:var(--text-sm)]">
           <span className="min-w-0 flex-1 truncate text-success">
             {t('clone.using_profile', {
               name: profiles.find((profile) => profile.id === selectedProfile)?.name,
@@ -221,7 +231,7 @@ export default function AudioMethodPanel({
 
       {hasReference && (
         <details
-          className="group rounded-lg border border-[var(--chrome-border)] bg-white/[0.01]"
+          className="group rounded-lg bg-[var(--chrome-hover-bg)]"
           defaultOpen={Boolean(refText || instruct)}
         >
           <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[length:var(--text-xs)] font-medium text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)] [&::-webkit-details-marker]:hidden">
@@ -231,7 +241,7 @@ export default function AudioMethodPanel({
               className="transition-transform duration-[var(--dur-fast)] group-open:rotate-180"
             />
           </summary>
-          <div className="grid grid-cols-2 gap-2 border-t border-[var(--chrome-border)] p-3 max-[700px]:grid-cols-1">
+          <div className="grid grid-cols-2 gap-2 bg-black/10 p-3 max-[700px]:grid-cols-1">
             <label htmlFor="clone-transcript" className="min-w-0">
               <span className="label-row">{t('clone.transcript')}</span>
               <input

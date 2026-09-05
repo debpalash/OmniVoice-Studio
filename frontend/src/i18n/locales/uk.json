@@ -547,6 +547,8 @@
     "reference_hint": "Використовуйте 5–15 секунд чистого мовлення.",
     "upload_audio": "Завантажити аудіо",
     "optional_details": "Необов’язкові параметри",
+    "starting_recording": "Запуск…",
+    "unsupported_audio": "Виберіть підтримуваний аудіофайл: WAV, MP3, M4A, FLAC, OGG, AAC або WebM.",
     "saved_profiles": "Збережені профілі",
     "transcript": "Стенограма",
     "style": "Стиль",

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Sparkles, Square, Mic } from 'lucide-react';
+import { LoaderCircle, Sparkles, Square, Mic } from 'lucide-react';
 
 // `.mic-btn` family migrated from CloneDesignTab.css → Tailwind utilities (fast
 // shadcn). Same flat chrome pill; the recording pulse + cleaning spinner reuse
@@ -13,8 +13,23 @@ const MIC_RECORDING =
 const MIC_CLEANING =
   'bg-[rgba(184,187,38,0.10)] border border-transparent text-[#b8bb26] cursor-default';
 
-export default function MicButton({ isCleaning, isRecording, recordingTime, onStart, onStop }) {
+export default function MicButton({
+  isCleaning,
+  isStarting,
+  isRecording,
+  recordingTime,
+  onStart,
+  onStop,
+}) {
   const { t } = useTranslation();
+  if (isStarting) {
+    return (
+      <div className={`${MIC_BASE} ${MIC_CLEANING}`} role="status" aria-live="polite">
+        <LoaderCircle size={18} className="animate-[spin_1s_linear_infinite]" />
+        <span>{t('clone.starting_recording')}</span>
+      </div>
+    );
+  }
   if (isCleaning) {
     return (
       <div className={`${MIC_BASE} ${MIC_CLEANING}`}>

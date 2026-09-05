@@ -547,6 +547,8 @@
     "reference_hint": "Gunakan 5–15 detik ucapan yang jernih.",
     "upload_audio": "Unggah audio",
     "optional_details": "Detail opsional",
+    "starting_recording": "Memulai…",
+    "unsupported_audio": "Pilih berkas audio yang didukung: WAV, MP3, M4A, FLAC, OGG, AAC, atau WebM.",
     "saved_profiles": "Profil Tersimpan",
     "transcript": "Transkrip",
     "style": "Gaya",

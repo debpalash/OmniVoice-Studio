@@ -309,6 +309,8 @@
     "reference_hint": "Use 5–15 seconds of clean speech.",
     "upload_audio": "Upload audio",
     "optional_details": "Optional details",
+    "starting_recording": "Starting…",
+    "unsupported_audio": "Choose a supported audio file: WAV, MP3, M4A, FLAC, OGG, AAC, or WebM.",
     "saved_profiles": "Saved Profiles",
     "transcript": "Transcript",
     "style": "Style",

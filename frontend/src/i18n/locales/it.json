@@ -547,6 +547,8 @@
     "reference_hint": "Usa 5–15 secondi di parlato nitido.",
     "upload_audio": "Carica audio",
     "optional_details": "Dettagli facoltativi",
+    "starting_recording": "Avvio…",
+    "unsupported_audio": "Scegli un file audio supportato: WAV, MP3, M4A, FLAC, OGG, AAC o WebM.",
     "saved_profiles": "Profili salvati",
     "transcript": "Trascrizione",
     "style": "Stile",
