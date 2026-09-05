@@ -156,9 +156,8 @@ describe('review round: partial translations + dialect guard', () => {
       />,
     );
 
-    fireEvent.change(document.querySelector('.dub-cast__select'), {
-      target: { value: 'voice-new' },
-    });
+    fireEvent.click(document.querySelector('.dub-cast__select'));
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'New voice', exact: true }));
 
     const update = setDubSegments.mock.calls[0][0][0];
     expect(update.profile_id).toBe('voice-new');
@@ -188,9 +187,8 @@ describe('review round: partial translations + dialect guard', () => {
       />,
     );
 
-    fireEvent.change(document.querySelectorAll('.dub-cast__select')[1], {
-      target: { value: 'voice-new' },
-    });
+    fireEvent.click(document.querySelectorAll('.dub-cast__select')[1]);
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'New voice', exact: true }));
 
     const update = setDubSegments.mock.calls[0][0];
     expect(update[0].profile_id).toBe('voice-anna');

@@ -46,6 +46,20 @@ describe('workspace narrow-shell reflow (#476 CTA-clipping guard)', () => {
     expect(css).toMatch(/\.studio-action-bar\s*\{[^}]*position:\s*sticky/s);
   });
 
+  it('fills narrow workspaces and bounds expanded settings above the pinned action', () => {
+    for (const shell of ['shell-mini', 'shell-narrow']) {
+      const selector = `.${shell} .studio-with-history__main`;
+      const rule = css.split('}').find((block) => block.split('{')[0].includes(selector));
+      expect(rule).toMatch(/flex:\s*1 0 100%;/);
+      expect(rule).toMatch(/min-height:\s*0;/);
+    }
+    expect(indexRaw).toMatch(
+      /\.studio-action-bar\s+\.override-content\s*\{[^}]*max-height:\s*40vh;[^}]*overflow-y:\s*auto/s,
+    );
+    expect(indexRaw).toMatch(/\.studio-action-bar\s*\{[^}]*max-height:\s*60%;/s);
+    expect(indexRaw).toMatch(/\.studio-action-bar\s+\.override-content\s*\{[^}]*min-height:\s*0;/s);
+  });
+
   it('keeps saved voices in the left rail and generation history alone on the right', () => {
     expect(app).toMatch(
       /className="studio-voices">\s*<WorkspaceVoices[\s\S]*?<\/div>\s*<div className="studio-with-history__main">/,

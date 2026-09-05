@@ -539,6 +539,9 @@
     "convert_desc": "Dilo una vez y escúchalo con otra voz. De voz a voz, totalmente local."
   },
   "clone": {
+    "text_label": "Texto",
+    "paste": "Pegar",
+    "paste_failed": "Se bloqueó el acceso al portapapeles. Pega directamente en el campo de texto con el teclado.",
     "prompt": "rápido",
     "language": "Idioma",
     "steps": "Pasos",
@@ -1861,6 +1864,7 @@
     "hint": "8 pasos · vista previa rápida"
   },
   "header": {
+    "speech": "Voz",
     "kicker_studio": "Estudio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferencias",

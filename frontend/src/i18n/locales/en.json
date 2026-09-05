@@ -301,6 +301,9 @@
     "convert_desc": "Say it once — hear it in another voice. Speech to speech, fully local."
   },
   "clone": {
+    "text_label": "Text",
+    "paste": "Paste",
+    "paste_failed": "Clipboard access was blocked. Paste directly into the text field using your keyboard.",
     "prompt": "Prompt",
     "language": "Language",
     "steps": "Steps",
@@ -2395,6 +2398,7 @@
     "hint": "8 steps · fast preview"
   },
   "header": {
+    "speech": "Speech",
     "kicker_studio": "Studio",
     "kicker_library": "Library",
     "kicker_preferences": "Preferences",

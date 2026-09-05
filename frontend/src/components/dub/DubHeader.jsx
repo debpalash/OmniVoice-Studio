@@ -12,7 +12,6 @@ import { Button } from '../../ui';
 import FooterBtn from './FooterBtn';
 import DubPipelineStepper from './DubPipelineStepper';
 import { formatTime } from '../../utils/format';
-import EngineQuickSwitch from '../EngineQuickSwitch';
 
 export default function DubHeader({
   t,
@@ -90,7 +89,6 @@ export default function DubHeader({
 
       <div className="dub-command-bar__actions [.shell-mini_&]:col-[1/-1] [.shell-mini_&]:row-start-3 [.shell-mini_&]:w-full [.shell-mini_&]:flex-wrap">
         <div className="dub-command-bar__utilities">
-          <EngineQuickSwitch />
           <Button
             variant="subtle"
             size="sm"

@@ -10,16 +10,34 @@ the frozen-backend fallback mirror it for their toolchains.
 
 **Highlights**
 
+- Voice modes use themed tabs, with Synthesize and Convert pinned below their scrolling forms (#1823)
 - Voice cloning now starts with a clear upload-or-record choice, reveals recording and reference details only when needed, and keeps sampling controls under Production Overrides (#1817)
 
 ### Changed
 
+- Export uses grouped format settings, themed track menus and switches, with a pinned filename summary and download action (#1823)
+- Dubbing output settings use icon-labelled switches, themed track and speaker menus, and clearer timing/transcript controls (#1823)
+- Casting voice menus use searchable themed options with SVG preset icons instead of native dropdowns (#1823)
+- Dubbing groups casting and translation controls with readable labels, SVG icons, searchable menus, and compact timeline spacing (#1823)
+- Production Overrides use readable icon-labelled controls and accessible Denoise/Postprocess switches (#1823)
+- Expanded navigation uses a theme-accent tint with subtle static wave gradients (#1823)
+- Convert groups source audio, target voice, and timing options into clearer controls; design choices include theme-matched SVG icons (#1823)
+- The expandable sidebar reveals workspace labels with restrained active states; language menus adapt to multiple columns on wider screens (#1823)
+- Voice design and recording use themed, keyboard-accessible selectors with clearer spacing and labels (#1823)
+- Voice tabs and upload/record controls have subtle SVG motion; Text adds clipboard paste and the upload area fills available height (#1823)
+- The title-bar label cycles through active speech, transcription, and LLM engines; bundled model labels correctly say OmniVoice (#1823)
+- The top-bar Engines panel groups Speech, Transcription, and LLM choices into tabs, with compact memory controls and no duplicate pickers (#1823)
 ### Added
 
 ### Docs
 
 ### Fixed
 
+- Voice dropdowns match their field width, use theme accents, and show recent voices only once (#1823)
+- Language menus no longer show a pale frame around their search header (#1823)
+- The notification count stays inside the title bar instead of clipping above the bell (#1823)
+- The workspace engine menu opens beside its button instead of at the opposite edge of the page (#1823)
+- Cloning reuses the dubbing language picker with flags, search, and single selection, opening above the pinned synthesis controls (#1823)
 
 ## [0.5.2] — 2026-09-02
 

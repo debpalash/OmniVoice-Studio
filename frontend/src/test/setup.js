@@ -6,6 +6,9 @@ import { afterEach, beforeEach } from 'vitest';
 // assertions on English text stable regardless of detected locale.
 import '../i18n';
 
+// Radix menus scroll the keyboard-focused item; JSDOM has no layout scrolling.
+if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+
 const localStorageMock = (function () {
   let store = {};
   return {

@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('../SearchableSelect', () => ({
-  default: () => <button type="button">Language</button>,
-}));
+import '../../i18n';
 
 import ActionBar from './ActionBar';
 
@@ -49,6 +46,50 @@ function Harness() {
 }
 
 describe('ActionBar', () => {
+  it('labels every tuning slider and exposes audio cleanup as switches', () => {
+    const setDenoise = vi.fn();
+    const setPostprocess = vi.fn();
+    render(
+      <ActionBar
+        {...baseProps}
+        showOverrides
+        setShowOverrides={setter}
+        setDenoise={setDenoise}
+        setPostprocess={setPostprocess}
+      />,
+    );
+    for (const slider of screen.getAllByRole('slider')) expect(slider).toHaveAccessibleName();
+    const denoise = screen.getByRole('switch', { name: 'clone.denoise' });
+    expect(denoise).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(denoise);
+    expect(setDenoise).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'clone.postprocess' }));
+    expect(setPostprocess).toHaveBeenCalledWith(true);
+  });
+  it('opens the language list above the bottom bar outside its clipping ancestors', () => {
+    const { container } = render(<Harness />);
+    const wrapper = screen.getByRole('button', { name: 'clone.language' });
+    vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+      top: 650,
+      bottom: 680,
+      left: 20,
+      right: 320,
+      width: 300,
+      height: 30,
+    });
+    fireEvent.click(wrapper);
+    const list = screen.getByRole('dialog');
+    expect(container).not.toContainElement(list);
+    expect(list).toHaveClass('multi-lang__drop');
+    expect(list.style.bottom).not.toBe('');
+    expect(screen.getAllByTestId('language-flag-es').length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Zulu' } });
+    fireEvent.click(screen.getByRole('button', { name: /Zulu/ }));
+    expect(setter).toHaveBeenCalledWith('Zulu');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(wrapper).toHaveFocus();
+  });
+
   it('keeps sampling steps inside Production Overrides', () => {
     render(<Harness />);
 

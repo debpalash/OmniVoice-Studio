@@ -1,5 +1,23 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Save } from 'lucide-react';
+import {
+  ChevronUp,
+  ChevronDown,
+  Save,
+  Sparkles,
+  Users,
+  User,
+  Baby,
+  Clock,
+  AudioLines,
+  SlidersHorizontal,
+  Languages,
+  Wind,
+  ArrowDown,
+  ArrowUp,
+  ChevronsDown,
+  ChevronsUp,
+  Minus,
+} from 'lucide-react';
 import { Button, Input } from '../../ui';
 import { PRESETS, CATEGORIES } from '../../utils/constants';
 import {
@@ -10,6 +28,7 @@ import {
   stripVoiceEmoji,
 } from '../../utils/voiceIcons';
 import { buildDesignInstruct } from '../../utils/voiceInstruct';
+import VoiceSelect from './VoiceSelect';
 
 // Chip / personality-chip class families migrated from index.css to Tailwind
 // utilities (shadcn P4). The token utilities reference the same --chrome-* vars
@@ -20,7 +39,7 @@ import { buildDesignInstruct } from '../../utils/voiceInstruct';
 // an opaque accent outline at 1px offset, on top of the app's global ring.
 const CHIP_FOCUS =
   'focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]';
-const PCHIP_BASE = `inline-flex items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-[0.72rem] font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
+const PCHIP_BASE = `inline-flex min-h-11 items-center gap-[5px] px-[12px] py-[5px] font-[var(--font-sans)] text-sm font-medium rounded-[var(--chrome-radius-pill)] border bg-transparent flex-none cursor-pointer transition-colors duration-[120ms] ${CHIP_FOCUS}`;
 const PCHIP_INACTIVE =
   'border-transparent text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] hover:border-transparent hover:text-[var(--chrome-fg)]';
 const PCHIP_ACTIVE =
@@ -35,6 +54,32 @@ const CHIP_INACTIVE =
 // out as a 2x2 grid; kept as one array so the grid and its labels stay in
 // sync if a category is ever added/removed.
 const SELECT_CATEGORIES = ['Gender', 'Age', 'Pitch', 'Style'];
+const FIELD_ICONS = { Gender: Users, Age: Clock, Pitch: AudioLines, Style: SlidersHorizontal };
+function FieldIcon({ category }) {
+  const Icon = FIELD_ICONS[category] || Languages;
+  return (
+    <Icon
+      size={15}
+      aria-hidden="true"
+      className="inline-block mr-2 align-text-bottom text-[var(--chrome-fg-muted)]"
+    />
+  );
+}
+const PITCH_ICONS = {
+  'very low pitch': ChevronsDown,
+  'low pitch': ArrowDown,
+  'moderate pitch': Minus,
+  'high pitch': ArrowUp,
+  'very high pitch': ChevronsUp,
+};
+const designOptionIcon = (category, value) => {
+  if (value === 'Auto') return Sparkles;
+  if (category === 'Pitch') return PITCH_ICONS[value] || AudioLines;
+  if (category === 'Gender') return User;
+  if (category === 'Age') return value === 'child' ? Baby : User;
+  if (category === 'Style') return Wind;
+  return Languages;
+};
 // English accent and Chinese dialect are two independent CATEGORIES entries
 // (the engine's exclusivity rule lives in voiceInstruct.js's EXCLUSIVE_GROUPS)
 // but only one can ever apply, so the picker merges them into ONE <select>
@@ -87,10 +132,10 @@ export default function DesignMethodPanel({
   // curated CATEGORIES list — guard before .replace() rather than crash;
   // 'Auto' matches how the rest of the component treats an unset category.
   const optLabel = (val) => {
-    if (typeof val !== 'string' || !val) return t('clone.opt_Auto');
+    if (typeof val !== 'string' || !val || val === 'Auto') return t('clone.auto');
     const tKey = `clone.opt_${val.replace(/[ -]/g, '_')}`;
     const tl = t(tKey);
-    return tl !== tKey ? tl : val;
+    return stripVoiceEmoji(tl !== tKey ? tl : val);
   };
 
   const accentValue = vdStates.EnglishAccent;
@@ -134,12 +179,13 @@ export default function DesignMethodPanel({
   };
 
   return (
-    <div>
+    <div className="space-y-3">
       {/* ── Describe your voice (#317) — free text drives the controls.
                 The placeholder explains itself; no extra header (10x §1.2). ── */}
       <div className="mb-[8px]">
         <textarea
-          className="input-base w-full resize-y min-h-[44px] mb-1"
+          className="input-base w-full resize-y min-h-24 mb-1"
+          aria-label={t('clone.define_by_design')}
           rows={2}
           placeholder={t('clone.describe_placeholder')}
           value={describeText}
@@ -155,7 +201,7 @@ export default function DesignMethodPanel({
             {t('clone.describe_unmatched', { items: describeUnmatched.join(', ') })}
           </div>
         )}
-        <div className="text-[0.62rem] text-[var(--chrome-fg-muted)]">
+        <div className="text-xs leading-relaxed text-[var(--chrome-fg-muted)]">
           {t('clone.describe_hint')}
         </div>
       </div>
@@ -231,7 +277,7 @@ export default function DesignMethodPanel({
                 All-Auto (first run) starts expanded. */}
       <button
         type="button"
-        className="flex items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-transparent rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
+        className="flex min-h-11 items-center gap-[8px] w-full mt-[4px] mb-[8px] px-[10px] py-[6px] bg-[var(--chrome-hover-bg)] border border-transparent rounded-[8px] cursor-pointer text-left transition-[border-color] duration-[var(--dur-fast)] hover:border-transparent focus-visible:[outline:2px_solid_var(--chrome-accent)] focus-visible:[outline-offset:1px]"
         onClick={() => setIdentityOpen((o) => !o)}
         aria-expanded={identityOpen}
         aria-controls="design-details-fields"
@@ -249,57 +295,53 @@ export default function DesignMethodPanel({
       </button>
       {identityOpen && (
         <div id="design-details-fields">
-          <div className="grid grid-cols-2 gap-x-[12px] gap-y-[8px]">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
             {SELECT_CATEGORIES.map((key) => (
               <div key={key} className="min-w-0">
-                <label htmlFor={`vd-${key}`} className="label-row text-[0.7rem]">
+                <label
+                  htmlFor={`vd-${key}`}
+                  className="block mb-2 text-sm font-medium text-[var(--chrome-fg)]"
+                >
+                  <FieldIcon category={key} />
                   {t(`clone.cat_${key}`)}
                 </label>
-                <select
+                <VoiceSelect
                   id={`vd-${key}`}
-                  className="input-base"
+                  label={t(`clone.cat_${key}`)}
                   value={vdStates[key] || 'Auto'}
-                  onChange={(e) => onVdChange(key, e.target.value)}
-                >
-                  {CATEGORIES[key].map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => onVdChange(key, value)}
+                  options={CATEGORIES[key]}
+                  optionLabel={optLabel}
+                  optionIcon={(value) => designOptionIcon(key, value)}
+                />
               </div>
             ))}
             <div className="col-[1/-1] min-w-0">
-              <label htmlFor="vd-AccentDialect" className="label-row text-[0.7rem]">
+              <label
+                htmlFor="vd-AccentDialect"
+                className="block mb-2 text-sm font-medium text-[var(--chrome-fg)]"
+              >
+                <FieldIcon category="Accent" />
                 {t('clone.cat_AccentDialect', { defaultValue: 'Accent or Dialect' })}
-                <span className="ml-[6px] text-[0.58rem] text-[var(--chrome-fg-muted)] font-medium">
+                <span className="block mt-1 text-xs text-[var(--chrome-fg-muted)] font-normal">
                   {t('clone.accent_dialect_hint', {
                     defaultValue: 'one or the other, never both',
                   })}
                 </span>
               </label>
-              <select
+              <VoiceSelect
                 id="vd-AccentDialect"
-                className="input-base"
+                label={t('clone.cat_AccentDialect', { defaultValue: 'Accent or Dialect' })}
                 value={accentDialectValue}
-                onChange={(e) => onAccentDialectChange(e.target.value)}
-              >
-                <option value="Auto">{optLabel('Auto')}</option>
-                <optgroup label={t('clone.cat_EnglishAccent')}>
-                  {ACCENT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={t('clone.cat_ChineseDialect')}>
-                  {DIALECT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {optLabel(opt)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                onChange={onAccentDialectChange}
+                options={['Auto']}
+                optionLabel={optLabel}
+                optionIcon={(value) => designOptionIcon('Accent', value)}
+                groups={[
+                  { label: t('clone.cat_EnglishAccent'), options: ACCENT_OPTIONS },
+                  { label: t('clone.cat_ChineseDialect'), options: DIALECT_OPTIONS },
+                ]}
+              />
             </div>
           </div>
 

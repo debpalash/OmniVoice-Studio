@@ -16,17 +16,16 @@ import {
 } from 'lucide-react';
 import { Button, Segmented } from '../ui';
 import TrackManager from './dub/TrackManager';
+import DubToggle from './dub/DubToggle';
+import SearchableSelect from './SearchableSelect';
+import './ExportModal.css';
 
 const TAB_BASE =
   'inline-flex items-center gap-[6px] px-[12px] py-[6px] bg-transparent border-0 border-b-2 cursor-pointer text-[length:var(--text-sm)] transition-[color,border-color] duration-[var(--dur-fast)]';
 const tabCls = (active) =>
   active
-    ? `${TAB_BASE} border-b-[var(--chrome-accent)] text-[var(--chrome-accent)]`
+    ? `${TAB_BASE} export-tab-active border-b-[var(--chrome-accent)] text-[var(--chrome-accent)]`
     : `${TAB_BASE} border-b-transparent text-[var(--chrome-fg-muted)] hover:text-[var(--chrome-fg)]`;
-const TOGGLE_CLS =
-  'inline-flex items-center gap-[6px] text-[length:var(--text-sm)] text-[var(--chrome-fg)] cursor-pointer [&_input]:accent-[var(--color-brand)]';
-const TOGGLE_INDENT_CLS =
-  'inline-flex items-center gap-[6px] ml-[var(--space-4)] text-[length:var(--text-sm)] text-[var(--chrome-fg-muted)] cursor-pointer [&_input]:accent-[var(--color-brand)]';
 
 /**
  * ExportModal — comprehensive export panel for the dubbing studio.
@@ -278,7 +277,7 @@ export default function ExportModal({
       aria-label={t('exportModal.export_options')}
     >
       <div
-        className="pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[min(70vh,560px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-transparent bg-[var(--chrome-bg)] shadow-[0_-8px_24px_rgba(0,0,0,0.45),0_-1px_0_var(--chrome-border)_inset] animate-in fade-in slide-in-from-bottom-full duration-200"
+        className="export-drawer pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[85vh] flex-col overflow-hidden rounded-t-xl border-0 bg-[var(--chrome-bg)] shadow-xl animate-in fade-in duration-200 motion-reduce:animate-none"
         ref={drawerRef}
       >
         <header className="relative flex items-center gap-[var(--space-3)] p-[6px_var(--space-4)_10px] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
@@ -303,7 +302,7 @@ export default function ExportModal({
             <X size={13} />
           </button>
         </header>
-        <div className="flex flex-col gap-[var(--space-4)] overflow-y-auto p-[var(--space-3)_var(--space-4)_var(--space-4)]">
+        <div className="export-body flex min-h-0 flex-col gap-4 overflow-y-auto p-4">
           {/* Preset chips */}
           <div className="flex flex-wrap items-center gap-[var(--space-2)] pb-[var(--space-3)] [border-bottom:1px_solid_var(--chrome-border)]">
             <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
@@ -332,7 +331,7 @@ export default function ExportModal({
           />
 
           {/* Tabs */}
-          <div className="flex gap-[var(--space-1)] [border-bottom:1px_solid_var(--chrome-border)]">
+          <div className="export-tabs grid grid-cols-4 gap-1 rounded-lg bg-[var(--chrome-hover-bg)] p-1">
             <button
               type="button"
               className={tabCls(tab === 'video')}
@@ -356,7 +355,7 @@ export default function ExportModal({
           </div>
 
           {/* Tab body */}
-          <div className="min-h-[160px]">
+          <div className="export-fields">
             {tab === 'video' && (
               <div className="grid grid-cols-2 gap-x-[var(--space-5)] gap-y-[var(--space-4)]">
                 <Field label={t('exportModal.container')}>
@@ -371,42 +370,38 @@ export default function ExportModal({
                   label={t('exportModal.default_audio_track')}
                   hint={t('exportModal.default_audio_hint')}
                 >
-                  <select
-                    className="input-base input-base--xs"
+                  <SearchableSelect
+                    menuPortal
+                    ariaLabel={t('exportModal.default_audio_track')}
                     value={defaultTrack}
-                    onChange={(e) => setDefaultTrack(e.target.value)}
-                  >
-                    {exportTracks['original'] !== false && (
-                      <option value="original">{t('exportModal.original')}</option>
-                    )}
-                    {(dubTracks || [])
-                      .filter((code) => exportTracks[code] !== false)
-                      .map((code) => (
-                        <option key={code} value={code}>
-                          {code.toUpperCase()} {t('exportModal.dub_suffix')}
-                        </option>
-                      ))}
-                  </select>
+                    onChange={setDefaultTrack}
+                    buttonClassName="min-h-10 rounded-lg border-0 bg-[var(--chrome-hover-bg)] px-3 text-sm text-[var(--chrome-fg)]"
+                    options={[
+                      ...(exportTracks.original !== false
+                        ? [{ value: 'original', label: t('exportModal.original') }]
+                        : []),
+                      ...(dubTracks || [])
+                        .filter((code) => exportTracks[code] !== false)
+                        .map((code) => ({
+                          value: code,
+                          label: code.toUpperCase() + ' ' + t('exportModal.dub_suffix'),
+                        })),
+                    ]}
+                  />
                 </Field>
                 <Field label={t('exportModal.bg_audio')}>
-                  <label className={TOGGLE_CLS}>
-                    <input
-                      type="checkbox"
-                      checked={preserveBg}
-                      onChange={(e) => setPreserveBg(e.target.checked)}
-                    />
-                    {t('exportModal.mix_bg_video')}
-                  </label>
+                  <DubToggle
+                    label={t('exportModal.mix_bg_video')}
+                    checked={preserveBg}
+                    onChange={setPreserveBg}
+                  />
                 </Field>
                 <Field label={t('exportModal.subs_in_video')}>
-                  <label className={TOGGLE_CLS}>
-                    <input
-                      type="checkbox"
-                      checked={burnSubs}
-                      onChange={(e) => setBurnSubs(e.target.checked)}
-                    />
-                    {t('exportModal.hardsub')}
-                  </label>
+                  <DubToggle
+                    label={t('exportModal.hardsub')}
+                    checked={burnSubs}
+                    onChange={setBurnSubs}
+                  />
                   {burnSubs && (
                     <Segmented
                       size="sm"
@@ -425,14 +420,11 @@ export default function ExportModal({
                     />
                   )}
                   {burnSubs && (
-                    <label className={TOGGLE_INDENT_CLS}>
-                      <input
-                        type="checkbox"
-                        checked={!!dualSubs}
-                        onChange={(e) => setDualSubs(e.target.checked)}
-                      />
-                      {t('exportModal.dual_subs_video')}
-                    </label>
+                    <DubToggle
+                      label={t('exportModal.dual_subs_video')}
+                      checked={!!dualSubs}
+                      onChange={setDualSubs}
+                    />
                   )}
                 </Field>
                 {(timingStrategy === 'smart_fit' || timingStrategy === 'stretch_video') && (
@@ -482,28 +474,25 @@ export default function ExportModal({
                     ]}
                   />
                   {audioBatch === 'primary' && (
-                    <select
-                      className="input-base input-base--xs mt-[6px]"
+                    <SearchableSelect
+                      menuPortal
+                      ariaLabel={t('exportModal.languages')}
                       value={audioPrimaryLang}
-                      onChange={(e) => setAudioPrimaryLang(e.target.value)}
-                    >
-                      {(dubTracks || []).map((code) => (
-                        <option key={code} value={code}>
-                          {code.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setAudioPrimaryLang}
+                      buttonClassName="min-h-10 rounded-lg border-0 bg-[var(--chrome-hover-bg)] px-3 text-sm text-[var(--chrome-fg)]"
+                      options={(dubTracks || []).map((code) => ({
+                        value: code,
+                        label: code.toUpperCase(),
+                      }))}
+                    />
                   )}
                 </Field>
                 <Field label={t('exportModal.bg_audio')}>
-                  <label className={TOGGLE_CLS}>
-                    <input
-                      type="checkbox"
-                      checked={preserveBg}
-                      onChange={(e) => setPreserveBg(e.target.checked)}
-                    />
-                    {t('exportModal.mix_bg_audio')}
-                  </label>
+                  <DubToggle
+                    label={t('exportModal.mix_bg_audio')}
+                    checked={preserveBg}
+                    onChange={setPreserveBg}
+                  />
                 </Field>
               </div>
             )}
@@ -602,44 +591,43 @@ export default function ExportModal({
               .
             </span>
           </div>
-
-          {/* Summary footer */}
-          <div className="flex items-center justify-between gap-[var(--space-3)] pt-[var(--space-3)] [border-top:1px_solid_var(--chrome-border)]">
-            <div className="flex min-w-0 items-center gap-[var(--space-2)]">
-              <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
-                {t('exportModal.output')}
-              </span>
-              <code
-                className="max-w-[340px] overflow-hidden text-ellipsis whitespace-nowrap rounded-[2px] bg-[var(--chrome-hover-bg)] px-[8px] py-[3px] [font-family:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)]"
-                title={filenamePreview}
-              >
-                {filenamePreview}
-              </code>
-            </div>
-            <div className="inline-flex gap-[var(--space-2)]">
-              {tab !== 'pkg' && (
-                <>
-                  <Button variant="ghost" size="sm" onClick={onClose}>
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={active.fn}
-                    disabled={!active.can}
-                    leading={<Download size={11} />}
-                    title={active.can ? '' : t('exportModal.nothing_selected')}
-                  >
-                    {active.label}
-                  </Button>
-                </>
-              )}
-              {tab === 'pkg' && (
+        </div>
+        {/* Summary footer stays visible while format settings scroll. */}
+        <div className="export-summary flex shrink-0 items-center justify-between gap-3 p-4 bg-[var(--chrome-hover-bg)]">
+          <div className="flex min-w-0 items-center gap-[var(--space-2)]">
+            <span className="inline-flex items-center gap-[4px] uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
+              {t('exportModal.output')}
+            </span>
+            <code
+              className="max-w-[340px] overflow-hidden text-ellipsis whitespace-nowrap rounded-[2px] bg-[var(--chrome-hover-bg)] px-[8px] py-[3px] [font-family:var(--chrome-font-mono)] text-[length:var(--text-xs)] text-[var(--chrome-fg)]"
+              title={filenamePreview}
+            >
+              {filenamePreview}
+            </code>
+          </div>
+          <div className="inline-flex gap-[var(--space-2)]">
+            {tab !== 'pkg' && (
+              <>
                 <Button variant="ghost" size="sm" onClick={onClose}>
-                  {t('common.close')}
+                  {t('common.cancel')}
                 </Button>
-              )}
-            </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={active.fn}
+                  disabled={!active.can}
+                  leading={<Download size={11} />}
+                  title={active.can ? '' : t('exportModal.nothing_selected')}
+                >
+                  {active.label}
+                </Button>
+              </>
+            )}
+            {tab === 'pkg' && (
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                {t('common.close')}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -650,11 +638,9 @@ export default function ExportModal({
 
 function Field({ label, hint, children }) {
   return (
-    <div className="flex flex-col gap-[6px]">
+    <div className="export-field flex min-w-0 flex-col gap-3 rounded-lg bg-[var(--chrome-hover-bg)] p-4">
       <div className="flex flex-col gap-[2px]">
-        <span className="uppercase [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] tracking-[var(--chrome-label-track)] text-[var(--chrome-fg-muted)]">
-          {label}
-        </span>
+        <span className="text-sm font-medium text-[var(--chrome-fg)]">{label}</span>
         {hint && (
           <span className="text-[length:var(--text-xs)] text-[var(--chrome-fg-dim)] leading-[1.4]">
             {hint}

@@ -539,6 +539,9 @@
     "convert_desc": "Diga uma vez — ouça em outra voz. Fala para fala, totalmente local."
   },
   "clone": {
+    "text_label": "Texto",
+    "paste": "Colar",
+    "paste_failed": "O acesso à área de transferência foi bloqueado. Cole diretamente no campo de texto usando o teclado.",
     "prompt": "Alerta",
     "language": "Idioma",
     "steps": "Passos",
@@ -1861,6 +1864,7 @@
     "hint": "8 etapas · visualização rápida"
   },
   "header": {
+    "speech": "Fala",
     "kicker_studio": "Estúdio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferências",

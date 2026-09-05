@@ -2140,12 +2140,21 @@ div[role="dialog"].audio-trimmer {
    children migrated to Tailwind utilities at the usage site. */
 .studio-action-bar {
   flex: 0 0 auto;
+  /* Expanded settings leave room for the form even in a short window. */
+  max-height: 60%;
   border-top: 1px solid var(--chrome-border);
   background: var(--chrome-bg);
   padding: 8px 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.studio-action-bar .override-content {
+  min-height: 0;
+  flex-shrink: 1;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2461,12 +2470,29 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* from MultiLangPicker (components/MultiLangPicker.css) */
+.multi-lang-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  align-content: start;
+  gap: 4px;
+}
+.multi-lang-options > div { grid-column: 1 / -1; }
+
+@keyframes engine-title-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.engine-title-label { animation: engine-title-enter 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .engine-title-label { animation: none; }
+}
+
 /* Dropdown */
 .multi-lang__drop {
   position: fixed;
   z-index: var(--z-overlay);
   background: var(--chrome-bg);
-  border: 1px solid var(--chrome-border-strong);
+  border: 0;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   max-height: 260px;
@@ -4944,16 +4970,13 @@ button.dub-stepper__action:focus-visible {
   overflow-y: auto;
 }
 
-/* When stacked, the main column must NOT clip its own overflow — its
-   `overflow:hidden` (needed for the side-by-side scroll panes) otherwise trapped
-   the pinned action bar below the fold of the now-scrolling outer column (#476).
-   Letting it grow naturally hands scrolling to `.studio-with-history`, and the
-   action bar below stays reachable; `position:sticky` keeps the Synthesize CTA
-   pinned to the viewport bottom while the script content scrolls. */
+/* Reserve a viewport-height workspace before the stacked voice library.
+   The inner form scrolls independently; the action bar remains visible. */
 .shell-narrow .studio-with-history__main,
 .shell-mini .studio-with-history__main {
   overflow: visible;
-  flex: 0 0 auto;
+  flex: 1 0 100%;
+  min-height: 0;
   order: 1;
 }
 .shell-narrow .studio-with-history__main .studio-action-bar,

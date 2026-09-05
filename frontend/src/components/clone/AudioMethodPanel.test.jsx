@@ -118,13 +118,13 @@ describe('AudioMethodPanel', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'clone.record' }));
 
-    fireEvent.change(screen.getByLabelText('recording.input_device'), {
-      target: { value: 'built-in' },
-    });
-    fireEvent.change(screen.getByLabelText('recording.channels'), { target: { value: 'mono' } });
+    fireEvent.keyDown(screen.getByLabelText('recording.input_device'), { key: 'Enter' });
+    expect(screen.getByRole('option', { name: 'recording.microphone_number' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Built-in microphone' }));
+    fireEvent.keyDown(screen.getByLabelText('recording.channels'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: 'recording.channels_mono' }));
     expect(setDevice).toHaveBeenCalledWith('built-in');
     expect(setChannels).toHaveBeenCalledWith('mono');
-    expect(screen.getByRole('option', { name: 'recording.microphone_number' })).toBeInTheDocument();
   });
 
   it('locks recording settings while microphone startup is pending', () => {
@@ -143,8 +143,8 @@ describe('AudioMethodPanel', () => {
     const channels = screen.getByLabelText('recording.channels');
     expect(device).toBeDisabled();
     expect(channels).toBeDisabled();
-    fireEvent.change(device, { target: { value: 'built-in' } });
-    fireEvent.change(channels, { target: { value: 'mono' } });
+    fireEvent.click(device);
+    fireEvent.click(channels);
     expect(setDevice).not.toHaveBeenCalled();
     expect(setChannels).not.toHaveBeenCalled();
   });

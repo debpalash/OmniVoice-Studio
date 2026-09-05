@@ -57,6 +57,8 @@
 | **Storage** | Voices, projects, settings, and outputs stay on the machine by default |
 | **License** | AGPL-3.0 application; downloaded models keep their upstream terms |
 
+The Voice workspace starts with three tabs: **From audio** for cloning, **By design** for creating a voice, and **Convert** for speech-to-speech conversion. Each tab displays its own workflow, with Synthesize Audio or Convert pinned below the scrolling form. The top-bar **Engines** panel combines engine selection, loaded models, and unload/flush controls; <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>E</kbd> opens it. The searchable language picker shares Dubbing’s flags and language list layout, selects one output language, and retains Auto and the full cloning catalogue. Language options flow into multiple columns when space allows. Expand **Workspaces** in the sidebar to reveal navigation labels; Escape collapses it.
+
 <a id="install"></a>
 
 ## Install
@@ -129,7 +131,7 @@ The desktop launcher configures Python dependencies on first run via `uv` automa
 |---|---|
 | **Voice Cloning** | Zero-shot synthesis from a short reference clip ([guide](docs/engines/README.md)) |
 | **Voice Design** | Create a voice from age, accent, pitch, style, and delivery instructions ([expressive speech](docs/expressive-speech.md)) |
-| **Video Dubbing** | Transcribe, translate, preserve speakers, synthesize, and export video ([export guide](docs/dubbing/export.md)) |
+| **Video Dubbing** | Transcribe, translate, preserve speakers, synthesize, and export video; grouped casting and translation controls include searchable language and engine menus ([export guide](docs/dubbing/export.md)) |
 | **Stories and audiobooks** | Multi-voice scripts · EPUB/PDF import · chapter rendering · `.m4b` export |
 | **[Dictation Widget](docs/features/dictation.md)** | System-wide shortcut, live transcription, optional local-LLM cleanup |
 | **Vocal Isolation** | Demucs speech/background separation |

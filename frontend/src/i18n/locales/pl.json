@@ -539,6 +539,9 @@
     "convert_desc": "Powiedz raz — usłysz innym głosem. Mowa na mowę, w pełni lokalnie."
   },
   "clone": {
+    "text_label": "Tekst",
+    "paste": "Wklej",
+    "paste_failed": "Dostęp do schowka został zablokowany. Wklej bezpośrednio do pola tekstowego za pomocą klawiatury.",
     "prompt": "Podpowiedź",
     "language": "Język",
     "steps": "Kroki",
@@ -1861,6 +1864,7 @@
     "hint": "8 kroków · szybki podgląd"
   },
   "header": {
+    "speech": "Mowa",
     "kicker_studio": "Studio",
     "kicker_library": "Biblioteka",
     "kicker_preferences": "Preferencje",

@@ -152,10 +152,8 @@ describe('DubLeftColumn — translation-engine install affordance', () => {
       { id: 'argos', display_name: 'Argos', installed: true, install_command: null },
     ];
     render(<DubLeftColumn {...makeProps({ engines, setTranslateProvider })} />);
-    // The engine <select> is the only combobox whose current value is 'google'.
-    const select = screen.getAllByRole('combobox').find((el) => el.value === 'google');
-    expect(select).toBeTruthy();
-    fireEvent.change(select, { target: { value: 'argos' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Engine', exact: true }));
+    fireEvent.mouseDown(screen.getByRole('option', { name: 'Argos', exact: true }));
     expect(setTranslateProvider).toHaveBeenCalledWith('argos');
   });
 });

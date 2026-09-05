@@ -539,6 +539,9 @@
     "convert_desc": "Dites-le une fois — écoutez-le avec une autre voix. De la parole à la parole, entièrement en local."
   },
   "clone": {
+    "text_label": "Texte",
+    "paste": "Coller",
+    "paste_failed": "L’accès au presse-papiers est bloqué. Collez directement dans le champ de texte avec le clavier.",
     "prompt": "Invite",
     "language": "Langue",
     "steps": "Étapes",
@@ -1861,6 +1864,7 @@
     "hint": "8 étapes · aperçu rapide"
   },
   "header": {
+    "speech": "Parole",
     "kicker_studio": "Atelier",
     "kicker_library": "Bibliothèque",
     "kicker_preferences": "Préférences",

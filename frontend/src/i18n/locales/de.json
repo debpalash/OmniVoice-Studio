@@ -539,6 +539,9 @@
     "convert_desc": "Einmal sagen — in einer anderen Stimme hören. Sprache zu Sprache, komplett lokal."
   },
   "clone": {
+    "text_label": "Text",
+    "paste": "Einfügen",
+    "paste_failed": "Der Zugriff auf die Zwischenablage wurde blockiert. Füge den Inhalt mit der Tastatur direkt ins Textfeld ein.",
     "prompt": "Prompt",
     "language": "Sprache",
     "steps": "Schritte",
@@ -1861,6 +1864,7 @@
     "hint": "8 Schritte · schnelle Vorschau"
   },
   "header": {
+    "speech": "Sprache",
     "kicker_studio": "Studio",
     "kicker_library": "Bibliothek",
     "kicker_preferences": "Präferenzen",

@@ -1,0 +1,13 @@
+.dub-output-settings { padding: 16px; border-radius: 10px; background: var(--chrome-hover-bg); margin-bottom: 12px; }
+.dub-output-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,190px),1fr)); gap: 12px; margin-bottom: 16px; align-items: end; }
+.dub-output-settings > div:not(.dub-output-grid) { gap: 10px; margin-top: 12px; padding: 0; }
+.dub-output-settings > div > span { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 12px; text-transform: none; letter-spacing: normal; }
+.dub-output-settings .ui-seg { flex-wrap: wrap; border-radius: 8px; }
+.dub-output-settings .ui-seg button { min-height: 34px; font-size: 12px; }
+.dub-panel-right .dub-transcript-toggle__inner { width: 100%; min-height: 42px; border: 0; border-radius: 8px; padding: 10px 12px; background: var(--chrome-hover-bg); }
+.dub-panel-right .dub-transcript-toggle__inner > span { display: inline-flex; align-items: center; gap: 6px; }
+.dub-panel-right .ui-table-toolbar { flex-wrap: wrap; gap: 8px; padding-block: 10px; }
+.dub-panel-right .ui-table-toolbar__search { flex: 1 1 160px; }
+.dub-panel-right .ui-table-toolbar__search-input { min-height: 40px; font-size: 12px; }
+.dub-panel-right .ui-table-toolbar > .ss-wrap { flex: 1 1 160px; }
+.dub-panel-right .ui-table-toolbar .dub-setting-toggle { white-space: nowrap; flex-shrink: 0; }
