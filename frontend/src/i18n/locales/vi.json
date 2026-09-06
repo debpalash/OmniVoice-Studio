@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Đã lưu mã thông báo Ôm Mặt - tải xuống hiện nhanh hơn",
     "hf_token_inline_prompt": "Tăng tốc độ tải xuống với mã thông báo Ôm mặt miễn phí",
     "hf_token_inline_ph": "Dán mã thông báo hf_… (tùy chọn)",
-    "hf_token_get_short": "Nhận một cái miễn phí →"
+    "hf_token_get_short": "Nhận một cái miễn phí →",
+    "hf_token_active_using": "Đang sử dụng token Hugging Face của bạn từ {{source}} — {{masked}}",
+    "hf_token_replace": "Thay thế token…",
+    "hf_token_replace_warning": "Thao tác này sẽ thay thế token ở trên — token cũ sẽ ngừng hoạt động."
   },
   "history": {
     "dub_meta": "{{segments}} phân đoạn · {{duration}} giây",

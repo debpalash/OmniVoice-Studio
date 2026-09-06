@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Hugging Face jetonu kaydedildi; indirme işlemleri artık daha hızlı",
     "hf_token_inline_prompt": "Ücretsiz Hugging Face belirteci ile indirmeleri hızlandırın",
     "hf_token_inline_ph": "hf_… jetonunu yapıştırın (isteğe bağlı)",
-    "hf_token_get_short": "Ücretsiz bir tane alın →"
+    "hf_token_get_short": "Ücretsiz bir tane alın →",
+    "hf_token_active_using": "{{source}} kaynağından Hugging Face jetonunuz kullanılıyor — {{masked}}",
+    "hf_token_replace": "Jetonu değiştir…",
+    "hf_token_replace_warning": "Bu, yukarıdaki jetonun yerini alır — eski jeton çalışmayı durdurur."
   },
   "history": {
     "dub_meta": "{{segments}} segment · {{duration}} sn",

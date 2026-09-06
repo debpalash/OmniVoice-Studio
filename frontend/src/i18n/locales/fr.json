@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Jeton Hugging Face enregistré – les téléchargements sont désormais plus rapides",
     "hf_token_inline_prompt": "Accélérez les téléchargements avec un jeton Hugging Face gratuit",
     "hf_token_inline_ph": "Coller le jeton hf_… (facultatif)",
-    "hf_token_get_short": "Obtenez-en un gratuitement →"
+    "hf_token_get_short": "Obtenez-en un gratuitement →",
+    "hf_token_active_using": "Utilisation de votre jeton Hugging Face depuis {{source}} — {{masked}}",
+    "hf_token_replace": "Remplacer le jeton…",
+    "hf_token_replace_warning": "Cela remplacera le jeton ci-dessus — l'ancien cessera de fonctionner."
   },
   "history": {
     "dub_meta": "{{segments}} segments · {{duration}} s",

@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Knuffelgezicht-token opgeslagen — downloads zijn nu sneller",
     "hf_token_inline_prompt": "Versnel downloads met een gratis Hugging Face-token",
     "hf_token_inline_ph": "Plak het hf_…-token (optioneel)",
-    "hf_token_get_short": "Ontvang er één gratis →"
+    "hf_token_get_short": "Ontvang er één gratis →",
+    "hf_token_active_using": "Gebruikt uw Hugging Face-token van {{source}} — {{masked}}",
+    "hf_token_replace": "Token vervangen…",
+    "hf_token_replace_warning": "Dit vervangt de token hierboven — de oude werkt daarna niet meer."
   },
   "history": {
     "dub_meta": "{{segments}} segmenten · {{duration}} s",

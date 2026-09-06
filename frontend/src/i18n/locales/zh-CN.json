@@ -2376,7 +2376,10 @@
     "hf_token_saved_fast": "Hugging Face 令牌已保存——下载速度更快",
     "hf_token_inline_prompt": "使用免费的 Hugging Face 令牌加快下载速度",
     "hf_token_inline_ph": "粘贴 hf_… 令牌（可选）",
-    "hf_token_get_short": "免费获得一份 →"
+    "hf_token_get_short": "免费获得一份 →",
+    "hf_token_active_using": "正在使用来自 {{source}} 的 Hugging Face 令牌 — {{masked}}",
+    "hf_token_replace": "更换令牌…",
+    "hf_token_replace_warning": "这将替换上面的令牌——旧令牌将停止工作。"
   },
   "history": {
     "dub_meta": "{{segments}} 个片段 · {{duration}} 秒",

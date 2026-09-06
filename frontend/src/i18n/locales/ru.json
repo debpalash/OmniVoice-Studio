@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Токен Hugging Face сохранен — загрузка теперь происходит быстрее",
     "hf_token_inline_prompt": "Ускорьте загрузку с помощью бесплатного токена Hugging Face.",
     "hf_token_inline_ph": "Вставьте токен hf_… (необязательно)",
-    "hf_token_get_short": "Получите один бесплатно →"
+    "hf_token_get_short": "Получите один бесплатно →",
+    "hf_token_active_using": "Используется ваш токен Hugging Face из источника {{source}} — {{masked}}",
+    "hf_token_replace": "Заменить токен…",
+    "hf_token_replace_warning": "Это заменит указанный выше токен — старый перестанет работать."
   },
   "history": {
     "dub_meta": "{{segments}} сегментов · {{duration}} с",

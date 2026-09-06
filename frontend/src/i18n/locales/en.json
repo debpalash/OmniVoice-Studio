@@ -3099,7 +3099,10 @@
     "hf_token_error": "Could not save the token — try again or set it later in Settings → Credentials.",
     "hf_token_inline_prompt": "Speed up downloads with a free Hugging Face token",
     "hf_token_inline_ph": "Paste hf_… token (optional)",
-    "hf_token_get_short": "Get one free →"
+    "hf_token_get_short": "Get one free →",
+    "hf_token_active_using": "Using your Hugging Face token from {{source}} — {{masked}}",
+    "hf_token_replace": "Replace token…",
+    "hf_token_replace_warning": "This replaces the token above — the old one stops working."
   },
   "history": {
     "dub_meta": "{{segments}} segs · {{duration}}s",

@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Token Hugging Face disimpan — pengunduhan kini lebih cepat",
     "hf_token_inline_prompt": "Percepat pengunduhan dengan token Hugging Face gratis",
     "hf_token_inline_ph": "Tempel hf_… token (opsional)",
-    "hf_token_get_short": "Dapatkan satu gratis →"
+    "hf_token_get_short": "Dapatkan satu gratis →",
+    "hf_token_active_using": "Menggunakan token Hugging Face Anda dari {{source}} — {{masked}}",
+    "hf_token_replace": "Ganti token…",
+    "hf_token_replace_warning": "Ini akan mengganti token di atas — token lama akan berhenti berfungsi."
   },
   "history": {
     "dub_meta": "{{segments}} segmen · {{duration}} dtk",
