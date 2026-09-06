@@ -66,4 +66,23 @@ describe('Transcriptions capture entry point', () => {
 
     expect(await screen.findByText('The shared capture path works.')).toBeInTheDocument();
   });
+
+  it('renders translated timestamp fallback for segments with null start/end', () => {
+    act(() => {
+      addTranscription({
+        text: 'Partial transcription',
+        segments: [
+          { start: null, end: null, text: 'first word' },
+          { start: 1.5, end: null, text: 'second word' },
+          { start: null, end: 3.0, text: 'third word' },
+        ],
+      });
+    });
+
+    fireEvent.click(screen.getByText('Partial transcription'));
+
+    // en.json: timestamp_unavailable = "–"
+    const fallback = screen.getByText('–');
+    expect(fallback).toBeInTheDocument();
+  });
 });
