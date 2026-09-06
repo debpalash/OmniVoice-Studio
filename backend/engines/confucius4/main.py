@@ -115,7 +115,10 @@ def _load_model(stdout):
     import torch
     from confuciustts.cli.inference import ConfuciusTTS  # type: ignore[import-not-found]
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.accelerator.current_accelerator(check_available=True)
+    device = device.type if device is not None else "cpu"  # 'cuda', 'npu', 'mps', 'xpu', 'cpu'
+    if device == "mps":
+        device = "cpu"  # ConfuciusTTS is untested on MPS; fall back to CPU for safety
     _send(stdout, {"op": "progress", "stage": "loading_model", "percent": 50})
 
     _model = ConfuciusTTS(config_path=_config_path(), device=device)
