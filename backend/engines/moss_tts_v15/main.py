@@ -138,11 +138,12 @@ _state = None
 def _load_model(stdout):
     """Cold-construct the MOSS-TTS-v1.5 processor + model.
 
-    Device selection is CUDA-or-CPU only — MOSS's upstream documents no MPS
-    path and the custom ``trust_remote_code`` modelling code is untested on
-    Apple Silicon, so we never route to MPS where it might crash. dtype is
-    bf16 on CUDA, fp32 on CPU (bf16 CPU ops are spotty). Emits progress
-    frames so the parent can surface the multi-GB cold-load latency.
+    Device selection uses the torch.accelerator API to support any backend
+    (CUDA, NPU, XPU, etc.) automatically. MPS is excluded — MOSS's upstream
+    ``trust_remote_code`` modelling code is untested on Apple Silicon. dtype is
+    bf16 on GPU-class accelerators, fp32 on CPU (bf16 CPU ops are spotty).
+    Emits progress frames so the parent can surface the multi-GB cold-load
+    latency.
     """
     global _state
     if _state is not None:
@@ -154,8 +155,11 @@ def _load_model(stdout):
     from transformers import AutoModel, AutoProcessor
 
     repo, revision = _model_source()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+    accel = torch.accelerator.current_accelerator()
+    device = accel.type  # 'cuda', 'npu', 'mps', 'xpu', 'cpu'
+    if device == "mps":
+        device = "cpu"  # MOSS is untested on MPS; fall back to CPU for safety
+    dtype = torch.bfloat16 if device != "cpu" else torch.float32
     # "sdpa" works on CUDA + CPU and needs no extra dep. flash_attention_2
     # (Ampere+ CUDA, optional flash-attn) is opt-in via env.
     attn = os.environ.get("OMNIVOICE_MOSS_TTS_V15_ATTN", "sdpa")
