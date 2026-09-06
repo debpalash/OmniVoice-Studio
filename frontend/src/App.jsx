@@ -701,9 +701,13 @@ function App() {
       try {
         const fd = new FormData();
         fd.append('text', i18n.t('firstrun.first_sound_text'));
-        // Functional model prompt (not user-facing copy) — keeps the demo
-        // voice warm without depending on seeded profiles.
-        fd.append('instruct', 'A warm, friendly narrator voice, medium pace');
+        // No `instruct`: it only validates against a fixed per-engine
+        // vocabulary (OmniVoice's `_resolve_instruct`), so free-text prose
+        // like the old hardcoded string can never pass — it 400ed on every
+        // first run and the catch below swallowed it into silence (#1853).
+        // Omitting the field is also the same thing every other call site
+        // does for an empty/no instruct (`if (instruct) fd.append(...)`),
+        // and it degrades identically no matter which engine is active.
         fd.append('num_step', '16');
         const res = await apiFetch(`${API}/generate`, {
           method: 'POST',

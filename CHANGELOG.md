@@ -20,6 +20,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The first-run welcome line no longer sends a hardcoded prose `instruct` that always failed validation and left onboarding silent (#1853)
+
 
 ## [0.5.2] — 2026-09-02
 
