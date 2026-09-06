@@ -1502,7 +1502,8 @@
     "exported": "Экспортированные транскрипции",
     "just_now": "Прямо сейчас",
     "m_ago": "{{count}}м назад",
-    "h_ago": "{{count}}ч назад"
+    "h_ago": "{{count}}ч назад",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Добро пожаловать",

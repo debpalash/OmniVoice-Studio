@@ -1502,7 +1502,8 @@
     "exported": "Geëxporteerde transcripties",
     "just_now": "Zojuist",
     "m_ago": "{{count}}m geleden",
-    "h_ago": "{{count}}u geleden"
+    "h_ago": "{{count}}u geleden",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Welkom",

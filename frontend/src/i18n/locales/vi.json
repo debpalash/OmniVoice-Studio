@@ -1502,7 +1502,8 @@
     "exported": "Bản chép lời đã xuất",
     "just_now": "Vừa rồi",
     "m_ago": "{{count}}phút trước",
-    "h_ago": "{{count}}giờ trước"
+    "h_ago": "{{count}}giờ trước",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Chào mừng",

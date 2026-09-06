@@ -1461,7 +1461,8 @@
     "exported": "已导出转录记录",
     "just_now": "刚刚",
     "m_ago": "{{count}} 分钟前",
-    "h_ago": "{{count}} 小时前"
+    "h_ago": "{{count}} 小时前",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "欢迎",

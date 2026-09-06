@@ -1778,7 +1778,8 @@
     "exported": "Exported transcriptions",
     "just_now": "Just now",
     "m_ago": "{{count}}m ago",
-    "h_ago": "{{count}}h ago"
+    "h_ago": "{{count}}h ago",
+    "timestamp_unavailable": "–"
   },
   "transcriptionPicker": {
     "title": "Import from a transcription",

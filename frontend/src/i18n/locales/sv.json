@@ -1502,7 +1502,8 @@
     "exported": "Exporterade transkriptioner",
     "just_now": "Just nu",
     "m_ago": "{{count}}m sedan",
-    "h_ago": "{{count}}h sedan"
+    "h_ago": "{{count}}h sedan",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Välkommen",

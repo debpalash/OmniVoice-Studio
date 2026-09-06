@@ -1502,7 +1502,8 @@
     "exported": "निर्यातित प्रतिलेखन",
     "just_now": "अभी अभी",
     "m_ago": "{{count}}m पहले",
-    "h_ago": "{{count}}h पहले"
+    "h_ago": "{{count}}h पहले",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "स्वागत है",
