@@ -39,6 +39,19 @@ function renderPicker(props = {}) {
 }
 
 describe('EngineQuickSwitch', () => {
+  it('embeds engine choices without another popup trigger', async () => {
+    renderPicker({ embedded: true });
+    expect(await screen.findByText('IndexTTS 2')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /active tts:/i })).not.toBeInTheDocument();
+  });
+  it('anchors the prominent menu to the left-hand engine button', async () => {
+    renderPicker({ prominent: true });
+    fireEvent.click(await screen.findByRole('button', { name: /active tts: omnivoice/i }));
+    expect(screen.getByRole('dialog')).toHaveClass('left-0');
+    expect(screen.getByRole('dialog')).not.toHaveClass('right-0');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     listEngines.mockResolvedValue(inventory());

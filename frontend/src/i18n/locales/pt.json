@@ -539,6 +539,9 @@
     "convert_desc": "Diga uma vez — ouça em outra voz. Fala para fala, totalmente local."
   },
   "clone": {
+    "text_label": "Texto",
+    "paste": "Colar",
+    "paste_failed": "O acesso à área de transferência foi bloqueado. Cole diretamente no campo de texto usando o teclado.",
     "prompt": "Alerta",
     "language": "Idioma",
     "steps": "Passos",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verificação revogada"
   },
   "dub": {
+    "timing_label": "Sincronização",
+    "timing_concise": "Conciso",
+    "timing_stretch_video": "Estender vídeo",
     "install_engine_pkg": "Instalar {{pkg}}",
     "needs_install_short": "Requer instalação",
     "install_popover_title": "Instalar este motor",
@@ -1861,6 +1867,7 @@
     "hint": "8 etapas · visualização rápida"
   },
   "header": {
+    "speech": "Fala",
     "kicker_studio": "Estúdio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferências",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Visualizar voz"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmentos precisam de revisão de tempo",
     "asr_title": "Transcrições prontas",
     "asr_cta": "Traduzir",
     "asr_hint": "Corrija quaisquer erros de ASR agora – a dicção precisa salva tentativas de TTS posteriormente.",

@@ -1,24 +1,14 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { List } from 'react-window';
+import { List, useDynamicRowHeight } from 'react-window';
 import DubSegmentRow from './DubSegmentRow';
-import { Table, Select } from '../ui';
+import { Table } from '../ui';
+import { Headphones } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
+import DubToggle from './dub/DubToggle';
 import { useAppStore } from '../store';
 import { visibleMergeAvailability } from '../utils/segmentParts';
 import useDubLivePreview from '../hooks/useDubLivePreview';
-
-const BASE_ROW_HEIGHT = 48;
-const ROW_HEIGHT_WITH_ORIG = 62;
-
-const COLUMNS = [
-  { key: 'time', width: 50 },
-  { key: 'spkr', width: 45 },
-  { key: 'text', flex: 1 },
-  { key: 'lang', width: 42 },
-  { key: 'voice', width: 60 },
-  { key: 'vol', width: 40 },
-  { key: 'act', width: 42 },
-];
 
 export default function DubSegmentTable({
   segments,
@@ -64,12 +54,6 @@ export default function DubSegmentTable({
   // containing the playhead into view. (The scroll effect itself lives
   // below the `filtered` memo so it can depend on it without TDZ.)
   const listRef = useRef(null);
-
-  const columns = COLUMNS.map((c) => {
-    if (c.key === 'vol') return { ...c, label: t('segment.vol'), title: t('segment.vol_title') };
-    if (c.key === 'act') return { ...c, label: '' };
-    return { ...c, label: t(`segment.${c.key}`) };
-  });
 
   const bodyRef = useRef(null);
   const [bodyHeight, setBodyHeight] = useState(0);
@@ -138,14 +122,8 @@ export default function DubSegmentTable({
     }
   }, [timelineSelectedId, filtered]);
 
-  const rowHeight = useCallback(
-    (index) => {
-      const s = filtered[index];
-      if (!s) return BASE_ROW_HEIGHT;
-      return s.text_original && s.text_original !== s.text ? ROW_HEIGHT_WITH_ORIG : BASE_ROW_HEIGHT;
-    },
-    [filtered],
-  );
+  // Wrapped controls and translated status badges can change a row's height.
+  const rowHeight = useDynamicRowHeight({ defaultRowHeight: 160 });
 
   const rowProps = useMemo(
     () => ({
@@ -210,6 +188,7 @@ export default function DubSegmentTable({
     ({
       index,
       style,
+      ariaAttributes,
       filtered: fl,
       profiles: profs,
       speakerClones: clones,
@@ -259,6 +238,7 @@ export default function DubSegmentTable({
           seg={seg}
           idx={index}
           style={style}
+          ariaAttributes={ariaAttributes}
           disabled={dis}
           isActive={isActive}
           isDone={isDone}
@@ -315,35 +295,31 @@ export default function DubSegmentTable({
         searchPlaceholder={t('segment.search_placeholder')}
         meta={meta}
       >
-        <label className="dub-live-toggle" title={t('dub.live_preview_title')}>
-          <input
-            type="checkbox"
-            className="accent-[var(--color-brand)]"
-            checked={!!livePreviewOn}
-            onChange={(e) => setDubLivePreview(e.target.checked)}
-          />
-          {t('dub.live_preview')}
-        </label>
+        <DubToggle
+          label={t('dub.live_preview')}
+          title={t('dub.live_preview_title')}
+          Icon={Headphones}
+          checked={livePreviewOn}
+          onChange={setDubLivePreview}
+        />
         {speakers.length > 1 && (
-          <Select
-            size="sm"
+          <SearchableSelect
+            menuPortal
+            ariaLabel={t('segment.all_speakers')}
             value={speakerFilter}
-            onChange={(e) => setSpeakerFilter(e.target.value)}
-            className="dub-segment-table__spk-filter"
-          >
-            <option value="">{t('segment.all_speakers')}</option>
-            {speakers.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+            onChange={setSpeakerFilter}
+            buttonClassName="min-h-10 rounded-lg border-0 px-3 text-sm bg-[var(--chrome-hover-bg)] text-[var(--chrome-fg)]"
+            options={[
+              { value: '', label: t('segment.all_speakers') },
+              ...speakers.map((s) => ({ value: s, label: s })),
+            ]}
+          />
         )}
       </Table.Toolbar>
 
       <Table.Header
         className="dub-segment-table__header"
-        columns={columns}
+        columns={[{ key: 'text', label: t('segment.text'), flex: 1 }]}
         leading={
           <span className="dub-segment-table__select-all">
             <input

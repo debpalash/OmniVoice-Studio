@@ -14,11 +14,12 @@ import {
   Plus,
   Sparkles,
   Volume2,
+  BookOpen,
 } from 'lucide-react';
 import { formatTime } from '../utils/format';
 import { LANG_CODES } from '../utils/languages';
 import { MIN_SEG_DUR } from '../utils/timeline';
-import { Menu, Button, Badge } from '../ui';
+import { Menu } from '../ui';
 import VoiceSelector from './VoiceSelector';
 
 const CHAR_BUDGET_RATIO = 1.3;
@@ -67,6 +68,7 @@ function DubSegmentRow({
   seg,
   idx,
   style,
+  ariaAttributes,
   disabled,
   isActive,
   isDone,
@@ -260,6 +262,7 @@ function DubSegmentRow({
 
   return (
     <div
+      {...ariaAttributes}
       style={style}
       className={rowClass(isActive, isDone, selected, isPlaying, timelineSelected)}
       onClick={handleRowClick}
@@ -270,156 +273,14 @@ function DubSegmentRow({
         onChange={(e) => onSelect(seg.id, idx, e.nativeEvent.shiftKey)}
         onClick={(e) => onSelect(seg.id, idx, e.shiftKey)}
         disabled={disabled}
-        className="cursor-pointer justify-self-center"
+        className="seg-select cursor-pointer justify-self-center"
         title={t('segment.select_title')}
       />
-      <span className="segment-time flex flex-col min-w-0 overflow-hidden tabular-nums">
-        {['start', 'end'].map((edge) => (
-          <span className="seg-time-stepper" key={`${edge}-${seg.id}-${seg[edge]}`}>
-            <button
-              type="button"
-              onClick={() => nudgeTime(edge, -0.1)}
-              disabled={disabled || (edge === 'start' && seg.start <= 0)}
-              aria-label={t(`segment.time_nudge_${edge}_earlier`)}
-            >
-              <Minus size={10} />
-            </button>
-            <input
-              type="text"
-              className="seg-time-input"
-              defaultValue={formatTime(seg[edge])}
-              disabled={disabled}
-              title={t(
-                edge === 'start' ? 'segment.time_edit_title' : 'segment.time_edit_end_title',
-              )}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={timeKeyDown(edge)}
-              onBlur={commitTime(edge)}
-            />
-            <button
-              type="button"
-              onClick={() => nudgeTime(edge, 0.1)}
-              disabled={disabled}
-              aria-label={t(`segment.time_nudge_${edge}_later`)}
-            >
-              <Plus size={10} />
-            </button>
-          </span>
-        ))}
-        <span className="flex items-baseline gap-[2px] min-w-0">
-          {seg.speed && seg.speed !== 1.0 && (
-            <span
-              className="text-[0.52rem] ml-[1px]"
-              style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}
-            >
-              {seg.speed.toFixed(2)}x
-            </span>
-          )}
-        </span>
-        {hasOverlap && (
-          <span className="seg-overlap-warning" title={t('timeline.overlap_warning')}>
-            <AlertCircle size={9} /> {t('timeline.overlap_warning')}
-          </span>
-        )}
-        {fitBadge && (
-          <span
-            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
-            style={{ color: fitBadge.color }}
-            title={fitBadge.title}
-          >
-            <fitBadge.Icon size={8} /> {fitBadge.label}
-          </span>
-        )}
-        {seg.qc_flagged && (
-          // Wave 3.3: second-pass ASR heard something different from the
-          // target text for this line — worth a re-listen / re-dub.
-          <span
-            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
-            style={{ color: '#fb4934' }}
-            title={t('segment.qc_verify_title', { heard: seg.qc_recognized || '' })}
-          >
-            <AlertCircle size={8} /> {t('segment.qc_verify')}
-          </span>
-        )}
-        {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
-          <span
-            className="text-[0.48rem] mt-[1px] tabular-nums"
-            style={{
-              color:
-                seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
-            }}
-            title={t('segment.rate_title', {
-              ratio: seg.rate_ratio.toFixed(2),
-              error: seg.rate_error || '',
-            })}
-          >
-            📖 {seg.rate_ratio.toFixed(2)}×
-          </span>
-        )}
-        {/* Pre-synthesis duration plan (backend duration_planner): warn about
-            tight/impossible segments BEFORE GPU time is spent. Informational
-            only — generation is never blocked. */}
-        {seg.plan && (seg.plan.status === 'tight' || seg.plan.status === 'impossible') && (
-          <span
-            className="text-[0.48rem] mt-[1px] inline-flex items-center gap-[1px]"
-            style={{ color: seg.plan.status === 'impossible' ? '#fb4934' : '#fabd2f' }}
-            title={t(
-              seg.plan.status === 'impossible'
-                ? 'segment.plan_impossible_title'
-                : 'segment.plan_tight_title',
-              {
-                est: (seg.plan.est_dur_s || 0).toFixed(1),
-                avail: (seg.plan.available_s || 0).toFixed(1),
-                seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
-              },
-            )}
-          >
-            <AlertCircle size={8} />{' '}
-            {seg.plan.status === 'impossible'
-              ? t('segment.plan_impossible', {
-                  seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
-                })
-              : t('segment.plan_tight')}
-          </span>
-        )}
-        {seg.plan && seg.plan.suggested_text && seg.plan.suggested_text !== seg.text && (
-          <button
-            onClick={() => onEditField(seg.id, 'text', seg.plan.suggested_text)}
-            disabled={disabled}
-            title={t('segment.plan_apply_title', { text: seg.plan.suggested_text })}
-            className="bg-transparent border-none text-[#83a598] cursor-pointer p-0 mt-[1px] text-[0.48rem] text-left"
-          >
-            ✂ {t('segment.plan_apply')}
-          </button>
-        )}
-      </span>
-
-      <input
-        className="seg-speaker-input"
-        value={seg.speaker_id || ''}
-        onChange={(e) => onEditField(seg.id, 'speaker_id', e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        disabled={disabled}
-        list={speakerOptions.length ? speakerListId : undefined}
-        placeholder={speakerOptions.length ? t('segment.speaker_pick') : ''}
-        title={
-          speakerOptions.length
-            ? t('segment.speaker_title_detected')
-            : t('segment.speaker_title_custom')
-        }
-      />
-      {speakerOptions.length > 0 && (
-        <datalist id={speakerListId}>
-          {speakerOptions.map((spk) => (
-            <option key={spk} value={spk} />
-          ))}
-        </datalist>
-      )}
-
       <span className="seg-text-col">
         <span className="flex items-center gap-[2px] min-w-0">
-          <input
+          <textarea
             ref={textInputRef}
+            rows={2}
             className="input-base segment-input"
             value={seg.text}
             onChange={(e) => {
@@ -467,12 +328,12 @@ function DubSegmentRow({
                 onLiveToggle?.(seg);
               }}
             >
-              <Volume2 size={9} />
+              <Volume2 size={14} />
             </button>
           )}
         </span>
         {seg.text_original && seg.text_original !== seg.text && (
-          <span className="text-[0.52rem] text-[#6b6657] flex items-center gap-[3px] px-[2px] overflow-hidden">
+          <span className="seg-original flex items-center gap-[6px] px-[2px] overflow-hidden">
             <span className="opacity-80 uppercase font-semibold text-[0.48rem] text-[#7c6f64]">
               {t('segment.orig_label')}
             </span>
@@ -499,139 +360,280 @@ function DubSegmentRow({
         )}
       </span>
 
-      <select
-        className="input-base seg-lang-select"
-        value={seg.target_lang || ''}
-        disabled={disabled}
-        onChange={(e) => onEditField(seg.id, 'target_lang', e.target.value)}
-      >
-        <option value="">{t('segment.lang_default')}</option>
-        {LANG_CODES.map((lc) => (
-          <option key={lc.code} value={lc.code}>
-            {lc.code.toUpperCase()}
-          </option>
+      <span className="segment-time flex flex-col min-w-0 overflow-hidden tabular-nums">
+        {['start', 'end'].map((edge) => (
+          <span className="seg-time-stepper" key={`${edge}-${seg.id}-${seg[edge]}`}>
+            <button
+              type="button"
+              onClick={() => nudgeTime(edge, -0.1)}
+              disabled={disabled || (edge === 'start' && seg.start <= 0)}
+              aria-label={t(`segment.time_nudge_${edge}_earlier`)}
+            >
+              <Minus size={10} />
+            </button>
+            <input
+              type="text"
+              className="seg-time-input"
+              defaultValue={formatTime(seg[edge])}
+              disabled={disabled}
+              title={t(
+                edge === 'start' ? 'segment.time_edit_title' : 'segment.time_edit_end_title',
+              )}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={timeKeyDown(edge)}
+              onBlur={commitTime(edge)}
+            />
+            <button
+              type="button"
+              onClick={() => nudgeTime(edge, 0.1)}
+              disabled={disabled}
+              aria-label={t(`segment.time_nudge_${edge}_later`)}
+            >
+              <Plus size={10} />
+            </button>
+          </span>
         ))}
-      </select>
+        {seg.speed && seg.speed !== 1.0 && (
+          <span
+            className="text-[0.52rem] ml-[1px]"
+            style={{ color: seg.speed > 1 ? '#d3869b' : '#8ec07c' }}
+          >
+            {seg.speed.toFixed(2)}x
+          </span>
+        )}
+        {hasOverlap && (
+          <span className="seg-overlap-warning" title={t('timeline.overlap_warning')}>
+            <AlertCircle size={14} /> {t('timeline.overlap_warning')}
+          </span>
+        )}
+        {fitBadge && (
+          <span className="seg-status" style={{ color: fitBadge.color }} title={fitBadge.title}>
+            <fitBadge.Icon size={8} /> {fitBadge.label}
+          </span>
+        )}
+        {seg.qc_flagged && (
+          // Wave 3.3: second-pass ASR heard something different from the
+          // target text for this line — worth a re-listen / re-dub.
+          <span
+            className="seg-status"
+            style={{ color: '#fb4934' }}
+            title={t('segment.qc_verify_title', { heard: seg.qc_recognized || '' })}
+          >
+            <AlertCircle size={8} /> {t('segment.qc_verify')}
+          </span>
+        )}
+        {seg.rate_ratio != null && Math.abs(seg.rate_ratio - 1.0) > 0.03 && (
+          <span
+            className="seg-status tabular-nums"
+            style={{
+              color:
+                seg.rate_ratio > 1.15 ? '#fb4934' : seg.rate_ratio < 0.85 ? '#83a598' : '#a89984',
+            }}
+            title={t('segment.rate_title', {
+              ratio: seg.rate_ratio.toFixed(2),
+              error: seg.rate_error || '',
+            })}
+          >
+            <BookOpen size={12} aria-hidden="true" /> {seg.rate_ratio.toFixed(2)}×
+          </span>
+        )}
+        {/* Pre-synthesis duration plan (backend duration_planner): warn about
+            tight/impossible segments BEFORE GPU time is spent. Informational
+            only — generation is never blocked. */}
+        {seg.plan && (seg.plan.status === 'tight' || seg.plan.status === 'impossible') && (
+          <span
+            className="seg-status"
+            style={{ color: seg.plan.status === 'impossible' ? '#fb4934' : '#fabd2f' }}
+            title={t(
+              seg.plan.status === 'impossible'
+                ? 'segment.plan_impossible_title'
+                : 'segment.plan_tight_title',
+              {
+                est: (seg.plan.est_dur_s || 0).toFixed(1),
+                avail: (seg.plan.available_s || 0).toFixed(1),
+                seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
+              },
+            )}
+          >
+            <AlertCircle size={8} />{' '}
+            {seg.plan.status === 'impossible'
+              ? t('segment.plan_impossible', {
+                  seconds: (seg.plan.est_overrun_s || 0).toFixed(1),
+                })
+              : t('segment.plan_tight')}
+          </span>
+        )}
+        {seg.plan && seg.plan.suggested_text && seg.plan.suggested_text !== seg.text && (
+          <button
+            onClick={() => onEditField(seg.id, 'text', seg.plan.suggested_text)}
+            disabled={disabled}
+            title={t('segment.plan_apply_title', { text: seg.plan.suggested_text })}
+            className="seg-plan-apply"
+          >
+            <Scissors size={12} aria-hidden="true" /> {t('segment.plan_apply')}
+          </button>
+        )}
+      </span>
 
-      {/* Shared gallery-enabled picker (#1220). `data-noseek` + stopPropagation
+      <div className="seg-controls">
+        <input
+          className="seg-speaker-input"
+          value={seg.speaker_id || ''}
+          onChange={(e) => onEditField(seg.id, 'speaker_id', e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          disabled={disabled}
+          list={speakerOptions.length ? speakerListId : undefined}
+          placeholder={speakerOptions.length ? t('segment.speaker_pick') : ''}
+          title={
+            speakerOptions.length
+              ? t('segment.speaker_title_detected')
+              : t('segment.speaker_title_custom')
+          }
+        />
+        {speakerOptions.length > 0 && (
+          <datalist id={speakerListId}>
+            {speakerOptions.map((spk) => (
+              <option key={spk} value={spk} />
+            ))}
+          </datalist>
+        )}
+
+        <select
+          className="input-base seg-lang-select"
+          aria-label={t('segment.lang')}
+          value={seg.target_lang || ''}
+          disabled={disabled}
+          onChange={(e) => onEditField(seg.id, 'target_lang', e.target.value)}
+        >
+          <option value="">{t('segment.lang_default')}</option>
+          {LANG_CODES.map((lc) => (
+            <option key={lc.code} value={lc.code}>
+              {lc.code.toUpperCase()}
+            </option>
+          ))}
+        </select>
+
+        {/* Shared gallery-enabled picker (#1220). `data-noseek` + stopPropagation
           keep a voice pick from also seeking the player (handleRowClick). The
           dropdown portals to <body> so it isn't clipped by the react-window
           virtualized row's overflow. The from-video `auto:<slug>` options come
           through `speakerClones`; the legacy hardcoded design PRESETS group is
           intentionally dropped — the Gallery supersedes it (see #1220). */}
-      <span className="seg-voice-col min-w-0" data-noseek onClick={(e) => e.stopPropagation()}>
-        <VoiceSelector
-          value={seg.profile_id || ''}
-          onChange={(v) => onEditField(seg.id, 'profile_id', v)}
-          profiles={profiles}
-          speakerClones={speakerClones}
-          disabled={disabled}
-          size="sm"
-          menuPortal
-          buttonClassName="input-base seg-profile-select"
-          defaultLabel={t('segment.voice_default')}
-        />
-      </span>
-
-      <input
-        type="range"
-        min="0"
-        max="200"
-        value={Math.round((seg.gain ?? 1.0) * 100)}
-        title={`${Math.round((seg.gain ?? 1.0) * 100)}%`}
-        disabled={disabled}
-        onChange={(e) => onEditField(seg.id, 'gain', Number(e.target.value) / 100)}
-        className="seg-gain-slider"
-        style={{
-          accentColor:
-            (seg.gain ?? 1.0) > 1.2
-              ? 'var(--color-danger)'
-              : (seg.gain ?? 1.0) < 0.5
-                ? 'var(--color-info)'
-                : 'var(--color-fg-muted)',
-        }}
-      />
-
-      <div className="seg-actions">
-        <button
-          className="segment-play"
-          disabled={disabled}
-          title={t('segment.preview_title')}
-          onClick={(e) => onPreview(seg, e)}
-        >
-          {previewLoading ? <Loader className="spinner" size={9} /> : <Headphones size={9} />}
-        </button>
-        <Menu
-          placement="bottom-end"
-          disabled={disabled}
-          items={[
-            {
-              id: 'direct',
-              label: seg.direction ? t('segment.edit_direction') : t('segment.set_direction'),
-              icon: Sparkles,
-              onSelect: () => onDirect?.(seg),
-            },
-            'separator',
-            {
-              id: 'split',
-              label: t('segment.split_label'),
-              icon: Scissors,
-              shortcut: '⌘D',
-              onSelect: () => {
-                // Prefer the live cursor if the text input still has focus,
-                // otherwise fall back to the last remembered position, then
-                // to a sentence-boundary heuristic. Splitting at the literal
-                // midpoint (the old behaviour) felt random to users.
-                let pos = textInputRef.current?.selectionStart;
-                if (pos == null || pos <= 0 || pos >= seg.text.length) {
-                  pos = lastCursorRef.current;
-                }
-                if (pos == null || pos <= 0 || pos >= seg.text.length) {
-                  pos = bestSplitPoint(seg.text);
-                }
-                onSplit(seg.id, pos);
-              },
-            },
-            {
-              id: 'merge-prev',
-              label: t('segment.merge_prev_label'),
-              icon: Merge,
-              shortcut: '⇧⌘M',
-              disabled: !canMergePrev,
-              onSelect: () => onMerge(seg.id, 'prev'),
-            },
-            {
-              id: 'merge',
-              label: t('segment.merge_label'),
-              icon: Merge,
-              shortcut: '⌘M',
-              disabled: !canMerge,
-              onSelect: () => onMerge(seg.id, 'next'),
-            },
-            'separator',
-            {
-              id: 'insert',
-              label: t('segment.insert_label'),
-              icon: Plus,
-              onSelect: () => onInsert(seg.id),
-            },
-          ]}
-        >
-          <button
-            className={`segment-play ${seg.direction ? 'has-direction' : ''}`}
+        <span className="seg-voice-col min-w-0" data-noseek onClick={(e) => e.stopPropagation()}>
+          <VoiceSelector
+            value={seg.profile_id || ''}
+            onChange={(v) => onEditField(seg.id, 'profile_id', v)}
+            profiles={profiles}
+            speakerClones={speakerClones}
             disabled={disabled}
-            title={
-              seg.direction
-                ? t('segment.direction_title', { dir: seg.direction })
-                : t('segment.more_actions_title')
-            }
+            size="sm"
+            menuPortal
+            buttonClassName="input-base seg-profile-select"
+            defaultLabel={t('segment.voice_default')}
+          />
+        </span>
+
+        <input
+          type="range"
+          min="0"
+          max="200"
+          value={Math.round((seg.gain ?? 1.0) * 100)}
+          title={`${Math.round((seg.gain ?? 1.0) * 100)}%`}
+          aria-label={t('segment.vol_title')}
+          disabled={disabled}
+          onChange={(e) => onEditField(seg.id, 'gain', Number(e.target.value) / 100)}
+          className="seg-gain-slider"
+          style={{
+            accentColor:
+              (seg.gain ?? 1.0) > 1.2
+                ? 'var(--color-danger)'
+                : (seg.gain ?? 1.0) < 0.5
+                  ? 'var(--color-info)'
+                  : 'var(--color-fg-muted)',
+          }}
+        />
+
+        <div className="seg-actions">
+          <button
+            className="segment-play"
+            disabled={disabled}
+            title={t('segment.preview_title')}
+            onClick={(e) => onPreview(seg, e)}
           >
-            {seg.direction ? <Sparkles size={9} /> : <MoreHorizontal size={9} />}
+            {previewLoading ? <Loader className="spinner" size={14} /> : <Headphones size={14} />}
           </button>
-        </Menu>
-        <button className="segment-del" disabled={disabled} onClick={() => onDelete(seg.id)}>
-          <Trash2 size={9} />
-        </button>
+          <Menu
+            placement="bottom-end"
+            disabled={disabled}
+            items={[
+              {
+                id: 'direct',
+                label: seg.direction ? t('segment.edit_direction') : t('segment.set_direction'),
+                icon: Sparkles,
+                onSelect: () => onDirect?.(seg),
+              },
+              'separator',
+              {
+                id: 'split',
+                label: t('segment.split_label'),
+                icon: Scissors,
+                shortcut: '⌘D',
+                onSelect: () => {
+                  // Prefer the live cursor if the text input still has focus,
+                  // otherwise fall back to the last remembered position, then
+                  // to a sentence-boundary heuristic. Splitting at the literal
+                  // midpoint (the old behaviour) felt random to users.
+                  let pos = textInputRef.current?.selectionStart;
+                  if (pos == null || pos <= 0 || pos >= seg.text.length) {
+                    pos = lastCursorRef.current;
+                  }
+                  if (pos == null || pos <= 0 || pos >= seg.text.length) {
+                    pos = bestSplitPoint(seg.text);
+                  }
+                  onSplit(seg.id, pos);
+                },
+              },
+              {
+                id: 'merge-prev',
+                label: t('segment.merge_prev_label'),
+                icon: Merge,
+                shortcut: '⇧⌘M',
+                disabled: !canMergePrev,
+                onSelect: () => onMerge(seg.id, 'prev'),
+              },
+              {
+                id: 'merge',
+                label: t('segment.merge_label'),
+                icon: Merge,
+                shortcut: '⌘M',
+                disabled: !canMerge,
+                onSelect: () => onMerge(seg.id, 'next'),
+              },
+              'separator',
+              {
+                id: 'insert',
+                label: t('segment.insert_label'),
+                icon: Plus,
+                onSelect: () => onInsert(seg.id),
+              },
+            ]}
+          >
+            <button
+              className={`segment-play ${seg.direction ? 'has-direction' : ''}`}
+              disabled={disabled}
+              title={
+                seg.direction
+                  ? t('segment.direction_title', { dir: seg.direction })
+                  : t('segment.more_actions_title')
+              }
+            >
+              {seg.direction ? <Sparkles size={14} /> : <MoreHorizontal size={14} />}
+            </button>
+          </Menu>
+          <button className="segment-del" disabled={disabled} onClick={() => onDelete(seg.id)}>
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -640,6 +642,9 @@ function DubSegmentRow({
 export default memo(
   DubSegmentRow,
   (prev, next) =>
+    prev.style === next.style &&
+    prev.ariaAttributes === next.ariaAttributes &&
+    prev.hasOverlap === next.hasOverlap &&
     prev.seg === next.seg &&
     prev.disabled === next.disabled &&
     prev.isActive === next.isActive &&

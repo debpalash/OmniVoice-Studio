@@ -1,4 +1,5 @@
-import { Command, Plus, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { AlignLeft, ClipboardPaste, Plus, ChevronDown } from 'lucide-react';
 import DemoPresetGrid from '../DemoPresetGrid';
 import { TAGS } from '../../utils/constants';
 
@@ -32,6 +33,35 @@ export default function ScriptPanel({
   setInsertOpen,
   insertTag,
 }) {
+  const [pasting, setPasting] = useState(false);
+  const [pasteFailed, setPasteFailed] = useState(false);
+  const pasteText = async () => {
+    const field = textAreaRef.current;
+    const start = field?.selectionStart ?? text.length;
+    const end = field?.selectionEnd ?? text.length;
+    setPasting(true);
+    setPasteFailed(false);
+    try {
+      const value = await navigator.clipboard.readText();
+      if (value) {
+        // The store setter accepts a string, unlike React's functional setter.
+        // Read the current field after the async permission prompt so edits made
+        // while clipboard access was pending are retained.
+        const current = textAreaRef.current?.value ?? text;
+        setText(current.slice(0, start) + value + current.slice(end));
+        setShowDemoCoachmark(false);
+        requestAnimationFrame(() => {
+          field?.focus();
+          field?.setSelectionRange(start + value.length, start + value.length);
+        });
+      }
+    } catch {
+      setPasteFailed(true);
+      field?.focus();
+    } finally {
+      setPasting(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-[6px] flex-none min-h-0 relative z-[2]">
       {/* overflow-visible: the ⊕ Insert popover opens BELOW the textarea and
@@ -42,10 +72,26 @@ export default function ScriptPanel({
             screenshot showed the CMU chips clipped). Below always has room
             here: the panel is the topmost element in every mount. */}
       <div className={`${STUDIO_PANEL} relative z-[10] overflow-visible`}>
-        <div className="label-row">
-          <Command className="label-icon" size={14} />{' '}
-          {t('clone.script', { defaultValue: 'Script' })}
+        <div className="label-row justify-between">
+          <span className="inline-flex items-center gap-2">
+            <AlignLeft className="label-icon" size={14} />
+            {t('clone.text_label')}
+          </span>
+          <button
+            type="button"
+            disabled={pasting}
+            onClick={pasteText}
+            className="inline-flex min-h-9 items-center gap-2 rounded-md border-0 bg-transparent px-2 text-xs normal-case text-[var(--chrome-fg-muted)] cursor-pointer hover:bg-[var(--chrome-hover-bg)] disabled:opacity-50"
+          >
+            <ClipboardPaste size={14} />
+            {t('clone.paste')}
+          </button>
         </div>
+        {pasteFailed && (
+          <p role="alert" className="text-xs text-[var(--chrome-fg-muted)]">
+            {t('clone.paste_failed')}
+          </p>
+        )}
         {/* Design-tab empty state: 7-card demo grid until the user
               interacts; then it steps aside for the standard form. */}
         {defineMethod === 'design' && !text && !activePersonality && demoPresets.length > 0 && (

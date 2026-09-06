@@ -23,6 +23,38 @@ afterEach(() => {
 });
 
 describe('MultiLangPicker viewport-safe menu', () => {
+  it('offers compact editor sizing without shrinking the default picker', () => {
+    const { rerender } = render(<MultiLangPicker single compact onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Manage languages' })).toHaveStyle({
+      minHeight: '36px',
+    });
+    rerender(<MultiLangPicker single onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Manage languages' })).toHaveStyle({
+      minHeight: '44px',
+    });
+  });
+
+  it('replaces a single selection, preserves Auto, and closes after choosing', () => {
+    const onChange = vi.fn();
+    render(
+      <MultiLangPicker
+        single
+        selected={[{ lang: 'English', code: 'en' }]}
+        options={[{ label: 'Auto', code: 'Auto' }, ...LANG_CODES]}
+        onChange={onChange}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: 'Manage languages' });
+    expect(trigger).toHaveTextContent('English');
+    fireEvent.click(trigger);
+    expect(screen.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Auto' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith([{ lang: 'Auto', code: 'Auto' }]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it('portals outside clipping ancestors and flips above a bottom-edge trigger', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1000 });
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });

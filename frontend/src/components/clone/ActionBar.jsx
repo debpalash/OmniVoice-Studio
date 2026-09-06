@@ -1,17 +1,30 @@
 import {
-  Globe,
   SlidersHorizontal,
   Settings2,
   ChevronUp,
   ChevronDown,
   Play,
   Square,
+  Focus,
+  Gauge,
+  Timer,
+  Thermometer,
+  Shuffle,
+  Layers,
+  Clock,
+  AudioLines,
+  Sparkles,
 } from 'lucide-react';
 import { Button, Progress } from '../../ui';
-import SearchableSelect from '../SearchableSelect';
+import MultiLangPicker from '../MultiLangPicker';
 import ALL_LANGUAGES from '../../languages.json';
-import { POPULAR_LANGS } from '../../utils/constants';
+import { LANG_CODES } from '../../utils/languages';
 import { stopActivePlayback } from '../../utils/playback';
+
+const CLONE_LANGUAGES = ALL_LANGUAGES.map((label) => ({
+  label,
+  code: LANG_CODES.find((language) => language.label === label)?.code || label,
+}));
 
 export default function ActionBar({
   t,
@@ -55,153 +68,136 @@ export default function ActionBar({
     <div className="studio-action-bar overflow-visible relative z-[10]">
       {showOverrides && (
         <div className="override-content">
-          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] gap-[6px] max-[500px]:grid-cols-2">
-            <label className="min-w-0">
-              <span className="label-row justify-between">
-                <span className="inline-flex items-center gap-[6px]">
-                  <SlidersHorizontal size={12} className="label-icon" />
-                  {t('clone.steps')}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3">
+            {[
+              {
+                label: t('clone.steps'),
+                Icon: SlidersHorizontal,
+                value: steps,
+                set: setSteps,
+                min: 8,
+                max: 64,
+                step: 1,
+              },
+              { label: 'CFG', Icon: Focus, value: cfg, set: setCfg, min: 1, max: 4, step: 0.1 },
+              {
+                label: t('clone.speed'),
+                Icon: Gauge,
+                value: speed,
+                set: setSpeed,
+                min: 0.5,
+                max: 2,
+                step: 0.1,
+                suffix: '×',
+              },
+              {
+                label: t('clone.tshift'),
+                Icon: Timer,
+                value: tShift,
+                set: setTShift,
+                min: 0,
+                max: 1,
+                step: 0.05,
+              },
+              {
+                label: t('clone.pos_temp'),
+                Icon: Thermometer,
+                value: posTemp,
+                set: setPosTemp,
+                min: 0,
+                max: 10,
+                step: 0.5,
+              },
+              {
+                label: t('clone.class_temp'),
+                Icon: Shuffle,
+                value: classTemp,
+                set: setClassTemp,
+                min: 0,
+                max: 2,
+                step: 0.1,
+              },
+              {
+                label: t('clone.layer_pen'),
+                Icon: Layers,
+                value: layerPenalty,
+                set: setLayerPenalty,
+                min: 0,
+                max: 10,
+                step: 0.5,
+              },
+            ].map(({ label, Icon, value, set, min, max, step, suffix = '' }) => (
+              <label key={label} className="min-w-0 rounded-lg bg-[var(--chrome-hover-bg)] p-3">
+                <span className="flex items-center justify-between gap-2 mb-3 text-sm text-[var(--chrome-fg)]">
+                  <span className="inline-flex items-center gap-2">
+                    <Icon size={15} aria-hidden="true" className="text-[var(--chrome-fg-muted)]" />
+                    {label}
+                  </span>
+                  <output className="tabular-nums text-[var(--chrome-accent)] font-medium">
+                    {value}
+                    {suffix}
+                  </output>
                 </span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {steps}
-                </span>
+                <input
+                  className="w-full"
+                  type="range"
+                  aria-label={label}
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={value}
+                  onChange={(event) => set(Number(event.target.value))}
+                />
+              </label>
+            ))}
+            <label className="min-w-0 rounded-lg bg-[var(--chrome-hover-bg)] p-3">
+              <span className="flex items-center gap-2 mb-2 text-sm text-[var(--chrome-fg)]">
+                <Clock size={15} aria-hidden="true" />
+                {t('clone.duration')}
               </span>
               <input
-                className="w-full"
-                type="range"
-                aria-label={t('clone.steps')}
-                min="8"
-                max="64"
-                value={steps}
-                onChange={(event) => setSteps(Number(event.target.value))}
-              />
-            </label>
-            <div>
-              <div className="label-row justify-between">
-                <span>CFG</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {cfg}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1.0"
-                max="4.0"
-                step="0.1"
-                value={cfg}
-                onChange={(e) => setCfg(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row justify-between">
-                <span>{t('clone.speed')}</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {speed}x
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value={speed}
-                onChange={(e) => setSpeed(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row justify-between">
-                <span>{t('clone.tshift')}</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {tShift}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1.0"
-                step="0.05"
-                value={tShift}
-                onChange={(e) => setTShift(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row justify-between">
-                <span>{t('clone.pos_temp')}</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {posTemp}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="0.5"
-                value={posTemp}
-                onChange={(e) => setPosTemp(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row justify-between">
-                <span>{t('clone.class_temp')}</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {classTemp}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.1"
-                value={classTemp}
-                onChange={(e) => setClassTemp(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row justify-between">
-                <span>{t('clone.layer_pen')}</span>
-                <span className="text-[0.65rem] bg-black/35 px-[5px] py-px rounded-[3px] [border:1px_solid_rgba(255,255,255,0.04)] [font-variant-numeric:tabular-nums]">
-                  {layerPenalty}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="0.5"
-                value={layerPenalty}
-                onChange={(e) => setLayerPenalty(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <div className="label-row">
-                <span>{t('clone.duration')}</span>
-              </div>
-              <input
                 type="text"
-                className="input-base text-[0.8rem]"
+                aria-label={t('clone.duration')}
+                className="input-base text-sm"
                 value={duration}
-                onChange={(e) => setDuration(e.target.value)}
+                onChange={(event) => setDuration(event.target.value)}
                 placeholder={t('clone.auto')}
               />
-            </div>
-            <div className="flex flex-col gap-[6px]">
-              <label className="text-[0.75rem] flex items-center gap-[6px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={denoise}
-                  onChange={(e) => setDenoise(e.target.checked)}
-                />{' '}
-                {t('clone.denoise')}
-              </label>
-              <label className="text-[0.75rem] flex items-center gap-[6px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={postprocess}
-                  onChange={(e) => setPostprocess(e.target.checked)}
-                />{' '}
-                {t('clone.postprocess')}
-              </label>
-            </div>
+            </label>
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-3 mt-3">
+            {[
+              { label: t('clone.denoise'), Icon: AudioLines, checked: denoise, set: setDenoise },
+              {
+                label: t('clone.postprocess'),
+                Icon: Sparkles,
+                checked: postprocess,
+                set: setPostprocess,
+              },
+            ].map(({ label, Icon, checked, set }) => (
+              <button
+                key={label}
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-label={label}
+                onClick={() => set(!checked)}
+                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border-0 bg-[var(--chrome-hover-bg)] px-3 py-2 text-sm text-[var(--chrome-fg)] cursor-pointer hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Icon size={16} aria-hidden="true" />
+                  {label}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`relative w-9 h-5 rounded-full transition-colors ${checked ? 'bg-[var(--chrome-accent)]' : 'bg-[var(--chrome-fg-dim)]'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-[var(--color-bg)] transition-transform motion-reduce:transition-none ${checked ? 'translate-x-4' : ''}`}
+                  />
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -209,13 +205,17 @@ export default function ActionBar({
       {/* Keep the everyday row focused; sampling controls live in overrides. */}
       <div className="flex items-center gap-3 min-w-0 max-[520px]:flex-wrap">
         <div className="flex items-center gap-[6px] flex-[1_1_220px] min-w-[140px] [&>:last-child]:flex-1 [&>:last-child]:min-w-0">
-          <Globe size={12} className="label-icon" />
-          <SearchableSelect
-            value={language}
-            options={ALL_LANGUAGES}
-            popular={POPULAR_LANGS}
-            recentsKey="omnivoice.recents.genLang"
-            onChange={setLanguage}
+          <MultiLangPicker
+            single
+            ariaLabel={t('clone.language')}
+            selected={[
+              {
+                lang: language,
+                code: CLONE_LANGUAGES.find((item) => item.label === language)?.code || language,
+              },
+            ]}
+            options={CLONE_LANGUAGES}
+            onChange={([item]) => setLanguage(item.lang)}
           />
         </div>
         <button

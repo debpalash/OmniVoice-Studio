@@ -775,6 +775,9 @@
     "convert_desc": "한 번 말하면 다른 목소리로 들립니다. 음성에서 음성으로, 완전히 로컬."
   },
   "clone": {
+    "text_label": "텍스트",
+    "paste": "붙여넣기",
+    "paste_failed": "클립보드 접근이 차단되었습니다. 키보드로 텍스트 입력란에 직접 붙여넣으세요.",
     "prompt": "프롬프트",
     "language": "언어",
     "steps": "단계",
@@ -1260,6 +1263,7 @@
     "consent_revoked": "인증이 취소되었습니다."
   },
   "dub": {
+    "timing_label": "타이밍",
     "install_engine_pkg": "{{pkg}} 설치",
     "needs_install_short": "설치 필요",
     "install_popover_title": "이 엔진 설치",
@@ -2189,6 +2193,7 @@
     "hint": "8단계 · 빠른 미리보기"
   },
   "header": {
+    "speech": "음성",
     "kicker_studio": "스튜디오",
     "kicker_library": "라이브러리",
     "kicker_preferences": "환경설정",
@@ -2296,6 +2301,7 @@
     "preview_voice": "음성 미리보기"
   },
   "checkpoint": {
+    "timing_review": "{{count}}개 구간의 타이밍을 검토해야 합니다",
     "asr_title": "전사본 준비됨",
     "asr_cta": "번역",
     "asr_hint": "지금 ASR 오류를 수정하세요 — 표현을 정확히 다듬으면 나중에 TTS 재시도 횟수를 줄일 수 있습니다.",

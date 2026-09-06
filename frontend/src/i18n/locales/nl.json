@@ -539,6 +539,9 @@
     "convert_desc": "Zeg het één keer — hoor het in een andere stem. Spraak naar spraak, volledig lokaal."
   },
   "clone": {
+    "text_label": "Tekst",
+    "paste": "Plakken",
+    "paste_failed": "Toegang tot het klembord is geblokkeerd. Plak rechtstreeks in het tekstveld met het toetsenbord.",
     "prompt": "Prompt",
     "language": "Taal",
     "steps": "Stappen",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verificatie ingetrokken"
   },
   "dub": {
+    "timing_label": "Timing",
+    "timing_concise": "Bondig",
+    "timing_stretch_video": "Video uitrekken",
     "install_engine_pkg": "{{pkg}} installeren",
     "needs_install_short": "Installatie vereist",
     "install_popover_title": "Deze engine installeren",
@@ -1861,6 +1867,7 @@
     "hint": "8 stappen · snelle preview"
   },
   "header": {
+    "speech": "Spraak",
     "kicker_studio": "Studio",
     "kicker_library": "Bibliotheek",
     "kicker_preferences": "Voorkeuren",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Voorbeeldstem"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmenten vereisen controle van de timing",
     "asr_title": "Afschriften klaar",
     "asr_cta": "Vertalen",
     "asr_hint": "Los eventuele ASR-fouten nu op: strakke dictie bespaart TTS-pogingen later.",

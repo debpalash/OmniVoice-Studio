@@ -539,6 +539,9 @@
     "convert_desc": "قلها مرة واحدة — واسمعها بصوت آخر. من كلام إلى كلام، محليًا بالكامل."
   },
   "clone": {
+    "text_label": "النص",
+    "paste": "لصق",
+    "paste_failed": "تم حظر الوصول إلى الحافظة. الصق مباشرة في حقل النص باستخدام لوحة المفاتيح.",
     "prompt": "موجه",
     "language": "اللغة",
     "steps": "خطوات",
@@ -961,6 +964,9 @@
     "consent_revoked": "تم إلغاء التحقق"
   },
   "dub": {
+    "timing_label": "التوقيت",
+    "timing_concise": "موجز",
+    "timing_stretch_video": "تمديد الفيديو",
     "install_engine_pkg": "تثبيت {{pkg}}",
     "needs_install_short": "يتطلب التثبيت",
     "install_popover_title": "تثبيت هذا المحرك",
@@ -1861,6 +1867,7 @@
     "hint": "8 خطوات · معاينة سريعة"
   },
   "header": {
+    "speech": "الكلام",
     "kicker_studio": "استوديو",
     "kicker_library": "مكتبة",
     "kicker_preferences": "التفضيلات",
@@ -1967,6 +1974,7 @@
     "preview_voice": "معاينة الصوت"
   },
   "checkpoint": {
+    "timing_review": "هناك {{count}} مقطعًا بحاجة إلى مراجعة التوقيت",
     "asr_title": "النصوص جاهزة",
     "asr_cta": "ترجمة",
     "asr_hint": "قم بإصلاح أي أخطاء ASR الآن — فالأسلوب المحكم يحفظ محاولات تحويل النص إلى كلام (TTS) لاحقًا.",

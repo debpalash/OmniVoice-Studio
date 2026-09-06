@@ -18,6 +18,18 @@ vi.mock('../api/archetypes', () => ({ useArchetypeAsProfile: vi.fn() }));
 
 import DubSegmentRow from '../components/DubSegmentRow';
 
+it('edits wrapping two-line text without seeking the player', () => {
+  const props = makeProps();
+  render(<DubSegmentRow {...props} />);
+  const field = screen.getByDisplayValue('hola mundo');
+  expect(field.tagName).toBe('TEXTAREA');
+  expect(field).toHaveAttribute('rows', '2');
+  fireEvent.click(field);
+  fireEvent.change(field, { target: { value: 'first line\nsecond line' } });
+  expect(props.onEditField).toHaveBeenCalledWith('s1', 'text', 'first line\nsecond line');
+  expect(props.onSeek).not.toHaveBeenCalled();
+});
+
 function makeProps(over = {}) {
   return {
     seg: { id: 's1', start: 1, end: 3, text: 'hola mundo' },

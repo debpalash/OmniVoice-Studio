@@ -19,8 +19,8 @@ describe('DubResizableColumns', () => {
 
     fireEvent.keyDown(separator, { key: 'ArrowLeft' });
 
-    expect(separator).toHaveAttribute('aria-valuenow', '45');
-    expect(separator.parentElement).toHaveStyle({ gridTemplateColumns: '45fr 12px 55fr' });
+    expect(separator).toHaveAttribute('aria-valuenow', '39');
+    expect(separator.parentElement).toHaveStyle({ gridTemplateColumns: '39fr 12px 61fr' });
     unmount();
 
     render(
@@ -29,7 +29,7 @@ describe('DubResizableColumns', () => {
         <div>Transcript</div>
       </DubResizableColumns>,
     );
-    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '45');
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '39');
   });
 
   it('clamps pointer resizing so both editors remain usable', () => {
@@ -61,7 +61,7 @@ describe('DubResizableColumns', () => {
     separator.parentElement.getBoundingClientRect = () => ({ left: 100, right: 1100, width: 1000 });
 
     fireEvent.keyDown(separator, { key: 'ArrowLeft' });
-    expect(separator).toHaveAttribute('aria-valuenow', '55');
+    expect(separator).toHaveAttribute('aria-valuenow', '49');
 
     fireEvent.pointerDown(separator, { pointerId: 1, clientX: 800 });
     fireEvent.pointerMove(separator, { pointerId: 1, clientX: 500 });

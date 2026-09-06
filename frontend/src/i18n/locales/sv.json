@@ -539,6 +539,9 @@
     "convert_desc": "Säg det en gång — hör det med en annan röst. Tal till tal, helt lokalt."
   },
   "clone": {
+    "text_label": "Text",
+    "paste": "Klistra in",
+    "paste_failed": "Åtkomst till urklipp blockerades. Klistra in direkt i textfältet med tangentbordet.",
     "prompt": "Fråga",
     "language": "Språk",
     "steps": "Steg",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verifieringen återkallad"
   },
   "dub": {
+    "timing_label": "Tajming",
+    "timing_concise": "Kortfattat",
+    "timing_stretch_video": "Förläng video",
     "install_engine_pkg": "Installera {{pkg}}",
     "needs_install_short": "Kräver installation",
     "install_popover_title": "Installera denna motor",
@@ -1861,6 +1867,7 @@
     "hint": "8 steg · snabb förhandsgranskning"
   },
   "header": {
+    "speech": "Tal",
     "kicker_studio": "Studio",
     "kicker_library": "Bibliotek",
     "kicker_preferences": "Inställningar",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Förhandsgranska röst"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segment behöver tidsgranskas",
     "asr_title": "Avskrifter klara",
     "asr_cta": "Översätt",
     "asr_hint": "Åtgärda eventuella ASR-fel nu – tight diction sparar TTS-försök senare.",

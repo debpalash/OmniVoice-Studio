@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import GpuTarget from './GpuTarget';
+import EngineQuickSwitch from './EngineQuickSwitch';
+import { engineDisplayName } from '../utils/engineDisplayName';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { createPortal } from 'react-dom';
 import {
   Globe,
@@ -27,7 +30,7 @@ import NotificationPanel from './NotificationPanel';
 import TitleTabs from './TitleTabs';
 import VoiceStudioMark from './brand/VoiceStudioMark';
 import { useAppStore } from '../store';
-import { useSysinfo } from '../api/hooks';
+import { useSysinfo, useEngines } from '../api/hooks';
 import { reloadAfterApplicationPersistence } from '../utils/persistenceLifecycle';
 
 const VIEW_META = {
@@ -162,6 +165,23 @@ export default function Header({
   const showLiveStats = useAppStore((s) => s.showHeaderLiveStats);
   const [flushing, setFlushing] = useState(false);
   const [flushOpen, setFlushOpen] = useState(false);
+  const [engineFamily, setEngineFamily] = useState('tts');
+  const { data: engines } = useEngines();
+  const [engineLabelIndex, setEngineLabelIndex] = useState(0);
+  const [engineLabelPaused, setEngineLabelPaused] = useState(false);
+  const activeEngines = ['tts', 'asr', 'llm'].flatMap((family) => {
+    const inventory = engines?.[family];
+    const active = inventory?.backends?.find((engine) => engine.id === inventory.active);
+    return active ? [{ family, name: engineDisplayName(active.display_name) }] : [];
+  });
+  const displayedEngine = activeEngines[engineLabelIndex % (activeEngines.length || 1)];
+  const activeEngineName = displayedEngine?.name;
+  const activeEngineShortName = activeEngineName?.split(' (')[0];
+  useEffect(() => {
+    if (flushOpen || engineLabelPaused || activeEngines.length < 2) return;
+    const timer = setInterval(() => setEngineLabelIndex((index) => index + 1), 4000);
+    return () => clearInterval(timer);
+  }, [flushOpen, engineLabelPaused, activeEngines.length]);
   const [loadedModels, setLoadedModels] = useState([]);
   const [unloading, setUnloading] = useState(null);
   const flushRef = useRef(null);
@@ -172,8 +192,8 @@ export default function Header({
   const computePos = useCallback(() => {
     if (!flushBtnRef.current) return;
     const rect = flushBtnRef.current.getBoundingClientRect();
-    const dropW = 260;
-    const dropH = 220; // approximate max height
+    const dropW = Math.min(420, window.innerWidth - 16);
+    const dropH = Math.min(640, window.innerHeight - 80);
     const pad = 6;
 
     // Default: below button, right-aligned
@@ -182,13 +202,13 @@ export default function Header({
 
     // Flip up if too close to bottom
     if (top + dropH > window.innerHeight - 10) {
-      top = rect.top - dropH - pad;
+      top = Math.max(8, rect.top - dropH - pad);
     }
     // Clamp left so it doesn't go off-screen
     if (left < 8) left = 8;
     if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
 
-    setDropdownPos({ top, left });
+    setDropdownPos({ top, left, width: dropW });
   }, []);
 
   // Recompute on open, resize, and scroll
@@ -223,13 +243,35 @@ export default function Header({
   const dropdownRef = useRef(null);
   useEffect(() => {
     if (!flushOpen) return;
+    const frame = requestAnimationFrame(() =>
+      dropdownRef.current?.querySelector('button')?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [flushOpen]);
+  useEffect(() => {
+    const show = () => setFlushOpen(true);
+    window.addEventListener('engine-quick-switch', show);
+    return () => window.removeEventListener('engine-quick-switch', show);
+  }, []);
+  useEffect(() => {
+    if (!flushOpen) return;
     const handler = (e) => {
       const inBtn = flushRef.current && flushRef.current.contains(e.target);
       const inDrop = dropdownRef.current && dropdownRef.current.contains(e.target);
       if (!inBtn && !inDrop) setFlushOpen(false);
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const escape = (event) => {
+      if (event.key === 'Escape') {
+        setFlushOpen(false);
+        flushBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', escape);
+    };
   }, [flushOpen]);
 
   const unloadModel = async (modelId) => {
@@ -327,7 +369,7 @@ export default function Header({
           active={modelStatus === 'ready' || modelStatus === 'loading'}
         />
         {sysStats && (
-          <div className="flex items-center gap-[10px] [font-family:var(--chrome-font-mono)] text-[10.5px] text-[var(--chrome-fg-dim)] bg-transparent h-[var(--chrome-pill-h)] whitespace-nowrap shrink overflow-hidden tabular-nums slashed-zero max-[851px]:hidden!">
+          <div className="flex items-center gap-2 [font-family:var(--chrome-font-mono)] text-[10.5px] text-[var(--chrome-fg-dim)] bg-transparent h-[var(--chrome-pill-h)] whitespace-nowrap shrink-0 tabular-nums slashed-zero">
             {showLiveStats && (
               <>
                 <span className="max-[1081px]:hidden">
@@ -381,22 +423,101 @@ export default function Header({
                   ref={flushBtnRef}
                   variant="subtle"
                   size="sm"
-                  title={t('header.memory_management')}
+                  title={activeEngineName || t('header.memory_management')}
+                  aria-label={t('settings.engines')}
+                  aria-haspopup="dialog"
+                  aria-expanded={flushOpen}
                   loading={flushing}
                   leading={!flushing && <Zap size={8} />}
                   trailing={<ChevronDown size={8} />}
-                  onClick={() => setFlushOpen((o) => !o)}
+                  onMouseEnter={() => setEngineLabelPaused(true)}
+                  onMouseLeave={() => setEngineLabelPaused(false)}
+                  onFocus={() => setEngineLabelPaused(true)}
+                  onBlur={() => setEngineLabelPaused(false)}
+                  onClick={() => {
+                    if (!flushOpen && displayedEngine) setEngineFamily(displayedEngine.family);
+                    setFlushOpen((o) => !o);
+                  }}
                   className="ml-[2px]"
                 >
-                  {t('header.flush')}
+                  <span
+                    key={displayedEngine?.family}
+                    className="engine-title-label flex w-[112px] items-center justify-between gap-1 max-[600px]:w-[77px]"
+                  >
+                    {displayedEngine && (
+                      <span className="shrink-0 text-left text-[var(--chrome-fg-dim)]">
+                        {t(`models.role_${displayedEngine.family}`)} ·{' '}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-right">
+                      {activeEngineShortName || t('settings.engines')}
+                    </span>
+                  </span>
                 </Button>
                 {flushOpen &&
                   createPortal(
                     <div
-                      className="fixed w-[260px] bg-[var(--color-bg-elev-1)] [border:1px_solid_var(--color-border)] rounded-[var(--radius-lg)] [box-shadow:0_8px_24px_rgba(0,0,0,0.5)] z-[9999] py-[4px] [animation:flush-slide_0.12s_ease-out]"
-                      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                      role="dialog"
+                      aria-label={t('settings.engines')}
+                      className="fixed overflow-y-auto bg-[var(--color-bg)] border border-transparent rounded-[var(--radius-lg)] shadow-xl z-[9999] p-3"
+                      style={{
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        maxHeight: `calc(100vh - ${dropdownPos.top + 8}px)`,
+                      }}
                       ref={dropdownRef}
                     >
+                      <div className="flex items-center justify-between gap-2 pb-2">
+                        <span className="text-sm font-semibold">{t('settings.engines')}</span>
+                        <button
+                          type="button"
+                          aria-label={t('common.close')}
+                          onClick={() => {
+                            setFlushOpen(false);
+                            flushBtnRef.current?.focus();
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-[var(--chrome-fg-muted)] cursor-pointer hover:bg-[var(--chrome-hover-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <Tabs value={engineFamily} onValueChange={setEngineFamily}>
+                        <TabsList
+                          aria-label={t('settings.engines')}
+                          className="w-full h-auto grid grid-cols-3 bg-[var(--chrome-hover-bg)]"
+                        >
+                          {['tts', 'asr', 'llm'].map((family) => (
+                            <TabsTrigger
+                              key={family}
+                              value={family}
+                              className="min-h-11 cursor-pointer whitespace-normal bg-transparent text-xs text-[var(--chrome-fg-muted)] data-[state=active]:bg-[var(--chrome-accent-bg)] data-[state=active]:text-[var(--chrome-accent)] dark:data-[state=active]:bg-[var(--chrome-accent-bg)] dark:data-[state=active]:text-[var(--chrome-accent)] hover:data-[state=inactive]:bg-[var(--chrome-hover-bg)]"
+                            >
+                              {family === 'tts'
+                                ? t('header.speech')
+                                : family === 'asr'
+                                  ? t('projects.transcription')
+                                  : t('models.role_llm')}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        <TabsContent value={engineFamily}>
+                          <EngineQuickSwitch key={engineFamily} family={engineFamily} embedded />
+                        </TabsContent>
+                      </Tabs>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 border-0 bg-transparent p-2 text-xs text-[var(--chrome-fg-muted)] cursor-pointer hover:text-[var(--chrome-fg)]"
+                        onClick={() => {
+                          setFlushOpen(false);
+                          useAppStore
+                            .getState()
+                            .openCatalogue({ pane: 'engines', family: engineFamily });
+                        }}
+                      >
+                        {t('header.label_catalogue')} <ChevronRight size={12} />
+                      </button>
+                      <div className="h-px bg-[var(--color-border)] my-2" />
                       <div className="text-[10px] font-semibold text-[var(--color-fg-subtle)] uppercase tracking-[0.5px] pt-[6px] px-[12px] pb-[4px]">
                         {t('header.loaded_models')}
                       </div>
@@ -412,7 +533,7 @@ export default function Header({
                           >
                             <div className="flex flex-col gap-[1px] min-w-0">
                               <span className="text-[12px] text-[var(--color-fg)] font-medium">
-                                {m.name}
+                                {engineDisplayName(m.name)}
                                 {/* Resident-but-not-routed engine (e.g. VoiceStudio still in
                                     VRAM after switching to another backend) — say so. */}
                                 {m.is_active_engine === false && (
@@ -453,20 +574,25 @@ export default function Header({
                       >
                         <Zap size={10} /> {t('header.flush_caches')}
                       </button>
-                      <button
-                        className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[#fb4934] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(251,73,52,0.08)]"
-                        onClick={async () => {
-                          setFlushing(true);
-                          setFlushOpen(false);
-                          try {
-                            await onFlushMemory(true);
-                          } finally {
-                            setFlushing(false);
-                          }
-                        }}
-                      >
-                        <Trash2 size={10} /> {t('header.unload_all_flush')}
-                      </button>
+                      <details>
+                        <summary className="cursor-pointer px-3 py-2 text-xs text-[var(--chrome-fg-muted)]">
+                          {t('header.memory_management')}
+                        </summary>
+                        <button
+                          className="flex items-center gap-[6px] w-full py-[6px] px-[12px] text-[12px] text-[#fb4934] bg-transparent border-none cursor-pointer text-left hover:bg-[rgba(251,73,52,0.08)]"
+                          onClick={async () => {
+                            setFlushing(true);
+                            setFlushOpen(false);
+                            try {
+                              await onFlushMemory(true);
+                            } finally {
+                              setFlushing(false);
+                            }
+                          }}
+                        >
+                          <Trash2 size={10} /> {t('header.unload_all_flush')}
+                        </button>
+                      </details>
                     </div>,
                     document.body,
                   )}

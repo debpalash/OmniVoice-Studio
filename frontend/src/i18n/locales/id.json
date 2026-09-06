@@ -539,6 +539,9 @@
     "convert_desc": "Ucapkan sekali — dengar dengan suara lain. Ucapan ke ucapan, sepenuhnya lokal."
   },
   "clone": {
+    "text_label": "Teks",
+    "paste": "Tempel",
+    "paste_failed": "Akses papan klip diblokir. Tempel langsung ke kolom teks menggunakan papan ketik.",
     "prompt": "Cepat",
     "language": "Bahasa",
     "steps": "Langkah-langkah",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verifikasi dicabut"
   },
   "dub": {
+    "timing_label": "Pengaturan waktu",
+    "timing_concise": "Ringkas",
+    "timing_stretch_video": "Perpanjang video",
     "install_engine_pkg": "Instal {{pkg}}",
     "needs_install_short": "Perlu instalasi",
     "install_popover_title": "Instal mesin ini",
@@ -1861,6 +1867,7 @@
     "hint": "8 langkah · pratinjau cepat"
   },
   "header": {
+    "speech": "Ucapan",
     "kicker_studio": "Studio",
     "kicker_library": "Perpustakaan",
     "kicker_preferences": "Preferensi",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Pratinjau suara"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmen perlu peninjauan waktu",
     "asr_title": "Transkrip sudah siap",
     "asr_cta": "Terjemahkan",
     "asr_hint": "Perbaiki kesalahan ASR sekarang — diksi yang ketat akan menghemat upaya TTS nanti.",

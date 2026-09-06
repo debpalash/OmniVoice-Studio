@@ -187,6 +187,9 @@
     "convert_desc": "说一遍,用另一种声音听到。语音到语音,完全本地运行。"
   },
   "clone": {
+    "text_label": "文本",
+    "paste": "粘贴",
+    "paste_failed": "剪贴板访问被阻止。请使用键盘直接粘贴到文本框中。",
     "prompt": "提示词",
     "language": "语言",
     "steps": "步数",
@@ -920,6 +923,9 @@
     "consent_revoked": "验证已撤销"
   },
   "dub": {
+    "timing_label": "时间匹配",
+    "timing_concise": "精简",
+    "timing_stretch_video": "延长视频",
     "install_engine_pkg": "安装 {{pkg}}",
     "needs_install_short": "需要安装",
     "install_popover_title": "安装此引擎",
@@ -1867,6 +1873,7 @@
     "hint": "8 步 · 快速预览"
   },
   "header": {
+    "speech": "语音",
     "kicker_studio": "工作室",
     "kicker_library": "音色库",
     "kicker_preferences": "偏好设置",
@@ -1974,6 +1981,7 @@
     "preview_voice": "预览声音"
   },
   "checkpoint": {
+    "timing_review": "{{count}} 个片段需要检查时间同步",
     "asr_title": "转录已就绪",
     "asr_cta": "翻译",
     "asr_hint": "立即修正所有 ASR 错误——严谨的措辞能省下后续 TTS 的返工。",

@@ -36,9 +36,9 @@
   ],
   "devDependencies": {
     "concurrently": "^9.2.4",
-    "playwright": "^1.62.1",
+    "playwright": "^1.63.0",
     "taze": "^19.17.2",
-    "turbo": "^2.10.9",
+    "turbo": "^2.10.12",
     "typescript": "^6.0.3",
     "wait-on": "^9.1.0"
   }

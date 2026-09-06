@@ -57,6 +57,9 @@ vi.mock('../api/system', async (importOriginal) => ({
 vi.mock('../components/NetworkToggle', () => ({ default: () => null }));
 
 import LogsFooter from '../components/LogsFooter';
+vi.mock('../components/EngineQuickSwitch', () => ({
+  default: () => <button>Footer engine switcher</button>,
+}));
 import { useAppStore } from '../store';
 
 function renderFooter() {
@@ -85,6 +88,12 @@ beforeEach(() => {
 });
 
 describe('LogsFooter notifications tab — dismissals', () => {
+  it('does not duplicate the workspace engine switcher', () => {
+    renderFooter();
+    expect(
+      screen.queryByRole('button', { name: 'Footer engine switcher' }),
+    ).not.toBeInTheDocument();
+  });
   it('shows both notes; only the info note offers a dismiss button', async () => {
     renderFooter();
     openNotificationsTab();

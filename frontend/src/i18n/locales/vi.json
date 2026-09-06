@@ -539,6 +539,9 @@
     "convert_desc": "Nói một lần — nghe bằng giọng khác. Giọng nói sang giọng nói, hoàn toàn cục bộ."
   },
   "clone": {
+    "text_label": "Văn bản",
+    "paste": "Dán",
+    "paste_failed": "Quyền truy cập bảng nhớ tạm đã bị chặn. Hãy dùng bàn phím để dán trực tiếp vào ô văn bản.",
     "prompt": "Lời nhắc",
     "language": "Ngôn ngữ",
     "steps": "bước",
@@ -961,6 +964,9 @@
     "consent_revoked": "Đã thu hồi xác minh"
   },
   "dub": {
+    "timing_label": "Căn thời gian",
+    "timing_concise": "Ngắn gọn",
+    "timing_stretch_video": "Kéo dài video",
     "install_engine_pkg": "Cài đặt {{pkg}}",
     "needs_install_short": "Cần cài đặt",
     "install_popover_title": "Cài đặt công cụ này",
@@ -1861,6 +1867,7 @@
     "hint": "8 bước · xem trước nhanh"
   },
   "header": {
+    "speech": "Giọng nói",
     "kicker_studio": "Studio",
     "kicker_library": "Thư viện",
     "kicker_preferences": "Tùy chọn",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Xem trước giọng nói"
   },
   "checkpoint": {
+    "timing_review": "{{count}} đoạn cần kiểm tra thời gian",
     "asr_title": "Bản ghi đã sẵn sàng",
     "asr_cta": "Dịch",
     "asr_hint": "Hãy khắc phục mọi lỗi ASR ngay bây giờ — chuyển hướng chặt chẽ sẽ giúp tiết kiệm các lần thử TTS sau này.",

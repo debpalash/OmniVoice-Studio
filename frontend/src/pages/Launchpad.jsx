@@ -14,6 +14,7 @@ import {
   Download,
   ArrowRight,
   ArrowRightLeft,
+  AudioLines,
 } from 'lucide-react';
 import { API } from '../api/client';
 import { useAppStore } from '../store';
@@ -31,7 +32,9 @@ import signalField from '../assets/signal-field.webp';
 // rest, a faint surface on hover. Borders are deliberately absent — every
 // `--chrome-border` token is zeroed app-wide, so structure comes from spacing.
 const projCard =
-  'group border-0 bg-transparent rounded-[var(--chrome-radius-pill)] py-[9px] px-[12px] [transition:background_var(--dur-base)_var(--ease-out)] flex items-center gap-[10px] hover:bg-[color-mix(in_srgb,var(--chrome-fg)_5%,transparent)]';
+  'group min-w-0 border-0 bg-[var(--chrome-hover-bg)] rounded-lg min-h-[64px] py-[10px] px-[12px] [transition:background_var(--dur-base)_var(--ease-out)] flex items-center gap-[10px] hover:bg-[color-mix(in_srgb,var(--chrome-fg)_5%,transparent)]';
+const collectionGrid =
+  'grid [grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))] gap-2';
 const projIcon = 'w-[22px] h-[22px] flex items-center justify-center shrink-0';
 // The dubbing rows are the one place that holds a real image, so they keep a
 // 30px plate (tinted, clipped) instead of the bare glyph slot above.
@@ -42,11 +45,9 @@ const projName =
   '[font-family:var(--font-sans)] text-[0.775rem] font-medium text-[color:var(--chrome-fg)] [letter-spacing:-0.005em] whitespace-nowrap overflow-hidden text-ellipsis';
 const projMeta =
   '[font-family:var(--chrome-font-mono)] text-[0.62rem] text-[color:var(--chrome-fg-dim)] mt-[3px] font-normal whitespace-nowrap overflow-hidden text-ellipsis';
-// "Open" stays in the DOM at all times (never display:none, so screen readers
-// and keyboard users always reach it) but fades up only when the row is hovered
-// or something inside it takes focus — the list reads as names, not buttons.
+// Keep Open visible for touch, keyboard, and pointer users alike.
 const projAction =
-  '[font-family:var(--font-sans)] text-[0.7rem] font-medium border-0 py-[3px] px-[10px] rounded-[var(--chrome-radius-pill)] bg-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer opacity-0 [transition:opacity_var(--dur-base)_var(--ease-out),background_var(--dur-fast),color_var(--dur-fast)] shrink-0 whitespace-nowrap [letter-spacing:0.01em] group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)] hover:text-[color:var(--chrome-fg)]';
+  '[font-family:var(--font-sans)] text-[0.7rem] font-medium border-0 py-[3px] px-[10px] rounded-[var(--chrome-radius-pill)] bg-transparent text-[color:var(--chrome-fg-muted)] cursor-pointer min-h-9 opacity-100 [transition:opacity_var(--dur-base)_var(--ease-out),background_var(--dur-fast),color_var(--dur-fast)] shrink-0 whitespace-nowrap [letter-spacing:0.01em] group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[color-mix(in_srgb,var(--chrome-fg)_8%,transparent)] hover:text-[color:var(--chrome-fg)]';
 // Section divider label ("Cloned Voices" etc.) — the trailing hairline lives on
 // an ::after pseudo, expressed via the after: variant. A single rule that fades
 // out to the right; the old dotted stipple read as texture, not structure.
@@ -255,195 +256,204 @@ export default function Launchpad({
         <LaunchpadDeck features={features} narrow={shellNarrow} />
       </div>
 
-      {/* Recent files from OmniDrive — last few exports, with a jump to the
-          full file browser (the Projects/OmniDrive page). */}
-      {recentFiles.length > 0 && (
-        <div className="mx-auto w-full max-w-[1180px] pt-[26px] px-[44px] pb-[36px] relative z-[1] @max-[900px]/launchpad:pt-[18px] @max-[900px]/launchpad:px-[20px] @max-[900px]/launchpad:pb-[24px] @max-[640px]/launchpad:px-[12px] @max-[640px]/launchpad:pb-[16px]">
-          <div className="flex items-center gap-[12px] mb-[10px]">
-            <div className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] font-medium uppercase [letter-spacing:var(--chrome-label-track)] text-[color:var(--chrome-fg-dim)] m-0 flex items-center gap-[9px] shrink-0">
-              <HardDrive size={12} strokeWidth={1.5} color="#fabd2f" />{' '}
-              {t('launchpad.recent_files')}
+      <div
+        className="relative z-[1] mx-auto grid w-full max-w-[1180px] [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))] gap-6 px-[44px] pt-6 pb-8 @max-[900px]/launchpad:px-[20px] @max-[640px]/launchpad:px-[12px]"
+        data-testid="launchpad-library-grid"
+      >
+        {/* Demo profile callout */}
+        {demoProfile && profiles.length === 1 && studioProjects.length === 0 && (
+          <div className="col-span-full min-w-0">
+            <div className="flex flex-wrap items-center gap-[10px] py-[11px] px-[16px] bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)] rounded-[var(--chrome-radius-pill)] [font-family:var(--font-sans)] text-[0.76rem] text-[color:var(--chrome-fg-muted)] animate-[lpFadeUp_0.5s_cubic-bezier(0.4,0,0.2,1)_both]">
+              <AudioLines
+                size={20}
+                className="shrink-0 text-[var(--chrome-accent)]"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 leading-relaxed">{t('launchpad.demo_callout')}</span>
+              <button
+                type="button"
+                className="ml-auto inline-flex min-h-9 items-center gap-2 shrink-0 border-0 py-[4px] px-[12px] [font-family:var(--font-sans)] text-[0.7rem] font-medium rounded-[var(--chrome-radius-pill)] bg-transparent text-[color:var(--chrome-accent)] cursor-pointer [transition:background_var(--dur-fast)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_16%,transparent)]"
+                onClick={() => {
+                  openStudio('audio');
+                  handleSelectProfile(demoProfile);
+                }}
+              >
+                {t('launchpad.try_it')} <ArrowRight size={14} aria-hidden="true" />
+              </button>
             </div>
-            <span
-              className="flex-1 h-px [background-image:linear-gradient(90deg,color-mix(in_srgb,var(--chrome-fg)_14%,transparent),transparent)]"
-              aria-hidden="true"
-            />
-            <button
-              type="button"
-              className="inline-flex items-center gap-[5px] shrink-0 border-0 bg-transparent cursor-pointer py-[2px] px-[4px] [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] font-medium uppercase [letter-spacing:var(--chrome-label-track)] text-[color:var(--chrome-fg-dim)] [transition:color_var(--dur-fast)] hover:text-[color:var(--chrome-fg)]"
-              onClick={() => setMode('projects')}
-            >
-              {t('launchpad.view_all_files')} <ArrowRight size={12} strokeWidth={1.5} />
-            </button>
           </div>
-          <div className="grid [grid-template-columns:repeat(auto-fill,minmax(200px,260px))] justify-start gap-[2px]">
-            {recentFiles.map((f, i) => {
-              const name =
-                (f.destination_path || f.path || f.filename || '').split('/').pop() ||
-                t('launchpad.file');
-              return (
-                <button
-                  key={f.id || f.destination_path || i}
-                  type="button"
-                  className={`${projCard} w-full [font:inherit] text-inherit text-left cursor-pointer`}
-                  onClick={() => setMode('projects')}
-                  title={name}
-                >
-                  <div className={projIcon}>
-                    <Download size={15} strokeWidth={1.5} color="#fabd2f" />
-                  </div>
-                  <div className={projInfo}>
-                    <div className={projName}>{name}</div>
-                    {f.mode && <div className={projMeta}>{f.mode}</div>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Demo profile callout */}
-      {demoProfile && profiles.length === 1 && studioProjects.length === 0 && (
-        <div className="mx-auto w-full max-w-[1180px] px-[44px] mt-[10px] relative z-[1] @max-[900px]/launchpad:px-[20px] @max-[640px]/launchpad:px-[12px]">
-          <div className="flex flex-wrap items-center gap-[10px] py-[11px] px-[16px] bg-[color-mix(in_srgb,var(--chrome-accent)_7%,transparent)] rounded-[var(--chrome-radius-pill)] [font-family:var(--font-sans)] text-[0.76rem] text-[color:var(--chrome-fg-muted)] animate-[lpFadeUp_0.5s_cubic-bezier(0.4,0,0.2,1)_both]">
-            <span className="text-[1rem]" aria-hidden="true">
-              👋
-            </span>
-            <span>{t('launchpad.demo_callout')}</span>
-            <button
-              type="button"
-              className="ml-auto border-0 py-[4px] px-[12px] [font-family:var(--font-sans)] text-[0.7rem] font-medium rounded-[var(--chrome-radius-pill)] bg-transparent text-[color:var(--chrome-accent)] cursor-pointer [transition:background_var(--dur-fast)] hover:bg-[color-mix(in_srgb,var(--chrome-accent)_16%,transparent)]"
-              onClick={() => {
-                openStudio('audio');
-                handleSelectProfile(demoProfile);
-              }}
-            >
-              {t('launchpad.try_it')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Projects */}
-      {(profiles.length > 0 || studioProjects.length > 0) && (
-        <div className="mx-auto w-full max-w-[1180px] pt-[26px] px-[44px] pb-[36px] relative z-[1] @max-[900px]/launchpad:pt-[18px] @max-[900px]/launchpad:px-[20px] @max-[900px]/launchpad:pb-[24px] @max-[640px]/launchpad:px-[12px] @max-[640px]/launchpad:pb-[16px]">
-          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-x-[28px] gap-y-[24px]">
-            {/* Cloned voices */}
-            {cloneProfiles.length > 0 && (
-              <div>
-                <div className={sectionTitle}>
-                  <Fingerprint size={12} strokeWidth={1.5} color="#d3869b" />{' '}
-                  {t('launchpad.cloned_voices')}
-                </div>
-                <div className="flex flex-col gap-[2px]">
-                  {cloneProfiles.map((p) => (
-                    <div key={p.id} className={projCard}>
-                      <div className={projIcon}>
-                        <Fingerprint size={15} strokeWidth={1.5} color="#d3869b" />
-                      </div>
-                      <div className={projInfo}>
-                        <div className={projName}>{p.name}</div>
-                        <div className={projMeta}>{p.ref_audio_path}</div>
-                      </div>
-                      <button
-                        type="button"
-                        className={projAction}
-                        onClick={() => {
-                          openStudio('audio');
-                          handleSelectProfile(p);
-                        }}
-                      >
-                        {t('launchpad.open')}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+        {/* Recent files from OmniDrive — last few exports, with a jump to the
+          full file browser (the Projects/OmniDrive page). */}
+        {recentFiles.length > 0 && (
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-[10px]">
+              <div className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] font-medium uppercase [letter-spacing:var(--chrome-label-track)] text-[color:var(--chrome-fg-dim)] m-0 flex items-center gap-[9px] shrink-0">
+                <HardDrive size={12} strokeWidth={1.5} color="#fabd2f" />{' '}
+                {t('launchpad.recent_files')}
               </div>
-            )}
-
-            {/* Designed voices */}
-            {designProfiles.length > 0 && (
-              <div>
-                <div className={sectionTitle}>
-                  <Wand2 size={12} strokeWidth={1.5} color="#8ec07c" />{' '}
-                  {t('launchpad.designed_voices')}
-                </div>
-                <div className="flex flex-col gap-[2px]">
-                  {designProfiles.map((p) => (
-                    <div key={p.id} className={projCard}>
-                      <div className={projIcon}>
-                        {p.is_locked ? (
-                          <Lock size={15} strokeWidth={1.5} color="#b8bb26" />
-                        ) : (
-                          <Wand2 size={15} strokeWidth={1.5} color="#8ec07c" />
-                        )}
-                      </div>
-                      <div className={projInfo}>
-                        <div className={projName}>{p.name}</div>
-                        <div className={`${projMeta} italic`}>{p.instruct}</div>
-                      </div>
-                      {p.is_locked && (
-                        <span className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] [letter-spacing:var(--chrome-label-track)] uppercase text-[#b8bb26] font-medium shrink-0">
-                          {t('launchpad.locked')}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className={projAction}
-                        onClick={() => {
-                          openStudio('design');
-                          handleSelectProfile(p);
-                        }}
-                      >
-                        {t('launchpad.open')}
-                      </button>
+              <span
+                className="flex-1 h-px [background-image:linear-gradient(90deg,color-mix(in_srgb,var(--chrome-fg)_14%,transparent),transparent)]"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className="inline-flex items-center gap-[5px] shrink-0 border-0 bg-transparent cursor-pointer py-[2px] px-[4px] [font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] font-medium uppercase [letter-spacing:var(--chrome-label-track)] text-[color:var(--chrome-fg-dim)] [transition:color_var(--dur-fast)] hover:text-[color:var(--chrome-fg)]"
+                onClick={() => setMode('projects')}
+              >
+                {t('launchpad.view_all_files')} <ArrowRight size={12} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div className={collectionGrid} data-testid="launchpad-recent-grid">
+              {recentFiles.map((f, i) => {
+                const name =
+                  (f.destination_path || f.path || f.filename || '').split(/[\\/]/).pop() ||
+                  t('launchpad.file');
+                return (
+                  <button
+                    key={f.id || f.destination_path || i}
+                    type="button"
+                    className={`${projCard} w-full [font:inherit] text-inherit text-left cursor-pointer`}
+                    onClick={() => setMode('projects')}
+                    title={name}
+                  >
+                    <div className={projIcon}>
+                      <Download size={15} strokeWidth={1.5} color="#fabd2f" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className={projInfo}>
+                      <div className={projName}>{name}</div>
+                      {f.mode && <div className={projMeta}>{f.mode}</div>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-            {/* Dubbing projects */}
-            {studioProjects.length > 0 && (
-              <div>
-                <div className={sectionTitle}>
-                  <Film size={12} strokeWidth={1.5} color="#fe8019" />{' '}
-                  {t('launchpad.dubbing_projects')}
-                </div>
-                <div className="flex flex-col gap-[2px]">
-                  {studioProjects.map((proj) => (
-                    <div key={proj.id} className={projCard}>
-                      <div className={projThumb}>
-                        <DubThumb
-                          jobId={proj.state?.dubJobId || proj.id}
-                          fallback={<Film size={15} strokeWidth={1.5} color="#fe8019" />}
-                        />
-                      </div>
-                      <div className={projInfo}>
-                        <div className={projName}>{proj.name}</div>
-                        <div className={projMeta}>
-                          {proj.video_path || t('launchpad.audio_only')}
+        {/* Recent Projects */}
+        {(profiles.length > 0 || studioProjects.length > 0) && (
+          <div className="min-w-0">
+            <div className="grid min-w-0 grid-cols-1 gap-6">
+              {/* Cloned voices */}
+              {cloneProfiles.length > 0 && (
+                <div>
+                  <div className={sectionTitle}>
+                    <Fingerprint size={12} strokeWidth={1.5} color="#d3869b" />{' '}
+                    {t('launchpad.cloned_voices')}
+                  </div>
+                  <div className={collectionGrid}>
+                    {cloneProfiles.map((p) => (
+                      <div key={p.id} className={projCard}>
+                        <div className={projIcon}>
+                          <Fingerprint size={15} strokeWidth={1.5} color="#d3869b" />
                         </div>
+                        <div className={projInfo}>
+                          <div className={projName}>{p.name}</div>
+                          <div className={projMeta} title={p.ref_audio_path}>
+                            {p.ref_audio_path?.split(/[\\/]/).pop()}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={projAction}
+                          onClick={() => {
+                            openStudio('audio');
+                            handleSelectProfile(p);
+                          }}
+                        >
+                          {t('launchpad.open')}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className={projAction}
-                        onClick={() => {
-                          setMode('dub');
-                          loadProject(proj.id);
-                        }}
-                      >
-                        {t('launchpad.open')}
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Designed voices */}
+              {designProfiles.length > 0 && (
+                <div>
+                  <div className={sectionTitle}>
+                    <Wand2 size={12} strokeWidth={1.5} color="#8ec07c" />{' '}
+                    {t('launchpad.designed_voices')}
+                  </div>
+                  <div className={collectionGrid}>
+                    {designProfiles.map((p) => (
+                      <div key={p.id} className={projCard}>
+                        <div className={projIcon}>
+                          {p.is_locked ? (
+                            <Lock size={15} strokeWidth={1.5} color="#b8bb26" />
+                          ) : (
+                            <Wand2 size={15} strokeWidth={1.5} color="#8ec07c" />
+                          )}
+                        </div>
+                        <div className={projInfo}>
+                          <div className={projName}>{p.name}</div>
+                          <div className={`${projMeta} italic`}>{p.instruct}</div>
+                        </div>
+                        {p.is_locked && (
+                          <span className="[font-family:var(--chrome-font-mono)] text-[length:var(--chrome-label-size)] [letter-spacing:var(--chrome-label-track)] uppercase text-[#b8bb26] font-medium shrink-0">
+                            {t('launchpad.locked')}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className={projAction}
+                          onClick={() => {
+                            openStudio('design');
+                            handleSelectProfile(p);
+                          }}
+                        >
+                          {t('launchpad.open')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dubbing projects */}
+              {studioProjects.length > 0 && (
+                <div>
+                  <div className={sectionTitle}>
+                    <Film size={12} strokeWidth={1.5} color="#fe8019" />{' '}
+                    {t('launchpad.dubbing_projects')}
+                  </div>
+                  <div className={collectionGrid}>
+                    {studioProjects.map((proj) => (
+                      <div key={proj.id} className={projCard}>
+                        <div className={projThumb}>
+                          <DubThumb
+                            jobId={proj.state?.dubJobId || proj.id}
+                            fallback={<Film size={15} strokeWidth={1.5} color="#fe8019" />}
+                          />
+                        </div>
+                        <div className={projInfo}>
+                          <div className={projName}>{proj.name}</div>
+                          <div className={projMeta}>
+                            {proj.video_path || t('launchpad.audio_only')}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={projAction}
+                          onClick={() => {
+                            setMode('dub');
+                            loadProject(proj.id);
+                          }}
+                        >
+                          {t('launchpad.open')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Empty state */}
       {profiles.length === 0 && studioProjects.length === 0 && (

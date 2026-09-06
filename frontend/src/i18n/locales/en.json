@@ -301,6 +301,9 @@
     "convert_desc": "Say it once — hear it in another voice. Speech to speech, fully local."
   },
   "clone": {
+    "text_label": "Text",
+    "paste": "Paste",
+    "paste_failed": "Clipboard access was blocked. Paste directly into the text field using your keyboard.",
     "prompt": "Prompt",
     "language": "Language",
     "steps": "Steps",
@@ -1203,6 +1206,7 @@
     "dubbed_segments_other": "{{count}} dubbed segments"
   },
   "dub": {
+    "timing_label": "Timing",
     "install_engine_pkg": "Install {{pkg}}",
     "needs_install_short": "Needs install",
     "install_popover_title": "Install this engine",
@@ -2395,6 +2399,7 @@
     "hint": "8 steps · fast preview"
   },
   "header": {
+    "speech": "Speech",
     "kicker_studio": "Studio",
     "kicker_library": "Library",
     "kicker_preferences": "Preferences",
@@ -2567,6 +2572,7 @@
     "preview_voice": "Preview voice"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segments need timing review",
     "asr_title": "Transcripts ready",
     "asr_cta": "Translate",
     "asr_hint": "Fix any ASR errors now — tight diction saves TTS attempts later.",

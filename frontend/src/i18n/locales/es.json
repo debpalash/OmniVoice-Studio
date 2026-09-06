@@ -539,6 +539,9 @@
     "convert_desc": "Dilo una vez y escúchalo con otra voz. De voz a voz, totalmente local."
   },
   "clone": {
+    "text_label": "Texto",
+    "paste": "Pegar",
+    "paste_failed": "Se bloqueó el acceso al portapapeles. Pega directamente en el campo de texto con el teclado.",
     "prompt": "rápido",
     "language": "Idioma",
     "steps": "Pasos",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verificación revocada"
   },
   "dub": {
+    "timing_label": "Sincronización",
+    "timing_concise": "Conciso",
+    "timing_stretch_video": "Estirar vídeo",
     "install_engine_pkg": "Instalar {{pkg}}",
     "needs_install_short": "Requiere instalación",
     "install_popover_title": "Instalar este motor",
@@ -1861,6 +1867,7 @@
     "hint": "8 pasos · vista previa rápida"
   },
   "header": {
+    "speech": "Voz",
     "kicker_studio": "Estudio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferencias",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Vista previa de voz"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmentos necesitan revisión de tiempos",
     "asr_title": "Transcripciones listas",
     "asr_cta": "Traducir",
     "asr_hint": "Corrija cualquier error de ASR ahora: la dicción precisa ahorra intentos de TTS más adelante.",

@@ -21,7 +21,7 @@ function DubFailureNotice({ failure }) {
     }
   };
   return (
-    <div className="flex flex-col gap-[4px] mt-[4px]">
+    <div className="flex min-w-0 max-w-full flex-col gap-[4px] mt-[4px] [overflow-wrap:anywhere]">
       {failure.hint && <span className="text-[11px] opacity-[0.85]">{failure.hint}</span>}
       <div className="flex gap-[6px] flex-wrap">
         {topic && (

@@ -128,7 +128,17 @@ export default function SearchableSelect({
     return out;
   }, [query, recents, popular, byVal]);
 
-  const displayed = useMemo(() => filtered.slice(0, MAX_DISPLAY), [filtered]);
+  const displayed = useMemo(() => {
+    const seen = new Set(pinned.map(({ o }) => getVal(o)));
+    return filtered
+      .filter((option) => {
+        const key = getVal(option);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, MAX_DISPLAY);
+  }, [filtered, pinned, getVal]);
 
   const flatItems = useMemo(() => {
     const list = [];
@@ -160,8 +170,8 @@ export default function SearchableSelect({
       const r = el.getBoundingClientRect();
       // Clamp within the viewport so a right-edge (narrow-column) trigger can't
       // push the min-220px menu off-screen and force a horizontal scrollbar.
-      const width = Math.max(r.width, 220);
-      const left = Math.min(r.left, Math.max(8, window.innerWidth - width - 8));
+      const width = Math.min(Math.max(r.width, 220), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
       // Flip above the trigger when there isn't enough room below (e.g. the last
       // dub segment row, near the viewport bottom) — otherwise a below-anchored
       // fixed menu runs off-screen and scrolling just re-pins it there. Also cap
@@ -174,8 +184,8 @@ export default function SearchableSelect({
       const listMax = Math.max(120, Math.floor(Math.min(280, openUp ? above : below)));
       setMenuPos(
         openUp
-          ? { bottom: vh - r.top + GAP, left, width: r.width, listMax }
-          : { top: r.bottom + GAP, left, width: r.width, listMax },
+          ? { bottom: vh - r.top + GAP, left, width, listMax }
+          : { top: r.bottom + GAP, left, width, listMax },
       );
     };
     place();
@@ -220,6 +230,7 @@ export default function SearchableSelect({
       writeRecents(recentsKey, next);
     }
     setOpen(false);
+    wrapRef.current?.querySelector('button')?.focus();
   };
 
   const onKey = (e) => {
@@ -235,6 +246,9 @@ export default function SearchableSelect({
       if (item) commit(item.o);
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      setOpen(false);
+      wrapRef.current?.querySelector('button')?.focus();
+    } else if (e.key === 'Tab') {
       setOpen(false);
     }
   };
@@ -273,7 +287,7 @@ export default function SearchableSelect({
         wrapMenu(
           <div
             ref={menuRef}
-            className={`z-[1000] bg-[rgba(29,32,33,0.98)] [border:1px_solid_rgba(255,255,255,0.1)] rounded-[6px] shadow-[0_8px_24px_rgba(0,0,0,0.5)] [backdrop-filter:blur(12px)] overflow-hidden min-w-[220px] max-w-[min(360px,90vw)] ${
+            className={`z-[1000] bg-[var(--color-bg)] border-0 rounded-lg shadow-xl overflow-hidden max-w-[calc(100vw-16px)] ${
               menuPortal ? 'fixed' : 'absolute top-[calc(100%+4px)] left-0 right-0'
             }`}
             style={
@@ -287,14 +301,15 @@ export default function SearchableSelect({
             }
             role="listbox"
           >
-            <div className="relative p-[6px] [border-bottom:1px_solid_rgba(255,255,255,0.06)] flex items-center gap-[6px]">
+            <div className="relative p-3 flex items-center gap-2">
               <Search
                 size={12}
-                className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[color:var(--text-secondary)] pointer-events-none"
+                className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--chrome-fg-muted)] pointer-events-none"
               />
               <input
                 ref={inputRef}
-                className="flex-1 w-full bg-[rgba(0,0,0,0.25)] [border:1px_solid_rgba(255,255,255,0.08)] rounded-[4px] py-[5px] pr-[8px] pl-[24px] text-[0.72rem] text-[color:var(--text-primary)] outline-none [font-family:inherit] focus:[border-color:rgba(250,189,47,0.4)]"
+                className="flex-1 min-w-0 w-full min-h-10 bg-[var(--chrome-hover-bg)] border-0 rounded-md py-2 pr-3 pl-8 text-sm text-[var(--chrome-fg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)] [font-family:inherit]"
+                aria-label={t('common.search')}
                 placeholder={t('common.search')}
                 value={query}
                 onChange={(e) => {
@@ -357,19 +372,19 @@ export default function SearchableSelect({
                         // stronger amber wash; highlight (and hover, when neither
                         // selected nor highlighted) gets the amber accent.
                         className={[
-                          'flex items-center gap-[6px] py-[5px] px-[10px] text-[0.72rem] cursor-pointer select-none',
+                          'flex min-h-10 items-center gap-2 py-2 px-3 mx-2 my-1 rounded-md text-sm cursor-pointer select-none',
                           selected
-                            ? 'text-[#8ec07c] font-medium'
+                            ? 'text-[var(--chrome-accent)] font-medium'
                             : highlighted
-                              ? 'text-[color:var(--accent)]'
-                              : 'text-[color:var(--text-primary)] hover:text-[color:var(--accent)]',
+                              ? 'text-[var(--chrome-accent)]'
+                              : 'text-[var(--chrome-fg)] hover:text-[var(--chrome-accent)]',
                           selected && highlighted
-                            ? 'bg-[rgba(250,189,47,0.18)]'
+                            ? 'bg-[var(--chrome-accent-bg)]'
                             : selected
-                              ? 'bg-[rgba(142,192,124,0.1)]'
+                              ? 'bg-[var(--chrome-accent-bg)]'
                               : highlighted
-                                ? 'bg-[rgba(250,189,47,0.12)]'
-                                : 'hover:bg-[rgba(250,189,47,0.12)]',
+                                ? 'bg-[var(--chrome-accent-bg)]'
+                                : 'hover:bg-[var(--chrome-accent-bg)]',
                         ].join(' ')}
                         onMouseEnter={() => setHighlight(idx)}
                         onMouseDown={(e) => {
@@ -388,7 +403,13 @@ export default function SearchableSelect({
                         <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                           {renderOption ? renderOption(it.o) : getLabel(it.o)}
                         </span>
-                        {selected && <Check size={10} className="text-[#8ec07c] shrink-0" />}
+                        {selected && (
+                          <Check
+                            size={14}
+                            aria-hidden="true"
+                            className="text-[var(--chrome-accent)] shrink-0"
+                          />
+                        )}
                       </div>
                     </React.Fragment>
                   );

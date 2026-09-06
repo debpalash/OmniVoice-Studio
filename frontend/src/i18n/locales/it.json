@@ -539,6 +539,9 @@
     "convert_desc": "Dillo una volta — ascoltalo con un'altra voce. Da voce a voce, tutto in locale."
   },
   "clone": {
+    "text_label": "Testo",
+    "paste": "Incolla",
+    "paste_failed": "L’accesso agli appunti è bloccato. Incolla direttamente nel campo di testo con la tastiera.",
     "prompt": "Richiedi",
     "language": "Lingua",
     "steps": "Passi",
@@ -961,6 +964,9 @@
     "consent_revoked": "Verifica revocata"
   },
   "dub": {
+    "timing_label": "Sincronizzazione",
+    "timing_concise": "Conciso",
+    "timing_stretch_video": "Allunga video",
     "install_engine_pkg": "Installa {{pkg}}",
     "needs_install_short": "Richiede installazione",
     "install_popover_title": "Installa questo motore",
@@ -1861,6 +1867,7 @@
     "hint": "8 passaggi · anteprima veloce"
   },
   "header": {
+    "speech": "Voce",
     "kicker_studio": "Studio",
     "kicker_library": "Biblioteca",
     "kicker_preferences": "Preferenze",
@@ -1967,6 +1974,7 @@
     "preview_voice": "Anteprima della voce"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmenti richiedono una verifica dei tempi",
     "asr_title": "Trascrizioni pronte",
     "asr_cta": "Traduci",
     "asr_hint": "Correggi subito eventuali errori ASR: la dizione precisa salva i tentativi TTS in un secondo momento.",

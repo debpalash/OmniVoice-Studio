@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, render, waitFor, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const wave = vi.hoisted(() => ({ handlers: {}, instance: null }));
@@ -73,6 +73,20 @@ describe('WaveformTimeline audible error recovery (#1692)', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+  });
+
+  it('enables native playback as soon as metadata arrives, before waveform ready', async () => {
+    const { container } = render(
+      React.createElement(WaveformTimeline, { audioSrc: '/audio.wav', videoSrc: '/video.mp4' }),
+    );
+    const video = container.querySelector('video');
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+    Object.defineProperty(video, 'duration', { configurable: true, value: 1980.4 });
+    fireEvent.loadedMetadata(video);
+    expect(screen.getByRole('button', { name: 'Play' })).toBeEnabled();
+    expect(screen.getByText(/33:00.4/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(video.play).toHaveBeenCalled());
   });
 
   it('loads unequal-duration peaks from the selected dub and synchronizes its video', async () => {
