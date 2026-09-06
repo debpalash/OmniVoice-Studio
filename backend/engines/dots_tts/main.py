@@ -115,7 +115,7 @@ def _load_runtime(stdout):
     from dots_tts.runtime import DotsTtsRuntime  # type: ignore[import-not-found]
 
     repo = os.environ.get("OMNIVOICE_DOTS_TTS_MODEL", _DEFAULT_REPO)
-    default_precision = "bfloat16" if torch.cuda.is_available() else "float32"
+    default_precision = "bfloat16" if torch.accelerator.current_accelerator().type != "cpu" else "float32"
     precision = os.environ.get("OMNIVOICE_DOTS_TTS_PRECISION", default_precision)
     optimize = os.environ.get("OMNIVOICE_DOTS_TTS_OPTIMIZE", "0") == "1"
 
