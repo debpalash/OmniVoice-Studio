@@ -1496,7 +1496,8 @@
     "exported": "Exportierte Transkriptionen",
     "just_now": "Gerade eben",
     "m_ago": "Vor {{count}}m",
-    "h_ago": "Vor {{count}}h"
+    "h_ago": "Vor {{count}}h",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Willkommen",

@@ -1496,7 +1496,8 @@
     "exported": "匯出的轉錄內容",
     "just_now": "剛才",
     "m_ago": "{{count}}分鐘前",
-    "h_ago": "{{count}} 小時前"
+    "h_ago": "{{count}} 小時前",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "歡迎",

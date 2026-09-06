@@ -1496,7 +1496,8 @@
     "exported": "Dışa aktarılan transkripsiyonlar",
     "just_now": "Az önce",
     "m_ago": "{{count}}m önce",
-    "h_ago": "{{count}}sa önce"
+    "h_ago": "{{count}}sa önce",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Hoş geldiniz",

@@ -1496,7 +1496,8 @@
     "exported": "النسخ المصدرة",
     "just_now": "الآن فقط",
     "m_ago": "{{count}}م مضت",
-    "h_ago": "{{count}}h منذ"
+    "h_ago": "{{count}}h منذ",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "مرحبًا",

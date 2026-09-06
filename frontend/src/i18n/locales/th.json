@@ -1496,7 +1496,8 @@
     "exported": "การถอดเสียงที่ส่งออก",
     "just_now": "แค่ตอนนี้",
     "m_ago": "{{count}}นาทีที่แล้ว",
-    "h_ago": "{{count}}ชม. ที่แล้ว"
+    "h_ago": "{{count}}ชม. ที่แล้ว",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "ยินดีต้อนรับ",

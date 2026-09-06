@@ -1812,7 +1812,8 @@
     "exported": "내보낸 녹취록",
     "just_now": "지금 막",
     "m_ago": "{{count}}분 전",
-    "h_ago": "{{count}}시간 전"
+    "h_ago": "{{count}}시간 전",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "환영합니다",

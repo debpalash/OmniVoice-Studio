@@ -1496,7 +1496,8 @@
     "exported": "Експортовані транскрипції",
     "just_now": "Просто зараз",
     "m_ago": "{{count}}хв тому",
-    "h_ago": "{{count}} год тому"
+    "h_ago": "{{count}} год тому",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Ласкаво просимо",

@@ -1496,7 +1496,8 @@
     "exported": "エクスポートされた文字起こし",
     "just_now": "たった今",
     "m_ago": "{{count}}分前",
-    "h_ago": "{{count}}時間前"
+    "h_ago": "{{count}}時間前",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "ようこそ",

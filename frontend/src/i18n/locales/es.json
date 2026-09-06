@@ -1496,7 +1496,8 @@
     "exported": "Transcripciones exportadas",
     "just_now": "Justo ahora",
     "m_ago": "Hace {{count}}m",
-    "h_ago": "Hace {{count}}h"
+    "h_ago": "Hace {{count}}h",
+    "timestamp_unavailable": "–"
   },
   "setup": {
     "welcome": "Bienvenido",
