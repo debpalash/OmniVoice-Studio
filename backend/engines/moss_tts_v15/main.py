@@ -155,8 +155,10 @@ def _load_model(stdout):
     from transformers import AutoModel, AutoProcessor
 
     repo, revision = _model_source()
-    accel = torch.accelerator.current_accelerator()
-    device = accel.type  # 'cuda', 'npu', 'mps', 'xpu', 'cpu'
+    # current_accelerator() returns None on CPU-only builds (no accelerator
+    # compiled in) or when no accelerator is available; fall back to "cpu".
+    accel = torch.accelerator.current_accelerator(check_available=True)
+    device = accel.type if accel is not None else "cpu"  # 'cuda', 'npu', 'mps', 'xpu', 'cpu'
     if device == "mps":
         device = "cpu"  # MOSS is untested on MPS; fall back to CPU for safety
     dtype = torch.bfloat16 if device != "cpu" else torch.float32
