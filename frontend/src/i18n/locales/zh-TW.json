@@ -964,6 +964,9 @@
     "consent_revoked": "驗證已撤銷"
   },
   "dub": {
+    "timing_label": "時間匹配",
+    "timing_concise": "精簡",
+    "timing_stretch_video": "延長影片",
     "install_engine_pkg": "安裝 {{pkg}}",
     "needs_install_short": "需要安裝",
     "install_popover_title": "安裝此引擎",
@@ -1971,6 +1974,7 @@
     "preview_voice": "預覽語音"
   },
   "checkpoint": {
+    "timing_review": "{{count}} 個片段需要檢查時間同步",
     "asr_title": "成績單已準備好",
     "asr_cta": "翻譯",
     "asr_hint": "立即修復所有 ASR 錯誤 - 嚴格的措辭可以節省以後的 TTS 嘗試。",

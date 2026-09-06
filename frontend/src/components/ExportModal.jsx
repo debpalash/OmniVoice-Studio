@@ -125,15 +125,18 @@ export default function ExportModal({
   // ── Drawer dismiss — ESC closes; click-outside closes. The drawer is a
   // bottom sheet (non-blocking), so background interactions stay live.
   const drawerRef = useRef(null);
+  const lastDrawerMouseDownRef = useRef(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
         e.stopPropagation();
         onClose?.();
       }
     };
     const onDown = (e) => {
+      // React capture includes portaled descendants, unlike DOM contains().
+      if (lastDrawerMouseDownRef.current === e) return;
       if (drawerRef.current && !drawerRef.current.contains(e.target)) onClose?.();
     };
     window.addEventListener('keydown', onKey);
@@ -279,6 +282,9 @@ export default function ExportModal({
       <div
         className="export-drawer pointer-events-auto flex w-[min(880px,calc(100vw-24px))] max-h-[85vh] flex-col overflow-hidden rounded-t-xl border-0 bg-[var(--chrome-bg)] shadow-xl animate-in fade-in duration-200 motion-reduce:animate-none"
         ref={drawerRef}
+        onMouseDownCapture={(event) => {
+          lastDrawerMouseDownRef.current = event.nativeEvent;
+        }}
       >
         <header className="relative flex items-center gap-[var(--space-3)] p-[6px_var(--space-4)_10px] [border-bottom:1px_solid_var(--chrome-border)] [background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
           <span

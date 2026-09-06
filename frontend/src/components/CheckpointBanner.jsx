@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, ArrowRight, X, Sparkles, Languages, Mic } from 'lucide-react';
+import { CheckCircle, ArrowRight, X, Sparkles, Languages, Mic, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui';
 import { useTranslation } from 'react-i18next';
 
@@ -32,7 +32,14 @@ const STAGE_KEYS = {
   done: { title: 'checkpoint.done_title', cta: null, hint: 'checkpoint.done_hint' },
 };
 
-export default function CheckpointBanner({ stage, count, onContinue, onDismiss, continueLoading }) {
+export default function CheckpointBanner({
+  stage,
+  count,
+  onContinue,
+  onDismiss,
+  continueLoading,
+  timingWarnings = 0,
+}) {
   const { t } = useTranslation();
   const icons = STAGE_ICONS[stage];
   const keys = STAGE_KEYS[stage];
@@ -56,6 +63,12 @@ export default function CheckpointBanner({ stage, count, onContinue, onDismiss, 
           )}
         </div>
         <span className="ckpt-hint">{t(keys.hint)}</span>
+        {stage === 'done' && timingWarnings > 0 && (
+          <span className="flex items-center gap-2 text-xs text-[var(--color-warn)]">
+            <AlertTriangle size={14} aria-hidden="true" />
+            {t('checkpoint.timing_review', { count: timingWarnings })}
+          </span>
+        )}
       </div>
       {keys.cta && onContinue && (
         <Button

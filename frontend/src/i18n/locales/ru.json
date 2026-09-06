@@ -964,6 +964,9 @@
     "consent_revoked": "Проверка отменена"
   },
   "dub": {
+    "timing_label": "Синхронизация",
+    "timing_concise": "Кратко",
+    "timing_stretch_video": "Растянуть видео",
     "install_engine_pkg": "Установить {{pkg}}",
     "needs_install_short": "Требуется установка",
     "install_popover_title": "Установить этот движок",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Предварительный просмотр голоса"
   },
   "checkpoint": {
+    "timing_review": "Необходимо проверить тайминг {{count}} сегментов",
     "asr_title": "Стенограммы готовы",
     "asr_cta": "Переводить",
     "asr_hint": "Исправьте все ошибки ASR сейчас — четкая дикция сохранит попытки TTS позже.",

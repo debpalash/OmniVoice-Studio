@@ -11,6 +11,12 @@
 // ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
+import DubSegmentTable from '../../components/DubSegmentTable.jsx';
+import DubSelectionToolbar from '../../components/dub/DubSelectionToolbar.jsx';
+import i18n from '../../i18n';
+import WaveformTimeline from '../../components/WaveformTimeline.jsx';
+import DubWorkspaceFixture from './DubWorkspaceFixture.jsx';
+import '../../components/dub/DubRightColumn.css';
 import { Download, Mic, Search, Sparkles, Trash2 } from 'lucide-react';
 
 import Badge from '../../ui/Badge.jsx';
@@ -158,7 +164,135 @@ const TABLE_COLS = [
   { key: 'dur', label: 'Length', width: 70, align: 'right' },
 ];
 
+// Generated locally so waveform interaction checks need neither a backend nor media fixtures.
+function WaveformPanFixture() {
+  const [audioSrc] = React.useState(() => {
+    const samples = 8000 * 30;
+    const buffer = new ArrayBuffer(44 + samples * 2);
+    const wav = new DataView(buffer);
+    const text = (at, value) =>
+      [...value].forEach((char, i) => wav.setUint8(at + i, char.charCodeAt(0)));
+    text(0, 'RIFF');
+    wav.setUint32(4, buffer.byteLength - 8, true);
+    text(8, 'WAVE');
+    text(12, 'fmt ');
+    wav.setUint32(16, 16, true);
+    wav.setUint16(20, 1, true);
+    wav.setUint16(22, 1, true);
+    wav.setUint32(24, 8000, true);
+    wav.setUint32(28, 16000, true);
+    wav.setUint16(32, 2, true);
+    wav.setUint16(34, 16, true);
+    text(36, 'data');
+    wav.setUint32(40, samples * 2, true);
+    for (let i = 0; i < samples; i++)
+      wav.setInt16(44 + i * 2, Math.round(Math.sin(i * 0.17) * 8000), true);
+    return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+  });
+  React.useEffect(() => () => URL.revokeObjectURL(audioSrc), [audioSrc]);
+  return (
+    <WaveformTimeline
+      audioSrc={audioSrc}
+      segments={[{ id: 'one', start: 5, end: 10, text: 'Drag the waveform to pan' }]}
+    />
+  );
+}
+
 export const SPECS = {
+  DubWorkspaceLayout: {
+    width: '100%',
+    providers: {},
+    render: () => <DubWorkspaceFixture />,
+  },
+  DubSelectionLayout: {
+    width: '100%',
+    providers: {},
+    render: () => (
+      <div style={{ overflow: 'hidden' }}>
+        <DubSelectionToolbar
+          t={i18n.t.bind(i18n)}
+          count={353}
+          profiles={[
+            { id: 'demo', name: 'VoiceStudio Demo Voice' },
+            { id: 'narrator', name: 'Studio Narrator', instruct: 'calm' },
+          ]}
+          speakerClones={{ 'Speaker 1': {}, 'Speaker 2': {} }}
+          onApply={() => {}}
+          onDelete={() => {}}
+          onClear={() => {}}
+        />
+      </div>
+    ),
+  },
+  DubWaveformPan: {
+    width: '100%',
+    providers: {},
+    render: () => <WaveformPanFixture />,
+  },
+  DubSegmentLayout: {
+    width: '100%',
+    providers: {},
+    render: () => (
+      <div
+        className="dub-panel-right"
+        style={{
+          height: 760,
+          width: '100%',
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <DubSegmentTable
+          segments={Array.from({ length: 353 }, (_, i) => ({
+            id: `segment-${i}`,
+            start: 16.7 + i * 4,
+            end: 19.5 + i * 4,
+            text:
+              i % 2
+                ? "What happened? It's complicated. Oh, it's perfect. Complicated is the best."
+                : 'Am I with you?',
+            text_original:
+              i % 2 ? 'An original line that should stay below the editable translation.' : '',
+            speaker_id: `Speaker ${(i % 2) + 1}`,
+            profile_id: `auto:speaker_${(i % 2) + 1}`,
+            fit_status: { status: i % 2 ? 'overflows' : 'fits', overflow_s: 0.69 },
+            rate_ratio: 0.73,
+            ...(i === 1
+              ? {
+                  qc_flagged: true,
+                  plan: {
+                    status: 'impossible',
+                    est_overrun_s: 1.5,
+                    suggested_text: 'A shorter line.',
+                  },
+                }
+              : {}),
+          }))}
+          profiles={[]}
+          speakerClones={{ 'Speaker 1': {}, 'Speaker 2': {} }}
+          selectedIds={new Set()}
+          dubStep="done"
+          dubProgress={{}}
+          {...Object.fromEntries(
+            [
+              'Select',
+              'SelectAll',
+              'ClearSelection',
+              'EditField',
+              'Delete',
+              'Restore',
+              'Preview',
+              'Split',
+              'Merge',
+              'Insert',
+              'MoveResize',
+            ].map((name) => [`on${name}`, () => {}]),
+          )}
+        />
+      </div>
+    ),
+  },
   Badge: {
     render: () => (
       <>

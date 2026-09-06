@@ -44,7 +44,11 @@ export default function ScriptPanel({
     try {
       const value = await navigator.clipboard.readText();
       if (value) {
-        setText((current) => current.slice(0, start) + value + current.slice(end));
+        // The store setter accepts a string, unlike React's functional setter.
+        // Read the current field after the async permission prompt so edits made
+        // while clipboard access was pending are retained.
+        const current = textAreaRef.current?.value ?? text;
+        setText(current.slice(0, start) + value + current.slice(end));
         setShowDemoCoachmark(false);
         requestAnimationFrame(() => {
           field?.focus();

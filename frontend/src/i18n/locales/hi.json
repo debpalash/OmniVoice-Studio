@@ -964,6 +964,9 @@
     "consent_revoked": "सत्यापन निरस्त कर दिया गया"
   },
   "dub": {
+    "timing_label": "समय",
+    "timing_concise": "संक्षिप्त",
+    "timing_stretch_video": "वीडियो लंबा करें",
     "install_engine_pkg": "{{pkg}} इंस्टॉल करें",
     "needs_install_short": "इंस्टॉल आवश्यक",
     "install_popover_title": "यह इंजन इंस्टॉल करें",
@@ -1971,6 +1974,7 @@
     "preview_voice": "आवाज का पूर्वावलोकन करें"
   },
   "checkpoint": {
+    "timing_review": "{{count}} खंडों के समय की समीक्षा आवश्यक है",
     "asr_title": "प्रतिलेख तैयार",
     "asr_cta": "अनुवाद करें",
     "asr_hint": "किसी भी एएसआर त्रुटि को अभी ठीक करें - सटीक उच्चारण बाद में टीटीएस प्रयासों को बचाता है।",

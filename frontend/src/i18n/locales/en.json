@@ -1206,6 +1206,7 @@
     "dubbed_segments_other": "{{count}} dubbed segments"
   },
   "dub": {
+    "timing_label": "Timing",
     "install_engine_pkg": "Install {{pkg}}",
     "needs_install_short": "Needs install",
     "install_popover_title": "Install this engine",
@@ -2571,6 +2572,7 @@
     "preview_voice": "Preview voice"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segments need timing review",
     "asr_title": "Transcripts ready",
     "asr_cta": "Translate",
     "asr_hint": "Fix any ASR errors now — tight diction saves TTS attempts later.",

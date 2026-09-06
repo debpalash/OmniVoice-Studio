@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { Check, AlertCircle, X } from 'lucide-react';
+import { useEffect, useMemo, useState, useId } from 'react';
+import { Check, AlertCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '../../ui';
 import DubFailureNotice from './DubFailureNotice';
 import TrackManager from './TrackManager';
@@ -22,7 +22,15 @@ export default function DubFooter({
   setExportTracks,
   dubSegments,
   translateQuality,
+  hideTracks = false,
 }) {
+  const [errorCollapsed, setErrorCollapsed] = useState(false);
+  const [dismissedError, setDismissedError] = useState(null);
+  const errorDetailsId = useId();
+  // Dismiss one occurrence, so retrying can report the same failure again.
+  useEffect(() => {
+    setDismissedError(null);
+  }, [dubError]);
   // Auto-clear the error banner after a grace period so it can't get stuck
   // forever (issue: "TRANSLATION FAILED banner never goes away"). Skipped
   // while generating/stopping, where the banner accumulates live per-segment
@@ -43,8 +51,8 @@ export default function DubFooter({
   }, [canAutoClear, dubError, onDismissError]);
 
   return (
-    <div className="px-[var(--space-3)] py-[4px] shrink-0 bg-[var(--chrome-bg)] border border-transparent">
-      {dubStep === 'done' && (
+    <div className="min-w-0 max-w-full px-[var(--space-3)] py-[4px] shrink-0 bg-[var(--chrome-bg)] border border-transparent">
+      {!hideTracks && dubStep === 'done' && (
         <div className="mb-[var(--space-2)]">
           <Badge tone="success">
             <Check size={11} /> {t('dub.tracks_done', { tracks: dubTracks.join(', ') })}
@@ -63,29 +71,56 @@ export default function DubFooter({
             )}
         </div>
       )}
-      {dubError && (
-        <div className="mb-[var(--space-2)]">
-          <span className="inline-flex items-center gap-[4px]">
-            <Badge tone="danger">
-              <AlertCircle size={11} /> {dubError}
-            </Badge>
-            {onDismissError && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[4px] text-[var(--chrome-fg-muted,#a89984)] hover:text-[var(--chrome-fg,#ebdbb2)] hover:bg-[rgba(255,255,255,0.08)] bg-transparent border-none cursor-pointer shrink-0"
-                onClick={onDismissError}
-                title={t('dub.dismiss_error')}
-                aria-label={t('dub.dismiss_error')}
-              >
-                <X size={12} />
-              </button>
+      {dubError && dubError !== dismissedError && (
+        <div className="mb-[var(--space-2)] min-w-0 max-w-full" data-testid="dub-error-notice">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg bg-[var(--chrome-hover-bg)] p-3">
+            <AlertCircle
+              size={16}
+              className="shrink-0 text-[var(--color-danger)] mt-0.5"
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              aria-expanded={!errorCollapsed}
+              aria-controls={errorDetailsId}
+              onClick={() => setErrorCollapsed((value) => !value)}
+              className="flex min-w-0 flex-1 items-center gap-2 min-h-9 text-left text-sm text-[var(--chrome-fg)] border-0 bg-transparent cursor-pointer"
+            >
+              {t('common.error')}
+              {errorCollapsed ? (
+                <ChevronDown size={16} aria-hidden="true" />
+              ) : (
+                <ChevronUp size={16} aria-hidden="true" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDismissedError(dubError);
+                onDismissError?.();
+              }}
+              aria-label={t('dub.dismiss_error')}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md px-2 text-sm text-[var(--chrome-fg-muted)] hover:bg-[var(--chrome-hover-bg)] border-0 bg-transparent cursor-pointer"
+            >
+              <X size={16} aria-hidden="true" />
+              {t('dub.dismiss_error')}
+            </button>
+            {!errorCollapsed && (
+              <div id={errorDetailsId} className="basis-full min-w-0">
+                <div
+                  className="min-w-0 flex-1 max-h-28 overflow-y-auto whitespace-pre-wrap [overflow-wrap:anywhere] text-sm leading-relaxed text-[var(--chrome-fg)]"
+                  data-testid="dub-error-message"
+                >
+                  {dubError}
+                </div>
+                <DubFailureNotice failure={dubFailure} />
+              </div>
             )}
-          </span>
-          <DubFailureNotice failure={dubFailure} />
+          </div>
         </div>
       )}
       {/* Output options + Timing moved to the top of the right (transcript) section. */}
-      {dubTracks.length > 0 && (
+      {!hideTracks && dubTracks.length > 0 && (
         <div className="mb-[2px] px-[var(--space-3)] py-[3px]">
           <TrackManager
             t={t}

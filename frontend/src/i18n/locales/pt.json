@@ -964,6 +964,9 @@
     "consent_revoked": "Verificação revogada"
   },
   "dub": {
+    "timing_label": "Sincronização",
+    "timing_concise": "Conciso",
+    "timing_stretch_video": "Estender vídeo",
     "install_engine_pkg": "Instalar {{pkg}}",
     "needs_install_short": "Requer instalação",
     "install_popover_title": "Instalar este motor",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Visualizar voz"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmentos precisam de revisão de tempo",
     "asr_title": "Transcrições prontas",
     "asr_cta": "Traduzir",
     "asr_hint": "Corrija quaisquer erros de ASR agora – a dicção precisa salva tentativas de TTS posteriormente.",

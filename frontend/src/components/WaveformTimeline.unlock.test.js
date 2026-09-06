@@ -31,7 +31,7 @@ describe('WaveformTimeline autoplay-unlock wiring (#595)', () => {
     // Each playback handler must resume the context first. Grab the body of
     // each handler and assert the unlock await precedes the play/playPause call.
     const handlers = {
-      togglePlay: /const togglePlay = useCallback\(async \(\) => \{([\s\S]*?)\}, \[\]\);/.exec(
+      togglePlay: /const togglePlay = useCallback\(async \(\) => \{([\s\S]*?)\}, \[ready\]\);/.exec(
         src,
       )?.[1],
       playRange:

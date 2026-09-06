@@ -8,12 +8,12 @@ const KEYBOARD_STEP = 5;
 const clamp = (value) => Math.min(MAX_LEFT, Math.max(MIN_LEFT, Math.round(value)));
 
 const loadRatio = () => {
-  if (typeof window === 'undefined') return 50;
+  if (typeof window === 'undefined') return 44;
   try {
     const stored = Number.parseFloat(localStorage.getItem(STORAGE_KEY) ?? '');
-    return Number.isFinite(stored) ? clamp(stored) : 50;
+    return Number.isFinite(stored) ? clamp(stored) : 44;
   } catch {
-    return 50;
+    return 44;
   }
 };
 

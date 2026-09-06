@@ -15,6 +15,13 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Changed
 
+- Casting uses responsive SVG voice cards and searchable speaker menus that stay above surrounding panels (#1823)
+- Dubbing aligns output settings, brings review status forward, and simplifies transcript and glossary editing; Launchpad files and voices reflow into responsive grids (#1823)
+- Transcript segments use three readable rows for text, timing/status and voice controls, with heights that adapt to wrapping (#1823)
+- Dragging the waveform pans horizontally while a click still seeks, keeping the timed transcript aligned (#1823)
+- Bulk segment editing uses searchable voice and language menus, readable language names and a responsive selection toolbar (#1823)
+- Dubbing overlays playback controls on video, combines waveform and transcript in a compact timeline, and removes header/action background fills (#1823)
+- Dubbing uses compact casting, translation and output controls with responsive rows to leave more room for editing (#1823)
 - Export uses grouped format settings, themed track menus and switches, with a pinned filename summary and download action (#1823)
 - Dubbing output settings use icon-labelled switches, themed track and speaker menus, and clearer timing/transcript controls (#1823)
 - Casting voice menus use searchable themed options with SVG preset icons instead of native dropdowns (#1823)
@@ -33,6 +40,9 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- Dubbing playback starts before waveform decoding, automatic cast names are readable, and transcript timestamps have more room (#1823)
+- The title-bar engine button stays compact and stable while cycling labels, with engine names aligned right (#1823)
+- Long dubbing segment errors wrap in a bounded scrollable notice instead of widening the editor (#1823)
 - Voice dropdowns match their field width, use theme accents, and show recent voices only once (#1823)
 - Language menus no longer show a pale frame around their search header (#1823)
 - The notification count stays inside the title bar instead of clipping above the bell (#1823)

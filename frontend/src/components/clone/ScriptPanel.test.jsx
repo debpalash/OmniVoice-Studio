@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
+import { useAppStore } from '../../store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ScriptPanel from './ScriptPanel';
@@ -9,7 +10,8 @@ afterEach(() => {
   else delete navigator.clipboard;
 });
 function Harness() {
-  const [text, setText] = useState('Hello world');
+  const text = useAppStore((state) => state.text);
+  const setText = useAppStore((state) => state.setText);
   const textAreaRef = useRef(null);
   return (
     <ScriptPanel
@@ -29,6 +31,7 @@ describe('ScriptPanel paste', () => {
       configurable: true,
       value: { readText: vi.fn().mockResolvedValue('friend') },
     });
+    useAppStore.getState().setText('Hello world');
     render(<Harness />);
     expect(screen.getByText('clone.text_label')).toBeInTheDocument();
     const field = screen.getByRole('textbox');
@@ -41,6 +44,7 @@ describe('ScriptPanel paste', () => {
       configurable: true,
       value: { readText: vi.fn().mockRejectedValue(new Error('denied')) },
     });
+    useAppStore.getState().setText('Hello world');
     render(<Harness />);
     fireEvent.click(screen.getByRole('button', { name: 'clone.paste' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('clone.paste_failed');

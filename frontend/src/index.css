@@ -1352,7 +1352,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
   box-shadow: inset 2px 0 0 var(--chrome-accent);
 }
 .segment-time {
-  /* Width comes from --seg-grid-cols in DubSegmentTable.css. */
+  /* Timing controls and status badges wrap within the segment's content rail. */
   font-size: 0.62rem; font-family: var(--chrome-font-mono); color: var(--chrome-fg-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1395,14 +1395,7 @@ audio::-webkit-media-controls-time-remaining-display { color: var(--chrome-fg); 
    rendered in JSX, so they can't carry Tailwind utilities. The rest of the
    waveform-* family migrated to utilities on WaveformTimeline.jsx (P4). */
 .waveform-container {
-  background: rgba(0,0,0,0.22);
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  padding: 4px;
-  overflow-x: auto;
-  height: 80px !important;
   position: relative;
-  border-bottom: 1px solid transparent;
 }
 
 .waveform-container [data-id^="wavesurfer-region"] {
@@ -2199,11 +2192,8 @@ div[role="dialog"].audio-trimmer {
   .segment-header { padding: 2px 4px; font-size: 0.58rem; }
 }
 
-/* ── Waveform timeline — reduce height on small screens ──
-   The container shrinks to 60px and the WaveSurfer region row drops to an
-   18px lane pinned at top:36px so it stays inside the smaller box. */
+/* Legacy WaveSurfer region sizing; the current editor uses SegmentTrack. */
 @media (max-width: 800px) {
-  .waveform-container { height: 60px !important; }
   .waveform-container [data-id^="wavesurfer-region"] {
     top: 36px !important;
     height: 18px !important;
@@ -4142,61 +4132,101 @@ html[data-window='widget'] body:has(.capture-pill) {
 /* ═══ from src/components/DubSegmentTable.css ═══ */
 /* Table body specific styles — chrome comes from ui/Table. */
 
-/* Single grid template shared by both header and data rows so columns
-   line up. Order: [select][time][spkr][text][lang][voice][vol][actions].
-   Both `.dub-segment-table__header` and `.segment-row` override their
-   default flex layout to use this template — eliminates the column-
-   drift bug where the time pill bled into the text column. */
-.segment-table {
-  --seg-grid-cols: 18px 82px 70px minmax(0, 1fr) 44px 60px 40px 44px;
-}
-
-/* Narrow windows: shrink the fixed rails so the text column keeps real
-   width instead of being squeezed to nothing — the table reflows with the
-   window instead of overflowing it. */
-@media (max-width: 1100px) {
-  .segment-table {
-    --seg-grid-cols: 16px 82px 56px minmax(0, 1fr) 38px 52px 34px 38px;
-  }
-}
-
-@media (max-width: 760px) {
-  .segment-table {
-    --seg-grid-cols: 14px 82px minmax(0, 1fr) 34px 48px 34px;
-  }
-  /* Speaker + gain rails collapse entirely below tablet width. */
-  .dub-segment-table__header > :nth-child(3),
-  .segment-row > :nth-child(3),
-  .dub-segment-table__header > :nth-child(7),
-  .segment-row > :nth-child(7) { display: none; }
-}
-
-.dub-segment-table__header,
+/* A row owns its layout at every panel width. react-window measures the
+   resulting height, including wrapped controls and optional status badges. */
 .segment-table .segment-row {
-  display: grid !important;
-  grid-template-columns: var(--seg-grid-cols);
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--chrome-border);
+}
+.segment-table .segment-done { opacity: 1; }
+.segment-table .seg-select { grid-column: 1; margin-top: 10px; }
+.segment-table .seg-text-col { grid-column: 2; gap: 4px; }
+.segment-table .seg-text-col textarea.segment-input {
+  resize: none;
+  height: 48px;
+  font-size: 13px !important;
+  line-height: 1.6;
+  color: var(--chrome-fg);
+  background: var(--chrome-hover-bg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.segment-table .seg-original { font-size: 11px; color: var(--chrome-fg-muted); }
+.segment-table .seg-original > span:first-child { font-size: 10px; color: inherit; }
+.segment-table .seg-original > button { flex-shrink: 0; width: 24px; height: 24px; font-size: 14px; }
+.segment-table .segment-time {
+  grid-column: 2;
+  display: flex;
+  flex-flow: row wrap;
   align-items: center;
-  gap: 6px;
+  gap: 6px 12px;
+  overflow: visible;
 }
-
-.dub-segment-table__header {
-  padding: 3px 6px !important;
-  /* Header cells normally carry explicit widths from Table.jsx — neutralise
-     them so the grid template wins. */
-}
-.dub-segment-table__header .ui-table-header__cell {
-  width: auto !important;
-  flex: none !important;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.segment-table .segment-row {
+.segment-table .segment-time > span { font-size: 11px; }
+.segment-table .seg-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 3px 6px;
-  min-height: 27px;
+  border-radius: 5px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
+.segment-table .seg-status > svg { width: 12px; height: 12px; flex-shrink: 0; }
+.segment-table .seg-plan-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--chrome-hover-bg);
+  color: var(--chrome-accent);
+  font-size: 11px;
+  cursor: pointer;
+}
+.segment-table .seg-time-stepper {
+  flex: 0 0 auto;
+  grid-template-columns: 24px 60px 24px;
+  gap: 2px;
+}
+.segment-table .seg-time-stepper button { width: 24px; height: 26px; }
+.segment-table .seg-time-input { width: 100%; font-size: 12px; text-align: center; }
+.segment-table .seg-overlap-warning { white-space: normal; }
+.segment-table .seg-controls {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.segment-table .seg-speaker-input { flex: 1 1 90px; width: 90px; }
+.segment-table .seg-lang-select { flex: 0 0 64px; width: 64px; }
+.segment-table .seg-voice-col { flex: 2 1 140px; width: 140px; }
+.segment-table .seg-gain-slider { flex: 0 0 60px; width: 60px; }
+.segment-table .seg-controls .seg-speaker-input,
+.segment-table .seg-controls .seg-lang-select,
+.segment-table .seg-controls .seg-profile-select {
+  height: 30px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--chrome-hover-bg);
+}
+.segment-table .seg-actions { flex: 0 0 auto; gap: 4px; margin-left: auto; }
+.segment-table .seg-actions > button { width: 30px; height: 30px; flex-shrink: 0; }
+.segment-table .dub-segment-table__header {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.dub-segment-table__header .ui-table-header__cell { min-width: 0; }
 
 .dub-segment-table__body { flex: 1; min-height: 0; }
 
@@ -4335,8 +4365,7 @@ html[data-window='widget'] body:has(.capture-pill) {
   margin-bottom: 2px;
   padding: 5px 7px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-bg-elev-1) 94%, var(--chrome-bg));
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--chrome-fg) 6%, transparent);
+  background: transparent;
 }
 .dub-command-bar__identity {
   display: flex;
@@ -4353,7 +4382,7 @@ html[data-window='widget'] body:has(.capture-pill) {
   flex: 0 0 auto;
   border-radius: 7px;
   color: var(--chrome-accent);
-  background: var(--chrome-accent-bg);
+  background: transparent;
 }
 .dub-command-bar__title {
   overflow: hidden;
@@ -4389,6 +4418,14 @@ html[data-window='widget'] body:has(.capture-pill) {
   gap: 4px;
 }
 .dub-command-bar__actions { justify-content: flex-end; min-width: 0; }
+.dub-command-bar__actions button {
+  background: transparent;
+  box-shadow: none;
+}
+.dub-command-bar__actions button:focus-visible {
+  outline: 2px solid var(--chrome-accent);
+  outline-offset: 2px;
+}
 .dub-command-bar__utilities {
   margin-right: 2px;
   padding-right: 6px;
@@ -4520,8 +4557,7 @@ button.dub-stepper__action:focus-visible {
   gap: 1px;
   padding: 3px;
   border-radius: 7px;
-  background: color-mix(in srgb, var(--chrome-bg) 58%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chrome-fg) 5%, transparent);
+  background: transparent;
 }
 .dub-stepper--command .dub-stepper__step { gap: 0; font-size: 0.6rem; }
 .dub-stepper--command .dub-stepper__step:not(:first-child)::before { display: none; }
@@ -4531,6 +4567,7 @@ button.dub-stepper__action:focus-visible {
   padding: 3px 6px;
   border-radius: 5px;
 }
+.dub-stepper--command button.dub-stepper__action:hover { background: transparent; }
 .dub-stepper--command .dub-stepper__icon {
   width: 14px;
   height: 14px;
@@ -4543,9 +4580,10 @@ button.dub-stepper__action:focus-visible {
   background: transparent;
 }
 .dub-stepper--command .dub-stepper__step.is-active .dub-stepper__action {
-  color: var(--chrome-fg);
-  background: var(--chrome-accent-bg);
-  box-shadow: inset 0 0 0 1px var(--chrome-accent-border);
+  color: var(--chrome-accent);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .dub-stepper--command .dub-stepper__step.is-active .dub-stepper__icon {
   border: 0;
@@ -4705,48 +4743,24 @@ button.dub-stepper__action:focus-visible {
 }
 .dub-cast__board-toggle:hover,
 .dub-cast__board-toggle.is-open { color: var(--color-brand); border-color: var(--color-brand); }
-.dub-cast__board   { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding: 6px; border: 1px dashed var(--chrome-border); border-radius: var(--radius-sm); }
-.dub-cast__palette { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.dub-cast__chip {
-  padding: 1px 8px; font-size: 0.6rem; color: var(--chrome-fg);
-  background: color-mix(in srgb, var(--color-brand) 10%, transparent);
-  border: 1px solid var(--chrome-border); border-radius: var(--radius-pill);
-  cursor: grab; user-select: none; white-space: nowrap;
-}
+.dub-cast__board { display: grid; gap: 12px; margin-top: 12px; padding: 0; min-width: 0; }
+.dub-cast__palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.dub-cast__chip { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 52px; padding: 8px 10px; font-size: 12px; color: var(--chrome-fg); background: var(--chrome-hover-bg); border: 1px solid transparent; border-radius: 8px; cursor: grab; user-select: none; }
+.dub-cast__chip > svg { flex-shrink: 0; color: var(--chrome-accent); }
+.dub-cast__chip-text { display: grid; gap: 3px; min-width: 0; }
+.dub-cast__chip-text > span { overflow-wrap: anywhere; line-height: 1.4; }
+.dub-cast__chip small { color: var(--chrome-fg-muted); font-size: 10px; }
+.dub-cast__chip:hover { border-color: var(--chrome-accent); background: var(--chrome-accent-bg); }
 .dub-cast__chip:active { cursor: grabbing; }
-.dub-cast__hint  { margin: 0; font-size: 0.55rem; color: var(--chrome-fg-dim); }
-.dub-cast__rows  { display: flex; flex-direction: column; gap: 2px; }
-.dub-cast__row {
-  position: relative; display: flex; align-items: center; gap: 6px;
-  padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius-sm);
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.dub-cast__row.is-drop { border-color: var(--color-brand); background: color-mix(in srgb, var(--color-brand) 12%, transparent); }
-.dub-cast__row-btn {
-  display: inline-flex; align-items: baseline; gap: 6px; min-width: 0;
-  padding: 1px 2px; background: transparent; border: none; cursor: pointer;
-  font: inherit; text-align: left;
-}
-.dub-cast__row-speaker { font-family: var(--chrome-font-mono); font-size: 0.62rem; color: var(--chrome-fg); }
-.dub-cast__row-voice   { font-size: 0.6rem; color: var(--color-brand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dub-cast__auto-chip {
-  padding: 0 6px; font-size: 0.55rem; color: var(--chrome-fg-muted);
-  border: 1px solid var(--chrome-border); border-radius: var(--radius-pill); white-space: nowrap;
-}
-.dub-cast__listbox {
-  position: absolute; z-index: 20; top: calc(100% + 2px); left: 0;
-  display: flex; flex-direction: column; min-width: 150px; max-height: 180px;
-  overflow-y: auto; padding: 3px; background: var(--chrome-bg, #282828);
-  border: 1px solid var(--chrome-border); border-radius: var(--radius-sm);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-.dub-cast__option {
-  padding: 2px 7px; font-size: 0.62rem; text-align: left; color: var(--chrome-fg);
-  background: transparent; border: none; border-radius: var(--radius-sm); cursor: pointer;
-}
-.dub-cast__option:hover,
-.dub-cast__option:focus-visible { background: color-mix(in srgb, var(--color-brand) 16%, transparent); outline: none; }
-.dub-cast__option.is-current { color: var(--color-brand); font-weight: var(--weight-semibold); }
+.dub-cast__hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--chrome-fg-muted); }
+.dub-cast__rows { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.dub-cast__row { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 10px; border: 1px solid transparent; border-radius: 8px; background: var(--chrome-hover-bg); transition: border-color 0.15s ease, background 0.15s ease; }
+.dub-cast__row.is-drop { border-color: var(--chrome-accent); background: var(--chrome-accent-bg); }
+.dub-cast__row-speaker { display: flex; align-items: center; gap: 8px; font: 600 12px var(--font-sans); color: var(--chrome-fg); }
+.dub-cast__row-select { min-height: 38px; padding: 8px 10px; border: 0; border-radius: 6px; background: var(--color-bg); color: var(--chrome-fg); font-size: 12px; }
+.dub-cast__row-select:hover { background: var(--chrome-accent-bg); }
+.dub-cast__row-select:focus-visible { outline: 2px solid var(--chrome-accent); outline-offset: 2px; }
+.dub-cast__auto-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--chrome-fg-muted); }
 
 /* ── Multi-language preview switcher ──────────────────────────────────── */
 .dub-lang-switch {
@@ -4839,12 +4853,10 @@ button.dub-stepper__action:focus-visible {
 .wfm-layout {
   display: flex; flex-direction: column; flex: 1; min-height: 0;
 }
-/* position:relative lives on the stack (not the wave wrap) so the absolute
-   .wfm-overlay / .wfm-loading cover the WHOLE block — video + waveform — and
-   prep/transcribe progress reads as an overlay on the video instead of a
-   card squeezed below it (#10). */
-.wfm-stack { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
+/* Keep the editing rows together without stretching them into spare height. */
+.wfm-stack { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; min-height: 0; }
 .wfm-video-preview {
+  position: relative;
   /* Width-driven: use the full available width and derive height from the
      16:9 aspect ratio, capped at 60vh so a very tall parent can't push
      the waveform off-screen. Previous `max-height: 45%` was clamping the
@@ -4862,17 +4874,21 @@ button.dub-stepper__action:focus-visible {
   background: #000; border-radius: 4px; overflow: hidden;
   border: 1px solid transparent; display: flex;
 }
+.wfm-video-media { width: 100%; height: 100%; min-width: 0; }
+.wfm-editor {
+  min-width: 0;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: var(--chrome-hover-bg);
+}
 .wfm-wave-wrap {
   position: relative;
   overflow: hidden;
-  flex: 0 0 clamp(88px, 12vh, 128px);
-  height: clamp(88px, 12vh, 128px);
-  min-height: 88px;
-  max-height: 128px;
+  min-height: 56px;
   z-index: 1;
 }
 .wfm-wave-inner {
-  height: 100%; min-height: 0; border-radius: 4px; width: 100%; overflow: hidden;
+  min-height: 56px; width: 100%; overflow: hidden;
 }
 .seg-track {
   flex: 0 0 50px !important;
@@ -4882,6 +4898,7 @@ button.dub-stepper__action:focus-visible {
   overflow: visible;
   background: var(--chrome-bg);
 }
+.wfm-editor > .seg-track { margin-top: 0; background: transparent; }
 .wfm-loading {
   position: absolute; inset: 0; display: flex; align-items: center;
   justify-content: center; background: rgba(0,0,0,0.45);
@@ -4894,7 +4911,35 @@ button.dub-stepper__action:focus-visible {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 6px; padding: 8px;
 }
-.wfm-controls { flex-shrink: 0; margin-top: 3px; }
+.wfm-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; flex-wrap: wrap; gap: 6px; margin-top: 3px;
+}
+.wfm-controls__group { display: flex; align-items: center; gap: 4px; }
+.wfm-video-preview .wfm-controls--overlay {
+  position: absolute; inset: auto 8px 8px; z-index: 2;
+  margin: 0; padding: 0; background: transparent;
+}
+.wfm-controls--overlay .wfm-controls__group {
+  padding: 3px; border-radius: 8px;
+  background: transparent;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: white;
+}
+.wfm-controls--overlay button,
+.wfm-controls--overlay span {
+  background: transparent; border-color: transparent; color: inherit;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000;
+}
+.wfm-controls--overlay button {
+  min-width: 32px; min-height: 32px;
+}
+.wfm-controls--overlay button svg,
+.wfm-controls--overlay .wfm-kbd-hint svg { filter: drop-shadow(0 1px 2px #000); }
+.wfm-controls--overlay button:hover { background: transparent; color: var(--chrome-accent); }
+.wfm-controls--overlay button:focus-visible,
+.wfm-controls--overlay input:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 /* Keyboard shortcut hint icon */
 .wfm-kbd-hint {
   color: rgba(168,153,132,0.4);
@@ -6959,6 +7004,22 @@ button.dub-stepper__action:focus-visible {
   display: grid;
   gap: 0;
 }
+.dub-resizable-columns > .dub-panel-col {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-block: 4px 12px;
+}
+.dub-panel-left .wfm-video-preview {
+  aspect-ratio: 16 / 9;
+  height: auto;
+  max-height: min(52vh, 540px);
+  border-radius: 10px;
+}
+.dub-panel-right > .segment-table {
+  flex: 1 0 320px;
+}
 .dub-column-splitter {
   position: relative;
   min-width: 12px;
@@ -6967,7 +7028,9 @@ button.dub-stepper__action:focus-visible {
 }
 .dub-column-splitter::before {
   position: absolute;
-  inset: 8px 5px;
+  top: calc(50% - 20px);
+  height: 40px;
+  inset-inline: 5px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--chrome-fg) 18%, transparent);
   content: '';
@@ -6984,7 +7047,7 @@ button.dub-stepper__action:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
-@container dub-shell (max-width: 1080px) {
+@container dub-shell (max-width: 960px) {
   .dub-editor {
     flex: 1 1 auto;
     overflow-y: auto;
@@ -7009,6 +7072,10 @@ button.dub-stepper__action:focus-visible {
   .dub-panel-col {
     flex: 0 0 auto;
     overflow: visible;
+  }
+  .dub-resizable-columns > .dub-panel-col {
+    overflow: visible;
+    scrollbar-gutter: auto;
   }
 
   /* Preview / timeline pane: keep enough vertical room to be useful rather
@@ -7073,15 +7140,10 @@ button.dub-stepper__action:focus-visible {
 /* Timeline visibility follow-up: keep the transcription lane and transport
    controls on-screen at normal browser zoom, including Colab/Cloudflare tabs
    where browser chrome reduces the usable vertical viewport. */
-@container dub-shell (max-width: 1080px) {
+@container dub-shell (max-width: 960px) {
   .dub-panel-left .wfm-video-preview {
     height: clamp(180px, 32vh, 300px);
     max-height: 300px;
-  }
-  .dub-panel-left .wfm-wave-wrap {
-    flex: 0 0 110px;
-    min-height: 100px;
-    max-height: 130px;
   }
   .dub-panel-left .seg-track {
     flex: 0 0 auto !important;
@@ -7098,10 +7160,6 @@ button.dub-stepper__action:focus-visible {
     height: clamp(160px, 28vh, 240px);
     max-height: 240px;
   }
-  .dub-panel-left .wfm-wave-wrap {
-    flex-basis: 96px;
-    min-height: 90px;
-  }
 }
 
 
@@ -7109,11 +7167,5 @@ button.dub-stepper__action:focus-visible {
   .wfm-video-preview {
     height: clamp(150px, 28vh, 260px);
     max-height: 260px;
-  }
-  .wfm-wave-wrap {
-    flex-basis: 96px;
-    height: 96px;
-    min-height: 96px;
-    max-height: 96px;
   }
 }

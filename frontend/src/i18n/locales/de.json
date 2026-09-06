@@ -964,6 +964,9 @@
     "consent_revoked": "Verifizierung widerrufen"
   },
   "dub": {
+    "timing_label": "Timing",
+    "timing_concise": "Kurz",
+    "timing_stretch_video": "Video strecken",
     "install_engine_pkg": "{{pkg}} installieren",
     "needs_install_short": "Installation nötig",
     "install_popover_title": "Diese Engine installieren",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Vorschau der Stimme"
   },
   "checkpoint": {
+    "timing_review": "{{count}} Segmente benötigen eine Timing-Prüfung",
     "asr_title": "Transkripte bereit",
     "asr_cta": "Übersetzen",
     "asr_hint": "Beheben Sie jetzt alle ASR-Fehler – eine straffe Diktion erspart spätere TTS-Versuche.",

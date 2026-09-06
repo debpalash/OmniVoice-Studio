@@ -112,7 +112,7 @@ export default function DubHeader({
         </div>
 
         <div
-          className="flex flex-wrap items-center justify-end gap-[4px] rounded-[var(--chrome-radius-pill)] bg-[color-mix(in_srgb,var(--color-bg-elev-2)_78%,transparent)] p-[3px] shadow-[var(--shadow-md)] [.shell-mini_&]:w-full"
+          className="flex flex-wrap items-center justify-end gap-[4px] p-[3px] [.shell-mini_&]:w-full"
           data-testid="dub-primary-actions"
         >
           {dubStep === 'stopping' ? (

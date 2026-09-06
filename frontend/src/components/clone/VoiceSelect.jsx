@@ -51,8 +51,15 @@ export default function VoiceSelect({
       </SelectTrigger>
       <SelectContent
         collisionPadding={12}
-        className="z-[150] max-h-80 bg-[var(--color-bg)] border-[var(--chrome-border-strong)] rounded-lg shadow-xl"
+        className="z-[150] max-h-80 bg-[var(--color-bg)] border-transparent rounded-lg shadow-xl"
       >
+        {/* Restored profiles can contain a valid value outside today's curated
+            choices. Keep it visible and selectable instead of showing blank. */}
+        {value &&
+          ![...options, ...groups.flatMap((group) => group.options)].some(
+            (option) => (typeof option === 'string' ? option : option.value) === value,
+          ) &&
+          items([value])}
         {items(options)}
         {groups.map((group) => (
           <SelectGroup key={group.label}>

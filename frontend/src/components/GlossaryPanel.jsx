@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, BookOpen, Sparkles, Check, ChevronDown, X } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Sparkles, Check, ChevronUp, X, Pencil } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Panel, Button, Input, Badge } from '../ui';
+import './GlossaryPanel.css';
 import {
   listGlossary,
   addGlossaryTerm,
@@ -144,7 +145,7 @@ export default function GlossaryPanel({
       className="glossary-panel"
       title={
         <>
-          <BookOpen size={13} /> {t('glossary.title')}
+          <BookOpen size={15} aria-hidden="true" /> {t('glossary.title')}
           <span className="ml-[var(--space-3)] text-[length:var(--text-xs)] font-medium text-[var(--color-fg-subtle)]">
             {t('glossary.count', { count: terms.length })}
             {autoCount > 0 && <> · {t('glossary.auto_count', { count: autoCount })}</>}
@@ -175,108 +176,100 @@ export default function GlossaryPanel({
             </Button>
           )}
           {onClose && (
-            <Button variant="ghost" size="sm" onClick={onClose} title={t('glossary.close')}>
-              <ChevronDown size={11} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              title={t('glossary.close')}
+              aria-label={t('glossary.close')}
+            >
+              <ChevronUp size={14} />
             </Button>
           )}
         </>
       }
     >
-      <div className="max-h-[35vh] overflow-y-auto">
+      <div className="glossary-content">
         {!projectId ? (
           <div className="p-[var(--space-5)] text-center text-[length:var(--text-md)] text-[var(--color-fg-subtle)]">
             {t('glossary.empty_save')}
           </div>
         ) : (
           <>
-            <table className="w-full border-collapse text-[length:var(--text-sm)] [&_td]:border-b [&_td]:border-b-transparent [&_td]:px-[6px] [&_td]:py-[3px] [&_td]:text-left [&_td]:align-middle [&_th]:border-b [&_th]:border-b-transparent [&_th]:px-[6px] [&_th]:py-[3px] [&_th]:text-left [&_th]:align-middle [&_th]:text-[length:var(--text-xs)] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.04em] [&_th]:text-[var(--color-fg-subtle)]">
-              <thead>
-                <tr>
-                  <th>{t('glossary.source')}</th>
-                  <th>{t('glossary.target')}</th>
-                  <th>{t('glossary.note')}</th>
-                  <th className="w-[60px]" aria-label="auto / manual"></th>
-                  <th className="w-[26px]" aria-label="delete"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && !terms.length && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="p-[var(--space-5)] text-center italic text-[var(--color-fg-subtle)]"
-                    >
-                      {t('common.loading')}
-                    </td>
-                  </tr>
-                )}
-                {!loading && !terms.length && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="p-[var(--space-5)] text-center italic text-[var(--color-fg-subtle)]"
-                    >
-                      {t('glossary.no_terms')}
-                    </td>
-                  </tr>
-                )}
-                {terms.map((term) => (
-                  <GlossaryRow
-                    key={term.id}
-                    term={term}
-                    onUpdate={(patch) => onUpdate(term.id, patch)}
-                    onDelete={() => onDelete(term.id)}
-                  />
-                ))}
-                <tr className="border-t border-dashed border-transparent [&>td]:py-[4px]">
-                  <td>
-                    <Input
-                      size="sm"
-                      placeholder={t('glossary.source_placeholder', { lang: sourceLang })}
-                      value={draft.source}
-                      onChange={(e) => setDraft({ ...draft, source: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onAdd();
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <Input
-                      size="sm"
-                      placeholder={t('glossary.target_placeholder', { lang: targetLang || '—' })}
-                      value={draft.target}
-                      onChange={(e) => setDraft({ ...draft, target: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onAdd();
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <Input
-                      size="sm"
-                      placeholder={t('glossary.note_placeholder')}
-                      value={draft.note}
-                      onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onAdd();
-                      }}
-                    />
-                  </td>
-                  <td />
-                  <td>
-                    <Button
-                      variant="subtle"
-                      iconSize="sm"
-                      disabled={!draft.source.trim() || !draft.target.trim()}
-                      onClick={onAdd}
-                      title={t('glossary.add_term')}
-                    >
-                      <Plus size={10} />
-                    </Button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <p className="glossary-purpose">{t('dub.glossary_title')}</p>
+            {terms.length === 0 && (
+              <p className="glossary-empty" role="status">
+                {loading ? t('common.loading') : t('glossary.no_terms')}
+              </p>
+            )}
+            {terms.length > 0 && (
+              <div className="glossary-table-scroll">
+                <table className="w-full border-collapse text-[length:var(--text-sm)] [&_td]:border-b [&_td]:border-b-transparent [&_td]:px-[6px] [&_td]:py-[3px] [&_td]:text-left [&_td]:align-middle [&_th]:border-b [&_th]:border-b-transparent [&_th]:px-[6px] [&_th]:py-[3px] [&_th]:text-left [&_th]:align-middle [&_th]:text-[length:var(--text-xs)] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.04em] [&_th]:text-[var(--color-fg-subtle)]">
+                  <thead>
+                    <tr>
+                      <th>{t('glossary.source')}</th>
+                      <th>{t('glossary.target')}</th>
+                      <th>{t('glossary.note')}</th>
+                      <th className="w-[60px]" aria-label="auto / manual"></th>
+                      <th className="w-[26px]" aria-label="delete"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {terms.map((term) => (
+                      <GlossaryRow
+                        key={term.id}
+                        term={term}
+                        onUpdate={(patch) => onUpdate(term.id, patch)}
+                        onDelete={() => onDelete(term.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <form
+              className="glossary-add-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void onAdd();
+              }}
+            >
+              <label>
+                <span>{t('glossary.source')}</span>
+                <Input
+                  size="sm"
+                  placeholder={t('glossary.source_placeholder', { lang: sourceLang })}
+                  value={draft.source}
+                  onChange={(e) => setDraft({ ...draft, source: e.target.value })}
+                />
+              </label>
+              <label>
+                <span>{t('glossary.target')}</span>
+                <Input
+                  size="sm"
+                  placeholder={t('glossary.target_placeholder', { lang: targetLang || '—' })}
+                  value={draft.target}
+                  onChange={(e) => setDraft({ ...draft, target: e.target.value })}
+                />
+              </label>
+              <label className="glossary-add-note">
+                <span>{t('glossary.note_placeholder')}</span>
+                <Input
+                  size="sm"
+                  value={draft.note}
+                  onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+                />
+              </label>
+              <Button
+                type="submit"
+                variant="subtle"
+                size="sm"
+                leading={<Plus size={14} />}
+                disabled={!draft.source.trim() || !draft.target.trim()}
+              >
+                {t('glossary.add_term')}
+              </Button>
+            </form>
             {manualCount > 0 && targetLang && (
               <div className="mt-[var(--space-3)] px-[var(--space-3)] py-[2px] text-[length:var(--text-2xs)] italic text-[var(--color-fg-subtle)]">
                 {t('glossary.hint')}
@@ -312,6 +305,7 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
         <td>
           <Input
             size="sm"
+            aria-label={t('glossary.source')}
             value={local.source}
             onChange={(e) => setLocal({ ...local, source: e.target.value })}
             onKeyDown={(e) => {
@@ -324,6 +318,7 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
         <td>
           <Input
             size="sm"
+            aria-label={t('glossary.target')}
             value={local.target}
             onChange={(e) => setLocal({ ...local, target: e.target.value })}
             onKeyDown={(e) => {
@@ -335,6 +330,7 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
         <td>
           <Input
             size="sm"
+            aria-label={t('glossary.note')}
             value={local.note}
             onChange={(e) => setLocal({ ...local, note: e.target.value })}
             onKeyDown={(e) => {
@@ -380,6 +376,15 @@ function GlossaryRow({ term, onUpdate, onDelete }) {
         )}
       </td>
       <td className="flex justify-end gap-[var(--space-1)]">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditing(true)}
+          aria-label={t('clone.edit')}
+          title={t('clone.edit')}
+        >
+          <Pencil size={12} />
+        </Button>
         <Button variant="danger" iconSize="sm" onClick={onDelete} title={t('common.delete')}>
           <Trash2 size={10} />
         </Button>

@@ -18,6 +18,7 @@ export default function MultiLangPicker({
   disabled = false,
   progressByCode = {},
   single = false,
+  compact = false,
   options = LANG_CODES,
   ariaLabel,
 }) {
@@ -165,7 +166,7 @@ export default function MultiLangPicker({
         className="flex min-h-[30px] max-w-full items-center gap-[7px] rounded-[var(--chrome-radius-pill)] border border-transparent bg-[var(--chrome-hover-bg)] px-[9px] py-[4px] text-left text-[color:var(--chrome-fg)] cursor-pointer transition-colors hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chrome-accent)] disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => setDropOpen((open) => !open)}
         disabled={disabled}
-        style={single ? { minHeight: 44, width: '100%' } : undefined}
+        style={single ? { minHeight: compact ? 36 : 44, width: '100%' } : undefined}
         aria-haspopup="dialog"
         aria-expanded={dropOpen}
         aria-controls={dropOpen ? menuId : undefined}

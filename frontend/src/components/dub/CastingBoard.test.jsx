@@ -54,6 +54,28 @@ function renderBoard(over = {}) {
 const openBoard = () => fireEvent.click(screen.getByRole('button', { name: /casting board/i }));
 
 describe('CastingBoard drag & drop', () => {
+  it('uses SVG icons and clean labels for preset cards and searchable choices', () => {
+    renderBoard();
+    openBoard();
+    const card = screen
+      .getByTestId('casting-board')
+      .querySelector('[data-profile="preset:narrator"]');
+    expect(card).toHaveTextContent('Authoritative');
+    expect(card.querySelector('svg')).toBeInTheDocument();
+    expect(card.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    fireEvent.click(screen.getByRole('button', { name: /assign a voice to SPEAKER_1/i }));
+    fireEvent.change(within(screen.getByRole('listbox')).getByRole('textbox'), {
+      target: { value: 'Authoritative' },
+    });
+    const option = screen.getByRole('option', { name: 'Authoritative' });
+    expect(option.querySelector('svg')).toBeInTheDocument();
+  });
+  it('labels restored automatic voices without requiring clone metadata', () => {
+    renderBoard({
+      dubSegments: [{ id: '1', speaker_id: 'Speaker 1', profile_id: 'auto:speaker_1' }],
+    });
+    expect(screen.getByRole('button', { name: 'Speaker 1' })).toHaveTextContent('Auto · Speaker 1');
+  });
   it('dropping a voice chip on a speaker writes the same fields as the CAST select', () => {
     const { props } = renderBoard();
     openBoard();
@@ -121,9 +143,9 @@ describe('CastingBoard keyboard path', () => {
     expect(options[1]).toHaveTextContent('Anna');
     expect(options[2]).toHaveTextContent('Ben');
 
-    fireEvent.keyDown(listbox, { key: 'ArrowDown' });
-    fireEvent.keyDown(listbox, { key: 'ArrowDown' });
-    fireEvent.keyDown(listbox, { key: 'Enter' });
+    fireEvent.keyDown(within(listbox).getByRole('textbox'), { key: 'ArrowDown' });
+    fireEvent.keyDown(within(listbox).getByRole('textbox'), { key: 'ArrowDown' });
+    fireEvent.keyDown(within(listbox).getByRole('textbox'), { key: 'Enter' });
 
     expect(screen.queryByRole('listbox')).toBeNull();
     const updated = props.setDubSegments.mock.calls[0][0];
@@ -135,7 +157,7 @@ describe('CastingBoard keyboard path', () => {
     const { props } = renderBoard();
     openBoard();
     fireEvent.click(screen.getByRole('button', { name: /assign a voice to SPEAKER_1/i }));
-    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    fireEvent.keyDown(within(screen.getByRole('listbox')).getByRole('textbox'), { key: 'Escape' });
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(props.setDubSegments).not.toHaveBeenCalled();
   });
@@ -150,7 +172,9 @@ describe('CastingBoard keyboard path', () => {
     fireEvent.click(trigger);
     const listbox = screen.getByRole('listbox');
 
-    expect(fireEvent.keyDown(listbox, { key: 'Tab', shiftKey })).toBe(true);
+    expect(fireEvent.keyDown(within(listbox).getByRole('textbox'), { key: 'Tab', shiftKey })).toBe(
+      true,
+    );
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(trigger).not.toHaveFocus();
   });

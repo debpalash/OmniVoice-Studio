@@ -22,6 +22,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { unlockAudio } from '../utils/audioUnlock';
+import { bindWaveformPan } from '../utils/waveformPan';
 import SegmentTrack from './SegmentTrack';
 
 // Transport-control button chrome (migrated from the .waveform-btn family in
@@ -257,13 +258,9 @@ function WaveformTimeline(
     // ── 3. Init WaveSurfer with that single media element ────────────────────
     let ws;
     try {
-      // Start at the container's measured height; a ResizeObserver below
-      // keeps WaveSurfer in sync when the column resizes. Fallback to 200
-      // if layout hasn't settled yet so we never render a flat sliver.
-      const initialHeight = Math.max(
-        80,
-        Math.min(waveContainerRef.current.clientHeight || 120, 160),
-      );
+      // The compact editor reserves separate space for the ruler/minimap;
+      // the waveform itself must not grow to consume those plugin rows.
+      const initialHeight = 56;
       const minimap = MinimapPlugin.create({
         height: 20,
         waveColor: 'rgba(168,153,132,0.25)',
@@ -550,6 +547,31 @@ function WaveformTimeline(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioSrc, videoSrc, playbackFallbackSrc]);
 
+  // Native metadata/playback is usable before the full waveform is decoded.
+  useEffect(() => {
+    const media = mediaElRef.current;
+    if (!media) return;
+    const metadata = () => {
+      if (Number.isFinite(media.duration) && media.duration > 0) setDuration(media.duration);
+    };
+    const time = () => setCurrentTime(media.currentTime || 0);
+    const playing = () => setIsPlaying(!media.paused);
+    metadata();
+    media.addEventListener('loadedmetadata', metadata);
+    media.addEventListener('durationchange', metadata);
+    media.addEventListener('timeupdate', time);
+    media.addEventListener('play', playing);
+    media.addEventListener('pause', playing);
+    return () => {
+      media.removeEventListener('loadedmetadata', metadata);
+      media.removeEventListener('durationchange', metadata);
+      media.removeEventListener('timeupdate', time);
+      media.removeEventListener('play', playing);
+      media.removeEventListener('pause', playing);
+      setDuration(0);
+    };
+  }, [audioSrc, videoSrc, playbackFallbackSrc]);
+
   // ── Alignment metrics — the single {pxPerSec, scrollLeft} source ────────────
   // Everything the SegmentTrack draws derives from these two numbers, read
   // off WaveSurfer's wrapper after every zoom/scroll/redraw/resize. rAF-
@@ -599,11 +621,13 @@ function WaveformTimeline(
       /* ignore */
     }
     const scrollEl = wrap?.parentElement || null;
+    const unbindPan = wrap ? bindWaveformPan(wrap) : () => {};
     if (scrollEl) scrollEl.addEventListener('scroll', syncMetrics, { passive: true });
     const ro = scrollEl ? new ResizeObserver(syncMetrics) : null;
     if (ro && scrollEl) ro.observe(scrollEl);
     syncMetrics();
     return () => {
+      unbindPan();
       try {
         ws.un('redraw', syncMetrics);
         ws.un('zoom', syncMetrics);
@@ -770,7 +794,7 @@ function WaveformTimeline(
     } catch {
       /* play() will surface real errors */
     }
-    if (wsRef.current) {
+    if (wsRef.current && ready) {
       try {
         await wsRef.current.playPause();
       } catch (e) {
@@ -785,14 +809,17 @@ function WaveformTimeline(
         el.pause();
       }
     }
-  }, []);
-  const seekTo = useCallback((t) => {
-    if (wsRef.current) {
-      wsRef.current.setTime(t);
-    } else if (mediaElRef.current) {
-      mediaElRef.current.currentTime = t;
-    }
-  }, []);
+  }, [ready]);
+  const seekTo = useCallback(
+    (t) => {
+      if (wsRef.current && ready) {
+        wsRef.current.setTime(t);
+      } else if (mediaElRef.current) {
+        mediaElRef.current.currentTime = t;
+      }
+    },
+    [ready],
+  );
 
   const fmt = (t) => {
     const m = Math.floor(t / 60);
@@ -816,6 +843,67 @@ function WaveformTimeline(
     return () => window.removeEventListener('keydown', handler);
   }, [currentTime, duration, togglePlay, seekTo]);
 
+  const playbackControls = (
+    <div
+      className={`wfm-controls ${videoSrc ? 'wfm-controls--overlay' : ''}`}
+      role="toolbar"
+      aria-label="Playback controls"
+    >
+      <div className="wfm-controls__group">
+        <button
+          className={WF_BTN}
+          onClick={() => seekTo(0)}
+          title="Restart"
+          aria-label="Restart playback"
+        >
+          <SkipBack size={11} />
+        </button>
+        <button
+          className={WF_BTN_PLAY}
+          onClick={togglePlay}
+          disabled={!ready && duration <= 0}
+          aria-label={isPlaying ? t('player.pause') : t('player.play')}
+        >
+          {isPlaying ? <Pause size={11} /> : <Play size={11} />}
+        </button>
+        <span
+          className="rounded-[3px] bg-[var(--chrome-hover-bg)] px-[5px] py-[1px] text-[0.62rem] text-[color:var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums]"
+          aria-live="off"
+        >
+          {fmt(currentTime)} / {fmt(duration)}
+        </span>
+        <span className="wfm-kbd-hint" title="J/K/L: rewind, play/pause, forward">
+          <Keyboard size={10} />
+        </span>
+      </div>
+      <div className="wfm-controls__group">
+        <button
+          className={WF_BTN}
+          onClick={() => setZoom((z) => Math.max(10, z - 20))}
+          aria-label="Zoom out"
+        >
+          <ZoomOut size={11} />
+        </button>
+        <input
+          type="range"
+          min="10"
+          max="300"
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="!mt-0 !h-[2px] !w-[60px]"
+          aria-label="Zoom level"
+        />
+        <button
+          className={WF_BTN}
+          onClick={() => setZoom((z) => Math.min(300, z + 20))}
+          aria-label="Zoom in"
+        >
+          <ZoomIn size={11} />
+        </button>
+      </div>
+    </div>
+  );
+
   // ── Error fallback ──────────────────────────────────────────────────────────
   if (loadError) {
     return (
@@ -830,116 +918,59 @@ function WaveformTimeline(
 
   return (
     <div className="mb-[6px] wfm-layout" role="region" aria-label="Audio waveform timeline">
-      {/* Video + Waveform stacked vertically */}
+      {/* Video transport and one compact, aligned waveform/transcript surface. */}
       <div className="wfm-stack">
-        {/* Video preview — pinned to its aspect ratio so we don't letterbox
-            into huge black bars. Waveform gets the remaining height. */}
-        {videoSrc && <div ref={videoContainerRef} className="wfm-video-preview" />}
+        {/* Keep the imperative media host separate from React-owned controls. */}
+        {videoSrc && (
+          <div className="wfm-video-preview">
+            <div ref={videoContainerRef} className="wfm-video-media" />
+            {playbackControls}
+          </div>
+        )}
 
-        {/* Waveform — fills the rest. This is the actual editing surface. */}
-        <div className="wfm-wave-wrap">
-          <div
-            ref={waveContainerRef}
-            className="waveform-container wfm-wave-inner"
-            onWheel={onWaveWheel}
-          />
+        <div className="wfm-editor" onWheel={onWaveWheel}>
+          <div className="wfm-wave-wrap">
+            <div ref={waveContainerRef} className="waveform-container wfm-wave-inner" />
 
-          {/* Loading shimmer */}
-          {!ready && !loadError && (
-            <div className="wfm-loading">
-              <Loader className="spinner" size={12} color="#d3869b" />
-              <span className="wfm-loading__text">Loading waveform…</span>
-            </div>
-          )}
+            {/* Loading shimmer */}
+            {!ready && !loadError && (
+              <div className="wfm-loading">
+                <Loader className="spinner" size={12} color="#d3869b" />
+                <span className="wfm-loading__text">Loading waveform…</span>
+              </div>
+            )}
 
-          {/* Overlay slot — transcription / dubbing progress */}
-          {overlayContent && <div className="wfm-overlay">{overlayContent}</div>}
-        </div>
+            {/* Overlay slot — transcription / dubbing progress */}
+            {overlayContent && <div className="wfm-overlay">{overlayContent}</div>}
+          </div>
 
-        {/* Segment editing lane — pixel-aligned with the waveform via the
+          {/* Segment editing lane — pixel-aligned with the waveform via the
             shared {pxPerSec, scrollLeft} metrics. In the WebKit fallback
             (no WaveSurfer) it self-scrolls with a fixed px/sec scale. */}
-        {ready && segments.length > 0 && (
-          <SegmentTrack
-            segments={segments}
-            pxPerSec={fallbackMode ? zoom : metrics.pxPerSec}
-            scrollLeft={metrics.scrollLeft}
-            duration={duration}
-            currentTime={currentTime}
-            onsets={onsets}
-            disabled={disabled}
-            selectedId={selectedSegId}
-            onSelectSeg={onSelectSeg}
-            incrementalPlan={incrementalPlan}
-            onCommit={onSegmentCommit}
-            onDelete={onSegmentDelete}
-            onPlayRange={playRange}
-            onPreviewSegment={onPreviewSegment}
-            onEnsureVisible={ensureTimeVisible}
-            selfScroll={fallbackMode}
-          />
-        )}
+          {ready && segments.length > 0 && (
+            <SegmentTrack
+              segments={segments}
+              pxPerSec={fallbackMode ? zoom : metrics.pxPerSec}
+              scrollLeft={metrics.scrollLeft}
+              duration={duration}
+              currentTime={currentTime}
+              onsets={onsets}
+              disabled={disabled}
+              selectedId={selectedSegId}
+              onSelectSeg={onSelectSeg}
+              incrementalPlan={incrementalPlan}
+              onCommit={onSegmentCommit}
+              onDelete={onSegmentDelete}
+              onPlayRange={playRange}
+              onPreviewSegment={onPreviewSegment}
+              onEnsureVisible={ensureTimeVisible}
+              selfScroll={fallbackMode}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Controls */}
-      <div
-        className="flex items-center justify-between gap-[4px] wfm-controls"
-        role="toolbar"
-        aria-label="Playback controls"
-      >
-        <div className="flex items-center gap-[4px]">
-          <button
-            className={WF_BTN}
-            onClick={() => seekTo(0)}
-            title="Restart"
-            aria-label="Restart playback"
-          >
-            <SkipBack size={11} />
-          </button>
-          <button
-            className={WF_BTN_PLAY}
-            onClick={togglePlay}
-            disabled={!ready}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? <Pause size={11} /> : <Play size={11} />}
-          </button>
-          <span
-            className="rounded-[3px] bg-[var(--chrome-hover-bg)] px-[5px] py-[1px] text-[0.62rem] text-[color:var(--chrome-fg-muted)] [border:1px_solid_var(--chrome-border)] [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums]"
-            aria-live="off"
-          >
-            {fmt(currentTime)} / {fmt(duration)}
-          </span>
-          <span className="wfm-kbd-hint" title="J/K/L: rewind, play/pause, forward">
-            <Keyboard size={10} />
-          </span>
-        </div>
-        <div className="flex items-center gap-[4px]">
-          <button
-            className={WF_BTN}
-            onClick={() => setZoom((z) => Math.max(10, z - 20))}
-            aria-label="Zoom out"
-          >
-            <ZoomOut size={11} />
-          </button>
-          <input
-            type="range"
-            min="10"
-            max="300"
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="!mt-0 !h-[2px] !w-[60px]"
-            aria-label="Zoom level"
-          />
-          <button
-            className={WF_BTN}
-            onClick={() => setZoom((z) => Math.min(300, z + 20))}
-            aria-label="Zoom in"
-          >
-            <ZoomIn size={11} />
-          </button>
-        </div>
-      </div>
+      {!videoSrc && playbackControls}
     </div>
   );
 }

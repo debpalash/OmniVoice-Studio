@@ -151,6 +151,17 @@ describe('DesignMethodPanel — merged accent/dialect field', () => {
     expect(onVdChange).not.toHaveBeenCalledWith('EnglishAccent', expect.anything());
   });
 
+  it('keeps a restored uncurated dialect visible and selectable', () => {
+    setup({ EnglishAccent: 'Auto', ChineseDialect: 'cosyvoice-speaker-601' });
+    const select = document.getElementById('vd-AccentDialect');
+    expect(select).toHaveTextContent('cosyvoice-speaker-601');
+    fireEvent.keyDown(select, { key: 'Enter' });
+    expect(screen.getByRole('option', { name: 'cosyvoice-speaker-601' })).toHaveAttribute(
+      'data-state',
+      'checked',
+    );
+  });
+
   it('shows the currently-set dialect as the merged select value', () => {
     setup({ EnglishAccent: 'Auto', ChineseDialect: '四川话' }, { identityOpen: true });
     const select = document.getElementById('vd-AccentDialect');

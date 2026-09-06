@@ -923,6 +923,9 @@
     "consent_revoked": "验证已撤销"
   },
   "dub": {
+    "timing_label": "时间匹配",
+    "timing_concise": "精简",
+    "timing_stretch_video": "延长视频",
     "install_engine_pkg": "安装 {{pkg}}",
     "needs_install_short": "需要安装",
     "install_popover_title": "安装此引擎",
@@ -1978,6 +1981,7 @@
     "preview_voice": "预览声音"
   },
   "checkpoint": {
+    "timing_review": "{{count}} 个片段需要检查时间同步",
     "asr_title": "转录已就绪",
     "asr_cta": "翻译",
     "asr_hint": "立即修正所有 ASR 错误——严谨的措辞能省下后续 TTS 的返工。",

@@ -964,6 +964,9 @@
     "consent_revoked": "เพิกถอนการยืนยันแล้ว"
   },
   "dub": {
+    "timing_label": "จังหวะเวลา",
+    "timing_concise": "กระชับ",
+    "timing_stretch_video": "ยืดวิดีโอ",
     "install_engine_pkg": "ติดตั้ง {{pkg}}",
     "needs_install_short": "ต้องติดตั้ง",
     "install_popover_title": "ติดตั้งเอนจินนี้",
@@ -1971,6 +1974,7 @@
     "preview_voice": "ดูตัวอย่างเสียง"
   },
   "checkpoint": {
+    "timing_review": "ต้องตรวจสอบเวลาของ {{count}} ช่วง",
     "asr_title": "ทรานสคริปต์พร้อม",
     "asr_cta": "แปล",
     "asr_hint": "แก้ไขข้อผิดพลาด ASR ทันที การใช้ถ้อยคำที่รัดกุมจะช่วยบันทึกความพยายามของ TTS ในภายหลัง",

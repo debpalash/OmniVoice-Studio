@@ -15,6 +15,7 @@ import DubLeftColumn from '../components/dub/DubLeftColumn';
 import DubRightColumn from '../components/dub/DubRightColumn';
 import DubResizableColumns from '../components/dub/DubResizableColumns';
 import DubFooter from '../components/dub/DubFooter';
+import DubTrackSummary from '../components/dub/DubTrackSummary';
 import {
   hasCompleteTranslation,
   multiLangTargets,
@@ -737,6 +738,17 @@ export default function DubTab(props) {
           />
           <DubResizableColumns resizeLabel={t('logs.drag_resize')}>
             <DubLeftColumn
+              trackControls={
+                <DubTrackSummary
+                  t={t}
+                  dubStep={dubStep}
+                  dubTracks={dubTracks}
+                  incrementalPlan={incrementalPlan}
+                  exportTracks={exportTracks}
+                  setExportTracks={setExportTracks}
+                  dubLangCode={dubLangCode}
+                />
+              }
               hasDubbedTrack={hasDubbedTrack}
               t={t}
               previewMode={previewMode}
@@ -857,6 +869,7 @@ export default function DubTab(props) {
             />
           </DubResizableColumns>
           <DubFooter
+            hideTracks
             t={t}
             dubStep={dubStep}
             dubTracks={dubTracks}

@@ -964,6 +964,9 @@
     "consent_revoked": "Перевірку скасовано"
   },
   "dub": {
+    "timing_label": "Синхронізація",
+    "timing_concise": "Стисло",
+    "timing_stretch_video": "Розтягнути відео",
     "install_engine_pkg": "Встановити {{pkg}}",
     "needs_install_short": "Потрібне встановлення",
     "install_popover_title": "Встановити цей рушій",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Попередній перегляд голосу"
   },
   "checkpoint": {
+    "timing_review": "Потрібно перевірити таймінг {{count}} сегментів",
     "asr_title": "Стенограми готові",
     "asr_cta": "Перекласти",
     "asr_hint": "Виправляйте будь-які помилки ASR зараз — жорстка дикція збереже спроби TTS пізніше.",

@@ -41,6 +41,44 @@ function renderModal(extra = {}) {
 }
 
 describe('ExportModal (regression #183)', () => {
+  it.each(['search', 'option'])('keeps the drawer open for a portaled selector %s', (target) => {
+    const onClose = vi.fn();
+    const setDefaultTrack = vi.fn();
+    renderModal({ onClose, setDefaultTrack });
+    fireEvent.click(screen.getByRole('button', { name: /default audio track/i }));
+    expect(document.querySelector('.export-drawer')).not.toContainElement(
+      screen.getByRole('listbox'),
+    );
+
+    fireEvent.mouseDown(
+      target === 'search'
+        ? screen.getByRole('textbox', { name: /search/i })
+        : screen.getByRole('option', { name: /^ES/ }),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    if (target === 'option') expect(setDefaultTrack).toHaveBeenCalledWith('es');
+
+    fireEvent.mouseDown(document.querySelector('.export-summary'));
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('dismisses the selector before the export drawer when Escape is pressed', () => {
+    const onClose = vi.fn();
+    renderModal({ onClose });
+    const trigger = screen.getByRole('button', { name: /default audio track/i });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('textbox', { name: /search/i }), { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('keeps export actions outside the scrolling settings and uses themed track choices', () => {
     const setDefaultTrack = vi.fn();
     renderModal({ setDefaultTrack });

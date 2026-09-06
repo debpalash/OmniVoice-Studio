@@ -964,6 +964,9 @@
     "consent_revoked": "検証が取り消されました"
   },
   "dub": {
+    "timing_label": "タイミング",
+    "timing_concise": "簡潔",
+    "timing_stretch_video": "動画を引き伸ばす",
     "install_engine_pkg": "{{pkg}} をインストール",
     "needs_install_short": "インストールが必要",
     "install_popover_title": "このエンジンをインストール",
@@ -1971,6 +1974,7 @@
     "preview_voice": "プレビュー音声"
   },
   "checkpoint": {
+    "timing_review": "{{count}} 個のセグメントでタイミングの確認が必要です",
     "asr_title": "トランスクリプトの準備完了",
     "asr_cta": "翻訳する",
     "asr_hint": "ASR エラーを今すぐ修正します。厳密なディクショニングにより、後で TTS の試行を節約できます。",

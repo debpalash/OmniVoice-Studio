@@ -442,14 +442,16 @@ export default function Header({
                 >
                   <span
                     key={displayedEngine?.family}
-                    className="engine-title-label w-[190px] text-left truncate max-[600px]:w-[140px]"
+                    className="engine-title-label flex w-[112px] items-center justify-between gap-1 max-[600px]:w-[77px]"
                   >
                     {displayedEngine && (
-                      <span className="text-[var(--chrome-fg-dim)]">
+                      <span className="shrink-0 text-left text-[var(--chrome-fg-dim)]">
                         {t(`models.role_${displayedEngine.family}`)} ·{' '}
                       </span>
                     )}
-                    {activeEngineShortName || t('settings.engines')}
+                    <span className="min-w-0 flex-1 truncate text-right">
+                      {activeEngineShortName || t('settings.engines')}
+                    </span>
                   </span>
                 </Button>
                 {flushOpen &&
@@ -457,7 +459,7 @@ export default function Header({
                     <div
                       role="dialog"
                       aria-label={t('settings.engines')}
-                      className="fixed overflow-y-auto bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-xl z-[9999] p-3"
+                      className="fixed overflow-y-auto bg-[var(--color-bg)] border border-transparent rounded-[var(--radius-lg)] shadow-xl z-[9999] p-3"
                       style={{
                         top: dropdownPos.top,
                         left: dropdownPos.left,

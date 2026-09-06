@@ -23,6 +23,17 @@ afterEach(() => {
 });
 
 describe('MultiLangPicker viewport-safe menu', () => {
+  it('offers compact editor sizing without shrinking the default picker', () => {
+    const { rerender } = render(<MultiLangPicker single compact onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Manage languages' })).toHaveStyle({
+      minHeight: '36px',
+    });
+    rerender(<MultiLangPicker single onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Manage languages' })).toHaveStyle({
+      minHeight: '44px',
+    });
+  });
+
   it('replaces a single selection, preserves Auto, and closes after choosing', () => {
     const onChange = vi.fn();
     render(

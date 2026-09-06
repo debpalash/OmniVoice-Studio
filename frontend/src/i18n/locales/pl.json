@@ -964,6 +964,9 @@
     "consent_revoked": "Weryfikacja odwołana"
   },
   "dub": {
+    "timing_label": "Synchronizacja",
+    "timing_concise": "Zwięźle",
+    "timing_stretch_video": "Wydłuż wideo",
     "install_engine_pkg": "Zainstaluj {{pkg}}",
     "needs_install_short": "Wymaga instalacji",
     "install_popover_title": "Zainstaluj ten silnik",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Podgląd głosu"
   },
   "checkpoint": {
+    "timing_review": "{{count}} segmentów wymaga sprawdzenia synchronizacji",
     "asr_title": "Transkrypcje gotowe",
     "asr_cta": "Przetłumacz",
     "asr_hint": "Napraw teraz wszelkie błędy ASR — ścisła dykcja pozwala uniknąć późniejszych prób TTS.",

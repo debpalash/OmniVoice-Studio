@@ -254,7 +254,7 @@ export default function ConvertMethodPanel({ t, profiles = [], onRecordingBusyCh
             ariaLabel={t('convert.target_voice')}
             recentsKey="convert-target"
             menuPortal
-          buttonClassName="min-h-12 px-3 text-sm border-0 rounded-lg bg-transparent text-[var(--chrome-fg)] hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
+            buttonClassName="min-h-12 px-3 text-sm border-0 rounded-lg bg-transparent text-[var(--chrome-fg)] hover:bg-[var(--chrome-accent-bg)] focus-visible:outline-2 focus-visible:outline-[var(--chrome-accent)]"
           />
         </div>
 

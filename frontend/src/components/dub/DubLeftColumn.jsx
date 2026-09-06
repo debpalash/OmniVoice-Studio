@@ -37,16 +37,15 @@ import toast from 'react-hot-toast';
 import './DubLeftColumn.css';
 
 // ── Translation-settings bar utility class clusters ──────────────────────
-const SETTINGS_SUMMARY =
-  'flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[3px] mb-[3px] bg-[var(--chrome-bg)] border border-transparent rounded-[var(--chrome-radius-pill)] font-[family-name:var(--font-sans)] text-[0.66rem] text-[var(--chrome-fg-muted)]';
+const SETTINGS_SUMMARY = 'dub-translation-summary';
 const SUMMARY_TRIGGER =
   'inline-flex items-center gap-[5px] flex-1 min-w-0 bg-transparent border-none text-fg-muted cursor-pointer py-[2px] px-0 [font:inherit] text-left';
 const SETTINGS_BAR =
-  'dub-translation-settings flex flex-col gap-4 mb-2 p-4 bg-[var(--chrome-hover-bg)] border-0 rounded-lg';
-const FIELD = 'flex flex-col gap-2 min-w-0';
+  'dub-translation-settings flex flex-col gap-2 mb-2 p-3 bg-[var(--chrome-hover-bg)] border-0 rounded-lg';
+const FIELD = 'flex flex-col gap-1 min-w-0';
 const FIELD_RESP = '';
 const FIELD_LABEL = 'flex items-center gap-2 text-sm font-medium text-[var(--chrome-fg)]';
-const FIELD_INPUT = 'input-base !w-full !text-sm !px-3 !py-2 min-h-10';
+const FIELD_INPUT = 'input-base !w-full !text-xs !px-3 !py-2 min-h-9';
 const ENGINE_CHIP =
   'ml-[6px] px-[6px] py-[1px] text-[0.55rem] leading-[1.4] bg-[color-mix(in_srgb,var(--color-brand)_14%,transparent)] border border-transparent text-[var(--color-brand)] rounded-[var(--radius-pill)] whitespace-nowrap transition-colors';
 // Highlighted accent Install affordance — brand-filled pill, deliberately louder
@@ -56,6 +55,7 @@ const ENGINE_INSTALL_BTN =
   'inline-flex items-center gap-[3px] ml-[6px] px-[7px] py-[1px] text-[0.55rem] font-semibold leading-[1.5] bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-[var(--color-fg-inverse)] border border-transparent rounded-[var(--radius-pill)] whitespace-nowrap cursor-pointer transition-colors shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-brand)_25%,transparent)] disabled:opacity-60 disabled:cursor-default';
 
 export default function DubLeftColumn({
+  trackControls,
   hasDubbedTrack,
   t,
   previewMode,
@@ -382,13 +382,23 @@ export default function DubLeftColumn({
             className={SUMMARY_TRIGGER}
             onClick={() => setSettingsOpen(true)}
             title={t('dub.edit_settings')}
+            aria-label={t('dub.edit_settings')}
+            aria-expanded={false}
           >
-            <ChevronDown size={10} />
-            <span>
+            <Languages size={16} aria-hidden="true" />
+            <span className="dub-translation-summary-copy">
               <strong className="text-[var(--chrome-fg)] font-semibold">{dubLang}</strong> ·{' '}
-              {dubLangCode} · {translateQuality} ·{' '}
-              <span style={{ color: activeEngineUnavailable ? '#fb4934' : '#b8bb26' }}>●</span>{' '}
-              {translateProvider}
+              {t(
+                {
+                  fast: 'dub.fast_quality',
+                  autofit: 'dub.autofit_quality',
+                  cinematic: 'dub.cinematic_quality',
+                }[translateQuality] || 'dub.fast_quality',
+              )}{' '}
+              · {activeEngineEntry?.display_name || translateProvider}
+              {activeEngineUnavailable && (
+                <span className="text-[var(--color-error)]"> {t('dub.needs_install_short')}</span>
+              )}
             </span>
             {dubInstruct && (
               <span className="text-[var(--chrome-fg-dim)] italic ml-[var(--space-2)]">
@@ -396,7 +406,9 @@ export default function DubLeftColumn({
                 {dubInstruct}
               </span>
             )}
+            <ChevronDown size={14} className="ml-auto shrink-0" aria-hidden="true" />
           </button>
+          {trackControls}
           <Button
             variant="subtle"
             size="sm"
@@ -431,6 +443,7 @@ export default function DubLeftColumn({
               className={`${SUMMARY_TRIGGER} col-span-full !py-2`}
               onClick={() => setSettingsOpen(false)}
               title={t('dub.collapse_settings')}
+              aria-expanded={true}
             >
               <Languages size={16} aria-hidden="true" />
               {t('dub.edit_settings')}
@@ -443,7 +456,8 @@ export default function DubLeftColumn({
               <MultiLangPicker
                 single
                 ariaLabel={t('dub.language')}
-                selected={[{ lang: dubLang, code: dubLangCode }]}
+                compact
+                selected={[{ lang: dubLang, code: dubLang === 'Auto' ? 'Auto' : dubLangCode }]}
                 options={ALL_LANGUAGES.map((label) => ({
                   label,
                   code: LANG_CODES.find((item) => item.label === label)?.code || label,
@@ -719,6 +733,7 @@ export default function DubLeftColumn({
             </div>
           </div>
           <div className="dub-translation-actions flex justify-end gap-2 flex-wrap">
+            <div className="mr-auto min-w-0">{trackControls}</div>
             {failedTranslationCount > 0 && (
               <>
                 <Button

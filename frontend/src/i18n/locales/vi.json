@@ -964,6 +964,9 @@
     "consent_revoked": "Đã thu hồi xác minh"
   },
   "dub": {
+    "timing_label": "Căn thời gian",
+    "timing_concise": "Ngắn gọn",
+    "timing_stretch_video": "Kéo dài video",
     "install_engine_pkg": "Cài đặt {{pkg}}",
     "needs_install_short": "Cần cài đặt",
     "install_popover_title": "Cài đặt công cụ này",
@@ -1971,6 +1974,7 @@
     "preview_voice": "Xem trước giọng nói"
   },
   "checkpoint": {
+    "timing_review": "{{count}} đoạn cần kiểm tra thời gian",
     "asr_title": "Bản ghi đã sẵn sàng",
     "asr_cta": "Dịch",
     "asr_hint": "Hãy khắc phục mọi lỗi ASR ngay bây giờ — chuyển hướng chặt chẽ sẽ giúp tiết kiệm các lần thử TTS sau này.",

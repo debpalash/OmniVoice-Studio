@@ -230,6 +230,7 @@ export default function SearchableSelect({
       writeRecents(recentsKey, next);
     }
     setOpen(false);
+    wrapRef.current?.querySelector('button')?.focus();
   };
 
   const onKey = (e) => {
@@ -245,6 +246,9 @@ export default function SearchableSelect({
       if (item) commit(item.o);
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      setOpen(false);
+      wrapRef.current?.querySelector('button')?.focus();
+    } else if (e.key === 'Tab') {
       setOpen(false);
     }
   };
