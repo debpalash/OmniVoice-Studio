@@ -20,6 +20,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The header status dot now honors OS Reduce Motion instead of pulsing regardless (#1857)
+
 
 ## [0.5.2] — 2026-09-02
 

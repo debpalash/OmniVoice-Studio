@@ -888,6 +888,10 @@ html[data-ui-scale-engine='native'] .app-container {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Header status dot (Header.jsx, via the `[animation:hqPulse_…]` Tailwind
+   arbitrary utility) — purely decorative, so it opts out under reduced
+   motion via `motion-reduce:[animation:none]` in the JSX (#1857), the same
+   mechanism LogsFooter.jsx uses for heart-glow/donate-pop-in above. */
 @keyframes hqPulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.15); opacity: 0.7; }
