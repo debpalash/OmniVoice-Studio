@@ -883,6 +883,16 @@ html[data-ui-scale-engine='native'] .app-container {
   grid-row: 1;
   cursor: default;
 }
+/* macOS-only: the window is decorations:false + titleBarStyle:"Overlay"
+   (tauri.conf.json, all platforms), so on macOS the native traffic lights
+   sit on top of this row's left edge; Windows/Linux draw nothing there.
+   `.header-area--tabs` already reserves a flat 64px from the window edge
+   for the same cluster — this completes `.header-area`'s own 16px left
+   padding to that same 64px total (#1860). Applied only via Header.jsx's
+   `isMacLike` check, so Windows/Linux never pay for space nothing occupies. */
+.header-area__left--mac-inset {
+  padding-left: 48px;
+}
 
 @keyframes flush-slide {
   from { opacity: 0; transform: translateY(-4px); }
