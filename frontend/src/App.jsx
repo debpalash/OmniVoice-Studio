@@ -701,9 +701,19 @@ function App() {
       try {
         const fd = new FormData();
         fd.append('text', i18n.t('firstrun.first_sound_text'));
-        // Functional model prompt (not user-facing copy) — keeps the demo
-        // voice warm without depending on seeded profiles.
-        fd.append('instruct', 'A warm, friendly narrator voice, medium pace');
+        // Functional model prompt (not user-facing copy). Free-text prose
+        // like the old hardcoded string 400ed on every first run: OmniVoice's
+        // `_resolve_instruct` only accepts comma-separated taxonomy tokens
+        // (#1853). Omitting `instruct` isn't safe either — the mlx-audio
+        // Qwen3 VoiceDesign backend *requires* a truthy instruct and raises
+        // when it's missing (`_is_voice_design()` in tts_backend.py), so a
+        // user who picked that engine during onboarding would still get
+        // silence. "middle-aged, low pitch" is the same taxonomy string the
+        // built-in "Narrator" personality uses (backend/core/personalities.py)
+        // — valid vocabulary for OmniVoice, and a non-empty description for
+        // any voice-design engine — so it degrades identically no matter
+        // which engine is active.
+        fd.append('instruct', 'middle-aged, low pitch');
         fd.append('num_step', '16');
         const res = await apiFetch(`${API}/generate`, {
           method: 'POST',
