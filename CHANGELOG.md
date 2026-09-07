@@ -20,6 +20,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- On macOS, the header no longer shows Windows-style minimize/maximize/close buttons alongside the native traffic lights (#1864) — thanks @psiberfunk!
+
 
 ## [0.5.2] — 2026-09-02
 
