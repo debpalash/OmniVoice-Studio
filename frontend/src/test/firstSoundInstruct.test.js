@@ -8,6 +8,15 @@
  * impression must never surface an error), so the user just got no audio and
  * no explanation (#1853).
  *
+ * Omitting `instruct` entirely isn't safe either: the mlx-audio Qwen3
+ * VoiceDesign backend (`backend/services/tts_backend.py`, `_is_voice_design`)
+ * *requires* a truthy instruct and raises `ValueError` without one, so a user
+ * who picked that engine during onboarding would still get silence — the
+ * same failure class, just a different engine. The fix instead sends the
+ * same taxonomy-token instruct the built-in "Narrator" personality uses:
+ * valid vocabulary for OmniVoice, and a non-empty description for any
+ * voice-design engine.
+ *
  * Exercised through the source text rather than a full App render: App.jsx
  * pulls in the whole shell (Header, NavRail, a dozen lazy pages, Tauri APIs,
  * the audio player, …), none of which this regression depends on — only the
@@ -30,20 +39,51 @@ const firstSoundBlock = (() => {
   return appSrc.slice(start, end);
 })();
 
-describe('the first-sound request cannot send free-text instruct prose', () => {
+// The exact instruct string the first-sound request appends.
+const instructMatch = firstSoundBlock.match(
+  /fd\.append\(\s*['"]instruct['"]\s*,\s*['"]([^'"]*)['"]\s*\)/,
+);
+
+// Cross-check against the backend's own "Narrator" personality preset so the
+// two can never silently drift apart — the whole point is reusing a value
+// the backend has already vetted as valid taxonomy vocabulary.
+const personalitiesSrc = fs.readFileSync(
+  path.resolve(__dirname, '..', '..', '..', 'backend', 'core', 'personalities.py'),
+  'utf8',
+);
+const narratorMatch = personalitiesSrc.match(
+  /"id":\s*"narrator"[\s\S]*?"instruct":\s*"([^"]*)"/,
+);
+
+describe('the first-sound request sends an engine-safe instruct', () => {
   it('never reintroduces the old hardcoded narrator prose anywhere in App.jsx', () => {
     expect(appSrc).not.toMatch(/warm,\s*friendly narrator voice/i);
   });
 
-  it('does not append an `instruct` field to the first-sound FormData at all', () => {
-    // Omitting it entirely — not swapping in a vocabulary string — matches
-    // every other call site in the app (`if (instruct) fd.append('instruct', ...)`
-    // in useTTS.js, useProfiles.js, VoicePreview.jsx, CompareModal.jsx,
-    // VoiceProfile.jsx) and is proven safe: the backend's per-engine instruct
-    // resolvers all treat a missing/empty instruct as "no styling", never as
-    // a required field, so this degrades identically no matter which TTS
-    // engine is active.
-    expect(firstSoundBlock).not.toMatch(/fd\.append\(\s*['"]instruct['"]/);
+  it('appends a non-empty `instruct` field to the first-sound FormData', () => {
+    // Must be present (not omitted) and non-empty: a voice-design engine
+    // (mlx-audio's Qwen3 VoiceDesign) raises on a missing/empty instruct
+    // (`_is_voice_design()` in tts_backend.py), so omitting it just trades
+    // one silent failure for another.
+    expect(instructMatch, 'expected fd.append("instruct", "...") in the first-sound block').not.toBeNull();
+    expect(instructMatch[1].trim().length).toBeGreaterThan(0);
+  });
+
+  it('only sends comma-separated taxonomy tokens, never free-text prose', () => {
+    // OmniVoice's `_resolve_instruct` splits on commas and validates each
+    // item against a fixed vocabulary — sentence-shaped text (articles,
+    // "voice"/"pace"/"like a ...") can never pass. A taxonomy string is
+    // short, lowercase-ish, comma-separated tokens only.
+    const value = instructMatch[1];
+    expect(value).not.toMatch(/\b(a|voice|pace|like)\b/i);
+    for (const token of value.split(',')) {
+      expect(token.trim()).toMatch(/^[a-z-]+(?: [a-z-]+)*$/);
+    }
+  });
+
+  it('matches the backend\'s own "Narrator" personality instruct exactly', () => {
+    expect(narratorMatch, 'expected a "narrator" personality with an instruct in personalities.py').not.toBeNull();
+    expect(instructMatch[1]).toBe(narratorMatch[1]);
   });
 
   it('still builds the rest of the first-sound request (text + num_step)', () => {

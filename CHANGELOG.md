@@ -11,6 +11,7 @@ the frozen-backend fallback mirror it for their toolchains.
 **Highlights**
 
 - Voice cloning now starts with a clear upload-or-record choice, reveals recording and reference details only when needed, and keeps sampling controls under Production Overrides (#1817)
+- The first-run welcome line no longer sends a hardcoded prose `instruct` that always failed validation and left onboarding silent (#1853) — thanks @psiberfunk!
 
 ### Changed
 
@@ -20,7 +21,7 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
-- The first-run welcome line no longer sends a hardcoded prose `instruct` that always failed validation and left onboarding silent (#1853)
+- The first-run welcome line no longer sends a hardcoded prose `instruct` that always failed validation and left onboarding silent (#1853) — thanks @psiberfunk!
 
 
 ## [0.5.2] — 2026-09-02

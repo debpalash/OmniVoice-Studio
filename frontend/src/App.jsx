@@ -701,13 +701,19 @@ function App() {
       try {
         const fd = new FormData();
         fd.append('text', i18n.t('firstrun.first_sound_text'));
-        // No `instruct`: it only validates against a fixed per-engine
-        // vocabulary (OmniVoice's `_resolve_instruct`), so free-text prose
-        // like the old hardcoded string can never pass — it 400ed on every
-        // first run and the catch below swallowed it into silence (#1853).
-        // Omitting the field is also the same thing every other call site
-        // does for an empty/no instruct (`if (instruct) fd.append(...)`),
-        // and it degrades identically no matter which engine is active.
+        // Functional model prompt (not user-facing copy). Free-text prose
+        // like the old hardcoded string 400ed on every first run: OmniVoice's
+        // `_resolve_instruct` only accepts comma-separated taxonomy tokens
+        // (#1853). Omitting `instruct` isn't safe either — the mlx-audio
+        // Qwen3 VoiceDesign backend *requires* a truthy instruct and raises
+        // when it's missing (`_is_voice_design()` in tts_backend.py), so a
+        // user who picked that engine during onboarding would still get
+        // silence. "middle-aged, low pitch" is the same taxonomy string the
+        // built-in "Narrator" personality uses (backend/core/personalities.py)
+        // — valid vocabulary for OmniVoice, and a non-empty description for
+        // any voice-design engine — so it degrades identically no matter
+        // which engine is active.
+        fd.append('instruct', 'middle-aged, low pitch');
         fd.append('num_step', '16');
         const res = await apiFetch(`${API}/generate`, {
           method: 'POST',
