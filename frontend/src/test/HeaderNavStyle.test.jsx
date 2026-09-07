@@ -22,8 +22,15 @@ const windowActions = vi.hoisted(() => ({
 
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => windowActions }));
 
+const originalPlatform = navigator.platform;
+
+function setPlatform(value) {
+  Object.defineProperty(navigator, 'platform', { value, configurable: true });
+}
+
 afterEach(() => {
   delete window.__TAURI_INTERNALS__;
+  setPlatform(originalPlatform);
   vi.clearAllMocks();
 });
 
@@ -48,7 +55,8 @@ describe('Header — rail mode (default)', () => {
     expect(container.textContent).toMatch(/Dub/);
   });
 
-  it('uses the app header for native window controls', async () => {
+  it('uses the app header for native window controls on Windows/Linux', async () => {
+    setPlatform('Win32');
     window.__TAURI_INTERNALS__ = {};
     renderHeader({});
 
@@ -58,6 +66,16 @@ describe('Header — rail mode (default)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Maximize or restore window' }));
     await waitFor(() => expect(windowActions.toggleMaximize).toHaveBeenCalledOnce());
     expect(screen.getByTestId('window-controls')).toBeInTheDocument();
+  });
+
+  it('hides the custom window controls on macOS — the OS already draws the traffic lights', () => {
+    setPlatform('MacIntel');
+    window.__TAURI_INTERNALS__ = {};
+    renderHeader({});
+
+    expect(screen.queryByTestId('window-controls')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Minimize window' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close window' })).toBeNull();
   });
 });
 
