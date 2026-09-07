@@ -156,7 +156,9 @@ export default function HfTokenCard({ className = '' }) {
       )}
     >
       <Zap size={16} className="shrink-0 text-primary" aria-hidden="true" />
-      <span className="font-semibold max-[560px]:hidden">
+      <span
+        className={cn('font-semibold', !(replacing && activeRow) && 'max-[560px]:hidden')}
+      >
         {replacing && activeRow
           ? t(
               'firstrun.hf_token_replace_warning',

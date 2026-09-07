@@ -92,6 +92,19 @@ describe('HfTokenCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps the overwrite warning visible on narrow screens (unlike the dismissable pitch)', async () => {
+    global.fetch = mockFetchOnce(STATE_HF_CLI_ACTIVE);
+    render(<HfTokenCard />);
+    await waitFor(() => expect(screen.getByText(/hf_…Sfb/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /replace/i }));
+
+    const warning = await screen.findByText(/replaces the token above.*old one stops working/i);
+    // The default pitch is allowed to hide at <=560px; the overwrite safety
+    // warning must not carry that same responsive-hide class, or a user on a
+    // narrow viewport can replace a working token without ever seeing it.
+    expect(warning.className).not.toMatch(/max-\[560px\]:hidden/);
+  });
+
   it('shows a neutral checking placeholder while state is loading, never the pitch', async () => {
     let resolveFetch;
     global.fetch = vi.fn(
