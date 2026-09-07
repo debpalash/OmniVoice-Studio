@@ -20,6 +20,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- On macOS, the header status dot and kicker no longer render underneath the overlaid traffic lights (#1860)
+
 
 ## [0.5.2] — 2026-09-02
 
