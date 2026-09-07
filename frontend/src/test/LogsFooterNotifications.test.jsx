@@ -10,6 +10,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const { backendData, notificationData } = vi.hoisted(() => ({
+  backendData: { lines: [] },
+  notificationData: { current: [] },
+}));
+
 const NOTES = [
   {
     id: 'gpu-unavailable',
@@ -40,7 +45,7 @@ vi.mock('../api/hooks', async (importOriginal) => {
   const real = await importOriginal();
   return {
     ...real,
-    useSystemLogs: () => ({ data: null, refetch: vi.fn() }),
+    useSystemLogs: () => ({ data: backendData, refetch: vi.fn() }),
     useTauriLogs: () => ({ data: null, refetch: vi.fn() }),
   };
 });
@@ -51,7 +56,7 @@ vi.mock('../api/system', async (importOriginal) => ({
   clearSystemLogs: vi.fn(),
   clearTauriLogs: vi.fn(),
   // The poll behind useNotifications — the filter under test runs REAL.
-  systemNotifications: vi.fn(async () => ({ notifications: NOTES })),
+  systemNotifications: vi.fn(async () => ({ notifications: notificationData.current })),
 }));
 // NetworkToggle fetches /system/network/state on mount — out of scope here.
 vi.mock('../components/NetworkToggle', () => ({ default: () => null }));
@@ -81,10 +86,24 @@ const dismissBtnIn = (row) => row.querySelector('button[aria-label]');
 
 beforeEach(() => {
   localStorage.clear();
+  backendData.lines = [];
+  notificationData.current = NOTES;
   useAppStore.setState({ dismissedNotificationIds: [] });
 });
 
 describe('LogsFooter notifications tab — dismissals', () => {
+  it('does not claim all clear when raw logs contain an error', async () => {
+    backendData.lines = ['ERROR failed to load the selected model'];
+    notificationData.current = [];
+    renderFooter();
+    openNotificationsTab();
+
+    expect(
+      await screen.findByRole('button', { name: 'Backend logs, 1 errors' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('✅ All clear — no issues detected')).toBeNull();
+  });
+
   it('shows both notes; only the info note offers a dismiss button', async () => {
     renderFooter();
     openNotificationsTab();
