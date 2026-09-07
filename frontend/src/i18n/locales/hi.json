@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "हगिंग फेस टोकन सहेजा गया - डाउनलोड अब तेज़ हैं",
     "hf_token_inline_prompt": "निःशुल्क हगिंग फेस टोकन के साथ डाउनलोड की गति बढ़ाएं",
     "hf_token_inline_ph": "hf_...टोकन चिपकाएँ (वैकल्पिक)",
-    "hf_token_get_short": "एक निःशुल्क प्राप्त करें →"
+    "hf_token_get_short": "एक निःशुल्क प्राप्त करें →",
+    "hf_token_active_using": "आपका Hugging Face टोकन {{source}} से उपयोग हो रहा है — {{masked}}",
+    "hf_token_replace": "टोकन बदलें…",
+    "hf_token_replace_warning": "इससे ऊपर दिया गया टोकन बदल जाएगा — पुराना काम करना बंद कर देगा।"
   },
   "history": {
     "dub_meta": "{{segments}} खंड · {{duration}} सेकंड",

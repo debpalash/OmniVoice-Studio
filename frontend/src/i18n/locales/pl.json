@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Token Przytulonej Twarzy został zapisany — pobieranie jest teraz szybsze",
     "hf_token_inline_prompt": "Przyspiesz pobieranie dzięki darmowemu tokenowi Przytulająca Twarz",
     "hf_token_inline_ph": "Wklej token hf_… (opcjonalnie)",
-    "hf_token_get_short": "Zdobądź jeden za darmo →"
+    "hf_token_get_short": "Zdobądź jeden za darmo →",
+    "hf_token_active_using": "Używa Twojego tokenu Hugging Face z {{source}} — {{masked}}",
+    "hf_token_replace": "Zastąp token…",
+    "hf_token_replace_warning": "To zastąpi powyższy token — stary przestanie działać."
   },
   "history": {
     "dub_meta": "{{segments}} segmentów · {{duration}} s",

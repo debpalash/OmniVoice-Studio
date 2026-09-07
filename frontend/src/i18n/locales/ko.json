@@ -2788,6 +2788,9 @@
     "hf_token_inline_prompt": "무료 Hugging Face 토큰으로 다운로드 속도를 높이세요",
     "hf_token_inline_ph": "hf_… 토큰 붙여넣기(선택 사항)",
     "hf_token_get_short": "하나를 무료로 받으세요 →",
+    "hf_token_active_using": "{{source}}의 Hugging Face 토큰을 사용 중입니다 — {{masked}}",
+    "hf_token_replace": "토큰 교체…",
+    "hf_token_replace_warning": "위의 토큰을 교체합니다 — 이전 토큰은 더 이상 작동하지 않습니다.",
     "lib_install_failed": "설치 실패: {{error}}",
     "lib_retry": "다시 시도"
   },

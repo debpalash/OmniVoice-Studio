@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "تم حفظ رمز Hugging Face - أصبحت التنزيلات الآن أسرع",
     "hf_token_inline_prompt": "قم بتسريع التنزيلات باستخدام رمز Hugging Face المميز المجاني",
     "hf_token_inline_ph": "الصق hf_... الرمز المميز (اختياري)",
-    "hf_token_get_short": "احصل على واحدة مجانًا →"
+    "hf_token_get_short": "احصل على واحدة مجانًا →",
+    "hf_token_active_using": "تستخدم رمز Hugging Face المميز الخاص بك من {{source}} — {{masked}}",
+    "hf_token_replace": "استبدال الرمز المميز…",
+    "hf_token_replace_warning": "سيؤدي هذا إلى استبدال الرمز المميز أعلاه — سيتوقف القديم عن العمل."
   },
   "history": {
     "dub_meta": "{{segments}} مقطعًا · {{duration}} ث",

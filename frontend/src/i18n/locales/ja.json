@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "ハグフェイストークンが保存されました — ダウンロードが速くなりました",
     "hf_token_inline_prompt": "無料の Hugging Face トークンでダウンロードを高速化",
     "hf_token_inline_ph": "hf_… トークンを貼り付けます (オプション)",
-    "hf_token_get_short": "1 つ無料で入手 →"
+    "hf_token_get_short": "1 つ無料で入手 →",
+    "hf_token_active_using": "{{source}} からの Hugging Face トークンを使用中 — {{masked}}",
+    "hf_token_replace": "トークンを置き換える…",
+    "hf_token_replace_warning": "これにより上記のトークンが置き換えられます。古いトークンは使用できなくなります。"
   },
   "history": {
     "dub_meta": "{{segments}} セグメント · {{duration}} 秒",

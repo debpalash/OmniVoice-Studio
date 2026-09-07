@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "擁抱臉部令牌已儲存 — 下載速度更快",
     "hf_token_inline_prompt": "使用免費的 Hugging Face 令牌加快下載速度",
     "hf_token_inline_ph": "貼上 hf_… 令牌（可選）",
-    "hf_token_get_short": "免費獲得一份 →"
+    "hf_token_get_short": "免費獲得一份 →",
+    "hf_token_active_using": "正在使用來自 {{source}} 的 Hugging Face 權杖 — {{masked}}",
+    "hf_token_replace": "更換權杖…",
+    "hf_token_replace_warning": "這將取代上方的權杖——舊權杖將停止運作。"
   },
   "history": {
     "dub_meta": "{{segments}} 個片段 · {{duration}} 秒",

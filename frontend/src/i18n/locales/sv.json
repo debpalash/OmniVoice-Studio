@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Hugging Face-token har sparats — nedladdningar går nu snabbare",
     "hf_token_inline_prompt": "Snabba upp nedladdningarna med ett gratis Hugging Face-token",
     "hf_token_inline_ph": "Klistra in hf_… token (valfritt)",
-    "hf_token_get_short": "Få en gratis →"
+    "hf_token_get_short": "Få en gratis →",
+    "hf_token_active_using": "Använder din Hugging Face-token från {{source}} — {{masked}}",
+    "hf_token_replace": "Ersätt token…",
+    "hf_token_replace_warning": "Detta ersätter token ovan — den gamla slutar fungera."
   },
   "history": {
     "dub_meta": "{{segments}} segment · {{duration}} s",

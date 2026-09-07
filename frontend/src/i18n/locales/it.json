@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "Token del volto abbracciato salvato: i download ora sono più veloci",
     "hf_token_inline_prompt": "Velocizza i download con un token Hugging Face gratuito",
     "hf_token_inline_ph": "Incolla il token hf_… (facoltativo)",
-    "hf_token_get_short": "Ottienine uno gratis →"
+    "hf_token_get_short": "Ottienine uno gratis →",
+    "hf_token_active_using": "Utilizzo del tuo token Hugging Face da {{source}} — {{masked}}",
+    "hf_token_replace": "Sostituisci token…",
+    "hf_token_replace_warning": "Questo sostituirà il token sopra — quello vecchio smetterà di funzionare."
   },
   "history": {
     "dub_meta": "{{segments}} segmenti · {{duration}} s",

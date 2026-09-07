@@ -2369,7 +2369,10 @@
     "hf_token_saved_fast": "บันทึกโทเค็น Hugging Face แล้ว - ตอนนี้การดาวน์โหลดเร็วขึ้น",
     "hf_token_inline_prompt": "เร่งความเร็วการดาวน์โหลดด้วยโทเค็น Hugging Face ฟรี",
     "hf_token_inline_ph": "วางโทเค็น hf_… (ไม่บังคับ)",
-    "hf_token_get_short": "รับฟรีหนึ่งรายการ →"
+    "hf_token_get_short": "รับฟรีหนึ่งรายการ →",
+    "hf_token_active_using": "กำลังใช้โทเค็น Hugging Face ของคุณจาก {{source}} — {{masked}}",
+    "hf_token_replace": "แทนที่โทเค็น…",
+    "hf_token_replace_warning": "การดำเนินการนี้จะแทนที่โทเค็นด้านบน — โทเค็นเดิมจะใช้งานไม่ได้อีกต่อไป"
   },
   "history": {
     "dub_meta": "{{segments}} เซกเมนต์ · {{duration}} วินาที",
