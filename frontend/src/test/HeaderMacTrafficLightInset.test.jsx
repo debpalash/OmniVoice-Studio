@@ -27,12 +27,24 @@ vi.mock('@tauri-apps/api/window', () => ({
   }),
 }));
 
+// Capture the original descriptor (inherited getter in jsdom, so this is
+// `undefined`) so afterEach can restore the real state instead of leaving
+// `navigator.platform` pinned to whichever test ran last — otherwise these
+// tests become order-dependent and can leak into any later test in this
+// file/environment that reads `navigator.platform`.
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
+
 function setPlatform(value) {
   Object.defineProperty(navigator, 'platform', { value, configurable: true });
 }
 
 afterEach(() => {
   delete window.__TAURI_INTERNALS__;
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(navigator, 'platform', originalPlatformDescriptor);
+  } else {
+    delete navigator.platform;
+  }
 });
 
 function renderHeader() {
