@@ -772,7 +772,7 @@ export default function LogsFooter() {
 
       {!collapsed && active === 'notifications' && (
         <div className="logs-footer__body flex flex-col gap-[2px] px-[8px] py-[6px] flex-1 min-h-0 overflow-y-auto select-text">
-          {notifications.length === 0 ? (
+          {notifications.length === 0 && mergedCounts.error === 0 && mergedCounts.warn === 0 ? (
             <div className="p-[12px] [color:var(--chrome-fg-dim)] not-italic text-[11px] text-center">
               {t('logs.all_clear')}
             </div>

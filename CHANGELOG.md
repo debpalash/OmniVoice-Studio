@@ -20,6 +20,8 @@ the frozen-backend fallback mirror it for their toolchains.
 
 ### Fixed
 
+- The logs panel no longer reports “All clear” while backend, frontend, or desktop logs contain warnings or errors (#1854) — thanks @motodriver!
+
 
 ## [0.5.2] — 2026-09-02
 
